@@ -96,12 +96,20 @@ router.get('/teknisi-pembayaran', checkRole(['teknisi', 'admin', 'owner', 'super
     res.render('sb-admin/teknisi-pembayaran.php');
 });
 
+router.get('/teknisi-kasbon', checkRole(['teknisi', 'admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/teknisi-kasbon.php');
+});
+
 router.get('/admin/teknisi-request-paket', checkRole(['admin', 'owner', 'superadmin', 'teknisi']), (req, res) => {
     res.render('sb-admin/teknisi-request-paket.php');
 });
 
 router.get('/teknisi-map-viewer', checkRole(['teknisi', 'admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/teknisi-map-viewer.php');
+});
+
+router.get('/teknisi-olt', checkRole(['teknisi', 'admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/teknisi-olt.php');
 });
 
 router.get('/teknisi-psb', checkRole(['teknisi', 'admin', 'owner', 'superadmin']), (req, res) => {
@@ -119,6 +127,31 @@ router.get('/teknisi-psb-setup', checkRole(['teknisi', 'admin', 'owner', 'supera
 // PSB Rekap page - ADMIN ONLY
 router.get('/psb-rekap', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/psb-rekap.php');
+});
+
+// Admin Kasbon page - ADMIN ONLY
+router.get('/admin-kasbon', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/admin-kasbon.php');
+});
+
+// Admin Diskon page - ADMIN ONLY
+router.get('/admin-diskon', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/admin-diskon.php');
+});
+
+// Rekap Keuangan page - ADMIN ONLY
+router.get('/rekap-keuangan', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/rekap-keuangan.php');
+});
+
+// Gaji Teknisi page - ADMIN ONLY
+router.get('/gaji-teknisi', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/gaji-teknisi.php');
+});
+
+// Rubah Paket Pelanggan page - ADMIN ONLY
+router.get('/rubah-paket', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/rubah-paket.php');
 });
 
 // Import MikroTik page - ADMIN ONLY

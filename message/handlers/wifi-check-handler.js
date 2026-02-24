@@ -8,30 +8,28 @@ const { getSSIDInfo } = require('../../lib/wifi');
 const { sleep } = require('../../lib/myfunc');
 const { getProfileBySubscription } = require('../../lib/myfunc');
 const { getONUInfo } = require('../../lib/wifi');
-const { findUserWithLidSupport } = require('../../lib/lid-handler');
 
 /**
  * Handle cek WiFi status
  */
 async function handleCekWifi({ sender, args, matchedKeywordLength, isOwner, isTeknisi, pushname, users, reply, global, mess, msg, raf }) {
-    // Auto-detect phone number from @lid using remoteJidAlt (Baileys v7)
-    let plainSenderNumber = sender.split('@')[0];
-    
-    // Check remoteJidAlt first for @lid format (auto-detection)
-    if (sender.includes('@lid') && msg && msg.key && msg.key.remoteJidAlt) {
+    let plainSenderNumber = sender.split('@')[0].split(':')[0];
+
+    // Check if @lid and try to get real phone for logging
+    if (sender.endsWith('@lid') && msg?.key?.remoteJidAlt) {
         plainSenderNumber = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
         console.log('[CEK_WIFI] Auto-detected phone from remoteJidAlt:', plainSenderNumber);
     }
-    
+
     let user;
     let searchMode = 'direct'; // 'direct', 'by_id', 'by_name'
     let searchQuery = null;
     let providedId = null;
-    
+
     // Use matchedKeywordLength to determine where the actual arguments start
     // Example: "cek wifi 10" -> keyword is "cek wifi" (2 words), so ID is at args[2]
     const keywordLength = matchedKeywordLength || 2; // Default to 2 for "cek wifi"
-    
+
     // Debug logging
     console.log('[CEK_WIFI_DEBUG] Sender:', sender);
     console.log('[CEK_WIFI_DEBUG] PlainSenderNumber:', plainSenderNumber);
@@ -40,35 +38,55 @@ async function handleCekWifi({ sender, args, matchedKeywordLength, isOwner, isTe
     console.log('[CEK_WIFI_DEBUG] Args:', args);
     console.log('[CEK_WIFI_DEBUG] matchedKeywordLength:', matchedKeywordLength);
     console.log('[CEK_WIFI_DEBUG] keywordLength:', keywordLength);
-    
+
     // Priority 1: Admin/Teknisi providing an ID
     if ((isOwner || isTeknisi) && args.length > keywordLength && !isNaN(parseInt(args[keywordLength], 10))) {
         searchMode = 'by_id';
         providedId = args[keywordLength];
         user = users.find(v => v.id == providedId);
         console.log('[CEK_WIFI_DEBUG] Search by ID:', providedId, 'Found:', !!user);
-    } 
+    }
     // Priority 2: Admin/Teknisi providing a name to search
     else if ((isOwner || isTeknisi) && args.length > keywordLength && isNaN(parseInt(args[keywordLength], 10))) {
         searchMode = 'by_name';
         searchQuery = args.slice(keywordLength).join(' ').toLowerCase().trim();
         user = users.find(v => v.name && v.name.toLowerCase().includes(searchQuery));
         console.log('[CEK_WIFI_DEBUG] Search by name:', searchQuery, 'Found:', !!user);
-    }
-    // Priority 3 (Fallback): Find by WhatsApp sender number (with @lid support)
-    else {
-        // Use the new lid-handler to find user (supports @lid format)
-        user = await findUserWithLidSupport(users, msg, plainSenderNumber, raf);
-        
+    } else {
+        let optionalJid = null;
+        if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
+            optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
+            plainSenderNumber = optionalJid;
+        } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
+            optionalJid = msg.participant.split('@')[0].split(':')[0];
+            plainSenderNumber = optionalJid;
+        }
+
+        user = global.users.find(u => {
+            if (u.lid && u.lid === sender) return true;
+            if (!u.phone_number) return false;
+            const phones = u.phone_number.split('|').map(p => p.trim());
+            return phones.some(phone => {
+                if (phone === plainSenderNumber || phone === sender) return true;
+                let pClean = phone.replace(/[^0-9]/g, '');
+                let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
+                if (pClean.startsWith('62')) pClean = pClean.substring(2);
+                if (pClean.startsWith('0')) pClean = pClean.substring(1);
+                if (sClean.startsWith('62')) sClean = sClean.substring(2);
+                if (sClean.startsWith('0')) sClean = sClean.substring(1);
+                return pClean === sClean;
+            });
+        });
+
         console.log('[CEK_WIFI_DEBUG] Search by phone/LID:', plainSenderNumber, 'Found:', !!user);
-        
+
         // Additional debug if not found
         if (!user && plainSenderNumber) {
             console.log('[CEK_WIFI_DEBUG] No user found for phone/LID:', plainSenderNumber);
             console.log('[CEK_WIFI_DEBUG] Sender format:', sender);
-            
+
             // Check if it's @lid format - no manual verification needed
-            if (sender.includes('@lid')) {
+            if (sender.endsWith('@lid')) {
                 console.log('[CEK_WIFI_DEBUG] This is @lid format - user not registered');
                 return reply(`❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`);
             }
@@ -77,7 +95,7 @@ async function handleCekWifi({ sender, args, matchedKeywordLength, isOwner, isTe
 
     if (!user) {
         let errorMessage;
-        
+
         if (isOwner || isTeknisi) {
             if (providedId) {
                 errorMessage = `Maaf, Kak. Pelanggan dengan ID "${providedId}" tidak ditemukan.`;
@@ -101,7 +119,7 @@ async function handleCekWifi({ sender, args, matchedKeywordLength, isOwner, isTe
             // Regular user not registered
             errorMessage = mess.userNotRegister || "Maaf, nomor Anda belum terdaftar sebagai pelanggan. Silakan hubungi admin untuk mendaftar.";
         }
-        
+
         return reply(errorMessage);
     }
 
@@ -166,14 +184,14 @@ async function handleCekWifi({ sender, args, matchedKeywordLength, isOwner, isTe
                 let devicesConnectedText = "  Tidak ada perangkat terhubung ke SSID ini.";
                 if (s_item.associatedDevices && s_item.associatedDevices.length > 0) {
                     devicesConnectedText = `  *Daftar Perangkat Terhubung (${s_item.associatedDevices.length}):*\n` +
-                          s_item.associatedDevices.map((d, index) =>
-                              `    ${index + 1}. ${d.hostName || "Tanpa Nama"} (IP: ${d.ip || "-"}) Sinyal: ${d.signal ? d.signal + " dBm" : "-"}`
-                          ).join("\n");
+                        s_item.associatedDevices.map((d, index) =>
+                            `    ${index + 1}. ${d.hostName || "Tanpa Nama"} (IP: ${d.ip || "-"}) Sinyal: ${d.signal ? d.signal + " dBm" : "-"}`
+                        ).join("\n");
                 }
 
                 return `📶 *Detail SSID: "${s_item.name || 'N/A'}"* ${ssidIdentifier}\n` +
-                       `   ⚡ *Transmit Power:* ${s_item.transmitPower ? s_item.transmitPower + "%" : "Tidak Terbaca"}\n` +
-                       `${devicesConnectedText}`;
+                    `   ⚡ *Transmit Power:* ${s_item.transmitPower ? s_item.transmitPower + "%" : "Tidak Terbaca"}\n` +
+                    `${devicesConnectedText}`;
             }).join("\n\n-----------------------------------\n");
         } else {
             ssidInfoText = "Informasi SSID tidak tersedia atau tidak dapat diambil untuk konfigurasi Anda saat ini.";
@@ -187,7 +205,7 @@ async function handleCekWifi({ sender, args, matchedKeywordLength, isOwner, isTe
 
         await reply(messageReply);
 
-    } catch(e) {
+    } catch (e) {
         console.error(`[CEK_WIFI_ERROR] Gagal mengambil info WiFi untuk ${user.name} (Device ID: ${user.device_id}):`, e);
 
         let userFriendlyError = `*MAAF, TERJADI KESALAHAN!* 😟\n\nTidak dapat mengambil informasi modem untuk pelanggan "${user.name || 'ini'}" saat ini.\nKemungkinan penyebab:\n- Modem sedang offline atau tidak terjangkau.\n- Ada gangguan pada sistem pemantauan.`;

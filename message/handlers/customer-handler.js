@@ -22,26 +22,33 @@ function handleCheckBill({ user, pushname }) {
             };
         }
 
-        const paymentStatus = user.paid ? '✅ Sudah Bayar' : '❌ Belum Bayar';
         const packageName = user.subscription || user.package || 'N/A';
         
-        // Get package price
+        // Get package info and check if whitelist
         let packagePrice = 'N/A';
+        let isWhitelistUser = false;
         if (global.packages && Array.isArray(global.packages)) {
             const packageData = global.packages.find(p => p.name === packageName);
-            if (packageData && packageData.price) {
-                packagePrice = convertRupiah.convert(packageData.price);
+            if (packageData) {
+                if (packageData.price) {
+                    packagePrice = convertRupiah.convert(packageData.price);
+                }
+                isWhitelistUser = packageData.whitelist === true;
             }
         }
+        
+        // For whitelist users, always show as "Gratis" (free)
+        const paymentStatus = isWhitelistUser ? '🆓 Gratis' : (user.paid ? '✅ Sudah Bayar' : '❌ Belum Bayar');
 
         let message = `📋 *Informasi Tagihan Anda*\n\n`;
         message += `Halo *${pushname}*,\n\n`;
         message += `👤 *Nama:* ${user.name}\n`;
         message += `📦 *Paket:* ${packageName}\n`;
-        message += `💰 *Biaya:* ${packagePrice}\n`;
+        message += `💰 *Biaya:* ${isWhitelistUser ? 'Gratis' : packagePrice}\n`;
         message += `📅 *Status Pembayaran:* ${paymentStatus}\n`;
 
-        if (!user.paid) {
+        // Skip payment warning for whitelist users (they are free)
+        if (!isWhitelistUser && !user.paid) {
             message += `\n⚠️ *Perhatian:*\n`;
             message += `Tagihan Anda belum dibayar. Mohon segera melakukan pembayaran untuk menghindari pemutusan layanan.\n\n`;
             message += `💳 *Cara Pembayaran:*\n`;
@@ -49,6 +56,8 @@ function handleCheckBill({ user, pushname }) {
             message += `• E-Wallet (Dana/OVO/GoPay)\n`;
             message += `• Datang langsung ke kantor\n\n`;
             message += `Hubungi admin jika sudah melakukan pembayaran.`;
+        } else if (isWhitelistUser) {
+            message += `\n🎁 Anda menggunakan paket gratis. Terima kasih telah menggunakan layanan kami!`;
         } else {
             message += `\n✅ Tagihan Anda sudah lunas. Terima kasih atas pembayarannya!`;
         }

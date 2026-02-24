@@ -35,6 +35,15 @@ process.on('SIGTERM', async () => {
     console.log('📴 SIGTERM received, shutting down gracefully...');
     
     try {
+        // Stop OLT Log Scraper
+        try {
+            const oltLogScraper = require('./lib/olt-log-scraper');
+            oltLogScraper.stopScraper();
+            console.log('   Stopping OLT log scraper...');
+        } catch (err) {
+            // Ignore if not loaded
+        }
+        
         if (global.sock && typeof global.sock.logout === 'function') {
             console.log('   Closing WhatsApp connection...');
             await global.sock.logout();
@@ -123,6 +132,7 @@ const msgHandler = require('./message/raf');
 const ErrorRecovery = require('./lib/error-recovery');
 const MonitoringService = require('./lib/monitoring-service');
 const AlertSystem = require('./lib/alert-system');
+const oltLogScraper = require('./lib/olt-log-scraper');
 
 global.errorRecovery = new ErrorRecovery();
 global.monitoring = new MonitoringService();
@@ -455,6 +465,15 @@ const pagesRouter = require('./routes/pages');
 const monitoringRouter = require('./routes/monitoring-dashboard');
 const monitoringDummyRouter = require('./routes/monitoring-dummy');
 const monitoringApiRouter = require('./routes/monitoring-api');
+// New feature routes
+const kasbonRouter = require('./routes/kasbon');
+const partialPaymentRouter = require('./routes/partial-payment');
+const discountRouter = require('./routes/discount');
+const changePackageRouter = require('./routes/change-package');
+const messageTemplatesRouter = require('./routes/message-templates');
+const rekapKeuanganRouter = require('./routes/rekap-keuangan');
+const gajiRouter = require('./routes/gaji');
+const oltRouter = require('./routes/olt'); // OLT HIOSO monitoring
 
 // Mount routers - ORDER MATTERS!
 // More specific routes should come before general ones
@@ -465,6 +484,15 @@ app.use('/api/requests', requestsRouter);
 app.use('/api/users', usersRouter); // Mount this BEFORE general /api to avoid conflicts
 app.use('/api/saldo', saldoRouter); // Mount BEFORE general /api routes
 app.use('/api/agents', agentsRouter); // Agent management routes
+// New feature routes
+app.use('/api/kasbon', kasbonRouter); // Kasbon teknisi
+app.use('/api/gaji', gajiRouter); // Gaji teknisi
+app.use('/api/partial-payment', partialPaymentRouter); // Partial payment
+app.use('/api/discount', discountRouter); // Discount pelanggan
+app.use('/api/change-package', changePackageRouter); // Ganti paket pelanggan
+app.use('/api/message-templates', messageTemplatesRouter); // Message templates management
+app.use('/api/rekap-keuangan', rekapKeuanganRouter); // Rekap keuangan / laporan pembayaran
+app.use('/api/olt', oltRouter); // OLT HIOSO monitoring
 // Monitoring routes - use API router for PHP endpoints
 app.use('/api/monitoring', monitoringApiRouter); // PHP monitoring endpoints
 // app.use('/api/monitoring', monitoringRouter); // Node.js monitoring routes (disabled)
@@ -578,6 +606,13 @@ async function startApp() {
         // Initialize topup expiry checker
         const { initTopupExpiryChecker } = require('./lib/topup-expiry');
         initTopupExpiryChecker();
+        
+        // Start OLT Log Scraper untuk deteksi LOS/Dying Gasp
+        try {
+            oltLogScraper.startScraper();
+        } catch (err) {
+            console.error('[OLT-Scraper] Failed to start:', err.message);
+        }
     }).catch(err => {
         console.error('[DATABASE] Failed to initialize database:', err);
     });    

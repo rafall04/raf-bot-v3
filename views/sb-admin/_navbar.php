@@ -58,16 +58,20 @@ function isParentActive($pages, $current) {
 
     <hr class="sidebar-divider">
 
-    <li class="nav-item <?php echo isParentActive(['/users', '/packages', '/package-requests', '/import-mikrotik', '/buka-isolir', '/sync-device-id'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePelanggan" aria-expanded="<?php echo isParentActive(['/users', '/packages', '/package-requests', '/import-mikrotik', '/buka-isolir', '/sync-device-id'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePelanggan">
+    <li class="nav-item <?php echo isParentActive(['/users', '/packages', '/package-requests', '/import-mikrotik', '/buka-isolir', '/sync-device-id', '/rubah-paket'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePelanggan" aria-expanded="<?php echo isParentActive(['/users', '/packages', '/package-requests', '/import-mikrotik', '/buka-isolir', '/sync-device-id', '/rubah-paket'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePelanggan">
             <i class="fas fa-fw fa-users"></i>
             <span>Pelanggan</span>
         </a>
-        <div id="collapsePelanggan" class="collapse <?php echo isParentActive(['/users', '/packages', '/package-requests', '/import-mikrotik', '/buka-isolir', '/sync-device-id'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPelanggan" data-parent="#accordionSidebar">
+        <div id="collapsePelanggan" class="collapse <?php echo isParentActive(['/users', '/packages', '/package-requests', '/import-mikrotik', '/buka-isolir', '/sync-device-id', '/rubah-paket'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPelanggan" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/users', $current_page) ? 'active' : ''; ?>" href="/users">
                     <i class="fas fa-fw fa-user mr-2"></i>
                     <span>Data Pelanggan</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/rubah-paket', $current_page) ? 'active' : ''; ?>" href="/rubah-paket">
+                    <i class="fas fa-fw fa-exchange-alt mr-2"></i>
+                    <span>Rubah Paket</span>
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/import-mikrotik', $current_page) ? 'active' : ''; ?>" href="/import-mikrotik">
                     <i class="fas fa-fw fa-file-import mr-2"></i>
@@ -93,12 +97,12 @@ function isParentActive($pages, $current) {
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/payment-status', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePembayaran" aria-expanded="<?php echo isParentActive(['/payment-status', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePembayaran">
+    <li class="nav-item <?php echo isParentActive(['/payment-status', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePembayaran" aria-expanded="<?php echo isParentActive(['/payment-status', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePembayaran">
             <i class="fas fa-fw fa-money-bill-wave"></i>
             <span>Pembayaran</span>
         </a>
-        <div id="collapsePembayaran" class="collapse <?php echo isParentActive(['/payment-status', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPembayaran" data-parent="#accordionSidebar">
+        <div id="collapsePembayaran" class="collapse <?php echo isParentActive(['/payment-status', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPembayaran" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/payment-status', $current_page) ? 'active' : ''; ?>" href="/payment-status">
                     <i class="fas fa-fw fa-money-check-alt mr-2"></i>
@@ -123,6 +127,22 @@ function isParentActive($pages, $current) {
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/pembayaran/otorisasi', $current_page) ? 'active' : ''; ?>" href="/pembayaran/otorisasi">
                     <i class="fas fa-fw fa-user-shield mr-2"></i>
                     <span>Otorisasi Pembayaran</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/admin-kasbon', $current_page) ? 'active' : ''; ?>" href="/admin-kasbon">
+                    <i class="fas fa-fw fa-hand-holding-usd mr-2"></i>
+                    <span>Kasbon Teknisi</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/gaji-teknisi', $current_page) ? 'active' : ''; ?>" href="/gaji-teknisi">
+                    <i class="fas fa-fw fa-money-bill-wave mr-2"></i>
+                    <span>Gaji Teknisi</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/admin-diskon', $current_page) ? 'active' : ''; ?>" href="/admin-diskon">
+                    <i class="fas fa-fw fa-tags mr-2"></i>
+                    <span>Diskon Pelanggan</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/rekap-keuangan', $current_page) ? 'active' : ''; ?>" href="/rekap-keuangan">
+                    <i class="fas fa-fw fa-chart-line mr-2"></i>
+                    <span>Rekap Keuangan</span>
                 </a>
             </div>
         </div>

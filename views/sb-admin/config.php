@@ -82,7 +82,7 @@
           </div>
 
           <!-- DataTales Example -->
-          <form id="configForm">
+          <form id="configForm" method="POST" onsubmit="return false;">
             <!-- Table Section -->
           <h4 class="dashboard-section-title">Konfigurasi Wifi & Bot</h4>
           <div class="card table-card mb-4">
@@ -344,6 +344,119 @@
               </div>
             </div>
 
+            <!-- OLT HIOSO Configuration -->
+            <h4 class="dashboard-section-title">Konfigurasi OLT HIOSO</h4>
+            
+            <!-- Global OLT Settings -->
+            <div class="card table-card mb-4">
+              <div class="card-header">
+                <h6>Pengaturan Global OLT</h6>
+              </div>
+              <div class="card-body">
+                <div class="alert alert-info">
+                  <i class="fas fa-info-circle"></i> 
+                  <strong>Informasi OLT HIOSO:</strong>
+                  <p class="mb-0 mt-2">Konfigurasi ini digunakan untuk mengambil data redaman (RX Power), status ONT, Dying Gasp, dan LOS dari OLT HIOSO via SNMP. Data akan ditampilkan di halaman Pelanggan Teknisi.</p>
+                </div>
+                
+                <div class="mb-3">
+                  <label for="oltEnabled" class="form-label">Status OLT</label>
+                  <select class="form-control" id="oltEnabled" name="oltEnabled">
+                    <option value="true">Aktif</option>
+                    <option value="false">Nonaktif</option>
+                  </select>
+                  <small class="form-text text-muted">Aktifkan untuk mengambil data dari OLT HIOSO</small>
+                </div>
+                
+                <hr class="my-4">
+                <h6 class="text-primary mb-3"><i class="fas fa-globe"></i> Deteksi LOS/Dying Gasp (Web Scraping)</h6>
+                <div class="alert alert-warning">
+                  <i class="fas fa-exclamation-triangle"></i> 
+                  <strong>Fitur Deteksi LOS/Dying Gasp:</strong>
+                  <p class="mb-0 mt-2">Sistem akan scrape log dari web interface OLT untuk mendeteksi perbedaan antara LOS (fiber putus) dan Dying Gasp (adaptor mati). Pastikan kredensial web OLT sudah benar di setiap device.</p>
+                </div>
+                
+                <div class="mb-3">
+                  <label for="oltWebEnabled" class="form-label">Aktifkan Deteksi LOS/Dying Gasp</label>
+                  <select class="form-control" id="oltWebEnabled" name="oltWebEnabled">
+                    <option value="false">Nonaktif</option>
+                    <option value="true">Aktif</option>
+                  </select>
+                  <small class="form-text text-muted">Aktifkan untuk scrape log OLT dan deteksi LOS/Dying Gasp secara akurat</small>
+                </div>
+                
+                <div class="mb-3">
+                  <label for="oltTimeWindow" class="form-label">Time Window (menit)</label>
+                  <input type="number" class="form-control" id="oltTimeWindow" placeholder="10" min="1" max="60" />
+                  <small class="form-text text-muted">
+                    Hanya proses log dalam X menit terakhir. Berguna untuk OLT yang waktu nya tidak sinkron. 
+                    Default: 10 menit.
+                  </small>
+                </div>
+                
+                <div class="mb-3">
+                  <label for="oltScrapeInterval" class="form-label">Interval Scraping (menit)</label>
+                  <input type="number" class="form-control" id="oltScrapeInterval" placeholder="1" min="1" max="60" />
+                  <small class="form-text text-muted">
+                    Seberapa sering scraper mengambil log dari OLT. Default: 1 menit. 
+                    Semakin kecil interval, semakin cepat deteksi tapi lebih banyak request ke OLT.
+                  </small>
+                </div>
+                
+                <div class="mb-3">
+                  <label for="oltMaxLogPages" class="form-label">Max Log Pages</label>
+                  <input type="number" class="form-control" id="oltMaxLogPages" placeholder="3" min="1" max="10" />
+                  <small class="form-text text-muted">
+                    Berapa halaman log yang akan di-scrape. Default: 3 halaman. 
+                    Berguna saat mati listrik massal agar semua log terdeteksi. 1 page ≈ 15-20 log.
+                  </small>
+                </div>
+                
+                <div class="mb-3">
+                  <button type="button" class="btn btn-warning btn-sm" id="debugScrapeBtn">
+                    <i class="fas fa-bug"></i> Debug Scrape Log
+                  </button>
+                  <small class="text-muted ml-2">
+                    Trigger manual scraping untuk melihat log detail di console browser dan server.
+                  </small>
+                </div>
+                
+                <div class="d-flex justify-content-end">
+                  <button type="button" class="btn btn-primary" id="saveOltGlobalConfigBtn">
+                    <i class="fas fa-save"></i> Simpan Pengaturan Global
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <!-- OLT Devices List -->
+            <div class="card table-card mb-4">
+              <div class="card-header">
+                <h6>Daftar Perangkat OLT</h6>
+              </div>
+              <div class="card-body">
+                <button class="btn btn-primary mb-3" data-toggle="modal" data-target="#oltDeviceModal" id="addOltDeviceBtn">
+                  <i class="fas fa-plus"></i> Tambah OLT
+                </button>
+                <div class="table-responsive">
+                  <table class="table table-bordered" id="oltDevicesTable" width="100%" cellspacing="0">
+                    <thead>
+                      <tr>
+                        <th>Nama</th>
+                        <th>IP Address</th>
+                        <th>SNMP Port</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
             <div class="d-flex w-100 mb-4" style="justify-content: end;">
               <button type="submit" class="btn btn-primary">Simpan Semua Konfigurasi</button>
             </div>
@@ -430,6 +543,94 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
         <button type="button" class="btn btn-primary" id="saveMikrotikDeviceBtn">Simpan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- OLT Device Modal -->
+<div class="modal fade" id="oltDeviceModal" tabindex="-1" role="dialog" aria-labelledby="oltDeviceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="oltDeviceModalLabel">Tambah Perangkat OLT</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="oltDeviceForm">
+          <input type="hidden" id="oltDeviceId" name="id">
+          
+          <h6 class="text-primary mb-3"><i class="fas fa-info-circle"></i> Informasi Dasar</h6>
+          <div class="form-group">
+            <label for="oltDeviceName">Nama OLT</label>
+            <input type="text" class="form-control" id="oltDeviceName" name="name" placeholder="OLT Pusat" required>
+            <small class="form-text text-muted">Nama untuk identifikasi OLT (contoh: OLT Pusat, OLT Cabang A)</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="oltDeviceHost">IP Address</label>
+            <input type="text" class="form-control" id="oltDeviceHost" name="host" placeholder="192.168.1.100" required>
+            <small class="form-text text-muted">Alamat IP OLT HIOSO</small>
+          </div>
+          
+          <hr class="my-4">
+          <h6 class="text-primary mb-3"><i class="fas fa-network-wired"></i> Konfigurasi SNMP</h6>
+          
+          <div class="form-group">
+            <label for="oltDeviceSnmpPort">Port SNMP</label>
+            <input type="number" class="form-control" id="oltDeviceSnmpPort" name="snmpPort" placeholder="161" value="161">
+            <small class="form-text text-muted">Port SNMP OLT (default: 161)</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="oltDeviceSnmpCommunity">SNMP Community</label>
+            <input type="text" class="form-control" id="oltDeviceSnmpCommunity" name="snmpCommunity" placeholder="public" value="public">
+            <small class="form-text text-muted">SNMP Community string (default: public)</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="oltDeviceSnmpTimeout">Timeout (ms)</label>
+            <input type="number" class="form-control" id="oltDeviceSnmpTimeout" name="snmpTimeout" placeholder="30000" value="30000">
+            <small class="form-text text-muted">Timeout koneksi SNMP dalam milidetik (default: 30000)</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="oltDeviceSnmpRetries">Retries</label>
+            <input type="number" class="form-control" id="oltDeviceSnmpRetries" name="snmpRetries" placeholder="2" value="2">
+            <small class="form-text text-muted">Jumlah retry jika koneksi gagal (default: 2)</small>
+          </div>
+          
+          <hr class="my-4">
+          <h6 class="text-primary mb-3"><i class="fas fa-globe"></i> Kredensial Web Interface</h6>
+          
+          <div class="form-group">
+            <label for="oltDeviceWebUsername">Username Web</label>
+            <input type="text" class="form-control" id="oltDeviceWebUsername" name="webUsername" placeholder="admin">
+            <small class="form-text text-muted">Username untuk login ke web interface OLT (untuk scraping log)</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="oltDeviceWebPassword">Password Web</label>
+            <input type="password" class="form-control" id="oltDeviceWebPassword" name="webPassword" placeholder="********">
+            <small class="form-text text-muted">Password untuk login ke web interface OLT</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="oltDeviceEnabled">Status</label>
+            <select class="form-control" id="oltDeviceEnabled" name="enabled">
+              <option value="true">Aktif</option>
+              <option value="false">Nonaktif</option>
+            </select>
+            <small class="form-text text-muted">Nonaktifkan untuk sementara melewati OLT ini tanpa menghapus konfigurasi</small>
+          </div>
+
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+        <button type="button" class="btn btn-primary" id="saveOltDeviceBtn">Simpan</button>
       </div>
     </div>
   </div>
@@ -975,7 +1176,398 @@ a.n ${account.name || '[Nama]'}</small>
     // Load Telegram config when page loads
     document.addEventListener('DOMContentLoaded', function() {
       loadTelegramConfig();
+      loadOltConfig();
     });
+    
+    // =====================================================
+    // OLT HIOSO CONFIGURATION
+    // =====================================================
+    
+    // Load OLT config on page load
+    function loadOltConfig() {
+      fetch('/api/olt/config', { credentials: 'include' })
+        .then(res => res.json())
+        .then(json => {
+          if (json.status === 200 && json.data) {
+            document.getElementById('oltEnabled').value = json.data.enabled ? 'true' : 'false';
+            document.getElementById('oltHost').value = json.data.host || '';
+            document.getElementById('oltPort').value = json.data.port || 161;
+            document.getElementById('oltCommunity').value = json.data.community || 'public';
+            document.getElementById('oltTimeout').value = json.data.timeout || 15000;
+            // Web OLT config
+            document.getElementById('oltWebEnabled').value = json.data.webEnabled ? 'true' : 'false';
+            document.getElementById('oltWebUsername').value = json.data.webUsername || '';
+            document.getElementById('oltWebPassword').value = json.data.webPassword || '';
+            document.getElementById('oltTimeWindow').value = json.data.timeWindow || 10;
+            document.getElementById('oltScrapeInterval').value = json.data.scrapeInterval || 1;
+            document.getElementById('oltMaxLogPages').value = json.data.maxLogPages || 3;
+          }
+        })
+        .catch(err => {
+          console.error('Error loading OLT config:', err);
+        });
+    }
+    
+    // ============================================
+    // OLT CONFIGURATION - MULTIPLE OLT SUPPORT
+    // ============================================
+    
+    // Save OLT Global Config
+    document.getElementById('saveOltGlobalConfigBtn').addEventListener('click', function() {
+      const btn = this;
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Menyimpan...';
+      
+      const data = {
+        enabled: document.getElementById('oltEnabled').value === 'true',
+        webEnabled: document.getElementById('oltWebEnabled').value === 'true',
+        timeWindow: parseInt(document.getElementById('oltTimeWindow').value) || 10,
+        scrapeInterval: parseInt(document.getElementById('oltScrapeInterval').value) || 1,
+        maxLogPages: parseInt(document.getElementById('oltMaxLogPages').value) || 3
+      };
+      
+      fetch('/api/olt/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data)
+      })
+      .then(res => res.json())
+      .then(result => {
+        if (result.status === 200) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Berhasil!',
+            text: result.message,
+            timer: 2000,
+            showConfirmButton: false
+          });
+        } else {
+          throw new Error(result.message);
+        }
+      })
+      .catch(err => {
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal',
+          text: err.message || 'Terjadi kesalahan saat menyimpan konfigurasi OLT'
+        });
+      })
+      .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      });
+    });
+    
+    // Debug Scrape Log
+    document.getElementById('debugScrapeBtn').addEventListener('click', function() {
+      const btn = this;
+      const originalText = btn.innerHTML;
+      
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Scraping...';
+      
+      console.log('[OLT Debug] Starting manual scrape...');
+      
+      fetch('/api/olt/scrape-now', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      })
+      .then(res => res.json())
+      .then(result => {
+        console.log('[OLT Debug] Scrape result:', result);
+        
+        if (result.status === 200) {
+          const eventCount = Object.keys(result.data.events || {}).length;
+          
+          // Show events in console
+          console.log('[OLT Debug] Events:', result.data.events);
+          console.log('[OLT Debug] Scraper Status:', result.data.scraperStatus);
+          
+          // Show alert with summary
+          Swal.fire({
+            icon: 'info',
+            title: 'Debug Scrape Selesai',
+            html: `
+              <div class="text-left">
+                <p><strong>Events ditemukan:</strong> ${eventCount}</p>
+                <p><strong>Last scrape:</strong> ${result.data.scraperStatus.lastScrapeTime || 'N/A'}</p>
+                <p><strong>Status:</strong> ${result.data.scraperStatus.running ? 'Running' : 'Stopped'}</p>
+                <hr>
+                <p class="text-muted small">Cek console browser (F12) dan server log untuk detail lengkap.</p>
+              </div>
+            `
+          });
+        } else {
+          throw new Error(result.message);
+        }
+      })
+      .catch(err => {
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal',
+          text: err.message || 'Terjadi kesalahan saat scraping'
+        });
+      })
+      .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      });
+    });
+    
+    // ============================================
+    // OLT DEVICES MANAGEMENT
+    // ============================================
+    
+    const oltDevicesTable = document.getElementById('oltDevicesTable').getElementsByTagName('tbody')[0];
+    const oltDeviceModal = $('#oltDeviceModal');
+    const oltDeviceForm = document.getElementById('oltDeviceForm');
+    const saveOltDeviceBtn = document.getElementById('saveOltDeviceBtn');
+    
+    // Load OLT devices
+    function loadOltDevices() {
+      console.log('[OLT] Loading OLT devices...');
+      
+      fetch('/api/olt/devices', { credentials: 'include' })
+        .then(res => {
+          console.log('[OLT] Response status:', res.status);
+          return res.json();
+        })
+        .then(result => {
+          console.log('[OLT] Response data:', result);
+          
+          if (result.status === 200 && result.data) {
+            const devices = result.data.devices || [];
+            const globalConfig = result.data.globalConfig || {};
+            
+            console.log('[OLT] Devices:', devices);
+            console.log('[OLT] Global config:', globalConfig);
+            
+            // Update global config fields
+            document.getElementById('oltEnabled').value = globalConfig.enabled ? 'true' : 'false';
+            document.getElementById('oltWebEnabled').value = globalConfig.webEnabled ? 'true' : 'false';
+            document.getElementById('oltTimeWindow').value = globalConfig.timeWindow || 10;
+            document.getElementById('oltScrapeInterval').value = globalConfig.scrapeInterval || 1;
+            document.getElementById('oltMaxLogPages').value = globalConfig.maxLogPages || 3;
+            
+            // Populate table
+            oltDevicesTable.innerHTML = '';
+            
+            if (devices.length === 0) {
+              const row = oltDevicesTable.insertRow();
+              row.innerHTML = '<td colspan="5" class="text-center text-muted">Belum ada perangkat OLT. Klik "Tambah OLT" untuk menambahkan.</td>';
+              console.log('[OLT] No devices found');
+            } else {
+              devices.forEach(device => {
+                console.log('[OLT] Adding device to table:', device);
+                const row = oltDevicesTable.insertRow();
+                row.innerHTML = `
+                  <td>${device.name}</td>
+                  <td>${device.host}</td>
+                  <td>${device.snmpPort || 161}</td>
+                  <td>
+                    ${device.enabled !== false ? 
+                      '<span class="badge badge-success">Aktif</span>' : 
+                      '<span class="badge badge-secondary">Nonaktif</span>'}
+                  </td>
+                  <td>
+                    <button class="btn btn-sm btn-info test-olt-device" data-id="${device.id}">
+                      <i class="fas fa-plug"></i> Test
+                    </button>
+                    <button class="btn btn-sm btn-warning edit-olt-device" data-id="${device.id}">
+                      <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-sm btn-danger delete-olt-device" data-id="${device.id}">
+                      <i class="fas fa-trash"></i> Hapus
+                    </button>
+                  </td>
+                `;
+              });
+              
+              console.log('[OLT] Added', devices.length, 'devices to table');
+            }
+            
+            // Attach event listeners
+            document.querySelectorAll('.test-olt-device').forEach(btn => {
+              btn.addEventListener('click', function() {
+                testOltDevice(this.dataset.id);
+              });
+            });
+            
+            document.querySelectorAll('.edit-olt-device').forEach(btn => {
+              btn.addEventListener('click', function() {
+                editOltDevice(this.dataset.id);
+              });
+            });
+            
+            document.querySelectorAll('.delete-olt-device').forEach(btn => {
+              btn.addEventListener('click', function() {
+                deleteOltDevice(this.dataset.id);
+              });
+            });
+          } else {
+            console.error('[OLT] Invalid response:', result);
+            Swal.fire('Error', 'Gagal memuat data OLT devices', 'error');
+          }
+        })
+        .catch(err => {
+          console.error('[OLT] Error loading OLT devices:', err);
+          Swal.fire('Error', 'Gagal memuat data OLT devices: ' + err.message, 'error');
+        });
+    }
+    
+    // Add OLT device button
+    document.getElementById('addOltDeviceBtn').addEventListener('click', function() {
+      oltDeviceForm.reset();
+      document.getElementById('oltDeviceId').value = '';
+      document.getElementById('oltDeviceSnmpPort').value = '161';
+      document.getElementById('oltDeviceSnmpCommunity').value = 'public';
+      document.getElementById('oltDeviceSnmpTimeout').value = '30000';
+      document.getElementById('oltDeviceSnmpRetries').value = '2';
+      document.getElementById('oltDeviceEnabled').value = 'true';
+      oltDeviceModal.find('.modal-title').text('Tambah Perangkat OLT');
+    });
+    
+    // Save OLT device
+    saveOltDeviceBtn.addEventListener('click', function() {
+      const deviceId = document.getElementById('oltDeviceId').value;
+      const isEdit = deviceId !== '';
+      
+      const data = {
+        name: document.getElementById('oltDeviceName').value.trim(),
+        host: document.getElementById('oltDeviceHost').value.trim(),
+        snmpPort: parseInt(document.getElementById('oltDeviceSnmpPort').value) || 161,
+        snmpCommunity: document.getElementById('oltDeviceSnmpCommunity').value.trim() || 'public',
+        snmpTimeout: parseInt(document.getElementById('oltDeviceSnmpTimeout').value) || 30000,
+        snmpRetries: parseInt(document.getElementById('oltDeviceSnmpRetries').value) || 2,
+        webUsername: document.getElementById('oltDeviceWebUsername').value.trim(),
+        webPassword: document.getElementById('oltDeviceWebPassword').value,
+        enabled: document.getElementById('oltDeviceEnabled').value === 'true'
+      };
+      
+      if (!data.name || !data.host) {
+        Swal.fire('Error', 'Nama dan IP Address harus diisi', 'error');
+        return;
+      }
+      
+      const url = isEdit ? `/api/olt/devices/${deviceId}` : '/api/olt/devices';
+      const method = isEdit ? 'PUT' : 'POST';
+      
+      fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data)
+      })
+      .then(res => res.json())
+      .then(result => {
+        Swal.fire('Success', result.message || 'Perangkat berhasil disimpan', 'success');
+        oltDeviceModal.modal('hide');
+        loadOltDevices();
+      })
+      .catch(err => {
+        Swal.fire('Error', err.message || 'Gagal menyimpan perangkat', 'error');
+      });
+    });
+    
+    // Edit OLT device
+    function editOltDevice(deviceId) {
+      fetch(`/api/olt/devices`, { credentials: 'include' })
+        .then(res => res.json())
+        .then(result => {
+          if (result.status === 200 && result.data) {
+            const device = result.data.devices.find(d => d.id === deviceId);
+            if (device) {
+              document.getElementById('oltDeviceId').value = device.id;
+              document.getElementById('oltDeviceName').value = device.name;
+              document.getElementById('oltDeviceHost').value = device.host;
+              document.getElementById('oltDeviceSnmpPort').value = device.snmpPort || 161;
+              document.getElementById('oltDeviceSnmpCommunity').value = device.snmpCommunity || 'public';
+              document.getElementById('oltDeviceSnmpTimeout').value = device.snmpTimeout || 30000;
+              document.getElementById('oltDeviceSnmpRetries').value = device.snmpRetries || 2;
+              document.getElementById('oltDeviceWebUsername').value = device.webUsername || '';
+              document.getElementById('oltDeviceWebPassword').value = device.webPassword || '';
+              document.getElementById('oltDeviceEnabled').value = device.enabled !== false ? 'true' : 'false';
+              
+              oltDeviceModal.find('.modal-title').text('Edit Perangkat OLT');
+              oltDeviceModal.modal('show');
+            }
+          }
+        })
+        .catch(err => {
+          Swal.fire('Error', 'Gagal memuat data perangkat', 'error');
+        });
+    }
+    
+    // Delete OLT device
+    function deleteOltDevice(deviceId) {
+      Swal.fire({
+        title: 'Hapus Perangkat OLT?',
+        text: 'Data perangkat akan dihapus permanen',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          fetch(`/api/olt/devices/${deviceId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+          })
+          .then(res => res.json())
+          .then(result => {
+            Swal.fire('Terhapus!', result.message || 'Perangkat berhasil dihapus', 'success');
+            loadOltDevices();
+          })
+          .catch(err => {
+            Swal.fire('Error', err.message || 'Gagal menghapus perangkat', 'error');
+          });
+        }
+      });
+    }
+    
+    // Test OLT device connection
+    function testOltDevice(deviceId) {
+      Swal.fire({
+        title: 'Testing Koneksi...',
+        text: 'Mohon tunggu',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+      
+      fetch(`/api/olt/devices/${deviceId}/test`, {
+        method: 'POST',
+        credentials: 'include'
+      })
+      .then(res => res.json())
+      .then(result => {
+        if (result.status === 200) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Koneksi Berhasil!',
+            text: result.message
+          });
+        } else {
+          throw new Error(result.message);
+        }
+      })
+      .catch(err => {
+        Swal.fire({
+          icon: 'error',
+          title: 'Koneksi Gagal',
+          text: err.message || 'Tidak dapat terhubung ke OLT'
+        });
+      });
+    }
+    
+    // Load OLT devices on page load
+    loadOltDevices();
   </script>
 
 </body>

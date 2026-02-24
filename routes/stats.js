@@ -221,8 +221,15 @@ router.get('/:type/:id?', async (req, res) => {
             
             case "stats":
                 try {
-                    const totalUsers = global.users.length;
-                    const paidUsersCount = global.users.filter(user => user.paid === true || user.paid === 1).length;
+                    // Get whitelisted package names (packages with whitelist: true are free/gratis)
+                    const whitelistedPackages = (global.packages || [])
+                        .filter(pkg => pkg.whitelist === true)
+                        .map(pkg => pkg.name);
+                    
+                    // Exclude whitelist users from total count for payment statistics
+                    const payableUsers = global.users.filter(user => !whitelistedPackages.includes(user.subscription));
+                    const totalUsers = payableUsers.length;
+                    const paidUsersCount = payableUsers.filter(user => user.paid === true || user.paid === 1).length;
                     const unpaidUsers = totalUsers - paidUsersCount;
                     
                     // PENTING: Pastikan botStatus selalu boolean (true/false), bukan undefined
@@ -256,8 +263,9 @@ router.get('/:type/:id?', async (req, res) => {
                     
                     let totalRevenue = 0;
                     if (global.users && global.packages) {
-                        const paidUsersList = global.users.filter(user => user.paid === true || user.paid === 1);
-                        paidUsersList.forEach(user => {
+                        // Only count revenue from payable users (exclude whitelist packages)
+                        const paidPayableUsers = payableUsers.filter(user => user.paid === true || user.paid === 1);
+                        paidPayableUsers.forEach(user => {
                             const userPackage = global.packages.find(pkg => pkg.name === user.subscription);
                             if (userPackage && userPackage.price) {
                                 const price = parseFloat(userPackage.price);

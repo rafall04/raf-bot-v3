@@ -24,7 +24,7 @@ const agentManager = require('../../lib/agent-manager');
 const agentTransactionManager = require('../../lib/agent-transaction-manager');
 const saldoManager = require('../../lib/saldo-manager');
 const { logger } = require('../../lib/logger');
-const { extractSenderInfo } = require('../../lib/lid-handler');
+const { extractSenderInfo } = require('../../lib/jid-utils');
 
 /**
  * Helper function to extract real phone number from @lid format

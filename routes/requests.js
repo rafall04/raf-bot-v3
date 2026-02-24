@@ -528,12 +528,109 @@ router.post('/approve-paid-change', rateLimit('approve-request', 20, 60000), asy
                         
                         console.log(`[APPROVE_PAID] Payment method for ${userToUpdate.name}: ${paymentMethod}`);
                         
+                        // Record payment in payment_history table
+                        const currentMonth = new Date().getMonth() + 1;
+                        const currentYear = new Date().getFullYear();
+                        const amountPaid = requestToUpdate.amount_paid || getPackagePrice(userToUpdate.subscription);
+                        const amountDue = requestToUpdate.amount_due || getPackagePrice(userToUpdate.subscription);
+                        const isPartial = requestToUpdate.is_partial_payment || false;
+                        const createdBy = requestToUpdate.requested_by_teknisi_id 
+                            ? (global.accounts.find(a => String(a.id) === String(requestToUpdate.requested_by_teknisi_id))?.username || 'teknisi')
+                            : (req.user?.username || 'admin');
+                        
+                        try {
+                            await new Promise((resolve, reject) => {
+                                global.db.run(
+                                    `INSERT INTO payment_history (user_id, amount_paid, amount_due, is_partial, period_month, period_year, payment_method, notes, created_by, created_at)
+                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+                                    [
+                                        userToUpdate.id,
+                                        amountPaid,
+                                        amountDue,
+                                        isPartial ? 1 : 0,
+                                        currentMonth,
+                                        currentYear,
+                                        paymentMethod,
+                                        requestToUpdate.notes || `Pembayaran via approval request #${requestToUpdate.id}`,
+                                        createdBy
+                                    ],
+                                    function(err) {
+                                        if (err) {
+                                            console.error(`[APPROVE_PAID_HISTORY_ERROR] Failed to record payment history:`, err.message);
+                                            reject(err);
+                                        } else {
+                                            console.log(`[APPROVE_PAID_HISTORY] Payment recorded for ${userToUpdate.name}: Rp ${amountPaid.toLocaleString('id-ID')}`);
+                                            resolve(this.lastID);
+                                        }
+                                    }
+                                );
+                            });
+                        } catch (historyError) {
+                            console.error(`[APPROVE_PAID_HISTORY_ERROR] Could not record payment history:`, historyError.message);
+                            // Continue anyway - payment status is already updated
+                        }
+                        
+                        // Increment discount_months_used jika user memiliki diskon berbasis bulan
+                        if (userToUpdate.discount_months > 0 && userToUpdate.discount_months_used < userToUpdate.discount_months) {
+                            const newDiscountMonthsUsed = (userToUpdate.discount_months_used || 0) + 1;
+                            await new Promise((resolve, reject) => {
+                                global.db.run('UPDATE users SET discount_months_used = ? WHERE id = ?', 
+                                    [newDiscountMonthsUsed, userToUpdate.id], 
+                                    function(err) {
+                                        if (err) {
+                                            console.error(`[APPROVE_PAID_DISCOUNT_ERROR] Gagal update discount_months_used untuk user ID ${userToUpdate.id}:`, err.message);
+                                            return reject(err);
+                                        }
+                                        console.log(`[APPROVE_PAID_DISCOUNT] Updated discount_months_used for ${userToUpdate.name}: ${newDiscountMonthsUsed}/${userToUpdate.discount_months}`);
+                                        resolve();
+                                    }
+                                );
+                            });
+                            userToUpdate.discount_months_used = newDiscountMonthsUsed;
+                            
+                            // Jika sudah habis periode diskon, reset diskon
+                            if (newDiscountMonthsUsed >= userToUpdate.discount_months) {
+                                console.log(`[APPROVE_PAID_DISCOUNT] Discount period ended for ${userToUpdate.name}, resetting discount...`);
+                                await new Promise((resolve, reject) => {
+                                    global.db.run(`UPDATE users SET 
+                                        discount_amount = 0, 
+                                        discount_percentage = 0, 
+                                        discount_reason = NULL,
+                                        discount_valid_until = NULL,
+                                        discount_created_by = NULL,
+                                        discount_created_at = NULL
+                                        WHERE id = ?`, 
+                                        [userToUpdate.id], 
+                                        function(err) {
+                                            if (err) {
+                                                console.error(`[APPROVE_PAID_DISCOUNT_RESET_ERROR]`, err.message);
+                                                return reject(err);
+                                            }
+                                            console.log(`[APPROVE_PAID_DISCOUNT] Discount reset for ${userToUpdate.name}`);
+                                            resolve();
+                                        }
+                                    );
+                                });
+                                // Update global.users
+                                userToUpdate.discount_amount = 0;
+                                userToUpdate.discount_percentage = 0;
+                                userToUpdate.discount_reason = null;
+                                userToUpdate.discount_valid_until = null;
+                                userToUpdate.discount_created_by = null;
+                                userToUpdate.discount_created_at = null;
+                            }
+                        }
+                        
                         // handlePaidStatusChange now handles invoice PDF sending based on send_invoice flag
                         await handlePaidStatusChange(userToUpdate, {
                             paidDate: new Date().toISOString(),
                             method: paymentMethod,
                             approvedBy: req.user ? req.user.username : 'Admin',
-                            notes: `Pembayaran disetujui melalui sistem approval (${paymentMethod === 'CASH' ? 'Tunai' : 'Transfer Bank'})`
+                            notes: `Pembayaran disetujui melalui sistem approval (${paymentMethod === 'CASH' ? 'Tunai' : 'Transfer Bank'})`,
+                            requestedByTeknisiId: requestToUpdate.requested_by_teknisi_id,
+                            isPartial: requestToUpdate.is_partial_payment,
+                            amountPaid: requestToUpdate.amount_paid,
+                            amountRemaining: requestToUpdate.amount_remaining
                         });
                     }
                 } catch (e) {
@@ -697,6 +794,46 @@ router.post('/bulk-approve', ensureAdmin, rateLimit('bulk-approve', 30, 60000), 
                     // Use payment_method from original request (CASH for teknisi) or fallback to TRANSFER_BANK
                     const paymentMethod = request.payment_method || 'TRANSFER_BANK';
                     request.payment_method = paymentMethod; // Store for history
+                    
+                    // Increment discount_months_used jika user memiliki diskon berbasis bulan
+                    if (user.discount_months > 0 && user.discount_months_used < user.discount_months) {
+                        const newDiscountMonthsUsed = (user.discount_months_used || 0) + 1;
+                        await new Promise((resolve, reject) => {
+                            global.db.run('UPDATE users SET discount_months_used = ? WHERE id = ?', 
+                                [newDiscountMonthsUsed, user.id], 
+                                function(err) {
+                                    if (err) return reject(err);
+                                    resolve();
+                                }
+                            );
+                        });
+                        user.discount_months_used = newDiscountMonthsUsed;
+                        console.log(`[BULK_APPROVE_DISCOUNT] Updated discount_months_used for ${user.name}: ${newDiscountMonthsUsed}/${user.discount_months}`);
+                        
+                        // Jika sudah habis periode diskon, reset diskon
+                        if (newDiscountMonthsUsed >= user.discount_months) {
+                            await new Promise((resolve, reject) => {
+                                global.db.run(`UPDATE users SET 
+                                    discount_amount = 0, 
+                                    discount_percentage = 0, 
+                                    discount_reason = NULL,
+                                    discount_valid_until = NULL,
+                                    discount_created_by = NULL,
+                                    discount_created_at = NULL
+                                    WHERE id = ?`, 
+                                    [user.id], 
+                                    function(err) {
+                                        if (err) return reject(err);
+                                        resolve();
+                                    }
+                                );
+                            });
+                            user.discount_amount = 0;
+                            user.discount_percentage = 0;
+                            user.discount_reason = null;
+                            console.log(`[BULK_APPROVE_DISCOUNT] Discount reset for ${user.name}`);
+                        }
+                    }
                     
                     await handlePaidStatusChange(user, {
                         paidDate: new Date().toISOString(),

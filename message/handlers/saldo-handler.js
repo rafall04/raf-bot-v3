@@ -8,38 +8,21 @@ const { logger } = require('../../lib/logger');
  */
 async function handleCekSaldo(msg, sender, reply, pushname) {
     try {
-        // PENTING: Normalisasi JID dari @lid ke format standar sebelum operasi saldo
-        const { normalizeJidForSaldo } = require('../../lib/lid-handler');
+        // Gunakan sender secara murni (@lid atau nomor asli)
         let userId = sender;
-        
-        if (sender && sender.endsWith('@lid')) {
-            const normalizedJid = await normalizeJidForSaldo(sender, { allowLid: false, raf: global.raf });
-            if (!normalizedJid) {
-                return await reply('❌ Maaf, tidak dapat memverifikasi nomor WhatsApp Anda. Silakan hubungi admin.');
-            }
-            userId = normalizedJid;
-        }
-        
-        // PENTING: Pastikan userId tidak mengandung :0 atau format aneh lainnya
-        if (userId && userId.includes(':')) {
-            userId = userId.split(':')[0];
-            if (!userId.endsWith('@s.whatsapp.net')) {
-                userId = userId + '@s.whatsapp.net';
-            }
-        }
-        
+
         // Create user saldo if not exists
         saldoManager.createUserSaldo(userId);
-        
+
         const saldo = await saldoManager.getUserSaldo(userId);
         const formattedSaldo = convertRupiah.convert(saldo);
-        
+
         // Get recent transactions
         const transactions = saldoManager.getAllTransactions()
             .filter(tx => tx.userId === userId)
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
             .slice(0, 5);
-        
+
         // Build riwayat section
         let riwayatSection = '';
         if (transactions.length > 0) {
@@ -53,7 +36,7 @@ async function handleCekSaldo(msg, sender, reply, pushname) {
         } else {
             riwayatSection = `_Belum ada transaksi_\n`;
         }
-        
+
         // Gunakan template system untuk response cek saldo
         const { renderTemplate } = require('../../lib/templating');
         const message = renderTemplate('cek_saldo_response', {
@@ -62,10 +45,10 @@ async function handleCekSaldo(msg, sender, reply, pushname) {
             formattedSaldo: formattedSaldo,
             riwayat_section: riwayatSection
         });
-        
+
         await reply(message, { skipDuplicateCheck: true });
         logger.info(`Saldo check for ${userId}: ${saldo}`);
-        
+
     } catch (error) {
         logger.error('Error in handleCekSaldo:', error);
         await reply('❌ Maaf, terjadi kesalahan saat mengecek saldo. Silakan coba lagi.');
@@ -80,16 +63,16 @@ async function handleTopupInit(msg, sender, reply, pushname, conversationHandler
     try {
         // Create user saldo if not exists
         saldoManager.createUserSaldo(sender);
-        
+
         // Check if user already has pending topup (only active ones)
         const pendingTopup = saldoManager.getAllTopupRequests()
-            .find(r => r.userId === sender && 
-                  (r.status === 'pending' || r.status === 'waiting_verification'));
-            
+            .find(r => r.userId === sender &&
+                (r.status === 'pending' || r.status === 'waiting_verification'));
+
         if (pendingTopup) {
             const amount = convertRupiah.convert(pendingTopup.amount);
             const status = pendingTopup.status === 'waiting_verification' ? 'Menunggu verifikasi admin' : 'Menunggu pembayaran';
-            
+
             // Build rekening section
             let rekeningSection = '';
             let buktiSection = '';
@@ -105,7 +88,7 @@ async function handleTopupInit(msg, sender, reply, pushname, conversationHandler
                     buktiSection = `\n📸 Kirim bukti transfer setelah melakukan pembayaran`;
                 }
             }
-            
+
             // Gunakan template system untuk info topup pending
             const { renderTemplate } = require('../../lib/templating');
             const message = renderTemplate('topup_pending_info', {
@@ -115,27 +98,27 @@ async function handleTopupInit(msg, sender, reply, pushname, conversationHandler
                 rekening_section: rekeningSection,
                 bukti_section: buktiSection
             });
-            
+
             return await reply(message, { skipDuplicateCheck: true });
         }
-        
+
         // Start topup conversation flow
         conversationHandler.setUserState(sender, {
             step: 'TOPUP_SELECT_METHOD',
             type: 'topup',
             pushname: pushname
         });
-        
+
         // Gunakan template system untuk menu topup
         const { renderTemplate } = require('../../lib/templating');
         const message = renderTemplate('topup_init_menu', {
             nama_pelanggan: pushname || 'Kak'
         });
-        
+
         await reply(message, { skipDuplicateCheck: true });
-        
+
         // Don't notify admins yet - wait until user confirms the request
-        
+
     } catch (error) {
         logger.error('Error in handleTopupInit:', error);
         await reply('❌ Maaf, terjadi kesalahan. Silakan coba lagi.');
@@ -149,28 +132,28 @@ async function handleCancelTopup(msg, sender, reply) {
     try {
         const pendingTopup = saldoManager.getAllTopupRequests()
             .find(r => r.userId === sender && (r.status === 'pending' || r.status === 'waiting_verification'));
-            
+
         if (!pendingTopup) {
             return await reply('ℹ️ Anda tidak memiliki request topup yang aktif untuk dibatalkan.');
         }
-        
+
         // Check remaining time
         const { getRemainingTime } = require('../../lib/topup-expiry');
         const remaining = getRemainingTime(pendingTopup);
-        
+
         // Cancel the topup request using the proper function
         const success = saldoManager.cancelTopupRequest(pendingTopup.id);
-        
+
         if (!success) {
             return await reply('❌ Gagal membatalkan request topup. Silakan coba lagi.', { skipDuplicateCheck: true });
         }
-        
+
         // Build sisa waktu section
         let sisaWaktuSection = '';
         if (!remaining.expired) {
             sisaWaktuSection = `Sisa waktu: ${remaining.text}\n`;
         }
-        
+
         // Gunakan template system untuk notifikasi cancel topup
         const { renderTemplate } = require('../../lib/templating');
         const message = renderTemplate('topup_cancelled', {
@@ -178,9 +161,9 @@ async function handleCancelTopup(msg, sender, reply) {
             jumlah: pendingTopup.amount.toLocaleString('id-ID'),
             sisa_waktu_section: sisaWaktuSection
         });
-        
+
         await reply(message, { skipDuplicateCheck: true });
-        
+
     } catch (error) {
         logger.error('Error in handleCancelTopup:', error);
         await reply('❌ Terjadi kesalahan saat membatalkan topup');
@@ -193,23 +176,23 @@ async function handleCancelTopup(msg, sender, reply) {
 async function handleBeliVoucher(msg, sender, reply, pushname) {
     try {
         const userId = sender;
-        
+
         // Create user saldo if not exists
         saldoManager.createUserSaldo(userId);
-        
+
         const currentSaldo = saldoManager.getUserSaldo(userId);
-        
+
         if (currentSaldo <= 0) {
             return await reply('❌ Saldo Anda tidak mencukupi. Silakan topup terlebih dahulu.');
         }
-        
+
         // Get available vouchers
         const vouchers = global.voucher || [];
-        
+
         if (vouchers.length === 0) {
             return await reply('❌ Maaf, tidak ada voucher yang tersedia saat ini.', { skipDuplicateCheck: true });
         }
-        
+
         // Build voucher list
         let voucherList = '';
         vouchers.forEach((v, index) => {
@@ -218,14 +201,14 @@ async function handleBeliVoucher(msg, sender, reply, pushname) {
             voucherList += `${index + 1}. ${v.nama} - ${v.durasi}\n`;
             voucherList += `   Harga: ${price} ${canBuy}\n`;
         });
-        
+
         // Gunakan template system untuk menu beli voucher
         const { renderTemplate } = require('../../lib/templating');
         const message = renderTemplate('beli_voucher_menu', {
             formattedSaldo: convertRupiah.convert(currentSaldo),
             voucher_list: voucherList
         });
-        
+
         // Set conversation state for voucher purchase
         const conversationHandler = require('../handlers/conversation-handler');
         conversationHandler.setUserState(sender, {
@@ -233,9 +216,9 @@ async function handleBeliVoucher(msg, sender, reply, pushname) {
             type: 'voucher_purchase',
             vouchers: vouchers
         });
-        
+
         await reply(message);
-        
+
     } catch (error) {
         logger.error('Error in handleBeliVoucher:', error);
         await reply('❌ Terjadi kesalahan. Silakan coba lagi.');
@@ -250,61 +233,44 @@ async function handleTransferSaldo(msg, sender, reply, args) {
         if (args.length < 2) {
             return await reply('❌ Format: transfer [nomor] [jumlah]\nContoh: transfer 6281234567890 50000');
         }
-        
-        // PENTING: Normalisasi JID dari @lid ke format standar sebelum operasi saldo
-        const { normalizeJidForSaldo } = require('../../lib/lid-handler');
+
+        // Gunakan sender secara murni (@lid atau nomor asli)
         let senderId = sender;
-        
-        if (sender && sender.endsWith('@lid')) {
-            const normalizedJid = await normalizeJidForSaldo(sender, { allowLid: false, raf: global.raf });
-            if (!normalizedJid) {
-                return await reply('❌ Maaf, tidak dapat memverifikasi nomor WhatsApp Anda. Silakan hubungi admin.');
-            }
-            senderId = normalizedJid;
-        }
-        
-        // PENTING: Pastikan senderId tidak mengandung :0 atau format aneh lainnya
-        if (senderId && senderId.includes(':')) {
-            senderId = senderId.split(':')[0];
-            if (!senderId.endsWith('@s.whatsapp.net')) {
-                senderId = senderId + '@s.whatsapp.net';
-            }
-        }
-        
+
         const targetNumber = args[0].replace(/[^0-9]/g, '');
         const amount = parseInt(args[1]);
-        
+
         if (isNaN(amount) || amount <= 0) {
             return await reply('❌ Jumlah transfer tidak valid');
         }
-        
-        const targetId = targetNumber.startsWith('62') ? 
-            `${targetNumber}@s.whatsapp.net` : 
+
+        const targetId = targetNumber.startsWith('62') ?
+            `${targetNumber}@s.whatsapp.net` :
             `62${targetNumber.substring(1)}@s.whatsapp.net`;
-        
+
         const senderSaldo = await saldoManager.getUserSaldo(senderId);
-        
+
         if (senderSaldo < amount) {
             return await reply(`❌ Saldo tidak mencukupi\nSaldo Anda: ${convertRupiah.convert(senderSaldo)}`);
         }
-        
+
         // Process transfer
         const success = await saldoManager.transferSaldo(senderId, targetId, amount);
-        
+
         if (success) {
             const newSaldo = await saldoManager.getUserSaldo(senderId);
             await reply(`✅ Transfer berhasil!\n\nKe: ${targetNumber}\nJumlah: ${convertRupiah.convert(amount)}\nSisa saldo: ${convertRupiah.convert(newSaldo)}`);
-            
+
             // Notify recipient if they have WhatsApp
             // PENTING: Cek connection state dan gunakan error handling sesuai rules
             if (global.whatsappConnectionState === 'open' && global.raf && global.raf.sendMessage) {
                 try {
                     const { renderTemplate } = require('../../lib/templating');
                     const recipientSaldo = await saldoManager.getUserSaldo(targetId);
-                    
+
                     // Dapatkan nama pengirim (pushname atau nomor HP, bukan @lid)
                     let namaPengirim = senderId.replace('@s.whatsapp.net', '');
-                    
+
                     // Coba ambil pushname dari database user jika ada
                     if (global.users && Array.isArray(global.users)) {
                         const senderUser = global.users.find(u => {
@@ -312,29 +278,29 @@ async function handleTransferSaldo(msg, sender, reply, args) {
                             const senderPhone = senderId.replace('@s.whatsapp.net', '').replace(/[^0-9]/g, '');
                             return userPhone === senderPhone || userPhone === senderPhone.replace('62', '0');
                         });
-                        
+
                         if (senderUser && senderUser.name) {
                             namaPengirim = senderUser.name;
                         }
                     }
-                    
+
                     // Jika masih @lid atau format aneh, coba ambil dari msg.pushName atau gunakan nomor HP
                     if (namaPengirim.includes('@lid') || namaPengirim.includes(':')) {
                         // Gunakan nomor HP yang sudah dinormalisasi
                         namaPengirim = senderId.replace('@s.whatsapp.net', '').replace(/[^0-9]/g, '');
                     }
-                    
+
                     // Jika msg tersedia, coba ambil pushname dari message
                     if (msg && msg.pushName) {
                         namaPengirim = msg.pushName;
                     }
-                    
+
                     const message = renderTemplate('transfer_saldo_masuk', {
                         jumlah: convertRupiah.convert(amount),
                         nama_pengirim: namaPengirim,
                         formattedSaldo: convertRupiah.convert(recipientSaldo)
                     });
-                    
+
                     await global.raf.sendMessage(targetId, { text: message });
                 } catch (error) {
                     console.error('[SEND_MESSAGE_ERROR]', {
@@ -351,7 +317,7 @@ async function handleTransferSaldo(msg, sender, reply, args) {
         } else {
             await reply('❌ Transfer gagal. Silakan coba lagi.');
         }
-        
+
     } catch (error) {
         logger.error('Error in handleTransferSaldo:', error);
         await reply('❌ Terjadi kesalahan saat transfer. Silakan coba lagi.');

@@ -10,7 +10,7 @@ const agentManager = require('../../lib/agent-manager');
 const agentTransactionManager = require('../../lib/agent-transaction-manager');
 const { getVoucherProfiles } = require('../../lib/voucher-manager');
 const { logger } = require('../../lib/logger');
-const { extractSenderInfo } = require('../../lib/lid-handler');
+const { extractSenderInfo } = require('../../lib/jid-utils');
 const { getUserState, setUserState, deleteUserState } = require('./conversation-handler');
 
 /**

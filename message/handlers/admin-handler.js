@@ -93,11 +93,17 @@ function handleListUsers({ filter = null, page = 1 }) {
         // Get items per page from config (default 50)
         const itemsPerPage = global.config?.listPelangganPerPage || 50;
         
+        // Get whitelisted package names (packages with whitelist: true are free/gratis)
+        const whitelistedPackages = (global.packages || [])
+            .filter(pkg => pkg.whitelist === true)
+            .map(pkg => pkg.name);
+        
         // Apply filter if provided
         if (filter === 'paid') {
             users = users.filter(u => u.paid === true);
         } else if (filter === 'unpaid') {
-            users = users.filter(u => u.paid === false);
+            // Exclude whitelist package users from unpaid list (they are free users)
+            users = users.filter(u => u.paid === false && !whitelistedPackages.includes(u.subscription));
         }
         
         if (users.length === 0) {

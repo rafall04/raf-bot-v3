@@ -218,6 +218,37 @@
                     <div class="customer-summary" id="paymentCustomerSummary">
                         <!-- Filled by JS -->
                     </div>
+                    
+                    <!-- Partial Payment Option -->
+                    <div class="form-group">
+                        <label class="font-weight-bold">Jenis Pembayaran</label>
+                        <div class="custom-control custom-radio">
+                            <input type="radio" id="paymentFull" name="paymentType" class="custom-control-input" value="full" checked>
+                            <label class="custom-control-label" for="paymentFull">Pembayaran Penuh</label>
+                        </div>
+                        <div class="custom-control custom-radio">
+                            <input type="radio" id="paymentPartial" name="paymentType" class="custom-control-input" value="partial">
+                            <label class="custom-control-label" for="paymentPartial">Pembayaran Sebagian</label>
+                        </div>
+                    </div>
+                    
+                    <div id="partialPaymentSection" style="display: none;">
+                        <div class="form-group">
+                            <label for="partialAmount">Nominal yang Dibayar</label>
+                            <input type="number" class="form-control" id="partialAmount" placeholder="Masukkan nominal" min="1000">
+                            <small class="form-text text-muted">Minimal Rp 1.000</small>
+                        </div>
+                        <div class="alert alert-info" id="partialInfo" style="display: none;">
+                            <i class="fas fa-info-circle"></i> 
+                            <span id="partialInfoText"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="paymentNotes">Catatan (Opsional)</label>
+                        <input type="text" class="form-control" id="paymentNotes" placeholder="Contoh: Bayar sebagian dulu" maxlength="200">
+                    </div>
+                    
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle"></i> 
                         <strong>Catatan:</strong> Request pembayaran akan dikirim ke admin untuk disetujui. 
@@ -301,8 +332,10 @@
             fetch('/api/packages', { credentials: 'include' })
                 .then(res => res.json())
                 .then(data => {
-                    if (data.status === 200 && Array.isArray(data.data)) {
+                    if (data.data && Array.isArray(data.data)) {
                         allPackages = data.data;
+                    } else if (Array.isArray(data)) {
+                        allPackages = data;
                     }
                 })
                 .catch(err => console.error('Error loading packages:', err));
@@ -356,8 +389,15 @@
         }
 
         function updateStats() {
-            const total = allCustomers.length;
-            const paid = allCustomers.filter(c => c.paid === true || c.paid === 1 || c.paid === 'true').length;
+            // Get whitelisted package names (free packages)
+            const whitelistedPackages = allPackages
+                .filter(pkg => pkg.whitelist === true)
+                .map(pkg => pkg.name);
+            
+            // Exclude whitelist users from statistics (they are free users)
+            const payableCustomers = allCustomers.filter(c => !whitelistedPackages.includes(c.subscription));
+            const total = payableCustomers.length;
+            const paid = payableCustomers.filter(c => c.paid === true || c.paid === 1 || c.paid === 'true').length;
             const unpaid = total - paid;
             const percentage = total > 0 ? Math.round((paid / total) * 100) : 0;
 
@@ -365,7 +405,7 @@
             $('#paidCount').text(paid);
             $('#unpaidCount').text(unpaid);
             $('#paidPercentage').text(percentage + '%');
-            $('#countAll').text(total);
+            $('#countAll').text(allCustomers.length);
             $('#countPaid').text(paid);
             $('#countUnpaid').text(unpaid);
         }
@@ -377,11 +417,20 @@
         function renderTable() {
             if (dataTable) dataTable.destroy();
 
+            // Get whitelisted package names (free packages)
+            const whitelistedPackages = allPackages
+                .filter(pkg => pkg.whitelist === true)
+                .map(pkg => pkg.name);
+
             let filteredData = allCustomers;
             if (currentFilter === 'paid') {
                 filteredData = allCustomers.filter(c => c.paid === true || c.paid === 1 || c.paid === 'true');
             } else if (currentFilter === 'unpaid') {
-                filteredData = allCustomers.filter(c => c.paid !== true && c.paid !== 1 && c.paid !== 'true');
+                // Exclude whitelist users from unpaid filter (they are free users)
+                filteredData = allCustomers.filter(c => 
+                    (c.paid !== true && c.paid !== 1 && c.paid !== 'true') && 
+                    !whitelistedPackages.includes(c.subscription)
+                );
             }
 
             const tbody = $('#paymentTable tbody');
@@ -459,6 +508,37 @@
             });
 
             $('#confirmPaymentBtn').on('click', submitPaymentRequest);
+            
+            // Partial payment toggle
+            $('input[name="paymentType"]').on('change', function() {
+                if ($(this).val() === 'partial') {
+                    $('#partialPaymentSection').slideDown();
+                } else {
+                    $('#partialPaymentSection').slideUp();
+                    $('#partialAmount').val('');
+                    $('#partialInfo').hide();
+                }
+            });
+            
+            // Partial amount input
+            $('#partialAmount').on('input', function() {
+                const amount = parseInt($(this).val()) || 0;
+                const customer = allCustomers.find(c => c.id === selectedCustomerId);
+                if (customer) {
+                    // Use effective price (after discount) if available
+                    const price = customer._effectivePrice || getPackagePrice(customer.subscription);
+                    if (amount > 0 && amount < price) {
+                        const remaining = price - amount;
+                        $('#partialInfoText').html(`Sisa tagihan: <strong>Rp ${remaining.toLocaleString('id-ID')}</strong>`);
+                        $('#partialInfo').show();
+                    } else if (amount >= price) {
+                        $('#partialInfoText').html(`Nominal sama atau lebih dari tagihan. Akan diproses sebagai pembayaran penuh.`);
+                        $('#partialInfo').show();
+                    } else {
+                        $('#partialInfo').hide();
+                    }
+                }
+            });
         }
 
         function openPaymentModal(customerId) {
@@ -469,30 +549,107 @@
             }
 
             selectedCustomerId = customerId;
-            const price = getPackagePrice(customer.subscription);
+            
+            // Fetch effective price with discount
+            fetch(`/api/discount/effective-price/${customerId}`, { credentials: 'include' })
+                .then(res => res.json())
+                .then(data => {
+                    let basePrice = getPackagePrice(customer.subscription);
+                    let effectivePrice = basePrice;
+                    let discountHtml = '';
+                    
+                    if (data.status === 200 && data.data) {
+                        basePrice = data.data.base_price || basePrice;
+                        effectivePrice = data.data.effective_price;
+                        
+                        if (data.data.has_discount && data.data.is_discount_valid) {
+                            discountHtml = `
+                                <div class="detail-row" style="background: #fff3cd; margin: 0 -15px; padding: 5px 15px;">
+                                    <span class="detail-label"><i class="fas fa-tags text-warning"></i> Diskon</span>
+                                    <span class="detail-value text-danger">-${data.data.discount_text}</span>
+                                </div>
+                                <div class="detail-row" style="font-size: 0.85rem; color: #6c757d;">
+                                    <span class="detail-label">Alasan</span>
+                                    <span class="detail-value">${escapeHtml(data.data.discount_reason || '-')}</span>
+                                </div>
+                            `;
+                        }
+                    }
+                    
+                    // Store effective price for partial payment calculation
+                    customer._effectivePrice = effectivePrice;
 
-            const summaryHtml = `
-                <h5><i class="fas fa-user"></i> ${escapeHtml(customer.name)}</h5>
-                <div class="detail-row">
-                    <span class="detail-label">ID Pelanggan</span>
-                    <span class="detail-value">${customer.id}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Paket</span>
-                    <span class="detail-value">${escapeHtml(customer.subscription || '-')}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Tanggal Tagihan</span>
-                    <span class="detail-value">Tanggal ${billingDueDate}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Nominal</span>
-                    <span class="detail-value price-highlight">${formatCurrency(price)}</span>
-                </div>
-            `;
+                    const summaryHtml = `
+                        <h5><i class="fas fa-user"></i> ${escapeHtml(customer.name)}</h5>
+                        <div class="detail-row">
+                            <span class="detail-label">ID Pelanggan</span>
+                            <span class="detail-value">${customer.id}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Paket</span>
+                            <span class="detail-value">${escapeHtml(customer.subscription || '-')}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Tanggal Tagihan</span>
+                            <span class="detail-value">Tanggal ${billingDueDate}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Harga Normal</span>
+                            <span class="detail-value ${discountHtml ? 'text-muted' : ''}" style="${discountHtml ? 'text-decoration: line-through;' : ''}">${formatCurrency(basePrice)}</span>
+                        </div>
+                        ${discountHtml}
+                        <div class="detail-row">
+                            <span class="detail-label"><strong>Nominal Tagihan</strong></span>
+                            <span class="detail-value price-highlight">${formatCurrency(effectivePrice)}</span>
+                        </div>
+                    `;
 
-            $('#paymentCustomerSummary').html(summaryHtml);
-            $('#requestPaymentModal').modal('show');
+                    $('#paymentCustomerSummary').html(summaryHtml);
+                    
+                    // Reset form
+                    $('#paymentFull').prop('checked', true);
+                    $('#partialPaymentSection').hide();
+                    $('#partialAmount').val('');
+                    $('#partialInfo').hide();
+                    $('#paymentNotes').val('');
+                    
+                    $('#requestPaymentModal').modal('show');
+                })
+                .catch(err => {
+                    console.error('Error fetching discount:', err);
+                    // Fallback to normal price
+                    const price = getPackagePrice(customer.subscription);
+                    customer._effectivePrice = price;
+
+                    const summaryHtml = `
+                        <h5><i class="fas fa-user"></i> ${escapeHtml(customer.name)}</h5>
+                        <div class="detail-row">
+                            <span class="detail-label">ID Pelanggan</span>
+                            <span class="detail-value">${customer.id}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Paket</span>
+                            <span class="detail-value">${escapeHtml(customer.subscription || '-')}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Tanggal Tagihan</span>
+                            <span class="detail-value">Tanggal ${billingDueDate}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Nominal Tagihan</span>
+                            <span class="detail-value price-highlight">${formatCurrency(price)}</span>
+                        </div>
+                    `;
+
+                    $('#paymentCustomerSummary').html(summaryHtml);
+                    $('#paymentFull').prop('checked', true);
+                    $('#partialPaymentSection').hide();
+                    $('#partialAmount').val('');
+                    $('#partialInfo').hide();
+                    $('#paymentNotes').val('');
+                    
+                    $('#requestPaymentModal').modal('show');
+                });
         }
 
         function submitPaymentRequest() {
@@ -501,37 +658,82 @@
                 return;
             }
 
+            const customer = allCustomers.find(c => c.id === selectedCustomerId);
+            // Use effective price (after discount) if available
+            const price = customer._effectivePrice || getPackagePrice(customer.subscription);
+            const paymentType = $('input[name="paymentType"]:checked').val();
+            const partialAmount = parseInt($('#partialAmount').val()) || 0;
+            const notes = $('#paymentNotes').val().trim();
+
             const btn = $('#confirmPaymentBtn');
             btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Mengirim...');
 
-            fetch('/api/requests', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({
-                    userId: selectedCustomerId,
-                    newStatus: true
+            // Determine if using partial payment API
+            if (paymentType === 'partial' && partialAmount > 0 && partialAmount < price) {
+                // Use partial payment API
+                fetch('/api/partial-payment/request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        userId: selectedCustomerId,
+                        amountPaid: partialAmount,
+                        notes: notes
+                    })
                 })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 200 || data.status === 201) {
-                    $('#requestPaymentModal').modal('hide');
-                    showAlert('success', 'Request pembayaran berhasil dikirim! Menunggu approval admin.');
-                    loadPendingRequests();
-                    setTimeout(() => loadCustomerData(), 500);
-                } else {
-                    showAlert('danger', data.message || 'Gagal mengirim request');
-                }
-            })
-            .catch(err => {
-                console.error('Error:', err);
-                showAlert('danger', 'Terjadi kesalahan saat mengirim request');
-            })
-            .finally(() => {
-                btn.prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Kirim Request');
-                selectedCustomerId = null;
-            });
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 200 || data.status === 201) {
+                        $('#requestPaymentModal').modal('hide');
+                        const msg = data.data.is_partial 
+                            ? `Request pembayaran sebagian (Rp ${partialAmount.toLocaleString('id-ID')}) berhasil dikirim! Sisa: Rp ${data.data.amount_remaining.toLocaleString('id-ID')}`
+                            : 'Request pembayaran berhasil dikirim!';
+                        showAlert('success', msg);
+                        loadPendingRequests();
+                        setTimeout(() => loadCustomerData(), 500);
+                    } else {
+                        showAlert('danger', data.message || 'Gagal mengirim request');
+                    }
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    showAlert('danger', 'Terjadi kesalahan saat mengirim request');
+                })
+                .finally(() => {
+                    btn.prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Kirim Request');
+                    selectedCustomerId = null;
+                });
+            } else {
+                // Use regular payment API (full payment)
+                fetch('/api/requests', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        userId: selectedCustomerId,
+                        newStatus: true
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 200 || data.status === 201) {
+                        $('#requestPaymentModal').modal('hide');
+                        showAlert('success', 'Request pembayaran berhasil dikirim! Menunggu approval admin.');
+                        loadPendingRequests();
+                        setTimeout(() => loadCustomerData(), 500);
+                    } else {
+                        showAlert('danger', data.message || 'Gagal mengirim request');
+                    }
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    showAlert('danger', 'Terjadi kesalahan saat mengirim request');
+                })
+                .finally(() => {
+                    btn.prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Kirim Request');
+                    selectedCustomerId = null;
+                });
+            }
         }
 
         function showDetail(customerId) {

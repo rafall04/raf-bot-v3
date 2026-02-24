@@ -18,6 +18,40 @@ function ensureAdmin(req, res, next) {
     next();
 }
 
+// GET /api/users/search - Search users by name or ID
+router.get('/search', ensureAdmin, (req, res) => {
+    const { q, limit = 10 } = req.query;
+    
+    if (!q || q.trim().length < 2) {
+        return res.json({ status: 200, data: [] });
+    }
+    
+    const query = q.trim().toLowerCase();
+    const maxLimit = Math.min(parseInt(limit) || 10, 50);
+    
+    const results = global.users
+        .filter(user => {
+            const nameMatch = user.name?.toLowerCase().includes(query);
+            const idMatch = String(user.id).includes(query);
+            const pppoeMatch = user.pppoe_username?.toLowerCase().includes(query);
+            const phoneMatch = user.phone_number?.includes(query);
+            return nameMatch || idMatch || pppoeMatch || phoneMatch;
+        })
+        .slice(0, maxLimit)
+        .map(user => ({
+            id: user.id,
+            name: user.name,
+            subscription: user.subscription,
+            subscription_price: user.subscription_price,
+            pppoe_username: user.pppoe_username,
+            phone_number: user.phone_number,
+            paid: user.paid,
+            address: user.address
+        }));
+    
+    res.json({ status: 200, data: results });
+});
+
 // POST /api/users/:id/credentials
 router.post('/:id/credentials', ensureAdmin, async (req, res) => {
     const { id } = req.params;

@@ -20,14 +20,14 @@ const { addPayment } = require("../lib/payment");
 const { getIntentFromKeywords } = require('../lib/wifi_template_handler');
 const { templatesCache } = require("../lib/templating");
 const { savePackageChangeRequests, saveSpeedRequests } = require("../lib/database");
-const { 
-    handleGangguanMati, 
+const {
+    handleGangguanMati,
     handleGangguanLemot,
     handleGangguanMatiOfflineResponse,
     handleGangguanMatiOnlineResponse,
     handleGangguanLemotResponse
 } = require('./handlers/smart-report-handler');
-const { 
+const {
     handleCompletionConfirmation,
     handleRemoteRequest,
     handleRemoteResponse
@@ -123,7 +123,7 @@ const { handleTopup, handleDelSaldo, handleTransfer } = require('./handlers/bala
 const { handleProsesTicket, handleOTW, handleSampaiLokasi, handleVerifikasiOTP, handleSelesaiTicket, handleCompleteTicket, handleTeknisiPhotoUpload } = require('./handlers/teknisi-workflow-handler');
 
 // Library imports
-const { normalizeJidForSaldo, extractSenderInfo, findUserWithLidSupport, processLidVerification } = require('../lib/lid-handler');
+const { normalizeJid, normalizeJidForSaldo, findUserWithLidSupport, normalizePhoneNumber, normalizePhoneToJid, extractSenderInfo, processLidVerification } = require('../lib/jid-utils');
 const saldoManager = require('../lib/saldo-manager');
 const agentTransactionManager = require('../lib/agent-transaction-manager');
 const agentManager = require('../lib/agent-manager');
@@ -150,108 +150,80 @@ if (global.config) {
 let temp = {};
 
 /**
- * Helper function untuk normalisasi JID untuk operasi saldo
- * @param {string} sender - JID pengirim
- * @param {Object} raf - WhatsApp client instance
- * @param {Object} msg - Message object (optional, untuk akses remoteJidAlt)
- * @returns {Promise<string>} Normalized JID
+ * Menggunakan sender (bisa berupa @lid atau @s.whatsapp.net) sebagai Primary ID
+ * JID Asli (jika ada) hanya dijadikan referensi opsional tanpa menghalangi flow.
  */
-async function normalizeJidForSaldoOperation(sender, raf, msg = null) {
-    if (!sender || !sender.endsWith('@lid')) {
-        // Jika bukan @lid, normalisasi format standar
-        let normalized = sender.split(':')[0];
-        if (!normalized.endsWith('@s.whatsapp.net')) {
-            normalized = normalized + '@s.whatsapp.net';
-        }
-        return normalized;
-    }
-    
-    // Method 0 (BEST): Cek remoteJidAlt dari msg object - Baileys v7
-    if (msg && msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
+function getOptionalJid(msg, sender) {
+    if (!sender.endsWith('@lid')) return sender;
+
+    if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
         let result = msg.key.remoteJidAlt.split(':')[0];
-        if (!result.endsWith('@s.whatsapp.net')) {
-            result = result + '@s.whatsapp.net';
-        }
-        return result;
+        return result.endsWith('@s.whatsapp.net') ? result : result + '@s.whatsapp.net';
     }
-    
-    try {
-        const normalized = await normalizeJidForSaldo(sender, { allowLid: false, raf: raf });
-        if (normalized) {
-            let result = normalized;
-            if (result.includes(':')) {
-                result = result.split(':')[0];
-            }
-            if (!result.endsWith('@s.whatsapp.net')) {
-                result = result + '@s.whatsapp.net';
-            }
-            return result;
-        }
-    } catch (err) {
-        console.warn('[NORMALIZE_JID] Error normalizing JID:', err);
+    if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
+        return msg.participant;
     }
-    
-    // Fallback: return original sender
-    return sender;
+    return null;
 }
 
-module.exports = async(raf, msg, m) => {
+module.exports = async (raf, msg, m) => {
     const { generateWAMessageFromContent, prepareWAMessageMedia, proto } = await import('@whiskeysockets/baileys');
-    
+
     const users = global.users || [];
     const accounts = global.accounts || [];
 
     if (((msg.key.id.startsWith("BAE5") && msg.key.id.length < 32) || (msg.key.id.startsWith("3EB0") && msg.key.id.length < 32)) && msg.key?.fromMe) return;
     const from = msg.key.remoteJid
     const type = Object.keys(msg.message)[0]
-    
-    const chats = type === "conversation" && msg.message.conversation ? msg.message.conversation : type == "imageMessage" && msg.message.imageMessage.caption ? msg.message.imageMessage.caption : type == "documentMessage" && msg.message.documentMessage.caption ? msg.message.documentMessage.caption : type == "videoMessage" && msg.message.videoMessage.caption ? msg.message.videoMessage.caption : type == "extendedTextMessage" && msg.message.extendedTextMessage.text ? msg.message.extendedTextMessage.text : type == "buttonsResponseMessage" && msg.message.buttonsResponseMessage.selectedButtonId ? msg.message.buttonsResponseMessage.selectedButtonId : type == "templateButtonReplyMessage" && msg.message.templateButtonReplyMessage.selectedId ? msg.message.templateButtonReplyMessage.selectedId : type == "messageContextInfo" ? (msg.message.buttonsResponseMessage?.selectedButtonId || msg.message.listResponseMessage?.singleSelectReply.selectedRowId) : type == "listResponseMessage" && msg.message.listResponseMessage.singleSelectReply.selectedRowId ? msg.message.listResponseMessage.singleSelectReply.selectedRowId : ""  
-    
+
+    const chats = type === "conversation" && msg.message.conversation ? msg.message.conversation : type == "imageMessage" && msg.message.imageMessage.caption ? msg.message.imageMessage.caption : type == "documentMessage" && msg.message.documentMessage.caption ? msg.message.documentMessage.caption : type == "videoMessage" && msg.message.videoMessage.caption ? msg.message.videoMessage.caption : type == "extendedTextMessage" && msg.message.extendedTextMessage.text ? msg.message.extendedTextMessage.text : type == "buttonsResponseMessage" && msg.message.buttonsResponseMessage.selectedButtonId ? msg.message.buttonsResponseMessage.selectedButtonId : type == "templateButtonReplyMessage" && msg.message.templateButtonReplyMessage.selectedId ? msg.message.templateButtonReplyMessage.selectedId : type == "messageContextInfo" ? (msg.message.buttonsResponseMessage?.selectedButtonId || msg.message.listResponseMessage?.singleSelectReply.selectedRowId) : type == "listResponseMessage" && msg.message.listResponseMessage.singleSelectReply.selectedRowId ? msg.message.listResponseMessage.singleSelectReply.selectedRowId : ""
+
     if (chats === undefined || chats === null) {
         console.log('[WARNING] chats is undefined, skipping message processing');
         return;
     }
-    
+
     if (typeof chats !== 'string') {
         chats = String(chats || '');
     }
-    
+
     const args = chats.split(' ')
     const command = chats.toLowerCase().split(' ')[0] || ''
     const isGroup = msg.key.remoteJid.endsWith('@g.us')
     if (isGroup) return;
     const sender = isGroup ? msg.participant : msg.key.remoteJid
-    if(!sender) return;
+    if (!sender) return;
     const pushname = msg.pushName
     const q = chats.slice(command.length + 1, chats.length)
-    
-        const normalizedSenderForSaldo = await normalizeJidForSaldoOperation(sender, raf, msg);
-    
-    const isSaldo = checkATMuser(normalizedSenderForSaldo)
 
-    // Extract phone number with @lid support using remoteJidAlt (Baileys v7)
-    let plainSenderNumber = sender.split('@')[0].split(':')[0]; // Default: clean sender
-    
-    // PRIORITY: Use remoteJidAlt if available (best source for @lid)
-    if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
-        plainSenderNumber = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-        console.log(`[AUTH_DEBUG] Using remoteJidAlt: ${msg.key.remoteJidAlt} -> ${plainSenderNumber}`);
+    const primarySenderId = sender;
+    const optionalJid = getOptionalJid(msg, sender);
+
+    // Set fallback optional phone number (hanya untuk log / backward compatibility minor yang tak critical)
+    let plainSenderNumber = optionalJid ? optionalJid.split('@')[0] : sender.split('@')[0];
+
+    // Cek user terdaftar (untuk saldo dll) menggunakan Primary ID apa adanya (@lid)
+    const isSaldo = await checkATMuser(primarySenderId);
+
+    // Check isOwner (cek primary id, atau opsional jid)
+    const isOwner = ownerNumber.includes(primarySenderId) || (optionalJid ? ownerNumber.includes(optionalJid) : false) || (optionalJid ? ownerNumber.includes(plainSenderNumber) : false);
+
+    // Check isTeknisi
+    const isTeknisi = accounts.find(a => {
+        if (!a) return false;
+        if (a.lid && a.lid === primarySenderId) return true;
+        if (a.phone_number) {
+            const phone = a.phone_number;
+            if (phone === primarySenderId) return true;
+            if (optionalJid && (phone === optionalJid || phone === plainSenderNumber)) return true;
+        }
+        return false;
+    });
+
+    if (sender.endsWith('@lid')) {
+        console.log(`[AUTH_DEBUG] PrimaryID: ${primarySenderId}, OpsionalJID: ${optionalJid}, isSaldo: ${isSaldo !== false && isSaldo !== null}, isOwner: ${isOwner}, isTeknisi: ${!!isTeknisi}`);
     }
-    
-    // Build normalized JID for owner check
-    const normalizedJidForOwner = `${plainSenderNumber}@s.whatsapp.net`;
-    
-    // Check isOwner - check both original sender and normalized JID
-    const isOwner = ownerNumber.includes(sender) || ownerNumber.includes(normalizedJidForOwner);
-    
-    // Check isTeknisi with cleaned phone number
-    const isTeknisi = accounts.find(a => a.phone_number && a.phone_number == plainSenderNumber);
-    
-    // Debug logging for admin/teknisi detection
-    if (sender.endsWith('@lid') || msg.key?.remoteJidAlt) {
-        console.log(`[AUTH_DEBUG] sender: ${sender}, remoteJidAlt: ${msg.key?.remoteJidAlt}, plainSenderNumber: ${plainSenderNumber}, isOwner: ${isOwner}, isTeknisi: ${!!isTeknisi}`);
-    }
-    
+
     const isUrl = (uri) => {
         return uri.match(new RegExp(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%.+#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%+.#?&/=]*)/, 'gi'))
     }
@@ -281,22 +253,22 @@ module.exports = async(raf, msg, m) => {
     const reply = async (teks, options = {}) => {
         if (global.whatsappConnectionState === 'open' && global.raf && global.raf.sendMessage) {
             const rafToUse = global.raf || raf;
-            
+
             if (options.skipDuplicateCheck) {
                 return new Promise(resolve => {
                     setTimeout(() => {
-                        rafToUse.sendMessage(from, { text: teks }, { 
+                        rafToUse.sendMessage(from, { text: teks }, {
                             quoted: msg,
-                            skipDuplicateCheck: true 
+                            skipDuplicateCheck: true
                         })
-                        .then(() => resolve())
-                        .catch(error => {
-                            console.error('[SEND_MESSAGE_ERROR]', {
-                                from,
-                                error: error.message
+                            .then(() => resolve())
+                            .catch(error => {
+                                console.error('[SEND_MESSAGE_ERROR]', {
+                                    from,
+                                    error: error.message
+                                });
+                                resolve();
                             });
-                            resolve();
-                        });
                     }, 500);
                 });
             } else {
@@ -312,12 +284,12 @@ module.exports = async(raf, msg, m) => {
         if (global.whatsappConnectionState === 'open' && global.raf && global.raf.sendMessage) {
             const rafToUse = global.raf || raf;
             let number = numbers.replace(/[^0-9]/g, '')
-            const vcard = 'BEGIN:VCARD\n' 
-            + 'VERSION:3.0\n' 
-            + 'FN:' + name + '\n'
-            + 'ORG:;\n'
-            + 'TEL;type=CELL;type=VOICE;waid=' + number + ':+' + number + '\n'
-            + 'END:VCARD'
+            const vcard = 'BEGIN:VCARD\n'
+                + 'VERSION:3.0\n'
+                + 'FN:' + name + '\n'
+                + 'ORG:;\n'
+                + 'TEL;type=CELL;type=VOICE;waid=' + number + ':+' + number + '\n'
+                + 'END:VCARD'
             return rafToUse.sendMessage(from, { contacts: { displayName: name, contacts: [{ vcard }] } }, { quoted: quoted })
                 .catch(error => {
                     console.error('[SEND_MESSAGE_ERROR]', {
@@ -334,16 +306,16 @@ module.exports = async(raf, msg, m) => {
 
     if (!isSaldo) {
         try {
-            const normalizedSender = await normalizeJidForSaldoOperation(sender, raf, msg);
-            if (normalizedSender && !sender.endsWith('@lid')) {
-                saldoManager.createUserSaldo(normalizedSender);
+            // Kita sudah menggunakan primarySenderId (@lid atau nomor asli) secara murni
+            if (primarySenderId) {
+                await saldoManager.createUserSaldo(primarySenderId);
             }
         } catch (err) {
             console.error('[SALDO_INIT] Error creating user saldo:', err);
         }
     }
-    
-    const rupiah = checkATMuser(normalizedSenderForSaldo)
+
+    const rupiah = await checkATMuser(primarySenderId);
     const rupiah123 = convertRupiah.convert(rupiah)
 
     try {
@@ -351,11 +323,11 @@ module.exports = async(raf, msg, m) => {
             console.log(`[CONCURRENT_PREVENTED] ${sender} already being processed, skipping`);
             return;
         }
-        
+
         setProcessing(sender);
-        
+
         const smartReportState = getUserState(sender);
-        
+
         const protectedStates = [
             'ASK_NEW_NAME_FOR_SINGLE',
             'ASK_NEW_NAME_FOR_SINGLE_BULK',
@@ -375,12 +347,12 @@ module.exports = async(raf, msg, m) => {
             'AGENT_VOUCHER_SALE_CUSTOMER',
             'AGENT_VOUCHER_SALE_CONFIRM'
         ];
-        
+
         const conversationState = getUserState(sender);
-        const isInProtectedState = 
+        const isInProtectedState =
             (smartReportState && protectedStates.includes(smartReportState.step)) ||
             (conversationState && conversationState.step && protectedStates.includes(conversationState.step));
-        
+
         const userState = getUserState(sender);
         if (userState && userState.step && userState.step.startsWith('AGENT_VOUCHER_PURCHASE_')) {
             const handled = await handleAgentVoucherPurchaseConversation(msg, sender, reply, chats, raf);
@@ -397,7 +369,7 @@ module.exports = async(raf, msg, m) => {
                 return;
             }
         }
-        
+
         let isGlobalCommand = false;
         if (!isInProtectedState) {
             const keywordCheck = getIntentFromKeywords(chats);
@@ -405,25 +377,25 @@ module.exports = async(raf, msg, m) => {
             const globalCommands = ['menu', 'bantuan', 'help', 'lapor', 'ceksaldo', 'saldo'];
             isGlobalCommand = globalCommands.includes(commandCheck) || keywordCheck !== null;
         }
-        
+
         if (chats.toLowerCase().trim() === 'batal') {
             isGlobalCommand = true;
         }
-        
+
         if (smartReportState && isGlobalCommand && !isInProtectedState) {
             console.log(`[GLOBAL_COMMAND] User ${sender} broke out of state with command: "${chats}"`);
             deleteUserState(sender);
         }
         else if (smartReportState && (!isGlobalCommand || isInProtectedState)) {
             const stateStep = smartReportState.step;
-            
+
             if (stateStep === 'REPORT_MENU') {
                 const result = await handleMenuSelection({
                     sender,
                     choice: chats,
                     reply
                 });
-                
+
                 if (result.message) {
                     await reply(result.message);
                 }
@@ -432,46 +404,46 @@ module.exports = async(raf, msg, m) => {
                 }
                 return;
             }
-            
+
             if (stateStep === 'TROUBLESHOOT_LEMOT') {
                 const result = await handleTroubleshootResult({
                     sender,
                     response: chats,
                     reply
                 });
-                
+
                 if (result.message) {
                     await reply(result.message);
                 }
                 return;
             }
-            
+
             if (stateStep === 'CONFIRM_MATI_REPORT') {
                 const result = await handleMatiConfirmation({
                     sender,
                     response: chats,
                     reply
                 });
-                
+
                 if (result.message) {
                     await reply(result.message);
                 }
                 return;
             }
-            
+
             if (stateStep === 'MATI_TROUBLESHOOT_OPTIONS') {
                 const result = await handleMatiTroubleshootOptions({
                     sender,
                     response: chats,
                     reply
                 });
-                
+
                 if (result.message) {
                     await reply(result.message);
                 }
                 return;
             }
-            
+
             if (stateStep === 'MATI_AWAITING_PHOTO') {
                 if (type === 'conversation') {
                     const result = await handleMatiPhotoUpload({
@@ -480,28 +452,28 @@ module.exports = async(raf, msg, m) => {
                         photoPath: null,
                         reply
                     });
-                    
+
                     if (result.message) {
                         await reply(result.message);
                     }
                     return;
                 }
-                
+
                 if (type === 'imageMessage') {
                     const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
-                    
+
                     try {
                         const buffer = await downloadMediaMessage(msg, 'buffer', {});
                         const fileName = `photo_${Date.now()}.jpg`;
                         const photoPath = path.join(__dirname, '../uploads', fileName);
-                        
+
                         const uploadsDir = path.dirname(photoPath);
                         if (!fs.existsSync(uploadsDir)) {
                             fs.mkdirSync(uploadsDir, { recursive: true });
                         }
-                        
+
                         fs.writeFileSync(photoPath, buffer);
-                        
+
                         const result = await handleMatiPhotoUpload({
                             sender,
                             response: null,
@@ -509,7 +481,7 @@ module.exports = async(raf, msg, m) => {
                             photoBuffer: buffer,
                             reply
                         });
-                        
+
                         if (result.message) {
                             await reply(result.message);
                         }
@@ -520,7 +492,7 @@ module.exports = async(raf, msg, m) => {
                     return;
                 }
             }
-            
+
             if (stateStep === 'LEMOT_AWAITING_PHOTO') {
                 if (type === 'conversation') {
                     const result = await handleLemotPhotoUpload({
@@ -529,29 +501,29 @@ module.exports = async(raf, msg, m) => {
                         photoPath: null,
                         reply
                     });
-                    
+
                     if (result.message) {
                         await reply(result.message);
                     }
                     return;
                 }
-                
+
                 if (type === 'imageMessage') {
                     const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
-                    
+
                     try {
                         const buffer = await downloadMediaMessage(msg, 'buffer', {});
                         const fileName = `photo_${Date.now()}.jpg`;
                         const photoPath = path.join(__dirname, '../uploads', fileName);
-                        
+
                         const uploadsDir = path.join(__dirname, '../uploads');
                         if (!fs.existsSync(uploadsDir)) {
                             fs.mkdirSync(uploadsDir, { recursive: true });
                         }
-                        
+
                         fs.writeFileSync(photoPath, buffer);
                         console.log('[PHOTO_UPLOAD] Image saved:', photoPath);
-                        
+
                         const result = await handleLemotPhotoUpload({
                             sender,
                             response: null,
@@ -559,7 +531,7 @@ module.exports = async(raf, msg, m) => {
                             photoBuffer: buffer,   // Add buffer for immediate sending
                             reply
                         });
-                        
+
                         if (result.message) {
                             await reply(result.message);
                         }
@@ -570,60 +542,144 @@ module.exports = async(raf, msg, m) => {
                     return;
                 }
             }
-            
+
             if (stateStep === 'CONFIRM_DIRECT_MATI') {
                 const result = await handleDirectConfirmation({
                     sender,
                     response: chats,
                     reply
                 });
-                
+
                 if (result.message) {
                     await reply(result.message);
                 }
                 return;
             }
-            
+
             if (stateStep === 'DIRECT_LEMOT_TROUBLESHOOT') {
                 const result = await handleDirectLemotResponse({
                     sender,
                     response: chats,
                     reply
                 });
-                
+
                 if (result.message) {
                     await reply(result.message);
                 }
                 return;
             }
-            
+
+            // --- WiFi Management State Handlers (ADDED FIX) ---
+
+            // Handle single SSID name change input
+            if (stateStep === 'ASK_NEW_NAME_FOR_SINGLE') {
+                const { handleSingleSSIDNameChange } = require('./handlers/wifi-management-handler');
+                // Pass user input as newName
+                await handleSingleSSIDNameChange(sender, userState.targetUser, chats, reply, global);
+                // Clear state is handled within the function or after success
+                return;
+            }
+
+            // Handle single SSID password change input
+            if (stateStep === 'ASK_NEW_PASSWORD') {
+                const { handleSingleSSIDPasswordChange } = require('./handlers/wifi-management-handler');
+                await handleSingleSSIDPasswordChange(sender, userState.targetUser, chats, reply, global);
+                return;
+            }
+
+            // Handle confirmation for name change
+            if (stateStep === 'CONFIRM_GANTI_NAMA') {
+                if (chats.toLowerCase() === 'ya') {
+                    const { setSSIDName } = require('../lib/wifi');
+                    const { logWifiNameChange } = require('./handlers/wifi-management-handler'); // Helper needs to be exported or redefined
+                    // Re-importing local helper for logging if needed, strict ref requires correct path
+                    // For now, executing direct logic similar to handler
+                    try {
+                        const user = userState.targetUser;
+                        const newName = userState.nama_wifi_baru;
+                        await setSSIDName(user.device_id, userState.ssid_id || '1', newName);
+
+                        // Manually log since logWifiNameChange is not exported. 
+                        // Ideally we should export it, but for quick fix:
+                        console.log(`[WIFI] Name changed for ${user.name} to ${newName}`);
+
+                        await reply(`✅ *Berhasil!*\n\nNama WiFi telah diubah menjadi: *"${newName}"*\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• Modem akan restart otomatis\n• Anda mungkin perlu menyambung ulang perangkat Anda`);
+                    } catch (error) {
+                        console.error(`[CONFIRM_NAME_CHANGE] Error:`, error);
+                        await reply(`❌ Maaf, gagal mengubah nama WiFi. Error: ${error.message}`);
+                    }
+                } else {
+                    await reply('❌ Perubahan nama WiFi dibatalkan.');
+                }
+                deleteUserState(sender);
+                return;
+            }
+
+            // Handle confirmation for password change
+            if (stateStep === 'CONFIRM_GANTI_SANDI') {
+                if (chats.toLowerCase() === 'ya') {
+                    const { setPassword } = require('../lib/wifi');
+                    try {
+                        const user = userState.targetUser;
+                        const newPassword = userState.sandi_wifi_baru;
+                        await setPassword(user.device_id, userState.ssid_id || '1', newPassword);
+
+                        console.log(`[WIFI] Password changed for ${user.name}`);
+
+                        await reply(`✅ *Berhasil!*\n\nKata sandi WiFi telah diubah menjadi: \`${newPassword}\`\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• Modem akan restart otomatis\n• Semua perangkat perlu login ulang dengan password baru`);
+                    } catch (error) {
+                        console.error(`[CONFIRM_PASSWORD_CHANGE] Error:`, error);
+                        await reply(`❌ Maaf, gagal mengubah kata sandi WiFi. Error: ${error.message}`);
+                    }
+                } else {
+                    await reply('❌ Perubahan kata sandi WiFi dibatalkan.');
+                }
+                deleteUserState(sender);
+                return;
+            }
+
+            // Handle bulk/auto inputs (if needed based on wifi-management-handler)
+            if (stateStep === 'ASK_NEW_NAME_FOR_BULK_AUTO') {
+                const { handleBulkAutoNameChange } = require('./handlers/wifi-management-handler');
+                await handleBulkAutoNameChange(sender, userState.targetUser, chats, reply, global);
+                return;
+            }
+
+            if (stateStep === 'ASK_NEW_PASSWORD_BULK_AUTO') {
+                const { handleBulkAutoPasswordChange } = require('./handlers/wifi-management-handler');
+                await handleBulkAutoPasswordChange(sender, userState.targetUser, chats, reply, global);
+                return;
+            }
+
+            // --- End WiFi Management State Handlers ---
+
             if (stateStep === 'GANGGUAN_MATI_AWAITING_PHOTO' && type === 'imageMessage') {
                 const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
-                
+
                 try {
                     if (smartReportState.uploadedPhotos && smartReportState.uploadedPhotos.length >= 3) {
                         await reply(format('error_photo_max_limit'));
                         return;
                     }
-                    
+
                     const buffer = await downloadMediaMessage(msg, 'buffer', {});
                     const date = new Date();
                     const year = date.getFullYear();
                     const month = String(date.getMonth() + 1).padStart(2, '0');
                     const ticketId = smartReportState.ticketData.ticketId;
                     const timestamp = Date.now();
-                    
+
                     const fileName = `customer_${ticketId}_${timestamp}.jpg`;
-                    
+
                     const uploadDir = getReportsUploadsPath(year, month, ticketId, __dirname);
-                    
+
                     if (!fs.existsSync(uploadDir)) {
                         fs.mkdirSync(uploadDir, { recursive: true });
                     }
-                    
+
                     const filePath = path.join(uploadDir, fileName);
                     fs.writeFileSync(filePath, buffer);
-                    
+
                     smartReportState.uploadedPhotos = smartReportState.uploadedPhotos || [];
                     smartReportState.uploadedPhotos.push({
                         fileName: fileName,
@@ -632,19 +688,19 @@ module.exports = async(raf, msg, m) => {
                         size: buffer.length,
                         uploadedBy: 'customer'
                     });
-                    
+
                     smartReportState.photoBuffers = smartReportState.photoBuffers || [];
                     smartReportState.photoBuffers.push(buffer);
-                    
+
                     smartReportState.startTime = smartReportState.startTime || Date.now();
-                    
+
                     const stateToSave = { ...smartReportState };
                     delete stateToSave.photoBuffers;
                     setUserState(sender, stateToSave);
-                    
+
                     const photoCount = smartReportState.uploadedPhotos.length;
                     const remaining = 3 - photoCount;
-                    
+
                     await reply(`📸 Foto ${photoCount} berhasil diterima!
 
 ${remaining > 0 ? `• Bisa upload ${remaining} foto lagi` : '• Maksimal 3 foto tercapai'}
@@ -652,27 +708,27 @@ ${remaining > 0 ? `• Bisa upload ${remaining} foto lagi` : '• Maksimal 3 fot
 • Ketik *skip* jika cukup
 
 _Foto akan membantu teknisi diagnosis masalah_`);
-                    
+
                 } catch (error) {
                     console.error('[CUSTOMER_PHOTO_UPLOAD_ERROR]', error);
                     await reply(format('error_photo_upload_failed'));
                 }
                 return;
             }
-            
+
             if ((stateStep === 'TICKET_RESOLVE_UPLOAD_PHOTOS' || stateStep === 'TICKET_VERIFIED_AWAITING_PHOTOS') && type === 'imageMessage') {
                 const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
-                
+
                 if (stateStep === 'TICKET_VERIFIED_AWAITING_PHOTOS' && !smartReportState.otpVerifiedAt) {
                     await reply(format('error_not_verified'));
                     return;
                 }
-                
+
                 try {
                     const buffer = await downloadMediaMessage(msg, 'buffer', {});
                     const ticketId = smartReportState.ticketIdToResolve || smartReportState.ticketId;
                     const teknisiName = isTeknisi ? isTeknisi.username : 'teknisi';
-                    
+
                     const result = await addPhotoToQueue({
                         sender,
                         buffer,
@@ -681,17 +737,17 @@ _Foto akan membantu teknisi diagnosis masalah_`);
                         ticketId,
                         reply
                     });
-                    
+
                     if (result.queued) {
                         console.log(`[PHOTO_QUEUE] Photo ${result.count} queued for ${sender}`);
                     }
-                    
+
                 } catch (error) {
                     console.error('[UPLOAD_PHOTO_ERROR]', error);
                 }
                 return;
             }
-            
+
             if (stateStep === 'GANGGUAN_MATI_AWAITING_PHOTO') {
                 const result = await handleCustomerPhotoUpload({
                     sender,
@@ -699,23 +755,23 @@ _Foto akan membantu teknisi diagnosis masalah_`);
                     chats,
                     reply
                 });
-                
+
                 if (result.message) {
                     await reply(result.message);
                 }
                 return;
             }
-            
+
             const resolutionStates = [
                 'TICKET_VERIFIED_AWAITING_PHOTOS',
-                'TICKET_RESOLVE_UPLOAD_PHOTOS', 
+                'TICKET_RESOLVE_UPLOAD_PHOTOS',
                 'TICKET_RESOLVE_ASK_NOTES',
                 'TICKET_RESOLVE_CONFIRM'
             ];
-            
+
             if (resolutionStates.includes(stateStep)) {
                 console.log(`[${stateStep}] Handling text: "${chats}" from ${sender}`);
-                
+
                 const result = await handleGeneralSteps({
                     userState: smartReportState,
                     sender,
@@ -725,14 +781,14 @@ _Foto akan membantu teknisi diagnosis masalah_`);
                     setUserState,
                     deleteUserState
                 });
-                
+
                 if (result.message) {
                     await reply(result.message);
                 }
-                
+
                 return;
             }
-            
+
             if ((type === 'locationMessage' || type === 'liveLocationMessage') && smartReportState) {
                 if (smartReportState.step === 'AWAITING_LOCATION_FOR_JOURNEY') {
                     let locationData;
@@ -741,13 +797,13 @@ _Foto akan membantu teknisi diagnosis masalah_`);
                     } else if (type === 'liveLocationMessage') {
                         locationData = msg.message.liveLocationMessage;
                     }
-                    
+
                     if (!locationData || !locationData.degreesLatitude || !locationData.degreesLongitude) {
                         console.error('[LOCATION_ERROR] Invalid location data:', locationData);
                         await reply(format('error_location_invalid'));
                         return;
                     }
-                    
+
                     const locationResult = await handleTeknisiShareLocation(
                         sender,
                         {
@@ -763,14 +819,14 @@ _Foto akan membantu teknisi diagnosis masalah_`);
                     return;
                 }
             }
-            
+
             if ((type === 'locationMessage' || type === 'liveLocationMessage')) {
                 const reports = global.reports || [];
-                const activeTicket = reports.find(r => 
-                    (r.processedByTeknisiId === sender || r.teknisiId === sender) && 
+                const activeTicket = reports.find(r =>
+                    (r.processedByTeknisiId === sender || r.teknisiId === sender) &&
                     (r.status === 'otw' || r.status === 'arrived' || r.status === 'diproses teknisi' || r.status === 'process')
                 );
-                
+
                 if (activeTicket) {
                     let locationData;
                     if (type === 'locationMessage') {
@@ -778,12 +834,12 @@ _Foto akan membantu teknisi diagnosis masalah_`);
                     } else if (type === 'liveLocationMessage') {
                         locationData = msg.message.liveLocationMessage;
                     }
-                    
+
                     if (!locationData || !locationData.degreesLatitude || !locationData.degreesLongitude) {
                         console.error('[LOCATION_ERROR] Invalid location data for active ticket:', locationData);
                         return;
                     }
-                    
+
                     const locationResult = await handleTeknisiShareLocation(
                         sender,
                         {
@@ -799,7 +855,7 @@ _Foto akan membantu teknisi diagnosis masalah_`);
                     return;
                 }
             }
-            
+
             if (stateStep === 'GANGGUAN_MATI_DEVICE_OFFLINE') {
                 const result = await handleGangguanMatiOfflineResponse({
                     sender,
@@ -809,13 +865,13 @@ _Foto akan membantu teknisi diagnosis masalah_`);
                     msg,
                     raf
                 });
-                
+
                 if (result && result.message) {
                     await reply(result.message);
                 }
                 return;
             }
-            
+
             if (stateStep === 'GANGGUAN_MATI_DEVICE_ONLINE') {
                 const result = await handleGangguanMatiOnlineResponse({
                     sender,
@@ -824,14 +880,14 @@ _Foto akan membantu teknisi diagnosis masalah_`);
                     msg,
                     raf
                 });
-                
+
                 if (result && result.message) {
                     await reply(result.message);
                 }
                 return;
             }
-            
-            if (stateStep === 'GANGGUAN_LEMOT_ANALYSIS' || 
+
+            if (stateStep === 'GANGGUAN_LEMOT_ANALYSIS' ||
                 stateStep === 'GANGGUAN_LEMOT_AWAITING_RESPONSE' ||
                 stateStep === 'GANGGUAN_LEMOT_CONFIRM_TICKET') {
                 const result = await handleGangguanLemotResponse({
@@ -841,39 +897,39 @@ _Foto akan membantu teknisi diagnosis masalah_`);
                     msg,
                     raf
                 });
-                
+
                 if (result && result.message) {
                     await reply(result.message);
                 }
                 return;
             }
         }
-        
+
         const tempWifiInputStates = [
             'ASK_NEW_NAME_FOR_SINGLE',
-            'ASK_NEW_NAME_FOR_SINGLE_BULK', 
+            'ASK_NEW_NAME_FOR_SINGLE_BULK',
             'ASK_NEW_NAME_FOR_BULK',
             'ASK_NEW_NAME_FOR_BULK_AUTO',
             'ASK_NEW_PASSWORD',
             'ASK_NEW_PASSWORD_BULK',
             'ASK_NEW_PASSWORD_BULK_AUTO'
         ];
-        
+
         const isInTempWifiInputState = temp[sender] && tempWifiInputStates.includes(temp[sender].step);
-        
+
         if (temp[sender] && isGlobalCommand && !isInTempWifiInputState) {
             console.log(`[GLOBAL_COMMAND] Clearing temp state for ${sender}`);
             delete temp[sender];
         }
         else if (temp[sender]) {
             if (temp[sender].step === 'AWAITING_QUESTION') {
-                delete temp[sender]; 
+                delete temp[sender];
 
                 reply("Maaf, fitur tanya jawab otomatis sudah tidak tersedia.\n\nSilakan gunakan perintah berikut:\n• *menu* - Lihat menu utama\n• *bantuan* - Lihat panduan\n• Atau hubungi admin untuk bantuan lebih lanjut.");
-                return; 
+                return;
             }
         }
-        
+
         if (temp[sender]?.step === 'ASK_VOUCHER_CHOICE' && !isGlobalCommand) {
             const chosenPrice = chats.trim().replace(/\D/g, '');
 
@@ -888,15 +944,15 @@ _Foto akan membantu teknisi diagnosis masalah_`);
             delete temp[sender];
 
             const helpers = {
-                    checkhargavoucher,
-                    checkprofvc,
-                    checkdurasivc,
-                    checkhargavc,
-                    checkATMuser,
-                    confirmATM,
-                    getvoucher
-                };
-            await processVoucherPurchase(sender, pushname, chosenPrice, reply, helpers, global);
+                checkhargavoucher,
+                checkprofvc,
+                checkdurasivc,
+                checkhargavc,
+                checkATMuser,
+                confirmATM,
+                getvoucher
+            };
+            await processVoucherPurchase(normalizedSenderForSaldo, pushname, chosenPrice, reply, helpers, global);
 
             return;
         }
@@ -909,39 +965,39 @@ _Foto akan membantu teknisi diagnosis masalah_`);
             teknisiState.step === 'AWAITING_PHOTO_CATEGORY_3' ||
             teknisiState.step === 'AWAITING_PHOTO_EXTRA'
         );
-        
+
         if (isTeknisiPhotoState && type === 'imageMessage') {
             const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
-            
+
             try {
                 const buffer = await downloadMediaMessage(msg, 'buffer', {});
                 console.log('[TEKNISI_PHOTO_DEBUG] Downloaded buffer size:', buffer ? buffer.length : 'NULL');
-                
+
                 if (!buffer || buffer.length === 0) {
                     throw new Error('Downloaded buffer is empty or null');
                 }
-                
+
                 const ticketId = teknisiState.ticketId;
                 if (!ticketId) {
                     throw new Error('Ticket ID not found in teknisi state');
                 }
-                
+
                 const date = new Date();
                 const year = date.getFullYear();
                 const month = String(date.getMonth() + 1).padStart(2, '0');
-                
+
                 const timestamp = Date.now();
                 const random = Math.random().toString(36).substring(7);
                 const fileName = `photo_${timestamp}_${random}.jpg`;
-                
+
                 const projectRoot = getProjectRoot(__dirname);
                 const uploadsDir = getTeknisiUploadsPathByTicket(year, month, ticketId, __dirname);
                 const photoPath = path.join(uploadsDir, fileName);
-                
+
                 if (!fs.existsSync(uploadsDir)) {
                     fs.mkdirSync(uploadsDir, { recursive: true });
                 }
-                
+
                 try {
                     fs.writeFileSync(photoPath, buffer);
                     console.log('[TEKNISI_PHOTO] Image saved successfully:', photoPath);
@@ -955,9 +1011,9 @@ _Foto akan membantu teknisi diagnosis masalah_`);
                     console.error('[TEKNISI_PHOTO_SAVE_ERROR] Buffer size:', buffer.length);
                     throw saveError;
                 }
-                
+
                 const result = await handleTeknisiPhotoUpload(sender, fileName);
-                
+
                 if (result.message) {
                     await reply(result.message);
                 }
@@ -968,12 +1024,12 @@ _Foto akan membantu teknisi diagnosis masalah_`);
             return;
         }
 
-        if (teknisiState && teknisiState.step === 'AWAITING_PHOTO_CATEGORY_3' && 
+        if (teknisiState && teknisiState.step === 'AWAITING_PHOTO_CATEGORY_3' &&
             (chats.toLowerCase().trim() === 'skip' || chats.toLowerCase().trim() === 'lewati')) {
-            
+
             teknisiState.step = 'AWAITING_PHOTO_EXTRA_CONFIRM';
             teknisiState.currentPhotoCategory = 'extra';
-            
+
             await reply(`⚪ *FOTO HASIL DI-SKIP*
 
 ━━━━━━━━━━━━━━━━
@@ -1002,11 +1058,11 @@ Ketik:
 
         if (teknisiState && teknisiState.step === 'AWAITING_PHOTO_EXTRA_CONFIRM') {
             const response = chats.toLowerCase().trim();
-            
+
             if (response === 'ya' || response === 'yes') {
                 teknisiState.step = 'AWAITING_PHOTO_EXTRA';
                 teknisiState.currentPhotoCategory = 'extra';
-                
+
                 await reply(`✅ *SIAP TERIMA FOTO TAMBAHAN*
 
 ━━━━━━━━━━━━━━━━
@@ -1024,14 +1080,14 @@ Ketik:
 
 ➡️ *Kirim foto sekarang...*`);
                 return;
-                
+
             } else if (response === 'tidak' || response === 'no') {
                 teknisiState.step = 'AWAITING_COMPLETION_CONFIRMATION';
-                
+
                 const problemFilled = teknisiState.photoCategories.problem ? '✅' : '⚪';
                 const speedtestFilled = teknisiState.photoCategories.speedtest ? '✅' : '⚪';
                 const resultFilled = teknisiState.photoCategories.result ? '✅' : '⚪';
-                
+
                 await reply(`✅ *DOKUMENTASI LENGKAP!*
 
 ━━━━━━━━━━━━━━━━
@@ -1057,18 +1113,18 @@ Untuk melanjutkan input catatan perbaikan`);
             }
         }
 
-        if (global.teknisiStates && global.teknisiStates[sender] && 
+        if (global.teknisiStates && global.teknisiStates[sender] &&
             global.teknisiStates[sender].step === 'AWAITING_RESOLUTION_NOTES') {
             const state = global.teknisiStates[sender];
-            
+
             if (chats.length < 10) {
                 await reply(format('error_notes_too_short'));
                 return;
             }
-            
+
             state.resolutionNotes = chats;
             state.step = 'AWAITING_CONFIRMATION';
-            
+
             await reply(`📝 *REVIEW SEBELUM FINALISASI*
 ━━━━━━━━━━━━━━━━
 
@@ -1088,18 +1144,18 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
             return;
         }
 
-        if (global.teknisiStates && global.teknisiStates[sender] && 
+        if (global.teknisiStates && global.teknisiStates[sender] &&
             global.teknisiStates[sender].step === 'AWAITING_CONFIRMATION') {
             const state = global.teknisiStates[sender];
             const response = chats.toLowerCase().trim();
-            
+
             if (response === 'ya' || response === 'yes') {
                 const result = await handleCompleteTicket(sender, state);
-                
+
                 if (result.message) {
                     await reply(result.message);
                 }
-                
+
                 delete global.teknisiStates[sender];
                 return;
             } else if (response === 'tidak' || response === 'no') {
@@ -1151,7 +1207,7 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
                 'ASK_NEW_PASSWORD_BULK',
                 'ASK_NEW_PASSWORD_BULK_AUTO'
             ];
-            
+
             if (wifiInputStates.includes(wifiState.step)) {
                 if (chats.toLowerCase().trim() === 'batal') {
                     deleteUserState(sender);
@@ -1159,11 +1215,11 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
                     clearProcessing(sender);
                     return;
                 }
-                
+
                 // Continue processing WiFi input (handled elsewhere)
             }
         }
-        
+
         // Also check legacy temp state for backward compatibility
         if (temp[sender] && temp[sender].step) {
             const wifiInputStates = [
@@ -1175,7 +1231,7 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
                 'ASK_NEW_PASSWORD_BULK',
                 'ASK_NEW_PASSWORD_BULK_AUTO'
             ];
-            
+
             if (wifiInputStates.includes(temp[sender].step)) {
                 if (chats.toLowerCase().trim() === 'batal') {
                     delete temp[sender];
@@ -1183,18 +1239,18 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
                     clearProcessing(sender);
                     return;
                 }
-                
+
                 return;
             }
         }
 
         let isAgent = false;
         let agentCred = null;
-        
+
         const isGroup = sender.endsWith('@g.us');
-        
+
         let senderInfo = extractSenderInfo(msg, isGroup);
-        
+
         if (senderInfo.isLid && !senderInfo.phoneNumber && raf && raf.signalRepository) {
             const lidJid = senderInfo.originalSender;
             try {
@@ -1208,16 +1264,16 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
             } catch (error) {
             }
         }
-        
+
         let phoneNumberToSearch = senderInfo.phoneNumber || sender.split('@')[0];
         phoneNumberToSearch = phoneNumberToSearch.replace(/@.*$/, '');
-        
+
         agentCred = agentTransactionManager.getAgentByWhatsapp(phoneNumberToSearch);
-        
+
         if (!agentCred && !phoneNumberToSearch.includes('@')) {
             agentCred = agentTransactionManager.getAgentByWhatsapp(`${phoneNumberToSearch}@s.whatsapp.net`);
         }
-        
+
         if (!agentCred) {
             const agent = agentManager.getAgentByWhatsapp(phoneNumberToSearch);
             if (agent) {
@@ -1243,7 +1299,7 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
                 }
             }
         }
-        
+
         // Calculate qAfterKeyword - arguments after the matched keyword
         // Example: "cek wifi 10" with matchedKeywordLength=2 -> qAfterKeyword="10"
         // Example: "cari budi" with matchedKeywordLength=1 -> qAfterKeyword="budi"
@@ -1253,11 +1309,11 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
         } else {
             qAfterKeyword = q; // Fallback to original q
         }
-        
+
         if (intent === 'LAPOR_GANGGUAN_MATI' && command !== 'lapor') {
             intent = undefined;
         }
-        
+
         console.log(`[INTENT_DEBUG] Final intent: ${intent} for message: "${chats}", matchedKeywordLength: ${matchedKeywordLength}, qAfterKeyword: "${qAfterKeyword}"`);
 
         switch (intent) {
@@ -1274,22 +1330,22 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
             }
             case 'LAPOR_PANDUAN': {
                 const user = findUserWithLidSupport(global.users, msg, plainSenderNumber);
-                
+
                 if (sender.includes('@lid') && !user) {
                     console.log('[LAPOR_PANDUAN] @lid format detected, user not found');
                     console.log('[LAPOR_PANDUAN] Sender:', sender);
                 }
-                
+
                 if (!user) {
                     return reply(mess.userNotRegister);
                 }
-                
+
                 reply(format('panduan_laporan_cerdas', { pushname: pushname || 'Kak' }));
                 break;
             }
             case 'LAPOR_GANGGUAN': {
                 deleteUserState(sender);
-                
+
                 const result = await startReportFlow({
                     sender,
                     pushname,
@@ -1297,18 +1353,18 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
                     msg,
                     raf: global.raf
                 });
-                
+
                 if (result.message) {
                     await reply(result.message);
                 }
                 break;
             }
-            
+
             case 'LAPOR_GANGGUAN_MATI': {
                 deleteUserState(sender);
-                
+
                 await reply(`⏳ Sedang memeriksa status perangkat Anda...`);
-                
+
                 const result = await handleGangguanMati({
                     sender,
                     pushname,
@@ -1318,16 +1374,16 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
                     msg, // Pass msg for LID support
                     raf  // Pass raf for LID support
                 });
-                
+
                 if (result.message) {
                     await reply(result.message);
                 }
                 break;
             }
-            
+
             case 'LAPOR_GANGGUAN_LEMOT': {
                 deleteUserState(sender);
-                
+
                 const result = await handleGangguanLemot({
                     sender,
                     pushname,
@@ -1337,7 +1393,7 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
                     msg, // Pass msg for LID support
                     raf  // Pass raf for LID support
                 });
-                
+
                 if (result.message) {
                     await reply(result.message);
                 }
@@ -1351,7 +1407,7 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
                 await handleStatusHotspot(isOwner, isTeknisi, reply, mess, global.config);
                 break;
             }
-            case 'CEK_TIKET': { 
+            case 'CEK_TIKET': {
                 handleCekTiket(q, pushname, sender, isOwner, isTeknisi, global.config, global, reply);
                 break;
             }
@@ -1362,9 +1418,9 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
 
                 let ticketId = '';
                 const originalMessage = chats.trim();
-                
+
                 const cleanedMessage = originalMessage.replace(/^batalkan\s*tiket\s*/i, '').trim();
-                
+
                 if (cleanedMessage && cleanedMessage.length > 0) {
                     ticketId = cleanedMessage.toUpperCase();
                 }
@@ -1410,8 +1466,8 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
                 }
 
                 if (activeReport.status === 'baru' || activeReport.status === 'pending') {
-                    const reportDetails = activeReport.laporanText ? 
-                        activeReport.laporanText.substring(0, 75) + (activeReport.laporanText.length > 75 ? '...' : '') : 
+                    const reportDetails = activeReport.laporanText ?
+                        activeReport.laporanText.substring(0, 75) + (activeReport.laporanText.length > 75 ? '...' : '') :
                         'Tidak ada deskripsi';
 
                     temp[sender] = {
@@ -1425,7 +1481,7 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
                 return reply(`⚠️ Tiket dengan ID *${ticketId}* memiliki status: *${activeReport.status}*\n\nStatus ini tidak dapat diproses untuk pembatalan. Silakan hubungi admin untuk bantuan.`);
                 break;
             }
-            
+
             case 'KONFIRMASI_SELESAI': {
                 const args = q.split(' ');
                 if (args.length < 2) {
@@ -1435,31 +1491,31 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
                     }
                     return reply("Format: konfirmasi [ID_TIKET] [KODE]");
                 }
-                
+
                 const firstArg = args[0];
-                
+
                 if (firstArg.startsWith('AGT_TRX_')) {
                     await handleAgentConfirmation(msg, sender, reply, args);
                 } else {
                     if (!isTeknisi && !isOwner) return reply(mess.teknisiOrOwnerOnly);
-                    
+
                     const ticketId = firstArg;
                     const code = args[1];
-                    
+
                     const result = await handleFinalConfirmation({
                         ticketId,
                         completionCode: code,
                         isFromCustomer: false,
                         sender
                     });
-                    
+
                     if (result.message) {
                         await reply(result.message);
                     }
                 }
                 break;
             }
-            
+
             case 'CUSTOMER_CONFIRM_DONE': {
                 if (!isOwner && !isTeknisi) {
                     const remoteResponse = await handleRemoteResponse({
@@ -1467,34 +1523,34 @@ Apakah perbaikan sudah selesai dan data di atas sudah benar?
                         response: lowerMessage,
                         reply
                     });
-                    
+
                     if (remoteResponse) {
                         return reply(remoteResponse.message);
                     }
                 }
-                
-                const report = global.reports.find(r => 
-                    r.ticketId === ticketId && 
+
+                const report = global.reports.find(r =>
+                    r.ticketId === ticketId &&
                     r.pelangganId === sender
                 );
-                
+
                 if (!report) {
                     return reply(format('error_ticket_not_found'));
                 }
-                
+
                 const result = await handleFinalConfirmation({
                     ticketId,
                     completionCode: code,
                     isFromCustomer: true,
                     sender
                 });
-                
+
                 if (result.message) {
                     await reply(result.message);
                 }
                 break;
             }
-            
+
             case 'SELESAIKAN_TIKET': // Old flow - redirect to new flow
             case 'tiketdone': {
                 if (!isTeknisi && !isOwner) return reply(mess.teknisiOrOwnerOnly);
@@ -1538,7 +1594,7 @@ Silakan upload foto dokumentasi perbaikan:
 
 ⏱️ Timeout: 10 menit`);
             }
-            break;
+                break;
             case 'TOPUP_SALDO': // Sesuaikan dengan intent yang mungkin dari Gemini
             case 'buynow': {
                 await handleTopupSaldoPayment({
@@ -1557,7 +1613,7 @@ Silakan upload foto dokumentasi perbaikan:
                     addPayment
                 });
             }
-            break;
+                break;
             case 'BELI_VOUCHER': {
                 const helpers = {
                     checkhargavoucher,
@@ -1579,7 +1635,7 @@ Silakan upload foto dokumentasi perbaikan:
                     helpers
                 });
             }
-            break
+                break
             case 'button': {
                 await reply(`Hi Kak ${pushname}! 👋
 
@@ -1603,7 +1659,7 @@ atau ketik:
 • *menupelanggan* - Menu Pelanggan  
 • *pasang* - Info Pasang`);
             }
-            break;
+                break;
             case 'BANTUAN': {
                 handleBantuan(pushname, global.config, reply);
                 break;
@@ -1618,7 +1674,7 @@ atau ketik:
             }
             case 'MENU_UTAMA':
             case 'help':
-            case 'menu wifi' :
+            case 'menu wifi':
             case 'menuwifi': {
                 handleMenuUtama(global.config, reply, pushname, sender);
                 break;
@@ -1659,7 +1715,7 @@ atau ketik:
             case 'TRANSFER_SALDO': {
                 let transferArgs = [];
                 const transferText = chats.trim();
-                
+
                 if (transferText.includes('|')) {
                     const parts = transferText.split('|');
                     transferArgs = [parts[0].replace(/^transfer\s+/i, '').trim(), parts[1].trim()];
@@ -1669,11 +1725,11 @@ atau ketik:
                         transferArgs = [parts[0], parts[1]];
                     }
                 }
-                
+
                 if (transferArgs.length < 2) {
                     return await reply(format('error_format_transfer'));
                 }
-                
+
                 await handleTransferSaldo(msg, normalizedSenderForSaldo, reply, transferArgs);
                 break;
             }
@@ -1685,7 +1741,7 @@ atau ketik:
                 const senderInfo = extractSenderInfo(msg, sender);
                 const phoneNumberToSearch = senderInfo.phoneNumber || sender.split('@')[0];
                 const agentCred = agentTransactionManager.getAgentByWhatsapp(phoneNumberToSearch);
-                
+
                 if (agentCred && chats.toLowerCase().includes('jual')) {
                     await handleAgentSellVoucher(msg, sender, reply, temp, raf, users, global);
                 } else {
@@ -1705,8 +1761,8 @@ atau ketik:
                     raf
                 });
             }
-            break;
-            
+                break;
+
             case 'LIST_AGENTS': {
                 try {
                     if (q && q.trim()) {
@@ -1719,19 +1775,19 @@ atau ketik:
                     await reply(format('error_agent_data_failed'));
                 }
             }
-            break;
-            
+                break;
+
             case 'AGENT_SERVICES': {
                 await handleAgentServices(msg, sender, reply);
             }
-            break;
-            
+                break;
+
             case 'SEARCH_AGENT': {
                 const searchQuery = q && q.trim() ? q.trim() : '';
                 await handleSearchAgent(msg, sender, reply, searchQuery);
             }
-            break;
-            
+                break;
+
             case 'AGENT_DETAIL': {
                 const agentId = q && q.trim() ? q.trim().toUpperCase() : '';
                 if (!agentId) {
@@ -1740,77 +1796,77 @@ atau ketik:
                     await handleViewAgentDetail(msg, sender, reply, agentId);
                 }
             }
-            break;
-            
+                break;
+
             case 'AGENT_TRANSACTIONS': {
                 await handleAgentTodayTransactions(msg, sender, reply, raf);
             }
-            break;
-            
+                break;
+
             case 'CHECK_TOPUP_STATUS': {
                 await handleCheckTopupStatus(msg, normalizedSenderForSaldo, reply);
             }
-            break;
-            
+                break;
+
             case 'AGENT_SELF_PROFILE': {
                 await handleAgentSelfProfile(msg, sender, reply, raf);
             }
-            break;
-            
+                break;
+
             case 'AGENT_CHANGE_PIN': {
                 await handleAgentPinChange(msg, sender, reply, args, raf);
             }
-            break;
-            
+                break;
+
             case 'AGENT_PURCHASE_VOUCHER': {
                 await handleAgentPurchaseVoucher(msg, sender, reply, temp, raf);
             }
-            break;
-            
+                break;
+
             case 'AGENT_SELL_VOUCHER': {
                 await handleAgentSellVoucher(msg, sender, reply, temp, raf, users, global);
                 break;
             }
-            
+
             case 'AGENT_CHECK_INVENTORY': {
                 await handleAgentCheckInventory(msg, sender, reply, raf);
             }
-            break;
-            
+                break;
+
             case 'AGENT_PURCHASE_HISTORY': {
                 await handleAgentPurchaseHistory(msg, sender, reply, raf);
             }
-            break;
-            
+                break;
+
             case 'AGENT_SALES_HISTORY': {
                 await handleAgentSalesHistory(msg, sender, reply, raf);
             }
-            break;
-            
+                break;
+
             case 'AGENT_UPDATE_ADDRESS': {
                 await handleAgentProfileUpdate(msg, sender, reply, args, 'address', raf);
             }
-            break;
-            
+                break;
+
             case 'AGENT_UPDATE_HOURS': {
                 await handleAgentProfileUpdate(msg, sender, reply, args, 'hours', raf);
             }
-            break;
-            
+                break;
+
             case 'AGENT_UPDATE_PHONE': {
                 await handleAgentProfileUpdate(msg, sender, reply, args, 'phone', raf);
             }
-            break;
-            
+                break;
+
             case 'AGENT_CLOSE_TEMPORARY': {
                 await handleAgentStatusToggle(msg, sender, reply, 'close', raf);
             }
-            break;
-            
+                break;
+
             case 'AGENT_OPEN_AGAIN': {
                 await handleAgentStatusToggle(msg, sender, reply, 'open', raf);
             }
-            break;
+                break;
             case 'admin': {
                 handleAdminContact(from, ownerNumber, global.config, msg, sendContact, reply);
                 break;
@@ -1835,13 +1891,13 @@ atau ketik:
                 if (!isOwner && !isTeknisi) {
                     return reply(mess.teknisiOrOwnerOnly);
                 }
-                
+
                 // Use qAfterKeyword instead of q for correct argument parsing
                 const searchQuery = qAfterKeyword && qAfterKeyword.trim() ? qAfterKeyword.trim() : '';
                 if (!searchQuery) {
                     return reply(`🔍 *CARI PELANGGAN*\n\nFormat: *cari [nama/nomor/ID]*\n\nContoh:\n• cari Budi\n• cari 08123456789\n• cari 15`);
                 }
-                
+
                 const { handleSearchUser } = require('./handlers/admin-handler');
                 const result = handleSearchUser({ query: searchQuery });
                 return reply(result.message);
@@ -1850,15 +1906,15 @@ atau ketik:
                 if (!isOwner && !isTeknisi) {
                     return reply(mess.teknisiOrOwnerOnly);
                 }
-                
+
                 // Parse arguments: "daftar pelanggan [filter] [page]"
                 // Examples: "daftar pelanggan", "daftar pelanggan 2", "daftar pelanggan lunas", "daftar pelanggan belum 2"
                 let filter = null;
                 let page = 1;
-                
+
                 if (qAfterKeyword) {
                     const parts = qAfterKeyword.toLowerCase().trim().split(/\s+/);
-                    
+
                     for (const part of parts) {
                         if (part === 'lunas') {
                             filter = 'paid';
@@ -1869,45 +1925,45 @@ atau ketik:
                         }
                     }
                 }
-                
+
                 const { handleListUsers } = require('./handlers/admin-handler');
                 const result = handleListUsers({ filter, page });
                 return reply(result.message);
             }
             case 'GANTI_NAMA_WIFI': {
                 await handleGantiNamaWifi({
-        sender,
-        args,
-        matchedKeywordLength,
-        isOwner,
-        isTeknisi,
-        pushname,
-        users,
-        reply,
-        global,
-        mess,
-        msg,
-        raf
-    });
-    break;
-}
+                    sender,
+                    args,
+                    matchedKeywordLength,
+                    isOwner,
+                    isTeknisi,
+                    pushname,
+                    users,
+                    reply,
+                    global,
+                    mess,
+                    msg,
+                    raf
+                });
+                break;
+            }
             case 'GANTI_SANDI_WIFI': {
                 await handleGantiSandiWifi({
-        sender,
-        args,
-        matchedKeywordLength,
-        isOwner,
-        isTeknisi,
-        pushname,
-        users,
-        reply,
-        global,
-        mess,
-        msg,
-        raf
-    });
-    break;
-}
+                    sender,
+                    args,
+                    matchedKeywordLength,
+                    isOwner,
+                    isTeknisi,
+                    pushname,
+                    users,
+                    reply,
+                    global,
+                    mess,
+                    msg,
+                    raf
+                });
+                break;
+            }
             case 'GANTI_POWER_WIFI': {
                 await handleGantiPowerWifi({
                     sender,
@@ -1942,21 +1998,21 @@ atau ketik:
             }
             case 'CEK_WIFI': {
                 await handleCekWifi({
-        sender,
-        args,
-        matchedKeywordLength,
-        isOwner,
-        isTeknisi,
-        pushname,
-        users,
-        reply,
-        global,
-        mess,
-        msg,
-        raf
-    });
-    break;
-}
+                    sender,
+                    args,
+                    matchedKeywordLength,
+                    isOwner,
+                    isTeknisi,
+                    pushname,
+                    users,
+                    reply,
+                    global,
+                    mess,
+                    msg,
+                    raf
+                });
+                break;
+            }
 
             case 'HISTORY_WIFI': {
                 await handleHistoryWifi(sender, reply, global, msg, raf);
@@ -1983,17 +2039,17 @@ atau ketik:
                 break;
             }
             case 'addbinding': {
-                await handleAddBinding({ 
-                    q, 
-                    isOwner, 
-                    reply, 
-                    mess, 
-                    global, 
-                    checkStatik, 
-                    checkLimitAt, 
-                    checkMaxLimit, 
-                    addbinding, 
-                    addqueue 
+                await handleAddBinding({
+                    q,
+                    isOwner,
+                    reply,
+                    mess,
+                    global,
+                    checkStatik,
+                    checkLimitAt,
+                    checkMaxLimit,
+                    addbinding,
+                    addqueue
                 });
                 break;
             }
@@ -2014,12 +2070,12 @@ atau ketik:
                 break;
             }
             case 'CEK_TAGIHAN': {
-                await handleCekTagihan({ 
-                    plainSenderNumber, 
-                    pushname, 
-                    reply, 
-                    mess, 
-                    global, 
+                await handleCekTagihan({
+                    plainSenderNumber,
+                    pushname,
+                    reply,
+                    mess,
+                    global,
                     renderTemplate,
                     msg,  // Pass for LID support
                     raf,  // Pass for LID support
@@ -2046,13 +2102,13 @@ atau ketik:
                 break;
             }
             case 'UBAH_PAKET': {
-                await handleUbahPaket({ 
-                    sender, 
-                    plainSenderNumber, 
-                    pushname, 
-                    reply, 
-                    mess, 
-                    global, 
+                await handleUbahPaket({
+                    sender,
+                    plainSenderNumber,
+                    pushname,
+                    reply,
+                    mess,
+                    global,
                     temp,
                     msg,  // Pass for LID support
                     raf   // Pass for LID support
@@ -2060,20 +2116,20 @@ atau ketik:
                 break;
             }
             case 'REQUEST_SPEED_BOOST': {
-                await handleRequestSpeedBoost({ 
-                    sender, 
-                    plainSenderNumber, 
-                    pushname, 
-                    reply, 
-                    mess, 
-                    global, 
+                await handleRequestSpeedBoost({
+                    sender,
+                    plainSenderNumber,
+                    pushname,
+                    reply,
+                    mess,
+                    global,
                     temp,
                     msg,  // Pass for LID support
                     raf   // Pass for LID support
                 });
                 break;
             }
-            
+
             case 'CEK_STATUS_SPEED': {
                 const { checkSpeedBoostStatus } = require('./handlers/speed-status-handler');
                 const user = findUserWithLidSupport(global.users, msg, plainSenderNumber);
@@ -2083,18 +2139,18 @@ atau ketik:
                 await checkSpeedBoostStatus(msg, user, sender, false);
                 break;
             }
-            
+
             // ===================== LOCATION TRACKING CASES =====================
-            
+
             case 'CEK_LOKASI_TEKNISI': {
                 // Skip matched keyword words to get the actual argument
                 const commandArgs = chats.split(' ').slice(matchedKeywordLength || 1);
                 const ticketIdLokasi = commandArgs[0];
-                
+
                 if (!ticketIdLokasi) {
                     return reply(format('error_format_lokasi'));
                 }
-                
+
                 const lokasiResult = await handleCekLokasiTeknisi(
                     sender,
                     ticketIdLokasi,
@@ -2102,19 +2158,19 @@ atau ketik:
                 );
                 return reply(lokasiResult.message);
             }
-            
+
             case 'TIKET_SAYA': {
                 const tiketResult = await handleTiketSaya(sender, reply);
                 return reply(tiketResult.message);
             }
-            
+
             case 'LIST_TIKET': {
                 if (!isTeknisi && !isOwner) return reply(mess.teknisiOrOwnerOnly);
-                
-                const pendingTickets = global.reports?.filter(r => 
+
+                const pendingTickets = global.reports?.filter(r =>
                     r.status === 'pending' || r.status === 'open'
                 ) || [];
-                
+
                 if (pendingTickets.length === 0) {
                     return reply(`📋 *TIDAK ADA TIKET TERSEDIA*
 ━━━━━━━━━━━━━━━━
@@ -2128,23 +2184,23 @@ Saat ini tidak ada tiket yang perlu ditangani.
 
 Terima kasih! 👍`);
                 }
-                
+
                 pendingTickets.sort((a, b) => {
                     if (a.priority === 'HIGH' && b.priority !== 'HIGH') return -1;
                     if (a.priority !== 'HIGH' && b.priority === 'HIGH') return 1;
                     return new Date(a.createdAt) - new Date(b.createdAt);
                 });
-                
+
                 let message = `📋 *DAFTAR TIKET TERSEDIA*
 ━━━━━━━━━━━━━━━━
 
 *Total: ${pendingTickets.length} tiket menunggu*\n\n`;
-                
+
                 pendingTickets.forEach((ticket, index) => {
                     const createdTime = new Date(ticket.createdAt);
                     const waitingMinutes = Math.floor((Date.now() - createdTime) / (1000 * 60));
                     const priorityEmoji = ticket.priority === 'HIGH' ? '🔴' : '🟡';
-                    
+
                     message += `${index + 1}. *ID: ${ticket.ticketId}*
    ${priorityEmoji} Prioritas: ${ticket.priority}
    👤 ${ticket.pelangganName}
@@ -2154,7 +2210,7 @@ Terima kasih! 👍`);
    
 `;
                 });
-                
+
                 message += `━━━━━━━━━━━━━━━━
 📌 *STEP SELANJUTNYA:*
 ➡️ Ambil tiket dengan ketik:
@@ -2163,102 +2219,102 @@ Terima kasih! 👍`);
 Contoh: proses ${pendingTickets[0].ticketId}
 
 💡 *Tips:* Prioritaskan tiket 🔴 HIGH`;
-                
+
                 return reply(message);
             }
-            
+
             case 'PROSES_TIKET': {
                 if (!isTeknisi && !isOwner) return reply(mess.teknisiOrOwnerOnly);
-                
+
                 const words = chats.split(' ');
                 const ticketId = words[matchedKeywordLength] || words[1];
                 if (!ticketId) {
                     return reply(format('error_format_proses'));
                 }
-                
+
                 const result = await handleProsesTicket(sender, ticketId, reply);
                 return reply(result.message);
             }
-            
+
             case 'OTW_TIKET': {
                 if (!isTeknisi && !isOwner) return reply(mess.teknisiOrOwnerOnly);
-                
+
                 const words = chats.split(' ');
                 const ticketId = words[matchedKeywordLength] || words[1];
                 if (!ticketId) {
                     return reply(format('error_format_otw'));
                 }
-                
+
                 const result = await handleOTW(sender, ticketId, null, reply);
                 return reply(result.message);
             }
-            
+
             case 'SAMPAI_LOKASI': {
                 if (!isTeknisi && !isOwner) return reply(mess.teknisiOrOwnerOnly);
-                
+
                 const words = chats.split(' ');
                 const ticketId = words[matchedKeywordLength] || words[1];
                 if (!ticketId) {
                     return reply(format('error_format_sampai'));
                 }
-                
+
                 const result = await handleSampaiLokasi(sender, ticketId, reply);
                 return reply(result.message);
             }
-            
+
             case 'VERIFIKASI_OTP': {
                 if (!isTeknisi && !isOwner) return reply(mess.teknisiOrOwnerOnly);
-                
+
                 const args = chats.split(' ');
                 const ticketId = args[matchedKeywordLength] || args[1];
                 const otp = args[matchedKeywordLength + 1] || args[2];
-                
+
                 if (!ticketId || !otp) {
                     return reply(format('error_format_verifikasi'));
                 }
-                
+
                 const result = await handleVerifikasiOTP(sender, ticketId, otp, reply);
                 return reply(result.message);
             }
-            
+
             case 'DONE_UPLOAD_PHOTOS': {
                 // IMPORTANT: Only respond if there's an active workflow session
                 // If no active session, silently ignore - don't respond at all
                 const state = global.teknisiStates && global.teknisiStates[sender];
-                
+
                 // No active session = silently ignore (no response)
                 if (!state) {
                     break;
                 }
-                
+
                 // Must be teknisi/owner to use this command
                 if (!isTeknisi && !isOwner) {
                     break;
                 }
-                
+
                 if (state.guidedMode) {
                     const { problem, speedtest } = state.photoCategories;
-                    
+
                     if (!problem || !speedtest) {
                         let missingCategories = [];
                         if (!problem) missingCategories.push('📷 Foto penyebab masalah');
                         if (!speedtest) missingCategories.push('📊 Screenshot speedtest');
-                        
+
                         return reply(`❌ *KATEGORI FOTO WAJIB BELUM LENGKAP!*\n\n━━━━━━━━━━━━━━━━\n📌 *STATUS:*\n━━━━━━━━━━━━━━━━\n\n${problem ? '✅' : '❌'} 1. Foto penyebab masalah\n${speedtest ? '✅' : '❌'} 2. Screenshot speedtest\n${state.photoCategories.result ? '✅' : '⚪'} 3. Foto hasil (opsional)\n\n━━━━━━━━━━━━━━━━\n⚠️ *YANG MASIH KURANG:*\n━━━━━━━━━━━━━━━━\n\n${missingCategories.join('\n')}\n\n➡️ *Upload foto yang kurang terlebih dahulu!*`);
                     }
-                    
+
                 } else {
                     if (state.step !== 'AWAITING_COMPLETION_PHOTOS') {
                         return reply(format('error_not_photo_upload_phase'));
                     }
-                    
+
                     if (!state.uploadedPhotos || state.uploadedPhotos.length < 2) {
                         return reply(`❌ *FOTO BELUM CUKUP!*\n\n📌 *STATUS:*\n• Foto terupload: ${state.uploadedPhotos?.length || 0}\n• Minimum required: 2 foto\n• Kurang: ${2 - (state.uploadedPhotos?.length || 0)} foto\n\n📌 *STEP SELANJUTNYA:*\n➡️ Upload ${2 - (state.uploadedPhotos?.length || 0)} foto lagi\n   Kemudian ketik *done*`);
                     }
                 }
-                
+
                 state.step = 'AWAITING_RESOLUTION_NOTES';
-                
+
                 return reply(`✅ *DOKUMENTASI SELESAI - ${state.uploadedPhotos.length} FOTO TERSIMPAN*
 
 📌 *STEP SELANJUTNYA:*
@@ -2279,59 +2335,59 @@ Silakan ketik catatan perbaikan Anda.
 
 ➡️ Ketik catatan Anda sekarang...`);
             }
-            
+
             case 'SELESAI_TIKET': {
                 if (!isTeknisi && !isOwner) return reply(mess.teknisiOrOwnerOnly);
-                
+
                 const ticketId = chats.split(' ')[1];
                 if (!ticketId) {
                     return reply(format('error_format_selesai'));
                 }
-                
+
                 const result = await handleSelesaiTicket(sender, ticketId, reply);
                 return reply(result.message);
             }
-            
+
             case 'link':
             case 'LINK': {
                 if (!sender.includes('@lid')) {
                     return reply('⚠️ Perintah ini hanya untuk pengguna dengan format @lid');
                 }
-                
+
                 const lidId = sender.split('@')[0];
                 const phoneNumber = args[1]; // User should type: link 6285233047094
-                
+
                 if (!phoneNumber) {
                     return reply(format('error_format_link'));
                 }
-                
+
                 const result = processLidVerification(lidId, phoneNumber, users);
                 return reply(result.message);
             }
-            
+
             case 'verifikasi':
             case 'VERIFIKASI': {
                 if (!sender.includes('@lid')) {
                     return reply('⚠️ Perintah ini hanya untuk pengguna dengan format @lid');
                 }
-                
+
                 const lidId = sender.split('@')[0];
                 const code = args[1];
-                
+
                 if (!code) {
                     return reply(format('error_format_verifikasi_lid'));
                 }
-                
+
                 const result = processLidVerification(lidId, code, users);
                 return reply(result.message);
             }
-            
+
             default:
                 if (intent === "TIDAK_DIKENALI") {
                 }
                 break;
         }
-        
+
     } catch (err) {
         if (typeof err === "string") return reply(String(err));
         console.log(err)

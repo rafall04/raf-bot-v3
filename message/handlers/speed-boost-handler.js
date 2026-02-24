@@ -40,8 +40,12 @@ function canRequestSpeedBoost(user) {
         return { valid: false, errors };
     }
     
-    // Check payment status if required
-    if (config.globalSettings?.requirePaymentFirst && !user.paid) {
+    // Check if user is on whitelist package (free users - skip payment check)
+    const userPackage = global.packages?.find(p => p.name === user.subscription);
+    const isWhitelistUser = userPackage?.whitelist === true;
+    
+    // Check payment status if required (skip for whitelist users - they are free)
+    if (config.globalSettings?.requirePaymentFirst && !isWhitelistUser && !user.paid) {
         errors.push('❌ Harap lunasi pembayaran bulan ini terlebih dahulu');
     }
     

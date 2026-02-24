@@ -429,6 +429,8 @@
                                             <th>Status</th>
                                             <th>IP Pelanggan</th>
                                             <th class="redaman-column">Redaman (dBm)</th>
+                                            <th class="redaman-olt-column">Redaman OLT</th>
+                                            <th class="olt-status-column">Status OLT</th>
                                             <th class="suhu-column">Suhu (°C)</th>
                                             <th class="tipe-router-column">Tipe Router</th>
                                             <th>Actions</th>
@@ -552,6 +554,16 @@
         // Key: deviceId, Value: { redaman: '...', temperature: '...', modemType: '...', _loading: false }
         const deviceDataCache = new Map();
 
+        // Cache untuk data OLT HIOSO (Redaman OLT, Status OLT, Dying Gasp, LOS)
+        // Key: MAC prefix (10 digit pertama), Value: { rx_power, olt_status, is_dying_gasp, is_los }
+        const oltDataCache = new Map();
+        let oltEnabled = false;
+        let oltDataLoading = false;
+
+        // Map untuk menyimpan MAC address dari PPPoE active session
+        // Key: pppoe_username, Value: caller_id (MAC address)
+        const pppoeUserMacMap = new Map();
+
         const LOADING_HTML = '<div class="spinner-border spinner-border-sm text-primary" role="status" style="width: 1rem; height: 1rem;"><span class="sr-only">Loading...</span></div>';
         const NOT_APPLICABLE = 'N/A';
         const ERROR_FETCHING = '<span class="text-danger" title="Gagal memuat data">Error</span>';
@@ -599,13 +611,18 @@
                 if (result.status === 200 && Array.isArray(result.data)) {
                     // Clear and update map with new data
                     activePppoeUsersMap.clear();
+                    pppoeUserMacMap.clear();
                     result.data.forEach(userEntry => {
                         if (userEntry.name && userEntry.address) {
                             activePppoeUsersMap.set(userEntry.name, userEntry.address);
+                            // Store MAC address (caller_id) if available
+                            if (userEntry.caller_id) {
+                                pppoeUserMacMap.set(userEntry.name, userEntry.caller_id);
+                            }
                         }
                     });
                     
-                    console.log(`[fetchActivePppoeUsers] Loaded ${activePppoeUsersMap.size} PPPoE users`);
+                    console.log(`[fetchActivePppoeUsers] Loaded ${activePppoeUsersMap.size} PPPoE users, ${pppoeUserMacMap.size} with MAC`);
                     
                     // Update button to show success
                     $('#pppoeStatusText').html(`<i class="fas fa-check"></i> ${activePppoeUsersMap.size} Online`);
@@ -642,6 +659,99 @@
             }
         }
 
+
+        // Fetch OLT data from HIOSO OLT via SNMP
+        async function fetchOltData(showLoading = true) {
+            if (oltDataLoading) {
+                console.log("[fetchOltData] Already loading OLT data, skipping...");
+                return;
+            }
+
+            oltDataLoading = true;
+
+            try {
+                const response = await fetch(`/api/olt/status?_=${new Date().getTime()}`, {
+                    credentials: 'include'
+                });
+                const result = await response.json();
+
+                if (result.status === 200) {
+                    oltEnabled = result.enabled === true;
+                    
+                    if (result.enabled && Array.isArray(result.data)) {
+                        // Clear and rebuild cache
+                        oltDataCache.clear();
+                        
+                        result.data.forEach(onu => {
+                            if (onu.macAddress && onu.macAddress !== 'N/A') {
+                                // Normalize MAC and use 10-digit prefix as key
+                                const normalizedMac = onu.macAddress.replace(/[:\-\s]/g, '').toUpperCase();
+                                const macPrefix = normalizedMac.substring(0, 10);
+                                
+                                oltDataCache.set(macPrefix, {
+                                    mac_olt: onu.macAddress,
+                                    rx_power: onu.rxPower || 'N/A',
+                                    olt_status: onu.status || 'N/A',
+                                    is_dying_gasp: onu.isDyingGasp || false,
+                                    is_los: onu.isLos || false
+                                });
+                            }
+                        });
+                        
+                        console.log(`[fetchOltData] Loaded ${oltDataCache.size} ONT from OLT`);
+                    } else if (!result.enabled) {
+                        console.log("[fetchOltData] OLT is disabled");
+                        oltDataCache.clear();
+                    }
+                } else {
+                    console.warn("[fetchOltData] Error:", result.message);
+                    oltEnabled = false;
+                }
+            } catch (error) {
+                console.error("[fetchOltData] Error:", error);
+                oltEnabled = false;
+            } finally {
+                oltDataLoading = false;
+                
+                // Update DataTable to show OLT data
+                if (dataTableInstance) {
+                    dataTableInstance.rows().invalidate('data').draw(false);
+                }
+            }
+        }
+
+        // Get OLT data for a specific MAC address (from MikroTik caller-id)
+        function getOltDataByMac(mikrotikMac) {
+            if (!mikrotikMac || !oltEnabled) return null;
+            
+            // Normalize MAC and get 10-digit prefix
+            const normalizedMac = mikrotikMac.replace(/[:\-\s]/g, '').toUpperCase();
+            const macPrefix = normalizedMac.substring(0, 10);
+            
+            return oltDataCache.get(macPrefix) || null;
+        }
+
+        // Render OLT status with badge
+        function renderOltStatus(oltData) {
+            if (!oltData) return '<span class="text-muted">-</span>';
+            
+            let statusHtml = '';
+            const status = oltData.olt_status;
+            
+            if (oltData.is_dying_gasp) {
+                statusHtml = '<span class="badge badge-danger" title="Dying Gasp - Perangkat mati mendadak"><i class="fas fa-bolt"></i> Dying Gasp</span>';
+            } else if (oltData.is_los) {
+                statusHtml = '<span class="badge badge-warning" title="Loss of Signal - Sinyal hilang"><i class="fas fa-exclamation-triangle"></i> LOS</span>';
+            } else if (status === 'Online') {
+                statusHtml = '<span class="badge badge-success"><i class="fas fa-check-circle"></i> Online</span>';
+            } else if (status === 'Offline') {
+                statusHtml = '<span class="badge badge-secondary"><i class="fas fa-times-circle"></i> Offline</span>';
+            } else {
+                statusHtml = `<span class="badge badge-light">${status}</span>`;
+            }
+            
+            return statusHtml;
+        }
 
         async function fetchNetworkAssets() {
             try {
@@ -1427,8 +1537,11 @@
 
             try {
                 deviceDataCache.clear(); // Clear the entire cache
+                oltDataCache.clear(); // Clear OLT cache
+                pppoeUserMacMap.clear(); // Clear PPPoE MAC cache
                 await fetchNetworkAssets();
                 await fetchActivePppoeUsers();
+                await fetchOltData(); // Fetch OLT data
                 if (dataTableInstance) {
                     // We don't need to reload DataTable via AJAX if it's already loaded.
                     // Just re-run the draw and then fetch device data based on current filters.
@@ -1443,6 +1556,8 @@
                         // Ensure columns are hidden and cache cleared.
                         toggleDeviceMetricColumns(false);
                         deviceDataCache.clear();
+                        oltDataCache.clear();
+                        pppoeUserMacMap.clear();
                     }
 
                     displayGlobalUserMessage("Data pelanggan terfilter berhasil diperbarui.", "success", true);
@@ -1455,13 +1570,15 @@
             }
         }
 
-        // Toggles visibility of Redaman, Suhu, Tipe Router columns
+        // Toggles visibility of Redaman, Redaman OLT, Status OLT, Suhu, Tipe Router columns
         function toggleDeviceMetricColumns(show) {
             const table = $('#dataTable').DataTable();
-            // Assuming these are columns 12, 13, 14 (0-indexed)
-            table.column(12).visible(show); // Redaman
-            table.column(13).visible(show); // Suhu
-            table.column(14).visible(show); // Tipe Router
+            // Columns: 12=Redaman GenieACS, 13=Redaman OLT, 14=Status OLT, 15=Suhu, 16=Tipe Router (0-indexed)
+            table.column(12).visible(show); // Redaman GenieACS
+            table.column(13).visible(show); // Redaman OLT
+            table.column(14).visible(show); // Status OLT
+            table.column(15).visible(show); // Suhu
+            table.column(16).visible(show); // Tipe Router
 
             // Note: DataTables `visible` method is usually sufficient.
         }
@@ -1475,6 +1592,11 @@
             setTimeout(() => {
                 fetchActivePppoeUsers(false); // false = don't show loading on initial load
             }, 2000); // Delay 2 seconds to let page load first
+
+            // Load OLT data asynchronously in background
+            setTimeout(() => {
+                fetchOltData(false); // false = don't show loading on initial load
+            }, 3000); // Delay 3 seconds to let page load first
 
             fetch('/api/packages').then(res => res.json().then(({ data }) => {
                 const createSubscriptionSelect = document.getElementById('create_subscription');
@@ -1618,6 +1740,104 @@
                             return ''; // Hide content if no filter selected
                         }
                     },
+                    // Redaman OLT column - RX Power from OLT HIOSO
+                    {
+                        data: 'pppoe_username',
+                        title: 'Redaman OLT',
+                        className: 'redaman-olt-column',
+                        render: function(data, type, row) {
+                            const selectedOdcId = $('#odcFilterDropdown').val();
+                            const selectedOdpId = $('#odpFilterDropdown').val();
+                            
+                            if (type === 'display' && (selectedOdcId || selectedOdpId)) {
+                                if (!oltEnabled) {
+                                    return '<span class="text-muted" title="OLT tidak aktif">-</span>';
+                                }
+                                
+                                if (!row.pppoe_username) {
+                                    return '<span class="text-muted">-</span>';
+                                }
+                                
+                                if (oltDataLoading) {
+                                    return LOADING_HTML;
+                                }
+                                
+                                // Get MAC address from pppoeUserMacMap
+                                const mikrotikMac = pppoeUserMacMap.get(row.pppoe_username);
+                                if (!mikrotikMac) {
+                                    if (!activePppoeUsersMap.has(row.pppoe_username)) {
+                                        return '<span class="text-muted" title="Pelanggan offline">-</span>';
+                                    }
+                                    return '<span class="text-muted" title="MAC tidak tersedia">-</span>';
+                                }
+                                
+                                // Get OLT data by MAC
+                                const oltData = getOltDataByMac(mikrotikMac);
+                                if (!oltData) {
+                                    return '<span class="text-muted" title="Data OLT tidak ditemukan">-</span>';
+                                }
+                                
+                                // Render RX Power with color coding
+                                const rxPower = oltData.rx_power;
+                                if (!rxPower || rxPower === 'N/A') {
+                                    return '<span class="text-muted">N/A</span>';
+                                }
+                                
+                                // Parse numeric value for color coding
+                                const rxValue = parseFloat(rxPower);
+                                let colorClass = 'text-success'; // Good signal
+                                if (rxValue < -25) {
+                                    colorClass = 'text-danger'; // Bad signal
+                                } else if (rxValue < -20) {
+                                    colorClass = 'text-warning'; // Warning
+                                }
+                                
+                                return `<span class="${colorClass}" title="RX Power dari OLT">${rxPower}</span>`;
+                            }
+                            return '';
+                        }
+                    },
+                    // OLT Status column - shows status from OLT HIOSO (Dying Gasp, LOS, Online/Offline)
+                    {
+                        data: 'pppoe_username',
+                        title: 'Status OLT',
+                        className: 'olt-status-column',
+                        render: function(data, type, row) {
+                            const selectedOdcId = $('#odcFilterDropdown').val();
+                            const selectedOdpId = $('#odpFilterDropdown').val();
+                            
+                            if (type === 'display' && (selectedOdcId || selectedOdpId)) {
+                                if (!oltEnabled) {
+                                    return '<span class="text-muted" title="OLT tidak aktif">-</span>';
+                                }
+                                
+                                // Get MAC from PPPoE active session (caller-id)
+                                if (!row.pppoe_username) {
+                                    return '<span class="text-muted">-</span>';
+                                }
+                                
+                                // Check if OLT data is still loading
+                                if (oltDataLoading) {
+                                    return LOADING_HTML;
+                                }
+                                
+                                // Get MAC address from pppoeUserMacMap
+                                const mikrotikMac = pppoeUserMacMap.get(row.pppoe_username);
+                                if (!mikrotikMac) {
+                                    // User is offline or MAC not available
+                                    if (!activePppoeUsersMap.has(row.pppoe_username)) {
+                                        return '<span class="text-muted" title="Pelanggan offline">-</span>';
+                                    }
+                                    return '<span class="text-muted" title="MAC tidak tersedia">-</span>';
+                                }
+                                
+                                // Get OLT data by MAC
+                                const oltData = getOltDataByMac(mikrotikMac);
+                                return renderOltStatus(oltData);
+                            }
+                            return '';
+                        }
+                    },
                     {
                         data: 'device_id',
                         title: 'Suhu (°C)',
@@ -1688,10 +1908,12 @@
                     { "width": "3%", "targets": 0 },  // ID
                     { "width": "7%", "targets": 10 }, // Status
                     { "width": "10%", "targets": 11}, // IP Pelanggan
-                    { "width": "7%", "targets": 12}, // Redaman - index 12
-                    { "width": "7%", "targets": 13}, // Suhu - index 13
-                    { "width": "7%", "targets": 14}, // Tipe Router - index 14
-                    { "width": "18%", "targets": 15 } // Action - now contains all device-related actions and other actions
+                    { "width": "7%", "targets": 12}, // Redaman GenieACS - index 12
+                    { "width": "7%", "targets": 13}, // Redaman OLT - index 13
+                    { "width": "7%", "targets": 14}, // Status OLT - index 14
+                    { "width": "7%", "targets": 15}, // Suhu - index 15
+                    { "width": "7%", "targets": 16}, // Tipe Router - index 16
+                    { "width": "15%", "targets": 17 } // Action - index 17
                 ],
                 "order": [[0, 'desc']]
             });

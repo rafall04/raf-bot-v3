@@ -76,6 +76,14 @@ $current_page = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
         </a>
     </li>
 
+    <!-- Nav Item - Kasbon Teknisi -->
+    <li class="nav-item <?php echo ($current_page == '/teknisi-kasbon.php' || $current_page == '/teknisi-kasbon') ? 'active' : ''; ?>">
+        <a class="nav-link" href="/teknisi-kasbon">
+            <i class="fas fa-fw fa-hand-holding-usd"></i>
+            <span>Kasbon</span>
+        </a>
+    </li>
+
     <!-- Divider -->
     <hr class="sidebar-divider">
 
@@ -99,6 +107,14 @@ $current_page = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
     <div class="sidebar-heading">
         Jaringan
     </div>
+
+    <!-- Nav Item - Monitor OLT -->
+    <li class="nav-item <?php echo ($current_page == '/teknisi-olt.php' || $current_page == '/teknisi-olt') ? 'active' : ''; ?>">
+        <a class="nav-link" href="/teknisi-olt">
+            <i class="fas fa-fw fa-broadcast-tower"></i>
+            <span>Monitor OLT</span>
+        </a>
+    </li>
 
     <!-- Nav Item - Peta Jaringan -->
     <li class="nav-item <?php echo ($current_page == '/teknisi-map-viewer.php' || $current_page == '/teknisi-map-viewer') ? 'active' : ''; ?>">

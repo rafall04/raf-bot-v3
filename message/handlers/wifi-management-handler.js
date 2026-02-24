@@ -5,7 +5,7 @@
 
 const axios = require('axios');
 const { getSSIDInfo, setSSIDName, setPassword } = require('../../lib/wifi');
-const { findUserWithLidSupport } = require('../../lib/lid-handler');
+
 const { getUserState, setUserState, deleteUserState } = require('./conversation-handler');
 
 /**
@@ -18,7 +18,7 @@ async function handleGantiNamaWifi({ sender, args, matchedKeywordLength, isOwner
         let providedId = null;
 
         const keywordLength = matchedKeywordLength || 1;
-        
+
         if ((isOwner || isTeknisi) && args.length > keywordLength + 1 && !isNaN(parseInt(args[keywordLength], 10))) {
             providedId = args[keywordLength];
             newName = args.slice(keywordLength + 1).join(' ').trim();
@@ -29,27 +29,44 @@ async function handleGantiNamaWifi({ sender, args, matchedKeywordLength, isOwner
         if (providedId) {
             user = users.find(v => v.id == providedId);
         } else {
-            // Auto-detect phone number from @lid using remoteJidAlt (Baileys v7)
-            let plainSenderNumber = sender.split('@')[0];
-            
-            // Check remoteJidAlt first for @lid format (auto-detection)
-            if (sender.includes('@lid') && msg && msg.key && msg.key.remoteJidAlt) {
-                plainSenderNumber = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-                console.log('[GANTI_NAMA_WIFI] Auto-detected phone from remoteJidAlt:', plainSenderNumber);
+            let plainSenderNumber = sender.split('@')[0].split(':')[0];
+
+            // Ekstraksi JID (nomor asli opsional) jika tersembunyi
+            let optionalJid = null;
+            if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
+                optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
+                plainSenderNumber = optionalJid;
+            } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
+                optionalJid = msg.participant.split('@')[0].split(':')[0];
+                plainSenderNumber = optionalJid;
             }
-            
-            // Use lid-handler to find user (supports @lid format)
-            user = await findUserWithLidSupport(users, msg, plainSenderNumber, raf);
-            
+
+            user = users.find(u => {
+                if (u.lid && u.lid === sender) return true;
+                if (!u.phone_number) return false;
+                const phones = u.phone_number.split('|').map(p => p.trim());
+                return phones.some(phone => {
+                    if (phone === plainSenderNumber || phone === sender) return true;
+                    // Try formatting match (08x vs 628x)
+                    let pClean = phone.replace(/[^0-9]/g, '');
+                    let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
+                    if (pClean.startsWith('62')) pClean = pClean.substring(2);
+                    if (pClean.startsWith('0')) pClean = pClean.substring(1);
+                    if (sClean.startsWith('62')) sClean = sClean.substring(2);
+                    if (sClean.startsWith('0')) sClean = sClean.substring(1);
+                    return pClean === sClean;
+                });
+            });
+
             // If still not found for @lid, show error (no manual verification needed)
-            if (sender.includes('@lid') && !user) {
+            if (sender.endsWith('@lid') && !user) {
                 console.log('[GANTI_NAMA_WIFI] @lid format detected, user not found');
                 console.log('[GANTI_NAMA_WIFI] Sender:', sender);
                 return reply(`❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`);
             }
         }
 
-        if(!user) {
+        if (!user) {
             if (isOwner || isTeknisi) {
                 if (providedId) {
                     return reply(`Maaf Kak ${pushname}, pelanggan dengan ID "${providedId}" tidak ditemukan.`);
@@ -140,7 +157,7 @@ async function handleGantiSandiWifi({ sender, args, matchedKeywordLength, isOwne
         let providedId = null;
 
         const keywordLength = matchedKeywordLength || 1;
-        
+
         if ((isOwner || isTeknisi) && args.length > keywordLength + 1 && !isNaN(parseInt(args[keywordLength], 10))) {
             providedId = args[keywordLength];
             newPassword = args.slice(keywordLength + 1).join(' ').trim();
@@ -151,27 +168,43 @@ async function handleGantiSandiWifi({ sender, args, matchedKeywordLength, isOwne
         if (providedId) {
             user = users.find(v => v.id == providedId);
         } else {
-            // Auto-detect phone number from @lid using remoteJidAlt (Baileys v7)
-            let plainSenderNumber = sender.split('@')[0];
-            
-            // Check remoteJidAlt first for @lid format (auto-detection)
-            if (sender.includes('@lid') && msg && msg.key && msg.key.remoteJidAlt) {
-                plainSenderNumber = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-                console.log('[GANTI_SANDI_WIFI] Auto-detected phone from remoteJidAlt:', plainSenderNumber);
+            let plainSenderNumber = sender.split('@')[0].split(':')[0];
+
+            let optionalJid = null;
+            if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
+                optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
+                plainSenderNumber = optionalJid;
+            } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
+                optionalJid = msg.participant.split('@')[0].split(':')[0];
+                plainSenderNumber = optionalJid;
             }
-            
-            // Use lid-handler to find user (supports @lid format)
-            user = await findUserWithLidSupport(users, msg, plainSenderNumber, raf);
-            
+
+            user = users.find(u => {
+                if (u.lid && u.lid === sender) return true;
+                if (!u.phone_number) return false;
+                const phones = u.phone_number.split('|').map(p => p.trim());
+                return phones.some(phone => {
+                    if (phone === plainSenderNumber || phone === sender) return true;
+                    // Try formatting match (08x vs 628x)
+                    let pClean = phone.replace(/[^0-9]/g, '');
+                    let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
+                    if (pClean.startsWith('62')) pClean = pClean.substring(2);
+                    if (pClean.startsWith('0')) pClean = pClean.substring(1);
+                    if (sClean.startsWith('62')) sClean = sClean.substring(2);
+                    if (sClean.startsWith('0')) sClean = sClean.substring(1);
+                    return pClean === sClean;
+                });
+            });
+
             // If still not found for @lid, show error (no manual verification needed)
-            if (sender.includes('@lid') && !user) {
+            if (sender.endsWith('@lid') && !user) {
                 console.log('[GANTI_SANDI_WIFI] @lid format detected, user not found');
                 console.log('[GANTI_SANDI_WIFI] Sender:', sender);
                 return reply(`❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`);
             }
         }
 
-        if(!user) {
+        if (!user) {
             if (isOwner || isTeknisi) {
                 if (providedId) {
                     return reply(`Maaf Kak ${pushname}, pelanggan dengan ID "${providedId}" tidak ditemukan.`);
@@ -275,7 +308,7 @@ async function handleSingleSSIDNameChange(sender, user, newName, reply, global) 
             try {
                 await setSSIDName(user.device_id, user.ssid_id || '1', newName);
                 await logWifiNameChange(user, newName, sender, 'single');
-                
+
                 reply(`✅ *Berhasil!*\n\nNama WiFi telah diubah menjadi: *"${newName}"*\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• Modem akan restart otomatis\n• Anda mungkin perlu menyambung ulang perangkat Anda\n\n💡 Jika ada masalah, hubungi admin untuk bantuan.`);
             } catch (error) {
                 console.error(`[SINGLE_NAME_CHANGE] Error:`, error);
@@ -294,11 +327,11 @@ async function handleBulkAutoNameChange(sender, user, newName, reply, global) {
         });
         return reply(`Silakan ketik nama WiFi baru yang Anda inginkan.\n\n📝 *Ketentuan nama WiFi:*\n• Maksimal 32 karakter\n• Boleh menggunakan huruf, angka, spasi, titik, dan tanda hubung\n• Contoh: WiFiRumah, Keluarga-Bahagia\n\n⚠️ Nama ini akan diterapkan ke *semua SSID* WiFi Anda.\n\n💡 Ketik *batal* jika ingin membatalkan proses ini.`);
     }
-    
+
     if (newName.length > 32) {
         return reply(`⚠️ *Nama WiFi terlalu panjang!*\n\nNama WiFi maksimal *32 karakter*.\n\nSilakan coba lagi dengan nama yang lebih pendek.`);
     }
-    
+
     try {
         const { ssid } = await getSSIDInfo(user.device_id);
         const currentSSIDs = user.bulk.map((bulkId, index) => {
@@ -318,7 +351,7 @@ async function handleBulkAutoNameChange(sender, user, newName, reply, global) {
         });
 
         await logWifiNameChange(user, newName, sender, 'bulk_auto');
-        
+
         reply(`✅ *Berhasil!*\n\nNama WiFi untuk *semua SSID* telah diubah menjadi: *"${newName}"*\n\n📝 *Catatan:*\n• Perubahan akan aktif dalam 1-2 menit\n• Modem akan restart otomatis\n• Anda mungkin perlu menyambung ulang perangkat Anda`);
     } catch (error) {
         console.error(`[BULK_AUTO_NAME_CHANGE] Error:`, error);
@@ -403,11 +436,11 @@ async function handleBulkAutoPasswordChange(sender, user, newPassword, reply, gl
         });
         return reply(`Silakan ketik kata sandi WiFi baru yang Anda inginkan.\n\n🔐 *Ketentuan kata sandi WiFi:*\n• Minimal 8 karakter\n• Boleh menggunakan huruf, angka, dan simbol\n• Contoh: Password123, MyWiFi2024!\n\n⚠️ Kata sandi ini akan diterapkan ke *semua SSID* WiFi Anda.\n\n💡 Ketik *batal* jika ingin membatalkan proses ini.`);
     }
-    
+
     if (newPassword.length < 8) {
         return reply(`⚠️ *Kata sandi terlalu pendek!*\n\nKata sandi WiFi minimal harus *8 karakter*.\n\nSilakan coba lagi dengan kata sandi yang lebih panjang.`);
     }
-    
+
     try {
         const { ssid } = await getSSIDInfo(user.device_id);
         const currentSSIDs = user.bulk.map((bulkId, index) => {
@@ -427,7 +460,7 @@ async function handleBulkAutoPasswordChange(sender, user, newPassword, reply, gl
         });
 
         await logWifiPasswordChange(user, newPassword, sender, 'bulk_auto');
-        
+
         reply(`✅ *Berhasil!*\n\nKata sandi WiFi untuk *semua SSID* telah diubah menjadi: \`${newPassword}\`\n\n🔐 *PENTING:*\n• Simpan kata sandi ini dengan aman\n• Perubahan akan aktif dalam 1-2 menit\n• Modem akan restart otomatis\n• Anda perlu memasukkan kata sandi baru di semua perangkat`);
     } catch (error) {
         console.error(`[BULK_AUTO_PASSWORD_CHANGE] Error:`, error);
@@ -466,7 +499,7 @@ async function handleSingleSSIDPasswordChange(sender, user, newPassword, reply, 
             try {
                 await setPassword(user.device_id, user.ssid_id || '1', newPassword);
                 await logWifiPasswordChange(user, newPassword, sender, 'single');
-                
+
                 reply(`✅ *Berhasil!*\n\nKata sandi WiFi telah diubah menjadi: \`${newPassword}\`\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• Modem akan restart otomatis\n• Semua perangkat perlu login ulang dengan password baru\n\n⚠️ *Simpan password Anda dengan baik!*\n💡 Jika ada masalah, hubungi admin untuk bantuan.`);
             } catch (error) {
                 console.error(`[SINGLE_PASSWORD_CHANGE] Error:`, error);
@@ -479,7 +512,7 @@ async function handleSingleSSIDPasswordChange(sender, user, newPassword, reply, 
 async function logWifiNameChange(user, newName, sender, type) {
     try {
         const { logWifiChange } = require('../../lib/wifi-logger');
-        
+
         await logWifiChange({
             userId: user.id,
             deviceId: user.device_id,
@@ -503,7 +536,7 @@ async function logWifiNameChange(user, newName, sender, type) {
 async function logWifiPasswordChange(user, newPassword, sender, type) {
     try {
         const { logWifiChange } = require('../../lib/wifi-logger');
-        
+
         await logWifiChange({
             userId: user.id,
             deviceId: user.device_id,

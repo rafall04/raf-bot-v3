@@ -35,7 +35,8 @@ try {
             if (isset($session['name']) && isset($session['address'])) {
                 $formattedActiveUsers[] = [
                     "name" => $session['name'],
-                    "address" => $session['address']
+                    "address" => $session['address'],
+                    "caller_id" => isset($session['caller-id']) ? $session['caller-id'] : null
                 ];
             }
         }

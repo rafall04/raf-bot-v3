@@ -4,7 +4,7 @@
  */
 
 const convertRupiah = require('rupiah-format');
-const { findUserWithLidSupport, createLidVerification } = require('../../lib/lid-handler');
+
 const { getUserState, setUserState, deleteUserState } = require('./conversation-handler');
 
 /**
@@ -12,22 +12,36 @@ const { getUserState, setUserState, deleteUserState } = require('./conversation-
  */
 async function handleUbahPaket({ sender, plainSenderNumber, pushname, reply, mess, global, msg, raf }) {
     try {
-        // Auto-detect phone number from @lid using remoteJidAlt (Baileys v7)
-        let phoneNumber = plainSenderNumber;
-        
-        // Check remoteJidAlt first for @lid format (auto-detection)
-        if (sender.includes('@lid') && msg && msg.key && msg.key.remoteJidAlt) {
-            phoneNumber = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
+        let optionalJid = null;
+        if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
+            optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
+            plainSenderNumber = optionalJid;
+        } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
+            optionalJid = msg.participant.split('@')[0].split(':')[0];
+            plainSenderNumber = optionalJid;
         }
-        
-        // Find user with @lid support
-        const user = await findUserWithLidSupport(global.users, msg, phoneNumber, raf);
-        
+
+        const user = global.users.find(u => {
+            if (u.lid && u.lid === sender) return true;
+            if (!u.phone_number) return false;
+            const phones = u.phone_number.split('|').map(p => p.trim());
+            return phones.some(phone => {
+                if (phone === plainSenderNumber || phone === sender) return true;
+                let pClean = phone.replace(/[^0-9]/g, '');
+                let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
+                if (pClean.startsWith('62')) pClean = pClean.substring(2);
+                if (pClean.startsWith('0')) pClean = pClean.substring(1);
+                if (sClean.startsWith('62')) sClean = sClean.substring(2);
+                if (sClean.startsWith('0')) sClean = sClean.substring(1);
+                return pClean === sClean;
+            });
+        });
+
         // Handle @lid users - no manual verification needed
-        if (!user && sender.includes('@lid')) {
+        if (!user && sender.endsWith('@lid')) {
             return reply(`❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`);
         }
-        
+
         if (!user) {
             return reply(mess.userNotRegister);
         }
@@ -39,18 +53,18 @@ async function handleUbahPaket({ sender, plainSenderNumber, pushname, reply, mes
         const existingRequest = global.packageChangeRequests.find(
             r => r.userId === user.id && r.status === 'pending'
         );
-        
+
         if (existingRequest) {
             return reply(`Anda sudah memiliki permintaan perubahan paket ke *${existingRequest.requestedPackageName}* yang sedang diproses. Mohon tunggu hingga permintaan tersebut diselesaikan oleh Admin.`);
         }
 
         const currentUserPackagePrice = global.packages.find(p => p.name === user.subscription)?.price || 0;
-        
+
         const availablePackages = global.packages.filter(
-            p => p.isSpeedBoost && 
-            p.name !== user.subscription && 
-            p.name !== 'PAKET-VOUCHER' && 
-            p.name !== 'PAKET-KHUSUS'
+            p => p.isSpeedBoost &&
+                p.name !== user.subscription &&
+                p.name !== 'PAKET-VOUCHER' &&
+                p.name !== 'PAKET-KHUSUS'
         );
 
         const upgradePackages = availablePackages.filter(p => p.price > currentUserPackagePrice);
@@ -88,7 +102,7 @@ async function handleUbahPaket({ sender, plainSenderNumber, pushname, reply, mes
         });
 
         return reply(replyText);
-        
+
     } catch (error) {
         console.error('[UBAH_PAKET] Error:', error);
         await reply('Terjadi kesalahan saat memproses permintaan ubah paket. Silakan coba lagi.');
@@ -100,22 +114,36 @@ async function handleUbahPaket({ sender, plainSenderNumber, pushname, reply, mes
  */
 async function handleRequestSpeedBoost({ sender, plainSenderNumber, pushname, reply, mess, global, temp, msg, raf }) {
     try {
-        // Auto-detect phone number from @lid using remoteJidAlt (Baileys v7)
-        let phoneNumber = plainSenderNumber;
-        
-        // Check remoteJidAlt first for @lid format (auto-detection)
-        if (sender.includes('@lid') && msg && msg.key && msg.key.remoteJidAlt) {
-            phoneNumber = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
+        let optionalJid = null;
+        if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
+            optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
+            plainSenderNumber = optionalJid;
+        } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
+            optionalJid = msg.participant.split('@')[0].split(':')[0];
+            plainSenderNumber = optionalJid;
         }
-        
-        // Find user with @lid support
-        const user = await findUserWithLidSupport(global.users, msg, phoneNumber, raf);
-        
+
+        const user = global.users.find(u => {
+            if (u.lid && u.lid === sender) return true;
+            if (!u.phone_number) return false;
+            const phones = u.phone_number.split('|').map(p => p.trim());
+            return phones.some(phone => {
+                if (phone === plainSenderNumber || phone === sender) return true;
+                let pClean = phone.replace(/[^0-9]/g, '');
+                let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
+                if (pClean.startsWith('62')) pClean = pClean.substring(2);
+                if (pClean.startsWith('0')) pClean = pClean.substring(1);
+                if (sClean.startsWith('62')) sClean = sClean.substring(2);
+                if (sClean.startsWith('0')) sClean = sClean.substring(1);
+                return pClean === sClean;
+            });
+        });
+
         // Handle @lid users - no manual verification needed
-        if (!user && sender.includes('@lid')) {
+        if (!user && sender.endsWith('@lid')) {
             return reply(`❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`);
         }
-        
+
         if (!user) {
             return reply(mess.userNotRegister);
         }
@@ -127,7 +155,7 @@ async function handleRequestSpeedBoost({ sender, plainSenderNumber, pushname, re
         const activeBoost = global.speed_requests.find(
             r => r.userId === user.id && r.status === 'active'
         );
-        
+
         if (activeBoost) {
             return reply(`Anda sudah memiliki Speed on Demand yang aktif untuk paket *${activeBoost.requestedPackageName}* dan akan berakhir pada ${new Date(activeBoost.expirationDate).toLocaleString('id-ID')}.`);
         }
@@ -135,7 +163,7 @@ async function handleRequestSpeedBoost({ sender, plainSenderNumber, pushname, re
         const pendingBoost = global.speed_requests.find(
             r => r.userId === user.id && r.status === 'pending'
         );
-        
+
         if (pendingBoost) {
             return reply(`Anda sudah memiliki permintaan Speed on Demand untuk paket *${pendingBoost.requestedPackageName}* yang sedang menunggu persetujuan admin.`);
         }
@@ -163,7 +191,7 @@ async function handleRequestSpeedBoost({ sender, plainSenderNumber, pushname, re
             const sodEntry = Object.values(sodOptions).find(
                 sod => sod.paket === p.name
             );
-            
+
             if (sodEntry) {
                 sodPrice = sodEntry['1'] || sodEntry['sod_1_hari'] || sodEntry.harga || 0;
             }
@@ -181,7 +209,7 @@ async function handleRequestSpeedBoost({ sender, plainSenderNumber, pushname, re
         });
 
         return reply(replyText);
-        
+
     } catch (error) {
         console.error('[REQUEST_SPEED_BOOST] Error:', error);
         await reply('Terjadi kesalahan saat memproses permintaan speed boost. Silakan coba lagi.');

@@ -41,6 +41,7 @@
     "jsonwebtoken": "^9.0.2",
     "md5": "^2.3.0",
     "multer": "^2.0.2",
+    "net-snmp": "^3.26.0",
     "node-cron": "^3.0.3",
     "php-express": "^0.0.3",
     "pino": "^10.1.0",

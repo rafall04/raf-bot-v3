@@ -4,6 +4,8 @@ let filteredUsers = [];
 let selectedUsers = new Set();
 let currentPage = 1;
 const itemsPerPage = 20;
+let allPackages = [];
+let whitelistedPackages = [];
 
 // Initialize page
 $(document).ready(function() {
@@ -39,6 +41,14 @@ $(document).ready(function() {
         const phoneNumber = $(this).data('phone') || '';
         showPaymentMethodModal(userId, userName, phoneNumber, 'print');
     });
+    
+    // Event handler for partial payment button
+    $(document).on('click', '.btn-partial-payment', function() {
+        const userId = $(this).data('id');
+        const userName = $(this).data('name');
+        const subscription = $(this).data('subscription');
+        openPartialPaymentModal(userId, userName, subscription);
+    });
 });
 
 // Load users data
@@ -46,6 +56,17 @@ async function loadUsers() {
     showLoading('Memuat data pelanggan...');
     
     try {
+        // Load packages first to get whitelist info
+        const packagesResponse = await fetch('/api/packages');
+        if (packagesResponse.ok) {
+            const packagesData = await packagesResponse.json();
+            allPackages = packagesData.data || [];
+            // Get whitelist package names (free packages)
+            whitelistedPackages = allPackages
+                .filter(pkg => pkg.whitelist === true)
+                .map(pkg => pkg.name);
+        }
+        
         const response = await fetch('/api/users');
         
         if (!response.ok) {
@@ -103,8 +124,10 @@ function populateSubscriptionFilter() {
 
 // Update statistics
 function updateStatistics() {
-    const total = filteredUsers.length;
-    const paid = filteredUsers.filter(u => u.paid === true || u.paid === 1).length;
+    // Exclude whitelist package users from statistics (they are free users)
+    const payableUsers = filteredUsers.filter(u => !whitelistedPackages.includes(u.subscription));
+    const total = payableUsers.length;
+    const paid = payableUsers.filter(u => u.paid === true || u.paid === 1).length;
     const unpaid = total - paid;
     const percentage = total > 0 ? Math.round((paid / total) * 100) : 0;
     
@@ -166,6 +189,14 @@ function renderTable() {
                                 title="${user.paid ? 'Tandai belum bayar' : 'Tandai sudah bayar'}">
                             <i class="fas fa-${user.paid ? 'times-circle' : 'check-circle'}"></i>
                         </button>
+                        ${!isPaid ? 
+                            `<button class="btn btn-sm btn-primary btn-partial-payment" 
+                                    data-id="${user.id}"
+                                    data-name="${user.name}"
+                                    data-subscription="${user.subscription || ''}"
+                                    title="Bayar Sebagian">
+                                <i class="fas fa-coins"></i>
+                            </button>` : ''}
                         ${isPaid && (user.send_invoice === true || user.send_invoice === 1) ? 
                             `<button class="btn btn-sm btn-info btn-send-invoice" 
                                     data-id="${user.id}"
@@ -633,8 +664,11 @@ function applyFilters() {
         // Status filter
         if (status) {
             const isPaid = user.paid === true || user.paid === 1;
+            const isWhitelisted = whitelistedPackages.includes(user.subscription);
+            
             if (status === 'paid' && !isPaid) return false;
-            if (status === 'unpaid' && isPaid) return false;
+            // Exclude whitelist users from unpaid filter (they are free users)
+            if (status === 'unpaid' && (isPaid || isWhitelisted)) return false;
         }
         
         // Subscription filter
@@ -740,4 +774,300 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+}
+
+
+// ============ PARTIAL PAYMENT FUNCTIONS ============
+
+let selectedPartialUserId = null;
+let selectedPartialUserPrice = 0;
+
+// Get package price from allPackages
+function getPackagePrice(packageName) {
+    if (!packageName) return 0;
+    const pkg = allPackages.find(p => p.name === packageName);
+    if (pkg && pkg.price) return pkg.price;
+    // Fallback: parse from name
+    const match = packageName.match(/([0-9]+)K/i);
+    if (match) return parseInt(match[1]) * 1000;
+    return 0;
+}
+
+// Format currency
+function formatCurrency(amount) {
+    return 'Rp ' + Number(amount).toLocaleString('id-ID');
+}
+
+// Open partial payment modal
+async function openPartialPaymentModal(userId, userName, subscription) {
+    const user = allUsers.find(u => u.id === userId);
+    if (!user) {
+        showToast('Data pelanggan tidak ditemukan', 'danger');
+        return;
+    }
+    
+    selectedPartialUserId = userId;
+    
+    showLoading('Memuat data tagihan...');
+    
+    try {
+        // Fetch effective price with discount
+        let basePrice = getPackagePrice(subscription);
+        let effectivePrice = basePrice;
+        let discountHtml = '';
+        let outstandingAmount = effectivePrice;
+        let totalPaidBefore = 0;
+        
+        // Get discount info
+        try {
+            const discountRes = await fetch(`/api/discount/effective-price/${userId}`, { credentials: 'include' });
+            const discountData = await discountRes.json();
+            
+            if (discountData.status === 200 && discountData.data) {
+                basePrice = discountData.data.base_price || basePrice;
+                effectivePrice = discountData.data.effective_price;
+                
+                if (discountData.data.has_discount && discountData.data.is_discount_valid) {
+                    discountHtml = `
+                        <div class="detail-row" style="background: #fff3cd; padding: 5px 10px; border-radius: 5px; margin-bottom: 10px;">
+                            <span class="detail-label"><i class="fas fa-tags text-warning"></i> Diskon</span>
+                            <span class="detail-value text-danger">-${discountData.data.discount_text}</span>
+                        </div>
+                    `;
+                }
+            }
+        } catch (e) {
+            console.warn('Could not fetch discount info:', e);
+        }
+        
+        // Get outstanding balance
+        try {
+            const outstandingRes = await fetch(`/api/partial-payment/outstanding/${userId}`, { credentials: 'include' });
+            const outstandingData = await outstandingRes.json();
+            
+            if (outstandingData.status === 200 && outstandingData.data) {
+                outstandingAmount = outstandingData.data.outstanding;
+                totalPaidBefore = outstandingData.data.total_paid;
+                
+                if (outstandingData.data.is_fully_paid) {
+                    hideLoading();
+                    showToast('Pelanggan sudah lunas untuk periode ini', 'info');
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn('Could not fetch outstanding info:', e);
+            outstandingAmount = effectivePrice;
+        }
+        
+        selectedPartialUserPrice = outstandingAmount;
+        
+        // Build modal content
+        const modalHtml = `
+            <div class="modal fade" id="partialPaymentModal" tabindex="-1" role="dialog">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title"><i class="fas fa-coins"></i> Pembayaran Sebagian</h5>
+                            <button type="button" class="close text-white" data-dismiss="modal">
+                                <span>&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="customer-summary mb-3" style="background: #f8f9fc; border-radius: 10px; padding: 15px;">
+                                <h6 class="mb-2"><i class="fas fa-user"></i> ${userName}</h6>
+                                <div class="detail-row d-flex justify-content-between py-1">
+                                    <span class="text-muted">Paket</span>
+                                    <span class="font-weight-bold">${subscription || '-'}</span>
+                                </div>
+                                <div class="detail-row d-flex justify-content-between py-1">
+                                    <span class="text-muted">Harga Paket</span>
+                                    <span ${discountHtml ? 'style="text-decoration: line-through;" class="text-muted"' : 'class="font-weight-bold"'}>${formatCurrency(basePrice)}</span>
+                                </div>
+                                ${discountHtml}
+                                ${totalPaidBefore > 0 ? `
+                                <div class="detail-row d-flex justify-content-between py-1">
+                                    <span class="text-muted">Sudah Dibayar</span>
+                                    <span class="text-success font-weight-bold">${formatCurrency(totalPaidBefore)}</span>
+                                </div>
+                                ` : ''}
+                                <hr class="my-2">
+                                <div class="detail-row d-flex justify-content-between py-1">
+                                    <span class="font-weight-bold">Sisa Tagihan</span>
+                                    <span class="text-danger font-weight-bold" style="font-size: 1.2rem;">${formatCurrency(outstandingAmount)}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="font-weight-bold">Jenis Pembayaran</label>
+                                <div class="custom-control custom-radio">
+                                    <input type="radio" id="ppFull" name="ppType" class="custom-control-input" value="full" checked>
+                                    <label class="custom-control-label" for="ppFull">Pembayaran Penuh (${formatCurrency(outstandingAmount)})</label>
+                                </div>
+                                <div class="custom-control custom-radio">
+                                    <input type="radio" id="ppPartial" name="ppType" class="custom-control-input" value="partial">
+                                    <label class="custom-control-label" for="ppPartial">Pembayaran Sebagian</label>
+                                </div>
+                            </div>
+                            
+                            <div id="ppPartialSection" style="display: none;">
+                                <div class="form-group">
+                                    <label for="ppAmount">Nominal yang Dibayar</label>
+                                    <div class="input-group">
+                                        <div class="input-group-prepend"><span class="input-group-text">Rp</span></div>
+                                        <input type="text" class="form-control currency-input" id="ppAmount" placeholder="Masukkan nominal" data-max="${outstandingAmount}">
+                                    </div>
+                                    <small class="form-text text-muted">Minimal Rp 1.000, Maksimal ${formatCurrency(outstandingAmount)}</small>
+                                </div>
+                                <div class="alert alert-info" id="ppInfo" style="display: none;">
+                                    <i class="fas fa-info-circle"></i> <span id="ppInfoText"></span>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="ppMethod">Metode Pembayaran</label>
+                                <select class="form-control" id="ppMethod">
+                                    <option value="TRANSFER_BANK">Transfer Bank</option>
+                                    <option value="CASH">Tunai</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="ppNotes">Catatan (Opsional)</label>
+                                <input type="text" class="form-control" id="ppNotes" placeholder="Contoh: Bayar via BCA" maxlength="200">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                            <button type="button" class="btn btn-primary" id="ppConfirmBtn">
+                                <i class="fas fa-check"></i> Proses Pembayaran
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing modal if any
+        $('#partialPaymentModal').remove();
+        
+        // Add modal to body
+        $('body').append(modalHtml);
+        
+        // Setup event handlers
+        $('input[name="ppType"]').on('change', function() {
+            if ($(this).val() === 'partial') {
+                $('#ppPartialSection').slideDown();
+            } else {
+                $('#ppPartialSection').slideUp();
+                $('#ppAmount').val('');
+                $('#ppInfo').hide();
+            }
+        });
+        
+        $('#ppAmount').on('input', function() {
+            // Format with thousand separator
+            let value = $(this).val().replace(/\./g, '').replace(/[^0-9]/g, '');
+            // Remove leading zeros
+            value = value.replace(/^0+/, '') || '';
+            if (value) {
+                $(this).val(value.replace(/\B(?=(\d{3})+(?!\d))/g, '.'));
+            } else {
+                $(this).val('');
+            }
+            
+            const amount = parseInt(value) || 0;
+            if (amount > 0 && amount < outstandingAmount) {
+                const remaining = outstandingAmount - amount;
+                $('#ppInfoText').html(`Sisa tagihan setelah pembayaran: <strong>${formatCurrency(remaining)}</strong>`);
+                $('#ppInfo').show();
+            } else if (amount >= outstandingAmount) {
+                $('#ppInfoText').html(`Nominal sama atau lebih dari sisa tagihan. Akan diproses sebagai pembayaran penuh.`);
+                $('#ppInfo').show();
+            } else {
+                $('#ppInfo').hide();
+            }
+        });
+        
+        // Select all on focus for easy replacement
+        $('#ppAmount').on('focus', function() {
+            $(this).select();
+        });
+        
+        $('#ppConfirmBtn').on('click', function() {
+            submitPartialPayment(userId, outstandingAmount);
+        });
+        
+        hideLoading();
+        $('#partialPaymentModal').modal('show');
+        
+    } catch (error) {
+        hideLoading();
+        console.error('Error opening partial payment modal:', error);
+        showToast('Error memuat data tagihan', 'danger');
+    }
+}
+
+// Submit partial payment
+async function submitPartialPayment(userId, maxAmount) {
+    const paymentType = $('input[name="ppType"]:checked').val();
+    // Parse formatted number (remove dots)
+    const partialAmount = parseInt($('#ppAmount').val().replace(/\./g, '')) || 0;
+    const paymentMethod = $('#ppMethod').val();
+    const notes = $('#ppNotes').val().trim();
+    
+    let amountToPay = maxAmount;
+    
+    if (paymentType === 'partial') {
+        if (partialAmount <= 0) {
+            showToast('Masukkan nominal pembayaran', 'warning');
+            return;
+        }
+        if (partialAmount > maxAmount) {
+            showToast(`Nominal melebihi sisa tagihan (${formatCurrency(maxAmount)})`, 'warning');
+            return;
+        }
+        amountToPay = partialAmount;
+    }
+    
+    $('#ppConfirmBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Memproses...');
+    
+    try {
+        const response = await fetch('/api/partial-payment/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                userId: userId,
+                amountPaid: amountToPay,
+                paymentMethod: paymentMethod,
+                notes: notes
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 200 || result.status === 201) {
+            $('#partialPaymentModal').modal('hide');
+            
+            const isPartial = result.data.is_partial;
+            const msg = isPartial 
+                ? `Pembayaran sebagian ${formatCurrency(amountToPay)} berhasil diproses! Sisa: ${formatCurrency(result.data.amount_remaining)}`
+                : `Pembayaran penuh ${formatCurrency(amountToPay)} berhasil diproses!`;
+            
+            showToast(msg, 'success');
+            
+            // Reload data if fully paid
+            if (result.data.will_be_fully_paid) {
+                setTimeout(() => loadUsers(), 500);
+            }
+        } else {
+            showToast('Error: ' + (result.message || 'Gagal memproses pembayaran'), 'danger');
+        }
+    } catch (error) {
+        console.error('Error submitting partial payment:', error);
+        showToast('Error memproses pembayaran', 'danger');
+    } finally {
+        $('#ppConfirmBtn').prop('disabled', false).html('<i class="fas fa-check"></i> Proses Pembayaran');
+    }
 }
