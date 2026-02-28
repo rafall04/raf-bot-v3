@@ -168,10 +168,11 @@ Untuk melanjutkan ke pengisian catatan perbaikan`;
 /**
  * Handle teknisi photo upload
  */
-async function handleTeknisiPhotoUpload(sender, fileName, buffer, reply) {
+async function handleTeknisiPhotoUpload(sender, fileName, buffer, reply, canonicalId) {
     try {
+        const stateKey = canonicalId || sender;
         // Check if teknisi is in correct state
-        const state = global.teknisiStates && global.teknisiStates[sender];
+        const state = global.teknisiStates && global.teknisiStates[stateKey];
         
         if (!state || state.step !== 'AWAITING_COMPLETION_PHOTOS') {
             return {
@@ -180,19 +181,19 @@ async function handleTeknisiPhotoUpload(sender, fileName, buffer, reply) {
             };
         }
         
-        const session = getSession(sender);
+        const session = getSession(stateKey);
         
         // Add photo to session
         session.photos.push(fileName);
         session.lastActivity = Date.now();
         
         const currentCount = session.photos.length;
-        console.log(`[PHOTO_UPLOAD] Photo added: ${currentCount} total for ${sender}`);
+        console.log(`[PHOTO_UPLOAD] Photo added: ${currentCount} total for ${stateKey}`);
         
         // Check if we should process immediately (max photos reached)
         if (currentCount >= 5) {
             // Process immediately if max reached
-            await processBatch(sender);
+            await processBatch(stateKey);
             return {
                 success: true,
                 photoCount: currentCount,
@@ -223,7 +224,11 @@ async function handleTeknisiPhotoUpload(sender, fileName, buffer, reply) {
             
             // Set new batch timeout (wait for more photos)
             session.batchTimeout = setTimeout(async () => {
-                await processBatch(sender);
+                try {
+                    await processBatch(stateKey);
+                } catch (err) {
+                    console.error('[PHOTO_TIMEOUT_ERROR]', err);
+                }
             }, 1500); // Wait 1.5 seconds for batch
         });
         
