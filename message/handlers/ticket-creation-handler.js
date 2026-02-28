@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { sleep } = require('../../lib/myfunc');
+const { extractPhoneFromJid } = require('../../lib/jid-utils');
 
 // Path untuk database reports
 const reportsDbPath = path.join(__dirname, '../../database/reports.json');
@@ -49,7 +50,7 @@ function saveReportsToFile(data) {
  * @param {object} global - Global object containing config, accounts, reports
  */
 async function buatLaporanGangguan(pelangganId, pelangganPushName, userPelanggan, laporanLengkap, reply, raf, global) {
-    const pelangganPlainNumber = pelangganId.split('@')[0];
+    const pelangganPlainNumber = extractPhoneFromJid(pelangganId);
     const ticketId = generateTicketId(7);
 
     const newReport = {

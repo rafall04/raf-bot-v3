@@ -5,6 +5,7 @@
 
 const axios = require('axios');
 const { getSSIDInfo, setSSIDName, setPassword } = require('../../lib/wifi');
+const { resolveCustomerBySender } = require('../../lib/jid-utils');
 
 const { getUserState, setUserState, deleteUserState } = require('./conversation-handler');
 
@@ -14,6 +15,7 @@ const { getUserState, setUserState, deleteUserState } = require('./conversation-
 async function handleGantiNamaWifi({ sender, args, matchedKeywordLength, isOwner, isTeknisi, pushname, users, reply, global, mess, msg, raf }) {
     try {
         let user;
+        let plainSenderNumber;
         let newName;
         let providedId = null;
 
@@ -29,43 +31,19 @@ async function handleGantiNamaWifi({ sender, args, matchedKeywordLength, isOwner
         if (providedId) {
             user = users.find(v => v.id == providedId);
         } else {
-            let plainSenderNumber = sender.split('@')[0].split(':')[0];
-
-            // Ekstraksi JID (nomor asli opsional) jika tersembunyi
-            let optionalJid = null;
-            if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
-                optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-                plainSenderNumber = optionalJid;
-            } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
-                optionalJid = msg.participant.split('@')[0].split(':')[0];
-                plainSenderNumber = optionalJid;
-            }
-
-            user = users.find(u => {
-                if (u.lid && u.lid === sender) return true;
-                if (!u.phone_number) return false;
-                const phones = u.phone_number.split('|').map(p => p.trim());
-                return phones.some(phone => {
-                    if (phone === plainSenderNumber || phone === sender) return true;
-                    // Try formatting match (08x vs 628x)
-                    let pClean = phone.replace(/[^0-9]/g, '');
-                    let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
-                    if (pClean.startsWith('62')) pClean = pClean.substring(2);
-                    if (pClean.startsWith('0')) pClean = pClean.substring(1);
-                    if (sClean.startsWith('62')) sClean = sClean.substring(2);
-                    if (sClean.startsWith('0')) sClean = sClean.substring(1);
-                    return pClean === sClean;
-                });
-            });
+            const resolved = await resolveCustomerBySender({ users, sender, msg, raf });
+            user = resolved.user;
+            plainSenderNumber = resolved.plainSenderNumber;
 
             // If still not found for @lid, show error (no manual verification needed)
             if (sender.endsWith('@lid') && !user) {
                 console.log('[GANTI_NAMA_WIFI] @lid format detected, user not found');
                 console.log('[GANTI_NAMA_WIFI] Sender:', sender);
-                return reply(`❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`);
+                return reply(`❌ Maaf, nomor Anda tidak terdaftar dalam database.
+
+Silakan hubungi admin untuk bantuan.`);
             }
         }
-
         if (!user) {
             if (isOwner || isTeknisi) {
                 if (providedId) {
@@ -84,6 +62,7 @@ async function handleGantiNamaWifi({ sender, args, matchedKeywordLength, isOwner
                 return reply(mess.userNotRegister);
             }
         }
+
 
         if (user.subscription === 'PAKET-VOUCHER' && !(isOwner || isTeknisi)) {
             return reply(`Maaf Kak ${pushname}, fitur ganti nama WiFi saat ini hanya tersedia untuk pelanggan bulanan.`);
@@ -153,6 +132,7 @@ async function handleGantiNamaWifi({ sender, args, matchedKeywordLength, isOwner
 async function handleGantiSandiWifi({ sender, args, matchedKeywordLength, isOwner, isTeknisi, pushname, users, reply, global, mess, msg, raf }) {
     try {
         let user;
+        let plainSenderNumber;
         let newPassword;
         let providedId = null;
 
@@ -168,41 +148,11 @@ async function handleGantiSandiWifi({ sender, args, matchedKeywordLength, isOwne
         if (providedId) {
             user = users.find(v => v.id == providedId);
         } else {
-            let plainSenderNumber = sender.split('@')[0].split(':')[0];
-
-            let optionalJid = null;
-            if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
-                optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-                plainSenderNumber = optionalJid;
-            } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
-                optionalJid = msg.participant.split('@')[0].split(':')[0];
-                plainSenderNumber = optionalJid;
-            }
-
-            user = users.find(u => {
-                if (u.lid && u.lid === sender) return true;
-                if (!u.phone_number) return false;
-                const phones = u.phone_number.split('|').map(p => p.trim());
-                return phones.some(phone => {
-                    if (phone === plainSenderNumber || phone === sender) return true;
-                    // Try formatting match (08x vs 628x)
-                    let pClean = phone.replace(/[^0-9]/g, '');
-                    let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
-                    if (pClean.startsWith('62')) pClean = pClean.substring(2);
-                    if (pClean.startsWith('0')) pClean = pClean.substring(1);
-                    if (sClean.startsWith('62')) sClean = sClean.substring(2);
-                    if (sClean.startsWith('0')) sClean = sClean.substring(1);
-                    return pClean === sClean;
-                });
-            });
-
-            // If still not found for @lid, show error (no manual verification needed)
-            if (sender.endsWith('@lid') && !user) {
-                console.log('[GANTI_SANDI_WIFI] @lid format detected, user not found');
-                console.log('[GANTI_SANDI_WIFI] Sender:', sender);
-                return reply(`❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`);
-            }
+            const resolved = await resolveCustomerBySender({ users, sender, msg, raf });
+            user = resolved.user;
+            plainSenderNumber = resolved.plainSenderNumber;
         }
+
 
         if (!user) {
             if (isOwner || isTeknisi) {
@@ -558,5 +508,11 @@ async function logWifiPasswordChange(user, newPassword, sender, type) {
 
 module.exports = {
     handleGantiNamaWifi,
-    handleGantiSandiWifi
+    handleGantiSandiWifi,
+    handleSingleSSIDNameChange,
+    handleBulkAutoNameChange,
+    handleSingleSSIDPasswordChange,
+    handleBulkAutoPasswordChange,
+    logWifiNameChange,
+    logWifiPasswordChange
 };

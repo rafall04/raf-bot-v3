@@ -5,6 +5,7 @@
 
 const { isDeviceOnline, getDeviceOfflineMessage } = require('../../lib/device-status');
 const { setUserState, getUserState, deleteUserState } = require('./conversation-handler');
+const { resolveCustomerBySender } = require('../../lib/jid-utils');
 const { getResponseTimeMessage, isWithinWorkingHours } = require('../../lib/working-hours-helper');
 const { renderReport, errorMessage } = require('../../lib/templating');
 const { saveReports } = require('../../lib/database');
@@ -29,34 +30,7 @@ function generateTicketId(length = 7) {
  */
 async function handleGangguanMati({ sender, pushname, userPelanggan, reply, findUserByPhone, msg, raf }) {
     try {
-        // Get plain sender number - findUserWithLidSupport handles @lid internally
-        let plainSenderNumber = sender.split('@')[0].split(':')[0];
-
-        let optionalJid = null;
-        if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
-            optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
-            optionalJid = msg.participant.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        }
-
-        const user = global.users.find(u => {
-            if (u.lid && u.lid === sender) return true;
-            if (!u.phone_number) return false;
-            const phones = u.phone_number.split('|').map(p => p.trim());
-            return phones.some(phone => {
-                if (phone === plainSenderNumber || phone === sender) return true;
-                let pClean = phone.replace(/[^0-9]/g, '');
-                let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
-                if (pClean.startsWith('62')) pClean = pClean.substring(2);
-                if (pClean.startsWith('0')) pClean = pClean.substring(1);
-                if (sClean.startsWith('62')) sClean = sClean.substring(2);
-                if (sClean.startsWith('0')) sClean = sClean.substring(1);
-                return pClean === sClean;
-            });
-        });
-
+        const { user, plainSenderNumber } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
         console.log(`[USER_SEARCH] Sender: ${sender}, Found: ${user ? user.name : 'NOT FOUND'}`);
 
         // Handle @lid users - no manual verification needed
@@ -335,34 +309,7 @@ Balas dengan *angka* (1/2/3/0)`;
  */
 async function handleGangguanLemot({ sender, pushname, userPelanggan, reply, findUserByPhone, msg, raf }) {
     try {
-        // Get plain sender number - findUserWithLidSupport handles @lid internally
-        let plainSenderNumber = sender.split('@')[0].split(':')[0];
-
-        let optionalJid = null;
-        if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
-            optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
-            optionalJid = msg.participant.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        }
-
-        const user = global.users.find(u => {
-            if (u.lid && u.lid === sender) return true;
-            if (!u.phone_number) return false;
-            const phones = u.phone_number.split('|').map(p => p.trim());
-            return phones.some(phone => {
-                if (phone === plainSenderNumber || phone === sender) return true;
-                let pClean = phone.replace(/[^0-9]/g, '');
-                let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
-                if (pClean.startsWith('62')) pClean = pClean.substring(2);
-                if (pClean.startsWith('0')) pClean = pClean.substring(1);
-                if (sClean.startsWith('62')) sClean = sClean.substring(2);
-                if (sClean.startsWith('0')) sClean = sClean.substring(1);
-                return pClean === sClean;
-            });
-        });
-
+        const { user, plainSenderNumber } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
         console.log(`[USER_SEARCH] Sender: ${sender}, Found: ${user ? user.name : 'NOT FOUND'}`);
 
         // Handle @lid users - no manual verification needed

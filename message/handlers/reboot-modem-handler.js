@@ -3,11 +3,12 @@
  * Menangani permintaan reboot modem
  */
 const { setUserState } = require('./conversation-handler');
+const { resolveCustomerBySender } = require('../../lib/jid-utils');
 
 /**
  * Handle reboot modem request
  */
-function handleRebootModem({ sender, entities, isOwner, isTeknisi, plainSenderNumber, pushname, users, reply, mess, msg }) {
+async function handleRebootModem({ sender, entities, isOwner, isTeknisi, plainSenderNumber, pushname, users, reply, mess, msg, raf }) {
     // Logika pencarian user yang aman dan konsisten
     let user;
     const providedId = entities.id_pelanggan;
@@ -15,30 +16,9 @@ function handleRebootModem({ sender, entities, isOwner, isTeknisi, plainSenderNu
     if ((isOwner || isTeknisi) && providedId && !isNaN(parseInt(providedId))) {
         user = users.find(v => v.id == providedId);
     } else {
-        let optionalJid = null;
-        if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
-            optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
-            optionalJid = msg.participant.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        }
-
-        user = users.find(u => {
-            if (u.lid && u.lid === sender) return true;
-            if (!u.phone_number) return false;
-            const phones = u.phone_number.split('|').map(p => p.trim());
-            return phones.some(phone => {
-                if (phone === plainSenderNumber || phone === sender) return true;
-                let pClean = phone.replace(/[^0-9]/g, '');
-                let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
-                if (pClean.startsWith('62')) pClean = pClean.substring(2);
-                if (pClean.startsWith('0')) pClean = pClean.substring(1);
-                if (sClean.startsWith('62')) sClean = sClean.substring(2);
-                if (sClean.startsWith('0')) sClean = sClean.substring(1);
-                return pClean === sClean;
-            });
-        });
+        const resolved = await resolveCustomerBySender({ users, sender, msg, raf });
+        user = resolved.user;
+        plainSenderNumber = resolved.plainSenderNumber;
 
         // Debug logging for @lid format
         if (sender.endsWith('@lid') && !user) {

@@ -4,6 +4,7 @@
  */
 
 const axios = require('axios');
+const { resolveCustomerBySender } = require('../../lib/jid-utils');
 
 /**
  * Handle WiFi power change
@@ -11,6 +12,7 @@ const axios = require('axios');
 async function handleGantiPowerWifi({ sender, args, matchedKeywordLength, q, isOwner, isTeknisi, users, reply, global, mess, msg, raf }) {
     try {
         let user;
+        let plainSenderNumber;
 
         // Use matchedKeywordLength to determine where the actual arguments start
         // Example: "ganti power wifi 10 80" -> keyword is "ganti power wifi" (3 words), so ID is at args[3]
@@ -32,46 +34,25 @@ async function handleGantiPowerWifi({ sender, args, matchedKeywordLength, q, isO
             // Power value is after the ID
             q = args.slice(keywordLength + 1).join(' ').trim();
         } else {
-            let plainSenderNumber = sender.split('@')[0].split(':')[0];
-
-            let optionalJid = null;
-            if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
-                optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-                plainSenderNumber = optionalJid;
-            } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
-                optionalJid = msg.participant.split('@')[0].split(':')[0];
-                plainSenderNumber = optionalJid;
-            }
-
-            user = users.find(u => {
-                if (u.lid && u.lid === sender) return true;
-                if (!u.phone_number) return false;
-                const phones = u.phone_number.split('|').map(p => p.trim());
-                return phones.some(phone => {
-                    if (phone === plainSenderNumber || phone === sender) return true;
-                    let pClean = phone.replace(/[^0-9]/g, '');
-                    let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
-                    if (pClean.startsWith('62')) pClean = pClean.substring(2);
-                    if (pClean.startsWith('0')) pClean = pClean.substring(1);
-                    if (sClean.startsWith('62')) sClean = sClean.substring(2);
-                    if (sClean.startsWith('0')) sClean = sClean.substring(1);
-                    return pClean === sClean;
-                });
-            });
+            const resolved = await resolveCustomerBySender({ users, sender, msg, raf });
+            user = resolved.user;
+            plainSenderNumber = resolved.plainSenderNumber;
 
             // Power value is after the keyword
             q = args.slice(keywordLength).join(' ').trim();
         }
-
         if (!user) {
             const errorMessage = (isOwner || isTeknisi)
-                ? (providedId ? `Maaf, Kak. Pelanggan dengan ID "${providedId}" tidak ditemukan.` : mess.notRegister)
+                ? (providedId ? `Maaf, Kak. Pelanggan dengan ID "${providedId}" tidak ditemukan.` : "Anda belum terdaftar sebagai pelanggan. Untuk mengatur power wifi pelanggan lain, sebutkan ID pelanggannya.")
                 : mess.userNotRegister;
-            throw errorMessage;
+            return reply(errorMessage);
+        }
+        if (user.subscription === 'PAKET-VOUCHER' && !(isOwner || isTeknisi)) {
+            return reply(`Maaf Kak, fitur ganti power WiFi saat ini hanya tersedia untuk pelanggan bulanan.`);
         }
 
-        if (user.subscription == 'PAKET-VOUCHER') {
-            throw mess.onlyMonthly;
+        if (!user.device_id) {
+            return reply(`Maaf Kak, data device ID untuk pelanggan ini tidak ditemukan.`);
         }
 
         if (!q) {
