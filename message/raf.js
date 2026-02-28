@@ -380,6 +380,30 @@ module.exports = async (raf, msg, m) => {
 
         if (chats.toLowerCase().trim() === 'batal') {
             isGlobalCommand = true;
+            if (global.teknisiStates) delete global.teknisiStates[sender];
+        }
+
+            isGlobalCommand = true;
+            if (global.teknisiStates) delete global.teknisiStates[sender];
+        }
+
+            isGlobalCommand = true;
+            if (global.teknisiStates) delete global.teknisiStates[sender];
+        }
+
+            isGlobalCommand = true;
+            if (global.teknisiStates) delete global.teknisiStates[sender];
+        }
+
+            isGlobalCommand = true;
+            if (global.teknisiStates) delete global.teknisiStates[sender];
+        }
+
+            isGlobalCommand = true;
+            if (global.teknisiStates) delete global.teknisiStates[sender];
+        }
+
+            isGlobalCommand = true;
         }
 
         if (smartReportState && isGlobalCommand && !isInProtectedState) {
