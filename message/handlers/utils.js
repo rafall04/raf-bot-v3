@@ -1,3 +1,5 @@
+const { normalizePhoneNumber, resolveCustomerBySender } = require('../../lib/jid-utils');
+
 "use strict";
 
 /**
@@ -45,18 +47,39 @@ function formatToJID(phoneNumber) {
 function findUserByPhone(phoneNumber) {
     if (!phoneNumber || !global.users) return null;
     
-    const cleanedNumber = phoneNumber.replace(/\D/g, '');
+    const cleanedNumber = normalizePhoneNumber(phoneNumber);
     
     return global.users.find(u => {
         if (!u.phone_number) return false;
         
         return u.phone_number.split("|").some(num => {
-            const cleaned = num.trim().replace(/\D/g, '');
-            // Check exact match or with/without country code
-            return cleaned === cleanedNumber ||
-                   cleaned === '62' + cleanedNumber ||
-                   '62' + cleaned === cleanedNumber ||
-                   (cleaned.startsWith('0') && '62' + cleaned.substring(1) === cleanedNumber);
+            const cleaned = normalizePhoneNumber(num);
+            return cleaned === cleanedNumber;
+        });
+    });
+}
+
+/**
+ * Get user by JID with LID awareness
+ * @param {string} jid - WhatsApp JID
+ * @param {Array} users - List of users to search from
+ * @param {Object} msg - Optional message object
+ * @param {Object} raf - Optional raf instance
+ * @returns {Promise<Object|null>} User object or null
+ */
+async function getUserByJid(jid, users, msg = null, raf = null) {
+    if (!jid) return null;
+    const targetUsers = users || global.users;
+    if (!targetUsers) return null;
+    
+    // Use LID-aware resolution
+    const resolvedJid = await resolveCustomerBySender(jid, msg, raf);
+    const phoneNumber = resolvedJid.split('@')[0];
+    
+    return targetUsers.find(u => {
+        if (!u.phone_number) return false;
+        return u.phone_number.split("|").some(num => {
+            return normalizePhoneNumber(num) === phoneNumber;
         });
     });
 }
@@ -348,15 +371,6 @@ function getTimeGreeting() {
 }
 
 /**
- * Sleep/delay function
- * @param {number} ms - Milliseconds to sleep
- * @returns {Promise} Promise that resolves after delay
- */
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/**
  * Truncate string to specified length
  * @param {string} str - String to truncate
  * @param {number} length - Max length
@@ -522,6 +536,7 @@ module.exports = {
     isAdmin,
     isTeknisi,
     findUserByPhone,
+    getUserByJid,
     findUserByDeviceId,
     isValidDeviceId,
     generateUniqueId,
