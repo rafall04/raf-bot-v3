@@ -5,41 +5,45 @@
 
 const qr = require('qr-image');
 const convertRupiah = require('rupiah-format');
+const { extractSenderInfo, resolveCustomerBySender } = require('../../lib/lid-handler');
 
 /**
  * Handle topup saldo and buynow
  */
 async function handleTopupSaldoPayment({ sender, pushname, command, q, from, msg, reply, raf, pay, checkprofvc, checkhargavoucher, checkhargavc, addPayment }) {
+    const senderInfo = extractSenderInfo(msg, sender);
+    const canonicalId = senderInfo.canonicalId;
+    const phoneNum = senderInfo.phoneNumber;
     if (!q) throw `contoh penggunaan: topup 10000`;
-    
+
     let number = parseInt(q);
     if (command == "topup" && (isNaN(number) || number < 1000 || number > 1_000_000)) {
         throw `Jumlah topup invalid!\nMinimum topup Rp. 1000 & Maksimal topup Rp. 1.000.000`;
     }
-    
+
     const reff = Math.floor(Math.random() * 1677721631342).toString(16);
     let profvc = checkprofvc(q);
-    
+
     if (command == "buynow") {
         if (!checkhargavoucher(q)) {
             throw `Harga Voucher Tersebut Tidak Terdaftar. Silahkan Periksa Lagi.\n\nTerima Kasih`;
         }
         number = checkhargavc(profvc);
     }
-    
+
     const res = await pay({
         amount: number,
         reffId: reff,
-        comment: command == 'topup' 
-            ? `Topup dana saldo sebesar Rp. ${number}` 
-            : command == 'buynow' 
-                ? `pembelian voucher ${profvc} sebesar Rp. ${number}` 
+        comment: command == 'topup'
+            ? `Topup dana saldo sebesar Rp. ${number}`
+            : command == 'buynow'
+                ? `pembelian voucher ${profvc} sebesar Rp. ${number}`
                 : '',
         name: pushname,
-        phone: sender.split("@")[0],
-        email: sender,
+        phone: phoneNum,
+        email: canonicalId,
     });
-    
+
     // Gunakan template system untuk info QRIS payment
     const { renderTemplate } = require('../../lib/templating');
     const text = renderTemplate('qris_payment_info', {
@@ -47,11 +51,11 @@ async function handleTopupSaldoPayment({ sender, pushname, command, q, from, msg
         biaya_admin: res.fee.toLocaleString('id-ID'),
         total_bayar: res.total.toLocaleString('id-ID')
     });
-    
-    await addPayment(reff, res.id, sender, command, number, 'QRIS', `Topup ${number} to ${sender}`);
-    
+
+    await addPayment(reff, res.id, canonicalId, command, number, 'QRIS', `Topup ${number} to ${canonicalId}`);
+
     let qrr = await qr.imageSync(res.qrString, { type: "png", ec_level: 'H' });
-    
+
     try {
         if (global.whatsappConnectionState === 'open') {
             await raf.sendMessage(from, { image: qrr, caption: text }, { quoted: msg, skipDuplicateCheck: true });
@@ -63,7 +67,7 @@ async function handleTopupSaldoPayment({ sender, pushname, command, q, from, msg
 
 /**
  * Fungsi terpusat untuk memproses pembelian voucher.
- * @param {string} sender - JID pengirim
+ * @param {string} sender - JID pengirim (canonical diprioritaskan)
  * @param {string} pushname - Nama pushname pengirim
  * @param {string} price - Harga voucher yang akan dibeli
  * @param {function} replyFunc - Fungsi untuk membalas pesan
@@ -71,8 +75,10 @@ async function handleTopupSaldoPayment({ sender, pushname, command, q, from, msg
  * @param {object} global - Global object
  */
 async function processVoucherPurchase(sender, pushname, price, replyFunc, helpers, global) {
+    // Pastikan menggunakan canonical ID untuk operasi saldo dan voucher
+    const canonicalId = resolveCustomerBySender(sender);
     const { checkhargavoucher, checkprofvc, checkdurasivc, checkhargavc, checkATMuser, confirmATM, getvoucher } = helpers;
-    
+
     // Cek apakah harga voucher terdaftar
     if (!checkhargavoucher(price)) {
         await replyFunc(`Harga Voucher Rp ${price} Tidak Terdaftar. Silahkan Periksa Lagi.\n\nTerima Kasih`);
@@ -83,8 +89,8 @@ async function processVoucherPurchase(sender, pushname, price, replyFunc, helper
     const durasivc123 = checkdurasivc(profvc123);
     const hargavc123 = checkhargavc(profvc123);
 
-    // Cek saldo pengguna
-    const currentSaldo = await checkATMuser(sender);
+    // Cek saldo pengguna menggunakan canonical ID
+    const currentSaldo = await checkATMuser(canonicalId);
     if (currentSaldo < hargavc123) {
         await replyFunc(`Saldo Anda tidak mencukupi untuk melakukan pembelian voucher seharga ${convertRupiah.convert(hargavc123)}. Silakan top up saldo terlebih dahulu.`);
         return;
@@ -93,12 +99,12 @@ async function processVoucherPurchase(sender, pushname, price, replyFunc, helper
     try {
         await replyFunc("⏳ Sedang memproses pembelian voucher Anda, mohon tunggu sebentar...");
 
-        const voucherData = await getvoucher(profvc123, sender);
+        const voucherData = await getvoucher(profvc123, canonicalId);
         const voucherCode = `${voucherData.username}`;
 
-        // Konfirmasi pengurangan saldo (async)
-        await confirmATM(sender, hargavc123);
-        const currentSaldoAfterPurchase = await checkATMuser(sender);
+        // Konfirmasi pengurangan saldo (async) menggunakan canonical ID
+        await confirmATM(canonicalId, hargavc123);
+        const currentSaldoAfterPurchase = await checkATMuser(canonicalId);
         const formattedSaldoAfterPurchase = convertRupiah.convert(currentSaldoAfterPurchase);
 
         // Pesan sukses
@@ -115,7 +121,7 @@ async function processVoucherPurchase(sender, pushname, price, replyFunc, helper
             } else if (err.message.includes("Voucher dengan username ini") || err.message.includes("already have user with this name")) {
                 userFriendlyErrorMessage += "Terjadi duplikasi username saat membuat voucher. Mohon coba lagi atau hubungi Admin.";
             } else if (err.message.includes("data username/password tidak ditemukan")) {
-                 userFriendlyErrorMessage += "Voucher berhasil dibuat, namun bot gagal mendapatkan username/passwordnya. Mohon laporkan ke Admin.";
+                userFriendlyErrorMessage += "Voucher berhasil dibuat, namun bot gagal mendapatkan username/passwordnya. Mohon laporkan ke Admin.";
             } else {
                 userFriendlyErrorMessage += `Detail: ${err.message || 'Error tidak diketahui'}. Mohon coba lagi atau hubungi Admin.`;
             }
@@ -127,16 +133,23 @@ async function processVoucherPurchase(sender, pushname, price, replyFunc, helper
 /**
  * Handle beli voucher
  */
-async function handleBeliVoucher({ sender, pushname, entities, q, reply, temp, global, helpers }) {
+/**
+ * Handle beli voucher
+ */
+async function handleBeliVoucher({ msg, sender, normalizedSenderForPayment, pushname, entities, q, reply, temp, global, helpers }) {
+    const senderInfo = extractSenderInfo(msg, sender);
+    const canonicalId = senderInfo.canonicalId;
+    const paymentSender = normalizedSenderForPayment || canonicalId;
     const hargaVoucher = entities.harga_voucher || q;
 
     if (hargaVoucher) {
         // Jika harga ada, langsung proses
-        await processVoucherPurchase(sender, pushname, hargaVoucher, reply, helpers, global);
+        await processVoucherPurchase(paymentSender, pushname, hargaVoucher, reply, helpers, global);
     } else {
-        // Jika tidak ada harga, mulai percakapan
-        temp[sender] = {
-            step: 'ASK_VOUCHER_CHOICE'
+        // Jika tidak ada harga, mulai percakapan menggunakan canonicalId untuk state
+        temp[canonicalId] = {
+            step: 'ASK_VOUCHER_CHOICE',
+            paymentSender: paymentSender
         };
 
         let voucherListString = "";

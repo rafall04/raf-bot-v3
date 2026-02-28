@@ -224,9 +224,10 @@ async function handleSaldoSteps({ userState, sender, chats, pushname, reply, set
             // Create topup request with agent info if applicable
             const agentId = userState.selectedAgent?.id || null;
             const customerName = pushname || 'Customer';
+            const paymentSender = userState.paymentSender || sender;
             
             const request = saldoManager.createTopupRequest(
-                sender,
+                paymentSender,
                 userState.amount,
                 userState.paymentMethod,
                 agentId,
@@ -317,7 +318,6 @@ async function handleSaldoSteps({ userState, sender, chats, pushname, reply, set
                     agentNotif += `• Jangan konfirmasi sebelum terima uang\n`;
                     agentNotif += `• Gunakan PIN yang sudah terdaftar`;
                     
-                    // PENTING: Cek connection state dan gunakan error handling sesuai rules
                     if (global.whatsappConnectionState === 'open' && global.raf && global.raf.sendMessage) {
                         try {
                             await global.raf.sendMessage(agentPhone, { text: agentNotif });
@@ -332,6 +332,9 @@ async function handleSaldoSteps({ userState, sender, chats, pushname, reply, set
                     } else {
                         console.warn('[SEND_MESSAGE_SKIP] WhatsApp not connected, skipping send to agent', agentPhone);
                     }
+                } catch (error) {
+                    console.error('[TOPUP] Failed to process agent notification logic:', error);
+                }
             }
             
             // Clear conversation state after notifications

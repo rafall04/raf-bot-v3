@@ -1,3 +1,5 @@
+const { resolveCustomerBySender } = require('../../lib/jid-utils');
+
 /**
  * Smart Report Hybrid Handler
  * Handles both direct reporting and menu-based reporting
@@ -28,47 +30,21 @@ function generateTicketId(length = 7) {
 async function handleDirectMatiReport({ sender, pushname, reply, msg, raf }) {
     try {
         // Get plain sender number - findUserWithLidSupport handles @lid internally
-        let plainSenderNumber = sender.split('@')[0].split(':')[0];
-
-        let optionalJid = null;
-        if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
-            optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
-            optionalJid = msg.participant.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        }
-
-        const user = global.users.find(u => {
-            if (u.lid && u.lid === sender) return true;
-            if (!u.phone_number) return false;
-            const phones = u.phone_number.split('|').map(p => p.trim());
-            return phones.some(phone => {
-                if (phone === plainSenderNumber || phone === sender) return true;
-                let pClean = phone.replace(/[^0-9]/g, '');
-                let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
-                if (pClean.startsWith('62')) pClean = pClean.substring(2);
-                if (pClean.startsWith('0')) pClean = pClean.substring(1);
-                if (sClean.startsWith('62')) sClean = sClean.substring(2);
-                if (sClean.startsWith('0')) sClean = sClean.substring(1);
-                return pClean === sClean;
-            });
-        });
-
-        // Handle @lid users - no manual verification needed
-        if (!user && sender.endsWith('@lid')) {
-            return {
-                success: false,
-                message: `❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`
-            };
-        }
+        let { user, plainSenderNumber } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
 
         if (!user) {
+            if (sender.endsWith('@lid')) {
+                return {
+                    success: false,
+                    message: `❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`
+                };
+            }
             return {
                 success: false,
                 message: '❌ Nomor Anda belum terdaftar.\n\nSilakan hubungi admin untuk mendaftar.'
             };
         }
+
 
         // Check existing active report
         const activeReport = global.reports.find(r =>
@@ -152,47 +128,21 @@ async function handleDirectMatiReport({ sender, pushname, reply, msg, raf }) {
 async function handleDirectLemotReport({ sender, pushname, reply, msg, raf }) {
     try {
         // Get plain sender number - findUserWithLidSupport handles @lid internally
-        let plainSenderNumber = sender.split('@')[0].split(':')[0];
-
-        let optionalJid = null;
-        if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
-            optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
-            optionalJid = msg.participant.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        }
-
-        const user = global.users.find(u => {
-            if (u.lid && u.lid === sender) return true;
-            if (!u.phone_number) return false;
-            const phones = u.phone_number.split('|').map(p => p.trim());
-            return phones.some(phone => {
-                if (phone === plainSenderNumber || phone === sender) return true;
-                let pClean = phone.replace(/[^0-9]/g, '');
-                let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
-                if (pClean.startsWith('62')) pClean = pClean.substring(2);
-                if (pClean.startsWith('0')) pClean = pClean.substring(1);
-                if (sClean.startsWith('62')) sClean = sClean.substring(2);
-                if (sClean.startsWith('0')) sClean = sClean.substring(1);
-                return pClean === sClean;
-            });
-        });
-
-        // Handle @lid users - no manual verification needed
-        if (!user && sender.endsWith('@lid')) {
-            return {
-                success: false,
-                message: `❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`
-            };
-        }
+        let { user, plainSenderNumber } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
 
         if (!user) {
+            if (sender.endsWith('@lid')) {
+                return {
+                    success: false,
+                    message: `❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`
+                };
+            }
             return {
                 success: false,
                 message: '❌ Nomor Anda belum terdaftar.\n\nSilakan hubungi admin untuk mendaftar.'
             };
         }
+
 
         // Check existing active report
         const activeReport = global.reports.find(r =>

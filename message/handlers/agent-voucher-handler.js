@@ -14,35 +14,6 @@ const { extractSenderInfo } = require('../../lib/jid-utils');
 const { getUserState, setUserState, deleteUserState } = require('./conversation-handler');
 
 /**
- * Helper function to extract real phone number from @lid format
- */
-async function extractPhoneFromLid(sender, msg, raf = null) {
-    if (!sender || !sender.endsWith('@lid')) {
-        return sender;
-    }
-    
-    if (msg) {
-        const senderInfo = extractSenderInfo(msg, false);
-        if (senderInfo.phoneNumber) {
-            return `${senderInfo.phoneNumber}@s.whatsapp.net`;
-        }
-    }
-    
-    if (raf && raf.signalRepository) {
-        try {
-            if (raf.signalRepository.lidMapping && raf.signalRepository.lidMapping.getPNForLID) {
-                const phoneNumber = await raf.signalRepository.lidMapping.getPNForLID(sender);
-                if (phoneNumber) {
-                    return phoneNumber;
-                }
-            }
-        } catch (error) {
-            // Silent fail
-        }
-    }
-    
-    return sender;
-}
 
 /**
  * Format currency
@@ -60,8 +31,9 @@ function formatCurrency(amount) {
  */
 async function handleAgentPurchaseVoucher(msg, sender, reply, temp, raf = null) {
     try {
-        // Extract real phone number from @lid if needed
-        const phoneNumberToSearch = await extractPhoneFromLid(sender, msg, raf);
+        // Use extractSenderInfo to get canonical JID/phone
+        const senderInfo = extractSenderInfo(msg);
+        const phoneNumberToSearch = senderInfo.jid; // extractSenderInfo already tries to resolve PN for LID
         
         // Get agent by WhatsApp number
         const agentCred = agentTransactionManager.getAgentByWhatsapp(phoneNumberToSearch);
@@ -363,8 +335,9 @@ async function handleAgentVoucherPurchaseConversation(msg, sender, reply, chats,
  */
 async function handleAgentSellVoucher(msg, sender, reply, temp, raf = null, users = [], global = null) {
     try {
-        // Extract real phone number from @lid if needed
-        const phoneNumberToSearch = await extractPhoneFromLid(sender, msg, raf);
+        // Use extractSenderInfo to get canonical JID/phone
+        const senderInfo = extractSenderInfo(msg);
+        const phoneNumberToSearch = senderInfo.jid; 
         
         // Get agent by WhatsApp number
         const agentCred = agentTransactionManager.getAgentByWhatsapp(phoneNumberToSearch);
@@ -851,8 +824,9 @@ async function handleAgentVoucherSaleConversation(msg, sender, reply, chats, raf
  */
 async function handleAgentCheckInventory(msg, sender, reply, raf = null) {
     try {
-        // Extract real phone number from @lid if needed
-        const phoneNumberToSearch = await extractPhoneFromLid(sender, msg, raf);
+        // Use extractSenderInfo to get canonical JID/phone
+        const senderInfo = extractSenderInfo(msg);
+        const phoneNumberToSearch = senderInfo.jid; 
         
         // Get agent by WhatsApp number
         const agentCred = agentTransactionManager.getAgentByWhatsapp(phoneNumberToSearch);
@@ -906,8 +880,9 @@ async function handleAgentCheckInventory(msg, sender, reply, raf = null) {
  */
 async function handleAgentPurchaseHistory(msg, sender, reply, raf = null) {
     try {
-        // Extract real phone number from @lid if needed
-        const phoneNumberToSearch = await extractPhoneFromLid(sender, msg, raf);
+        // Use extractSenderInfo to get canonical JID/phone
+        const senderInfo = extractSenderInfo(msg);
+        const phoneNumberToSearch = senderInfo.jid; 
         
         // Get agent by WhatsApp number
         const agentCred = agentTransactionManager.getAgentByWhatsapp(phoneNumberToSearch);
@@ -973,8 +948,9 @@ async function handleAgentPurchaseHistory(msg, sender, reply, raf = null) {
  */
 async function handleAgentSalesHistory(msg, sender, reply, raf = null) {
     try {
-        // Extract real phone number from @lid if needed
-        const phoneNumberToSearch = await extractPhoneFromLid(sender, msg, raf);
+        // Use extractSenderInfo to get canonical JID/phone
+        const senderInfo = extractSenderInfo(msg);
+        const phoneNumberToSearch = senderInfo.jid; 
         
         // Get agent by WhatsApp number
         const agentCred = agentTransactionManager.getAgentByWhatsapp(phoneNumberToSearch);

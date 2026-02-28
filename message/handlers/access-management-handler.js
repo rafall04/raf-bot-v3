@@ -1,3 +1,5 @@
+const { resolveCustomerBySender } = require("../../lib/jid-utils");
+
 /**
  * Access Management Handler
  * Menangani pengelolaan akses nomor telepon untuk bot
@@ -8,43 +10,8 @@
  * Handle access management
  */
 async function handleAccessManagement({ sender, args, users, reply, global, db, msg, raf }) {
-    // Get plain sender number - findUserWithLidSupport handles @lid internally
-    let plainSenderNumber = sender.split('@')[0].split(':')[0];
+  const user = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
 
-    let optionalJid = null;
-    if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
-        optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-        plainSenderNumber = optionalJid;
-    } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
-        optionalJid = msg.participant.split('@')[0].split(':')[0];
-        plainSenderNumber = optionalJid;
-    }
-
-    // Use LID-aware user finder
-    const user = global.users.find(u => {
-        if (u.lid && u.lid === sender) return true;
-        if (!u.phone_number) return false;
-        const phones = u.phone_number.split('|').map(p => p.trim());
-        return phones.some(phone => {
-            if (phone === plainSenderNumber || phone === sender) return true;
-            let pClean = phone.replace(/[^0-9]/g, '');
-            let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
-            if (pClean.startsWith('62')) pClean = pClean.substring(2);
-            if (pClean.startsWith('0')) pClean = pClean.substring(1);
-            if (sClean.startsWith('62')) sClean = sClean.substring(2);
-            if (sClean.startsWith('0')) sClean = sClean.substring(1);
-            return pClean === sClean;
-        });
-    });
-
-    // Handle @lid users - no manual verification needed
-    if (!user && sender.endsWith('@lid')) {
-        throw `❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`;
-    }
-
-    if (!user) {
-        throw "❌ Maaf! Nomor Anda tidak terdaftar sebagai pelanggan.\n\nSilakan hubungi admin untuk informasi lebih lanjut.";
-    }
 
     const phoneNumbers = user.phone_number.split("|");
     const primaryPhone = phoneNumbers[0]; // Nomor utama (pertama)

@@ -4,11 +4,12 @@
  */
 
 const convertRupiah = require('rupiah-format');
+const { resolveCustomerBySender } = require("../../lib/jid-utils");
 
 /**
  * Handle topup balance
  */
-async function handleTopup({ q, isOwner, sender, reply, msg, mess, raf, checkATMuser, addATM, addKoinUser }) {
+async function handleTopup({ q, isOwner, sender, reply, msg, mess, raf, checkATMuser, addATM, addKoinUser, users, global }) {
     try {
         if (!isOwner) throw mess.owner;
         if (!q.includes('|')) throw mess.wrongFormat;
@@ -31,8 +32,11 @@ async function handleTopup({ q, isOwner, sender, reply, msg, mess, raf, checkATM
 
         // Gunakan template system untuk notifikasi admin
         const { renderTemplate } = require('../../lib/templating');
+        const senderUser = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
+        const senderNumber = senderUser ? (senderUser.phone_number ? senderUser.phone_number.split('|')[0] : sender.split('@')[0]) : sender.split('@')[0];
+
         const adminMessage = renderTemplate('topup_success_admin', {
-            nomor_pengirim: sender.split("@")[0],
+            nomor_pengirim: senderNumber,
             nomor_tujuan: tujuan,
             jumlah: kerupiah123
         });
@@ -107,12 +111,14 @@ async function handleDelSaldo({ q, isOwner, reply, mess, checkATMuser, delSaldo 
 /**
  * Handle balance transfer
  */
-async function handleTransfer({ q, sender, reply, msg, mess, raf, checkATMuser, addATM, addKoinUser, confirmATM, format }) {
+async function handleTransfer({ q, sender, reply, msg, mess, raf, checkATMuser, addATM, addKoinUser, confirmATM, format, users, global }) {
     try {
         if (!q.includes('|')) return reply(format('mess_wrongFormat'));
 
-        // Gunakan sender murni (bisa @lid atau @s.whatsapp.net)
+        const senderUser = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
+        // Gunakan sender murni atau yang dinormalisasi jika ada
         let normalizedSender = sender;
+
 
         let [tujuan, jumblah] = q.split('|');
         if (isNaN(jumblah)) throw mess.mustNumber;
@@ -138,45 +144,22 @@ async function handleTransfer({ q, sender, reply, msg, mess, raf, checkATMuser, 
         const kerupiah123 = convertRupiah.convert(jumblah);
         const sisaSaldo = convertRupiah.convert(await checkATMuser(normalizedSender));
 
+        const senderNumber = senderUser ? (senderUser.phone_number ? senderUser.phone_number.split('|')[0] : sender.split('@')[0]) : sender.split('@')[0];
         await reply(format('transfer_sukses_pengirim', {
-            nomorPengirim: sender.split("@")[0],
+            nomorPengirim: senderNumber,
             nomorTujuan: tujuan,
             jumlah: kerupiah123,
             sisaSaldo
         }));
 
+
         // Dapatkan nama pengirim (pushname atau nomor HP, bukan @lid)
-        let namaPengirim = normalizedSender.replace('@s.whatsapp.net', '');
+        let namaPengirim = senderNumber;
 
-        // Coba ambil pushname dari database saldo jika ada
-        const saldoManager = require('../../lib/saldo-manager');
-        try {
-            const saldoData = await saldoManager.getAllSaldoDataFromDb();
-            const senderSaldoData = saldoData.find(s => s.user_id === normalizedSender);
-            if (senderSaldoData && senderSaldoData.pushname) {
-                namaPengirim = senderSaldoData.pushname;
-            }
-        } catch (err) {
-            // Ignore error, continue with other methods
+        if (senderUser && senderUser.name) {
+            namaPengirim = senderUser.name;
         }
 
-        // Coba ambil dari database user jika ada
-        if (global.users && Array.isArray(global.users)) {
-            const senderUser = global.users.find(u => {
-                const userPhone = u.phone_number ? u.phone_number.replace(/[^0-9]/g, '') : '';
-                const senderPhone = normalizedSender.replace('@s.whatsapp.net', '').replace(/[^0-9]/g, '');
-                return userPhone === senderPhone || userPhone === senderPhone.replace('62', '0');
-            });
-
-            if (senderUser && senderUser.name) {
-                namaPengirim = senderUser.name;
-            }
-        }
-
-        // Jika masih @lid atau format aneh, gunakan nomor HP yang sudah dinormalisasi
-        if (namaPengirim.includes('@lid') || namaPengirim.includes(':')) {
-            namaPengirim = normalizedSender.replace('@s.whatsapp.net', '').replace(/[^0-9]/g, '');
-        }
 
         // Jika msg tersedia, coba ambil pushname dari message
         if (msg && msg.pushName) {

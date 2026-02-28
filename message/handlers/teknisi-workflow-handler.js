@@ -109,7 +109,7 @@ async function sendCustomerNotification(ticket, message) {
 /**
  * Handle "proses" command - teknisi takes ticket
  */
-async function handleProsesTicket(sender, ticketId, reply) {
+async function handleProsesTicket(sender, ticketId, reply, canonicalId) {
     try {
         // Find ticket
         const ticket = global.reports.find(r => r.ticketId === ticketId.toUpperCase());
@@ -252,7 +252,7 @@ _Estimasi kedatangan akan diinformasikan._`;
 /**
  * Handle "otw" command - teknisi on the way
  */
-async function handleOTW(sender, ticketId, locationUrl, reply) {
+async function handleOTW(sender, ticketId, locationUrl, reply, canonicalId) {
     try {
         // Find ticket
         const ticket = global.reports.find(r => r.ticketId === ticketId.toUpperCase());
@@ -383,7 +383,7 @@ Pelanggan: ${ticket.pelangganName}
 /**
  * Handle "sampai" command - teknisi arrived
  */
-async function handleSampaiLokasi(sender, ticketId, reply) {
+async function handleSampaiLokasi(sender, ticketId, reply, canonicalId) {
     try {
         // Find ticket
         const ticket = global.reports.find(r => r.ticketId === ticketId.toUpperCase());
@@ -622,7 +622,7 @@ Ketik:
 /**
  * Handle OTP verification
  */
-async function handleVerifikasiOTP(sender, ticketId, otp, reply) {
+async function handleVerifikasiOTP(sender, ticketId, otp, reply, canonicalId) {
     try {
         // Find ticket
         const ticket = global.reports.find(r => r.ticketId === ticketId.toUpperCase());
@@ -682,7 +682,7 @@ _Anda akan diinformasikan saat selesai._`;
             global.teknisiStates = {};
         }
         
-        global.teknisiStates[sender] = {
+        global.teknisiStates[canonicalId || sender] = {
             step: 'AWAITING_PHOTO_CATEGORY_1',  // Start with category 1
             ticketId: ticketId,
             currentPhotoCategory: 'problem',     // Current category being uploaded
@@ -740,10 +740,10 @@ _Anda akan diinformasikan saat selesai._`;
 /**
  * Handle completion with photos
  */
-async function handleSelesaiTicket(sender, ticketId, reply) {
+async function handleSelesaiTicket(sender, ticketId, reply, canonicalId) {
     try {
         // Check teknisi state
-        const state = global.teknisiStates && global.teknisiStates[sender];
+        const state = global.teknisiStates && global.teknisiStates[canonicalId || sender];
         
         if (!state || state.ticketId !== ticketId) {
             return {
@@ -754,7 +754,7 @@ async function handleSelesaiTicket(sender, ticketId, reply) {
         
         // Also check photo queue for accurate count
         const { getUploadQueue } = require('./teknisi-photo-handler-v3');
-        const queue = getUploadQueue(sender);
+        const queue = getUploadQueue(canonicalId || sender);
         
         // Sync uploaded photos from queue if exists
         if (queue && queue.uploadedPhotos.length > 0) {
@@ -804,11 +804,11 @@ Silakan kirim foto dulu.`
         fs.writeFileSync(reportsPath, JSON.stringify(global.reports, null, 2));
         
         // Clear teknisi state and photo queue
-        delete global.teknisiStates[sender];
+        delete global.teknisiStates[canonicalId || sender];
         
         // Clear photo upload queue
         const { clearUploadQueue } = require('./teknisi-photo-handler-v3');
-        clearUploadQueue(sender);
+        clearUploadQueue(canonicalId || sender);
         
         // Notify customer - Send to ALL registered numbers
         const customerJid = ticket.pelangganId;
@@ -860,10 +860,10 @@ Terima kasih atas kerja kerasnya! 💪`
 /**
  * Handle teknisi photo upload with categorization
  */
-async function handleTeknisiPhotoUpload(sender, photoPath) {
+async function handleTeknisiPhotoUpload(sender, photoPath, canonicalId) {
     try {
         // Get teknisi state
-        const state = global.teknisiStates && global.teknisiStates[sender];
+        const state = global.teknisiStates && global.teknisiStates[canonicalId || sender];
         
         if (!state) {
             return {
@@ -1005,7 +1005,7 @@ Untuk melanjutkan input catatan perbaikan`
 /**
  * Complete ticket with resolution notes
  */
-async function handleCompleteTicket(sender, state, reply) {
+async function handleCompleteTicket(sender, state, reply, canonicalId) {
     try {
         const ticketId = state.ticketId;
         const reportIndex = global.reports.findIndex(r => r.ticketId === ticketId);

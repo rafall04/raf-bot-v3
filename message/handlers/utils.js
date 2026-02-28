@@ -68,20 +68,13 @@ function findUserByPhone(phoneNumber) {
  * @returns {Promise<Object|null>} User object or null
  */
 async function getUserByJid(jid, users, msg = null, raf = null) {
-    if (!jid) return null;
-    const targetUsers = users || global.users;
-    if (!targetUsers) return null;
-    
-    // Use LID-aware resolution
-    const resolvedJid = await resolveCustomerBySender(jid, msg, raf);
-    const phoneNumber = resolvedJid.split('@')[0];
-    
-    return targetUsers.find(u => {
-        if (!u.phone_number) return false;
-        return u.phone_number.split("|").some(num => {
-            return normalizePhoneNumber(num) === phoneNumber;
-        });
+    const { user } = await resolveCustomerBySender({
+        users,
+        sender: jid,
+        msg,
+        raf
     });
+    return user;
 }
 
 /**

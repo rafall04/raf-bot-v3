@@ -1,3 +1,5 @@
+const { resolveCustomerBySender } = require('../../lib/jid-utils');
+
 /**
  * WiFi Check Handler
  * Menangani pengecekan status WiFi dan modem
@@ -13,16 +15,12 @@ const { getONUInfo } = require('../../lib/wifi');
  * Handle cek WiFi status
  */
 async function handleCekWifi({ sender, args, matchedKeywordLength, isOwner, isTeknisi, pushname, users, reply, global, mess, msg, raf }) {
-    let plainSenderNumber = sender.split('@')[0].split(':')[0];
+    let { user, plainSenderNumber } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
 
-    // Check if @lid and try to get real phone for logging
-    if (sender.endsWith('@lid') && msg?.key?.remoteJidAlt) {
-        plainSenderNumber = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-        console.log('[CEK_WIFI] Auto-detected phone from remoteJidAlt:', plainSenderNumber);
-    }
 
-    let user;
+
     let searchMode = 'direct'; // 'direct', 'by_id', 'by_name'
+
     let searchQuery = null;
     let providedId = null;
 
@@ -53,45 +51,8 @@ async function handleCekWifi({ sender, args, matchedKeywordLength, isOwner, isTe
         user = users.find(v => v.name && v.name.toLowerCase().includes(searchQuery));
         console.log('[CEK_WIFI_DEBUG] Search by name:', searchQuery, 'Found:', !!user);
     } else {
-        let optionalJid = null;
-        if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
-            optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
-            optionalJid = msg.participant.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        }
-
-        user = global.users.find(u => {
-            if (u.lid && u.lid === sender) return true;
-            if (!u.phone_number) return false;
-            const phones = u.phone_number.split('|').map(p => p.trim());
-            return phones.some(phone => {
-                if (phone === plainSenderNumber || phone === sender) return true;
-                let pClean = phone.replace(/[^0-9]/g, '');
-                let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
-                if (pClean.startsWith('62')) pClean = pClean.substring(2);
-                if (pClean.startsWith('0')) pClean = pClean.substring(1);
-                if (sClean.startsWith('62')) sClean = sClean.substring(2);
-                if (sClean.startsWith('0')) sClean = sClean.substring(1);
-                return pClean === sClean;
-            });
-        });
-
-        console.log('[CEK_WIFI_DEBUG] Search by phone/LID:', plainSenderNumber, 'Found:', !!user);
-
-        // Additional debug if not found
-        if (!user && plainSenderNumber) {
-            console.log('[CEK_WIFI_DEBUG] No user found for phone/LID:', plainSenderNumber);
-            console.log('[CEK_WIFI_DEBUG] Sender format:', sender);
-
-            // Check if it's @lid format - no manual verification needed
-            if (sender.endsWith('@lid')) {
-                console.log('[CEK_WIFI_DEBUG] This is @lid format - user not registered');
-                return reply(`❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`);
-            }
-        }
     }
+
 
     if (!user) {
         let errorMessage;

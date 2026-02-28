@@ -28,8 +28,9 @@ function getSession(sender) {
 /**
  * Process batch of photos
  */
-async function processBatch(sender) {
-    const session = getSession(sender);
+async function processBatch(sender, canonicalId) {
+    const stateKey = canonicalId || sender;
+    const session = getSession(stateKey);
     
     // Prevent duplicate processing
     if (session.processingBatch) {
@@ -46,11 +47,11 @@ async function processBatch(sender) {
         }
         
         const photoCount = session.photos.length;
-        console.log(`[PHOTO_BATCH] Processing batch for ${sender}: ${photoCount} photos`);
+        console.log(`[PHOTO_BATCH] Processing batch for ${stateKey}: ${photoCount} photos`);
         
         // Update teknisi state
-        if (global.teknisiStates && global.teknisiStates[sender]) {
-            const state = global.teknisiStates[sender];
+        if (global.teknisiStates && global.teknisiStates[stateKey]) {
+            const state = global.teknisiStates[stateKey];
             if (!state.uploadedPhotos) {
                 state.uploadedPhotos = [];
             }
@@ -225,7 +226,7 @@ async function handleTeknisiPhotoUpload(sender, fileName, buffer, reply, canonic
             // Set new batch timeout (wait for more photos)
             session.batchTimeout = setTimeout(async () => {
                 try {
-                    await processBatch(stateKey);
+                    await processBatch(sender, canonicalId);
                 } catch (err) {
                     console.error('[PHOTO_TIMEOUT_ERROR]', err);
                 }
@@ -244,8 +245,9 @@ async function handleTeknisiPhotoUpload(sender, fileName, buffer, reply, canonic
 /**
  * Get photo upload status
  */
-function getPhotoUploadStatus(sender) {
-    const session = uploadSessions.get(sender);
+function getPhotoUploadStatus(sender, canonicalId) {
+    const stateKey = canonicalId || sender;
+    const session = uploadSessions.get(stateKey);
     if (!session) {
         return {
             uploadedCount: 0,
@@ -262,8 +264,9 @@ function getPhotoUploadStatus(sender) {
 /**
  * Clear upload session
  */
-function clearUploadQueue(sender) {
-    const session = uploadSessions.get(sender);
+function clearUploadQueue(sender, canonicalId) {
+    const stateKey = canonicalId || sender;
+    const session = uploadSessions.get(stateKey);
     if (session) {
         // Clear timeout
         if (session.batchTimeout) {
@@ -279,16 +282,17 @@ function clearUploadQueue(sender) {
             });
         });
         
-        uploadSessions.delete(sender);
-        console.log(`[PHOTO_SESSION] Cleared session for ${sender}`);
+        uploadSessions.delete(stateKey);
+        console.log(`[PHOTO_SESSION] Cleared session for ${stateKey}`);
     }
 }
 
 /**
  * Get upload queue (for compatibility)
  */
-function getUploadQueue(sender) {
-    const session = getSession(sender);
+function getUploadQueue(sender, canonicalId) {
+    const stateKey = canonicalId || sender;
+    const session = getSession(stateKey);
     return {
         uploadedPhotos: session.photos,
         queue: [],

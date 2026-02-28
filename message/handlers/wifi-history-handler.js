@@ -1,3 +1,5 @@
+const { resolveCustomerBySender } = require('../../lib/jid-utils');
+
 const { getWifiChangeLogs } = require('../../lib/wifi-logger');
 
 /**
@@ -5,41 +7,17 @@ const { getWifiChangeLogs } = require('../../lib/wifi-logger');
  */
 async function handleHistoryWifi(sender, reply, global, msg, raf) {
     try {
-        let plainSenderNumber = sender.split('@')[0].split(':')[0];
-
-        // Ekstraksi JID (nomor asli opsional) jika tersembunyi
-        let optionalJid = null;
-        if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
-            optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
-            optionalJid = msg.participant.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        }
-
-        const user = global.users.find(u => {
-            if (u.lid && u.lid === sender) return true;
-            if (!u.phone_number) return false;
-            const phones = u.phone_number.split('|').map(p => p.trim());
-            return phones.some(phone => {
-                if (phone === plainSenderNumber || phone === sender) return true;
-                let pClean = phone.replace(/[^0-9]/g, '');
-                let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
-                if (pClean.startsWith('62')) pClean = pClean.substring(2);
-                if (pClean.startsWith('0')) pClean = pClean.substring(1);
-                if (sClean.startsWith('62')) sClean = sClean.substring(2);
-                if (sClean.startsWith('0')) sClean = sClean.substring(1);
-                return pClean === sClean;
-            });
-        });
-        if (sender.endsWith('@lid') && !user) {
-            console.log('[HISTORY_WIFI] @lid format detected, user not found');
-            return reply(`❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`);
-        }
+        let { user, plainSenderNumber } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
 
         if (!user) {
+            if (sender.endsWith('@lid')) {
+                console.log('[HISTORY_WIFI] @lid format detected, user not found');
+                return reply(`❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`);
+            }
             return reply('❌ Maaf, nomor Anda tidak terdaftar sebagai pelanggan.');
         }
+
+
 
         // Get logs for this user
         const result = await getWifiChangeLogs({

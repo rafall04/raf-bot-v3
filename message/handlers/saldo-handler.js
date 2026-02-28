@@ -106,7 +106,8 @@ async function handleTopupInit(msg, sender, reply, pushname, conversationHandler
         conversationHandler.setUserState(sender, {
             step: 'TOPUP_SELECT_METHOD',
             type: 'topup',
-            pushname: pushname
+            pushname: pushname,
+            paymentSender: sender
         });
 
         // Gunakan template system untuk menu topup
@@ -128,10 +129,11 @@ async function handleTopupInit(msg, sender, reply, pushname, conversationHandler
 /**
  * Handle cancel topup request
  */
-async function handleCancelTopup(msg, sender, reply) {
+async function handleCancelTopup(msg, sender, reply, canonicalId, raf) {
     try {
+        const userId = canonicalId || sender;
         const pendingTopup = saldoManager.getAllTopupRequests()
-            .find(r => r.userId === sender && (r.status === 'pending' || r.status === 'waiting_verification'));
+            .find(r => r.userId === userId && (r.status === 'pending' || r.status === 'waiting_verification'));
 
         if (!pendingTopup) {
             return await reply('ℹ️ Anda tidak memiliki request topup yang aktif untuk dibatalkan.');
@@ -228,14 +230,14 @@ async function handleBeliVoucher(msg, sender, reply, pushname) {
 /**
  * Handle transfer saldo between users
  */
-async function handleTransferSaldo(msg, sender, reply, args) {
+async function handleTransferSaldo(msg, sender, reply, args, canonicalId, raf) {
     try {
         if (args.length < 2) {
             return await reply('❌ Format: transfer [nomor] [jumlah]\nContoh: transfer 6281234567890 50000');
         }
 
-        // Gunakan sender secara murni (@lid atau nomor asli)
-        let senderId = sender;
+        // Gunakan canonicalId (sudah dinormalisasi dari raf.js)
+        let senderId = canonicalId || sender;
 
         const targetNumber = args[0].replace(/[^0-9]/g, '');
         const amount = parseInt(args[1]);
@@ -263,7 +265,8 @@ async function handleTransferSaldo(msg, sender, reply, args) {
 
             // Notify recipient if they have WhatsApp
             // PENTING: Cek connection state dan gunakan error handling sesuai rules
-            if (global.whatsappConnectionState === 'open' && global.raf && global.raf.sendMessage) {
+            const rafToUse = raf || global.raf;
+            if (global.whatsappConnectionState === 'open' && rafToUse && rafToUse.sendMessage) {
                 try {
                     const { renderTemplate } = require('../../lib/templating');
                     const recipientSaldo = await saldoManager.getUserSaldo(targetId);
@@ -271,17 +274,12 @@ async function handleTransferSaldo(msg, sender, reply, args) {
                     // Dapatkan nama pengirim (pushname atau nomor HP, bukan @lid)
                     let namaPengirim = senderId.replace('@s.whatsapp.net', '');
 
-                    // Coba ambil pushname dari database user jika ada
-                    if (global.users && Array.isArray(global.users)) {
-                        const senderUser = global.users.find(u => {
-                            const userPhone = u.phone_number ? u.phone_number.replace(/[^0-9]/g, '') : '';
-                            const senderPhone = senderId.replace('@s.whatsapp.net', '').replace(/[^0-9]/g, '');
-                            return userPhone === senderPhone || userPhone === senderPhone.replace('62', '0');
-                        });
+                    // Gunakan resolveCustomerBySender untuk mencari nama pengirim
+                    const { resolveCustomerBySender } = require('../../lib/customer-resolver');
+                    const senderUser = await resolveCustomerBySender(senderId);
 
-                        if (senderUser && senderUser.name) {
-                            namaPengirim = senderUser.name;
-                        }
+                    if (senderUser && senderUser.name) {
+                        namaPengirim = senderUser.name;
                     }
 
                     // Jika masih @lid atau format aneh, coba ambil dari msg.pushName atau gunakan nomor HP
@@ -301,7 +299,7 @@ async function handleTransferSaldo(msg, sender, reply, args) {
                         formattedSaldo: convertRupiah.convert(recipientSaldo)
                     });
 
-                    await global.raf.sendMessage(targetId, { text: message });
+                    await rafToUse.sendMessage(targetId, { text: message });
                 } catch (error) {
                     console.error('[SEND_MESSAGE_ERROR]', {
                         targetId,

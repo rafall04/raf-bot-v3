@@ -6,35 +6,19 @@
 const convertRupiah = require('rupiah-format');
 
 const { getUserState, setUserState, deleteUserState } = require('./conversation-handler');
+const { resolveCustomerBySender } = require('../../lib/jid-utils');
 
 /**
  * Handle check billing
  */
 async function handleCekTagihan({ plainSenderNumber, pushname, reply, mess, global, renderTemplate, msg, raf, sender }) {
     try {
-        let optionalJid = null;
-        if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
-            optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
-            optionalJid = msg.participant.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        }
-
-        const user = global.users.find(u => {
-            if (u.lid && u.lid === sender) return true;
-            if (!u.phone_number) return false;
-            const phones = u.phone_number.split('|').map(p => p.trim());
-            return phones.some(phone => {
-                if (phone === plainSenderNumber || phone === sender) return true;
-                let pClean = phone.replace(/[^0-9]/g, '');
-                let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
-                if (pClean.startsWith('62')) pClean = pClean.substring(2);
-                if (pClean.startsWith('0')) pClean = pClean.substring(1);
-                if (sClean.startsWith('62')) sClean = sClean.substring(2);
-                if (sClean.startsWith('0')) sClean = sClean.substring(1);
-                return pClean === sClean;
-            });
+        const { user } = await resolveCustomerBySender({
+            users: global.users,
+            sender,
+            msg,
+            plainSenderNumber,
+            raf
         });
 
         // Handle @lid users - no manual verification needed
@@ -83,29 +67,12 @@ async function handleCekTagihan({ plainSenderNumber, pushname, reply, mess, glob
  */
 async function handleUbahPaket({ plainSenderNumber, reply, mess, global, temp, msg, raf, sender }) {
     try {
-        let optionalJid = null;
-        if (msg.key && msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net')) {
-            optionalJid = msg.key.remoteJidAlt.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        } else if (msg.participant && msg.participant.includes('@s.whatsapp.net')) {
-            optionalJid = msg.participant.split('@')[0].split(':')[0];
-            plainSenderNumber = optionalJid;
-        }
-
-        const user = global.users.find(u => {
-            if (u.lid && u.lid === sender) return true;
-            if (!u.phone_number) return false;
-            const phones = u.phone_number.split('|').map(p => p.trim());
-            return phones.some(phone => {
-                if (phone === plainSenderNumber || phone === sender) return true;
-                let pClean = phone.replace(/[^0-9]/g, '');
-                let sClean = plainSenderNumber.replace(/[^0-9]/g, '');
-                if (pClean.startsWith('62')) pClean = pClean.substring(2);
-                if (pClean.startsWith('0')) pClean = pClean.substring(1);
-                if (sClean.startsWith('62')) sClean = sClean.substring(2);
-                if (sClean.startsWith('0')) sClean = sClean.substring(1);
-                return pClean === sClean;
-            });
+        const { user, plainSenderNumber: resolvedPlainSenderNumber } = await resolveCustomerBySender({
+            users: global.users,
+            sender,
+            msg,
+            plainSenderNumber,
+            raf
         });
 
         // Handle @lid users - no manual verification needed
@@ -143,7 +110,7 @@ async function handleUbahPaket({ plainSenderNumber, reply, mess, global, temp, m
         ).join('\n');
 
         // Set state to ask for package choice
-        const senderJid = plainSenderNumber + '@s.whatsapp.net';
+        const senderJid = resolvedPlainSenderNumber + '@s.whatsapp.net';
         setUserState(senderJid, {
             step: 'ASK_PACKAGE_CHOICE',
             userId: user.id,

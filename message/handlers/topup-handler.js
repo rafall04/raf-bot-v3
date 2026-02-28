@@ -10,6 +10,7 @@ const path = require('path');
 const saldoManager = require('../../lib/saldo-manager');
 const { logger } = require('../../lib/logger');
 const { renderTemplate } = require('../../lib/templating');
+const { extractSenderInfo } = require('../../lib/jid-utils');
 /**
  * Handle topup payment proof upload
  * @param {Object} msg - WhatsApp message object
@@ -18,19 +19,22 @@ const { renderTemplate } = require('../../lib/templating');
  */
 async function handleTopupPaymentProof(msg, user, pushname = '') {
     const sender = msg.key.remoteJid;
+    const senderInfo = extractSenderInfo(msg, sender);
+    const requestLookupId = senderInfo.normalizedSender || sender;
 
     try {
         logger.info('[TOPUP_PROOF] Starting payment proof upload', {
             sender,
-            originalSender,
+            requestLookupId,
             userId: user?.id,
             hasMessage: !!msg.message
         });
 
         // Get ALL user topup requests for debugging
-        const allUserRequests = saldoManager.getUserTopupRequests(sender);
+        const allUserRequests = saldoManager.getUserTopupRequests(requestLookupId);
         logger.info('[TOPUP_PROOF] User topup requests found', {
             sender,
+            requestLookupId,
             totalRequests: allUserRequests.length,
             requests: allUserRequests.map(r => ({
                 id: r.id,
