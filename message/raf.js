@@ -167,7 +167,7 @@ function getOptionalJid(msg, sender) {
 }
 
 module.exports = async (raf, msg, m) => {
-    const { generateWAMessageFromContent, prepareWAMessageMedia, proto } = await import('@whiskeysockets/baileys');
+    const { generateWAMessageFromContent, prepareWAMessageMedia, proto, downloadMediaMessage } = await importBaileys();
 
     const users = global.users || [];
     const accounts = global.accounts || [];
@@ -379,6 +379,10 @@ module.exports = async (raf, msg, m) => {
         }
 
         if (chats.toLowerCase().trim() === 'batal') {
+            isGlobalCommand = true;
+            if (global.teknisiStates) delete global.teknisiStates[sender];
+        }
+
             isGlobalCommand = true;
         }
 
