@@ -1,5 +1,6 @@
 "use strict";
 
+const importBaileys = require('../lib/baileys-import');
 const { isProcessing, setProcessing, clearProcessing } = require('../lib/state-manager');
 
 const fs = require("fs");
@@ -167,7 +168,7 @@ function getOptionalJid(msg, sender) {
 }
 
 module.exports = async (raf, msg, m) => {
-    const { generateWAMessageFromContent, prepareWAMessageMedia, proto } = await import('@whiskeysockets/baileys');
+    const { generateWAMessageFromContent, prepareWAMessageMedia, proto } = await importBaileys();
 
     const users = global.users || [];
     const accounts = global.accounts || [];
@@ -380,6 +381,14 @@ module.exports = async (raf, msg, m) => {
 
         if (chats.toLowerCase().trim() === 'batal') {
             isGlobalCommand = true;
+            if (global.teknisiStates) delete global.teknisiStates[sender];
+        }
+
+            isGlobalCommand = true;
+            if (global.teknisiStates) delete global.teknisiStates[sender];
+        }
+
+            isGlobalCommand = true;
         }
 
         if (smartReportState && isGlobalCommand && !isInProtectedState) {
@@ -460,7 +469,7 @@ module.exports = async (raf, msg, m) => {
                 }
 
                 if (type === 'imageMessage') {
-                    const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
+                    const { downloadMediaMessage } = await importBaileys();
 
                     try {
                         const buffer = await downloadMediaMessage(msg, 'buffer', {});
@@ -509,7 +518,7 @@ module.exports = async (raf, msg, m) => {
                 }
 
                 if (type === 'imageMessage') {
-                    const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
+                    const { downloadMediaMessage } = await importBaileys();
 
                     try {
                         const buffer = await downloadMediaMessage(msg, 'buffer', {});
@@ -654,7 +663,7 @@ module.exports = async (raf, msg, m) => {
             // --- End WiFi Management State Handlers ---
 
             if (stateStep === 'GANGGUAN_MATI_AWAITING_PHOTO' && type === 'imageMessage') {
-                const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
+                const { downloadMediaMessage } = await importBaileys();
 
                 try {
                     if (smartReportState.uploadedPhotos && smartReportState.uploadedPhotos.length >= 3) {
@@ -717,7 +726,7 @@ _Foto akan membantu teknisi diagnosis masalah_`);
             }
 
             if ((stateStep === 'TICKET_RESOLVE_UPLOAD_PHOTOS' || stateStep === 'TICKET_VERIFIED_AWAITING_PHOTOS') && type === 'imageMessage') {
-                const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
+                const { downloadMediaMessage } = await importBaileys();
 
                 if (stateStep === 'TICKET_VERIFIED_AWAITING_PHOTOS' && !smartReportState.otpVerifiedAt) {
                     await reply(format('error_not_verified'));
@@ -967,7 +976,7 @@ _Foto akan membantu teknisi diagnosis masalah_`);
         );
 
         if (isTeknisiPhotoState && type === 'imageMessage') {
-            const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
+            const { downloadMediaMessage } = await importBaileys();
 
             try {
                 const buffer = await downloadMediaMessage(msg, 'buffer', {});
