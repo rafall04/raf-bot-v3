@@ -380,6 +380,23 @@ module.exports = async (raf, msg, m) => {
 
         if (chats.toLowerCase().trim() === 'batal') {
             isGlobalCommand = true;
+            if (global.teknisiStates) delete global.teknisiStates[sender];
+        }
+
+            const isInAnyState = !!(global.teknisiStates && global.teknisiStates[canonicalId]) || !!getUserState(canonicalId);
+            if (isInAnyState) {
+                deleteUserState(canonicalId);
+                if (global.teknisiStates && global.teknisiStates[canonicalId]) delete global.teknisiStates[canonicalId];
+                reply('✅ Proses telah dibatalkan.');
+                return;
+            }
+        }
+
+            isGlobalCommand = true;
+            if (global.teknisiStates) delete global.teknisiStates[sender];
+        }
+
+            isGlobalCommand = true;
         }
 
         if (smartReportState && isGlobalCommand && !isInProtectedState) {
@@ -2389,6 +2406,13 @@ Silakan ketik catatan perbaikan Anda.
         }
 
     } catch (err) {
+        if (typeof err === "string") return await reply(String(err));
+        console.log(err);
+    } finally {
+        clearProcessing(sender);
+    }
+}
+
         if (typeof err === "string") return reply(String(err));
         console.log(err)
     } finally {
