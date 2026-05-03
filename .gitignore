@@ -144,3 +144,6 @@ coverage/
 *.seed
 *.pid.lock
 .cache/
+
+# Local git worktrees
+.worktrees/
