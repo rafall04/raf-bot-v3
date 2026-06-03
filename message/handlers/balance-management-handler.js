@@ -94,32 +94,44 @@ async function handleTopup({ q, isOwner, sender, reply, msg, mess, raf, checkATM
 /**
  * Handle delete balance
  */
-async function handleDelSaldo({ q, isOwner, reply, mess, checkATMuser, delSaldo }) {
+async function handleDelSaldo({ q, isOwner, reply, mess, checkATMuser, checkRegisteredATM, delSaldo }) {
     try {
         if (!isOwner) throw mess.owner;
         if (!q) throw mess.wrongFormat;
         if (isNaN(q)) throw mess.mustNumber;
 
         const tujuandel = `${q.replace("@", '')}@s.whatsapp.net`;
-        const checkATM = await checkATMuser(tujuandel);
 
-        if (checkATM === undefined) {
+        // Cek eksistensi yang benar: checkRegisteredATM mengembalikan false bila nomor belum terdaftar.
+        // (checkATMuser mengembalikan 0 untuk nomor tak ada, jadi tidak bisa dipakai mendeteksi "tidak ditemukan".)
+        const isRegistered = typeof checkRegisteredATM === 'function'
+            ? await checkRegisteredATM(tujuandel)
+            : (await checkATMuser(tujuandel)) > 0;
+
+        if (!isRegistered) {
             await reply(renderResponseTemplate(
                 'balance_del_saldo_not_found',
                 'Nomor Yang Akan Dihapus Tidak Ditemukan.'
             ));
             return;
-        } else {
-            delSaldo(tujuandel);
+        }
 
-            // Gunakan template system untuk notifikasi hapus saldo
-            const { renderTemplate } = require('../../lib/templating');
-            const message = renderTemplate('del_saldo_success', {
-                nomor_user: tujuandel
-            });
-            await reply(message, { skipDuplicateCheck: true });
+        const removed = await delSaldo(tujuandel);
+        if (!removed) {
+            await reply(renderResponseTemplate(
+                'balance_del_saldo_generic_error',
+                'Terjadi kesalahan saat menghapus saldo.'
+            ));
             return;
         }
+
+        // Gunakan template system untuk notifikasi hapus saldo
+        const { renderTemplate } = require('../../lib/templating');
+        const message = renderTemplate('del_saldo_success', {
+            nomor_user: tujuandel
+        });
+        await reply(message, { skipDuplicateCheck: true });
+        return;
     } catch (error) {
         if (typeof error === 'string') {
             await reply(error);

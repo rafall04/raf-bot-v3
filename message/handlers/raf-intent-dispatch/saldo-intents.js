@@ -106,8 +106,8 @@ async function handleLegacyTopupIntent(context) {
 }
 
 async function handleLegacyDelSaldoIntent(context) {
-    const { handleDelSaldo, q, isOwner, reply, mess, checkATMuser, delSaldo } = context;
-    await handleDelSaldo({ q, isOwner, reply, mess, checkATMuser, delSaldo });
+    const { handleDelSaldo, q, isOwner, reply, mess, checkATMuser, checkRegisteredATM, delSaldo } = context;
+    await handleDelSaldo({ q, isOwner, reply, mess, checkATMuser, checkRegisteredATM, delSaldo });
 }
 
 async function handleLegacyTransferIntent(context) {
