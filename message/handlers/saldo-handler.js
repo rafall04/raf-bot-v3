@@ -256,9 +256,9 @@ async function handleBeliVoucher(msg, sender, reply, pushname) {
         const userId = resolution.canonicalJid;
 
         // Create user saldo if not exists
-        saldoManager.createUserSaldo(userId);
+        await saldoManager.createUserSaldo(userId);
 
-        const currentSaldo = saldoManager.getUserSaldo(userId);
+        const currentSaldo = await saldoManager.getUserSaldo(userId);
 
         if (currentSaldo <= 0) {
             return await reply(renderResponseTemplate(

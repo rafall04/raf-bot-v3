@@ -2,7 +2,7 @@
  * Header Doc
  * Purpose: Method `updateUserById` — update existing user dari admin panel. Mengeksekusi: lookup user → validate immutable fields (pppoe_username/pppoe_password tidak boleh diubah dari sini) → validate phone (warning jika duplicate) → merge userData ke draftUser → cek subscription change (sync mikrotik profile) → cek paid status change (apply via finance boundary) → DB update + snapshot replace → activity log. Return response dengan sync metadata.
  * Caller: `services/api-users.service.js` (composer wraps menjadi method `service.updateUserById(args)`); juga dipanggil oleh `create-user.js` orchestrator saat `userData.id` present (delegate path).
- * Deps: `deps.repository.findUserById`/`updateUserRecord`/`getUsersSnapshot`/`replaceUsersSnapshot`, `deps.normalizeUserPaymentMethod`, `deps.validatePhoneNumbers`, `deps.getDb`, `deps.isMikrotikSyncEnabled`, `deps.buildMikrotikSyncResult`, `deps.getProfileBySubscription`, `deps.assertMikrotikResult`, `deps.updatePPPoEProfile`, `deps.applyPaymentStatusChange`, `deps.handlePaidStatusChange`, `deps.getPeriodParts`, `deps.getEffectivePrice`, `deps.logActivity`, `deps.logger`.
+ * Deps: `deps.repository.findUserById`/`updateUserRecord`/`getUsersSnapshot`/`replaceUsersSnapshot`, `deps.normalizeUserPaymentMethod`, `deps.validatePhoneNumbers`, `deps.getDb`, `deps.isMikrotikSyncEnabled`, `deps.buildMikrotikSyncResult`, `deps.getProfileBySubscription`, `deps.assertMikrotikResult`, `deps.updatePPPoEProfile`, `deps.deleteActivePPPoEUser` (putus sesi setelah ganti profil), `deps.applyPaymentStatusChange`, `deps.handlePaidStatusChange`, `deps.getPeriodParts`, `deps.getEffectivePrice`, `deps.logActivity`, `deps.logger`.
  * MainFuncs: `updateUserById(deps, { id, userData, actor, requestMeta })`.
  * SideEffects: Validate → MikroTik profile change (if subscription changed) → finance boundary call (if paid changed) → DB update via repository.updateUserRecord → snapshot replace → activity log (best-effort).
  */
@@ -162,6 +162,18 @@ async function updateUserById(deps, { id, userData, actor, requestMeta }) {
                 deps.assertMikrotikResult(
                     await deps.updatePPPoEProfile(draftUser.pppoe_username, profile, { caller: "api.user-update" })
                 );
+                // Putuskan sesi PPPoE aktif agar profil/paket baru langsung berlaku (konsisten dengan alur change-package).
+                // Best-effort: kegagalan disconnect hanya di-warn, tidak membatalkan perubahan profil yang sudah sukses.
+                if (deps.deleteActivePPPoEUser) {
+                    try {
+                        const disconnectResult = await deps.deleteActivePPPoEUser(draftUser.pppoe_username, { caller: "api.user-update" });
+                        if (disconnectResult && disconnectResult.ok !== true) {
+                            deps.logger.warn?.(`[USER_UPDATE_WARN] Gagal memutus sesi PPPoE ${draftUser.pppoe_username}: ${disconnectResult.message}`);
+                        }
+                    } catch (disconnectError) {
+                        deps.logger.warn?.(`[USER_UPDATE_WARN] Gagal memutus sesi PPPoE ${draftUser.pppoe_username}: ${disconnectError.message}`);
+                    }
+                }
                 mikrotikSync = deps.buildMikrotikSyncResult("applied", `Profile MikroTik diubah ke ${profile}.`, { profile });
             } catch (pppoeErr) {
                 deps.logger.error?.("[PPPOE_UPDATE_ERROR]", pppoeErr);
