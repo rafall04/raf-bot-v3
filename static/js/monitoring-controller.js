@@ -489,10 +489,10 @@ class MonitoringController {
                 await this.fetchUserStatsFromStats('Stat user: fallback /api/stats karena live tidak membawa user stats', { force: true });
             }
             
-            if (data.traffic) {
-                console.log('[Monitoring] Updating traffic data from fetchMonitoringData:', data.traffic);
-                this.updateTrafficData(data.traffic);
-            }
+            // CATATAN (BUG 2): Chart trafik HANYA digambar oleh loop khusus fetchTrafficDataOnly()
+            // (tiap 5 detik). Loop monitoring umum (10 detik) ini SENGAJA tidak lagi memanggil
+            // updateTrafficData() agar tidak ada titik dobel/ber-cluster di kelipatan 10 detik
+            // (dulu kedua loop sama-sama push titik sehingga grafik bergerigi & label waktu duplikat).
         } catch (error) {
             console.warn('[Monitoring] Error fetching monitoring data:', error.message);
             this.registerMikrotikFailure(error.message);

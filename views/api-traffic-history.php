@@ -1,24 +1,22 @@
 <?php
 /**
  * Traffic History API
- * Returns traffic history data for charts
+ * Mengembalikan history trafik untuk chart.
+ *
+ * CATATAN: RouterOS tidak menyimpan time-series rate, dan saat ini tidak ada buffer
+ * history yang dipersist di sisi server. Maka endpoint ini mengembalikan array KOSONG
+ * (bukan data acak) sehingga chart mulai bersih lalu diisi oleh data live (poll 5 detik).
+ *
+ * Sebelumnya endpoint ini mengisi data dummy via rand() sehingga chart menampilkan
+ * angka palsu (10-80/5-40 Mbps) setiap kali halaman dibuka — itu BUG dan sudah dihapus.
+ * Jika kelak ingin history nyata, isi $history dari buffer rate yang dipersist
+ * (mis. ring-buffer di Node/SQLite), bukan dari angka acak.
  */
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
-// Generate dummy history data
-$points = 20;
 $history = [];
-$now = time();
-
-for ($i = $points - 1; $i >= 0; $i--) {
-    $history[] = [
-        'time' => date('c', $now - ($i * 60)),
-        'download' => rand(10, 80),
-        'upload' => rand(5, 40)
-    ];
-}
 
 $response = [
     'status' => 200,
