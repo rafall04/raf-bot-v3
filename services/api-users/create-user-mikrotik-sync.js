@@ -48,7 +48,7 @@ async function syncMikrotikForNewUser(deps, { newUser, userData, registrationMod
                         }
                         mikrotikSync = deps.buildMikrotikSyncResult("applied", `PPPoE user ${newUser.pppoe_username} berhasil ditambahkan ke MikroTik.`);
                     } catch (mikrotikError) {
-                        if (mikrotikError.message && mikrotikError.message.includes("sudah ada")) {
+                        if (mikrotikError.code === "DUPLICATE" || (mikrotikError.message && mikrotikError.message.includes("sudah ada"))) {
                             mikrotikSync = deps.buildMikrotikSyncResult("applied", `PPPoE user ${newUser.pppoe_username} sudah ada di MikroTik.`);
                         } else {
                             throw new Error(`Gagal menambahkan user ke MikroTik: ${mikrotikError.message}`);
@@ -88,7 +88,7 @@ async function syncMikrotikForNewUser(deps, { newUser, userData, registrationMod
                     deps.assertMikrotikResult(addPppoeResult);
                     mikrotikSync = deps.buildMikrotikSyncResult("applied", `PPPoE user ${newUser.pppoe_username} berhasil ditambahkan ke MikroTik.`);
                 } catch (mikrotikError) {
-                    if (mikrotikError.message && mikrotikError.message.includes("sudah ada")) {
+                    if (mikrotikError.code === "DUPLICATE" || (mikrotikError.message && mikrotikError.message.includes("sudah ada"))) {
                         mikrotikSync = deps.buildMikrotikSyncResult("applied", `PPPoE user ${newUser.pppoe_username} sudah ada di MikroTik.`);
                     } else {
                         throw new Error(`Gagal menambahkan user ke MikroTik: ${mikrotikError.message}`);

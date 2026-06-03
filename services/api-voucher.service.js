@@ -78,6 +78,7 @@ function createApiVoucherService(overrides = {}) {
 
             const isCustom = voucherType === "custom";
             let generatedVouchers = [];
+            let vouchersRequested = 0;
             const voucherProfile = deps.repository.getVoucherProfileById(profile);
 
             if (transactionContext === "delivery_resend") {
@@ -92,17 +93,20 @@ function createApiVoucherService(overrides = {}) {
                     profile: entry.profile,
                     type: entry.type || "random"
                 }));
+                vouchersRequested = generatedVouchers.length;
             } else if (isCustom) {
                 if (!customUsername || !customPassword) {
                     return { status: 400, body: { status: 400, message: "Username dan Password diperlukan untuk voucher custom" } };
                 }
                 generatedVouchers.push({ username: customUsername, password: customPassword, profile, type: "custom" });
+                vouchersRequested = 1;
             } else {
                 if (!quantity || quantity < 1 || quantity > 50) {
                     return { status: 400, body: { status: 400, message: "Jumlah voucher harus antara 1-50" } };
                 }
+                vouchersRequested = quantity;
                 const axios = require("axios");
-                const siteUrlBot = deps.getConfig()?.site_url_bot || `http://127.0.0.1:${process.env.PORT || 3000}`;
+                const siteUrlBot = deps.getConfig()?.site_url_bot || `http://127.0.0.1:${process.env.PORT || 3100}`;
                 for (let i = 0; i < quantity; i += 1) {
                     try {
                         const phpUrl = `${siteUrlBot}/adduserhotspot.php?profil=${encodeURIComponent(profile)}&komen=VoucherSend`;
@@ -114,6 +118,8 @@ function createApiVoucherService(overrides = {}) {
                                 profile: phpResponse.data.data.profile || profile,
                                 type: "random"
                             });
+                        } else {
+                            deps.logger.error?.(`[VOUCHER_GENERATE] Voucher ${i + 1} gagal: respons MikroTik tidak success`, phpResponse.data?.message || phpResponse.data?.status || "unknown");
                         }
                     } catch (err) {
                         deps.logger.error?.(`[VOUCHER_GENERATE] Error generating voucher ${i + 1}:`, err.message);
@@ -220,8 +226,12 @@ function createApiVoucherService(overrides = {}) {
                 status: 200,
                 body: {
                     status: 200,
-                    message: `Berhasil generate ${generatedVouchers.length} voucher`,
+                    message: generatedVouchers.length < vouchersRequested
+                        ? `Berhasil generate ${generatedVouchers.length} dari ${vouchersRequested} voucher (${vouchersRequested - generatedVouchers.length} gagal)`
+                        : `Berhasil generate ${generatedVouchers.length} voucher`,
                     vouchers: generatedVouchers,
+                    vouchers_requested: vouchersRequested,
+                    vouchers_generated: generatedVouchers.length,
                     batch_id: batchId,
                     transaction_context: transactionContext,
                     recipient_type: recipientType,
