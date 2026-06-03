@@ -653,6 +653,11 @@
             <input type="number" class="form-control" id="mikrotikPort" name="port" placeholder="8728" required>
             <small class="form-text text-muted">Port API di Mikrotik. Default: 8728, SSL: 8729.</small>
           </div>
+          <div class="form-group">
+            <label for="mikrotikMonitorInterface">Interface Monitoring</label>
+            <input type="text" class="form-control" id="mikrotikMonitorInterface" name="monitoring_interface" placeholder="ether1">
+            <small class="form-text text-muted">Interface yang dipantau di Network Traffic Monitor (mis. ether1, sfp-sfpplus1). Default: ether1.</small>
+          </div>
 
         </form>
       </div>
@@ -1024,7 +1029,8 @@
               document.getElementById('mikrotikName').value = device.name || '';
               document.getElementById('mikrotikPassword').value = device.password || '';
               document.getElementById('mikrotikPort').value = device.port || '8728';
-              
+              document.getElementById('mikrotikMonitorInterface').value = device.monitoring_interface || 'ether1';
+
               mikrotikDeviceModal.find('.modal-title').text('Edit Perangkat MikroTik');
               mikrotikDeviceModal.modal('show');
             })

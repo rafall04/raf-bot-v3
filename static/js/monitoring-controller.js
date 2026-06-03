@@ -26,7 +26,9 @@ class MonitoringController {
         this.trafficUpdateInterval = null; // Interval terpisah untuk traffic data
         this.trafficPeriod = '5m';
         this.alerts = [];
-        this.currentInterface = 'ether1';
+        // null = belum ditentukan; biarkan backend memakai default terkonfigurasi (MONITOR_INTERFACE)
+        // lalu di-set dari response.data.selectedInterface. Tidak hardcode 'ether1' lagi.
+        this.currentInterface = null;
         this.isConnected = false;
         this.mikrotikConnected = false;
         this.useSocketIO = false;
@@ -402,12 +404,15 @@ class MonitoringController {
             if (interfaceSelector && interfaceSelector.value) {
                 selectedInterface = interfaceSelector.value;
                 this.currentInterface = selectedInterface;
-            } else {
-                selectedInterface = this.currentInterface || 'ether1';
+            } else if (this.currentInterface) {
+                selectedInterface = this.currentInterface;
             }
-            
-            const url = `/api/monitoring/live?interface=${encodeURIComponent(selectedInterface)}`;
-            
+
+            // Jika belum ada pilihan, biarkan backend memakai default terkonfigurasi (MONITOR_INTERFACE).
+            const url = selectedInterface
+                ? `/api/monitoring/live?interface=${encodeURIComponent(selectedInterface)}`
+                : '/api/monitoring/live';
+
             const response = await fetch(url, {
                 method: 'GET',
                 credentials: 'same-origin',
@@ -449,7 +454,13 @@ class MonitoringController {
             }
 
             const explicitMikrotikDisconnect = data?.mikrotik?.connected === false;
-            
+
+            // Adopsi default interface terkonfigurasi dari backend (MONITOR_INTERFACE / device aktif)
+            // jika belum ada pilihan dari user. Dilakukan SEBELUM populateInterfaceSelector.
+            if (data.selectedInterface && !this.currentInterface) {
+                this.currentInterface = data.selectedInterface;
+            }
+
             if (data.systemHealth) {
                 this.lastHealthData = data.systemHealth;
                 this.updateSystemHealth(data.systemHealth);
@@ -537,12 +548,15 @@ class MonitoringController {
             if (interfaceSelector && interfaceSelector.value) {
                 selectedInterface = interfaceSelector.value;
                 this.currentInterface = selectedInterface;
-            } else {
-                selectedInterface = this.currentInterface || 'ether1';
+            } else if (this.currentInterface) {
+                selectedInterface = this.currentInterface;
             }
-            
-            const url = `/api/monitoring/live?interface=${encodeURIComponent(selectedInterface)}`;
-            
+
+            // Jika belum ada pilihan, biarkan backend memakai default terkonfigurasi (MONITOR_INTERFACE).
+            const url = selectedInterface
+                ? `/api/monitoring/live?interface=${encodeURIComponent(selectedInterface)}`
+                : '/api/monitoring/live';
+
             // PENTING: Add timeout untuk prevent stuck requests
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 detik timeout
@@ -1136,10 +1150,15 @@ class MonitoringController {
                 selector.value = currentSelection;
                 selector.setAttribute('data-selected', currentSelection);
                 this.currentInterface = currentSelection;
-            } else if (selector.querySelector('option[value="ether1"]')) {
-                selector.value = 'ether1';
-                selector.setAttribute('data-selected', 'ether1');
-                this.currentInterface = 'ether1';
+            } else if (this.currentInterface && selector.querySelector(`option[value="${this.currentInterface}"]`)) {
+                // Default terkonfigurasi (MONITOR_INTERFACE) dari backend
+                selector.value = this.currentInterface;
+                selector.setAttribute('data-selected', this.currentInterface);
+            } else if (selector.options.length > 0) {
+                // Fallback terakhir: interface pertama yang tersedia (bukan hardcode 'ether1')
+                selector.value = selector.options[0].value;
+                selector.setAttribute('data-selected', selector.options[0].value);
+                this.currentInterface = selector.options[0].value;
             }
         } else {
             const currentValue = selector.value;

@@ -68,6 +68,7 @@ function normalizeDevice(device = {}) {
         name: device.name || "",
         password: device.password || "",
         port: device.port || "8728",
+        monitoring_interface: device.monitoring_interface || "ether1",
         active: device.active || false
     };
 }
@@ -127,6 +128,7 @@ function createMikrotikDeviceConfigService(overrides = {}) {
                 name: input.name,
                 password: input.password,
                 port: input.port || "8728",
+                monitoring_interface: input.monitoring_interface || "ether1",
                 active: false
             };
 
@@ -187,6 +189,7 @@ function createMikrotikDeviceConfigService(overrides = {}) {
                 name: input.name || devices[index].name || "",
                 password: input.password || devices[index].password || "",
                 port: input.port || devices[index].port || "8728",
+                monitoring_interface: input.monitoring_interface || devices[index].monitoring_interface || "ether1",
                 active: devices[index].active || false
             };
 
@@ -198,6 +201,7 @@ function createMikrotikDeviceConfigService(overrides = {}) {
                     updateEnvFile(deps, "NAME_MC", updatedDevice.name);
                     updateEnvFile(deps, "PASSWORD_MC", updatedDevice.password);
                     updateEnvFile(deps, "PORT_MC", updatedDevice.port);
+                    updateEnvFile(deps, "MONITOR_INTERFACE", updatedDevice.monitoring_interface);
                 } catch (envError) {
                     console.error("[ENV_UPDATE_WARN] Failed to update .env file after editing active device:", envError.message);
                 }
@@ -237,6 +241,7 @@ function createMikrotikDeviceConfigService(overrides = {}) {
             updateEnvFile(deps, "NAME_MC", activeDevice.name);
             updateEnvFile(deps, "PASSWORD_MC", activeDevice.password);
             updateEnvFile(deps, "PORT_MC", activeDevice.port || "8728");
+            updateEnvFile(deps, "MONITOR_INTERFACE", activeDevice.monitoring_interface || "ether1");
             writeDevices(deps, devices);
 
             return {

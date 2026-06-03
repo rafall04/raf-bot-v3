@@ -53,4 +53,43 @@ describe("mikrotik-device-config.service", () => {
         expect(devices.find((item) => item.id === "2").active).toBe(true);
         expect(envContent).toContain("PORT_MC=8730");
     });
+
+    test("monitoring_interface: default ether1, dan sync MONITOR_INTERFACE ke .env saat device aktif", () => {
+        let devices = [
+            { id: "1", ip: "10.0.0.1", name: "Core", password: "secret", port: "8728", monitoring_interface: "ether1", active: true }
+        ];
+        let envContent = "IP_MC=10.0.0.1\nNAME_MC=Core\nPASSWORD_MC=secret\nPORT_MC=8728\n";
+        const fsMock = {
+            existsSync: jest.fn((targetPath) => targetPath.endsWith(".json") || targetPath.endsWith(".env")),
+            readFileSync: jest.fn((targetPath) => (targetPath.endsWith(".json") ? JSON.stringify(devices) : envContent)),
+            writeFileSync: jest.fn((targetPath, content) => {
+                if (targetPath.endsWith(".json")) { devices = JSON.parse(content); return; }
+                envContent = content;
+            })
+        };
+
+        const service = createMikrotikDeviceConfigService({
+            fs: fsMock,
+            devicesPath: "mikrotik_devices.json",
+            envPath: ".env"
+        });
+
+        // createDevice tanpa monitoring_interface -> default "ether1"
+        const created = service.createDevice({ ip: "10.0.0.9", name: "New", password: "pw" });
+        expect(created.body.data.monitoring_interface).toBe("ether1");
+
+        // updateDevice device aktif -> .env dapat MONITOR_INTERFACE baru
+        const updated = service.updateDevice("1", { monitoring_interface: "sfp-sfpplus1" });
+        expect(updated.body.data.monitoring_interface).toBe("sfp-sfpplus1");
+        expect(envContent).toContain("MONITOR_INTERFACE=sfp-sfpplus1");
+
+        // getDeviceById menormalkan device lama tanpa field -> default ether1
+        devices.push({ id: "9", ip: "10.0.0.10", name: "Legacy", password: "pw", port: "8728", active: false });
+        expect(service.getDeviceById("9").body.monitoring_interface).toBe("ether1");
+
+        // setActiveDevice juga sync MONITOR_INTERFACE
+        envContent = envContent.replace(/MONITOR_INTERFACE=.*/g, "");
+        service.setActiveDevice("1");
+        expect(envContent).toContain("MONITOR_INTERFACE=sfp-sfpplus1");
+    });
 });

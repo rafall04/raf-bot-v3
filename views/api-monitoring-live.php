@@ -718,8 +718,14 @@ if (isset($_SERVER['QUERY_STRING']) && empty($_GET)) {
     parse_str($queryString, $_GET);
 }
 
-// Get selected interface from query parameter (default to ether1)
-$selectedInterface = $_GET['interface'] ?? 'ether1';
+// Get selected interface from query parameter.
+// Jika tidak dikirim/empty, pakai default terkonfigurasi MONITOR_INTERFACE (di-set per device aktif
+// dari halaman konfigurasi MikroTik), baru fallback terakhir ke 'ether1'.
+$requestedInterface = isset($_GET['interface']) ? trim($_GET['interface']) : '';
+$configuredInterface = getenv('MONITOR_INTERFACE');
+$selectedInterface = $requestedInterface !== ''
+    ? $requestedInterface
+    : (($configuredInterface !== false && $configuredInterface !== '') ? $configuredInterface : 'ether1');
 
 // Debug: Log what was received (uncomment for troubleshooting)
 // error_log("[API] QUERY_STRING: " . ($_SERVER['QUERY_STRING'] ?? 'not set'));
