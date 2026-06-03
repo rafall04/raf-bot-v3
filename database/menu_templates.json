@@ -1,0 +1,42 @@
+{
+  "menu_main_customer": {
+    "name": "Menu Utama Pelanggan",
+    "template": "🏠 *MENU UTAMA ${nama_wifi}*\n\n👤 Halo *${nama_pelanggan}*\n📱 No: ${nomor_hp}\n📦 Paket: ${paket}\n💰 Status: ${status_pembayaran}\n\n━━━━━━━━━━━━━━━━━━━━\n*PILIH MENU:*\n━━━━━━━━━━━━━━━━━━━━\n\n📋 *LAYANAN PELANGGAN*\n├ ${icon_tagihan} *cektagihan* - Cek tagihan bulanan\n├ ${icon_saldo} *ceksaldo* - Cek saldo Anda\n├ ${icon_lapor} *lapor* - Laporkan gangguan\n└ ${icon_tiket} *cektiket [ID]* - Cek status tiket\n\n🌐 *WIFI & INTERNET*\n├ ${icon_wifi} *cekwifi* - Cek info WiFi\n├ ${icon_nama} *gantinama* - Ubah nama WiFi\n├ ${icon_password} *gantisandi* - Ubah password WiFi\n├ ${icon_history} *historywifi* - Riwayat perubahan\n└ ${icon_speed} *speedboost* - Tambah kecepatan\n\n📞 *BANTUAN*\n├ ${icon_admin} *admin* - Hubungi admin\n├ ${icon_help} *bantuan* - Panduan penggunaan\n└ ${icon_info} *info* - Informasi layanan\n\n━━━━━━━━━━━━━━━━━━━━\n_Ketik perintah yang diinginkan_\n*${nama_bot}* - Siap melayani 24/7"
+  },
+  "menu_main_admin": {
+    "name": "Menu Utama Admin",
+    "template": "👑 *MENU ADMIN ${nama_wifi}*\n\n👤 Admin: *${nama_admin}*\n🔑 Role: *${role}*\n⏰ Login: ${waktu_login}\n\n━━━━━━━━━━━━━━━━━━━━\n*MENU ADMINISTRATOR:*\n━━━━━━━━━━━━━━━━━━━━\n\n👥 *MANAJEMEN PELANGGAN*\n├ ${icon_list} *listpelanggan* - Daftar pelanggan\n├ ${icon_add} *tambahpelanggan* - Tambah pelanggan\n├ ${icon_edit} *editpelanggan [ID]* - Edit data\n├ ${icon_delete} *hapuspelanggan [ID]* - Hapus pelanggan\n└ ${icon_isolir} *isolir [ID]* - Isolir layanan\n\n💰 *KEUANGAN & PEMBAYARAN*\n├ ${icon_payment} *konfirmasibayar [ID]* - Konfirmasi pembayaran\n├ ${icon_report} *laporankeuangan* - Laporan keuangan\n├ ${icon_tagihan} *kirimtagihan* - Kirim tagihan massal\n└ ${icon_saldo} *ceksaldo* - Cek saldo sistem\n\n🎟️ *TIKET & GANGGUAN*\n├ ${icon_tiket} *listtiket* - Daftar tiket\n├ ${icon_assign} *assigntiket [ID]* - Assign ke teknisi\n├ ${icon_close} *tutuptiket [ID]* - Tutup tiket\n└ ${icon_broadcast} *broadcast* - Kirim pesan massal\n\n🛠️ *SISTEM & PENGATURAN*\n├ ${icon_config} *config* - Pengaturan sistem\n├ ${icon_backup} *backup* - Backup database\n├ ${icon_log} *log* - Lihat log sistem\n└ ${icon_restart} *restart* - Restart bot\n\n━━━━━━━━━━━━━━━━━━━━\n_Gunakan dengan bijak_\n*Admin Panel Ready*"
+  },
+  "menu_main_teknisi": {
+    "name": "Menu Utama Teknisi",
+    "template": "🔧 *MENU TEKNISI ${nama_wifi}*\n\n👤 Teknisi: *${nama_teknisi}*\n📱 HP: ${nomor_hp}\n🎫 Tiket Aktif: ${jumlah_tiket_aktif}\n\n━━━━━━━━━━━━━━━━━━━━\n*MENU TEKNISI:*\n━━━━━━━━━━━━━━━━━━━━\n\n🎟️ *MANAJEMEN TIKET*\n├ ${icon_list} *listtiket* - Daftar tiket\n├ ${icon_process} *proses [ID]* - Proses tiket\n├ ${icon_otw} *otw [ID]* - Menuju lokasi\n├ ${icon_arrive} *sampai [ID]* - Sampai lokasi\n├ ${icon_working} *kerja [ID]* - Mulai perbaikan\n└ ${icon_complete} *selesai [ID]* - Selesaikan tiket\n\n🛠️ *TOOLS TEKNISI*\n├ ${icon_wifi} *cekwifi [ID]* - Cek WiFi pelanggan\n├ ${icon_reboot} *reboot [ID]* - Restart modem\n├ ${icon_power} *power [ID] [level]* - Atur power WiFi\n└ ${icon_redaman} *cekredaman [ID]* - Cek redaman\n\n📊 *LAPORAN*\n├ ${icon_report} *laporanharian* - Laporan hari ini\n├ ${icon_history} *riwayattiket* - Riwayat pekerjaan\n└ ${icon_stats} *statistik* - Statistik kinerja\n\n━━━━━━━━━━━━━━━━━━━━\n_Semangat bekerja!_\n*Teknisi Mode Active*"
+  },
+  "menu_wifi": {
+    "name": "Menu WiFi",
+    "template": "🌐 *MENU WIFI ${nama_wifi}*\n\nHalo *${nama_pelanggan}*, berikut menu WiFi Anda:\n\n━━━━━━━━━━━━━━━━━━━━\n*INFORMASI WIFI:*\n━━━━━━━━━━━━━━━━━━━━\n\n📡 *Status Modem:* ${status_modem}\n📶 *Kualitas Sinyal:* ${kualitas_sinyal}\n🔒 *SSID Aktif:* ${jumlah_ssid}\n\n━━━━━━━━━━━━━━━━━━━━\n*MENU TERSEDIA:*\n━━━━━━━━━━━━━━━━━━━━\n\n1️⃣ *cekwifi* - Informasi lengkap WiFi\n2️⃣ *gantinama* - Ubah nama WiFi\n3️⃣ *gantisandi* - Ubah password WiFi\n4️⃣ *historywifi* - Riwayat perubahan\n5️⃣ *rebootmodem* - Restart modem\n6️⃣ *speedtest* - Test kecepatan\n\n━━━━━━━━━━━━━━━━━━━━\n💡 *Tips:* Ganti password WiFi secara berkala untuk keamanan\n\n_Ketik nomor atau perintah_"
+  },
+  "menu_payment": {
+    "name": "Menu Pembayaran",
+    "template": "💰 *MENU PEMBAYARAN ${nama_wifi}*\n\nHalo *${nama_pelanggan}*,\n\n━━━━━━━━━━━━━━━━━━━━\n*STATUS PEMBAYARAN:*\n━━━━━━━━━━━━━━━━━━━━\n\n📦 *Paket:* ${nama_paket}\n💵 *Tarif:* ${harga_paket}\n📅 *Periode:* ${periode_tagihan}\n✅ *Status:* ${status_tagihan}\n${info_jatuh_tempo}\n\n━━━━━━━━━━━━━━━━━━━━\n*MENU TERSEDIA:*\n━━━━━━━━━━━━━━━━━━━━\n\n1️⃣ *cektagihan* - Detail tagihan\n2️⃣ *bayar* - Cara pembayaran\n3️⃣ *konfirmasi* - Konfirmasi bayar\n4️⃣ *riwayatbayar* - Riwayat pembayaran\n5️⃣ *invoice* - Download invoice\n\n━━━━━━━━━━━━━━━━━━━━\n*METODE PEMBAYARAN:*\n━━━━━━━━━━━━━━━━━━━━\n${rekening_details}\n\n_Pembayaran otomatis terkonfirmasi_"
+  },
+  "menu_help": {
+    "name": "Menu Bantuan",
+    "template": "📚 *MENU BANTUAN ${nama_wifi}*\n\n━━━━━━━━━━━━━━━━━━━━\n*PANDUAN PENGGUNAAN:*\n━━━━━━━━━━━━━━━━━━━━\n\n📌 *CARA MENGGUNAKAN BOT:*\n1. Ketik perintah sesuai menu\n2. Ikuti instruksi yang diberikan\n3. Tunggu respon dari bot\n\n❓ *FAQ (Pertanyaan Umum):*\n\n*Q: Bagaimana cara cek tagihan?*\nA: Ketik *cektagihan*\n\n*Q: Lupa password WiFi?*\nA: Ketik *cekwifi* untuk melihat\n\n*Q: WiFi lemot/mati?*\nA: Ketik *lapor* untuk buat tiket\n\n*Q: Cara bayar tagihan?*\nA: Ketik *bayar* untuk info rekening\n\n━━━━━━━━━━━━━━━━━━━━\n*KONTAK SUPPORT:*\n━━━━━━━━━━━━━━━━━━━━\n\n📞 Telp: ${nomor_support}\n💬 WA: ${whatsapp_support}\n📧 Email: ${email_support}\n🕐 Jam Kerja: ${jam_operasional}\n\n_Kami siap membantu Anda!_"
+  },
+  "menu_admin_management": {
+    "name": "Menu Manajemen Admin",
+    "template": "👥 *MANAJEMEN PELANGGAN*\n\n━━━━━━━━━━━━━━━━━━━━\n*PERINTAH TERSEDIA:*\n━━━━━━━━━━━━━━━━━━━━\n\n📋 *DAFTAR & PENCARIAN*\n• *listpelanggan* - Semua pelanggan\n• *caripelanggan [nama/id]* - Cari data\n• *pelangganaktif* - Pelanggan aktif\n• *pelangganisolir* - Pelanggan terisolir\n\n➕ *TAMBAH & EDIT*\n• *tambahpelanggan* - Tambah baru\n• *editpelanggan [ID]* - Edit data\n• *updatepaket [ID]* - Ubah paket\n• *updatenohp [ID]* - Update nomor HP\n\n⚡ *AKSI LAYANAN*\n• *aktifkan [ID]* - Aktifkan layanan\n• *isolir [ID]* - Isolir layanan\n• *cabut [ID]* - Cabut layanan\n• *suspend [ID]* - Suspend sementara\n\n🗑️ *HAPUS DATA*\n• *hapuspelanggan [ID]* - Hapus permanen\n• *arsipkan [ID]* - Arsipkan data\n\n━━━━━━━━━━━━━━━━━━━━\n_Gunakan dengan hati-hati_"
+  },
+  "menu_quick_actions": {
+    "name": "Menu Aksi Cepat",
+    "template": "⚡ *AKSI CEPAT*\n\n━━━━━━━━━━━━━━━━━━━━\n\n${quick_actions_list}\n\n━━━━━━━━━━━━━━━━━━━━\n_Pilih nomor untuk aksi cepat_"
+  },
+  "menu_empty": {
+    "name": "Menu Kosong",
+    "template": "📭 *TIDAK ADA MENU*\n\n${message}\n\nKetik *menu* untuk kembali ke menu utama."
+  },
+  "menu_selection": {
+    "name": "Menu Pilihan",
+    "template": "📋 *${menu_title}*\n\n${menu_description}\n\n━━━━━━━━━━━━━━━━━━━━\n*PILIHAN:*\n━━━━━━━━━━━━━━━━━━━━\n\n${options_list}\n\n━━━━━━━━━━━━━━━━━━━━\n${footer_text}"
+  }
+}

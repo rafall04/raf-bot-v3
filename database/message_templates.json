@@ -1,0 +1,234 @@
+{
+  "voucher_send": {
+    "name": "Kirim Voucher Random via WhatsApp",
+    "template": "🎫 *VOUCHER HOTSPOT*\n\n📦 Paket: *${nama_paket}*\n⏱️ Durasi: *${durasi}*\n\n🔐 *KODE VOUCHER:*\n${voucher_list}\n\n📌 *Cara Penggunaan:*\n1. Hubungkan ke WiFi RAF NET\n2. Buka browser, ketik 10.10.0.1 kemudian akan muncul halaman login.\n3. Masukkan Kode Voucher di atas.\n\n*Direkomendasikan terkoneksi ke RAF NET 5G Agar lebih stabil.\n\n${catatan}\n\nTerima kasih! 🙏\n*${nama_wifi}*"
+  },
+  "voucher_send_custom": {
+    "name": "Kirim Voucher Custom via WhatsApp",
+    "template": "🎫 *VOUCHER HOTSPOT*\n\n📦 Paket: *${nama_paket}*\n⏱️ Durasi: *${durasi}*\n\n🔐 *MEMBER LOGIN:*\n👤 Username: `${username}`\n🔑 Password: `${password}`\n\n📌 *Cara Penggunaan:*\n1. Hubungkan ke WiFi RAF NET\n2. Buka browser, ketik 10.10.0.1 kemudian akan muncul halaman login.\n3. Masukkan Username & Password di atas.\n\n*Direkomendasikan terkoneksi ke RAF NET 5G Agar lebih stabil.\n\n${catatan}\n\nTerima kasih! 🙏\n*${nama_wifi}*"
+  },
+  "member_credentials_send": {
+    "name": "Kirim Kredensial Member via WhatsApp",
+    "template": "🔐 *KREDENSIAL MEMBER*\n\nHalo *${nama_pelanggan}*,\n\nBerikut adalah informasi login internet Anda:\n\n👤 *Username:* `${username}`\n🔑 *Password:* `${password}`\n\n📦 Paket: *${nama_paket}*\n\n📌 *Cara Penggunaan:*\n1. Hubungkan ke jaringan WiFi\n2. Masukkan username & password saat diminta\n\n${catatan}\n\nTerima kasih! 🙏\n*${nama_wifi}*"
+  },
+  "speed_on_demand_applied": {
+    "name": "Notifikasi Speed on Demand Diberikan",
+    "template": "🚀 *Speed on Demand Aktif!* 🚀\n\nHalo ${nama_pelanggan},\n\nPermintaan penambahan kecepatan Anda telah disetujui dan sekarang aktif!\n\n- Paket Tambahan: *${requestedPackageName}*\n- Berlaku hingga: *${expirationDate}*\n\nSelamat menikmati koneksi internet yang lebih cepat! Jika ada kendala, jangan ragu untuk menghubungi kami."
+  },
+  "speed_on_demand_reverted": {
+    "name": "Notifikasi Speed on Demand Berakhir",
+    "template": "👋 *Periode Speed on Demand Selesai* 👋\n\nHalo ${nama_pelanggan},\n\nPeriode penambahan kecepatan sementara Anda untuk paket *${requestedPackageName}* telah berakhir.\n\nLayanan internet Anda kini telah kembali ke paket normal: *${originalPackageName}*.\n\nTerima kasih telah menggunakan fitur Speed on Demand kami!"
+  },
+  "unpaid_reminder": {
+    "name": "Pengingat Tagihan (Cron Job)",
+    "template": "Yth. Pelanggan *${nama_pelanggan}*,\n\nKami dari *${nama_wifi}* ingin memberitahukan bahwa tagihan internet Anda untuk periode *${periode}* telah tersedia. Dan akan jatuh tempo pada tanggal *${jatuh_tempo}*.\n\nDetail Tagihan:\n- Paket: *${nama_paket}*\n- Total: *${harga}*\n\nMohon untuk segera melakukan pembayaran agar layanan Anda tidak terganggu.\n\nPembayaran dapat dilakukan melalui:\n${rekening}\n\nJika sudah membayar, mohon abaikan pesan ini.\n\nTerima kasih,\n*${nama_bot}*"
+  },
+  "isolir_notification": {
+    "name": "Notifikasi Isolir",
+    "template": "Selamat Pagi Bpk/Ibu ${nama_pelanggan},\n\nDiberitahukan kepada pelanggan bahwa saat ini layanan anda terisolir karena adanya tagihan yang belum terbayarkan untuk periode ${periode}.\n\nMohon segera lakukan pembayaran agar layanan dapat aktif kembali. Pembayaran dapat dilakukan melalui:\n${rekening}\n\n*Abaikan pesan ini jika Anda sudah membayar.\n\n\nTerimakasih\nAdmin ${nama_wifi}"
+  },
+  "compensation_applied": {
+    "name": "Notifikasi Kompensasi Diberikan",
+    "template": "Pelanggan Yth. ${nama_pelanggan},\n\nSebagai bentuk permintaan maaf kami, Anda mendapatkan kompensasi berupa peningkatan kecepatan internet.\n\nDetail Kompensasi:\n- Profil Baru: ${profileBaru}\n- Durasi: ${durasiLengkap}\n- Berlaku hingga: ${tanggalAkhir}\n\nSemoga layanan kami semakin memuaskan.\n\nSalam Hangat,\n*${nama_bot}*"
+  },
+  "compensation_reverted": {
+    "name": "Notifikasi Kompensasi Berakhir",
+    "template": "Pelanggan Yth. ${nama_pelanggan},\n\nPeriode kompensasi peningkatan kecepatan internet Anda telah berakhir pada ${tanggalRevert}.\nLayanan internet Anda kini telah kembali ke profil normal ${profileAsli}.\n\nTerima kasih atas kepercayaan Anda terhadap layanan kami.\n\nSalam,\n*${nama_bot}*"
+  },
+  "customer_welcome": {
+    "name": "Pendaftaran Pelanggan Baru",
+    "template": "✨ *Selamat Bergabung di ${nama_wifi}!* ✨\n\nHalo *${nama_pelanggan}*,\n\nAkun Anda telah berhasil dibuat. Berikut adalah detail login Anda:\n\n👤 *Username:* `${username}`\n🔑 *Password:* `${password}`\n\nMohon simpan informasi ini baik-baik.\n\nTerima kasih telah memilih kami sebagai penyedia layanan internet Anda.\n\n*${nama_bot}*"
+  },
+  "psb_welcome": {
+    "name": "Selamat Datang PSB (Instalasi Selesai)",
+    "template": "✅ *Instalasi Selesai!* ✅\n\nHalo *${nama_pelanggan}*,\n\nInstalasi internet Anda telah selesai dan siap digunakan! 🎉\n\n📶 *Detail WiFi:*\n• Nama WiFi: `${wifi_ssid}`\n• Password WiFi: `${wifi_password}`\n\n📦 *Paket Langganan:*\n• Paket: *${nama_paket}*\n\nSelamat menikmati internet Anda!\n\nTerima kasih telah memilih *${nama_wifi}*.\n\n*${nama_bot}*"
+  },
+  "redaman_alert": {
+    "name": "Notifikasi Gangguan Redaman",
+    "template": "⚠️ *Notifikasi Gangguan Redaman* ⚠️\n\nTerdeteksi gangguan redaman pada pelanggan:\n\n- Nama Pelanggan: *${nama_pelanggan}*\n- No Hp: *${no_hp}*\n- Alamat: *${alamat}*\n- User PPPoE: *${pppoe}*\n- Redaman: *${redaman}*\n\nMohon kepada tim teknisi untuk segera melakukan pengecekan lebih lanjut."
+  },
+  "saldo_ditambahkan": {
+    "name": "Notifikasi Saldo Ditambahkan",
+    "template": "✅ *SALDO DITAMBAHKAN*\n\nSaldo Anda telah ditambahkan sebesar:\n💰 *${harga}*\n\nSaldo saat ini: *${formattedSaldo}*\n\nKeterangan: ${keterangan}\n\nTerima kasih! 🙏"
+  },
+  "transfer_saldo_masuk": {
+    "name": "Notifikasi Transfer Saldo Masuk",
+    "template": "💰 *SALDO MASUK*\n\nAnda menerima transfer saldo sebesar:\n💵 *${jumlah}*\n\nDari: ${nama_pengirim}\n\nSaldo Anda sekarang: *${formattedSaldo}*\n\nTerima kasih! 🙏"
+  },
+  "voucher_purchase_success": {
+    "name": "Notifikasi Pembelian Voucher Berhasil",
+    "template": "=============================\nPaket                    : *${nama_paket}*\nHarga                    : *${harga}*\nKode Voucher     : *${kode_voucher}*\n=============================\nStatus Transaksi : *Berhasil*\n=============================\n_Terima Kasih Atas Pembelian Anda_"
+  },
+  "topup_saldo_masuk": {
+    "name": "Notifikasi Topup Saldo Masuk",
+    "template": "Topup saldo masuk!\n- Terbaca: ${harga}\n- Total saldo: ${formattedSaldo}"
+  },
+  "otp_code": {
+    "name": "Notifikasi Kode OTP",
+    "template": "Kode OTP Anda: \n${otp}\n\nBerlaku Hanya 5 Menit."
+  },
+  "topup_no_pending": {
+    "name": "Notifikasi Tidak Ada Request Topup",
+    "template": "❌ Tidak ada request topup yang menunggu bukti transfer.\n\nSilakan buat request topup baru dengan mengetik *topup*"
+  },
+  "topup_verified_success": {
+    "name": "Notifikasi Topup Diverifikasi Berhasil",
+    "template": "🎉 *TOPUP BERHASIL DIVERIFIKASI*\n\nID Request: *${request_id}*\nJumlah: *${harga}*\nSaldo Sekarang: *${formattedSaldo}*\n\n✅ Saldo Anda telah ditambahkan.\nTerima kasih atas pembayaran Anda! 🙏\n\n_Gunakan saldo untuk membeli voucher atau layanan lainnya._"
+  },
+  "topup_rejected": {
+    "name": "Notifikasi Topup Ditolak",
+    "template": "❌ *TOPUP DITOLAK*\n\nID Request: *${request_id}*\nJumlah: *${harga}*\n\n📋 *Alasan:* ${alasan}\n\nSilakan buat request topup baru dengan bukti transfer yang valid.\nJika ada pertanyaan, silakan hubungi admin."
+  },
+  "topup_request_admin": {
+    "name": "Notifikasi Request Topup ke Admin",
+    "template": "📢 *REQUEST TOPUP BARU*\n\nUser: ${user_id}\nJumlah: ${harga}\nMetode: ${metode_pembayaran}\n${bukti_section}\n\nID Request: ${request_id}\n\nSilakan cek di panel admin untuk verifikasi."
+  },
+  "voucher_purchase_admin": {
+    "name": "Notifikasi Pembelian Voucher ke Admin",
+    "template": "✅ *PEMBELIAN VOUCHER BERHASIL*\n\nVoucher: *${nama_paket}*\nDurasi: ${durasi}\nHarga: ${harga}\n\n📱 *KODE VOUCHER HOTSPOT:*\n━━━━━━━━━━━━━━━━━\nUsername: `${username}`\nPassword: `${password}`\n━━━━━━━━━━━━━━━━━\n\nSisa saldo: ${sisa_saldo}\n\n📌 *CARA PENGGUNAAN:*\n1. Hubungkan ke WiFi hotspot\n2. Buka browser\n3. Masukkan username & password\n\n_⚠️ Screenshot atau catat kode voucher ini!_"
+  },
+  "topup_success_admin": {
+    "name": "Notifikasi Topup Manual Berhasil (Admin)",
+    "template": "*「 SUKSES 」*\n\nPengiriman uang telah sukses\nDari : +${nomor_pengirim}\nKe : +${nomor_tujuan}\nJumlah transfer : ${jumlah}"
+  },
+  "topup_success_recipient_manual": {
+    "name": "Notifikasi Topup Manual Berhasil (Penerima)",
+    "template": "*「 SUKSES 」*\n\nPengisian Saldo Dengan Jumlah\n${jumlah}\n\nSilahkan Cek Saldo Anda Dengan Ketik ceksaldo\n\nTerima Kasih Telah Melakukan Topup\nBy Bot"
+  },
+  "del_saldo_success": {
+    "name": "Notifikasi Hapus Saldo Berhasil",
+    "template": "*「 SUKSES 」*\n\nHapus Saldo User Dengan Nomor :\n${nomor_user}"
+  },
+  "cek_saldo_response": {
+    "name": "Response Cek Saldo",
+    "template": "💰 *INFORMASI SALDO*\n\nNama: ${nama_pelanggan}\nNomor: ${nomor_hp}\nSaldo: *${formattedSaldo}*\n\n${riwayat_section}\n\n💡 Ketik *topup* untuk isi saldo"
+  },
+  "topup_pending_info": {
+    "name": "Info Request Topup Pending",
+    "template": "⏳ *Anda memiliki request topup yang belum selesai*\n\nJumlah: ${jumlah}\nMetode: ${metode_pembayaran}\nStatus: ${status}\n\n${rekening_section}${bukti_section}\n\n❌ Ketik *batal topup* untuk membatalkan request ini"
+  },
+  "topup_init_menu": {
+    "name": "Menu Pilihan Topup",
+    "template": "💰 *TOPUP SALDO*\n\nHai ${nama_pelanggan}, silakan pilih metode pembayaran:\n\n1️⃣ Transfer Bank\n2️⃣ Bayar ke Agent/Datang ke Rumah\n\nBalas dengan angka pilihan Anda (1-2)\nKetik *batal* untuk membatalkan"
+  },
+  "topup_cancelled": {
+    "name": "Notifikasi Topup Dibatalkan",
+    "template": "✅ *REQUEST TOPUP DIBATALKAN*\n\nID Request: ${request_id}\nJumlah: Rp ${jumlah}\n${sisa_waktu_section}\n\nAnda dapat membuat request topup baru kapan saja."
+  },
+  "beli_voucher_menu": {
+    "name": "Menu Beli Voucher",
+    "template": "🎫 *BELI VOUCHER DENGAN SALDO*\n\nSaldo Anda: ${formattedSaldo}\n\n📋 *Voucher Tersedia:*\n${voucher_list}\n\nBalas dengan nomor voucher yang ingin dibeli\nKetik *batal* untuk membatalkan"
+  },
+  "psb_phase1_registered": {
+    "name": "PSB - Data Terdaftar (Phase 1)",
+    "template": "*Selamat! Data Anda Telah Terdaftar*\n\nHalo *${nama_pelanggan}*,\n\nData Anda telah berhasil didaftarkan untuk instalasi internet baru.\n\n*Detail Pendaftaran:*\n• ID: ${customer_id}\n• Nama: ${nama_pelanggan}\n• No. HP: ${no_hp}\n• Alamat: ${alamat}\n• Status: Menunggu Instalasi\n\nTim teknisi akan segera menghubungi Anda untuk jadwal instalasi.\n\nTerima kasih.\n*${nama_wifi}*"
+  },
+  "psb_teknisi_meluncur": {
+    "name": "PSB - Teknisi Meluncur",
+    "template": "🚗 *TEKNISI BERANGKAT KE LOKASI ANDA*\n\n━━━━━━━━━━━━━━━━\n📋 ID Pelanggan: *${customer_id}*\n🔧 Teknisi: *${teknisi_name}*\n${teknisi_phone_section}━━━━━━━━━━━━━━━━\n\nHalo *${nama_pelanggan}*,\n\nTeknisi sedang menuju lokasi Anda untuk melakukan instalasi internet.\n\n⏱️ *Estimasi Tiba:* ${estimasi_waktu}\n_Waktu dapat berubah tergantung kondisi lalu lintas_\n\n📍 *Alamat Instalasi:*\n${alamat}\n\nSilakan pastikan Anda atau wakil Anda ada di lokasi saat teknisi tiba.\n\nTerima kasih.\n*${nama_wifi}*"
+  },
+  "psb_installation_complete": {
+    "name": "PSB - Instalasi Fisik Selesai (Phase 2)",
+    "template": "✅ *INSTALASI FISIK SELESAI*\n\n━━━━━━━━━━━━━━━━\n📋 ID Pelanggan: *${customer_id}*\n👤 Nama: *${nama_pelanggan}*\n━━━━━━━━━━━━━━━━\n\nHalo *${nama_pelanggan}*,\n\nPemasangan perangkat internet di lokasi Anda telah *selesai* dilakukan oleh teknisi kami.\n\n🔧 *Status:* Instalasi Fisik Selesai\n⏳ *Proses Selanjutnya:* Konfigurasi Jaringan\n\nTim kami sedang melakukan konfigurasi agar koneksi internet Anda dapat segera aktif. Anda akan menerima notifikasi kembali setelah proses konfigurasi selesai beserta informasi login WiFi.\n\nTerima kasih atas kesabaran Anda.\n*${nama_wifi}*"
+  },
+  "import_welcome": {
+    "name": "Selamat Datang (Import Pelanggan Lama)",
+    "template": "👋 *Halo ${nama_pelanggan}!*\n\nNomor WhatsApp Anda telah terdaftar di sistem layanan *${nama_wifi}*.\n\n📦 *Paket Langganan:*\n• Paket: *${nama_paket}*\n• Kecepatan: *${display_profile}*\n\nSekarang Anda dapat menggunakan layanan bot kami untuk:\n• Ganti Nama / Password Wifi Melalui Bot\n• Cek Pengguna Wifi\n• Lapor gangguan\n• Informasi layanan\n\nKetik *menuwifi* untuk melihat menu lengkap.\n\nTerima kasih! 🙏\n*${nama_bot}*"
+  },
+  "tagihan_lunas": {
+    "name": "Cek Tagihan - LUNAS",
+    "template": "✅ *STATUS TAGIHAN ANDA* ✅\n\nHalo Kak *${nama_pelanggan}*,\n\nStatus tagihan WiFi Anda untuk paket *${nama_paket}* dengan total *${harga}* adalah: *LUNAS*.\n\nTerima kasih telah melakukan pembayaran tepat waktu. Selamat menikmati layanan kami! 😊\n\nButuh bantuan lain? Ketik *menuwifi*."
+  },
+  "tagihan_belum_lunas": {
+    "name": "Cek Tagihan - BELUM LUNAS",
+    "template": "⚠️ *STATUS TAGIHAN ANDA* ⚠️\n\nHalo Kak *${nama_pelanggan}*,\n\nStatus tagihan WiFi Anda untuk paket *${nama_paket}* dengan total *${harga}* adalah: *BELUM LUNAS*.\n\nMohon untuk segera melakukan pembayaran agar layanan Anda tidak terganggu. Anda dapat menghubungi teknisi atau admin untuk proses pembayaran.\n\nButuh bantuan lain? Ketik *menuwifi*."
+  },
+  "sudah_bayar_notification": {
+    "name": "Notifikasi 'Sudah Bayar' ke Pelanggan",
+    "template": "✅ STATUS PEMBAYARAN TAGIHAN WIFI ANDA ✅\nHalo Kak ${nama_pelanggan},\n\nTerima kasih, pembayaran tagihan WiFi Anda telah kami terima.\n\nRincian Pembayaran:\n\nStatus: *LUNAS*\n\nPaket: *${nama_paket}*\n\nJumlah: *${harga_formatted}*\n\nMetode: *${metode_pembayaran}*\n\nSelamat menikmati layanan kami! 😊\n\nButuh bantuan? Ketik menuwifi untuk bantuan lebih lanjut.\n\nSalam Hangat,\n\nAdmin *${nama_wifi}*"
+  },
+  "invoice_caption": {
+    "name": "Caption Invoice PDF",
+    "template": "📄 *INVOICE*\n\nKepada Yth. ${nama_pelanggan}\n\nBerikut kami kirimkan invoice untuk layanan internet Anda.\n\nTerima kasih atas kepercayaan Anda."
+  },
+  "invoice_fallback": {
+    "name": "Notifikasi Invoice Fallback (PDF Gagal)",
+    "template": "⚠️ *Mohon Maaf*\nInvoice PDF tidak dapat digenerate otomatis. Berikut detail pembayaran Anda:\n\n📋 *DETAIL INVOICE*\n• Nama: ${nama_pelanggan}\n• Paket: ${nama_paket}\n• Status: LUNAS ✅\n• Tanggal: ${tanggal}\n\n_Tim admin akan mengirimkan invoice manual dalam 1x24 jam._\n\n_Jika ada pertanyaan, silakan hubungi admin._"
+  },
+  "qris_payment_info": {
+    "name": "Info Pembayaran QRIS",
+    "template": "*GO TO PAY*\n\n- Sub Total: Rp. ${sub_total}\n- Biaya admin: Rp. ${biaya_admin}\n- Total dibayarkan: Rp. ${total_bayar}\n\nSilahkan simpan QR ini, pergi ke aplikasi ewallet/bank virtual anda, lalu scan QR ini dengan aplikasi ewallet/bank virtual anda lalu bayarkan!"
+  },
+  "ticket_cancelled_customer": {
+    "name": "Notifikasi Pembatalan Tiket (Pelanggan)",
+    "template": "❌ *TIKET LAPORAN DIBATALKAN* ❌\n\nHalo *${nama_pelanggan}*,\n\nTiket laporan Anda telah dibatalkan oleh Admin.\n\n📋 *Detail Tiket:*\n• ID Tiket: *${ticket_id}*\n• Masalah: ${issue_type}\n• Tanggal: ${tanggal}\n• Dibatalkan oleh: ${cancelled_by}\n\n${alasan_section}\n\nJika Anda masih mengalami kendala, silakan buat laporan baru atau hubungi Admin.\n\nTerima kasih. 🙏\n\n*${nama_wifi}*"
+  },
+  "ticket_cancelled_teknisi": {
+    "name": "Notifikasi Pembatalan Tiket (Teknisi)",
+    "template": "🚫 *TIKET DIBATALKAN OLEH ADMIN* 🚫\n\n📋 *Detail Tiket:*\n• ID Tiket: *${ticket_id}*\n• Pelanggan: ${nama_pelanggan}\n• No. HP: ${no_hp}\n• Alamat: ${alamat}\n• Masalah: ${issue_type}\n• Prioritas: ${prioritas}\n\n⚠️ *Status:* DIBATALKAN\n• Dibatalkan oleh: ${cancelled_by}\n• Waktu pembatalan: ${waktu_pembatalan}\n\n${alasan_section}\n\n_Tiket ini tidak perlu diproses lagi._"
+  },
+  "ticket_process_customer": {
+    "name": "Notifikasi Tiket Diproses (Pelanggan)",
+    "template": "✅ *TIKET DIPROSES*\n\n━━━━━━━━━━━━━━━━\n📋 ID Tiket: *${ticket_id}*\n🔧 Teknisi: *${teknisi_name}*\n${teknisi_phone_section}━━━━━━━━━━━━━━━━\n\n🔐 *KODE OTP: ${otp}*\n\n⚠️ *PENTING:*\n• Simpan kode OTP ini\n• Berikan ke teknisi saat tiba\n• Jangan berikan ke orang lain\n• Kode hanya untuk tiket ini\n\nTeknisi akan segera menuju lokasi Anda.\n\n_Estimasi kedatangan akan diinformasikan._"
+  },
+  "ticket_otw_customer": {
+    "name": "Notifikasi Teknisi OTW (Pelanggan)",
+    "template": "🚗 *TEKNISI BERANGKAT*\n\n━━━━━━━━━━━━━━━━\n📋 ID Tiket: *${ticket_id}*\n🔧 Teknisi: *${teknisi_name}*\n${teknisi_phone_section}━━━━━━━━━━━━━━━━\n\nTeknisi sedang menuju lokasi Anda.\n\n⏱️ *Estimasi Tiba:* ${estimasi_waktu}\n_Waktu dapat berubah tergantung kondisi_\n\n📍 ${lokasi_info}\n\n🔐 *KODE VERIFIKASI:*\n╔════════════════╗\n║  *${otp}*  ║\n╚════════════════╝\n\nBerikan kode ini saat teknisi tiba."
+  },
+  "ticket_arrived_customer": {
+    "name": "Notifikasi Teknisi Sampai (Pelanggan)",
+    "template": "🎉 *TEKNISI SUDAH TIBA*\n\n━━━━━━━━━━━━━━━━\n📋 ID Tiket: *${ticket_id}*\n🔧 Teknisi: *${teknisi_name}*\n${teknisi_phone_section}━━━━━━━━━━━━━━━━\n\n✅ Teknisi sudah di lokasi Anda\n\n🔐 *KODE VERIFIKASI:*\n╔════════════════╗\n║  *${otp}*  ║\n╚════════════════╝\n\n⚠️ *PENTING:*\n• Berikan kode ini ke teknisi\n• Untuk memverifikasi identitas\n• Jangan berikan ke orang lain\n\n_Perbaikan akan segera dimulai._"
+  },
+  "ticket_working_customer": {
+    "name": "Notifikasi Mulai Perbaikan (Pelanggan)",
+    "template": "🔧 *PERBAIKAN DIMULAI*\n\n━━━━━━━━━━━━━━━━\n📋 ID Tiket: *${ticket_id}*\n🔧 Teknisi: *${teknisi_name}*\n━━━━━━━━━━━━━━━━\n\n✅ Verifikasi OTP berhasil\n✅ Teknisi mulai melakukan perbaikan\n\n⏳ Mohon menunggu hingga perbaikan selesai.\n\n_Teknisi akan memberikan update setelah perbaikan selesai._"
+  },
+  "ticket_completed_customer": {
+    "name": "Notifikasi Tiket Selesai (Pelanggan)",
+    "template": "✅ *PERBAIKAN SELESAI*\n\n━━━━━━━━━━━━━━━━\n📋 ID Tiket: *${ticket_id}*\n🔧 Teknisi: *${teknisi_name}*\n⏱️ Durasi: ${durasi} menit\n━━━━━━━━━━━━━━━━\n\n✅ Masalah Anda telah selesai diperbaiki\n📸 Dokumentasi: ${jumlah_foto} foto\n\n${catatan_section}\n\nTerima kasih telah menunggu. Jika masih ada kendala, silakan hubungi kami kembali.\n\nSalam,\n*${nama_wifi}*"
+  },
+  "ticket_created_teknisi": {
+    "name": "Notifikasi Tiket Baru (Teknisi)",
+    "template": "🆕 *TIKET LAPORAN BARU* 🆕\n\nAda laporan gangguan baru:\n\n📋 *Detail Tiket:*\n• ID Tiket: *${ticket_id}*\n• Prioritas: ${prioritas}\n• Pelanggan: ${nama_pelanggan}\n• No. HP: ${no_hp}\n• Alamat: ${alamat}\n• Masalah: ${issue_type}\n• Laporan: ${laporan_text}\n\n⚡ *Tindakan:*\nKetik *proses ${ticket_id}* untuk mengambil tiket ini\n\n_Harap segera ditindaklanjuti sesuai prioritas._"
+  },
+  "discount_notification": {
+    "name": "Notifikasi Diskon Pelanggan",
+    "description": "Dikirim ke pelanggan saat admin memberikan diskon",
+    "category": "discount",
+    "template": "ðŸŽ‰ *SELAMAT! ANDA MENDAPAT DISKON* ðŸŽ‰\n\nHalo *${customer_name}*,\n\nKami dengan senang hati memberitahukan bahwa Anda mendapatkan diskon khusus untuk tagihan internet Anda.\n\nðŸ“‹ *Detail Diskon:*\nâ€¢ Paket: ${package_name}\nâ€¢ Harga Normal: ${base_price}\nâ€¢ Potongan: ${discount_text}\nâ€¢ *Harga Setelah Diskon: ${final_price}*\n\nðŸ“ *Alasan Diskon:*\n${discount_reason}\n\nâ° *Berlaku Sampai:*\n${valid_until}\n\nTerima kasih telah menjadi pelanggan setia kami! ðŸ™\n\n_Pesan ini dikirim otomatis oleh sistem ${company_name}_",
+    "placeholders": ["customer_name", "package_name", "base_price", "discount_text", "final_price", "discount_reason", "valid_until", "company_name"],
+    "enabled": true
+  },
+  "discount_removed": {
+    "name": "Notifikasi Diskon Dihapus",
+    "description": "Dikirim ke pelanggan saat diskon dihapus",
+    "category": "discount",
+    "template": "ðŸ“¢ *INFORMASI DISKON* ðŸ“¢\n\nHalo *${customer_name}*,\n\nKami informasikan bahwa diskon untuk akun Anda telah berakhir.\n\nðŸ“‹ *Detail:*\nâ€¢ Paket: ${package_name}\nâ€¢ Harga Normal: ${package_price}\n\nTagihan bulan depan akan kembali ke harga normal.\n\nTerima kasih atas pengertiannya.\n\n_Pesan ini dikirim otomatis oleh sistem ${company_name}_",
+    "placeholders": ["customer_name", "package_name", "package_price", "company_name"],
+    "enabled": true
+  },
+  "kasbon_approved": {
+    "name": "Notifikasi Kasbon Disetujui",
+    "description": "Dikirim ke teknisi saat kasbon disetujui",
+    "category": "kasbon",
+    "template": "âœ… *KASBON DISETUJUI* âœ…\n\nHalo *${technician_name}*,\n\nPengajuan kasbon Anda telah disetujui oleh admin.\n\nðŸ’° *Detail Kasbon:*\nâ€¢ Nominal: ${kasbon_amount}\nâ€¢ Keperluan: ${kasbon_reason}\nâ€¢ Disetujui oleh: ${admin_name}\nâ€¢ Tanggal: ${current_date}\n\nSilakan ambil dana kasbon sesuai prosedur.\n\n_Pesan ini dikirim otomatis oleh sistem ${company_name}_",
+    "placeholders": ["technician_name", "kasbon_amount", "kasbon_reason", "admin_name", "current_date", "company_name"],
+    "enabled": true
+  },
+  "kasbon_rejected": {
+    "name": "Notifikasi Kasbon Ditolak",
+    "description": "Dikirim ke teknisi saat kasbon ditolak",
+    "category": "kasbon",
+    "template": "âŒ *KASBON DITOLAK* âŒ\n\nHalo *${technician_name}*,\n\nMohon maaf, pengajuan kasbon Anda tidak dapat disetujui.\n\nðŸ’° *Detail Kasbon:*\nâ€¢ Nominal: ${kasbon_amount}\nâ€¢ Keperluan: ${kasbon_reason}\nâ€¢ Alasan Penolakan: ${reject_reason}\n\nSilakan hubungi admin untuk informasi lebih lanjut.\n\n_Pesan ini dikirim otomatis oleh sistem ${company_name}_",
+    "placeholders": ["technician_name", "kasbon_amount", "kasbon_reason", "reject_reason", "company_name"],
+    "enabled": true
+  },
+  "package_changed": {
+    "name": "Notifikasi Perubahan Paket",
+    "description": "Dikirim ke pelanggan saat paket diubah",
+    "category": "package",
+    "template": "ðŸ“¦ *PERUBAHAN PAKET LANGGANAN* ðŸ“¦\n\nHalo *${customer_name}*,\n\nPaket langganan internet Anda telah diubah.\n\nðŸ“‹ *Detail Perubahan:*\nâ€¢ Paket Lama: ${old_package}\nâ€¢ Paket Baru: ${new_package}\nâ€¢ Harga Baru: ${new_price}\nâ€¢ Berlaku Mulai: ${effective_date}\n\nPerubahan akan aktif segera setelah proses selesai.\n\nTerima kasih telah menggunakan layanan kami.\n\n_Pesan ini dikirim otomatis oleh sistem ${company_name}_",
+    "placeholders": ["customer_name", "old_package", "new_package", "new_price", "effective_date", "company_name"],
+    "enabled": true
+  }
+}

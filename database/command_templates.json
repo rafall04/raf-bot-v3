@@ -1,0 +1,26 @@
+{
+  "sapaan_pagi": {
+    "name": "Morning Greeting",
+    "template": "Selamat pagi ${pushname} 👋\n\nAda yang bisa saya bantu? Ketik *menu* untuk melihat daftar perintah yang tersedia."
+  },
+  "sapaan_siang": {
+    "name": "Afternoon Greeting",
+    "template": "Selamat siang ${pushname} 👋\n\nAda yang bisa saya bantu? Ketik *menu* untuk melihat daftar perintah yang tersedia."
+  },
+  "sapaan_sore": {
+    "name": "Evening Greeting",
+    "template": "Selamat sore ${pushname} 👋\n\nAda yang bisa saya bantu? Ketik *menu* untuk melihat daftar perintah yang tersedia."
+  },
+  "sapaan_malam": {
+    "name": "Night Greeting",
+    "template": "Selamat malam ${pushname} 👋\n\nAda yang bisa saya bantu? Ketik *menu* untuk melihat daftar perintah yang tersedia."
+  },
+  "menu_pelanggan": {
+    "name": "Customer Menu Complete",
+    "template": "⚙️ *MENU PELANGGAN ${nama_wifi}* ⚙️\n===================================\nAtur sendiri layanan WiFi Anda dan kelola laporan dengan mudah!\n\n📡 *LAPORAN & TIKET:*\n  • *lapor* - Laporkan kendala langsung ke tim teknisi kami.\n    *Contoh:* `lapor internet saya lambat sekali hari ini`\n    *(Hanya untuk pelanggan terdaftar. Jika ada laporan aktif, tunggu hingga selesai.)*\n\n  • *cektiket* - Cek status laporan Anda.\n    *Contoh:* `cektiket ID_TIKET_ANDA`\n    *(Gunakan ID Tiket yang Anda terima saat melapor).*\n\n  • *batalkantiket* - Batalkan laporan yang baru dibuat.\n    *Contoh:* `batalkantiket ID_TIKET_ANDA`\n    *(Hanya bisa dilakukan jika tiket masih berstatus \"Baru\" dan belum diproses teknisi).*\n\n🚀 *SPEED BOOST (SPEED ON DEMAND):*\n  • *speedboost* / *requestspeed* / *requestboost* - Request Speed Boost baru.\n    *Fungsi:* Memulai proses request peningkatan kecepatan sementara.\n    *Proses:* Pilih paket → pilih durasi → pilih metode bayar → konfirmasi.\n\n  • *cekspeed* / *statusboost* / *statusspeed* - Cek status Speed Boost.\n    *Fungsi:* Melihat apakah Anda memiliki Speed Boost yang sedang aktif.\n\n  📌 *Cara Request Speed Boost via WhatsApp:*\n    1. Ketik `speedboost` atau `requestspeed`\n    2. Pilih paket tujuan dari daftar yang tersedia\n    3. Pilih durasi (1 hari/3 hari/7 hari)\n    4. Pilih metode pembayaran:\n       • 💵 Cash: Teknisi akan datang untuk ambil pembayaran\n       • 🏦 Transfer: Transfer & kirim bukti via WhatsApp\n       • 📋 Tagihan: Masuk ke invoice bulan depan\n    5. Konfirmasi detail order\n    6. Tunggu aktivasi (otomatis setelah pembayaran verified)\n\n  💡 *Syarat Speed Boost:*\n    - Status pembayaran bulan ini harus \"Sudah Bayar\"\n    - Tidak ada Speed Boost atau kompensasi yang sedang aktif\n    - Paket tujuan harus lebih tinggi dari paket saat ini\n\n💳 *SALDO & AGENT/OUTLET:*\n  • *saldo* / *ceksaldo* - Cek saldo voucher Anda.\n    *Fungsi:* Melihat jumlah saldo dan riwayat transaksi.\n\n  • *agent* / *outlet* - Lihat daftar agent/outlet terdekat.\n    *Fungsi:* Menampilkan semua lokasi agent untuk topup/voucher/pembayaran.\n    *Contoh:* `agent tanjung` - Lihat agent di area Tanjung.\n\n  • *cari agent* [keyword] - Cari agent berdasarkan area/nama.\n    *Contoh:* `cari agent murung` - Mencari agent di area Murung.\n\n  • *layanan* - Lihat layanan yang tersedia di agent.\n    *Fungsi:* Info lengkap tentang layanan topup, voucher, pembayaran.\n\n  💡 *Keuntungan Datang ke Agent/Outlet:*\n    ✅ Topup saldo langsung tanpa menunggu verifikasi\n    ✅ Beli voucher WiFi berbagai paket\n    ✅ Bayar tagihan bulanan secara tunai\n    ✅ Konsultasi langsung dengan petugas\n\n🔧 *PENGATURAN WIFI:*\n  • *gantinama* - Ubah nama WiFi (SSID) Anda.\n    *Contoh:* `gantinama WiFiKeluargaCeria`\n    *(Khusus Pelanggan Pascabayar/Bulanan)*\n\n  • *gantisandi* - Atur ulang kata sandi WiFi Anda.\n    *Contoh:* `gantisandi PassWordKuat123`\n    *Catatan:* Minimal 8 karakter (huruf & angka).\n    *(Khusus Pelanggan Pascabayar/Bulanan)*\n\n  • *gantipower* - Sesuaikan jangkauan sinyal WiFi modem.\n    *Contoh:* `gantipower 80`\n    *Catatan:* Pilihan daya: 100, 80, 60, 40, 20.\n    *(Khusus Pelanggan Pascabayar/Bulanan)*\n\n  • *reboot* - Restart modem Anda dari sini.\n    *(Khusus Pelanggan Pascabayar/Bulanan)*\n\n  • *cekwifi* / *infowifi* - Dapatkan info terkini modem Anda.\n    *Info:* Menampilkan nama WiFi & password saat ini.\n\n  • *historywifi* / *riwayatwifi* - Lihat riwayat perubahan WiFi.\n    *Info:* Menampilkan 10 perubahan terakhir nama/password WiFi.\n\n===================================\nℹ️ *BANTUAN TAMBAHAN:*\nJika ada pertanyaan atau kendala lain, Admin kami siap membantu:\n🔗 https://wa.me/6289685645956 (Klik untuk chat)\n\nTerima kasih atas kepercayaan Anda kepada ${nama_wifi}! 🙏\n\n_${nama_bot} - Siap membantu Anda 24/7_"
+  },
+  "saldo_tidak_cukup": {
+    "name": "Insufficient Balance",
+    "template": "❌ *SALDO TIDAK MENCUKUPI*\n\nMaaf Kak ${pushname}, saldo Anda tidak mencukupi.\n\nSaldo saat ini: *${current_saldo}*\nDiperlukan: *${required_saldo}*\n\nSilakan topup terlebih dahulu."
+  }
+}

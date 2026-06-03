@@ -1,0 +1,166 @@
+{
+  "error_general": {
+    "name": "Error Umum",
+    "template": "❌ Maaf, terjadi kesalahan. ${error_message}\n\nSilakan coba lagi atau hubungi admin untuk bantuan."
+  },
+  "error_permission_denied": {
+    "name": "Akses Ditolak",
+    "template": "🚫 Maaf ${nama}, Anda tidak memiliki akses untuk menggunakan perintah ini.\n\n${reason}"
+  },
+  "error_invalid_input": {
+    "name": "Input Tidak Valid",
+    "template": "⚠️ Input tidak valid.\n\n${message}\n\n*Format yang benar:*\n${format_example}"
+  },
+  "error_not_found": {
+    "name": "Data Tidak Ditemukan",
+    "template": "🔍 Maaf, ${item} tidak ditemukan.\n\n${suggestion}"
+  },
+  "error_timeout": {
+    "name": "Waktu Habis",
+    "template": "⏱️ Waktu habis. ${message}\n\nSilakan coba lagi dari awal."
+  },
+  "error_connection": {
+    "name": "Kesalahan Koneksi",
+    "template": "📡 Terjadi kesalahan koneksi.\n\n${message}\n\nMohon tunggu beberapa saat dan coba lagi."
+  },
+  "error_device_offline": {
+    "name": "Perangkat Offline",
+    "template": "📵 Perangkat ${device_name} sedang offline.\n\n${message}"
+  },
+  "error_quota_exceeded": {
+    "name": "Kuota Terlampaui",
+    "template": "📊 Kuota ${quota_type} Anda telah habis.\n\n${message}"
+  },
+  "success_general": {
+    "name": "Berhasil",
+    "template": "✅ ${message}\n\n${additional_info}"
+  },
+  "success_saved": {
+    "name": "Data Tersimpan",
+    "template": "✅ Data berhasil disimpan.\n\n${details}"
+  },
+  "success_updated": {
+    "name": "Data Diperbarui",
+    "template": "✅ ${item} berhasil diperbarui.\n\n${old_value} → ${new_value}"
+  },
+  "success_deleted": {
+    "name": "Data Dihapus",
+    "template": "✅ ${item} berhasil dihapus."
+  },
+  "success_sent": {
+    "name": "Pesan Terkirim",
+    "template": "✅ ${message_type} berhasil dikirim ke ${recipient}."
+  },
+  "success_completed": {
+    "name": "Proses Selesai",
+    "template": "✅ ${process_name} telah selesai.\n\n${summary}"
+  },
+  "success_payment": {
+    "name": "Pembayaran Berhasil",
+    "template": "✅ Pembayaran berhasil!\n\n${payment_details}"
+  },
+  "prompt_confirmation": {
+    "name": "Konfirmasi",
+    "template": "❓ Apakah Anda yakin ${action}?\n\n${details}\n\nKetik *ya* untuk melanjutkan atau *batal* untuk membatalkan."
+  },
+  "prompt_input_required": {
+    "name": "Input Diperlukan",
+    "template": "📝 Silakan masukkan ${field_name}:\n\n${hint}"
+  },
+  "prompt_select_option": {
+    "name": "Pilih Opsi",
+    "template": "📋 Silakan pilih salah satu:\n\n${options}\n\nBalas dengan nomor pilihan Anda."
+  },
+  "prompt_continue": {
+    "name": "Lanjutkan?",
+    "template": "➡️ ${message}\n\nKetik *lanjut* untuk melanjutkan atau *batal* untuk membatalkan."
+  },
+  "info_processing": {
+    "name": "Sedang Memproses",
+    "template": "⏳ ${process_description}\n\nMohon tunggu sebentar..."
+  },
+  "info_waiting": {
+    "name": "Menunggu",
+    "template": "⏳ Menunggu ${waiting_for}...\n\n${additional_info}"
+  },
+  "info_cancelled": {
+    "name": "Dibatalkan",
+    "template": "❌ ${process_name} dibatalkan.\n\n${reason}"
+  },
+  "info_expired": {
+    "name": "Kadaluarsa",
+    "template": "⏰ ${item} telah kadaluarsa.\n\n${action_needed}"
+  },
+  "info_maintenance": {
+    "name": "Pemeliharaan",
+    "template": "🔧 Sistem sedang dalam pemeliharaan.\n\n${message}\n\nKami akan segera kembali. Terima kasih atas kesabaran Anda."
+  },
+  "greeting_morning": {
+    "name": "Salam Pagi",
+    "template": "Selamat pagi ${nama} 🌅\n\nAda yang bisa saya bantu hari ini?\n\n📋 *Menu Dasar:*\n• Ketik *menuwifi* - Lihat semua layanan & fitur\n• Ketik *voucher* - Cek daftar harga voucher\n• Ketik *ceksaldo* - Cek saldo Anda\n• Ketik *bantuan* - Panduan lengkap\n\nKetik *menuwifi* untuk memulai! ✨"
+  },
+  "greeting_afternoon": {
+    "name": "Salam Siang",
+    "template": "Selamat siang ${nama} ☀️\n\nAda yang bisa saya bantu?\n\n📋 *Menu Dasar:*\n• Ketik *menuwifi* - Lihat semua layanan & fitur\n• Ketik *voucher* - Cek daftar harga voucher\n• Ketik *ceksaldo* - Cek saldo Anda\n• Ketik *bantuan* - Panduan lengkap\n\nKetik *menuwifi* untuk memulai! ✨"
+  },
+  "greeting_evening": {
+    "name": "Salam Sore",
+    "template": "Selamat sore ${nama} 🌆\n\nAda yang bisa saya bantu?\n\n📋 *Menu Dasar:*\n• Ketik *menuwifi* - Lihat semua layanan & fitur\n• Ketik *voucher* - Cek daftar harga voucher\n• Ketik *ceksaldo* - Cek saldo Anda\n• Ketik *bantuan* - Panduan lengkap\n\nKetik *menuwifi* untuk memulai! ✨"
+  },
+  "greeting_night": {
+    "name": "Salam Malam",
+    "template": "Selamat malam ${nama} 🌙\n\nAda yang bisa saya bantu?\n\n📋 *Menu Dasar:*\n• Ketik *menuwifi* - Lihat semua layanan & fitur\n• Ketik *voucher* - Cek daftar harga voucher\n• Ketik *ceksaldo* - Cek saldo Anda\n• Ketik *bantuan* - Panduan lengkap\n\nKetik *menuwifi* untuk memulai! ✨"
+  },
+  "greeting_welcome": {
+    "name": "Selamat Datang",
+    "template": "Halo ${nama} 👋\n\nSelamat datang di ${nama_wifi}!\n\nAda yang bisa saya bantu? Ketik *menu* untuk melihat daftar perintah."
+  },
+  "help_command_format": {
+    "name": "Format Perintah",
+    "template": "*Format Perintah:*\n${command_format}\n\n*Contoh:*\n${example}"
+  },
+  "help_not_available": {
+    "name": "Bantuan Tidak Tersedia",
+    "template": "📖 Maaf, bantuan untuk *${topic}* tidak tersedia.\n\nKetik *help* untuk bantuan umum."
+  },
+  "validation_required_field": {
+    "name": "Field Wajib",
+    "template": "⚠️ ${field_name} wajib diisi."
+  },
+  "validation_min_length": {
+    "name": "Panjang Minimum",
+    "template": "⚠️ ${field_name} minimal ${min_length} karakter."
+  },
+  "validation_max_length": {
+    "name": "Panjang Maksimum",
+    "template": "⚠️ ${field_name} maksimal ${max_length} karakter."
+  },
+  "validation_invalid_format": {
+    "name": "Format Tidak Valid",
+    "template": "⚠️ Format ${field_name} tidak valid.\n\nFormat yang benar: ${correct_format}"
+  },
+  "validation_number_only": {
+    "name": "Hanya Angka",
+    "template": "⚠️ ${field_name} hanya boleh berisi angka."
+  },
+  "validation_phone_format": {
+    "name": "Format Nomor HP",
+    "template": "⚠️ Format nomor HP tidak valid.\n\nContoh yang benar: 08123456789"
+  },
+  "validation_email_format": {
+    "name": "Format Email",
+    "template": "⚠️ Format email tidak valid.\n\nContoh: user@example.com"
+  },
+  "session_started": {
+    "name": "Sesi Dimulai",
+    "template": "🔄 Sesi ${session_type} dimulai.\n\n${instructions}"
+  },
+  "session_ended": {
+    "name": "Sesi Berakhir",
+    "template": "✅ Sesi ${session_type} berakhir.\n\n${summary}"
+  },
+  "session_timeout": {
+    "name": "Sesi Timeout",
+    "template": "⏱️ Sesi ${session_type} telah berakhir karena tidak ada aktivitas.\n\nSilakan mulai lagi jika diperlukan."
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "wifi_name_changed": {
+    "name": "WiFi Name Changed Success",
+    "template": "✅ *BERHASIL MENGGANTI NAMA WIFI*\n\n📋 Detail Perubahan:\n• Pelanggan: ${nama_pelanggan}\n• SSID: ${ssid_name}\n• Nama Lama: ${old_name}\n• Nama Baru: ${new_name}\n\n_Perubahan akan aktif dalam 1-2 menit._"
+  },
+  "wifi_password_changed": {
+    "name": "WiFi Password Changed Success",
+    "template": "✅ *BERHASIL MENGGANTI PASSWORD WIFI*\n\n📋 Detail Perubahan:\n• Pelanggan: ${nama_pelanggan}\n• SSID: ${ssid_name}\n• Password Baru: ${new_password}\n\n⚠️ *PENTING:* Semua perangkat harus reconnect dengan password baru."
+  },
+  "reboot_success": {
+    "name": "Reboot Success",
+    "template": "✅ *MODEM BERHASIL DI-RESTART*\n\n📋 Detail:\n• Pelanggan: ${nama_pelanggan}\n• Device: ${device_id}\n• Waktu: ${timestamp}\n\nModem akan restart dalam 1-2 menit. Koneksi akan terputus sementara."
+  },
+  "ticket_created": {
+    "name": "Ticket Created Success",
+    "template": "✅ *LAPORAN BERHASIL DIBUAT*\n\n📋 Detail Tiket:\n• ID Tiket: *${ticket_id}*\n• Pelanggan: ${nama_pelanggan}\n• Masalah: ${issue_type}\n• Status: ${status}\n\nTeknisi akan segera memproses laporan Anda.\nGunakan *cektiket ${ticket_id}* untuk melihat status."
+  },
+  "ticket_cancelled": {
+    "name": "Ticket Cancelled Success",
+    "template": "✅ *TIKET BERHASIL DIBATALKAN*\n\nTiket *${ticket_id}* telah dibatalkan.\n\nJika ada masalah lain, silakan buat laporan baru."
+  },
+  "payment_received": {
+    "name": "Payment Received",
+    "template": "✅ *PEMBAYARAN DITERIMA*\n\n💰 Detail Pembayaran:\n• Pelanggan: ${nama_pelanggan}\n• Jumlah: ${amount}\n• Metode: ${payment_method}\n• Status: *LUNAS*\n\nTerima kasih atas pembayaran Anda!"
+  },
+  "package_changed": {
+    "name": "Package Changed Success",
+    "template": "✅ *PAKET BERHASIL DIUBAH*\n\n📦 Detail Perubahan:\n• Paket Lama: ${old_package}\n• Paket Baru: ${new_package}\n• Harga Baru: ${new_price}\n• Berlaku: ${effective_date}\n\nPerubahan akan aktif dalam beberapa menit."
+  },
+  "speed_boost_activated": {
+    "name": "Speed Boost Activated",
+    "template": "🚀 *SPEED BOOST AKTIF!*\n\n📈 Detail Boost:\n• Paket Asal: ${original_package}\n• Boost Ke: ${boost_package}\n• Durasi: ${duration}\n• Berakhir: ${expiry_date}\n\nNikmati kecepatan internet yang lebih cepat!"
+  },
+  "profile_added": {
+    "name": "Profile Added Success",
+    "template": "✅ *PROFIL BERHASIL DITAMBAHKAN*\n\n📋 Detail Profil:\n• Nama: ${profile_name}\n• Tipe: ${profile_type}\n• Limit: ${profile_limit}\n\nProfil siap digunakan."
+  },
+  "user_added": {
+    "name": "User Added Success",
+    "template": "✅ *USER BERHASIL DITAMBAHKAN*\n\n👤 Detail User:\n• Username: ${username}\n• Nama: ${nama_pelanggan}\n• Paket: ${package}\n• Status: *AKTIF*\n\nUser dapat langsung menggunakan layanan."
+  },
+  "voucher_purchased": {
+    "name": "Voucher Purchase Success",
+    "template": "✅ *PEMBELIAN VOUCHER BERHASIL*\n\n🎫 Detail Voucher:\n• Kode: *${voucher_code}*\n• Nominal: ${voucher_amount}\n• Masa Aktif: ${validity}\n• Sisa Saldo: ${remaining_balance}\n\nSimpan kode voucher dengan baik!"
+  },
+  "balance_topped_up": {
+    "name": "Balance Top Up Success",
+    "template": "✅ *TOP UP BERHASIL*\n\n💰 Detail Top Up:\n• Jumlah: ${amount}\n• Saldo Sebelum: ${previous_balance}\n• Saldo Sekarang: ${current_balance}\n\nTerima kasih telah melakukan top up!"
+  }
+}

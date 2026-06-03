@@ -1,0 +1,896 @@
+/* assets/css/monitoring.css */
+.monitoring-widget {
+    margin-bottom: 20px;
+}
+
+.health-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.health-good { background: #28a745; }
+.health-warning { background: #ffc107; }
+.health-critical { background: #dc3545; }
+
+.traffic-chart-container {
+    position: relative;
+    width: 100%;
+    height: 300px;
+}
+
+/* Let Chart.js own the sizing inside the fixed-height responsive container */
+.traffic-chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.metric-label {
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+.alert-badge {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Additional styles for monitoring widget integration */
+#monitoring-section {
+    margin-top: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+#monitoring-section .small-box {
+    border-radius: 0.5rem;
+    position: relative;
+    padding: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 0 1px rgba(0,0,0,.125), 0 1px 3px rgba(0,0,0,.2);
+    display: block;
+}
+
+#monitoring-section .small-box > .inner {
+    padding: 10px;
+}
+
+#monitoring-section .small-box h3 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin: 0 0 10px 0;
+    white-space: nowrap;
+    padding: 0;
+}
+
+#monitoring-section .small-box p {
+    font-size: 1rem;
+    margin-bottom: 0;
+}
+
+#monitoring-section .small-box small {
+    font-size: 0.875rem;
+    opacity: 0.8;
+}
+
+#monitoring-section .small-box .icon {
+    color: rgba(0,0,0,.15);
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    z-index: 0;
+}
+
+#monitoring-section .small-box .icon i {
+    font-size: 70px;
+    position: absolute;
+    right: 15px;
+    top: 15px;
+    transition: all .3s linear;
+}
+
+#monitoring-section .small-box:hover .icon i {
+    font-size: 75px;
+}
+
+#monitoring-section .small-box > .small-box-footer {
+    background-color: rgba(0,0,0,.1);
+    color: rgba(255,255,255,.8);
+    display: block;
+    padding: 3px 0;
+    position: relative;
+    text-align: center;
+    text-decoration: none;
+    z-index: 10;
+    margin: 0 -10px -10px;
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+}
+
+#monitoring-section .small-box > .small-box-footer:hover {
+    background-color: rgba(0,0,0,.15);
+    color: #fff;
+}
+
+/* Modern Simple Dashboard Styles */
+
+.monitoring-dashboard {
+    padding: 0;
+    background: transparent;
+    min-height: 0;
+}
+
+/* Compact Monitoring Cards */
+.modern-card {
+    border-radius: 12px;
+    padding: 0.95rem 1rem;
+    color: #1f2937;
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.7rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    cursor: pointer;
+    margin-bottom: 0;
+    background: #ffffff;
+    border: 1px solid #e9edf3;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.modern-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.modern-card .card-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    position: relative;
+    right: auto;
+    opacity: 1;
+    flex-shrink: 0;
+    background: var(--monitoring-surface, rgba(99, 102, 241, 0.12));
+    color: var(--monitoring-accent, #6366f1);
+}
+
+.modern-card .card-content {
+    z-index: 1;
+    position: relative;
+    min-width: 0;
+    flex: 1;
+}
+
+.modern-card .card-content h2 {
+    margin: 0;
+    font-size: clamp(1.05rem, 1.25vw, 1.45rem);
+    font-weight: 700;
+    line-height: 1.1;
+    color: #1f2937;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
+
+.modern-card .card-content p {
+    margin: 0.3rem 0 0;
+    font-size: 0.79rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+}
+
+.monitoring-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+    margin-top: 12px;
+    padding-top: 12px;
+}
+
+.monitoring-state-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 4px 10px;
+}
+
+.monitoring-state-badge.state-healthy {
+    background: rgba(5, 150, 105, 0.12);
+    color: #047857;
+}
+
+.monitoring-state-badge.state-stale {
+    background: rgba(217, 119, 6, 0.12);
+    color: #b45309;
+}
+
+.monitoring-state-badge.state-disconnected {
+    background: rgba(220, 38, 38, 0.12);
+    color: #b91c1c;
+}
+
+.monitoring-meta-text {
+    color: #64748b;
+    font-size: 0.8rem;
+}
+
+.gradient-green {
+    --monitoring-accent: #10b981;
+    --monitoring-surface: rgba(16, 185, 129, 0.14);
+}
+
+.gradient-blue {
+    --monitoring-accent: #6366f1;
+    --monitoring-surface: rgba(99, 102, 241, 0.14);
+}
+
+.gradient-orange {
+    --monitoring-accent: #f59e0b;
+    --monitoring-surface: rgba(245, 158, 11, 0.14);
+}
+
+.gradient-purple {
+    --monitoring-accent: #0ea5e9;
+    --monitoring-surface: rgba(14, 165, 233, 0.14);
+}
+
+.gradient-info {
+    --monitoring-accent: #06b6d4;
+    --monitoring-surface: rgba(6, 182, 212, 0.14);
+}
+
+/* Clickable stat card styles */
+.clickable-stat-card {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.clickable-stat-card:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1) !important;
+    border-color: rgba(99, 102, 241, 0.28);
+}
+
+.clickable-stat-card:active {
+    transform: translateY(-1px) !important;
+}
+
+.clickable-stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.clickable-stat-card:hover::after {
+    left: 100%;
+}
+
+/* Error state for cards */
+.modern-card.error {
+    border-color: rgba(239, 68, 68, 0.25) !important;
+    background: #ffffff !important;
+    --monitoring-accent: #ef4444;
+    --monitoring-surface: rgba(239, 68, 68, 0.12);
+}
+
+/* Modern Panel Styles */
+.modern-panel {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+}
+
+.panel-header {
+    padding: 0.95rem 1.15rem;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.panel-header h5 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1f2937;
+    display: flex;
+    align-items: center;
+    letter-spacing: -0.01em;
+}
+
+.panel-header h5 i {
+    margin-right: 0.5rem;
+    color: #6366f1;
+    font-size: 0.95rem;
+}
+
+.panel-body {
+    padding: 1rem 1.15rem;
+}
+
+.panel-footer {
+    padding: 0.9rem 1.15rem 1rem;
+    background: #ffffff;
+    border-top: 1px solid #e5e7eb;
+}
+
+/* Interface Selector */
+.interface-selector-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.interface-selector-wrapper .form-select {
+    width: 150px;
+    border-radius: 10px;
+    border: 1px solid #dbe2ea;
+    font-size: 0.875rem;
+    box-shadow: none;
+}
+
+/* Traffic Stats */
+.panel-footer .row {
+    margin: 0;
+}
+
+.panel-footer .col-6:first-child .traffic-stat {
+    border-right: 1px solid #eef2f7;
+}
+
+.traffic-stat {
+    padding: 0.4rem 0.25rem;
+}
+
+.traffic-stat i {
+    font-size: 1.5rem;
+    display: block;
+    margin-bottom: 10px;
+    opacity: 0.7;
+}
+
+.traffic-stat .stat-value {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 4px;
+}
+
+.traffic-stat .stat-label {
+    display: block;
+    font-size: 0.72rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+}
+
+.traffic-stat .stat-total {
+    display: block;
+    font-size: 0.82rem;
+    color: #94a3b8;
+}
+
+.download-stat i {
+    color: #28a745;
+}
+
+.upload-stat i {
+    color: #17a2b8;
+}
+
+/* Resource Cards */
+.resource-card {
+    background: #f8fafc;
+    border: 1px solid #edf2f7;
+    border-radius: 10px;
+    padding: 0.8rem 0.85rem;
+}
+
+.resource-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.resource-header i {
+    font-size: 1rem;
+    color: #666;
+    margin-right: 8px;
+}
+
+.resource-header span {
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.resource-value {
+    font-weight: 700;
+    color: #1f2937;
+}
+
+/* Modern Progress Bars */
+.modern-progress {
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.cpu-fill {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+}
+
+.memory-fill {
+    background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+}
+
+.disk-fill {
+    background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+}
+
+/* Quick Actions */
+.quick-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    padding: 0.1rem 0;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.quick-actions .btn {
+    border-radius: 10px;
+    padding: 0.42rem 0.8rem;
+    font-weight: 600;
+}
+
+@media (max-width: 991.98px) {
+    .monitoring-dashboard .row > [class*="col-"] {
+        margin-bottom: 0.75rem;
+    }
+
+    .quick-actions {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+}
+
+.quick-actions .btn {
+    margin: 0 5px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .monitoring-dashboard {
+        padding: 5px;
+    }
+    
+    .monitoring-dashboard .row {
+        margin: 0 -5px;
+    }
+    
+    .monitoring-dashboard .row > [class*="col-"] {
+        padding: 0 5px;
+    }
+    
+    .modern-card {
+        min-height: 85px;
+        padding: 12px;
+        margin-bottom: 10px;
+    }
+    
+    .modern-card .card-icon {
+        font-size: 1.8rem;
+        right: 10px;
+    }
+    
+    .modern-card .card-content h2 {
+        font-size: 1.4rem;
+    }
+    
+    .modern-card .card-content p {
+        font-size: 0.7rem;
+        letter-spacing: 0.3px;
+    }
+    
+    .interface-selector-wrapper {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .interface-selector-wrapper .form-select {
+        width: 100%;
+        margin-top: 5px;
+    }
+    
+    .traffic-stat .stat-value {
+        font-size: 1.25rem;
+    }
+
+    .traffic-chart-container {
+        height: 250px;
+    }
+
+    .modern-panel {
+        margin-bottom: 15px;
+    }
+    
+    .quick-actions .btn {
+        margin: 2px;
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
+
+/* Hide elements that are removed */
+#hotspot-users-table,
+#pppoe-users-table,
+#interfaces-table,
+.nav-tabs,
+.tab-content {
+    display: none !important;
+}
+
+/* User Card Styles for Modal */
+.user-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    transition: box-shadow 0.2s ease;
+}
+
+.user-card:hover {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* Hostname badge styling */
+.user-card .badge-secondary {
+    background-color: #6c757d;
+    color: white;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    font-weight: 500;
+}
+
+/* MAC address monospace font */
+.font-monospace {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.85rem;
+}
+
+.user-list-container {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+/* Modal responsive adjustments */
+@media (max-width: 768px) {
+    .modal-dialog {
+        margin: 10px;
+        max-width: calc(100% - 20px);
+    }
+    
+    .modal-body {
+        padding: 10px;
+    }
+    
+    .user-list-container {
+        max-height: 70vh;
+    }
+    
+    .user-card {
+        font-size: 0.9rem;
+    }
+}
+
+/* Chart Canvas - Smooth and Modern (sizing handled by .traffic-chart-container) */
+#traffic-chart {
+    transition: opacity 0.3s ease;
+}
+
+/* Smooth chart container */
+.panel-body {
+    position: relative;
+    overflow: hidden;
+}
+
+.panel-body canvas {
+    transition: transform 0.3s ease;
+}
+
+/* Chart loading state */
+#traffic-chart.loading {
+    opacity: 0.5;
+}
+
+/* Smooth stat value transitions */
+.traffic-stat .stat-value {
+    transition: all 0.3s ease;
+    font-variant-numeric: tabular-nums; /* Monospace numbers untuk smooth transitions */
+}
+
+.traffic-stat .stat-total {
+    transition: color 0.3s ease;
+}
+
+/* Hover effect untuk chart container */
+.modern-panel:hover .panel-body {
+    background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.02) 100%);
+}
+
+/* Temperature specific styling */
+#mikrotik-temp {
+    color: #ff6b6b;
+}
+
+/* Progress bars */
+.progress {
+    height: 20px;
+    margin-bottom: 10px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.1);
+}
+
+.progress-bar {
+    height: 100%;
+    line-height: 20px;
+    color: #fff;
+    text-align: center;
+    transition: width 0.6s ease;
+}
+
+/* Description blocks */
+.description-block {
+    display: block;
+    margin: 10px 0;
+    text-align: center;
+}
+
+.description-block > .description-header {
+    margin: 0;
+    padding: 0;
+    font-weight: 600;
+    font-size: 1.25rem;
+}
+
+.description-block > .description-text {
+    font-weight: 400;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.description-percentage {
+    display: block;
+    font-weight: 600;
+    font-size: 0.875rem;
+    margin-bottom: 5px;
+}
+
+/* Table responsive styles */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Card tools */
+.card-tools {
+    float: right;
+    margin-right: -0.625rem;
+}
+
+.btn-tool {
+    background-color: transparent;
+    color: #adb5bd;
+    font-size: 0.875rem;
+    margin: -0.75rem 0;
+    padding: 0.25rem 0.5rem;
+}
+
+.btn-tool:hover {
+    color: #495057;
+}
+
+/* Collapsed card */
+.collapsed-card .card-body {
+    display: none;
+}
+
+/* Modal styles */
+#alertModal .list-group-item {
+    border-left: 3px solid transparent;
+    transition: all 0.3s;
+}
+
+#alertModal .list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+/* Badge colors matching Bootstrap theme */
+.badge-primary { background-color: #007bff; }
+.badge-success { background-color: #28a745; }
+.badge-warning { background-color: #ffc107; color: #212529; }
+.badge-danger { background-color: #dc3545; }
+.badge-info { background-color: #17a2b8; }
+.badge-secondary { background-color: #6c757d; }
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #monitoring-section .small-box h3 {
+        font-size: 1.5rem;
+    }
+    
+    #monitoring-section .small-box .icon i {
+        font-size: 50px;
+    }
+    
+    .description-block > .description-header {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    #monitoring-section {
+        margin-bottom: 1.25rem;
+    }
+
+    .monitoring-dashboard .row {
+        margin-left: -0.4rem;
+        margin-right: -0.4rem;
+    }
+
+    .monitoring-dashboard .row > [class*="col-"] {
+        padding-left: 0.4rem;
+        padding-right: 0.4rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .modern-card {
+        min-height: 0;
+        padding: 0.9rem;
+        border-radius: 14px;
+    }
+
+    .modern-card .card-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+    }
+
+    .modern-card .card-content h2 {
+        font-size: 1.4rem;
+        line-height: 1.05;
+    }
+
+    .modern-card .card-content p {
+        font-size: 0.72rem;
+    }
+
+    .panel-header,
+    .panel-body,
+    .panel-footer {
+        padding-left: 0.95rem;
+        padding-right: 0.95rem;
+    }
+
+    .panel-header .d-flex {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 0.75rem;
+    }
+
+    .panel-header h5 {
+        font-size: 0.95rem;
+    }
+
+    .interface-selector-wrapper {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.35rem;
+    }
+
+    .interface-selector-wrapper .form-select {
+        width: 100%;
+        margin-top: 0;
+    }
+
+    .traffic-stats {
+        grid-template-columns: 1fr;
+        gap: 0.7rem;
+    }
+
+    .traffic-stat {
+        padding: 0.85rem;
+    }
+
+    .resource-card {
+        padding: 0.8rem;
+    }
+
+    .traffic-chart-container {
+        height: 220px;
+    }
+
+    .quick-actions {
+        justify-content: flex-start;
+        gap: 0.45rem;
+    }
+
+    .quick-actions .btn {
+        flex: 1 1 calc(50% - 0.45rem);
+        margin: 0;
+        text-align: center;
+    }
+}
+
+@media (max-width: 420px) {
+    /* Keep the compact stat cards 2-up on small phones instead of full-width */
+    .modern-card {
+        padding: 0.75rem 0.8rem;
+        gap: 0.55rem;
+    }
+
+    .modern-card .card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        font-size: 1.15rem;
+    }
+
+    .modern-card .card-content h2 {
+        font-size: 1.15rem;
+    }
+
+    .quick-actions .btn {
+        flex-basis: 100%;
+    }
+}

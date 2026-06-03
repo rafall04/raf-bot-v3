@@ -1,0 +1,197 @@
+/**
+ * Header Doc
+ * Purpose: Mengagregasi read model rekap tunggakan pelanggan berbasis periode untuk tab operasional dan manajerial.
+ * Caller: `routes/arrears.js`.
+ * Deps: `../repositories/arrears.repository`.
+ * MainFuncs: `createArrearsService`, `getArrearsReadModel`, `getCustomerArrearsDetail`.
+ * SideEffects: Tidak ada; read-model only.
+ */
+"use strict";
+
+const { createArrearsRepository } = require("../repositories/arrears.repository");
+
+function createArrearsService(overrides = {}) {
+    const repository = overrides.repository || createArrearsRepository();
+
+    function formatPeriodKey(periodMonth, periodYear) {
+        return `${periodYear}-${String(periodMonth).padStart(2, "0")}`;
+    }
+
+    function getBucketFromCount(count) {
+        if (count >= 3) {
+            return "3_PLUS_PERIODE";
+        }
+        if (count === 2) {
+            return "2_PERIODE";
+        }
+        if (count === 1) {
+            return "1_PERIODE";
+        }
+        return null;
+    }
+
+    function buildLedgerMaps(ledger) {
+        const paymentMap = new Map();
+        const reversalMap = new Map();
+
+        for (const payment of ledger.payments || []) {
+            const key = `${payment.user_id}:${formatPeriodKey(payment.period_month, payment.period_year)}`;
+            const current = paymentMap.get(key) || {
+                gross_paid: 0,
+                amount_due: Number(payment.amount_due || 0)
+            };
+            current.gross_paid += Number(payment.amount_paid || 0);
+            current.amount_due = Number(payment.amount_due || current.amount_due || 0);
+            paymentMap.set(key, current);
+        }
+
+        for (const reversal of ledger.reversals || []) {
+            const key = `${reversal.user_id}:${formatPeriodKey(reversal.period_month, reversal.period_year)}`;
+            reversalMap.set(key, (reversalMap.get(key) || 0) + Number(reversal.amount_reversed || 0));
+        }
+
+        return { paymentMap, reversalMap };
+    }
+
+    function buildCustomerPeriods(customer, paymentMap, reversalMap, currentPeriodKey) {
+        const periods = [];
+
+        for (const [key, entry] of paymentMap.entries()) {
+            if (!key.startsWith(`${customer.id}:`)) {
+                continue;
+            }
+            const period = key.split(":")[1];
+            const reversal = reversalMap.get(key) || 0;
+            const netPaid = entry.gross_paid - reversal;
+            const amountDue = Number(entry.amount_due || customer.subscription_price || 0);
+            const outstanding = Math.max(amountDue - netPaid, 0);
+            periods.push({
+                period,
+                amount_due: amountDue,
+                gross_paid: entry.gross_paid,
+                total_reversal: reversal,
+                net_paid: netPaid,
+                outstanding,
+                status: outstanding > 0 ? "MENUNGGAK" : "LUNAS"
+            });
+        }
+
+        const currentKey = `${customer.id}:${currentPeriodKey}`;
+        if (!paymentMap.has(currentKey)) {
+            const amountDue = Number(customer.subscription_price || 0);
+            periods.push({
+                period: currentPeriodKey,
+                amount_due: amountDue,
+                gross_paid: 0,
+                total_reversal: 0,
+                net_paid: 0,
+                outstanding: amountDue,
+                status: amountDue > 0 ? "MENUNGGAK" : "LUNAS"
+            });
+        }
+
+        periods.sort((left, right) => left.period.localeCompare(right.period));
+        return periods;
+    }
+
+    async function getArrearsReadModel({ periodMonth, periodYear }) {
+        const customers = await repository.listBillableCustomers();
+        const ledger = await repository.getLedgerEntriesUpToPeriod({ periodMonth, periodYear });
+        const { paymentMap, reversalMap } = buildLedgerMaps(ledger);
+
+        const currentPeriodKey = formatPeriodKey(periodMonth, periodYear);
+        const rows = [];
+        let fullyPaidCustomers = 0;
+        let collectedAmount = 0;
+        let totalBilledAmount = 0;
+
+        for (const customer of customers) {
+            const periods = buildCustomerPeriods(customer, paymentMap, reversalMap, currentPeriodKey);
+            const currentPeriod = periods.find((period) => period.period === currentPeriodKey) || {
+                amount_due: Number(customer.subscription_price || 0),
+                net_paid: 0,
+                outstanding: Number(customer.subscription_price || 0)
+            };
+            const currentOutstanding = currentPeriod.outstanding;
+
+            totalBilledAmount += Number(currentPeriod.amount_due || customer.subscription_price || 0);
+            collectedAmount += Math.max(currentPeriod.net_paid || 0, 0);
+            if (currentOutstanding === 0) {
+                fullyPaidCustomers += 1;
+            }
+
+            const unpaidPeriods = periods.filter((period) => period.outstanding > 0)
+                .map((period) => ({ period: period.period, outstanding: period.outstanding }));
+
+            if (unpaidPeriods.length === 0) {
+                continue;
+            }
+
+            unpaidPeriods.sort((left, right) => left.period.localeCompare(right.period));
+            rows.push({
+                user_id: customer.id,
+                name: customer.name,
+                phone_number: customer.phone_number || null,
+                subscription: customer.subscription || null,
+                area: customer.area || null,
+                status: customer.status || null,
+                unpaid_period_count: unpaidPeriods.length,
+                oldest_unpaid_period: unpaidPeriods[0].period,
+                latest_unpaid_period: unpaidPeriods[unpaidPeriods.length - 1].period,
+                current_period_outstanding: currentOutstanding,
+                total_outstanding: unpaidPeriods.reduce((sum, period) => sum + period.outstanding, 0),
+                aging_bucket: getBucketFromCount(unpaidPeriods.length)
+            });
+        }
+
+        return {
+            rows,
+            summary: {
+                total_customers_in_arrears: rows.length,
+                total_outstanding: rows.reduce((sum, row) => sum + row.total_outstanding, 0),
+                current_period_outstanding: rows.reduce((sum, row) => sum + row.current_period_outstanding, 0),
+                bucket_1_period: rows.filter((row) => row.aging_bucket === "1_PERIODE").length,
+                bucket_2_period: rows.filter((row) => row.aging_bucket === "2_PERIODE").length,
+                bucket_3_plus_period: rows.filter((row) => row.aging_bucket === "3_PLUS_PERIODE").length,
+                collection_rate_by_customer: customers.length > 0 ? fullyPaidCustomers / customers.length : 0,
+                collection_rate_by_amount: totalBilledAmount > 0 ? collectedAmount / totalBilledAmount : 0
+            }
+        };
+    }
+
+    async function getCustomerArrearsDetail({ userId, periodMonth, periodYear }) {
+        const customers = await repository.listBillableCustomers();
+        const customerSource = customers.find((row) => String(row.id) === String(userId)) || null;
+        if (!customerSource) {
+            return {
+                customer: null,
+                unpaid_periods: [],
+                payment_timeline: [],
+                total_outstanding: 0
+            };
+        }
+
+        const ledger = await repository.getLedgerEntriesUpToPeriod({ periodMonth, periodYear });
+        const { paymentMap, reversalMap } = buildLedgerMaps(ledger);
+        const currentPeriodKey = formatPeriodKey(periodMonth, periodYear);
+        const periods = buildCustomerPeriods(customerSource, paymentMap, reversalMap, currentPeriodKey);
+        const unpaidPeriods = periods.filter((period) => period.outstanding > 0);
+        const readModel = await getArrearsReadModel({ periodMonth, periodYear });
+        const customer = readModel.rows.find((row) => String(row.user_id) === String(userId)) || null;
+
+        return {
+            customer,
+            unpaid_periods: unpaidPeriods,
+            payment_timeline: periods,
+            total_outstanding: customer ? customer.total_outstanding : 0
+        };
+    }
+
+    return {
+        deps: { repository },
+        getArrearsReadModel,
+        getCustomerArrearsDetail
+    };
+}
+
+module.exports = { createArrearsService };

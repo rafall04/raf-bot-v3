@@ -1,0 +1,114 @@
+[
+  {
+    "id": "1767437130951",
+    "name": "PAKET-110K",
+    "price": 110000,
+    "profile": "12Mbps",
+    "displayProfile": "Up To 10Mbps",
+    "description": "Stabil Untuk 2-3 Device",
+    "showInMonthly": true,
+    "whitelist": false,
+    "created_at": "2026-01-03T10:45:30.951Z"
+  },
+  {
+    "id": "1767437161844",
+    "name": "PAKET-125K",
+    "price": 125000,
+    "profile": "17Mbps",
+    "displayProfile": "Up To 15Mbps",
+    "description": "Stabil Untuk 3-4 Device",
+    "showInMonthly": true,
+    "whitelist": false,
+    "created_at": "2026-01-03T10:46:01.844Z"
+  },
+  {
+    "id": "1767437179568",
+    "name": "PAKET-150K",
+    "price": 150000,
+    "profile": "27Mbps",
+    "displayProfile": "27Mbps",
+    "description": "",
+    "showInMonthly": false,
+    "whitelist": false,
+    "created_at": "2026-01-03T10:46:19.568Z"
+  },
+  {
+    "id": "1767437209154",
+    "name": "PAKET-165K",
+    "price": 165000,
+    "profile": "32Mbps",
+    "displayProfile": "Up To 30Mbps",
+    "description": "Stabil Untuk 5-7 Device",
+    "showInMonthly": true,
+    "whitelist": false,
+    "created_at": "2026-01-03T10:46:49.154Z"
+  },
+  {
+    "id": "1767437226879",
+    "name": "PAKET-200K",
+    "price": 200000,
+    "profile": "42Mbps",
+    "displayProfile": "42Mbps",
+    "description": "",
+    "showInMonthly": false,
+    "whitelist": false,
+    "created_at": "2026-01-03T10:47:06.879Z"
+  },
+  {
+    "id": "1767437253420",
+    "name": "PAKET-220K",
+    "price": 220000,
+    "profile": "50Mbps",
+    "displayProfile": "Up To 50Mbps",
+    "description": "Stabil Untuk 8-10 Device",
+    "showInMonthly": true,
+    "whitelist": false,
+    "created_at": "2026-01-03T10:47:33.420Z"
+  },
+  {
+    "id": "1767437273470",
+    "name": "PAKET-VOUCHER",
+    "price": 0,
+    "profile": "PPP-Monitor",
+    "displayProfile": "PPP-Monitor",
+    "description": "",
+    "showInMonthly": false,
+    "whitelist": true,
+    "created_at": "2026-01-03T10:47:53.471Z"
+  },
+  {
+    "id": "1767437289288",
+    "name": "PAKET-KHUSUS-10Mbps",
+    "price": 0,
+    "profile": "FREE-10Mbps",
+    "displayProfile": "FREE-10Mbps",
+    "description": "",
+    "showInMonthly": false,
+    "whitelist": true,
+    "created_at": "2026-01-03T10:48:09.288Z"
+  },
+  {
+    "id": "1767437305486",
+    "name": "PAKET-KHUSUS-20Mbps",
+    "price": 0,
+    "profile": "FREE-20Mbps",
+    "displayProfile": "FREE-20Mbps",
+    "description": "",
+    "showInMonthly": false,
+    "whitelist": true,
+    "created_at": "2026-01-03T10:48:25.486Z",
+    "updated_at": "2026-01-03T10:48:53.342Z"
+  },
+  {
+    "id": "1767437317934",
+    "name": "PAKET-KHUSUS-30Mbps",
+    "price": 0,
+    "profile": "FREE-30Mbps",
+    "displayProfile": "FREE-30Mbps",
+    "description": "",
+    "showInMonthly": false,
+    "whitelist": true,
+    "created_at": "2026-01-03T10:48:37.934Z",
+    "updated_at": "2026-01-03T10:48:58.225Z"
+  }
+]

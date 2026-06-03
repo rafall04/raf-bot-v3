@@ -1,0 +1,145 @@
+[
+    {
+        "id": "redaman_default_001",
+        "type": "redaman",
+        "name": "RX Power (Default)",
+        "description": "Parameter untuk mengukur kekuatan sinyal penerimaan dalam dBm",
+        "paths": [
+            "VirtualParameters.RXPower",
+            "VirtualParameters.redaman"
+        ],
+        "createdAt": "2025-01-09T12:00:00.000Z",
+        "createdBy": "system"
+    },
+    {
+        "id": "temperature_default_001",
+        "type": "temperature",
+        "name": "Temperature Sensor (Default)",
+        "description": "Parameter untuk mengukur suhu perangkat dalam Celsius",
+        "paths": [
+            "VirtualParameters.Temp",
+            "VirtualParameters.Temperature",
+            "VirtualParameters.gettemp"
+        ],
+        "createdAt": "2025-01-09T12:00:00.000Z",
+        "createdBy": "system"
+    },
+    {
+        "id": "modemtype_default_001",
+        "type": "modemType",
+        "name": "Device Product Class (Default)",
+        "description": "Parameter untuk mengidentifikasi tipe/model perangkat modem",
+        "paths": [
+            "DeviceID.ProductClass",
+            "Device.DeviceInfo.ProductClass",
+            "InternetGatewayDevice.DeviceInfo.ProductClass",
+            "Device.DeviceInfo.ModelName",
+            "InternetGatewayDevice.DeviceInfo.ModelName"
+        ],
+        "createdAt": "2025-01-09T12:00:00.000Z",
+        "createdBy": "system"
+    },
+    {
+        "id": "serialnumber_default_001",
+        "type": "serialNumber",
+        "name": "Serial Number (Default)",
+        "description": "Parameter untuk mendapatkan Serial Number perangkat",
+        "paths": [
+            "VirtualParameters.getSerialNumber",
+            "VirtualParameters.serialNumber",
+            "Device.DeviceInfo.SerialNumber",
+            "InternetGatewayDevice.DeviceInfo.SerialNumber",
+            "_serialNumber"
+        ],
+        "createdAt": "2025-01-19T14:00:00.000Z",
+        "createdBy": "system"
+    },
+    {
+        "id": "wifi_ssid_default_001",
+        "type": "wifiSsid",
+        "name": "WiFi SSID (Default)",
+        "description": "Path kandidat untuk membaca nama SSID WiFi",
+        "paths": [
+            "InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID",
+            "Device.WiFi.SSID.1.SSID"
+        ],
+        "createdAt": "2026-04-13T00:00:00.000Z",
+        "createdBy": "system"
+    },
+    {
+        "id": "wifi_password_default_001",
+        "type": "wifiPassword",
+        "name": "WiFi Password (Default)",
+        "description": "Path kandidat untuk membaca atau menulis sandi WiFi",
+        "paths": [
+            "InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey",
+            "Device.WiFi.AccessPoint.1.Security.KeyPassphrase"
+        ],
+        "createdAt": "2026-04-13T00:00:00.000Z",
+        "createdBy": "system"
+    },
+    {
+        "id": "wifi_tx_power_default_001",
+        "type": "wifiTransmitPower",
+        "name": "WiFi Transmit Power (Default)",
+        "description": "Path kandidat untuk membaca atau menulis kekuatan sinyal WiFi",
+        "paths": [
+            "InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.TransmitPower",
+            "Device.WiFi.Radio.1.TransmitPower"
+        ],
+        "createdAt": "2026-04-13T00:00:00.000Z",
+        "createdBy": "system"
+    },
+    {
+        "id": "wifi_container_default_001",
+        "type": "wifiContainer",
+        "name": "WiFi Container (Default)",
+        "description": "Object kandidat untuk refresh data WiFi",
+        "paths": [
+            "InternetGatewayDevice.LANDevice.1.WLANConfiguration",
+            "Device.WiFi.SSID",
+            "Device.WiFi.AccessPoint",
+            "Device.WiFi.Radio"
+        ],
+        "createdAt": "2026-04-13T00:00:00.000Z",
+        "createdBy": "system"
+    },
+    {
+        "id": "pppoe_username_default_001",
+        "type": "pppoeUsername",
+        "name": "PPPoE Username (Default)",
+        "description": "Path kandidat untuk membaca atau menulis username PPPoE",
+        "paths": [
+            "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username",
+            "Device.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username",
+            "Device.PPP.Interface.1.Username"
+        ],
+        "createdAt": "2026-04-13T00:00:00.000Z",
+        "createdBy": "system"
+    },
+    {
+        "id": "pppoe_password_default_001",
+        "type": "pppoePassword",
+        "name": "PPPoE Password (Default)",
+        "description": "Path kandidat untuk membaca atau menulis password PPPoE",
+        "paths": [
+            "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Password",
+            "Device.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Password",
+            "Device.PPP.Interface.1.Password"
+        ],
+        "createdAt": "2026-04-13T00:00:00.000Z",
+        "createdBy": "system"
+    },
+    {
+        "id": "last_inform_default_001",
+        "type": "lastInform",
+        "name": "Last Inform (Default)",
+        "description": "Path kandidat untuk membaca waktu last inform perangkat",
+        "paths": [
+            "_lastInform",
+            "Events.Inform"
+        ],
+        "createdAt": "2026-04-13T00:00:00.000Z",
+        "createdBy": "system"
+    }
+]

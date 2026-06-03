@@ -1,0 +1,147 @@
+{
+  "wifi": {
+    "processing_name_change": "⏳ Sedang mengubah nama WiFi...",
+    "processing_password_change": "⏳ Sedang mengubah password WiFi...",
+    "processing_info_check": "⏳ Sedang mengambil informasi WiFi...",
+    "processing_reboot": "⏳ Sedang me-reboot modem...",
+    "processing_name_change_user": "⏳ Sedang mengubah nama WiFi untuk *${userName}*...",
+    "processing_password_change_user": "⏳ Sedang mengubah password WiFi untuk *${userName}*...",
+    "processing_info_check_user": "⏳ Sedang mengambil informasi WiFi untuk *${userName}*...",
+    "processing_reboot_user": "⏳ Sedang me-reboot modem untuk *${userName}*...",
+    "processing_power_change": "⏳ Sedang mengatur kekuatan sinyal WiFi untuk *${userName}* ke level ${level}%...",
+    "processing_bulk_name": "⏳ Sedang mengubah nama WiFi untuk *semua SSID*...",
+    "processing_bulk_password": "⏳ Sedang mengubah sandi WiFi untuk *semua SSID*...",
+    "processing_ssid_name": "⏳ Sedang mengubah nama WiFi untuk SSID ${ssidId}...",
+    "processing_ssid_password": "⏳ Sedang mengubah sandi WiFi untuk SSID ${ssidId}...",
+    
+    "name_change_success": "✅ *Nama WiFi Berhasil Diubah!*\n\n🏠 Nama Lama: ${oldName}\n🏠 Nama Baru: *${newName}*\n\n⚠️ *Penting:* Semua perangkat akan terputus. Silakan reconnect dengan nama WiFi baru.",
+    "password_change_success": "✅ *Password WiFi Berhasil Diubah!*\n\n🔐 Password Baru: *${newPassword}*\n\n⚠️ *Penting:* Semua perangkat akan terputus. Silakan reconnect dengan password baru.",
+    "reboot_success": "✅ *Perintah Reboot Berhasil!*\n\n⏱️ Router akan restart dalam beberapa detik.\nKoneksi akan terputus sementara selama ±2 menit.\n\nMohon tunggu hingga semua lampu indikator menyala normal kembali.",
+    "reboot_wait_message": "⏳ Sedang me-reboot modem untuk *${userName}*...\n\nMohon tunggu sekitar 5-10 menit hingga modem menyala kembali dan semua lampu indikator stabil.",
+    
+    "user_not_registered": "❌ Anda belum terdaftar sebagai pelanggan.",
+    "device_not_registered": "❌ Perangkat Anda belum terdaftar.",
+    "device_not_registered_user": "❌ Maaf Kak ${userName}, perangkat Anda belum terdaftar dalam sistem kami.",
+    "service_inactive": "⚠️ Maaf Kak ${userName}, layanan Anda sedang tidak aktif. Silakan lakukan pembayaran terlebih dahulu.",
+    "name_too_long": "❌ Nama WiFi terlalu panjang (maksimal 32 karakter).",
+    "password_too_short": "❌ Password WiFi minimal 8 karakter.",
+    "password_too_short_detail": "❌ Sandi WiFi terlalu pendek (minimal 8 karakter).",
+    "invalid_ssid_name": "❌ Nama WiFi tidak valid. Gunakan huruf, angka, spasi, dash, atau underscore.",
+    "change_failed": "❌ Gagal mengubah ${type} WiFi.\n\nError: ${error}",
+    "error_occurred": "❌ Terjadi kesalahan saat ${action}.",
+    
+    "prompt_name_input": "📝 *Ganti Nama WiFi*\n\nSilakan ketik nama WiFi baru.\n\nContoh: ganti nama wifi MyWiFi",
+    "prompt_password_input": "🔐 *Ganti Password WiFi*\n\nSilakan ketik password WiFi baru.\n\nContoh: ganti password wifi 12345678",
+    "prompt_password_input_detail": "🔐 *Ganti Sandi WiFi*\n\nSilakan ketik sandi WiFi baru yang Anda inginkan.\n\n*Ketentuan:*\n• Minimal 8 karakter\n• Kombinasi huruf dan angka lebih aman\n\nKetik *batal* untuk membatalkan.",
+    "prompt_ssid_selection": "📡 *Pilih SSID WiFi*\n\n${ssidList}\n\nBalas dengan nomor SSID yang ingin diubah.",
+    
+    "wifi_info": "📡 *Info WiFi Anda*\n\n👤 Nama: ${userName}\n🏠 SSID: *${ssid}*\n🔐 Password: *${password}*\n📶 Status: ${status}\n\n💡 *Tips:*\n• Ketik *ganti nama* untuk mengubah nama WiFi\n• Ketik *ganti sandi* untuk mengubah password WiFi",
+    "wifi_info_no_data": "📡 *Info WiFi Anda*\n\n👤 Nama: ${userName}\n\n_Belum ada data WiFi tersimpan._\n\nSilakan hubungi admin untuk informasi lebih lanjut.",
+    "wifi_history": "📋 *Riwayat Perubahan WiFi*\n\nNama: ${userName}\n\n${history}\n\n━━━━━━━━━━━━━━━━━\n_Update: ${date}_",
+    "no_wifi_history": "📋 *Riwayat Perubahan WiFi*\n\nNama: ${userName}\n\n_Belum ada riwayat perubahan WiFi._"
+  },
+  
+  "ticket": {
+    "processing_create": "⏳ Sedang membuat tiket laporan...",
+    "processing_check": "⏳ Sedang memeriksa status tiket...",
+    "processing_cancel": "⏳ Sedang membatalkan tiket...",
+    "processing_resolve": "⏳ Sedang menyelesaikan tiket...",
+    
+    "ticket_created": "✅ *TIKET BERHASIL DIBUAT*\n\n🎫 ID Tiket: *${ticketId}*\n👤 Pelapor: ${name}\n📝 Keluhan: ${complaint}\n📅 Tanggal: ${date}\n⏱️ Status: PENDING\n\n_Tim teknisi akan segera menangani laporan Anda._",
+    "ticket_cancelled": "❌ Tiket *${ticketId}* telah dibatalkan.",
+    "ticket_resolved": "✅ Tiket *${ticketId}* telah diselesaikan.\n\nTerima kasih atas kesabaran Anda.",
+    
+    "ticket_status": "🎫 *STATUS TIKET*\n\nID: ${ticketId}\nStatus: ${status}\nPelapor: ${reporter}\nTeknisi: ${technician}\nKeluhan: ${complaint}\nTanggal: ${date}\nUpdate: ${lastUpdate}",
+    
+    "ticket_not_found": "❌ Tiket tidak ditemukan.\n\nPastikan ID tiket yang Anda masukkan benar.",
+    "ticket_already_resolved": "ℹ️ Tiket ini sudah diselesaikan.",
+    "ticket_already_cancelled": "ℹ️ Tiket ini sudah dibatalkan.",
+    "no_permission": "❌ Anda tidak memiliki izin untuk mengakses tiket ini.",
+    "no_ticket_id": "⚠️ Mohon sertakan ID Tiket yang ingin Anda periksa.\n\n*Contoh:* cektiket ABC123",
+    "cancel_no_ticket_id": "⚠️ Mohon sertakan ID Tiket yang ingin dibatalkan.\n\n*Contoh:* bataltiket ABC123"
+  },
+  
+  "payment": {
+    "processing_request": "⏳ Sedang memproses request pembayaran...",
+    "processing_verification": "⏳ Sedang memverifikasi pembayaran...",
+    
+    "request_created": "✅ *REQUEST PEMBAYARAN BERHASIL*\n\nRequest Anda telah dikirim ke admin untuk diproses.\n\n📋 Detail:\n👤 Pelanggan: ${name}\n💰 Jumlah: Rp ${amount}\n📅 Tanggal: ${date}\n\n_Admin akan segera memproses request Anda._",
+    "payment_verified": "✅ Pembayaran Anda telah diverifikasi!",
+    "payment_success": "✅ *PEMBAYARAN BERHASIL*\n\nTerima kasih atas pembayaran Anda.\n\n📋 Detail:\n👤 Nama: ${name}\n💰 Jumlah: Rp ${amount}\n📅 Tanggal: ${date}\n\nInternet Anda akan segera aktif kembali.",
+    
+    "request_pending": "⏳ Anda memiliki request pembayaran yang masih pending.\n\nMohon tunggu hingga diproses oleh admin.",
+    "payment_failed": "❌ Pembayaran gagal diproses.\n\nSilakan coba lagi atau hubungi admin.",
+    "insufficient_balance": "❌ Saldo tidak mencukupi.\n\nSaldo Anda: Rp ${balance}\nDibutuhkan: Rp ${required}"
+  },
+  
+  "speed": {
+    "processing_request": "⏳ Sedang memproses request speed boost...",
+    "processing_check": "⏳ Sedang memeriksa status speed boost...",
+    "processing_payment_proof": "Processing speed request payment proof",
+    
+    "boost_active": "⚡ *SPEED BOOST AKTIF*\n\n📦 Paket: ${package}\n⚡ Speed: ${speed}\n⏱️ Durasi: ${duration}\n📅 Berakhir: ${endDate}",
+    "boost_requested": "✅ *REQUEST SPEED BOOST*\n\n📦 Paket: ${package}\n⚡ Speed: ${speed}\n⏱️ Durasi: ${duration}\n💰 Harga: Rp ${price}\n\n_Menunggu pembayaran untuk aktivasi._",
+    "boost_expired": "⏱️ Speed boost Anda telah berakhir.\n\nKecepatan kembali ke paket normal.",
+    
+    "no_active_boost": "ℹ️ Tidak ada speed boost yang aktif.",
+    "already_active": "⚠️ Anda sudah memiliki speed boost aktif.\n\nTunggu hingga selesai untuk request baru.",
+    "payment_required": "💳 Pembayaran diperlukan untuk mengaktifkan speed boost.\n\nSilakan lakukan pembayaran: Rp ${amount}",
+    
+    "select_package": "📦 *PILIH PAKET SPEED BOOST*\n\n${packages}\n\nBalas dengan nomor pilihan Anda.",
+    "select_duration": "⏱️ *PILIH DURASI*\n\n1️⃣ 1 Hari - Rp ${price1}\n2️⃣ 3 Hari - Rp ${price3}\n3️⃣ 7 Hari - Rp ${price7}\n\nBalas dengan nomor pilihan Anda."
+  },
+  
+  "general": {
+    "user_not_found": "❌ Pelanggan dengan ID \"${id}\" tidak ditemukan.",
+    "error_occurred": "❌ Terjadi kesalahan. Silakan coba lagi.",
+    "permission_denied": "🚫 Anda tidak memiliki izin untuk menggunakan perintah ini.",
+    "feature_disabled": "⚠️ Fitur ini sedang tidak tersedia.",
+    "maintenance_mode": "🔧 Sistem sedang dalam maintenance.\n\nMohon maaf atas ketidaknyamanannya.",
+    
+    "confirm_action": "⚠️ *KONFIRMASI*\n\nAnda akan ${action}.\n\nKetik *ya* untuk melanjutkan atau *batal* untuk membatalkan.",
+    "action_cancelled": "❌ Aksi dibatalkan.",
+    
+    "help_text": "📚 *BANTUAN*\n\n${helpContent}\n\nKetik *menu* untuk melihat menu utama.",
+    "unknown_command": "❌ Maaf, perintah tidak dikenali.\n\nKetik *menu* untuk melihat daftar perintah yang tersedia.",
+    "group_only": "📢 Perintah ini hanya bisa digunakan di grup.",
+    "private_only": "🔒 Perintah ini hanya bisa digunakan di chat pribadi.",
+    "timeout": "⏱️ Waktu habis. Silakan coba lagi.",
+    "invalid_input": "❌ Input tidak valid. Silakan periksa kembali.",
+    "processing": "⏳ Sedang memproses permintaan Anda...",
+    "success": "✅ Berhasil!",
+    "failed": "❌ Gagal memproses permintaan.",
+    "cancelled": "❌ Permintaan dibatalkan."
+  },
+  
+  "admin": {
+    "user_added": "✅ User berhasil ditambahkan.\n\nID: ${userId}\nNama: ${name}",
+    "user_updated": "✅ Data user berhasil diperbarui.",
+    "user_deleted": "✅ User berhasil dihapus.",
+    "user_not_found": "❌ User tidak ditemukan.",
+    "bulk_process_success": "✅ Bulk process berhasil.\n\nDiproses: ${processed}\nBerhasil: ${success}\nGagal: ${failed}",
+    "maintenance_enabled": "🔧 Mode maintenance diaktifkan.",
+    "maintenance_disabled": "✅ Mode maintenance dinonaktifkan.",
+    "broadcast_sent": "📢 Broadcast berhasil dikirim ke ${count} penerima.",
+    "report_generated": "📊 Laporan berhasil dibuat.\n\nFile: ${filename}",
+    "config_updated": "⚙️ Konfigurasi berhasil diperbarui.",
+    "backup_created": "💾 Backup berhasil dibuat.\n\nFile: ${filename}",
+    "system_status": "📊 *STATUS SISTEM*\n\n✅ Online: ${online}\n❌ Offline: ${offline}\n⚠️ Warning: ${warning}\n📊 CPU: ${cpu}%\n💾 Memory: ${memory}%\n💿 Disk: ${disk}%"
+  },
+  
+  "teknisi": {
+    "assigned_ticket": "🎫 Tiket baru ditugaskan kepada Anda.\n\nID: ${ticketId}\nPelanggan: ${customer}\nKeluhan: ${complaint}",
+    "reminder_ticket": "⏰ Reminder: Tiket ${ticketId} belum diselesaikan.\n\nMohon segera ditindaklanjuti.",
+    "request_sent": "✅ Request perubahan status pembayaran telah dikirim ke admin.",
+    "tools_menu": "🔧 *MENU TEKNISI*\n\n1. Status PPPoE\n2. Status Hotspot\n3. Status AP\n4. List User\n5. Request Pembayaran\n6. Selesaikan Tiket\n\nPilih menu dengan mengetik angka atau command.",
+    "work_report": "📋 *LAPORAN KERJA*\n\nTeknisi: ${name}\nPeriode: ${period}\nTiket Selesai: ${completed}\nTiket Pending: ${pending}\nRating: ⭐ ${rating}"
+  },
+  
+  "notification": {
+    "new_ticket": "🎫 *TIKET BARU*\n\nID: ${ticketId}\nPelanggan: ${customer}\nKeluhan: ${complaint}\n\n_Mohon segera ditindaklanjuti._",
+    "payment_received": "💰 *PEMBAYARAN DITERIMA*\n\nPelanggan: ${customer}\nJumlah: Rp ${amount}\nMetode: ${method}",
+    "service_down": "🔴 *LAYANAN DOWN*\n\nLokasi: ${location}\nPelanggan Terdampak: ${affected}\n\n_Tim teknisi sedang menangani._",
+    "service_up": "🟢 *LAYANAN NORMAL*\n\nLokasi: ${location}\nDurasi Down: ${duration}",
+    "low_balance": "⚠️ *SALDO RENDAH*\n\nSaldo Anda tersisa: Rp ${balance}\n\nSilakan lakukan top up.",
+    "maintenance_scheduled": "🔧 *JADWAL MAINTENANCE*\n\nTanggal: ${date}\nWaktu: ${time}\nDurasi: ${duration}\nLokasi: ${location}\n\n_Mohon maaf atas ketidaknyamanannya._"
+  }
+}

@@ -1,0 +1,146 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+config.local.json
+config.json
+database/config.json
+
+# ============================================================
+# DATA OPERASIONAL & PII - JANGAN PERNAH DI-COMMIT
+# (kode + config + template default tetap boleh di-commit)
+# ============================================================
+
+# Database engine files
+database/*.sqlite
+database/*.sqlite3
+database/*.db
+database/cache/
+database/locations/
+database/user/
+database/migrations/*.sqlite
+database/migrations/*.sqlite3
+
+# User & account data (PII)
+views/users.json
+database/accounts.json
+database/agents.json
+database/lid-mappings.json
+
+# Reports & tickets
+database/reports.json
+database/reports.backup*.json
+database/reports.deep-backup.json
+
+# Requests & transactions
+database/requests.json
+database/speed_requests.json
+database/package_change_requests.json
+database/topup_requests.json
+
+# Payment & billing
+database/invoices.json
+database/invoice-counter.json
+database/payment.json
+database/saldo_transactions.json
+
+# Vouchers & agents
+database/voucher_purchases.json
+database/voucher_sent.json
+database/agent_credentials.json
+database/agent_transactions.json
+database/agent_voucher_inventory.json
+database/agent_voucher_purchases.json
+database/agent_voucher_sales.json
+
+# Operational data
+database/compensations.json
+database/pppoe.json
+database/network_assets.json
+database/mikrotik_devices.json
+database/wifi_change_logs.json
+database/metrics.json
+database/isolir_history.json
+database/last-caller-id-cache.json
+database/olt-events.json
+database/olt-mac-cache.json
+database/*-cache.json
+database/*_cache.json
+database/olt-*.json
+
+# Announcements & news (user-generated)
+database/announcements.json
+database/news.json
+
+# Catatan: file config & template default TETAP di-commit, mis:
+#   database/packages.json, database/cron.json, database/statik.json,
+#   database/voucher.json, database/payment-method.json, database/reseller.json,
+#   database/speed_boost_matrix.json, database/genieacs_parameters.json,
+#   database/*_templates.json, database/message_templates.json, dll.
+
+# Backups - lokal saja
+backups/
+*.backup
+*.bak
+*.sqlite.backup
+*.sqlite.bak
+*.json.backup
+*.json.bak
+
+# Sessions & auth (KREDENSIAL WHATSAPP)
+sessions/
+*.session
+*.session.json
+
+# Uploads & user content
+uploads/
+temp/
+*.tmp
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Build & dist
+dist/
+build/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Misc
+*.pid
+*.seed
+*.pid.lock
+.cache/
+
+# Local git worktrees
+.worktrees/

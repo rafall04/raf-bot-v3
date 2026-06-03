@@ -1,0 +1,103 @@
+{
+  "enabled": false,
+  "description": "Speed Boost pricing configuration matrix",
+  "lastUpdated": "2025-12-11T10:29:57.431Z",
+  "globalSettings": {
+    "allowMultipleBoosts": false,
+    "requirePaymentFirst": true,
+    "autoApproveDoubleBoost": true,
+    "maxBoostDuration": 30,
+    "minBoostDuration": 1
+  },
+  "pricingMatrix": [
+    {
+      "fromPackages": [
+        {
+          "id": "1",
+          "name": "Paket-10Mbps",
+          "price": 100000
+        }
+      ],
+      "toPackage": {
+        "id": "2",
+        "name": "1. MASTER Up To 20 Mbps",
+        "price": 165000
+      },
+      "prices": {
+        "1_day": 15000,
+        "3_days": 40000,
+        "7_days": 80000
+      }
+    },
+    {
+      "fromPackages": [
+        {
+          "id": "1",
+          "name": "Paket-10Mbps",
+          "price": 100000
+        }
+      ],
+      "toPackage": {
+        "id": "3",
+        "name": "2. EPIC Up To 30 Mbps",
+        "price": 196900
+      },
+      "prices": {
+        "1_day": 25000,
+        "3_days": 60000,
+        "7_days": 120000
+      }
+    },
+    {
+      "fromPackages": [
+        {
+          "id": "1",
+          "name": "Paket-10Mbps",
+          "price": 100000
+        },
+        {
+          "id": "2",
+          "name": "1. MASTER Up To 20 Mbps",
+          "price": 165000
+        }
+      ],
+      "toPackage": {
+        "id": "4",
+        "name": "3. LEGEND Up To 50 Mbps",
+        "price": 286000
+      },
+      "prices": {
+        "1_day": 35000,
+        "3_days": 85000,
+        "7_days": 170000
+      }
+    }
+  ],
+  "customPackages": [],
+  "paymentMethods": {
+    "cash": {
+      "enabled": true,
+      "label": "Bayar Tunai",
+      "requireProof": false,
+      "autoApprove": false
+    },
+    "transfer": {
+      "enabled": true,
+      "label": "Transfer Bank",
+      "requireProof": true,
+      "autoApprove": false
+    },
+    "double_billing": {
+      "enabled": true,
+      "label": "Double Billing",
+      "requireProof": false,
+      "autoApprove": true,
+      "maxAmount": 500000
+    }
+  },
+  "templates": {
+    "welcomeMessage": "🚀 *SPEED BOOST ON DEMAND*\n\nTingkatkan kecepatan internet Anda sesuai kebutuhan!",
+    "successMessage": "✅ Request Speed Boost berhasil dibuat!\n\nID: {requestId}\nPaket: {packageName}\nDurasi: {duration}\nHarga: {price}\n\nSilakan lakukan pembayaran sesuai metode yang dipilih.",
+    "rejectionMessage": "❌ Maaf, request Speed Boost Anda ditolak.\n\nAlasan: {reason}"
+  }
+}

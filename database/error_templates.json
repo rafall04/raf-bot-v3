@@ -1,0 +1,50 @@
+{
+  "pelanggan_not_found": {
+    "name": "Pelanggan Not Found",
+    "template": "🚫 Maaf Kak ${pushname}, pelanggan dengan ID \"${id}\" tidak ditemukan di sistem kami."
+  },
+  "not_registered": {
+    "name": "Not Registered",
+    "template": "🚫 Maaf Kak ${pushname}, nomor Anda belum terdaftar sebagai pelanggan.\n\nSilakan hubungi admin untuk pendaftaran dengan mengetik *admin*."
+  },
+  "feature_unavailable": {
+    "name": "Feature Unavailable",
+    "template": "⚠️ Maaf Kak ${pushname}, fitur ${feature} saat ini hanya tersedia untuk ${requirement}."
+  },
+  "invalid_format": {
+    "name": "Invalid Format",
+    "template": "⚠️ *FORMAT SALAH!*\n\nFormat yang benar:\n${format}\n\nContoh:\n${example}"
+  },
+  "permission_denied": {
+    "name": "Permission Denied",
+    "template": "🚫 Maaf Kak ${pushname}, Anda tidak memiliki akses untuk menggunakan perintah ini.\n\nPerintah ini hanya untuk: ${required_role}"
+  },
+  "command_not_found": {
+    "name": "Command Not Found",
+    "template": "❓ Maaf Kak ${pushname}, perintah \"${command}\" tidak dikenali.\n\nKetik *menu* untuk melihat daftar perintah yang tersedia."
+  },
+  "parameter_missing": {
+    "name": "Parameter Missing",
+    "template": "⚠️ Parameter tidak lengkap!\n\nAnda perlu menyertakan: ${missing_param}\n\nContoh penggunaan:\n${example}"
+  },
+  "device_not_found": {
+    "name": "Device Not Found",
+    "template": "❌ Perangkat tidak ditemukan!\n\nDevice ID: ${device_id}\nPelanggan: ${nama_pelanggan}\n\nSilakan hubungi teknisi untuk pemeriksaan."
+  },
+  "mikrotik_error": {
+    "name": "MikroTik Error",
+    "template": "⚠️ *GAGAL TERHUBUNG KE MIKROTIK*\n\n${error_message}\n\nSilakan coba lagi atau hubungi admin."
+  },
+  "api_error": {
+    "name": "API Error",
+    "template": "❌ *TERJADI KESALAHAN*\n\nError: ${error_message}\n\nSilakan coba lagi beberapa saat."
+  },
+  "timeout_error": {
+    "name": "Timeout Error",
+    "template": "⏱️ *WAKTU HABIS*\n\nProses terlalu lama dan dibatalkan.\nSilakan coba lagi."
+  },
+  "duplicate_entry": {
+    "name": "Duplicate Entry",
+    "template": "⚠️ Data sudah ada!\n\n${item_type}: ${item_name}\n\nTidak dapat menambahkan data yang sama."
+  }
+}

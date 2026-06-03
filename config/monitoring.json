@@ -1,0 +1,18 @@
+{
+  "monitoring": {
+    "enabled": true,
+    "socketio": {
+      "enabled": false,
+      "comment": "Socket.IO is disabled by default. Enable only if you need real-time updates via WebSocket."
+    },
+    "polling": {
+      "enabled": true,
+      "interval": 5000,
+      "comment": "REST API polling interval in milliseconds"
+    },
+    "traffic": {
+      "chartPoints": 20,
+      "updateInterval": 5000
+    }
+  }
+}

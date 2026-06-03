@@ -1,0 +1,82 @@
+{
+  "report_start_mati": {
+    "name": "Laporan WiFi Mati - Pembuka",
+    "template": "🔴 *LAPORAN GANGGUAN INTERNET MATI*\n\nHalo *${nama_pelanggan}* 👋\n\n${device_status_message}\n\n━━━━━━━━━━━━━━━━━━━━\n*LANGKAH TROUBLESHOOTING:*\n━━━━━━━━━━━━━━━━━━━━\n\n🔧 Mari kita coba beberapa langkah sederhana dulu:\n\n1️⃣ *Cek Kabel & Lampu Modem*\n• Pastikan kabel power terpasang\n• Cek lampu indikator modem\n• Pastikan kabel LAN tidak lepas\n\n2️⃣ *Restart Modem*\n• Cabut power modem 10 detik\n• Pasang kembali\n• Tunggu 2-3 menit\n\n❓ *Apakah sudah mencoba restart modem?*\n\nKetik:\n✅ *sudah* - Jika sudah restart\n❌ *belum* - Jika belum restart"
+  },
+  "report_start_lemot": {
+    "name": "Laporan WiFi Lemot - Pembuka",
+    "template": "🟡 *LAPORAN GANGGUAN INTERNET LEMOT*\n\nHalo *${nama_pelanggan}* 👋\n\n${device_status_message}\n\n━━━━━━━━━━━━━━━━━━━━\n*ANALISIS AWAL:*\n━━━━━━━━━━━━━━━━━━━━\n\n📊 Mari kita identifikasi masalahnya:\n\n1️⃣ *Kapan mulai lemot?*\n• Hari ini\n• Kemarin\n• Beberapa hari lalu\n• Sudah lama\n\n2️⃣ *Di perangkat apa saja?*\n• Semua perangkat\n• Hanya HP\n• Hanya laptop/PC\n• Perangkat tertentu\n\n3️⃣ *Aplikasi apa yang lemot?*\n• Semua aplikasi\n• YouTube/streaming\n• Game online\n• Browsing saja\n\n📝 *Silakan ceritakan keluhan Anda:*"
+  },
+  "report_duplicate_active": {
+    "name": "Laporan Duplikat - Sudah Ada Tiket Aktif",
+    "template": "⚠️ *ANDA SUDAH MEMILIKI LAPORAN AKTIF*\n\n📋 ID Tiket: *${ticket_id}*\n📊 Status: ${status_text}\n⏰ Dibuat: ${created_at}\n\n${additional_info}\n\n━━━━━━━━━━━━━━━━━━━━\n*Yang bisa Anda lakukan:*\n━━━━━━━━━━━━━━━━━━━━\n\n✅ Ketik *cektiket ${ticket_id}* untuk cek status\n📞 Hubungi teknisi yang menangani\n⏳ Tunggu update dari teknisi\n\n_Harap menunggu penyelesaian tiket ini sebelum membuat laporan baru._"
+  },
+  "report_device_online": {
+    "name": "Device Online - Konfirmasi Masalah",
+    "template": "✅ *MODEM ANDA ONLINE*\n\n📡 Status: ${device_status}\n🌐 IP: ${device_ip}\n⏰ Last Seen: ${last_seen}\n\n━━━━━━━━━━━━━━━━━━━━\n*MODEM TERDETEKSI AKTIF*\n━━━━━━━━━━━━━━━━━━━━\n\nSistem mendeteksi modem Anda dalam kondisi aktif. Kemungkinan masalah:\n\n1️⃣ *WiFi tidak menyala/tersambung*\n2️⃣ *Password WiFi salah*\n3️⃣ *Jarak terlalu jauh dari modem*\n4️⃣ *Gangguan pada perangkat Anda*\n\n❓ *Apa masalah yang Anda alami?*\n\n${options}"
+  },
+  "report_device_offline": {
+    "name": "Device Offline - Konfirmasi Gangguan",
+    "template": "🔴 *MODEM ANDA OFFLINE*\n\n📡 Status: ${device_status}\n⏰ Offline Sejak: ${offline_since}\n⚠️ Durasi: ${offline_duration}\n\n━━━━━━━━━━━━━━━━━━━━\n*TERDETEKSI GANGGUAN*\n━━━━━━━━━━━━━━━━━━━━\n\nModem Anda tidak terhubung ke sistem kami. Kemungkinan penyebab:\n\n🔌 Listrik mati/modem tidak menyala\n🔧 Kabel putus/lepas\n⚡ Modem rusak\n🌧️ Gangguan cuaca/petir\n\n*Kami akan segera membuat tiket untuk Anda.*"
+  },
+  "report_troubleshoot_restart": {
+    "name": "Troubleshooting - Restart Modem",
+    "template": "🔄 *PANDUAN RESTART MODEM*\n\n━━━━━━━━━━━━━━━━━━━━\n*LANGKAH-LANGKAH:*\n━━━━━━━━━━━━━━━━━━━━\n\n1️⃣ Cabut kabel power modem (adaptor)\n2️⃣ Tunggu *10 detik*\n3️⃣ Pasang kembali kabel power\n4️⃣ Tunggu 2-3 menit hingga lampu stabil\n5️⃣ Coba koneksi internet\n\n💡 *Tips:*\n• Pastikan kabel power terpasang dengan baik\n• Periksa lampu indikator modem\n• Lampu LOS/PON harus mati\n• Lampu Internet/WAN harus nyala\n\n⏱️ *Silakan coba sekarang, saya tunggu...*\n\nKetik *sudah* setelah restart selesai."
+  },
+  "report_troubleshoot_success": {
+    "name": "Troubleshooting Berhasil",
+    "template": "🎉 *TROUBLESHOOTING BERHASIL!*\n\n✅ Internet Anda kembali normal\n\n━━━━━━━━━━━━━━━━━━━━\n*TIPS MAINTENANCE:*\n━━━━━━━━━━━━━━━━━━━━\n\n🔧 Restart modem rutin 1x seminggu\n📍 Letakkan modem di tempat terbuka\n🌡️ Hindari tempat panas/lembab\n🔌 Gunakan stabilizer untuk listrik tidak stabil\n\n*Terima kasih telah menggunakan layanan kami!*\n\n_Jika ada kendala lagi, jangan ragu untuk lapor._"
+  },
+  "report_create_ticket_confirm": {
+    "name": "Konfirmasi Buat Tiket",
+    "template": "📋 *KONFIRMASI PEMBUATAN TIKET*\n\n━━━━━━━━━━━━━━━━━━━━\n*RINGKASAN LAPORAN:*\n━━━━━━━━━━━━━━━━━━━━\n\n👤 Pelanggan: *${nama_pelanggan}*\n📦 Paket: *${paket}*\n📍 Alamat: *${alamat}*\n📱 No HP: *${no_hp}*\n\n🔴 Masalah: *${jenis_masalah}*\n📝 Keluhan:\n${keluhan}\n\n🔧 Troubleshooting:\n${troubleshooting_status}\n\n━━━━━━━━━━━━━━━━━━━━\n\n✅ Ketik *ya* untuk buat tiket\n❌ Ketik *batal* untuk batalkan"
+  },
+  "report_ticket_created": {
+    "name": "Tiket Berhasil Dibuat",
+    "template": "✅ *TIKET LAPORAN BERHASIL DIBUAT*\n\n━━━━━━━━━━━━━━━━━━━━\n🎫 *ID TIKET: ${ticket_id}*\n━━━━━━━━━━━━━━━━━━━━\n\n📋 Detail Tiket:\n• Prioritas: ${priority_label}\n• Estimasi: ${estimasi_waktu}\n• Status: Menunggu Teknisi\n\n👷 *Teknisi akan segera menghubungi Anda*\n\n${working_hours_info}\n\n━━━━━━━━━━━━━━━━━━━━\n*Apa yang terjadi selanjutnya:*\n━━━━━━━━━━━━━━━━━━━━\n\n1️⃣ Teknisi menerima notifikasi\n2️⃣ Teknisi akan menghubungi Anda\n3️⃣ Kunjungan lokasi jika diperlukan\n4️⃣ Perbaikan dan penyelesaian\n\n📱 *Pantau status:*\nKetik *cektiket ${ticket_id}*\n\n_Simpan ID Tiket untuk referensi_"
+  },
+  "report_form_step1": {
+    "name": "Form Laporan - Step 1 Deskripsi",
+    "template": "📝 *FORMULIR LAPORAN GANGGUAN*\n\n━━━━━━━━━━━━━━━━━━━━\n🔹 *Langkah 1 dari 6: Deskripsi Masalah*\n━━━━━━━━━━━━━━━━━━━━\n\nSilakan jelaskan masalah yang Anda alami:\n\n*Contoh:*\n• WiFi mati total dari tadi pagi\n• Internet lemot saat buka YouTube\n• WiFi putus-nyambung terus\n• Tidak bisa connect ke WiFi\n\n📝 *Ketik keluhan Anda:*"
+  },
+  "report_form_step2": {
+    "name": "Form Laporan - Step 2 Durasi",
+    "template": "📝 *FORMULIR LAPORAN GANGGUAN*\n\n━━━━━━━━━━━━━━━━━━━━\n🔹 *Langkah 2 dari 6: Durasi Masalah*\n━━━━━━━━━━━━━━━━━━━━\n\n⏰ *Sejak kapan masalah ini terjadi?*\n\n1️⃣ Hari ini\n2️⃣ Kemarin\n3️⃣ 2-3 hari lalu\n4️⃣ Seminggu lalu\n5️⃣ Lebih dari seminggu\n\n*Ketik angka pilihan Anda (1-5):*"
+  },
+  "report_form_step3": {
+    "name": "Form Laporan - Step 3 Perangkat",
+    "template": "📝 *FORMULIR LAPORAN GANGGUAN*\n\n━━━━━━━━━━━━━━━━━━━━\n🔹 *Langkah 3 dari 6: Perangkat Terdampak*\n━━━━━━━━━━━━━━━━━━━━\n\n📱 *Perangkat mana yang mengalami masalah?*\n\n1️⃣ Semua perangkat\n2️⃣ Hanya HP/Smartphone\n3️⃣ Hanya Laptop/PC\n4️⃣ Smart TV\n5️⃣ Perangkat tertentu lainnya\n\n*Ketik angka pilihan Anda (1-5):*"
+  },
+  "report_form_step4": {
+    "name": "Form Laporan - Step 4 Troubleshooting",
+    "template": "📝 *FORMULIR LAPORAN GANGGUAN*\n\n━━━━━━━━━━━━━━━━━━━━\n🔹 *Langkah 4 dari 6: Troubleshooting*\n━━━━━━━━━━━━━━━━━━━━\n\n🔧 *Apa yang sudah Anda coba?*\n\n1️⃣ Restart modem\n2️⃣ Restart perangkat (HP/laptop)\n3️⃣ Ganti kabel\n4️⃣ Reset WiFi password\n5️⃣ Belum coba apa-apa\n\n*Ketik angka pilihan Anda (1-5):*\n*Bisa pilih lebih dari satu, pisah dengan koma*\n*Contoh: 1,2*"
+  },
+  "report_form_step5": {
+    "name": "Form Laporan - Step 5 Indikator",
+    "template": "📝 *FORMULIR LAPORAN GANGGUAN*\n\n━━━━━━━━━━━━━━━━━━━━\n🔹 *Langkah 5 dari 6: Status Lampu Modem*\n━━━━━━━━━━━━━━━━━━━━\n\n💡 *Bagaimana kondisi lampu modem?*\n\n1️⃣ Semua lampu mati\n2️⃣ Lampu power saja yang nyala\n3️⃣ Lampu LOS/PON merah/berkedip\n4️⃣ Semua lampu hijau\n5️⃣ Tidak tahu/tidak bisa cek\n\n*Ketik angka pilihan Anda (1-5):*"
+  },
+  "report_form_step6": {
+    "name": "Form Laporan - Step 6 Konfirmasi",
+    "template": "📝 *FORMULIR LAPORAN GANGGUAN*\n\n━━━━━━━━━━━━━━━━━━━━\n🔹 *Langkah 6 dari 6: Konfirmasi*\n━━━━━━━━━━━━━━━━━━━━\n\n📋 *RINGKASAN LAPORAN ANDA:*\n\n${laporan_summary}\n\n━━━━━━━━━━━━━━━━━━━━\n\n✅ Ketik *kirim* untuk mengirim laporan\n✏️ Ketik *ulang* untuk isi ulang\n❌ Ketik *batal* untuk batalkan"
+  },
+  "report_analysis_result": {
+    "name": "Hasil Analisis Laporan",
+    "template": "🔍 *HASIL ANALISIS LAPORAN*\n\n━━━━━━━━━━━━━━━━━━━━\n*DIAGNOSA AWAL:*\n━━━━━━━━━━━━━━━━━━━━\n\n📊 Kategori: *${kategori_masalah}*\n🎯 Prioritas: *${priority_label}*\n⚡ Tingkat Urgensi: *${urgency_level}*\n🔧 Perlu Teknisi: *${need_technician}*\n\n━━━━━━━━━━━━━━━━━━━━\n*REKOMENDASI:*\n━━━━━━━━━━━━━━━━━━━━\n\n${recommendations}\n\n${next_action}"
+  },
+  "report_cancel": {
+    "name": "Laporan Dibatalkan",
+    "template": "❌ *LAPORAN DIBATALKAN*\n\n${cancel_reason}\n\nJika Anda masih mengalami kendala, silakan:\n• Ketik *lapor* untuk membuat laporan baru\n• Ketik *bantuan* untuk panduan\n• Ketik *admin* untuk hubungi admin\n\n_Terima kasih_"
+  },
+  "report_timeout": {
+    "name": "Laporan Timeout",
+    "template": "⏱️ *WAKTU HABIS*\n\nProses laporan dibatalkan karena tidak ada respon dalam ${timeout_duration}.\n\nSilakan ketik *lapor* untuk memulai kembali."
+  },
+  "report_invalid_input": {
+    "name": "Input Tidak Valid",
+    "template": "⚠️ *INPUT TIDAK VALID*\n\n${error_message}\n\n${hint}\n\n*Silakan coba lagi:*"
+  },
+  "report_permission_denied": {
+    "name": "Akses Ditolak",
+    "template": "🚫 *AKSES DITOLAK*\n\n${reason}\n\nHanya pelanggan terdaftar yang dapat membuat laporan.\n\n📞 Hubungi admin untuk mendaftar:\n${admin_contact}"
+  }
+}

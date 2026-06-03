@@ -1,0 +1,11 @@
+{
+  "commands": {},
+  "categories": {},
+  "settings": {
+    "caseSensitive": false,
+    "enableAliases": true,
+    "defaultCategory": "general",
+    "commandPrefix": "",
+    "enableLogging": true
+  }
+}

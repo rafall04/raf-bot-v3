@@ -1,0 +1,86 @@
+{
+  "discount_notification": {
+    "id": "discount_notification",
+    "name": "Notifikasi Diskon Pelanggan",
+    "description": "Dikirim ke pelanggan saat admin memberikan diskon",
+    "category": "discount",
+    "content": "🎉 *SELAMAT! ANDA MENDAPAT DISKON* 🎉\n\nHalo *{customer_name}*,\n\nKami dengan senang hati memberitahukan bahwa Anda mendapatkan diskon khusus untuk tagihan internet Anda.\n\n📋 *Detail Diskon:*\n• Paket: {package_name}\n• Harga Normal: {base_price}\n• Potongan: {discount_text}\n• *Harga Setelah Diskon: {final_price}*\n\n📝 *Alasan Diskon:*\n{discount_reason}\n\n⏰ *Berlaku Sampai:*\n{valid_until}\n\nTerima kasih telah menjadi pelanggan setia kami! 🙏\n\n_Pesan ini dikirim otomatis oleh sistem {company_name}_",
+    "placeholders": [
+      "customer_name",
+      "package_name",
+      "base_price",
+      "discount_text",
+      "final_price",
+      "discount_reason",
+      "valid_until",
+      "company_name"
+    ],
+    "enabled": true,
+    "updated_at": "2026-01-13T10:00:00.000Z"
+  },
+  "discount_removed": {
+    "id": "discount_removed",
+    "name": "Notifikasi Diskon Dihapus",
+    "description": "Dikirim ke pelanggan saat diskon dihapus",
+    "category": "discount",
+    "content": "📢 *INFORMASI DISKON* 📢\n\nHalo *{customer_name}*,\n\nKami informasikan bahwa diskon untuk akun Anda telah berakhir.\n\n📋 *Detail:*\n• Paket: {package_name}\n• Harga Normal: {package_price}\n\nTagihan bulan depan akan kembali ke harga normal.\n\nTerima kasih atas pengertiannya.\n\n_Pesan ini dikirim otomatis oleh sistem {company_name}_",
+    "placeholders": [
+      "customer_name",
+      "package_name",
+      "package_price",
+      "company_name"
+    ],
+    "enabled": true,
+    "updated_at": "2026-01-13T10:00:00.000Z"
+  },
+  "kasbon_approved": {
+    "id": "kasbon_approved",
+    "name": "Notifikasi Kasbon Disetujui",
+    "description": "Dikirim ke teknisi saat kasbon disetujui",
+    "category": "kasbon",
+    "content": "✅ *KASBON DISETUJUI* ✅\n\nHalo *{technician_name}*,\n\nPengajuan kasbon Anda telah disetujui oleh admin.\n\n💰 *Detail Kasbon:*\n• Nominal: {kasbon_amount}\n• Keperluan: {kasbon_reason}\n• Disetujui oleh: {admin_name}\n• Tanggal: {current_date}\n\nSilakan ambil dana kasbon sesuai prosedur.\n\n_Pesan ini dikirim otomatis oleh sistem {company_name}_",
+    "placeholders": [
+      "technician_name",
+      "kasbon_amount",
+      "kasbon_reason",
+      "admin_name",
+      "current_date",
+      "company_name"
+    ],
+    "enabled": true,
+    "updated_at": "2026-01-13T10:00:00.000Z"
+  },
+  "kasbon_rejected": {
+    "id": "kasbon_rejected",
+    "name": "Notifikasi Kasbon Ditolak",
+    "description": "Dikirim ke teknisi saat kasbon ditolak",
+    "category": "kasbon",
+    "content": "❌ *KASBON DITOLAK* ❌\n\nHalo *{technician_name}*,\n\nMohon maaf, pengajuan kasbon Anda tidak dapat disetujui.\n\n💰 *Detail Kasbon:*\n• Nominal: {kasbon_amount}\n• Keperluan: {kasbon_reason}\n• Alasan Penolakan: {reject_reason}\n\nSilakan hubungi admin untuk informasi lebih lanjut.\n\n_Pesan ini dikirim otomatis oleh sistem {company_name}_",
+    "placeholders": [
+      "technician_name",
+      "kasbon_amount",
+      "kasbon_reason",
+      "reject_reason",
+      "company_name"
+    ],
+    "enabled": true,
+    "updated_at": "2026-01-13T10:00:00.000Z"
+  },
+  "package_changed": {
+    "id": "package_changed",
+    "name": "Notifikasi Perubahan Paket",
+    "description": "Dikirim ke pelanggan saat paket diubah",
+    "category": "package",
+    "content": "📦 *PERUBAHAN PAKET LANGGANAN* 📦\n\nHalo *{customer_name}*,\n\nPaket langganan internet Anda telah diubah.\n\n📋 *Detail Perubahan:*\n• Paket Lama: {old_package}\n• Paket Baru: {new_package}\n• Harga Baru: {new_price}\n• Berlaku Mulai: {effective_date}\n\nPerubahan akan aktif segera setelah proses selesai.\n\nTerima kasih telah menggunakan layanan kami.\n\n_Pesan ini dikirim otomatis oleh sistem {company_name}_",
+    "placeholders": [
+      "customer_name",
+      "old_package",
+      "new_package",
+      "new_price",
+      "effective_date",
+      "company_name"
+    ],
+    "enabled": true,
+    "updated_at": "2026-01-13T10:00:00.000Z"
+  }
+}

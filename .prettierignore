@@ -1,0 +1,12 @@
+node_modules/
+database/
+sessions/
+uploads/
+public/uploads/
+static/vendor/
+coverage/
+.worktrees/
+*.min.js
+*.min.css
+package-lock.json
+views/users.json

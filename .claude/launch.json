@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "raf-bot",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["index.js"],
+      "port": 3100,
+      "autoPort": true
+    }
+  ]
+}

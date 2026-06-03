@@ -1,0 +1,135 @@
+/**
+ * Header Doc
+ * Purpose: Handler pengaturan power transmit WiFi (persen 20-100) untuk pelanggan bulanan lewat perintah WhatsApp.
+ * Caller: Dispatcher bot `message/raf.js` pada intent `GANTI_POWER_WIFI`.
+ * Deps: `../../lib/jid-utils`, `../../lib/wifi`, `./template-helpers` (renderResponseTemplate).
+ * MainFuncs: `handleGantiPowerWifi`.
+ * SideEffects: Mengirim task perubahan power ke GenieACS dan reply WhatsApp.
+ */
+
+const { resolveCustomerBySender } = require('../../lib/jid-utils');
+const { setTransmitPower } = require('../../lib/wifi');
+const { renderResponseTemplate } = require('./template-helpers');
+
+/**
+ * Handle WiFi power change
+ */
+async function handleGantiPowerWifi({ sender, args, matchedKeywordLength, q, isOwner, isTeknisi, users, reply, global, mess, msg, raf }) {
+    try {
+        let user;
+        let plainSenderNumber;
+
+        // Use matchedKeywordLength to determine where the actual arguments start
+        // Example: "ganti power wifi 10 80" -> keyword is "ganti power wifi" (3 words), so ID is at args[3]
+        const keywordLength = matchedKeywordLength || 3; // Default to 3 for "ganti power wifi"
+
+        // Check if admin/teknisi is providing an ID
+        const potentialId = args[keywordLength];
+        const providedId = (isOwner || isTeknisi) && potentialId && !isNaN(parseInt(potentialId, 10)) ? potentialId : null;
+
+        console.log('[WIFI_POWER_DEBUG] Args:', args);
+        console.log('[WIFI_POWER_DEBUG] matchedKeywordLength:', matchedKeywordLength);
+        console.log('[WIFI_POWER_DEBUG] keywordLength:', keywordLength);
+        console.log('[WIFI_POWER_DEBUG] potentialId:', potentialId);
+        console.log('[WIFI_POWER_DEBUG] providedId:', providedId);
+
+        // Admin/Teknisi dapat menyebutkan ID pelanggan
+        if (providedId) {
+            user = users.find(v => v.id == providedId);
+            // Power value is after the ID
+            q = args.slice(keywordLength + 1).join(' ').trim();
+        } else {
+            const resolved = await resolveCustomerBySender({ users, sender, msg, raf });
+            user = resolved.user;
+            plainSenderNumber = resolved.plainSenderNumber;
+
+            // Power value is after the keyword
+            q = args.slice(keywordLength).join(' ').trim();
+        }
+        if (!user) {
+            if (isOwner || isTeknisi) {
+                const errorMessage = providedId
+                    ? renderResponseTemplate(
+                        'wifi_power_admin_id_not_found',
+                        `Maaf, Kak. Pelanggan dengan ID "${providedId}" tidak ditemukan.`,
+                        { providedId }
+                    )
+                    : renderResponseTemplate(
+                        'wifi_power_admin_prompt_id',
+                        `Anda belum terdaftar sebagai pelanggan. Untuk mengatur power wifi pelanggan lain, sebutkan ID pelanggannya.`
+                    );
+                return reply(errorMessage);
+            }
+            return reply(mess.userNotRegister);
+        }
+        if (user.subscription === 'PAKET-VOUCHER' && !(isOwner || isTeknisi)) {
+            return reply(renderResponseTemplate(
+                'wifi_power_voucher_only_monthly',
+                `Maaf Kak, fitur ganti power WiFi saat ini hanya tersedia untuk pelanggan bulanan.`
+            ));
+        }
+
+        if (!user.device_id) {
+            return reply(renderResponseTemplate(
+                'wifi_power_device_missing',
+                `Maaf Kak, data device ID untuk pelanggan ini tidak ditemukan.`
+            ));
+        }
+
+        if (!q) {
+            throw renderResponseTemplate(
+                'wifi_power_format_prompt',
+                `Silahkan Isi Berapa Power Wifi\n\nContoh : gantipower 80\n\nFungsi : Untuk Mengatur Luas Jangkauan Wifi\n\nNB : Untuk Power Hanya Bisa Diisi 100, 80, 60, 40, 20.`
+            );
+        }
+
+        if (!['100', '80', '60', '40', '20'].includes(q)) {
+            throw renderResponseTemplate(
+                'wifi_power_format_error',
+                `*ERROR!*\n\nSilahkan Cek format gantipower dan coba lagi.\n\nTerimakasih\n${global.config.namabot}`,
+                { nama_bot: global.config.namabot || '' }
+            );
+        }
+
+        try {
+            const response = await setTransmitPower(user.device_id, '1', `${q}`, {
+                operation: 'wa.wifiPowerHandler',
+                verifyApplied: false,
+            });
+
+            if (!response.ok) {
+                throw new Error(response.message || 'Task perubahan power gagal dikirim');
+            }
+
+            console.log('[WIFI_POWER] Success:', response.data);
+            await reply(renderResponseTemplate(
+                'wifi_power_success',
+                `Power Wifi Berhasil Dirubah Ke :\n\n==================================\n${q}%\n==================================\n\n${global.config.namabot}`,
+                { power: q, nama_bot: global.config.namabot || '' }
+            ));
+
+        } catch (error) {
+            console.error('[WIFI_POWER] Error:', error);
+            await reply(renderResponseTemplate(
+                'wifi_power_technical_error',
+                `Gagal Mengubah Power Wifi\n\nSilahkan Cek Format Power Wifi Atau Hubungi Admin\n\nTerimakasih\n\n${global.config.namabot}`,
+                { nama_bot: global.config.namabot || '' }
+            ));
+        }
+
+    } catch (error) {
+        if (typeof error === 'string') {
+            await reply(error);
+        } else {
+            console.error('[WIFI_POWER_HANDLER] Unexpected error:', error);
+            await reply(renderResponseTemplate(
+                'wifi_power_generic_error',
+                'Terjadi kesalahan. Silakan coba lagi atau hubungi admin.'
+            ));
+        }
+    }
+}
+
+module.exports = {
+    handleGantiPowerWifi
+};

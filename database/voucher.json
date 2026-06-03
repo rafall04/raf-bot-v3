@@ -1,0 +1,42 @@
+[
+  {
+    "prof": "Paket-3Jam",
+    "namavc": "Paket 3 Jam",
+    "durasivc": "3 Jam",
+    "hargavc": "1000",
+    "hargaReseller": "800",
+    "margin": "200"
+  },
+  {
+    "prof": "Paket-10Jam",
+    "namavc": "Paket 10 Jam",
+    "durasivc": "10 Jam",
+    "hargavc": "2000",
+    "hargaReseller": "1600",
+    "margin": "400"
+  },
+  {
+    "prof": "Paket-1Hari",
+    "namavc": "Paket 1 Hari",
+    "durasivc": "1 Hari",
+    "hargavc": "3000",
+    "hargaReseller": "2400",
+    "margin": "600"
+  },
+  {
+    "prof": "Paket-5Hari",
+    "namavc": "Paket 5 Hari",
+    "durasivc": "5 Hari",
+    "hargavc": "15000",
+    "hargaReseller": "12000",
+    "margin": "3000"
+  },
+  {
+    "prof": "Paket-1Bulan",
+    "namavc": "Paket 1 Bulan",
+    "durasivc": "1 Bulan",
+    "hargavc": "50000",
+    "hargaReseller": "40000",
+    "margin": "10000"
+  }
+]

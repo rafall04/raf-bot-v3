@@ -1,0 +1,29 @@
+{
+  "watch": [
+    "index.js",
+    "lib",
+    "routes",
+    "message",
+    "config"
+  ],
+  "ext": "js,json",
+  "ignore": [
+    "node_modules",
+    "sessions",
+    "database/*.sqlite",
+    "database/*.sqlite-journal",
+    "logs",
+    "uploads",
+    "temp",
+    "backups",
+    "*.log",
+    "*.test.js",
+    "*.spec.js"
+  ],
+  "exec": "node index.js",
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "delay": 1000
+}
+

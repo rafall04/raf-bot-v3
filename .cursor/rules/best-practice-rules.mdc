@@ -1,0 +1,416 @@
+---
+alwaysApply: true
+---
+
+// ============================================
+// PROJECT RULES - RAF BOT V2
+// ============================================
+
+// Prinsip Umum
+- Kode bersih, mudah dibaca, mudah dipelihara
+- Ikuti Node.js dan Express best practices
+- Prioritaskan keamanan dan performa
+- **PENTING: Gunakan Bahasa Indonesia untuk komentar, dokumentasi, dan pesan error/log**
+  - Komentar, dokumentasi, pesan error/log: Bahasa Indonesia
+  - Nama variabel, fungsi, kelas: Bahasa Inggris (konvensi JavaScript)
+
+// Single Responsibility
+- **PENTING: Setiap modul, fungsi, kelas hanya memiliki satu tanggung jawab**
+- Setiap fungsi melakukan satu hal saja
+- Jika fungsi kompleks, pecah menjadi beberapa fungsi lebih kecil
+- Gunakan nama fungsi deskriptif daripada komentar panjang
+
+// Node.js & Express
+- Gunakan async/await untuk asynchronous operations
+- **PENTING: Selalu handle errors dengan try-catch untuk async functions**
+- Manfaatkan Node.js built-in modules (fs, path, crypto, dll.)
+- Gunakan npm scripts untuk task automation
+
+// Konvensi Penamaan
+- File: kebab-case (user-service.js, message-handler.js)
+- Class: PascalCase (UserService, MessageHandler)
+- Function: camelCase (getUserById, sendMessage)
+- Variable: camelCase (userId, messageContent)
+- Constant: UPPER_SNAKE_CASE (MAX_RETRY_COUNT, API_BASE_URL)
+- Private method/property: prefix underscore (_validateInput)
+- Route: kebab-case atau camelCase (/api/users, /api/user-profile)
+- Module export: named exports untuk multiple, default export untuk single main export
+
+// Struktur Kode
+- **PENTING: Prinsip "1 file 1 fungsi utama"**
+  - Setiap file memiliki satu fungsi utama atau tanggung jawab tunggal
+  - Nama file mencerminkan fungsi utama
+- Service Pattern untuk business logic kompleks
+- Pisahkan concerns: Routes (HTTP), Services (Business Logic), Handlers (Message Processing), Utils (Helpers)
+- Middleware untuk cross-cutting concerns (auth, logging, error handling)
+
+// Struktur Folder
+- lib/ - Core libraries dan utilities
+  - Services/ - Business logic services
+  - Utils/ - Helper functions
+- routes/ - Express route definitions
+- message/ - WhatsApp message handling
+  - handlers/ - Message handler modules
+- database/ - Database files (SQLite, JSON)
+  - migrations/ - Database migration scripts
+- config/ - Configuration files (JSON)
+- views/ - View templates (PHP/HTML)
+- static/ - Static assets (CSS, JS, images)
+- uploads/ - Uploaded files
+- Folder nesting maksimal 3-4 level
+
+// Code Style
+- Indentation: 2 spaces
+- Semicolons konsisten
+- const untuk variables tidak di-reassign
+- let untuk variables di-reassign
+- Jangan gunakan var
+- Arrow functions untuk callbacks dan short functions
+- Template literals untuk string concatenation
+- Destructuring untuk object dan array
+- Optional chaining (?.) dan nullish coalescing (??)
+
+// Clean Code Tactics
+- Strict comparison: SELALU gunakan === dan !==
+- Short operators: ||, &&, ??, ?.
+- Guard clauses: Early return untuk invalid cases
+- Extract functions: Split logic kompleks ke multiple functions
+- Object/array lookup daripada repetitive else if
+- Hindari nesting tidak perlu dengan early return
+- Helper functions untuk kode yang sering digunakan
+
+// Komentar
+- **PENTING: Hapus komentar yang tidak relevan atau sudah tidak berlaku**
+- **PENTING: Komentar menjelaskan "mengapa", bukan "apa"**
+- Hapus komentar yang mengulang kode
+- Hapus komentar debug yang ditinggalkan
+- Hapus dead code yang di-comment out
+- JSDoc untuk dokumentasi fungsi kompleks
+- Komentar baik: alasan bisnis, edge cases, konteks historis
+
+// DRY (Don't Repeat Yourself)
+- **PENTING: Gunakan kembali kode ketika bisa**
+- Helper functions untuk kode yang sering digunakan
+- Extract common patterns menjadi functions atau classes
+- Constants untuk magic numbers dan strings
+
+// Configuration & Environment
+- **PENTING: Jangan akses .env langsung, gunakan config helper**
+- Contoh: config.apiKey bukan process.env.API_KEY langsung
+- Gunakan config files untuk default values
+- **PENTING: Gunakan file config dan konstanta daripada teks hardcoded**
+
+// Date & Time
+- **PENTING: Simpan tanggal dalam format standar (ISO 8601 atau timestamp)**
+- Set timezone global: process.env.TZ = 'Asia/Jakarta'
+- Jangan format tanggal di view layer, gunakan helper function
+
+// ============================================
+// DATABASE & DATA MANAGEMENT
+// ============================================
+
+// Database Separation
+- **PENTING: Database SQLite terpisah untuk setiap domain/fitur**
+  - Contoh: users.sqlite, saldo.sqlite, activity_logs.sqlite, psb_database.sqlite
+  - Gunakan getDatabasePath() dari env-config.js
+  - Semua database di folder database/
+
+// Database Naming
+- Tabel: plural, snake_case (users, payment_transactions)
+- Kolom: snake_case (user_id, created_at)
+- File JSON: kebab-case atau snake_case
+
+// Database Access
+- **PENTING: Gunakan abstraction layer untuk database access**
+- Helper functions: loadJSON, saveJSON, querySQLite
+- Jangan akses database langsung dari route handler
+- Gunakan service layer untuk database operations
+
+// Transactions & Locking
+- **PENTING: Gunakan transactions untuk operations yang memerlukan atomicity**
+- **PENTING: Gunakan file locking untuk JSON file operations (proper-lockfile)**
+- Selalu gunakan locking saat membaca/menulis JSON files
+
+// Query Optimization
+- **PENTING: Optimalkan queries dan database operations**
+- Database indexes untuk kolom yang sering di-query
+- Pagination untuk large datasets
+- Hindari N+1 query problems
+- Batch operations untuk multiple inserts/updates
+- **PENTING: Jangan eksekusi query dalam loop tanpa proper batching**
+
+// Error Handling
+- **PENTING: Selalu handle database errors dengan try-catch**
+- Log database errors dengan context jelas
+- Return meaningful error messages (Bahasa Indonesia)
+- Handle corrupted JSON files gracefully
+- Validate JSON structure sebelum parsing
+
+// Format userId/JID
+- **PENTING: SELALU normalisasi JID dari @lid ke format standar sebelum operasi saldo/database**
+- Format standar: `628xxx@s.whatsapp.net`
+- Format @lid TIDAK BOLEH digunakan langsung
+- Gunakan `normalizeJidForSaldo()` dari `lib/lid-handler.js`
+- Jika tidak bisa dikonversi, operasi harus gagal dengan error jelas
+
+// Sistem Saldo
+- **PENTING: JANGAN pernah memanggil `addKoinUser()` atau `addSaldo()` dengan amount=0 atau undefined**
+- Operasi read-only: gunakan `saldoManager.createUserSaldo(userId)` saja
+- `addKoinUser()` dan `addSaldo()` HANYA untuk operasi yang benar-benar menambah saldo dengan amount > 0
+- Validasi amount sebelum memanggil `addKoinUser()` atau `addSaldo()`
+
+// ============================================
+// API & ROUTES
+// ============================================
+
+// Route Handler Pattern
+- **PENTING: Route handlers tipis (thin handlers)**
+- **PENTING: Masukkan semua logika DB ke Service classes**
+- **PENTING: Jangan pernah menaruh logika di file route selain routing logic**
+- Route handler hanya memanggil service method
+
+// RESTful Conventions
+- Proper HTTP methods (GET, POST, PUT, DELETE, PATCH)
+- Proper HTTP status codes
+- Consistent JSON response format
+
+// Middleware
+- Middleware untuk cross-cutting concerns (auth, logging, error handling)
+- Middleware untuk validasi (jangan validasi di route handler)
+- Middleware untuk authentication dan authorization
+
+// Services
+- **PENTING: Business logic harus di dalam kelas Services**
+- Services stateless (tidak menyimpan state)
+- Dependency injection untuk dependencies
+- Return promises atau async functions
+
+// Validation
+- **PENTING: Validasi semua input dari user**
+- Gunakan validation library (express-validator)
+- Validasi di multiple layers (route middleware, service layer)
+- Pesan error validasi dalam Bahasa Indonesia
+
+// Error Handling
+- Proper error responses untuk API (status code sesuai)
+- Error middleware untuk centralized error handling
+- Pesan error informatif dalam Bahasa Indonesia
+- Jangan expose sensitive information
+
+// Response Format
+- Format standar:
+  ```javascript
+  { status: 200, message: "Success message", data: { ... } }
+  ```
+- Error:
+  ```javascript
+  { status: 400, message: "Error message", error: "Error details" }
+  ```
+
+// Authentication & Authorization
+- JWT untuk authentication
+- Role-based access control (RBAC)
+- Protect sensitive routes dengan authentication middleware
+
+// Rate Limiting
+- Rate limiting untuk API
+- Different rate limits untuk different endpoints
+
+// ============================================
+// WHATSAPP BOT PATTERNS
+// ============================================
+
+// Connection State Check
+- **PENTING: SELALU cek connection state sebelum mengirim pesan**
+  - Cek `global.whatsappConnectionState === 'open'` sebelum `raf.sendMessage()`
+  - **WAJIB:** Cek `global.raf && global.raf.sendMessage` sebelum setiap `sendMessage`
+  - Jangan kirim pesan jika connection state bukan 'open' atau raf tidak tersedia
+  - Log warning jika connection tidak ready (jangan throw error)
+
+// Error Handling untuk sendMessage
+- **PENTING: SELALU gunakan try-catch untuk sendMessage**
+  - **WAJIB:** Wrap semua `sendMessage` calls dengan try-catch
+  - Jangan throw error yang bisa crash bot
+  - Log error dengan context jelas (userId, message type, error message)
+  - Untuk notification (non-critical), cukup log error tanpa throw
+
+// Notification Wrapper
+- **PENTING: SELALU gunakan `whatsapp-notification-wrapper.js` untuk semua pengiriman pesan notifikasi**
+- Notification wrapper otomatis handle retry untuk USync errors
+- Notification wrapper otomatis prevent duplicate notifications
+- Duplicate check berdasarkan JID dan message content (first 200 chars)
+
+// Skip Duplicate Check
+- **PENTING: Gunakan `skipDuplicateCheck` untuk command responses**
+  - Command responses: `skipDuplicateCheck: true`
+  - Notifikasi: default false (dengan duplicate check)
+
+// Pattern sendMessage
+- **PENTING: Pattern sendMessage yang Benar (WAJIB DIIKUTI)**
+  ```javascript
+  // Notification (dengan duplicate check)
+  if (global.whatsappConnectionState === 'open' && global.raf && global.raf.sendMessage) {
+      try {
+          await global.raf.sendMessage(userId, { text: message });
+      } catch (error) {
+          console.error('[SEND_MESSAGE_ERROR]', { userId, error: error.message });
+      }
+  } else {
+      console.warn('[SEND_MESSAGE_SKIP] WhatsApp not connected, skipping send to', userId);
+  }
+  
+  // Command response (dengan skipDuplicateCheck)
+  if (global.whatsappConnectionState === 'open' && global.raf && global.raf.sendMessage) {
+      try {
+          await global.raf.sendMessage(sender, { text: message }, { skipDuplicateCheck: true });
+      } catch (error) {
+          console.error('[SEND_MESSAGE_ERROR]', { sender, error: error.message });
+      }
+  }
+  ```
+
+// Template System
+- **PENTING: SELALU gunakan template system untuk semua pesan WhatsApp**
+- Jangan hardcode pesan di handler
+- Gunakan `renderTemplate()` dari `lib/templating.js` untuk notification templates
+- Gunakan `renderSystemMessage()` untuk system messages
+- **PENTING: Setiap pesan baru HARUS ditambahkan ke halaman templates**
+
+// Template Files
+- `message_templates.json` - Notification templates
+- `response_templates.json` - Bot response templates
+- `error_templates.json` - Error message templates
+- `success_templates.json` - Success message templates
+- `system_messages.json` - System message templates
+- `menu_templates.json` - Menu templates
+- `report_templates.json` - Report templates
+
+// Placeholder Standar
+- `${nama_pelanggan}` - Nama pelanggan (PRIORITAS)
+- `${nama_paket}` - Nama paket (PRIORITAS)
+- `${nama_wifi}` - Nama WiFi/service (PRIORITAS)
+- `${nama_bot}` - Nama bot (PRIORITAS)
+- **DILARANG:** `${nama}`, `${paket}`, `${namabot}` (ambigu)
+
+// Normalisasi JID
+- **PENTING: Normalisasi JID sebelum mengirim pesan**
+- Normalisasi @lid ke format standar sebelum operasi apapun
+- Pastikan JID dalam format `628xxx@s.whatsapp.net` sebelum `sendMessage()`
+
+// Handlers
+- **PENTING: Handler fokus pada routing message/event ke service yang tepat**
+- Handler tidak boleh mengandung business logic kompleks
+- Pindahkan business logic ke Service classes
+- Handler file: `{domain}-handler.js` (saldo-handler.js, wifi-handler.js)
+- Handler async jika melakukan async operations
+- Handler handle errors dengan try-catch
+- Handler return early untuk invalid cases
+
+// Conversation State Management
+- **PENTING: Gunakan `conversation-handler.js` untuk state management**
+- Jangan gunakan `temp[sender]` langsung, gunakan `getUserState()`, `setUserState()`, `deleteUserState()`
+- State auto-cleanup setelah 15 menit tidak aktif
+- State harus memiliki field `step` yang jelas
+- Protected states: WiFi input states, photo upload states, agent conversation states
+- Universal cancel commands: `['batal', 'cancel', 'ga jadi', 'gak jadi']`
+
+// Message Processing
+- **PENTING: SELALU cek concurrent processing sebelum memproses message**
+- Gunakan `isProcessing(sender)` dari `lib/state-manager.js`
+- Gunakan `setProcessing(sender)` untuk acquire lock
+- SELALU gunakan `clearProcessing(sender)` di finally block
+- Extract `chats` dari berbagai message types dengan safety check
+- Gunakan `getIntentFromKeywords()` dari `lib/wifi_template_handler.js` untuk intent detection
+
+// Display Name
+- **PENTING: JANGAN tampilkan format @lid di pesan ke user**
+- Prioritas: pushname > nama database > nomor HP
+
+// ============================================
+// ERROR HANDLING & LOGGING
+// ============================================
+
+// Error Handling Principles
+- **PENTING: Tangani error dengan baik menggunakan try-catch**
+- Pesan error informatif dalam Bahasa Indonesia
+- Log error yang relevan untuk debugging dalam Bahasa Indonesia
+- Jangan expose sensitive information dalam error messages
+- Error middleware untuk centralized error handling
+
+// Async/Await & Promises
+- **PENTING: Selalu gunakan async/await daripada callbacks**
+- **PENTING: Selalu handle errors dengan try-catch untuk async functions**
+- Promise.all() untuk parallel operations
+- Promise.allSettled() jika ingin semua promises selesai
+- Jangan gunakan async/await dalam loop tanpa proper handling
+
+// Try-Catch Pattern
+- **WAJIB:** Wrap semua async operations dengan try-catch
+- **WAJIB:** Wrap semua database operations dengan try-catch
+- **WAJIB:** Wrap semua external API calls dengan try-catch
+- **WAJIB:** Wrap semua file operations dengan try-catch
+
+// Graceful Degradation
+- **PENTING: Handle error dengan graceful degradation**
+- Jangan throw error yang bisa crash bot
+- Log error dengan context jelas
+- Untuk notification (non-critical), cukup log error tanpa throw
+
+// Logging
+- **PENTING: Gunakan structured logging**
+- Log levels: error, warn, info, debug
+- Log dalam Bahasa Indonesia untuk user-facing messages
+- Jangan log sensitive information (passwords, tokens, dll.)
+- Log errors dengan stack traces
+- Log important operations (user actions, payments, dll.)
+
+// Error Response Format
+- API Error Response:
+  ```javascript
+  { status: 400, message: "Error message dalam Bahasa Indonesia", error: "Error details" }
+  ```
+- WhatsApp Error Response: Kirim error message ke user dalam Bahasa Indonesia, jangan expose technical details
+
+// ============================================
+// SECURITY & PERFORMANCE
+// ============================================
+
+// Security
+- **PENTING: Jangan hardcode credentials atau API keys**
+- Gunakan .env dan config helper untuk sensitive data
+- Jangan commit .env ke repository
+- **PENTING: Validasi semua input dari user**
+- Gunakan validation library (express-validator)
+- Parameterized queries untuk menghindari SQL injection
+- Sanitize user input sebelum display
+- Validasi file uploads (type, size, content)
+- Password hashing (bcrypt) untuk passwords
+- JWT untuk authentication
+- Rate limiting untuk API
+
+// Performance
+- **PENTING: Optimalkan queries dan database operations**
+- Database indexes untuk kolom yang sering di-query
+- Pagination untuk large datasets
+- Hindari N+1 query problems
+- Batch operations untuk multiple inserts/updates
+- Caching untuk data yang sering diakses
+- Promise.all() untuk parallel operations
+- Streaming untuk large files
+
+// ============================================
+// TESTING & DOCUMENTATION
+// ============================================
+
+// Testing
+- Tulis tests untuk critical features
+- Test error cases, not just happy paths
+- Jangan test implementation details, test behavior
+- Descriptive test names
+- Mock external dependencies
+
+// Documentation
+- README.md dengan instruksi setup dan penggunaan (Bahasa Indonesia)
+- JSDoc untuk function dan class documentation (Bahasa Indonesia)
+- Dokumentasikan API endpoints dengan format konsisten
+- Semua dokumentasi dalam Bahasa Indonesia

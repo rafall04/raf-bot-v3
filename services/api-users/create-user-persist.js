@@ -1,0 +1,181 @@
+/**
+ * Header Doc
+ * Purpose: Phase 4-8 dari workflow create user — insert ke DB + in-memory snapshot, apply paid status via finance boundary (dengan rollback on error: hapus user dari snapshot+DB jika gagal mencatat status lunas), activity log (best-effort), kirim welcome message via WhatsApp (best-effort, mode-aware: `psb_welcome` untuk mode new, `import_welcome` untuk import, `customer_welcome` default), return final response 201 dengan generated credentials + mikrotik sync metadata.
+ * Caller: `services/api-users/create-user.js` (orchestrator).
+ * Deps: `deps.repository.insertUserRecord`/`getUsersSnapshot`/`replaceUsersSnapshot`/`deleteUserRecord`, `deps.applyPaymentStatusChange`, `deps.handlePaidStatusChange`, `deps.getPeriodParts`, `deps.getEffectivePrice`, `deps.logActivity`, `deps.getConfig`, `deps.getPackages`, `deps.renderTemplate`, `deps.sendMessage`, `deps.getStatusSnapshot`, `deps.logger`, lazy-require `../../lib/utils` (normalizePhoneNumber).
+ * MainFuncs: `persistAndNotifyNewUser(deps, { newUser, plainTextPassword, finalUsername, paymentMethod, registrationMode, mikrotikSync, syncEnabled, userData, actor, requestMeta })`.
+ * SideEffects: DB insert + snapshot replace, finance boundary call (paid path), activity log, WhatsApp send (async/fire-and-forget). Rollback paid path: hapus user dari DB+snapshot jika applyPaymentStatusChange gagal — throw final error.
+ */
+"use strict";
+
+async function persistAndNotifyNewUser(deps, { newUser, plainTextPassword, finalUsername, paymentMethod, registrationMode, mikrotikSync, syncEnabled, userData, actor, requestMeta }) {
+    await deps.repository.insertUserRecord(newUser);
+    deps.repository.replaceUsersSnapshot([...deps.repository.getUsersSnapshot(), newUser]);
+
+    if (newUser.paid === true) {
+        const { periodMonth, periodYear } = deps.getPeriodParts({ date: new Date() });
+        try {
+            const financeResult = await deps.applyPaymentStatusChange({
+                user: newUser,
+                paid: true,
+                periodMonth,
+                periodYear,
+                amountPaid: deps.getEffectivePrice(newUser),
+                amountDue: deps.getEffectivePrice(newUser),
+                isPartial: false,
+                paymentMethod,
+                notes: "Status pembayaran ditandai lunas saat pembuatan pelanggan",
+                createdBy: actor.username,
+                sourceAdminAction: `user-create:${newUser.id}:paid`,
+                onFinalPaid: async () => {
+                    await deps.handlePaidStatusChange(newUser, {
+                        paidDate: new Date().toISOString(),
+                        method: paymentMethod,
+                        approvedBy: actor.username,
+                        notes: "Status pembayaran ditandai lunas saat pembuatan pelanggan"
+                    });
+                }
+            });
+            if (financeResult.action !== "paid") {
+                throw new Error(financeResult.reason || financeResult.action || "Status pembayaran tidak berubah");
+            }
+        } catch (paidChangeErr) {
+            deps.repository.replaceUsersSnapshot(
+                deps.repository.getUsersSnapshot().filter((user) => String(user.id) !== String(newUser.id))
+            );
+            await deps.repository.deleteUserRecord(newUser.id);
+            throw new Error(`Gagal mencatat status lunas pelanggan baru: ${paidChangeErr.message}`);
+        }
+    }
+
+    try {
+        await deps.logActivity({
+            userId: actor.id,
+            username: actor.username,
+            role: actor.role,
+            actionType: "CREATE",
+            resourceType: "user",
+            resourceId: newUser.id.toString(),
+            resourceName: newUser.name,
+            description: `Created new user ${newUser.name}`,
+            oldValue: null,
+            newValue: {
+                name: newUser.name,
+                phone_number: newUser.phone_number,
+                subscription: newUser.subscription,
+                paid: newUser.paid,
+                pppoe_username: newUser.pppoe_username,
+                sync_policy: syncEnabled ? "enabled" : "disabled",
+                sync_status: mikrotikSync.status,
+                sync_message: mikrotikSync.message
+            },
+            ipAddress: requestMeta?.ipAddress,
+            userAgent: requestMeta?.userAgent
+        });
+    } catch (logErr) {
+        deps.logger.error?.("[ACTIVITY_LOG_ERROR] Failed to log user create:", logErr);
+    }
+
+    const appConfig = deps.getConfig();
+    const welcomeEnabled = appConfig.welcomeMessage?.enabled !== false;
+    if (welcomeEnabled && newUser.phone_number) {
+        try {
+            const { normalizePhoneNumber } = require("../../lib/utils");
+            let templateName = "customer_welcome";
+            let templateData = {};
+
+            if (registrationMode === "new" && userData.wifi_ssid && userData.wifi_password) {
+                templateName = "psb_welcome";
+                templateData = {
+                    nama_pelanggan: newUser.name,
+                    wifi_ssid: userData.wifi_ssid,
+                    wifi_password: userData.wifi_password,
+                    nama_paket: newUser.subscription || "-",
+                    nama_wifi: appConfig.nama || appConfig.nama_wifi || "Layanan Kami",
+                    nama_bot: appConfig.namabot || appConfig.botName || "RAF NET BOT"
+                };
+            } else if (registrationMode === "import") {
+                let displayProfile = "-";
+                if (newUser.subscription && deps.getPackages().length > 0) {
+                    const pkg = deps.getPackages().find((item) => item.name === newUser.subscription);
+                    if (pkg && pkg.display_profile) {
+                        displayProfile = pkg.display_profile;
+                    } else if (pkg && pkg.profile) {
+                        displayProfile = pkg.profile;
+                    }
+                }
+                templateName = "import_welcome";
+                templateData = {
+                    nama_pelanggan: newUser.name,
+                    nama_paket: newUser.subscription || "-",
+                    display_profile: displayProfile,
+                    nama_wifi: appConfig.nama || appConfig.nama_wifi || "Layanan Kami",
+                    nama_bot: appConfig.namabot || appConfig.botName || "RAF NET BOT"
+                };
+            } else {
+                if (!newUser.username || !plainTextPassword) {
+                    throw new Error("Skip welcome message");
+                }
+                const portalUrl = appConfig.welcomeMessage?.customerPortalUrl || appConfig.company?.website || appConfig.site_url_bot || "https://rafnet.my.id/customer";
+                templateData = {
+                    nama_pelanggan: newUser.name,
+                    username: newUser.username,
+                    password: plainTextPassword,
+                    portal_url: portalUrl,
+                    nama_wifi: appConfig.nama || appConfig.nama_wifi || "Layanan Kami",
+                    nama_bot: appConfig.namabot || appConfig.botName || "RAF NET BOT"
+                };
+            }
+
+            const messageText = deps.renderTemplate(templateName, templateData);
+            if (!messageText) {
+                throw new Error("Template not found");
+            }
+
+            const phoneNumbers = newUser.phone_number.split("|").map((item) => item.trim()).filter(Boolean);
+            void (async () => {
+                for (const number of phoneNumbers) {
+                    const normalizedNumber = normalizePhoneNumber(number);
+                    if (normalizedNumber && deps.getStatusSnapshot().connectionState === "open") {
+                        const jid = `${normalizedNumber}@s.whatsapp.net`;
+                        try {
+                            await new Promise((resolve) => setTimeout(resolve, 1000));
+                            const delivery = await deps.sendMessage(jid, { text: messageText });
+                            if (!delivery.sent) {
+                                throw new Error(delivery.warning || delivery.errorCode || "SEND_FAILED");
+                            }
+                        } catch (e) {
+                            deps.logger.error?.(`[WELCOME_MSG_ERROR] Failed to send welcome message to ${jid}:`, e.message);
+                        }
+                    }
+                }
+            })();
+        } catch (welcomeError) {
+            if (welcomeError.message !== "Skip welcome message" && welcomeError.message !== "Template not found") {
+                deps.logger.error?.("[WELCOME_MSG_ERROR] Failed to send welcome message:", welcomeError.message);
+            }
+        }
+    }
+
+    return {
+        status: 201,
+        body: {
+            status: 201,
+            message: "User berhasil ditambahkan",
+            data: newUser,
+            generated_credentials: {
+                username: finalUsername,
+                password: plainTextPassword
+            },
+            registration_mode: registrationMode || "legacy",
+            sync_policy: syncEnabled ? "enabled" : "disabled",
+            sync_status: mikrotikSync.status,
+            sync_message: mikrotikSync.message,
+            mikrotik_sync: mikrotikSync
+        }
+    };
+}
+
+module.exports = {
+    persistAndNotifyNewUser
+};

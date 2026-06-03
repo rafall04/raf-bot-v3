@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Monitoring Dashboard - RAF Bot v2</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .metric-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .metric-title {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 10px;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        
+        .metric-status {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin-top: 10px;
+        }
+        
+        .status-ok { background: #4CAF50; }
+        .status-warning { background: #FF9800; }
+        .status-error { background: #F44336; }
+        
+        .chart-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 20px;
+        }
+        
+        .chart-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+        
+        .error-list {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .error-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .error-time {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+        
+        .btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .updating {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <h1>🚀 System Monitoring Dashboard</h1>
+        
+        <div class="actions">
+            <button class="btn" onclick="refreshData()">🔄 Refresh</button>
+            <button class="btn" onclick="testAlert()">🔔 Test Alert</button>
+            <button class="btn" onclick="clearErrors()">🗑️ Clear Errors</button>
+        </div>
+        
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-title">WhatsApp Status</div>
+                <div class="metric-value" id="wa-status">-</div>
+                <span class="metric-status" id="wa-status-badge">Loading...</span>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">Messages/min</div>
+                <div class="metric-value" id="msg-rate">0</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">Active Users</div>
+                <div class="metric-value" id="active-users">0</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">CPU Usage</div>
+                <div class="metric-value" id="cpu-usage">0%</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">Memory Usage</div>
+                <div class="metric-value" id="mem-usage">0%</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">Queue Size</div>
+                <div class="metric-value" id="queue-size">0</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">Error Rate</div>
+                <div class="metric-value" id="error-rate">0/h</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">Uptime</div>
+                <div class="metric-value" id="uptime">0h</div>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-title">📊 Message Flow (Last Hour)</div>
+            <canvas id="message-chart" height="100"></canvas>
+        </div>
+        
+        <div class="error-list">
+            <div class="chart-title">⚠️ Recent Errors</div>
+            <div id="error-list-content">
+                <div class="error-item">No errors to display</div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let messageChart = null;
+        
+        async function fetchMetrics() {
+            try {
+                const response = await fetch('/api/monitoring/metrics', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Failed to fetch metrics');
+                
+                const result = await response.json();
+                return result.data;
+            } catch (error) {
+                console.error('Error fetching metrics:', error);
+                return null;
+            }
+        }
+        
+        async function fetchErrors() {
+            try {
+                const response = await fetch('/api/monitoring/errors', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Failed to fetch errors');
+                
+                const result = await response.json();
+                return result.data;
+            } catch (error) {
+                console.error('Error fetching errors:', error);
+                return null;
+            }
+        }
+        
+        function updateDashboard(metrics) {
+            if (!metrics) return;
+            
+            // Update WhatsApp status
+            const waStatus = metrics.connections.whatsapp;
+            document.getElementById('wa-status').textContent = waStatus ? 'Connected' : 'Disconnected';
+            const statusBadge = document.getElementById('wa-status-badge');
+            statusBadge.textContent = waStatus ? 'Online' : 'Offline';
+            statusBadge.className = 'metric-status ' + (waStatus ? 'status-ok' : 'status-error');
+            
+            // Update metrics
+            document.getElementById('msg-rate').textContent = metrics.performance.commandsPerMinute || 0;
+            document.getElementById('active-users').textContent = metrics.performance.activeUsers || 0;
+            document.getElementById('cpu-usage').textContent = (metrics.system.cpu || 0) + '%';
+            document.getElementById('mem-usage').textContent = (metrics.system.memory || 0) + '%';
+            document.getElementById('queue-size').textContent = metrics.performance.queueSize || 0;
+            document.getElementById('error-rate').textContent = (metrics.errors.errorRate || 0) + '/h';
+            
+            // Calculate uptime
+            const uptime = metrics.system.uptime || 0;
+            const hours = Math.floor(uptime / 3600);
+            const minutes = Math.floor((uptime % 3600) / 60);
+            document.getElementById('uptime').textContent = `${hours}h ${minutes}m`;
+        }
+        
+        function updateErrorList(errors) {
+            if (!errors) return;
+            
+            const errorListEl = document.getElementById('error-list-content');
+            
+            if (errors.lastDay === 0) {
+                errorListEl.innerHTML = '<div class="error-item">No errors in the last 24 hours</div>';
+                return;
+            }
+            
+            let html = '';
+            const errorsByCode = errors.byCode || {};
+            
+            for (const [code, count] of Object.entries(errorsByCode)) {
+                html += `
+                    <div class="error-item">
+                        <strong>${code}</strong>: ${count} occurrence(s)
+                    </div>
+                `;
+            }
+            
+            errorListEl.innerHTML = html || '<div class="error-item">No error details available</div>';
+        }
+        
+        function initChart() {
+            const ctx = document.getElementById('message-chart').getContext('2d');
+            messageChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 60}, (_, i) => i + 1),
+                    datasets: [{
+                        label: 'Messages',
+                        data: Array(60).fill(0),
+                        borderColor: 'rgba(255, 255, 255, 0.8)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { color: 'rgba(255, 255, 255, 0.8)' }
+                        },
+                        x: {
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { color: 'rgba(255, 255, 255, 0.8)' }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: 'rgba(255, 255, 255, 0.8)' }
+                        }
+                    }
+                }
+            });
+        }
+        
+        async function refreshData() {
+            document.body.classList.add('updating');
+            
+            const metrics = await fetchMetrics();
+            const errors = await fetchErrors();
+            
+            updateDashboard(metrics);
+            updateErrorList(errors);
+            
+            document.body.classList.remove('updating');
+        }
+        
+        async function testAlert() {
+            try {
+                const response = await fetch('/api/monitoring/test-alert', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                const result = await response.json();
+                alert(result.message);
+            } catch (error) {
+                alert('Failed to send test alert');
+            }
+        }
+        
+        async function clearErrors() {
+            if (!confirm('Are you sure you want to clear error logs?')) return;
+            
+            try {
+                const response = await fetch('/api/monitoring/clear-errors', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                const result = await response.json();
+                alert(result.message);
+                refreshData();
+            } catch (error) {
+                alert('Failed to clear errors');
+            }
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            refreshData();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(refreshData, 30000);
+        });
+    </script>
+</body>
+</html>

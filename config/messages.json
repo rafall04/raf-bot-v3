@@ -1,0 +1,142 @@
+{
+  "messages": {
+    "general": {
+      "welcome": "Selamat datang di *{botName}* 👋\n\nSilakan pilih menu yang tersedia atau ketik perintah yang Anda inginkan.",
+      "unknownCommand": "❌ Maaf, perintah tidak dikenali.\n\nKetik *menu* untuk melihat daftar perintah yang tersedia.",
+      "maintenance": "🔧 Sistem sedang dalam maintenance.\n\nMohon maaf atas ketidaknyamanannya. Silakan coba lagi beberapa saat.",
+      "error": "❌ Terjadi kesalahan dalam memproses permintaan Anda.\n\nSilakan coba lagi atau hubungi admin.",
+      "processing": "⏳ Sedang memproses permintaan Anda...",
+      "success": "✅ Berhasil!",
+      "failed": "❌ Gagal memproses permintaan.",
+      "cancelled": "❌ Permintaan dibatalkan.",
+      "timeout": "⏱️ Waktu habis. Silakan coba lagi.",
+      "invalidInput": "❌ Input tidak valid. Silakan periksa kembali.",
+      "noPermission": "🚫 Anda tidak memiliki izin untuk menggunakan perintah ini.",
+      "groupOnly": "📢 Perintah ini hanya bisa digunakan di grup.",
+      "privateOnly": "🔒 Perintah ini hanya bisa digunakan di chat pribadi."
+    },
+    
+    "customer": {
+      "notRegistered": "❌ Nomor Anda belum terdaftar sebagai pelanggan.\n\nSilakan hubungi admin untuk mendaftar:\n📱 WA: {adminNumber}",
+      "welcome": "Halo *{customerName}* 👋\n\nAda yang bisa kami bantu hari ini?",
+      "billInfo": "📋 *INFORMASI TAGIHAN*\n\n👤 Nama: {name}\n📦 Paket: {package}\n💰 Tagihan: Rp {amount}\n📅 Jatuh Tempo: {dueDate}\n✅ Status: {status}",
+      "packageInfo": "📦 *INFORMASI PAKET*\n\n👤 Nama: {name}\n📦 Paket Aktif: {package}\n⚡ Kecepatan: {speed}\n💰 Harga: Rp {price}/bulan",
+      "paymentSuccess": "✅ *PEMBAYARAN BERHASIL*\n\nTerima kasih atas pembayaran Anda.\n\n📋 Detail:\n👤 Nama: {name}\n💰 Jumlah: Rp {amount}\n📅 Tanggal: {date}\n\nInternet Anda akan segera aktif kembali.",
+      "paymentPending": "⏳ *PEMBAYARAN PENDING*\n\nPembayaran Anda sedang kami proses.\nMohon tunggu konfirmasi dari admin.",
+      "serviceActive": "✅ Layanan Anda aktif",
+      "serviceInactive": "❌ Layanan Anda tidak aktif. Silakan lakukan pembayaran.",
+      "invoiceSent": "📧 Invoice telah dikirim ke WhatsApp Anda.",
+      "noOutstanding": "✅ Tidak ada tagihan yang harus dibayar.",
+      "reminderPayment": "🔔 *PENGINGAT PEMBAYARAN*\n\nHalo {name},\n\nTagihan internet Anda sebesar Rp {amount} jatuh tempo pada {dueDate}.\n\nSilakan lakukan pembayaran untuk menghindari pemutusan layanan.\n\nTerima kasih."
+    },
+    
+    "wifi": {
+      "infoSuccess": "📶 *INFORMASI WIFI*\n\n🏠 Nama WiFi: *{ssid}*\n🔐 Password: *{password}*\n📡 Status: {status}\n\n_Jaga kerahasiaan password Anda_",
+      "nameChangeSuccess": "✅ Nama WiFi berhasil diubah!\n\n🏠 Nama Lama: {oldName}\n🏠 Nama Baru: *{newName}*\n\n⚠️ Perangkat akan restart dalam beberapa detik.",
+      "passwordChangeSuccess": "✅ Password WiFi berhasil diubah!\n\n🔐 Password Baru: *{newPassword}*\n\n⚠️ Perangkat akan restart dalam beberapa detik.\nSilakan hubungkan ulang dengan password baru.",
+      "rebootSuccess": "✅ Perintah reboot berhasil dikirim!\n\n⏱️ Router akan restart dalam beberapa detik.\nKoneksi akan terputus sementara selama ±2 menit.",
+      "rebootFailed": "❌ Gagal melakukan reboot.\n\nSilakan coba lagi atau hubungi teknisi.",
+      "invalidSSID": "❌ Nama WiFi tidak valid.\n\n• Minimal 3 karakter\n• Maksimal 32 karakter\n• Tidak boleh mengandung karakter khusus",
+      "invalidPassword": "❌ Password WiFi tidak valid.\n\n• Minimal 8 karakter\n• Maksimal 63 karakter\n• Disarankan kombinasi huruf dan angka",
+      "deviceNotFound": "❌ Perangkat tidak ditemukan.\n\nPastikan router Anda online.",
+      "changeInProgress": "⏳ Sedang mengubah konfigurasi WiFi...\n\nMohon tunggu sebentar.",
+      "historyEmpty": "📜 Belum ada riwayat perubahan WiFi.",
+      "confirmChange": "⚠️ *KONFIRMASI PERUBAHAN*\n\nAnda akan mengubah {type} WiFi.\nPerangkat akan restart setelah perubahan.\n\nLanjutkan? (ya/tidak)"
+    },
+    
+    "ticket": {
+      "createSuccess": "✅ *TIKET BERHASIL DIBUAT*\n\n🎫 ID Tiket: *{ticketId}*\n👤 Pelapor: {name}\n📝 Keluhan: {complaint}\n📅 Tanggal: {date}\n⏱️ Status: PENDING\n\n_Tim teknisi akan segera menangani laporan Anda._",
+      "statusInfo": "🎫 *STATUS TIKET*\n\nID: {ticketId}\nStatus: {status}\nPelapor: {reporter}\nTeknisi: {technician}\nKeluhan: {complaint}\nTanggal: {date}\nUpdate: {lastUpdate}",
+      "cancelled": "❌ Tiket *{ticketId}* telah dibatalkan.",
+      "resolved": "✅ Tiket *{ticketId}* telah diselesaikan.\n\nTerima kasih atas kesabaran Anda.",
+      "notFound": "❌ Tiket tidak ditemukan.\n\nPastikan ID tiket yang Anda masukkan benar.",
+      "alreadyResolved": "ℹ️ Tiket ini sudah diselesaikan.",
+      "alreadyCancelled": "ℹ️ Tiket ini sudah dibatalkan.",
+      "processing": "🔧 Tiket sedang diproses oleh teknisi.",
+      "escalated": "⚠️ Tiket telah dieskalasi ke level yang lebih tinggi.",
+      "assignedTo": "👷 Tiket ditugaskan kepada: {technician}",
+      "estimatedTime": "⏱️ Estimasi penyelesaian: {time}",
+      "urgentFlag": "🔴 *URGENT* - Memerlukan penanganan segera!"
+    },
+    
+    "payment": {
+      "requestSuccess": "✅ *REQUEST PEMBAYARAN BERHASIL*\n\nRequest Anda telah dikirim ke admin untuk diproses.\n\n📋 Detail:\n👤 Pelanggan: {name}\n💰 Jumlah: Rp {amount}\n📅 Tanggal: {date}\n\n_Admin akan segera memproses request Anda._",
+      "requestPending": "⏳ Anda memiliki request pembayaran yang masih pending.\n\nMohon tunggu hingga diproses oleh admin.",
+      "requestApproved": "✅ Request pembayaran Anda telah disetujui!",
+      "requestRejected": "❌ Request pembayaran Anda ditolak.\n\nAlasan: {reason}",
+      "insufficientBalance": "❌ Saldo tidak mencukupi.\n\nSaldo Anda: Rp {balance}\nDibutuhkan: Rp {required}",
+      "topupSuccess": "✅ Top up berhasil!\n\n💰 Jumlah: Rp {amount}\n💳 Saldo Sekarang: Rp {balance}",
+      "voucherPurchased": "✅ *VOUCHER BERHASIL DIBELI*\n\n📱 Kode: {code}\n⏱️ Durasi: {duration}\n💰 Harga: Rp {price}\n\n_Gunakan kode voucher untuk aktivasi._",
+      "invoiceGenerated": "📄 Invoice berhasil dibuat.\n\nNo. Invoice: {invoiceNumber}\nDownload: {downloadLink}"
+    },
+    
+    "speed": {
+      "boostActive": "⚡ *SPEED BOOST AKTIF*\n\n📦 Paket: {package}\n⚡ Speed: {speed}\n⏱️ Durasi: {duration}\n📅 Berakhir: {endDate}",
+      "boostRequested": "✅ *REQUEST SPEED BOOST*\n\n📦 Paket: {package}\n⚡ Speed: {speed}\n⏱️ Durasi: {duration}\n💰 Harga: Rp {price}\n\n_Menunggu pembayaran untuk aktivasi._",
+      "boostExpired": "⏱️ Speed boost Anda telah berakhir.\n\nKecepatan kembali ke paket normal.",
+      "noActiveBoost": "ℹ️ Tidak ada speed boost yang aktif.",
+      "alreadyActive": "⚠️ Anda sudah memiliki speed boost aktif.\n\nTunggu hingga selesai untuk request baru.",
+      "paymentRequired": "💳 Pembayaran diperlukan untuk mengaktifkan speed boost.\n\nSilakan lakukan pembayaran: Rp {amount}",
+      "selectPackage": "📦 *PILIH PAKET SPEED BOOST*\n\n{packages}\n\nBalas dengan nomor pilihan Anda.",
+      "selectDuration": "⏱️ *PILIH DURASI*\n\n1️⃣ 1 Hari - Rp {price1}\n2️⃣ 3 Hari - Rp {price3}\n3️⃣ 7 Hari - Rp {price7}\n\nBalas dengan nomor pilihan Anda."
+    },
+    
+    "admin": {
+      "userAdded": "✅ User berhasil ditambahkan.\n\nID: {userId}\nNama: {name}",
+      "userUpdated": "✅ Data user berhasil diperbarui.",
+      "userDeleted": "✅ User berhasil dihapus.",
+      "userNotFound": "❌ User tidak ditemukan.",
+      "bulkProcessSuccess": "✅ Bulk process berhasil.\n\nDiproses: {processed}\nBerhasil: {success}\nGagal: {failed}",
+      "maintenanceEnabled": "🔧 Mode maintenance diaktifkan.",
+      "maintenanceDisabled": "✅ Mode maintenance dinonaktifkan.",
+      "broadcastSent": "📢 Broadcast berhasil dikirim ke {count} penerima.",
+      "reportGenerated": "📊 Laporan berhasil dibuat.\n\nFile: {filename}",
+      "configUpdated": "⚙️ Konfigurasi berhasil diperbarui.",
+      "backupCreated": "💾 Backup berhasil dibuat.\n\nFile: {filename}",
+      "systemStatus": "📊 *STATUS SISTEM*\n\n✅ Online: {online}\n❌ Offline: {offline}\n⚠️ Warning: {warning}\n📊 CPU: {cpu}%\n💾 Memory: {memory}%\n💿 Disk: {disk}%"
+    },
+    
+    "teknisi": {
+      "assignedTicket": "🎫 Tiket baru ditugaskan kepada Anda.\n\nID: {ticketId}\nPelanggan: {customer}\nKeluhan: {complaint}",
+      "reminderTicket": "⏰ Reminder: Tiket {ticketId} belum diselesaikan.\n\nMohon segera ditindaklanjuti.",
+      "requestSent": "✅ Request perubahan status pembayaran telah dikirim ke admin.",
+      "toolsMenu": "🔧 *MENU TEKNISI*\n\n1. Status PPPoE\n2. Status Hotspot\n3. Status AP\n4. List User\n5. Request Pembayaran\n6. Selesaikan Tiket\n\nPilih menu dengan mengetik angka atau command.",
+      "workReport": "📋 *LAPORAN KERJA*\n\nTeknisi: {name}\nPeriode: {period}\nTiket Selesai: {completed}\nTiket Pending: {pending}\nRating: ⭐ {rating}"
+    },
+    
+    "notification": {
+      "newTicket": "🎫 *TIKET BARU*\n\nID: {ticketId}\nPelanggan: {customer}\nKeluhan: {complaint}\n\n_Mohon segera ditindaklanjuti._",
+      "paymentReceived": "💰 *PEMBAYARAN DITERIMA*\n\nPelanggan: {customer}\nJumlah: Rp {amount}\nMetode: {method}",
+      "serviceDown": "🔴 *LAYANAN DOWN*\n\nLokasi: {location}\nPelanggan Terdampak: {affected}\n\n_Tim teknisi sedang menangani._",
+      "serviceUp": "🟢 *LAYANAN NORMAL*\n\nLokasi: {location}\nDurasi Down: {duration}",
+      "lowBalance": "⚠️ *SALDO RENDAH*\n\nSaldo Anda tersisa: Rp {balance}\n\nSilakan lakukan top up.",
+      "maintenanceScheduled": "🔧 *JADWAL MAINTENANCE*\n\nTanggal: {date}\nWaktu: {time}\nDurasi: {duration}\nLokasi: {location}\n\n_Mohon maaf atas ketidaknyamanannya._"
+    }
+  },
+  
+  "templates": {
+    "menu": {
+      "main": "📱 *MENU UTAMA {botName}*\n━━━━━━━━━━━━━━━━━\n\n{menuItems}\n\n━━━━━━━━━━━━━━━━━\n💡 _Ketik perintah atau pilih nomor menu_\n📞 Support: {supportNumber}",
+      "customer": "👤 *MENU PELANGGAN*\n━━━━━━━━━━━━━━━━━\n\n{menuItems}\n\n━━━━━━━━━━━━━━━━━\n💡 _Pilih menu dengan mengetik perintah_",
+      "admin": "👨‍💼 *MENU ADMIN*\n━━━━━━━━━━━━━━━━━\n\n{menuItems}\n\n━━━━━━━━━━━━━━━━━\n⚙️ _Admin Tools_",
+      "teknisi": "🔧 *MENU TEKNISI*\n━━━━━━━━━━━━━━━━━\n\n{menuItems}\n\n━━━━━━━━━━━━━━━━━\n🛠️ _Teknisi Tools_"
+    },
+    
+    "footer": {
+      "default": "\n\n_Powered by {botName}_\n_© 2024 {companyName}_",
+      "support": "\n\n📞 Butuh bantuan? Hubungi:\n{supportNumber}",
+      "timestamp": "\n\n⏰ {timestamp}"
+    }
+  },
+  
+  "settings": {
+    "language": "id",
+    "timezone": "Asia/Jakarta",
+    "dateFormat": "DD/MM/YYYY",
+    "timeFormat": "HH:mm",
+    "currencyFormat": "Rp {amount}",
+    "enableEmoji": true,
+    "enableFormatting": true,
+    "maxMessageLength": 4096
+  }
+}

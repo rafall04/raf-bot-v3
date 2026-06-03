@@ -1,0 +1,643 @@
+/**
+ * Header Doc
+ * Purpose: Router pesan WhatsApp utama yang menormalkan konteks, menjalankan interseptor global, routing state, dan delegasi intent.
+ * Caller: `index.js` pada event `messages.upsert`.
+ * Deps: Handler domain di `message/handlers/*`, helper context/pipeline bot, dan service `lib/*`.
+ * MainFuncs: Build context pesan, jalankan guard/cancel/state, lalu dispatch intent ke handler domain.
+ * SideEffects: Membaca/menulis state percakapan, mengirim pesan WhatsApp, dan memanggil service domain existing.
+ */
+"use strict";
+
+const { isProcessing, setProcessing, clearProcessing } = require('../lib/state-manager');
+
+const fs = require("fs");
+const convertRupiah = require('rupiah-format');
+const axios = require('axios');
+const path = require('path');
+const { exec } = require('child_process');
+
+const { color, bgcolor } = require("../lib/color");
+const { downloadMedia } = require("../lib/whatsapp.adapter");
+const { getBuffer, fetchJson, fetchText, getRandom, getGroupAdmins, runtime, sleep, convert, convertGif, html2Txt } = require("../lib/myfunc");
+const { wifimenu, menupaket, menubelivoucher, menupasang, menuowner, customermenu, techinisionmenu, menuvoucher } = require("./wifi");
+const { setPassword, setSSIDName, getSSIDInfo, rebootRouter } = require("../lib/wifi");
+const { getPppStats, getHotspotStats, statusap, getvoucher, addpppoe, addbinding, addqueue } = require("../lib/mikrotik");
+const { addPayment } = require("../lib/payment");
+const { getIntentFromKeywords } = require('../lib/wifi_template_handler');
+const { templatesCache, renderTemplate } = require("../lib/templating");
+const { savePackageChangeRequests, saveSpeedRequests } = require("../lib/database");
+const { INTENT_OWNER_MAP } = require("./handlers/intent-owner-map");
+const domainHandlers = require('./handlers/domain-handlers');
+const domainServices = require('./handlers/domain-services');
+const {
+    handleGangguanMati,
+    handleGangguanLemot,
+    handleGangguanMatiOfflineResponse,
+    handleGangguanMatiOnlineResponse,
+    handleLemotPhotoUpload,
+    handleGangguanLemotResponse
+} = require('./handlers/smart-report-handler');
+const {
+    handleCompletionConfirmation,
+    handleRemoteRequest,
+    handleRemoteResponse
+} = require('./handlers/ticket-process-handler');
+const { getUserState, setUserState, deleteUserState } = require('./handlers/conversation-handler');
+const { handleConversationState } = require('./handlers/conversation-state-handler');
+const { buildBotContext } = require('./handlers/bot-context');
+const { routeManagedState, runGlobalInterceptors } = require('./handlers/bot-pipeline');
+const { routeConversationState } = require('./handlers/conversation-state-router');
+const { handleLegacyTeknisiStateTransitions } = require('./handlers/legacy-teknisi-state-handler');
+const { sendReply, sendContactCard } = require('./handlers/reply-runtime');
+const {
+    handleMulaiPerjalanan,
+    handleTeknisiShareLocation,
+    handleActiveTicketLocationUpdate,
+    handleCekLokasiTeknisi,
+    handleTiketSaya
+} = require('./handlers/simple-location-handler');
+const {
+    handleListAgents,
+    handleAgentByArea,
+    handleAgentServices,
+    handleSearchAgent,
+    handleViewAgentDetail,
+    handleAgentConfirmation,
+    handleAgentTodayTransactions,
+    handleCheckTopupStatus,
+    handleAgentPinChange,
+    handleAgentProfileUpdate,
+    handleAgentStatusToggle,
+    handleAgentSelfProfile
+} = require('./handlers/agent');
+const agentVoucherConversationHandlers = require('./handlers/agent-voucher-handler');
+const qr = require('qr-image')
+const pay = require("../lib/ipaymu")
+
+const format = (key, data = {}) => {
+    let template = templatesCache.responseTemplates[key]?.template || '';
+    for (const placeholder in data) {
+        const regex = new RegExp(`\\$\\{${placeholder}\\}`, 'g');
+        template = template.replace(regex, data[placeholder]);
+    }
+    return template;
+};
+
+const mess = {
+    get owner() { return format('mess_owner'); },
+    get userNotRegister() { return format('mess_userNotRegister'); },
+    get notRegister() { return format('mess_notRegister'); },
+    get notProfile() { return format('mess_notProfile'); },
+    get onlyMonthly() { return format('mess_onlyMonthly'); },
+    get wrongFormat() { return format('mess_wrongFormat'); },
+    get mustNumber() { return format('mess_mustNumber'); },
+    get teknisiOrOwnerOnly() { return format('mess_teknisiOrOwnerOnly'); },
+    get teknisiOnly() { return format('mess_teknisiOnly'); },
+    get reportNotFound() { return format('mess_reportNotFound'); },
+    get reportAlreadyDone() { return format('mess_reportAlreadyDone'); },
+    get reportNotFound_detail() { return format('mess_reportNotFound_detail'); },
+    get reportAlreadyDone_detail() { return format('mess_reportAlreadyDone_detail'); },
+}
+
+const reportsDbPathRaf = path.join(__dirname, '../database/reports.json');
+
+// Handler imports - Smart Report
+const { buatLaporanGangguan } = require('./handlers/ticket-creation-handler');
+const { processVoucherPurchase, handleVoucherChoiceState } = require('./handlers/payment-processor-handler');
+const { handleMenuSelection, handleTroubleshootResult, handleMatiConfirmation, handleMatiTroubleshootOptions, handleMatiPhotoUpload } = require('./handlers/smart-report-text-menu');
+const { handleDirectConfirmation, handleDirectLemotResponse } = require('./handlers/smart-report-hybrid');
+const { handleCustomerPhotoUpload } = require('./handlers/customer-photo-handler');
+const { handleGeneralSteps } = require('./handlers/steps/general-steps');
+const { addPhotoToQueue } = require('./handlers/photo-upload-queue');
+
+// Handler imports - Utility
+const { handleCekTiket, handleBantuan, handleSapaanUmum, handleAdminContact } = require('./handlers/utility-handler');
+const { handleMenuPelanggan, handleMenuUtama, handleMenuTeknisi, handleMenuOwner, handleTanyaCaraPasang, handleTanyaPaketBulanan, handleTutorialTopup } = require('./handlers/menu-handler');
+const { handleStatusPpp, handleStatusHotspot, handleStatusAp, handleAllSaldo, handleAllUser, handleListProfStatik, handleListProfVoucher, handleMonitorWifi } = require('./handlers/monitoring-handler');
+const { handleCekSaldo, handleTanyaHargaVoucher, handleVc123 } = require('./handlers/saldo-voucher-handler');
+const { handleTransferSaldo, handleCancelTopup } = require('./handlers/saldo-handler');
+const { handleAccessManagement } = require('./handlers/access-management-handler');
+const { handleCekTagihan } = require('./handlers/billing-management-handler');
+const { handleCheckPackage, handleComplaint, handleServiceInfo } = require('./handlers/customer-handler');
+const { handleUbahPaket, handleRequestSpeedBoost } = require('./handlers/package-management-handler');
+const { handleGantiPowerWifi } = require('./handlers/wifi-power-handler');
+const { handleRebootModem } = require('./handlers/reboot-modem-handler');
+const { handleCekWifi } = require('./handlers/wifi-check-handler');
+const { handleHistoryWifi } = require('./handlers/wifi-history-handler');
+const { handleAddProfVoucher, handleDelProfVoucher, handleAddProfStatik, handleDelProfStatik } = require('./handlers/voucher-management-handler');
+const { handleAddBinding, handleAddPPP } = require('./handlers/network-management-handler');
+const { handleTopup, handleDelSaldo, handleTransfer } = require('./handlers/balance-management-handler');
+const { handleProsesTicket, handleOTW, handleSampaiLokasi, handleVerifikasiOTP, handleSelesaiTicket, handleCompleteTicket, handleTeknisiPhotoUpload, handleTeknisiResolutionNotesState, handleTeknisiCompletionConfirmationState } = require('./handlers/teknisi-workflow-handler');
+const {
+    extractMessageContext,
+    getOptionalJid,
+    resolveActorCapabilities
+} = require('./handlers/raf-context');
+const {
+    isCancellationKeyword,
+    buildStateRoutingContext,
+    resolveGlobalCommandStatus
+} = require('./handlers/raf-interceptors');
+const {
+    handleManagedConversationState,
+    handleWifiInputGuard,
+    resolveKeywordIntent
+} = require('./handlers/raf-state-routing');
+const { resolveAgentContext, dispatchIntent } = require('./handlers/raf-intent-dispatch');
+
+// Library imports
+const { normalizeJid, normalizeJidForSaldo, findUserWithLidSupport, normalizePhoneNumber, normalizePhoneToJid, extractSenderInfo, processLidVerification, buildCanonicalContext } = require('../lib/jid-utils');
+const agentTransactionManager = require('../lib/agent-transaction-manager');
+const agentManager = require('../lib/agent-manager');
+const { getReportsUploadsPath, getTeknisiUploadsPathByTicket } = require('../lib/path-helper');
+const { resolveRuntimeBindings, getRuntimeCollection } = require('../lib/runtime-repositories');
+let ownerNumber, nama, namabot, parentbinding, telfon;
+
+function resolveRuntimeContext(runtimeOverride) {
+    const runtimeBindings = resolveRuntimeBindings(runtimeOverride);
+
+    return {
+        runtime: runtimeBindings.runtime,
+        runtimeGlobalScope: runtimeBindings.globalScope,
+        runtimeConfig: runtimeBindings.config
+    };
+}
+const temp = null;
+
+module.exports = async (raf, msg, m, options = {}) => {
+    const { runtime: requestRuntime, runtimeGlobalScope, runtimeConfig } = resolveRuntimeContext(options.runtime);
+
+    if (runtimeConfig && Object.keys(runtimeConfig).length > 0) {
+        ({
+            ownerNumber,
+            nama,
+            namabot,
+            parentbinding,
+            telfon
+        } = runtimeConfig);
+    } else {
+        ownerNumber = [];
+        nama = 'Service Name';
+        namabot = 'Bot Name';
+        parentbinding = '';
+        telfon = '';
+    }
+
+    const domainRepositories = domainServices.resolveDomainRepositories(requestRuntime);
+    const saldoRepository = domainRepositories.saldo;
+    const voucherRepository = domainRepositories.voucher;
+    const users = getRuntimeCollection(requestRuntime, 'users', runtimeGlobalScope);
+    const accounts = getRuntimeCollection(requestRuntime, 'accounts', runtimeGlobalScope);
+    const statikCatalog = getRuntimeCollection(requestRuntime, 'statik', runtimeGlobalScope);
+    const voucherCatalog = voucherRepository.getVoucherCatalog();
+
+    if (((msg.key.id.startsWith("BAE5") && msg.key.id.length < 32) || (msg.key.id.startsWith("3EB0") && msg.key.id.length < 32)) && msg.key?.fromMe) return;
+    const messageContext = extractMessageContext(msg);
+    if (!messageContext) {
+        console.log('[WARNING] chats is undefined, skipping message processing');
+        return;
+    }
+
+    const {
+        from,
+        type,
+        chats,
+        args,
+        command,
+        isGroup,
+        sender,
+        pushname,
+        q
+    } = messageContext;
+    const lowerMessage = typeof chats === 'string' ? chats.toLowerCase().trim() : '';
+
+    if (chats === undefined || chats === null) {
+        console.log('[WARNING] chats is undefined, skipping message processing');
+        return;
+    }
+    if (isGroup) return;
+
+    const primarySenderId = sender;
+    const optionalJid = getOptionalJid(msg, sender);
+    const canonicalContext = await buildCanonicalContext(sender, msg, raf);
+    const canonicalSenderId = canonicalContext.canonicalId || optionalJid || sender;
+    const stateSender = canonicalSenderId || sender;
+    const normalizedSenderForSaldo = canonicalSenderId || sender;
+
+    // Set fallback optional phone number (hanya untuk log / backward compatibility minor yang tak critical)
+    let plainSenderNumber = canonicalContext.phoneNumber || (optionalJid ? optionalJid.split('@')[0] : sender.split('@')[0]);
+
+    // Cek user terdaftar (untuk saldo dll) menggunakan Primary ID apa adanya (@lid)
+    const isSaldo = await saldoRepository.getSaldoUser(normalizedSenderForSaldo);
+
+    const {
+        isOwner,
+        isTeknisi
+    } = resolveActorCapabilities({
+        ownerNumber,
+        primarySenderId,
+        optionalJid,
+        plainSenderNumber,
+        accounts
+    });
+
+    if (sender.endsWith('@lid')) {
+        console.log(`[AUTH_DEBUG] PrimaryID: ${primarySenderId}, OpsionalJID: ${optionalJid}, isSaldo: ${isSaldo !== false && isSaldo !== null}, isOwner: ${isOwner}, isTeknisi: ${!!isTeknisi}`);
+    }
+
+    const isUrl = (uri) => {
+        return uri.match(new RegExp(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%.+#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%+.#?&/=]*)/, 'gi'))
+    }
+
+    const originalReply = (teks) => sendReply({
+        recipient: from,
+        text: teks,
+        quoted: msg
+    });
+
+    const reply = async (teks, options = {}) => {
+        if (options.skipDuplicateCheck) {
+            return sendReply({
+                recipient: from,
+                text: teks,
+                quoted: msg,
+                skipDuplicateCheck: true
+            });
+        }
+        return originalReply(teks);
+    }
+
+    let sendContact = (jid, numbers, name, quoted) => {
+        return sendContactCard({
+            recipient: from,
+            number: numbers,
+            name,
+            quoted
+        });
+    }
+
+    const botContext = buildBotContext({
+        raf,
+        msg,
+        runtime: requestRuntime,
+        data: {
+            from,
+            chats,
+            args,
+            command,
+            sender,
+            stateSender,
+            pushname,
+            plainSenderNumber,
+            isOwner,
+            isTeknisi,
+            normalizedSenderForSaldo,
+            lowerMessage
+        }
+    });
+    const interceptorResult = runGlobalInterceptors(botContext);
+    if (interceptorResult && interceptorResult.handled) {
+        return;
+    }
+
+    if (!isSaldo) {
+        try {
+            // Kita sudah menggunakan primarySenderId (@lid atau nomor asli) secara murni
+            if (primarySenderId) {
+                await saldoRepository.createSaldoUser(primarySenderId, pushname);
+            }
+        } catch (err) {
+            console.error('[SALDO_INIT] Error creating user saldo:', err);
+        }
+    }
+
+    const rupiah = await saldoRepository.getSaldoUser(primarySenderId);
+    const rupiah123 = convertRupiah.convert(rupiah)
+
+    try {
+        if (isProcessing(stateSender)) {
+            console.log(`[CONCURRENT_PREVENTED] ${stateSender} already being processed, skipping`);
+            return;
+        }
+
+        setProcessing(stateSender);
+
+        const smartReportState = getUserState(stateSender);
+
+        const conversationState = getUserState(stateSender);
+        const {
+            isInProtectedState
+        } = buildStateRoutingContext({
+            smartReportState,
+            conversationState
+        });
+
+        const userState = getUserState(stateSender);
+
+        let isGlobalCommand = resolveGlobalCommandStatus({
+            chats,
+            isInProtectedState,
+            getIntentFromKeywords
+        });
+
+        if (isCancellationKeyword(chats)) {
+            isGlobalCommand = true;
+            deleteUserState(stateSender);
+            await reply(format('success_process_cancelled') || 'Baik, proses sebelumnya sudah dibatalkan.');
+            clearProcessing(stateSender);
+            return;
+        }
+
+        if (smartReportState && isGlobalCommand && !isInProtectedState) {
+            console.log(`[GLOBAL_COMMAND] User ${stateSender} broke out of state with command: "${chats}"`);
+            deleteUserState(stateSender);
+        }
+        const conversationTeknisiState = getUserState(stateSender);
+        const conversationStateResult = await routeConversationState({
+            stateStep: userState?.step || smartReportState?.step || conversationTeknisiState?.step,
+            userState,
+            smartReportState,
+            teknisiState: conversationTeknisiState,
+            msg,
+            raf,
+            sender,
+            stateSender,
+            chats,
+            type,
+            reply,
+            global: runtimeGlobalScope,
+            format,
+            isGlobalCommand,
+            isOwner,
+            isTeknisi,
+            users,
+            args,
+            plainSenderNumber,
+            pushname,
+            mess,
+            sleep,
+            getSSIDInfo,
+            namabot,
+            buatLaporanGangguan,
+            setUserState,
+            deleteUserState,
+            getUserState,
+            temp,
+            routeManagedState,
+            handleManagedConversationState,
+            handleConversationState,
+            handleMenuSelection,
+            handleTroubleshootResult,
+            handleMatiConfirmation,
+            handleMatiTroubleshootOptions,
+            handleMatiPhotoUpload,
+            handleLemotPhotoUpload,
+            handleDirectConfirmation,
+            handleDirectLemotResponse,
+            downloadMedia,
+            getReportsUploadsPath,
+            addPhotoToQueue,
+            handleCustomerPhotoUpload,
+            handleGeneralSteps,
+            handleGangguanMatiOfflineResponse,
+            handleGangguanMatiOnlineResponse,
+            handleGangguanLemotResponse,
+            handleLegacyTeknisiStateTransitions,
+            getTeknisiUploadsPathByTicket,
+            handleTeknisiPhotoUpload,
+            handleTeknisiShareLocation,
+            handleCompleteTicket,
+            handleTeknisiResolutionNotesState,
+            handleTeknisiCompletionConfirmationState,
+            domainServices,
+            getvoucher,
+            handleVoucherChoiceState,
+            agentVoucherConversationHandlers
+        });
+        if (conversationStateResult.handled) {
+            if (conversationStateResult.message) {
+                await reply(conversationStateResult.message);
+            }
+            return;
+        }
+        const activeTicketLocationResult = await handleActiveTicketLocationUpdate({
+            sender,
+            type,
+            msg,
+            reply
+        });
+        if (activeTicketLocationResult.handled) {
+            if (activeTicketLocationResult.message) {
+                await reply(activeTicketLocationResult.message);
+            }
+            return;
+        }
+
+        const isInManagedWifiInputState = userState?.step && userState.step.startsWith('ASK_NEW_');
+
+        if (userState?.step && isGlobalCommand && !isInManagedWifiInputState) {
+            console.log(`[GLOBAL_COMMAND] Clearing managed state for ${stateSender}`);
+            deleteUserState(stateSender);
+        }
+
+        const managedConversationResult = await routeManagedState({
+            handleManagedConversationState,
+            getUserState,
+            stateSender,
+            isGlobalCommand,
+            handleConversationState,
+            chats,
+            temp,
+            reply,
+            global: runtimeGlobalScope,
+            isOwner,
+            isTeknisi,
+            users,
+            args,
+            plainSenderNumber,
+            pushname,
+            mess,
+            sleep,
+            getSSIDInfo,
+            namabot,
+            buatLaporanGangguan
+        });
+        if (managedConversationResult.handled) {
+            return;
+        }
+
+        let intent;
+        let entities = {}; // Default entitas kosong
+        let matchedKeywordLength = 0; // Menyimpan jumlah kata dari keyword yang cocok
+
+        if (!chats || chats.trim() === '') return;
+
+        const wifiInputGuardResult = handleWifiInputGuard({
+            userState,
+            chats,
+            stateSender,
+            deleteUserState,
+            reply,
+            format,
+            clearProcessing
+        });
+        if (wifiInputGuardResult.handled) {
+            return;
+        }
+        const { isAgent } = await resolveAgentContext({
+            sender,
+            msg,
+            isGroup,
+            raf,
+            extractSenderInfo,
+            agentTransactionManager,
+            agentManager
+        });
+
+        const keywordIntentResult = resolveKeywordIntent({
+            chats,
+            isAgent,
+            getIntentFromKeywords,
+            args,
+            q,
+            command
+        });
+        if (keywordIntentResult.intent) {
+            intent = keywordIntentResult.intent;
+            matchedKeywordLength = keywordIntentResult.matchedKeywordLength;
+            console.log(`[INTENT_DEBUG] Keyword match found: ${intent} for message: "${chats}"`);
+        }
+        const qAfterKeyword = keywordIntentResult.qAfterKeyword;
+
+        console.log(`[INTENT_DEBUG] Final intent: ${intent} for message: "${chats}", matchedKeywordLength: ${matchedKeywordLength}, qAfterKeyword: "${qAfterKeyword}"`);
+
+        await dispatchIntent({
+            ...botContext,
+            intent,
+            q,
+            qAfterKeyword,
+            chats,
+            args,
+            command,
+            lowerMessage,
+            entities,
+            matchedKeywordLength,
+            intentOwner: INTENT_OWNER_MAP[intent] || "legacy",
+            sender,
+            stateSender,
+            pushname,
+            msg,
+            raf,
+            from,
+            pay,
+            isOwner,
+            isTeknisi,
+            plainSenderNumber,
+            normalizedSenderForSaldo,
+            reply,
+            global: runtimeGlobalScope,
+            mess,
+            temp,
+            format,
+            ownerNumber,
+            sendContact,
+            users,
+            sleep,
+            getSSIDInfo,
+            namabot,
+            buatLaporanGangguan,
+            setUserState,
+            deleteUserState,
+            getUserState,
+            handleStatusPpp,
+            handleStatusHotspot,
+            handleCekTiket,
+            handleAgentConfirmation,
+            handleRemoteResponse,
+            handleCompletionConfirmation,
+            addPayment,
+            getvoucher,
+            handleBantuan,
+            handleSapaanUmum,
+            handleMenuPelanggan,
+            handleMenuUtama,
+            handleMenuTeknisi,
+            handleMenuOwner,
+            handleTanyaCaraPasang,
+            handleTanyaPaketBulanan,
+            handleTutorialTopup,
+            handleListProfStatik,
+            handleListProfVoucher,
+            statik: statikCatalog,
+            voucher: voucherCatalog,
+            handleCekSaldo,
+            handleTanyaHargaVoucher,
+            handleTransferSaldo,
+            handleCancelTopup,
+            extractSenderInfo,
+            agentTransactionManager,
+            handleAccessManagement,
+            handleListAgents,
+            handleAgentByArea,
+            handleAgentServices,
+            handleSearchAgent,
+            handleViewAgentDetail,
+            handleAgentTodayTransactions,
+            handleCheckTopupStatus,
+            handleAgentSelfProfile,
+            handleAgentPinChange,
+            handleAgentProfileUpdate,
+            handleAgentStatusToggle,
+            handleStatusAp,
+            handleAllSaldo,
+            handleVc123,
+            handleAllUser,
+            handleAdminContact,
+            handleGantiPowerWifi,
+            handleRebootModem,
+            handleCekWifi,
+            handleHistoryWifi,
+            handleMonitorWifi,
+            handleAddProfVoucher,
+            handleDelProfVoucher,
+            handleAddProfStatik,
+            handleDelProfStatik,
+            handleAddBinding,
+            addbinding,
+            addqueue,
+            handleAddPPP,
+            addpppoe,
+            handleTopup,
+            handleDelSaldo,
+            handleTransfer,
+            handleCekTagihan,
+            renderTemplate,
+            findUserWithLidSupport,
+            handleCheckPackage,
+            handleComplaint,
+            handleServiceInfo,
+            handleUbahPaket,
+            handleRequestSpeedBoost,
+            processLidVerification,
+            repositories: domainRepositories,
+            ...domainHandlers,
+            ...domainServices,
+            handleCekLokasiTeknisi,
+            handleTiketSaya,
+            handleProsesTicket,
+            handleOTW,
+            handleSampaiLokasi,
+            handleVerifikasiOTP,
+            handleCompleteTicket,
+            handleSelesaiTicket,
+            handleTeknisiResolutionNotesState,
+            handleTeknisiCompletionConfirmationState,
+        });
+
+    } catch (err) {
+        if (typeof err === "string") return reply(String(err));
+        console.log(err)
+    } finally {
+        clearProcessing(stateSender);
+    }
+}
