@@ -28,6 +28,45 @@ function registerAdminDatabaseRoutes(router, deps) {
         }
     }
 
+    /**
+     * Jalankan migrasi database lengkap untuk users.sqlite:
+     *  1) Comprehensive column-adder (scripts/migrate-database.js) -> pastikan semua kolom `users` ada.
+     *  2) Version-based migration (DatabaseMigrationManager) -> buat tabel turunan seperti `payment_history`.
+     * Keduanya idempoten & aman dipanggil berulang. Mengembalikan ringkasan hasil tanpa pernah
+     * memanggil process.exit (berbeda dengan scripts/auto-migrate-on-startup yang exit saat dijalankan langsung).
+     */
+    async function runDatabaseMigrations() {
+        // Step 1: Comprehensive column-adder (menarget users.sqlite, fallback database.sqlite)
+        const scriptPath = path.join(__dirname, "..", "scripts", "migrate-database.js");
+        const columnResult = await new Promise((resolve) => {
+            if (!fs.existsSync(scriptPath)) {
+                resolve({ ran: false, error: null, stdout: "", stderr: "" });
+                return;
+            }
+            exec(`node "${scriptPath}"`, { cwd: path.join(__dirname, "..") }, (error, stdout, stderr) => {
+                resolve({
+                    ran: true,
+                    error: error ? error.message : null,
+                    stdout: stdout ? stdout.toString() : "",
+                    stderr: stderr ? stderr.toString() : ""
+                });
+            });
+        });
+
+        // Step 2: Version-based migration (membuat payment_history + index, dll.)
+        let versionResults = null;
+        let versionError = null;
+        try {
+            const DatabaseMigrationManager = require("../lib/database-migration-manager");
+            const manager = new DatabaseMigrationManager();
+            versionResults = await manager.migrateAll();
+        } catch (versionErr) {
+            versionError = versionErr.message;
+        }
+
+        return { columnResult, versionResults, versionError };
+    }
+
     router.get("/api/database/info", ensureAuthenticatedStaff, asyncHandler(async (_req, res) => {
         try {
             const dbPath = path.join(__dirname, "..", "database", "users.sqlite");
@@ -122,55 +161,48 @@ function registerAdminDatabaseRoutes(router, deps) {
 
     router.post("/api/database/migrate-schema", ensureAuthenticatedStaff, asyncHandler(async (_req, res) => {
         try {
-            let scriptPath = path.join(__dirname, "..", "scripts", "migrate-database.js");
-            if (!fs.existsSync(scriptPath)) {
-                scriptPath = path.join(__dirname, "..", "tools", "smart-migrate-database.js");
-                if (!fs.existsSync(scriptPath)) {
-                    return res.status(404).json({ status: 404, message: "Migration script not found", data: null });
-                }
+            const { columnResult, versionResults, versionError } = await runDatabaseMigrations();
+
+            if (columnResult.error) {
+                console.error("[DB_MIGRATE] Column migration error:", columnResult.error);
+                console.error("[DB_MIGRATE] Stderr:", columnResult.stderr);
+                return res.status(500).json({ status: 500, message: "Migration failed: " + columnResult.error, data: null });
             }
 
-            exec(`node "${scriptPath}"`, { cwd: path.join(__dirname, "..") }, async (error, stdout, stderr) => {
-                if (error) {
-                    console.error("[DB_MIGRATE] Error:", error);
-                    console.error("[DB_MIGRATE] Stderr:", stderr);
-                    return res.status(500).json({ status: 500, message: "Migration failed: " + error.message, data: null });
-                }
+            const output = columnResult.stdout || "";
+            let backupFile = null;
+            let addedColumns = [];
+            let backupMatch = output.match(/\[SUCCESS\].*Backup created: ([^\n]+)/);
+            if (!backupMatch) backupMatch = output.match(/Creating backup: ([^\n]+)/);
+            if (backupMatch) backupFile = path.basename(backupMatch[1].trim());
+            const columnMatches = output.match(/\[SUCCESS\].*Added field:.*?(\w+)/g);
+            if (columnMatches) {
+                addedColumns = columnMatches.map((match) => {
+                    const fieldMatch = match.match(/Added field:.*?(\w+)/);
+                    return fieldMatch ? fieldMatch[1] : match;
+                });
+            }
+            const upToDate = (output.includes("All required fields already exist!") || output.includes("Database schema is already up to date!")) && addedColumns.length === 0;
 
-                const output = stdout.toString();
-                let backupFile = null;
-                let addedColumns = [];
-                let backupMatch = output.match(/\[SUCCESS\].*Backup created: ([^\n]+)/);
-                if (!backupMatch) backupMatch = output.match(/Creating backup: ([^\n]+)/);
-                if (backupMatch) backupFile = path.basename(backupMatch[1].trim());
-                let columnMatches = output.match(/\[SUCCESS\].*Added field:.*?(\w+)/g);
-                if (!columnMatches) columnMatches = output.match(/âœ… Added column: (\w+)/g);
-                if (columnMatches) {
-                    addedColumns = columnMatches.map((match) => {
-                        if (match.includes("[SUCCESS]")) {
-                            const fieldMatch = match.match(/Added field:.*?(\w+)/);
-                            return fieldMatch ? fieldMatch[1] : match;
-                        }
-                        return match.replace("âœ… Added column: ", "").split(" ")[0];
-                    });
-                }
-                const upToDate = output.includes("All required fields already exist!") || output.includes("Database schema is already up to date!");
-                const { reloadUsersFromDatabase } = require("../lib/database-reload");
-                try {
-                    const reloadResult = await reloadUsersFromDatabase();
-                    res.status(200).json({
-                        status: 200,
-                        message: upToDate ? "Database already up to date" : "Migration completed successfully. No restart needed!",
-                        data: { backupFile, addedColumns, upToDate, output, reloadResult, restartRequired: false }
-                    });
-                } catch (reloadErr) {
-                    res.status(200).json({
-                        status: 200,
-                        message: upToDate ? "Database already up to date" : "Migration completed. Please restart for changes to take effect.",
-                        data: { backupFile, addedColumns, upToDate, output, reloadError: reloadErr.message, restartRequired: true }
-                    });
-                }
-            });
+            if (versionError) {
+                console.error("[DB_MIGRATE] Version migration error:", versionError);
+            }
+
+            const { reloadUsersFromDatabase } = require("../lib/database-reload");
+            try {
+                const reloadResult = await reloadUsersFromDatabase();
+                res.status(200).json({
+                    status: 200,
+                    message: upToDate ? "Database already up to date" : "Migration completed successfully. No restart needed!",
+                    data: { backupFile, addedColumns, upToDate, output, versionResults, versionError, reloadResult, restartRequired: false }
+                });
+            } catch (reloadErr) {
+                res.status(200).json({
+                    status: 200,
+                    message: upToDate ? "Database already up to date" : "Migration completed. Please restart for changes to take effect.",
+                    data: { backupFile, addedColumns, upToDate, output, versionResults, versionError, reloadError: reloadErr.message, restartRequired: true }
+                });
+            }
         } catch (error) {
             console.error("[DB_MIGRATE] Error:", error);
             res.status(500).json({ status: 500, message: "Error starting migration: " + error.message, data: null });
@@ -218,19 +250,23 @@ function registerAdminDatabaseRoutes(router, deps) {
                             try { if (fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath); } catch (_cleanupErr) {}
                             let migrationResult = null;
                             if (autoMigrate) {
-                                const scriptPath = path.join(__dirname, "..", "tools", "smart-migrate-database.js");
-                                if (fs.existsSync(scriptPath)) {
-                                    await new Promise((resolve) => {
-                                        exec(`node "${scriptPath}"`, { cwd: path.join(__dirname, "..") }, (migErr, stdout) => {
-                                            if (migErr) migrationResult = { success: false, error: migErr.message };
-                                            else migrationResult = {
-                                                success: true,
-                                                upToDate: stdout.toString().includes("Database schema is already up to date!")
-                                            };
-                                            resolve();
-                                        });
+                                const { columnResult, versionResults, versionError } = await runDatabaseMigrations();
+                                const migrationOutput = columnResult.stdout || "";
+                                let addedColumns = [];
+                                const columnMatches = migrationOutput.match(/\[SUCCESS\].*Added field:.*?(\w+)/g);
+                                if (columnMatches) {
+                                    addedColumns = columnMatches.map((match) => {
+                                        const fieldMatch = match.match(/Added field:.*?(\w+)/);
+                                        return fieldMatch ? fieldMatch[1] : match;
                                     });
                                 }
+                                migrationResult = {
+                                    success: !columnResult.error && !versionError,
+                                    error: columnResult.error || versionError || null,
+                                    addedColumns,
+                                    upToDate: migrationOutput.includes("All required fields already exist!") && addedColumns.length === 0,
+                                    versionResults
+                                };
                             }
                             const { reloadUsersFromDatabase } = require("../lib/database-reload");
                             try {

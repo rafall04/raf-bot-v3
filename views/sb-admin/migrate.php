@@ -115,6 +115,7 @@
                                                 <ul class="mb-0 mt-2">
                                                     <li>Backup otomatis akan dibuat sebelum migrasi</li>
                                                     <li>Proses migrasi akan menambah kolom yang hilang</li>
+                                                    <li>Tabel turunan (mis. payment_history) akan disiapkan otomatis</li>
                                                     <li>Data existing akan dipertahankan</li>
                                                 </ul>
                                             </div>
@@ -284,6 +285,33 @@
                     });
             }
 
+            // Render ringkasan migrasi berbasis-versi (tabel turunan seperti payment_history)
+            function renderVersionMigration(versionResults) {
+                if (!versionResults || typeof versionResults !== 'object') return '';
+                let rows = '';
+                Object.keys(versionResults).forEach(function(dbName) {
+                    const r = versionResults[dbName] || {};
+                    let label, cls;
+                    if (r.skipped) {
+                        label = 'dilewati (dibuat saat pertama dipakai)';
+                        cls = 'text-muted';
+                    } else if (r.error) {
+                        label = 'gagal: ' + r.error;
+                        cls = 'text-danger';
+                    } else if (r.migrated) {
+                        const extra = dbName === 'users.sqlite' ? ' (payment_history disiapkan)' : '';
+                        label = 'v' + r.currentVersion + ' → v' + r.targetVersion + extra;
+                        cls = 'text-success';
+                    } else {
+                        label = 'sudah versi terbaru (v' + (r.currentVersion != null ? r.currentVersion : '?') + ')';
+                        cls = 'text-muted';
+                    }
+                    rows += '<li><code>' + dbName + '</code>: <span class="' + cls + '">' + label + '</span></li>';
+                });
+                if (!rows) return '';
+                return '<p class="mt-2 mb-1"><strong>Migrasi versi skema:</strong></p><ul class="mb-0">' + rows + '</ul>';
+            }
+
             // Check schema button
             $('#check-schema-btn').on('click', function() {
                 const btn = $(this);
@@ -373,7 +401,9 @@
                         } else {
                             html += '<p>Database was already up to date.</p>';
                         }
-                        
+
+                        html += renderVersionMigration(data.data.versionResults);
+
                         if (!data.data.restartRequired) {
                             html += '<p class="text-success"><strong><i class="fas fa-check"></i> Database reloaded automatically. No restart needed!</strong></p>';
                         } else {
@@ -562,6 +592,10 @@
                             } else if (result.upToDate) {
                                 successMsg += '<p>Database sudah up to date.</p>';
                             }
+                            if (result.error) {
+                                successMsg += `<p class="text-warning">Catatan migrasi: ${result.error}</p>`;
+                            }
+                            successMsg += renderVersionMigration(result.versionResults);
                         }
                         
                         if (!data.data.restartRequired) {
