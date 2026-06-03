@@ -793,11 +793,13 @@ $currentRxRate = 0;
 $currentTxRate = 0;
 
 if ($monitor && isset($monitor[0])) {
-    // Monitor gives rates in bits per second
-    $currentRxRate = isset($monitor[0]['rx-bits-per-second']) ? 
-        round($monitor[0]['rx-bits-per-second'] / 1048576, 2) : 0; // Convert to Mbps
-    $currentTxRate = isset($monitor[0]['tx-bits-per-second']) ? 
-        round($monitor[0]['tx-bits-per-second'] / 1048576, 2) : 0; // Convert to Mbps
+    // Monitor gives rates in bits per second.
+    // Mbps = bits/s / 1.000.000 (desimal, konsisten dengan tampilan MikroTik/Winbox).
+    // Sebelumnya memakai 1048576 (2^20) yang sebenarnya Mibit/s -> angka ~4,86% lebih rendah dari Winbox.
+    $currentRxRate = isset($monitor[0]['rx-bits-per-second']) ?
+        round($monitor[0]['rx-bits-per-second'] / 1000000, 2) : 0; // Convert to Mbps
+    $currentTxRate = isset($monitor[0]['tx-bits-per-second']) ?
+        round($monitor[0]['tx-bits-per-second'] / 1000000, 2) : 0; // Convert to Mbps
 }
 
 // Build response with REAL data only
@@ -825,11 +827,11 @@ $responseData['data'] = [
     'traffic' => [
         'download' => [
             'current' => $currentRxRate, // Current rate in Mbps from monitor
-            'total' => round($totalRx / 1073741824, 2) // Total in GB
+            'total' => round($totalRx / 1000000000, 2) // Total in GB (desimal, 1e9 — konsisten dgn Mbps desimal)
         ],
         'upload' => [
             'current' => $currentTxRate, // Current rate in Mbps from monitor
-            'total' => round($totalTx / 1073741824, 2) // Total in GB
+            'total' => round($totalTx / 1000000000, 2) // Total in GB (desimal, 1e9)
         ]
     ],
     'alerts' => [
