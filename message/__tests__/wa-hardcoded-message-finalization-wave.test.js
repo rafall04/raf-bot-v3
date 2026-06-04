@@ -498,31 +498,6 @@ describe("WA hardcoded message finalization wave", () => {
             "Pertanyaan Anda:"
         ]);
 
-        expectNoHardcodedSnippets("message/handlers/steps/wifi-steps.js", [
-            "Pilih SSID yang Akan Diubah",
-            "Silakan ketik nama WiFi baru",
-            "Perubahan nama WiFi dibatalkan",
-            "Sedang mengubah nama WiFi",
-            "Gagal mengubah nama WiFi",
-            "Pilih SSID yang Akan Diubah Sandinya",
-            "Silakan ketik sandi WiFi baru",
-            "Sandi WiFi terlalu pendek",
-            "Sedang mengubah sandi WiFi",
-            "Gagal mengubah sandi WiFi"
-        ]);
-
-        expectNoHardcodedSnippets("message/handlers/steps/wifi-steps-bulk.js", [
-            "Memeriksa status perangkat",
-            "Pilih SSID yang Akan Diubah",
-            "Perubahan sandi WiFi sedang diproses",
-            "Perubahan nama WiFi untuk semua SSID sedang diproses",
-            "Silakan ketik sandi WiFi baru",
-            "Silakan ketik nama WiFi baru",
-            "Gagal mengubah sandi WiFi",
-            "Gagal mengubah nama WiFi",
-            "State tidak dikenali"
-        ]);
-
         expectNoHardcodedSnippets("routes/public.js", [
             "Permintaan Speed on Demand Baru",
             "Pelanggan telah mengajukan permintaan penambahan kecepatan",

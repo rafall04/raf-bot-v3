@@ -987,7 +987,7 @@
 - **Handler File Naming:**
   - Handler file: `{domain}-handler.js` (saldo-handler.js, wifi-handler.js)
   - State handler: `{domain}-state-handler.js` (wifi-name-state-handler.js)
-  - Step handler: `{domain}-steps.js` (saldo-steps.js, wifi-steps.js)
+  - Step handler: `{domain}-steps.js` (saldo-steps.js, general-steps.js)
   - Utility handler: `utility-handler.js`, `menu-handler.js`
 
 // WhatsApp sendMessage Best Practices - CRITICAL RULES
