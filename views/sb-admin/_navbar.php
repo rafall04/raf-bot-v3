@@ -7,7 +7,11 @@
  * MainFuncs: Render menu admin/teknisi, termasuk link Auto Outage.
  * SideEffects: Membaca cookie/session dan mengeluarkan markup navigasi.
  */
-if (session_status() === PHP_SESSION_NONE) {
+// Guard !headers_sent(): partial ini di-include di tengah body pada banyak
+// halaman (output HTML sudah terkirim), jadi session_start() di sini akan
+// memunculkan warning "headers already sent". Auth sebenarnya pakai JWT cookie
+// (lihat di bawah); $_SESSION hanya fallback opsional.
+if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
     session_start();
 }
 
