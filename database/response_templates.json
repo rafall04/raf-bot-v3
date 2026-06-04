@@ -81,7 +81,7 @@
   },
   "convo_ganti_sandi_success": {
     "name": "Percakapan: Ganti Sandi - Sukses",
-    "template": "✅ *Berhasil!*\n\nKata sandi WiFi ${ssidInfo}sudah diubah sesuai yang Anda kirim tadi.\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• Modem akan restart otomatis\n• Semua perangkat perlu login ulang dengan password baru\n\n⚠️ *Simpan password tersebut dengan baik dan jangan dibagikan.*\n💡 Jika ada masalah, hubungi admin untuk bantuan.",
+    "template": "✅ *Berhasil!*\n\nKata sandi WiFi ${ssidInfo}telah diubah menjadi: `${sandi_wifi_baru}`\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• Modem akan restart otomatis\n• Semua perangkat perlu login ulang dengan password baru\n\n⚠️ *Simpan password Anda dengan baik!*\n💡 Jika ada masalah, hubungi admin untuk bantuan.",
     "category": "wifi"
   },
   "convo_ganti_sandi_failed": {
@@ -456,9 +456,10 @@
     "name": "WiFi Password: Berhasil Diubah",
     "category": "wifi",
     "description": "Pesan sukses perubahan password WiFi.",
-    "template": "✅ *Berhasil!*\n\nKata sandi WiFi ${ssidInfo}sudah diubah sesuai yang Anda kirim tadi.\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password tersebut dengan baik dan jangan dibagikan.\n💡 Jika ada masalah, hubungi admin untuk bantuan.",
+    "template": "✅ *Berhasil!*\n\nKata sandi WiFi ${ssidInfo}telah diubah menjadi: `${newPassword}`\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password ini dengan baik!\n💡 Jika ada masalah, hubungi admin untuk bantuan.",
     "placeholders": [
-      "ssidInfo"
+      "ssidInfo",
+      "newPassword"
     ]
   },
   "wifi_name_confirm_change": {
@@ -1903,9 +1904,10 @@
   "wifi_steps_password_success": {
     "name": "WiFi Steps: Sandi Berhasil",
     "category": "wifi_steps",
-    "template": "*Berhasil!*\n\nSandi WiFi untuk *${customerName}* sudah diubah sesuai yang Anda kirim tadi.\n\nSilakan reconnect perangkat Anda dengan sandi WiFi yang baru. Simpan password tersebut dengan baik dan jangan dibagikan.",
+    "template": "*Berhasil!*\n\nSandi WiFi untuk *${customerName}* telah diubah menjadi *${newPassword}*.\n\nSilakan reconnect perangkat Anda dengan sandi WiFi yang baru.",
     "placeholders": [
-      "customerName"
+      "customerName",
+      "newPassword"
     ]
   },
   "wifi_steps_password_partial_failed": {
@@ -1945,28 +1947,36 @@
   "wifi_bulk_password_request_all": {
     "name": "WiFi Bulk: Request Sandi Semua SSID",
     "category": "wifi_steps_bulk",
-    "template": "*Permintaan Diterima*\n\nPerubahan sandi WiFi untuk semua SSID sedang diproses.\n\n*Perhatian:*\n- Modem akan restart otomatis (1-2 menit)\n- Semua perangkat akan terputus\n- Gunakan sandi baru yang Anda kirim tadi\n\n_Jika tidak berubah setelah 5 menit, silakan hubungi teknisi._"
+    "template": "*Permintaan Diterima*\n\nPerubahan sandi WiFi untuk semua SSID sedang diproses.\n\n*Perhatian:*\n- Modem akan restart otomatis (1-2 menit)\n- Semua perangkat akan terputus\n- Gunakan sandi baru: *${newPassword}*\n\n_Jika tidak berubah setelah 5 menit, silakan hubungi teknisi._",
+    "placeholders": [
+      "newPassword"
+    ]
   },
   "wifi_bulk_password_request_single": {
     "name": "WiFi Bulk: Request Sandi Single SSID",
     "category": "wifi_steps_bulk",
-    "template": "*Permintaan Diterima*\n\nPerubahan sandi WiFi untuk SSID ${ssidId} sedang diproses.\n\n*Perhatian:*\n- Modem akan restart otomatis (1-2 menit)\n- Perangkat akan terputus sementara\n- Gunakan sandi baru yang Anda kirim tadi\n\n_Jika tidak berubah setelah 5 menit, silakan hubungi teknisi._",
+    "template": "*Permintaan Diterima*\n\nPerubahan sandi WiFi untuk SSID ${ssidId} sedang diproses.\n\n*Perhatian:*\n- Modem akan restart otomatis (1-2 menit)\n- Perangkat akan terputus sementara\n- Gunakan sandi baru: *${newPassword}*\n\n_Jika tidak berubah setelah 5 menit, silakan hubungi teknisi._",
     "placeholders": [
-      "ssidId"
+      "ssidId",
+      "newPassword"
     ]
   },
   "wifi_bulk_password_success_single": {
     "name": "WiFi Bulk: Sandi Single Berhasil",
     "category": "wifi_steps_bulk",
-    "template": "*Berhasil!*\n\nSandi WiFi untuk *SSID ${ssidId}* sudah diubah sesuai yang Anda kirim tadi.\nSimpan password tersebut dengan baik dan jangan dibagikan.",
+    "template": "*Berhasil!*\n\nSandi WiFi untuk *SSID ${ssidId}* telah diubah menjadi:\n*${newPassword}*",
     "placeholders": [
-      "ssidId"
+      "ssidId",
+      "newPassword"
     ]
   },
   "wifi_bulk_password_success_default": {
     "name": "WiFi Bulk: Sandi Default Berhasil",
     "category": "wifi_steps_bulk",
-    "template": "*Berhasil!*\n\nSandi WiFi sudah diubah sesuai yang Anda kirim tadi.\nSimpan password tersebut dengan baik dan jangan dibagikan."
+    "template": "*Berhasil!*\n\nSandi WiFi telah diubah menjadi:\n*${newPassword}*",
+    "placeholders": [
+      "newPassword"
+    ]
   },
   "wifi_bulk_name_all_processing": {
     "name": "WiFi Bulk: Proses Nama Semua SSID",
@@ -2834,7 +2844,7 @@
   "wifi_confirm_password_success": {
     "name": "WiFi Confirm: Password Berhasil Diubah",
     "category": "wifi",
-    "template": "Berhasil.\n\nKata sandi WiFi sudah diubah sesuai yang Anda kirim tadi.\n\nInfo penting:\n- Perubahan aktif dalam 1-2 menit\n- Modem akan restart otomatis\n- Semua perangkat perlu login ulang dengan password baru\n- Simpan password tersebut dengan baik dan jangan dibagikan"
+    "template": "Berhasil.\n\nKata sandi WiFi telah diubah menjadi: ${sandi_wifi_baru}\n\nInfo penting:\n- Perubahan aktif dalam 1-2 menit\n- Modem akan restart otomatis\n- Semua perangkat perlu login ulang dengan password baru"
   },
   "wifi_confirm_password_failed": {
     "name": "WiFi Confirm: Ganti Password Gagal",
