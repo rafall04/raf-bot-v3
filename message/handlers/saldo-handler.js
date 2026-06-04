@@ -13,6 +13,46 @@ const { resolveCanonicalCustomerContext, normalizePhoneToJid, maskPhoneNumber } 
 const { sendMessage } = require('../../lib/whatsapp-delivery-service');
 const { getSocket, isReady } = require('../../lib/whatsapp-gateway');
 const { renderResponseTemplate } = require('./template-helpers');
+const { getUserState, setUserState, deleteUserState } = require('./conversation-handler');
+
+// Batas minimum transfer (rupiah). Hindari spam ledger dengan transfer 1 rupiah.
+const MIN_TRANSFER_AMOUNT = 1000;
+
+/**
+ * Cek apakah targetId terdaftar di sistem (saldo atau users registry).
+ * Pakai ini sebelum transfer untuk hindari kredit ke JID hantu.
+ */
+function isTargetRegistered(targetId, targetNumber) {
+    // 1. Sudah punya row saldo (pernah cek/topup) → registered.
+    try {
+        const row = saldoManager.getUserSaldoData?.(targetId);
+        if (row) return true;
+    } catch (_) {}
+
+    // 2. Pelanggan terdaftar dengan nomor ini sebagai primary atau secondary.
+    if (Array.isArray(global.users)) {
+        const found = global.users.find(u => {
+            if (!u?.phone_number) return false;
+            return String(u.phone_number).split('|')
+                .map(p => p.replace(/[^0-9]/g, ''))
+                .some(p => p === targetNumber);
+        });
+        if (found) return true;
+    }
+
+    return false;
+}
+
+function findUserNameByPhone(targetNumber) {
+    if (!Array.isArray(global.users)) return null;
+    const found = global.users.find(u => {
+        if (!u?.phone_number) return false;
+        return String(u.phone_number).split('|')
+            .map(p => p.replace(/[^0-9]/g, ''))
+            .some(p => p === targetNumber);
+    });
+    return found?.name || null;
+}
 
 async function resolveCanonicalSenderOrReply({ sender, msg, reply, flow }) {
     const resolution = await resolveCanonicalCustomerContext({
@@ -313,7 +353,110 @@ async function handleBeliVoucher(msg, sender, reply, pushname) {
 }
 
 /**
- * Handle transfer saldo between users
+ * Eksekusi transfer (dipanggil oleh state handler setelah konfirmasi 'ya').
+ * Diekspos terpisah supaya state handler punya satu titik mutasi saldo.
+ */
+async function executeTransferAfterConfirmation({ senderId, senderNumber, senderPushName, targetId, targetNumber, targetName, amount, reply }) {
+    const success = await saldoManager.transferSaldo(senderId, targetId, amount);
+
+    if (!success) {
+        return await reply(renderResponseTemplate(
+            'saldo_transfer_failed',
+            '❌ Transfer gagal. Silakan coba lagi.'
+        ));
+    }
+
+    const newSaldo = await saldoManager.getUserSaldo(senderId);
+    const jumlahFmt = convertRupiah.convert(amount);
+    const sisaSaldoFmt = convertRupiah.convert(newSaldo);
+    const targetLabel = targetName ? `${targetName} (${targetNumber})` : targetNumber;
+    await reply(renderResponseTemplate(
+        'saldo_transfer_success',
+        `✅ Transfer berhasil!\n\nKe: ${targetLabel}\nJumlah: ${jumlahFmt}\nSisa saldo: ${sisaSaldoFmt}`,
+        { target_number: targetNumber, target_label: targetLabel, jumlah: jumlahFmt, sisa_saldo: sisaSaldoFmt }
+    ));
+
+    // Notify recipient kalau WA siap.
+    if (isReady()) {
+        try {
+            const { renderTemplate } = require('../../lib/templating');
+            const recipientSaldo = await saldoManager.getUserSaldo(targetId);
+            const namaPengirim = senderPushName || senderNumber;
+
+            const message = renderTemplate('transfer_saldo_masuk', {
+                jumlah: convertRupiah.convert(amount),
+                nama_pengirim: namaPengirim,
+                formattedSaldo: convertRupiah.convert(recipientSaldo)
+            });
+
+            const delivery = await sendMessage(targetId, { text: message });
+            if (!delivery.sent) {
+                throw new Error(delivery.warning || delivery.errorCode || 'SEND_FAILED');
+            }
+        } catch (error) {
+            console.error('[SEND_MESSAGE_ERROR]', { targetId, error: error.message });
+            logger.error('Failed to send transfer notification to recipient:', error);
+        }
+    } else {
+        logger.warn('Cannot send transfer notification - WhatsApp not connected');
+    }
+}
+
+/**
+ * State handler TRANSFER_CONFIRM. Pelanggan balas ya/batal.
+ */
+async function handleTransferConfirmState({ sender, chats, reply }) {
+    const state = getUserState(sender);
+    if (!state || state.step !== 'TRANSFER_CONFIRM') return { handled: false };
+
+    const response = String(chats || '').toLowerCase().trim();
+
+    if (['batal', 'cancel', 'tidak', 'no', 'ga jadi', 'gak jadi'].includes(response)) {
+        deleteUserState(sender);
+        await reply(renderResponseTemplate(
+            'saldo_transfer_cancelled',
+            'Transfer dibatalkan.'
+        ));
+        return { handled: true };
+    }
+
+    if (!['ya', 'iya', 'y', 'ok', 'lanjut', 'yes'].includes(response)) {
+        await reply(renderResponseTemplate(
+            'saldo_transfer_confirm_prompt_invalid',
+            "Balas *ya* untuk lanjut atau *batal* untuk membatalkan."
+        ));
+        return { handled: true };
+    }
+
+    // Re-verify saldo (mungkin sudah berubah sejak prompt).
+    const currentSaldo = await saldoManager.getUserSaldo(state.senderId);
+    if (currentSaldo < state.amount) {
+        deleteUserState(sender);
+        const saldoAnda = convertRupiah.convert(currentSaldo);
+        await reply(renderResponseTemplate(
+            'saldo_transfer_insufficient',
+            `❌ Saldo tidak mencukupi\nSaldo Anda: ${saldoAnda}`,
+            { saldo_anda: saldoAnda }
+        ));
+        return { handled: true };
+    }
+
+    deleteUserState(sender);
+    await executeTransferAfterConfirmation({
+        senderId: state.senderId,
+        senderNumber: state.senderNumber,
+        senderPushName: state.senderPushName,
+        targetId: state.targetId,
+        targetNumber: state.targetNumber,
+        targetName: state.targetName,
+        amount: state.amount,
+        reply
+    });
+    return { handled: true };
+}
+
+/**
+ * Handle transfer saldo between users (entry — pasang konfirmasi).
  */
 async function handleTransferSaldo(msg, sender, reply, args) {
     try {
@@ -343,10 +486,27 @@ async function handleTransferSaldo(msg, sender, reply, args) {
             ));
         }
 
+        if (amount < MIN_TRANSFER_AMOUNT) {
+            return await reply(renderResponseTemplate(
+                'saldo_transfer_amount_too_small',
+                `❌ Minimal transfer Rp ${MIN_TRANSFER_AMOUNT.toLocaleString('id-ID')}.`,
+                { min_amount: MIN_TRANSFER_AMOUNT.toLocaleString('id-ID') }
+            ));
+        }
+
         const targetId = normalizePhoneToJid(targetNumber);
 
-        const senderSaldo = await saldoManager.getUserSaldo(senderId);
+        // Blok self-transfer (anti spam ledger + clarity untuk customer).
+        if (targetId === senderId
+            || targetNumber === resolution.phoneNumber
+            || `${targetNumber}@s.whatsapp.net` === senderId) {
+            return await reply(renderResponseTemplate(
+                'saldo_transfer_self_blocked',
+                '❌ Tidak bisa transfer ke nomor sendiri.'
+            ));
+        }
 
+        const senderSaldo = await saldoManager.getUserSaldo(senderId);
         if (senderSaldo < amount) {
             const saldoAnda = convertRupiah.convert(senderSaldo);
             return await reply(renderResponseTemplate(
@@ -356,82 +516,37 @@ async function handleTransferSaldo(msg, sender, reply, args) {
             ));
         }
 
-        // Process transfer
-        const success = await saldoManager.transferSaldo(senderId, targetId, amount);
-
-        if (success) {
-            const newSaldo = await saldoManager.getUserSaldo(senderId);
-            const jumlahFmt = convertRupiah.convert(amount);
-            const sisaSaldoFmt = convertRupiah.convert(newSaldo);
-            await reply(renderResponseTemplate(
-                'saldo_transfer_success',
-                `✅ Transfer berhasil!\n\nKe: ${targetNumber}\nJumlah: ${jumlahFmt}\nSisa saldo: ${sisaSaldoFmt}`,
-                { target_number: targetNumber, jumlah: jumlahFmt, sisa_saldo: sisaSaldoFmt }
-            ));
-
-            // Notify recipient if they have WhatsApp
-            // PENTING: Cek connection state dan gunakan error handling sesuai rules
-            if (isReady()) {
-                try {
-                    const { renderTemplate } = require('../../lib/templating');
-                    const recipientSaldo = await saldoManager.getUserSaldo(targetId);
-
-                    // Dapatkan nama pengirim (pushname atau nomor HP, bukan @lid)
-                    let namaPengirim = resolution.phoneNumber;
-
-                    // Coba ambil pushname dari database user jika ada
-                    if (global.users && Array.isArray(global.users)) {
-                        const senderUser = global.users.find(u => {
-                            const userPhone = u.phone_number ? u.phone_number.replace(/[^0-9]/g, '') : '';
-                            const senderPhone = resolution.phoneNumber.replace(/[^0-9]/g, '');
-                            return userPhone === senderPhone || userPhone === senderPhone.replace('62', '0');
-                        });
-
-                        if (senderUser && senderUser.name) {
-                            namaPengirim = senderUser.name;
-                        }
-                    }
-
-                    // Jika masih @lid atau format aneh, coba ambil dari msg.pushName atau gunakan nomor HP
-                    if (namaPengirim.includes('@lid') || namaPengirim.includes(':')) {
-                        // Gunakan nomor HP yang sudah dinormalisasi
-                        namaPengirim = resolution.phoneNumber.replace(/[^0-9]/g, '');
-                    }
-
-                    // Jika msg tersedia, coba ambil pushname dari message
-                    if (msg && msg.pushName) {
-                        namaPengirim = msg.pushName;
-                    }
-
-                    const message = renderTemplate('transfer_saldo_masuk', {
-                        jumlah: convertRupiah.convert(amount),
-                        nama_pengirim: namaPengirim,
-                        formattedSaldo: convertRupiah.convert(recipientSaldo)
-                    });
-
-                    const delivery = await sendMessage(targetId, { text: message });
-                    if (!delivery.sent) {
-                        throw new Error(delivery.warning || delivery.errorCode || 'SEND_FAILED');
-                    }
-                } catch (error) {
-                    console.error('[SEND_MESSAGE_ERROR]', {
-                        targetId,
-                        error: error.message
-                    });
-                    logger.error('Failed to send transfer notification to recipient:', error);
-                    // Jangan throw - notification tidak critical
-                }
-            } else {
-                console.warn('[SEND_MESSAGE_SKIP] WhatsApp not connected, skipping send to', targetId);
-                logger.warn('Cannot send transfer notification - WhatsApp not connected');
-            }
-        } else {
-            await reply(renderResponseTemplate(
-                'saldo_transfer_failed',
-                '❌ Transfer gagal. Silakan coba lagi.'
+        // Verifikasi tujuan terdaftar — supaya tidak kredit ke JID hantu.
+        if (!isTargetRegistered(targetId, targetNumber)) {
+            return await reply(renderResponseTemplate(
+                'saldo_transfer_target_not_registered',
+                `❌ Nomor ${targetNumber} belum terdaftar di sistem. Pastikan nomor tujuan sudah pernah daftar/topup di bot ini.`,
+                { target_number: targetNumber }
             ));
         }
 
+        const targetName = findUserNameByPhone(targetNumber);
+        const jumlahFmt = convertRupiah.convert(amount);
+        const saldoAfter = convertRupiah.convert(senderSaldo - amount);
+        const targetLabel = targetName ? `${targetName} (${targetNumber})` : targetNumber;
+
+        setUserState(sender, {
+            step: 'TRANSFER_CONFIRM',
+            senderId,
+            senderNumber: resolution.phoneNumber,
+            senderPushName: msg?.pushName || null,
+            targetId,
+            targetNumber,
+            targetName,
+            amount,
+            createdAt: Date.now()
+        });
+
+        return await reply(renderResponseTemplate(
+            'saldo_transfer_confirm_prompt',
+            `🔒 *Konfirmasi Transfer*\n\nKe: ${targetLabel}\nJumlah: ${jumlahFmt}\nSisa saldo setelah transfer: ${saldoAfter}\n\nBalas *ya* untuk lanjut atau *batal* untuk batal.`,
+            { target_label: targetLabel, target_number: targetNumber, jumlah: jumlahFmt, sisa_saldo: saldoAfter }
+        ));
     } catch (error) {
         logger.error('Error in handleTransferSaldo:', error);
         await reply(renderResponseTemplate(
@@ -446,5 +561,6 @@ module.exports = {
     handleTopupInit,
     handleCancelTopup,
     handleBeliVoucher,
-    handleTransferSaldo
+    handleTransferSaldo,
+    handleTransferConfirmState
 };

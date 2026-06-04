@@ -60,6 +60,7 @@ const CONVERSATION_STATE_OWNER_MAP = {
     AWAITING_CONFIRMATION: "teknisi",
     ASK_VOUCHER_CHOICE: "payment",
     AWAITING_QUESTION: "payment",
+    TRANSFER_CONFIRM: "payment",
     AUTO_OUTAGE_TRIAGE: "auto-outage"
 };
 

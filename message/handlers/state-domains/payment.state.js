@@ -9,6 +9,7 @@
 "use strict";
 
 const { renderCategoryTemplate } = require("../../../lib/template-service");
+const { handleTransferConfirmState } = require("../saldo-handler");
 
 function renderResponseTemplate(key, data = {}) {
     const result = renderCategoryTemplate("responseTemplates", key, data);
@@ -34,6 +35,14 @@ async function handlePaymentConversationState(context) {
         deleteUserState(stateSender);
         await reply(renderResponseTemplate("payment_state_qa_unavailable"));
         return { handled: true };
+    }
+
+    if (stateStep === "TRANSFER_CONFIRM") {
+        return await handleTransferConfirmState({
+            sender: stateSender,
+            chats,
+            reply
+        });
     }
 
     if (stateStep === "ASK_VOUCHER_CHOICE" && !isGlobalCommand) {
