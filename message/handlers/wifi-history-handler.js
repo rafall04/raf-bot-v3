@@ -22,6 +22,7 @@ const SOURCE_LABEL = {
     wa_bot: 'WhatsApp Bot',
     web_admin: 'Panel Admin',
     web_technician: 'Panel Teknisi',
+    web_customer: 'Portal Pelanggan',
     api: 'API'
 };
 

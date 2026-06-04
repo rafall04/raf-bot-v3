@@ -204,6 +204,7 @@
                                             <option value="">Semua Sumber</option>
                                             <option value="web_admin">Web Admin</option>
                                             <option value="web_technician">Web Teknisi</option>
+                                            <option value="web_customer">Portal Pelanggan</option>
                                             <option value="wa_bot">WhatsApp Bot</option>
                                             <option value="api">API</option>
                                         </select>
@@ -549,6 +550,7 @@
                 const badges = {
                     'web_admin': '<span class="badge badge-danger log-source">Web Admin</span>',
                     'web_technician': '<span class="badge badge-info log-source">Web Teknisi</span>',
+                    'web_customer': '<span class="badge badge-primary log-source">Portal Pelanggan</span>',
                     'wa_bot': '<span class="badge badge-success log-source">WhatsApp Bot</span>',
                     'api': '<span class="badge badge-warning log-source">API</span>'
                 };
