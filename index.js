@@ -60,8 +60,17 @@ try {
         }
     }
 } catch (e) {
-    console.warn(`[CONFIG_FALLBACK] Using legacy config loading: ${e.message}`);
-    global.config = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
+    // loadConfig() sudah auto-bootstrap config.json dari config.example.json bila perlu.
+    // Sampai di sini berarti config benar-benar tidak bisa dimuat (mis. JSON rusak,
+    // atau config.json DAN config.example.json sama-sama hilang). Beri instruksi jelas
+    // alih-alih crash mentah dengan ENOENT.
+    console.error('='.repeat(72));
+    console.error(`[CONFIG_FATAL] Gagal memuat konfigurasi: ${e.message}`);
+    console.error('[CONFIG_FATAL] Pastikan config.json ada & valid. Setelah git clone:');
+    console.error('[CONFIG_FATAL]   cp config.example.json config.json');
+    console.error('[CONFIG_FATAL] lalu isi kredensial asli, kemudian jalankan ulang.');
+    console.error('='.repeat(72));
+    process.exit(1);
 }
 const { initializeDatabase, loadJSON, saveJSON } = require('./lib/database');
 const { createAppRuntime } = require('./lib/app-runtime');
