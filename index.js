@@ -18,6 +18,20 @@ const { Server } = require('socket.io');
 const phpExpress = require('php-express')({
     binPath: 'php'
 });
+
+// Cek binary PHP saat startup: view engine admin/teknisi adalah .php (php-express).
+// Tanpa `php` di PATH, halaman tersebut diam-diam error 500 — beri peringatan jelas.
+try {
+    require('child_process').execSync('php -v', { stdio: 'ignore' });
+} catch (e) {
+    const line = '='.repeat(72);
+    console.warn(line);
+    console.warn('[PHP_CHECK] Binary `php` tidak ditemukan di PATH.');
+    console.warn('[PHP_CHECK] Halaman admin & teknisi (.php) akan error 500.');
+    console.warn('[PHP_CHECK] Install PHP (mis. `apt install php-cli`) lalu jalankan ulang.');
+    console.warn('[PHP_CHECK] (API JSON tetap berfungsi tanpa PHP.)');
+    console.warn(line);
+}
 const qrcode = require('qrcode');
 const P = require('pino');
 const Boom = require('@hapi/boom');
