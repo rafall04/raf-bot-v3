@@ -231,9 +231,27 @@ async function startApp() {
     // Start the HTTP server
     startHttpServer(connect);
 
+    // Guard anti koneksi-ganda: mencegah dua socket WhatsApp hidup bersamaan
+    // (mis. klik Connect dashboard saat reconnect 515 sedang berjalan). Socket
+    // ganda memicu connectionReplaced yang sebelumnya meng-logout & menghapus
+    // sesi sehingga QR muncul terus.
+    let waConnecting = false;
+
     // Define the connect function inside startApp to have access to Baileys modules
     async function connect() {
-        let { version, isLatest } = await fetchLatestWaWebVersion();
+        if (waConnecting) {
+            console.log('[WA] connect() diabaikan: koneksi sedang berlangsung.');
+            return global.conn;
+        }
+        waConnecting = true;
+
+        let version, isLatest;
+        try {
+            ({ version, isLatest } = await fetchLatestWaWebVersion());
+        } catch (e) {
+            waConnecting = false;
+            throw e;
+        }
         console.log(`Using: ${version}, newer: ${isLatest}`);
         const { state, saveCreds: saveState } = await useMultiFileAuthState(`sessions/${config.sessionName}`)
         const raf = makeWASocket({
@@ -327,6 +345,7 @@ async function startApp() {
             global.monitoring.updateConnectionStatus('whatsapp', connection);
             
             if (connection === 'open') {
+                waConnecting = false;
                 global.whatsappConnectionState = syncWhatsAppRuntime({
                     socket: raf,
                     connection,
@@ -390,10 +409,18 @@ async function startApp() {
                 });
                 
                 if (reason === DisconnectReason.connectionReplaced) {
-                    console.log("Connection Replaced, Another New Session Opened, Please Close Current Session First");
-                    raf.logout();
+                    // PENTING: JANGAN raf.logout() — itu menghapus kredensial sesi
+                    // dan memaksa scan QR ulang. Sesi digantikan socket lain;
+                    // cukup berhenti & pertahankan sesi agar bisa reconnect manual.
+                    console.log("Koneksi digantikan sesi lain. Sesi dipertahankan (tidak logout).");
+                    waConnecting = false;
+                    if (global.conn === raf) {
+                        clearWhatsAppRuntime({ nextState: 'close' });
+                    }
+                    io.emit('message', buildWhatsAppSocketPayload('temporary_disconnect'));
                 } else if (reason === DisconnectReason.loggedOut) {
                     console.log(`Device Logged Out, Please Scan Again`);
+                    waConnecting = false;
                     clearWhatsAppRuntime({ nextState: 'logged_out' });
                     io.emit('message', buildWhatsAppSocketPayload('logged_out'));
                     await global.alertSystem.sendAlert('warning', 'WHATSAPP_LOGGED_OUT', {
@@ -402,17 +429,25 @@ async function startApp() {
                 } else {
                     console.log("Connection lost, initiating recovery...");
                     io.emit('message', buildWhatsAppSocketPayload('temporary_disconnect'));
-                    
+
+                    // Tahan guard selama jeda agar tidak ada socket ganda yang
+                    // dibuat oleh connect() lain sebelum reconnect terjadwal.
+                    waConnecting = true;
+
                     // Reset retry counter untuk whatsapp_connection agar bisa retry terus
                     global.errorRecovery.resetRetryCount('whatsapp_connection');
-                    
+
                     // Langsung reconnect dengan delay, tanpa melalui error recovery yang punya max retries
-                    // Karena untuk WhatsApp, kita ingin terus mencoba reconnect selama session valid
+                    // Karena untuk WhatsApp, kita ingin terus mencoba reconnect selama session valid.
+                    // waConnecting sengaja dibiarkan true selama jeda agar tidak ada
+                    // connect() lain (mis. /api/start) menyelinap & membuat socket ganda;
+                    // di-reset tepat sebelum reconnect tunggal.
                     const reconnectDelay = 5000; // 5 detik
                     console.log(`⏱️ Will retry connection in ${reconnectDelay}ms`);
-                    
+
                     setTimeout(() => {
                         console.log("🔄 Attempting to reconnect WhatsApp...");
+                        waConnecting = false;
                         connect();
                     }, reconnectDelay);
                 }
