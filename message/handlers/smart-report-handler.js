@@ -8,7 +8,7 @@
  */
 
 const { isDeviceOnline } = require('../../lib/device-status');
-const { setUserState, getUserState, deleteUserState, format } = require('./conversation-handler');
+const { setUserState, getUserState, deleteUserState, format, registerStateTimeoutHandler } = require('./conversation-handler');
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
 const { getResponseTimeMessage, isWithinWorkingHours } = require('../../lib/working-hours-helper');
 const { renderReport } = require('../../lib/templating');
@@ -1000,6 +1000,91 @@ async function handleGangguanLemotResponse({ sender, body, reply, msg, raf }) {
             'Balas 1, 2, atau 0. Anda juga bisa mengirim hasil speedtest.'
         )
     };
+}
+
+// =====================================================================
+// Timeout handler — promote draft tiket jadi tiket asli kalau pelanggan
+// tinggalkan chat tanpa upload foto / ketik skip.
+//
+// Kasus pelanggan MATI offline (`handleGangguanMatiOfflineResponse` pilih
+// "1 - sudah dicoba") menyiapkan state `GANGGUAN_MATI_AWAITING_PHOTO`
+// dengan ticketData lengkap tapi BELUM memanggil createCustomerReportTicket.
+// Kalau pelanggan kabur, state akan auto-cleanup 15 menit kemudian tanpa
+// pernah jadi tiket. Teknisi tidak tahu ada laporan. Itu yang difix di sini.
+//
+// LEMOT_AWAITING_PHOTO pakai pattern serupa di `handleLemotPhotoUpload`.
+// =====================================================================
+
+async function promoteMatiDraftOnTimeout(userId, state) {
+    if (!state?.ticketData) {
+        console.warn('[MATI_TIMEOUT_PROMOTE] state.ticketData kosong, skip', { userId });
+        return;
+    }
+    if (!state.targetUser) {
+        console.warn('[MATI_TIMEOUT_PROMOTE] state.targetUser kosong, skip', { userId, ticketId: state.ticketData.ticketId });
+        return;
+    }
+    try {
+        const ticketData = state.ticketData;
+        const report = await createCustomerReportTicket({
+            user: state.targetUser,
+            sender: ticketData.pelangganId || userId,
+            laporanText: `${ticketData.laporanText}\n\n[Auto-promoted: pelanggan tidak menyelesaikan upload foto dalam 15 menit]`,
+            issueType: ticketData.issueType || 'MATI',
+            priority: ticketData.priority || 'HIGH',
+            createdBy: ticketData.pelangganId || userId,
+            createdByRole: 'customer_wa',
+            customerPhotos: [],
+            additionalFields: {
+                deviceOnline: ticketData.deviceOnline,
+                troubleshootingDone: ticketData.troubleshootingDone,
+                autoPromotedFromTimeout: true,
+                autoRedirected: ticketData.autoRedirected || false
+            }
+        });
+        console.log(`[MATI_TIMEOUT_PROMOTE] Tiket ${report.ticketId} dibuat dari draft timeout untuk ${userId}`);
+    } catch (error) {
+        console.error('[MATI_TIMEOUT_PROMOTE] gagal promote draft jadi tiket', { userId, error: error?.message });
+    }
+}
+
+async function promoteLemotDraftOnTimeout(userId, state) {
+    if (!state?.targetUser) {
+        console.warn('[LEMOT_TIMEOUT_PROMOTE] state.targetUser kosong, skip', { userId });
+        return;
+    }
+    // Hanya promote kalau memang sedang menunggu foto sebagai tahap akhir bikin tiket.
+    if (state.wantToCreateTicket !== true) {
+        return;
+    }
+    try {
+        const speedInfo = state.speedTest ? `Speed test: ${state.speedTest} Mbps` : 'Tidak ada speed test';
+        const report = await createCustomerReportTicket({
+            user: state.targetUser,
+            sender: userId,
+            laporanText: `Internet lemot/lambat - Device ONLINE\n${speedInfo}\nTroubleshooting sudah dilakukan.\n\n[Auto-promoted: pelanggan tidak menyelesaikan upload foto dalam 15 menit]`,
+            issueType: 'LEMOT',
+            priority: 'MEDIUM',
+            createdBy: userId,
+            createdByRole: 'customer_wa',
+            customerPhotos: [],
+            additionalFields: {
+                deviceOnline: true,
+                troubleshootingDone: true,
+                autoPromotedFromTimeout: true
+            }
+        });
+        await notifyTechnicians(report);
+        console.log(`[LEMOT_TIMEOUT_PROMOTE] Tiket ${report.ticketId} dibuat dari draft timeout untuk ${userId}`);
+    } catch (error) {
+        console.error('[LEMOT_TIMEOUT_PROMOTE] gagal promote draft jadi tiket', { userId, error: error?.message });
+    }
+}
+
+// Guard untuk test mock conversation-handler yang tidak export func ini.
+if (typeof registerStateTimeoutHandler === 'function') {
+    registerStateTimeoutHandler('GANGGUAN_MATI_AWAITING_PHOTO', promoteMatiDraftOnTimeout);
+    registerStateTimeoutHandler('LEMOT_AWAITING_PHOTO', promoteLemotDraftOnTimeout);
 }
 
 module.exports = {

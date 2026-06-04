@@ -44,6 +44,29 @@ const STATE_TIMEOUT = 15 * 60 * 1000; // 15 minutes
 const stateTimers = {};
 const stateActivity = {}; // Track last activity time
 
+// Registry handler timeout per `state.step`. Dipanggil sebelum state dihapus
+// supaya domain (mis. reporting) bisa promote draft tiket → tiket asli, kirim
+// notifikasi teknisi, dst. Handler boleh async; error ditelan tapi di-log.
+const stateTimeoutHandlers = Object.create(null);
+
+function registerStateTimeoutHandler(step, handler) {
+    if (typeof handler !== 'function') return;
+    stateTimeoutHandlers[step] = handler;
+}
+
+async function runTimeoutHandlerThenDelete(userId) {
+    const state = stateStore[userId];
+    if (state?.step && stateTimeoutHandlers[state.step]) {
+        try {
+            await stateTimeoutHandlers[state.step](userId, state);
+        } catch (error) {
+            console.error('[STATE_TIMEOUT_HANDLER_ERROR]', { userId, step: state.step, error: error?.message });
+        }
+    }
+    console.log(`[AUTO-CLEANUP] Removing inactive state for user: ${userId}`);
+    deleteUserState(userId);
+}
+
 /**
  * Get user state from temporary storage
  * @param {string} userId - User ID
@@ -141,12 +164,10 @@ function setUserState(userId, state, options = {}) {
     
     stateStore[userId] = normalizeState(userId, state, options);
     stateActivity[userId] = Date.now();
-    
-    // Set auto cleanup timer
-    stateTimers[userId] = setTimeout(() => {
-        console.log(`[AUTO-CLEANUP] Removing inactive state for user: ${userId}`);
-        deleteUserState(userId);
-    }, STATE_TIMEOUT);
+
+    // Set auto cleanup timer — handler step (kalau ada) dipanggil dulu
+    // supaya draft tiket bisa dipromosikan jadi tiket asli.
+    stateTimers[userId] = setTimeout(() => runTimeoutHandlerThenDelete(userId), STATE_TIMEOUT);
 }
 
 function updateUserState(userId, updater, options = {}) {
@@ -246,11 +267,7 @@ function createScopedStateProxy(scope) {
 function resetStateTimer(userId) {
     if (stateTimers[userId]) {
         clearTimeout(stateTimers[userId]);
-        
-        stateTimers[userId] = setTimeout(() => {
-            console.log(`[AUTO-CLEANUP] Removing inactive state for user: ${userId}`);
-            deleteUserState(userId);
-        }, STATE_TIMEOUT);
+        stateTimers[userId] = setTimeout(() => runTimeoutHandlerThenDelete(userId), STATE_TIMEOUT);
     }
 }
 
@@ -323,6 +340,7 @@ module.exports = {
     mess,
     format,
     STATE_TIMEOUT,
+    registerStateTimeoutHandler,
     // Aliases for compatibility
     setState: setUserState,
     updateState: updateUserState,
