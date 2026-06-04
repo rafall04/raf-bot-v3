@@ -13,6 +13,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="/css/sb-admin-2.min.css" rel="stylesheet">
   <link href="/css/dashboard-modern.css" rel="stylesheet">
+  <link href="/css/teknisi-theme.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
   <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
   <style>
     body {
@@ -61,59 +63,10 @@
       border-color: #4e73df;
       box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.15);
     }
-    .card {
-      border: none;
-      border-radius: 0.75rem;
-      box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.08);
-      margin-bottom: 2rem;
-    }
-    .card-header {
-      background: linear-gradient(to right, #4e73df, #224abe);
-      color: white;
-      border-top-left-radius: 0.75rem;
-      border-top-right-radius: 0.75rem;
-      padding: 1rem 1.5rem;
-      border-bottom: none;
-    }
-    .card-header .h6 {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: white !important;
-    }
-    .card-header .btn-light {
-        background-color: rgba(255,255,255,0.2);
-        border: 1px solid rgba(255,255,255,0.5);
-        color: white;
-        padding: 0.4rem 0.8rem;
-        font-size: 0.85rem;
-    }
-    .card-header .btn-light:hover {
-        background-color: rgba(255,255,255,0.3);
-        border-color: white;
-    }
-    .card-body { padding: 1.5rem; }
-    #dataTable thead th {
-      background-color: #f1f3f7;
-      color: #333;
-      font-weight: 600;
-      border-bottom: 2px solid #e0e4e9;
-      font-size: 0.9rem;
-    }
-    #dataTable tbody tr:nth-child(even) { background-color: #f9fafc; }
-    #dataTable tbody tr:hover { background-color: #edf2f9; }
-    #dataTable td, #dataTable th { vertical-align: middle; font-size: 0.85rem; } /* Ukuran font tabel diperkecil */
+    /* Cards, card headers, modals & tables are governed by teknisi-theme.css
+       for cross-page consistency (was a divergent blue-gradient header here). */
+    #dataTable td, #dataTable th { vertical-align: middle; font-size: 0.85rem; }
     .badge-pill { padding: 0.5em 0.8em; font-size: 0.78em; font-weight: 500; }
-    .modal-content { border-radius: 0.75rem; border: none; box-shadow: 0 0.5rem 2rem rgba(0,0,0,0.15); }
-    .modal-header { background-color: #f8f9fc; border-bottom: 1px solid #e3e6f0; border-top-left-radius: 0.75rem; border-top-right-radius: 0.75rem; padding: 1rem 1.5rem; }
-    .modal-header .modal-title { font-weight: 600; color: #3a3b45; font-size: 1.15rem; }
-    .modal-body { padding: 1.5rem; }
-    .modal-body .form-label { font-weight: 500; color: #5a5c69; margin-bottom: 0.5rem; }
-    .modal-body .form-control { border-radius: 0.5rem; border: 1px solid #d1d3e2; }
-    .modal-body .form-control:focus { border-color: #4e73df; box-shadow: 0 0 0 0.2rem rgba(78,115,223,0.15); }
-    .modal-footer { padding: 1rem 1.5rem; }
-    .modal-footer .btn { border-radius: 0.5rem; padding: 0.6rem 1.25rem; font-weight: 500; }
-    .modal-footer .btn-primary { background: linear-gradient(to right, #4e73df, #224abe); border: none; }
-    .modal-footer .btn-primary:hover { background: linear-gradient(to right, #224abe, #4e73df); }
     .custom-modal-body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2.5rem; min-height: 180px; text-align: center; }
     .custom-modal-body .modal-icon { font-size: 4rem; margin-bottom: 1.25rem; }
     .custom-modal-body #messageModalTitle { font-size: 1.4rem; font-weight: 600; color: #3a3b45; }
@@ -137,7 +90,12 @@
           <button type="button" id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
               <i class="fa fa-bars"></i>
           </button>
-          <ul class="navbar-nav ml-auto">
+          <ul class="navbar-nav ml-auto align-items-center">
+            <li class="nav-item mr-1">
+              <button type="button" id="tkThemeToggle" class="tk-theme-toggle" title="Mode gelap / terang" aria-label="Ganti mode gelap/terang">
+                <i class="fas fa-moon"></i>
+              </button>
+            </li>
             <li class="nav-item dropdown no-arrow">
               <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 <span id="loggedInTechnicianInfo" class="mr-2 text-gray-600 small">Memuat nama...</span>
@@ -154,8 +112,15 @@
         </nav>
 
         <div class="container-fluid">
-          <h1 class="h3 mb-2 text-gray-800">Pengajuan Status Pembayaran Pelanggan</h1>
-          <p class="mb-4">Di halaman ini Anda dapat mengajukan perubahan status pembayaran pelanggan dan melihat riwayat pengajuan Anda.</p>
+          <div class="tk-page-head">
+            <div class="tk-title">
+              <span class="tk-title-icon"><i class="fas fa-file-invoice-dollar"></i></span>
+              <div>
+                <h1>Request Pembayaran</h1>
+                <p class="tk-subtitle">Ajukan perubahan status pembayaran pelanggan & lihat riwayat pengajuan</p>
+              </div>
+            </div>
+          </div>
           <div id="globalTechnicianMessage" class="mb-3"></div>
 
 
@@ -240,10 +205,32 @@
   <script src="/vendor/datatables/jquery.dataTables.min.js"></script>
   <script src="/vendor/datatables/dataTables.bootstrap4.min.js"></script>
   <script src="/js/sb-admin-2.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 
   <script>
+    // Dark / light mode toggle (shared behaviour; this page has a custom topbar)
+    (function () {
+      function syncIcon() {
+        var icon = document.querySelector('#tkThemeToggle i');
+        if (icon) { icon.className = document.body.classList.contains('tk-dark') ? 'fas fa-sun' : 'fas fa-moon'; }
+      }
+      syncIcon();
+      document.addEventListener('click', function (e) {
+        var btn = e.target.closest && e.target.closest('#tkThemeToggle');
+        if (!btn) { return; }
+        var isDark = document.body.classList.toggle('tk-dark');
+        try { localStorage.setItem('tkTheme', isDark ? 'dark' : 'light'); } catch (err) {}
+        syncIcon();
+      });
+    })();
+
+    // Safeguard: keep <body>.modal-open while any modal is still shown (BS4 stacked-modal fix).
+    $(document).on('hidden.bs.modal', function () {
+      if ($('.modal.show').length) { $('body').addClass('modal-open'); }
+    });
+
     $(document).ready(function() {
       const rupiah = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
       let activeMonthFilter = 'this_month'; 
@@ -498,7 +485,12 @@
                     select.appendChild(option);
                 });
                 console.log(`[TEKNISI_USERS] Loaded ${validUsers.length} users`);
-            } else { 
+                $('#user-select').select2({
+                    dropdownParent: $('#requestModal'),
+                    placeholder: 'Cari nama atau paket pelanggan...',
+                    width: '100%'
+                });
+            } else {
                 if (select) select.innerHTML = '<option value="">Tidak ada data pelanggan</option>';
                 console.warn('[TEKNISI_USERS] No users data or invalid format:', response);
             }
@@ -559,8 +551,9 @@
             })
             .finally(() => {
                 submitButton.prop('disabled', false).html(originalButtonText);
-                $('#requestModal').modal('hide'); 
-                document.getElementById('request-form').reset(); 
+                $('#requestModal').modal('hide');
+                document.getElementById('request-form').reset();
+                $('#user-select').val('').trigger('change');
             });
         });
       });

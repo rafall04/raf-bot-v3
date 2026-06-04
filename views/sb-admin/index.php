@@ -79,6 +79,7 @@ if ($monitoringEnabled) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="/css/sb-admin-2.min.css" rel="stylesheet">
     <link href="/static/css/monitoring.css" rel="stylesheet">
+    <link href="/css/admin-theme.css" rel="stylesheet">
 
     <style>
         :root {
@@ -831,8 +832,15 @@ if ($monitoringEnabled) {
                 <button type="button" id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
                     <i class="fa fa-bars"></i>
                 </button>
-                <ul class="navbar-nav ml-auto">
-                    
+                <ul class="navbar-nav ml-auto align-items-center">
+
+                    <!-- Nav Item - Dark / light mode toggle -->
+                    <li class="nav-item mx-1">
+                        <button type="button" id="tkThemeToggle" class="tk-theme-toggle" title="Mode gelap / terang" aria-label="Ganti mode gelap/terang">
+                            <i class="fas fa-moon"></i>
+                        </button>
+                    </li>
+
                     <!-- Nav Item - Alerts/Pengumuman -->
                     <li class="nav-item dropdown no-arrow mx-1">
                         <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button"
@@ -975,7 +983,7 @@ if ($monitoringEnabled) {
 
                 <h4 class="dashboard-section-title">Core Status</h4>
                 <div class="row match-height dashboard-kpi-row">
-                    <div class="col-xl-2 col-lg-4 col-md-6 col-sm-12 mb-4">
+                    <div class="col-xl-4 col-lg-4 col-md-6 col-sm-12 mb-4">
                         <div class="card dashboard-card card-primary" id="card-bot-status">
                             <div class="card-body">
                                 <div class="card-content">
@@ -994,7 +1002,7 @@ if ($monitoringEnabled) {
                             </div>
                         </div>
                     </div>
-                    <div class="col-xl-2 col-lg-4 col-md-6 col-sm-12 mb-4">
+                    <div class="col-xl-4 col-lg-4 col-md-6 col-sm-12 mb-4">
                         <div class="card dashboard-card card-info" id="card-mikrotik-status">
                             <div class="card-body">
                                 <div class="card-content">
@@ -1013,7 +1021,7 @@ if ($monitoringEnabled) {
                             </div>
                         </div>
                     </div>
-                    <div class="col-xl-2 col-lg-4 col-md-6 col-sm-12 mb-4">
+                    <div class="col-xl-4 col-lg-4 col-md-6 col-sm-12 mb-4">
                         <div class="card dashboard-card card-dark" id="card-genieacs-status">
                             <div class="card-body">
                                 <div class="card-content">
@@ -1032,7 +1040,7 @@ if ($monitoringEnabled) {
                             </div>
                         </div>
                     </div>
-                    <div class="col-xl-2 col-lg-4 col-md-6 col-sm-12 mb-4">
+                    <div class="col-xl-4 col-lg-4 col-md-6 col-sm-12 mb-4">
                         <div class="card dashboard-card card-success" id="card-users-total">
                             <div class="card-body">
                                 <div class="card-content">
@@ -1052,7 +1060,7 @@ if ($monitoringEnabled) {
                             </div>
                         </div>
                     </div>
-                    <div class="col-xl-2 col-lg-4 col-md-6 col-sm-12 mb-4">
+                    <div class="col-xl-4 col-lg-4 col-md-6 col-sm-12 mb-4">
                         <div class="card dashboard-card card-info" id="card-users-paid">
                             <div class="card-body">
                                 <div class="card-content">
@@ -1072,7 +1080,7 @@ if ($monitoringEnabled) {
                             </div>
                         </div>
                     </div>
-                    <div class="col-xl-2 col-lg-4 col-md-6 col-sm-12 mb-4">
+                    <div class="col-xl-4 col-lg-4 col-md-6 col-sm-12 mb-4">
                         <div class="card dashboard-card card-warning" id="card-users-unpaid">
                             <div class="card-body">
                                 <div class="card-content">
@@ -1422,6 +1430,24 @@ if ($monitoringEnabled) {
     <script src="/vendor/jquery-easing/jquery.easing.min.js"></script>
     <script src="/js/sb-admin-2.js"></script>
     <script src="/socket.io/socket.io.js"></script>
+
+    <script>
+    // Dark / light mode toggle (persisted; admin dashboard has its own inline topbar)
+    (function () {
+        function syncIcon() {
+            var icon = document.querySelector('#tkThemeToggle i');
+            if (icon) { icon.className = document.body.classList.contains('tk-dark') ? 'fas fa-sun' : 'fas fa-moon'; }
+        }
+        syncIcon();
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest && e.target.closest('#tkThemeToggle');
+            if (!btn) { return; }
+            var isDark = document.body.classList.toggle('tk-dark');
+            try { localStorage.setItem('tkTheme', isDark ? 'dark' : 'light'); } catch (err) {}
+            syncIcon();
+        });
+    })();
+    </script>
 
     <script>
         const socket = io();

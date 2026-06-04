@@ -21,6 +21,7 @@ header("X-Debug-Version: NO-PLUGIN-2025-11-07");
     <link href="/vendor/fontawesome-free/css/all.min.css?v=<?php echo time(); ?>" rel="stylesheet" type="text/css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="/css/sb-admin-2.min.css?v=<?php echo time(); ?>" rel="stylesheet">
+    <link href="/css/admin-theme.css" rel="stylesheet">
   <link href="/css/dashboard-modern.css?v=<?php echo time(); ?>" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.10-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -29,10 +30,19 @@ header("X-Debug-Version: NO-PLUGIN-2025-11-07");
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.fullscreen@1.6.0/Control.FullScreen.css" />
 
     <style>
-        /* CRITICAL FIX: Ensure sidebar navbar is ALWAYS visible and clickable */
-        #accordionSidebar {
-            z-index: 1200 !important;
-            position: relative !important;
+        /* Ensure sidebar navbar sits above the Leaflet map (which uses high z-index).
+           Scoped to desktop only — on mobile the sidebar uses position:fixed for the
+           drawer; forcing `position:relative` there breaks the slide-out and leaves
+           the sidebar squashed in-flow at ~146px instead of opening as a 240px drawer. */
+        @media (min-width: 768px) {
+            #accordionSidebar {
+                z-index: 1200 !important;
+                position: relative !important;
+            }
+        }
+        /* Mobile sidebar must keep its fixed-position drawer; just lift z-index. */
+        @media (max-width: 767.98px) {
+            #accordionSidebar { z-index: 1200 !important; }
         }
         
         /* Ensure sidebar collapse menus are above content */
@@ -90,11 +100,15 @@ header("X-Debug-Version: NO-PLUGIN-2025-11-07");
             position: relative;
             width: 100%;
             flex-grow: 1;
-            min-height: 400px;
+            /* Scale with viewport so the map is actually usable (was a flat 400px). */
+            min-height: clamp(420px, calc(100vh - 300px), 820px);
             border-radius: .35rem;
             box-shadow: 0 .15rem 1.75rem 0 rgba(58,59,69,.15)!important;
             overflow: hidden;
             z-index: 1 !important;
+        }
+        @media (max-width: 767.98px) {
+            #mapContainer { min-height: clamp(360px, calc(100vh - 220px), 640px); }
         }
         #interactiveMap {
             width: 100%;
@@ -904,7 +918,6 @@ header("X-Debug-Version: NO-PLUGIN-2025-11-07");
             align-items: center;
             justify-content: center;
             transition: transform 0.3s ease;
-            position: relative;
         }
         
         .alert-panel-toggle:hover {
@@ -1168,16 +1181,25 @@ header("X-Debug-Version: NO-PLUGIN-2025-11-07");
         
         /* Advanced Legend Styling */
         .advanced-legend {
-            background: white;
-            background: rgba(255,255,255,0.95);
-            box-shadow: 0 0 15px rgba(0,0,0,0.2);
-            border-radius: 8px;
-            padding: 12px;
-            font-size: 14px;
-            line-height: 1.6;
-            max-width: 280px;
-            max-height: 80vh;
+            background: rgba(255,255,255,0.96);
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.18);
+            border-radius: 10px;
+            padding: 8px 10px;
+            font-size: 12.5px;
+            line-height: 1.45;
+            /* keep the legend INSIDE the map viewport (was 80vh which overflowed
+               a 600px-tall map). Leaflet's corner container has no intrinsic height
+               so `100%` doesn't work — use a clamp that fits even short maps. */
+            width: 220px;
+            max-width: 220px;
+            max-height: clamp(280px, calc(100vh - 320px), 540px);
             overflow-y: auto;
+            scrollbar-width: thin;
+        }
+        .advanced-legend::-webkit-scrollbar { width: 5px; }
+        .advanced-legend::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.2); border-radius: 999px; }
+        @media (max-width: 767.98px) {
+            .advanced-legend { width: 180px; max-width: 180px; font-size: 11.5px; padding: 6px 8px; }
         }
         
         .advanced-legend-header {
@@ -1210,8 +1232,8 @@ header("X-Debug-Version: NO-PLUGIN-2025-11-07");
         }
         
         .legend-category {
-            margin-bottom: 12px;
-            padding: 8px;
+            margin-bottom: 6px;
+            padding: 5px 6px 5px 8px;
             background: #f8f9fc;
             border-radius: 6px;
             border-left: 3px solid transparent;
@@ -2612,12 +2634,32 @@ const createCustomerStatusIcon = (status) => {
             customerMarkersLayer.addTo(map); 
             linesLayer.addTo(map);
             
+            // Hybrid base layer = satellite + labels overlay (place names, roads, jalan).
+            // Esri's reference layers are sparse in rural Indonesia, so we use CARTO's
+            // labels-only tiles (OSM-based, transparent PNGs, world coverage incl. rural ID).
+            // light_only_labels = white labels w/ dark outline → readable on satellite.
+            const hybridLabelsLayer = L.tileLayer(
+                'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png',
+                {
+                    subdomains: 'abcd',
+                    maxZoom: 19, maxNativeZoom: 19,
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    pane: 'overlayPane'
+                }
+            );
+            const hybridLayer = L.layerGroup([
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: satelliteMaxZoom, maxNativeZoom: 18, attribution: 'Tiles &copy; Esri'
+                }),
+                hybridLabelsLayer
+            ]);
+
             // Add layer control
-            const baseMaps = { "Satelit": satelliteLayer, "OpenStreetMap": osmLayer };
-            const overlayMaps = { 
-                "Aset Jaringan": networkMarkersLayer, 
-                "Pelanggan": customerMarkersLayer, 
-                "Koneksi Antar Aset": linesLayer 
+            const baseMaps = { "Hybrid": hybridLayer, "Satelit": satelliteLayer, "OpenStreetMap": osmLayer };
+            const overlayMaps = {
+                "Aset Jaringan": networkMarkersLayer,
+                "Pelanggan": customerMarkersLayer,
+                "Koneksi Antar Aset": linesLayer
             };
             L.control.layers(baseMaps, overlayMaps, {collapsed: true}).addTo(map);
 
@@ -2659,8 +2701,8 @@ const createCustomerStatusIcon = (status) => {
             setupAdvancedLegend();
             
             // Event listeners - exactly like teknisi
-            map.on('baselayerchange', e => { 
-                const newMaxZoom = e.name === "Satelit" ? satelliteMaxZoom : osmMaxZoom;
+            map.on('baselayerchange', e => {
+                const newMaxZoom = (e.name === "Satelit" || e.name === "Hybrid") ? satelliteMaxZoom : osmMaxZoom;
                 map.options.maxZoom = newMaxZoom;
                 // Pastikan zoom tidak melebihi maxZoom yang didukung
                 if (map.getZoom() > newMaxZoom) {

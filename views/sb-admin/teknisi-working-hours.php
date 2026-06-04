@@ -9,6 +9,7 @@
     <link href="/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
     <link href="/css/sb-admin-2.min.css" rel="stylesheet">
   <link href="/css/dashboard-modern.css" rel="stylesheet">
+    <link href="/css/teknisi-theme.css" rel="stylesheet">
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     
     <style>
@@ -124,9 +125,14 @@
                 
                 <div class="container-fluid">
                     <!-- Page Heading -->
-                    <div class="dashboard-header">
-                        <h1><i class="fas fa-clock"></i> Pengaturan Jam Kerja Teknisi</h1>
-                        <p>Atur jam operasional teknisi untuk response time yang akurat</p>
+                    <div class="tk-page-head">
+                        <div class="tk-title">
+                            <span class="tk-title-icon"><i class="fas fa-clock"></i></span>
+                            <div>
+                                <h1>Pengaturan Jam Kerja Teknisi</h1>
+                                <p class="tk-subtitle">Atur jam operasional teknisi untuk response time yang akurat</p>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Status Card -->

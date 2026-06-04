@@ -9,6 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="/css/sb-admin-2.min.css" rel="stylesheet">
   <link href="/css/dashboard-modern.css" rel="stylesheet">
+    <link href="/css/teknisi-theme.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     <style>
         /* ===== MOBILE RESPONSIVE STYLES ===== */
@@ -68,8 +70,15 @@
                 <?php include '_role_aware_teknisi_topbar.php'; ?>
 
                 <div class="container-fluid">
-                    <h1 class="h3 mb-2 text-gray-800">Request Perubahan Paket Pelanggan</h1>
-                    <p class="mb-4">Gunakan form di bawah ini untuk mengajukan permintaan perubahan paket permanen untuk pelanggan.</p>
+                    <div class="tk-page-head">
+                        <div class="tk-title">
+                            <span class="tk-title-icon"><i class="fas fa-exchange-alt"></i></span>
+                            <div>
+                                <h1>Request Perubahan Paket</h1>
+                                <p class="tk-subtitle">Ajukan permintaan perubahan paket permanen untuk pelanggan</p>
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="card shadow mb-4">
                         <div class="card-header py-3">
@@ -144,6 +153,7 @@
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="/vendor/jquery-easing/jquery.easing.min.js"></script>
     <script src="/js/sb-admin-2.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
@@ -168,6 +178,7 @@
                     allUsers.forEach(user => {
                         userSelect.append(`<option value="${user.id}">${user.name} (${user.pppoe_username || 'No PPPoE'})</option>`);
                     });
+                    userSelect.select2({ placeholder: 'Cari nama atau PPPoE pelanggan...', width: '100%', allowClear: true });
                 },
                 error: function(xhr) {
                     Swal.fire('Gagal Memuat Pelanggan', xhr.responseJSON ? xhr.responseJSON.message : 'Tidak dapat mengambil daftar pelanggan.', 'error');
@@ -185,6 +196,7 @@
                         // Tampilkan SEMUA paket untuk request perubahan permanen
                         packageSelect.append(`<option value="${pkg.name}">${pkg.name} (Rp ${new Intl.NumberFormat('id-ID').format(pkg.price)})</option>`);
                     });
+                    packageSelect.select2({ placeholder: 'Pilih paket baru', width: '100%' });
                 },
                 error: function(xhr) {
                     Swal.fire('Gagal Memuat Paket', xhr.responseJSON ? xhr.responseJSON.message : 'Tidak dapat mengambil daftar paket.', 'error');
@@ -257,6 +269,7 @@
                                 }).then(() => {
                                     // Reset form
                                     $('#requestPackageChangeForm')[0].reset();
+                                    $('#userSelect, #packageSelect').val('').trigger('change');
                                     $('#currentPackage').val('');
                                     $('#requestNotes').val('');
                                 });

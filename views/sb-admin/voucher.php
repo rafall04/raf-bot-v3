@@ -17,6 +17,7 @@
 
   <!-- Custom styles for this template -->
   <link href="/css/sb-admin-2.min.css" rel="stylesheet">
+  <link href="/css/admin-theme.css" rel="stylesheet">
   <link href="/css/dashboard-modern.css" rel="stylesheet">
 
   <!-- Custom styles for this page -->

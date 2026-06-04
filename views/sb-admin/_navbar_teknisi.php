@@ -1,6 +1,22 @@
 <?php
 $current_page = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
+// php-express renders via PHP CLI and does not populate REQUEST_URI,
+// so derive the route from the rendered script path (argv[2] = full .php path).
+if ($current_page === '' && isset($GLOBALS['argv'][2])) {
+    $current_page = '/' . pathinfo($GLOBALS['argv'][2], PATHINFO_FILENAME);
+}
+$current_page = strtok($current_page, '?');
 ?>
+<script>
+// Apply saved dark/light theme ASAP to avoid a flash of the wrong theme.
+(function () {
+    try {
+        if (localStorage.getItem('tkTheme') === 'dark') {
+            document.body.classList.add('tk-dark');
+        }
+    } catch (e) {}
+})();
+</script>
 <style>
 #wrapper,
 #content-wrapper,
@@ -213,6 +229,22 @@ $current_page = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
         font-size: 0.68rem;
         padding: 0.6rem 1rem 0.3rem;
         margin-top: 0.4rem;
+    }
+
+    /* Force submenus to render INLINE inside the drawer on mobile.
+       SB Admin 2 turns .sidebar.toggled submenus into absolute pop-outs, which
+       on mobile shoot out past the drawer edge (visual bug). Neutralise that. */
+    #accordionSidebar .nav-item .collapse,
+    #accordionSidebar .nav-item .collapsing {
+        position: static !important;
+        float: none !important;
+        top: auto !important;
+        left: auto !important;
+        margin: 0 !important;
+        min-width: 0 !important;
+        width: auto !important;
+        box-shadow: none !important;
+        background: transparent !important;
     }
 
     #accordionSidebar .collapse-inner {

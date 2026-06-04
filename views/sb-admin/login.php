@@ -8,189 +8,321 @@
     <meta name="description" content="LOGIN RAF NET">
     <meta name="author" content="">
 
-    <title>RAF NET</title>
+    <title>Masuk · RAF BOT WIFI</title>
 
     <link href="/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
-    <link
-        href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i"
-        rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="/css/sb-admin-2.min.css" rel="stylesheet">
 
     <style>
         :root {
-            --primary-color: #4e73df;
-            --primary-hover-color: #2e59d9;
-            --light-gray-hover: #f8f9fc; /* Untuk hover halus */
-            --border-color-input: #d1d3e2; /* Border input standar SB Admin 2 */
-            --text-dark: #5a5c69;
-            --text-heading: #3a3b45;
-            --error-color: #e74a3b;
-            --card-shadow-light: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15); /* Bayangan standar SB Admin */
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --ink: #0f172a;
+            --ink-soft: #475569;
+            --muted: #94a3b8;
+            --line: #e9edf5;
+            --danger: #ef4444;
         }
 
-        body.bg-gradient-primary {
-            /* Menggunakan gradient default SB Admin 2 untuk konsistensi */
-            background-color: #4e73df;
-            background-image: linear-gradient(180deg, #4e73df 10%, #224abe 100%);
+        * { box-sizing: border-box; }
+
+        html {
+            min-height: 100%;
+            background:
+                radial-gradient(900px circle at 0% 0%, rgba(99, 102, 241, 0.55), transparent 45%),
+                radial-gradient(900px circle at 100% 100%, rgba(168, 85, 247, 0.45), transparent 45%),
+                linear-gradient(160deg, #1e1b4b 0%, #312e81 55%, #4338ca 100%);
+            background-repeat: no-repeat;
             background-size: cover;
-            font-family: 'Nunito', sans-serif;
         }
-
-        .container-login {
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: var(--ink);
+            background: transparent;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 90vh; /* Sedikit kurang dari 100vh agar tidak terlalu mentok */
-            padding: 1rem;
+            padding: 1.25rem;
         }
 
-        .card-login {
-            border-radius: 0.5rem; /* Sudut lebih halus, tidak terlalu bulat */
-            border: none; /* Hilangkan border, andalkan bayangan */
-            box-shadow: var(--card-shadow-light) !important;
-        }
-        
-        .card-login .card-body {
-            padding: 2.5rem; /* Sesuaikan padding */
-        }
-
-        .login-heading {
-            font-weight: 400; /* Standar SB Admin 2 untuk h4 di login */
-            color: var(--text-heading);
-            margin-bottom: 1.5rem !important; /* Default SB Admin 2 */
-            font-size: 1.8rem; /* Sedikit diperbesar */
+        .login-shell {
+            width: 100%;
+            max-width: 920px;
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 30px 70px rgba(2, 6, 23, 0.45);
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 1.05fr 1fr;
         }
 
-        .form-control-user {
-            border-radius: 10rem; /* Default SB Admin 2 */
-            padding: 1.5rem 1rem; /* Default SB Admin 2 */
-            font-size: 0.8rem; /* Default SB Admin 2 */
-            border: 1px solid var(--border-color-input);
-            transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+        /* ---------- Brand panel ---------- */
+        .login-brand {
+            position: relative;
+            padding: 2.75rem 2.5rem;
+            color: #fff;
+            background: linear-gradient(160deg, #4f46e5 0%, #6d28d9 55%, #7c3aed 100%);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
-
-        .form-control-user:focus {
-            border-color: #80bdff; /* Warna fokus Bootstrap standar */
-            box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+        .login-brand::after {
+            content: '';
+            position: absolute;
+            right: -60px; bottom: -60px;
+            width: 220px; height: 220px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.10);
         }
-        .form-group {
-            margin-bottom: 1.25rem; /* Jarak antar form group */
+        .login-brand::before {
+            content: '';
+            position: absolute;
+            left: -40px; top: -40px;
+            width: 150px; height: 150px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
         }
-
-        .btn-user {
-            font-size: .8rem; /* Default SB Admin 2 */
-            border-radius: 10rem; /* Default SB Admin 2 */
-            padding: .75rem 1rem; /* Default SB Admin 2 */
-            font-weight: 600; /* Tombol lebih tegas */
+        .brand-logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.7rem;
+            font-weight: 800;
+            font-size: 1.3rem;
+            letter-spacing: 0.01em;
+            position: relative;
         }
-        .btn-primary.btn-user {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
+        .brand-logo .logo-mark {
+            width: 2.8rem; height: 2.8rem;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.15);
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 1.4rem;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
         }
-        .btn-primary.btn-user:hover {
-            background-color: var(--primary-hover-color);
-            border-color: var(--primary-hover-color);
+        .brand-logo sup { font-size: 0.6rem; opacity: 0.85; font-weight: 600; }
+        .brand-copy { margin-top: auto; position: relative; }
+        .brand-copy h2 {
+            font-size: 1.7rem;
+            font-weight: 800;
+            line-height: 1.2;
+            margin: 0 0 0.6rem;
+            letter-spacing: -0.02em;
         }
-        .btn-primary.btn-user:disabled {
-            background-color: #a5b6f0;
-            border-color: #a5b6f0;
-        }
-
-
-        /* Modal Error Styling */
-        #loginErrorModal .modal-content {
-            border-radius: 0.5rem; /* Sesuaikan dengan card */
-            border: none;
-            box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
-        }
-        #loginErrorModal .modal-header {
-            background-color: var(--error-color);
-            color: white;
-            border-top-left-radius: 0.5rem;
-            border-top-right-radius: 0.5rem;
-            padding: 1rem 1.5rem;
-            border-bottom: none; /* Hapus border bawah header modal */
-        }
-        #loginErrorModal .modal-header .modal-title {
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
-        #loginErrorModal .modal-header .close {
-            color: white;
-            opacity: 0.8;
-            text-shadow: none;
-            transition: opacity 0.15s ease;
-        }
-        #loginErrorModal .modal-header .close:hover {
-            opacity: 1;
-        }
-        #loginErrorModal .modal-body {
-            padding: 1.5rem;
-            font-size: 0.95rem;
-            color: var(--text-dark);
+        .brand-copy p {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 0.92rem;
             line-height: 1.6;
         }
-        #loginErrorModal .modal-footer {
-            border-top: 1px solid #e9ecef; /* Border footer modal */
-            padding: 1rem 1.5rem;
-            background-color: #f8f9fc; /* Latar belakang footer sedikit beda */
-            border-bottom-left-radius: 0.5rem;
-            border-bottom-right-radius: 0.5rem;
+        .brand-features {
+            list-style: none;
+            padding: 0;
+            margin: 1.6rem 0 0;
+            position: relative;
         }
-        #loginErrorModal .modal-footer .btn-primary {
-             background-color: var(--primary-color);
-             border-color: var(--primary-color);
+        .brand-features li {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 0.86rem;
+            color: rgba(255, 255, 255, 0.92);
+            padding: 0.32rem 0;
         }
-        #loginErrorModal .modal-footer .btn-primary:hover {
-             background-color: var(--primary-hover-color);
-             border-color: var(--primary-hover-color);
+        .brand-features li i {
+            width: 1.5rem; height: 1.5rem;
+            border-radius: 7px;
+            background: rgba(255, 255, 255, 0.16);
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 0.72rem;
+            flex: 0 0 auto;
+        }
+
+        /* ---------- Form panel ---------- */
+        .login-form-wrap {
+            padding: 2.9rem 2.6rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .form-head { margin-bottom: 1.6rem; }
+        .form-head h1 {
+            font-size: 1.55rem;
+            font-weight: 800;
+            margin: 0 0 0.35rem;
+            letter-spacing: -0.02em;
+        }
+        .form-head p { margin: 0; color: var(--ink-soft); font-size: 0.9rem; }
+
+        .field { margin-bottom: 1.1rem; }
+        .field label {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--ink-soft);
+            margin-bottom: 0.4rem;
+        }
+        .input-wrap { position: relative; }
+        .input-wrap > .lead-icon {
+            position: absolute;
+            left: 0.95rem; top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            font-size: 0.9rem;
+            pointer-events: none;
+        }
+        .input-wrap input {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 0.8rem 2.6rem;
+            font-size: 0.92rem;
+            color: var(--ink);
+            background: #fff;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+            font-family: inherit;
+        }
+        .input-wrap input::placeholder { color: var(--muted); }
+        .input-wrap input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+        .toggle-pass {
+            position: absolute;
+            right: 0.5rem; top: 50%;
+            transform: translateY(-50%);
+            border: 0; background: transparent;
+            color: var(--muted);
+            width: 2rem; height: 2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .toggle-pass:hover { color: var(--primary-dark); background: #f1f5f9; }
+
+        .btn-login {
+            width: 100%;
+            border: none;
+            border-radius: 12px;
+            padding: 0.85rem 1rem;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #fff;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            box-shadow: 0 10px 22px rgba(79, 70, 229, 0.32);
+            cursor: pointer;
+            transition: transform 0.12s ease, box-shadow 0.18s ease, opacity 0.15s ease;
+            margin-top: 0.4rem;
+            font-family: inherit;
+        }
+        .btn-login:hover { box-shadow: 0 14px 28px rgba(79, 70, 229, 0.4); }
+        .btn-login:active { transform: translateY(1px); }
+        .btn-login:disabled { opacity: 0.7; cursor: default; box-shadow: none; }
+
+        .form-foot {
+            margin-top: 1.5rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--muted);
         }
 
         .spinner-border-sm {
-            width: 1em; /* Sesuaikan ukuran spinner dengan teks tombol */
-            height: 1em;
-            border-width: .2em;
+            display: inline-block;
+            width: 1em; height: 1em;
+            border: 0.18em solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
             margin-right: 0.5rem;
-            vertical-align: -0.125em; /* Sejajarkan dengan teks */
+            vertical-align: -0.125em;
+            animation: tk-spin 0.7s linear infinite;
+        }
+        @keyframes tk-spin { to { transform: rotate(360deg); } }
+
+        /* ---------- Error modal ---------- */
+        #loginErrorModal .modal-content { border-radius: 16px; border: none; box-shadow: 0 0.5rem 2rem rgba(0,0,0,0.25); overflow: hidden; }
+        #loginErrorModal .modal-header { background: linear-gradient(135deg, #f87171, var(--danger)); color: #fff; border: none; padding: 1rem 1.4rem; }
+        #loginErrorModal .modal-header .modal-title { font-weight: 700; font-size: 1.02rem; }
+        #loginErrorModal .modal-header .close { color: #fff; opacity: 0.85; text-shadow: none; }
+        #loginErrorModal .modal-header .close:hover { opacity: 1; }
+        #loginErrorModal .modal-body { padding: 1.4rem; font-size: 0.92rem; color: var(--ink-soft); line-height: 1.6; }
+        #loginErrorModal .modal-footer { border-top: 1px solid var(--line); padding: 0.9rem 1.4rem; }
+        #loginErrorModal .modal-footer .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none; border-radius: 10px; font-weight: 600; padding: 0.5rem 1.1rem;
         }
 
+        /* ---------- Responsive ---------- */
+        @media (max-width: 767.98px) {
+            .login-shell { grid-template-columns: 1fr; max-width: 440px; }
+            .login-brand {
+                padding: 1.6rem 1.6rem 1.4rem;
+                flex-direction: row;
+                align-items: center;
+                gap: 0.85rem;
+            }
+            .login-brand::before, .login-brand::after { display: none; }
+            .brand-copy, .brand-features { display: none; }
+            .brand-logo { font-size: 1.15rem; }
+            .login-form-wrap { padding: 1.9rem 1.6rem 2.1rem; }
+            .form-head h1 { font-size: 1.4rem; }
+        }
     </style>
 </head>
 
-<body class="bg-gradient-primary">
+<body>
 
-    <div class="container container-login">
-        <div class="row justify-content-center w-100">
-            <div class="col-xl-6 col-lg-7 col-md-9"> 
-                <div class="card card-login o-hidden border-0 shadow-lg my-5">
-                    <div class="card-body p-0">
-                        <div class="row">
-                            <div class="col-lg-12">
-                                <div class="p-5">
-                                    <div class="text-center">
-                                        <h1 class="h4 text-gray-900 mb-4 login-heading">LOGIN</h1>
-                                    </div>
-                                    <form id="loginForm" class="user">
-                                        <div class="form-group">
-                                            <input type="text" name="username" class="form-control form-control-user"
-                                                placeholder="Masukkan Username Anda..." required>
-                                        </div>
-                                        <div class="form-group">
-                                            <input type="password" name="password" class="form-control form-control-user"
-                                                placeholder="Password" required>
-                                        </div>
-                                        <button type="submit" class="btn btn-primary btn-user btn-block">
-                                            Login
-                                        </button>
-                                    </form>
-                                    
-                                </div>
-                            </div>
-                        </div>
+    <div class="login-shell">
+        <!-- Brand panel -->
+        <div class="login-brand">
+            <div class="brand-logo">
+                <span class="logo-mark"><i class="fas fa-robot"></i></span>
+                <span>RAF BOT<sup>WIFI</sup></span>
+            </div>
+            <div class="brand-copy">
+                <h2>Panel Manajemen Jaringan WiFi</h2>
+                <p>Kelola pelanggan, pembayaran, instalasi, dan jaringan dalam satu dasbor terpadu.</p>
+                <ul class="brand-features">
+                    <li><i class="fas fa-users"></i> Manajemen pelanggan &amp; PSB</li>
+                    <li><i class="fas fa-money-check-alt"></i> Monitoring pembayaran</li>
+                    <li><i class="fas fa-broadcast-tower"></i> Pantau OLT &amp; peta jaringan</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Form panel -->
+        <div class="login-form-wrap">
+            <div class="form-head">
+                <h1>Selamat datang 👋</h1>
+                <p>Masuk untuk melanjutkan ke dasbor Anda.</p>
+            </div>
+
+            <form id="loginForm" class="user">
+                <div class="field">
+                    <label for="loginUsername">Username</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-user lead-icon"></i>
+                        <input type="text" id="loginUsername" name="username"
+                               placeholder="Masukkan username Anda" autocomplete="username" required>
                     </div>
                 </div>
-            </div>
+                <div class="field">
+                    <label for="loginPassword">Password</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-lock lead-icon"></i>
+                        <input type="password" id="loginPassword" name="password"
+                               placeholder="Masukkan password" autocomplete="current-password" required>
+                        <button type="button" class="toggle-pass" id="togglePassword" aria-label="Tampilkan password">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="btn-login">Masuk</button>
+            </form>
+
+            <div class="form-foot">&copy; <span id="yearNow"></span> RAF BOT WIFI</div>
         </div>
     </div>
 
@@ -215,12 +347,23 @@
 
     <script src="/vendor/jquery/jquery.min.js"></script>
     <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-
     <script src="/vendor/jquery-easing/jquery.easing.min.js"></script>
 
-    <script src="/js/sb-admin-2.js"></script>
-
     <script>
+        document.getElementById('yearNow').textContent = new Date().getFullYear();
+
+        // Show / hide password
+        (function () {
+            var btn = document.getElementById('togglePassword');
+            var input = document.getElementById('loginPassword');
+            btn.addEventListener('click', function () {
+                var show = input.type === 'password';
+                input.type = show ? 'text' : 'password';
+                btn.querySelector('i').className = show ? 'fas fa-eye-slash' : 'fas fa-eye';
+                btn.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Tampilkan password');
+            });
+        })();
+
         function showLoginError(message) {
             document.getElementById('loginErrorModalBody').textContent = message;
             $('#loginErrorModal').modal('show');
@@ -231,9 +374,9 @@
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData.entries());
             const loginButton = e.target.querySelector('button[type="submit"]');
-            const originalButtonText = loginButton.textContent; // Ambil teks saja, bukan innerHTML
-            
-            loginButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sedang proses...';
+            const originalButtonHTML = loginButton.innerHTML;
+
+            loginButton.innerHTML = '<span class="spinner-border-sm" role="status" aria-hidden="true"></span> Sedang proses...';
             loginButton.disabled = true;
 
             try {
@@ -244,27 +387,14 @@
                 });
 
                 if (response.ok) {
-                    // Jika server mengembalikan status OK, periksa URL tujuan.
-                    // Jika server sudah melakukan redirect (misalnya ke /index atau /pembayaran/teknisi),
-                    // browser akan otomatis mengikutinya.
-                    // Jika URL akhir masih halaman login, berarti ada masalah atau redirect gagal.
-                    const finalUrl = new URL(response.url); // URL setelah semua redirect (jika ada)
+                    const finalUrl = new URL(response.url);
                     const loginPath = new URL(window.location.href).pathname;
 
                     if (finalUrl.pathname === loginPath && response.redirected) {
-                        // Di-redirect kembali ke halaman login, kemungkinan gagal.
                         showLoginError("Username atau password salah. Silakan coba lagi.");
                     } else if (finalUrl.pathname !== loginPath ) {
-                         // Sukses dan sudah di-redirect oleh server ke halaman lain
-                         window.location.href = response.url; // Pastikan browser mengikuti
+                         window.location.href = response.url;
                     } else {
-                         // Response OK tapi tidak ada redirect yang jelas dari server atau masih di halaman login
-                         // Ini bisa berarti sukses dan halaman me-refresh, atau kasus lain.
-                         // Untuk SB Admin 2, biasanya sukses akan ada redirect. Jika tidak, kita bisa coba redirect manual.
-                         // Untuk sekarang, kita asumsikan server yang handle redirect sukses.
-                         // Jika ingin memaksa, bisa: window.location.href = '/index'; (atau halaman tujuan lain)
-                         // Tapi idealnya serahkan pada server.
-                         // Jika tetap di halaman login, tampilkan error sbg fallback.
                          showLoginError("Login tidak berhasil, silakan periksa kredensial Anda.");
                     }
                 } else {
@@ -282,7 +412,7 @@
                 console.error('Login Fetch Error:', error);
                 showLoginError('Terjadi masalah koneksi atau server. Silakan coba lagi.');
             } finally {
-                loginButton.textContent = originalButtonText;
+                loginButton.innerHTML = originalButtonHTML;
                 loginButton.disabled = false;
             }
         });

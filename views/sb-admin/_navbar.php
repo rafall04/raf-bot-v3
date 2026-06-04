@@ -12,6 +12,13 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 $current_page = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
+// php-express renders via PHP CLI and does not populate REQUEST_URI, so derive
+// the route from the rendered script path. Dashboard (index.php) maps to '/'.
+if ($current_page === '' && isset($GLOBALS['argv'][2])) {
+    $filename = pathinfo($GLOBALS['argv'][2], PATHINFO_FILENAME);
+    $current_page = ($filename === 'index') ? '/' : ('/' . $filename);
+}
+$current_page = strtok($current_page, '?');
 $current_role = 'guest';
 
 if (isset($_COOKIE['token']) && !empty($_COOKIE['token'])) {
@@ -69,17 +76,256 @@ function isParentActive($pages, $current) {
     return false;
 }
 ?>
+<script>
+// Apply saved dark/light theme ASAP (before paint) to avoid a flash.
+(function () { try { if (localStorage.getItem('tkTheme') === 'dark') { document.body.classList.add('tk-dark'); } } catch (e) {} })();
+</script>
 <style>
+/* ============================================================
+   RAF BOT · ADMIN SIDEBAR — Modern indigo glow
+   Inline so it loads on every admin page (no extra link needed).
+   ============================================================ */
+
 #accordionSidebar {
     overscroll-behavior: contain;
 }
 
+/* premium gradient overrides sb-admin-2 .bg-gradient-primary */
+#accordionSidebar.sidebar {
+    background: linear-gradient(180deg, #1e1b4b 0%, #312e81 35%, #4338ca 75%, #5b21b6 100%) !important;
+    box-shadow: 0 0 40px rgba(15, 23, 42, 0.18);
+    padding-bottom: 1.2rem;
+}
+/* `position: relative` lives on the bare ID (same specificity as the mobile
+   @media rule below, which then wins via later source order with position:fixed). */
+#accordionSidebar { position: relative; }
+/* very faint dotted pattern for premium feel */
+#accordionSidebar.sidebar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 14px 14px;
+    opacity: 0.6;
+    z-index: 0;
+}
+#accordionSidebar.sidebar > * { position: relative; z-index: 1; }
+
+/* thin custom scrollbar */
+#accordionSidebar.sidebar { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent; }
+#accordionSidebar.sidebar::-webkit-scrollbar { width: 6px; }
+#accordionSidebar.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 999px; }
+#accordionSidebar.sidebar::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- Brand ---------- */
+#accordionSidebar .sidebar-brand {
+    padding: 1.35rem 1rem 1.15rem;
+    gap: 0.7rem;
+    letter-spacing: 0.01em;
+    height: auto;
+}
+#accordionSidebar .sidebar-brand-icon {
+    width: 2.6rem; height: 2.6rem;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+    display: inline-flex; align-items: center; justify-content: center;
+    transform: none !important; /* kill .rotate-n-15 inherited from sb-admin-2 */
+}
+#accordionSidebar .sidebar-brand-icon i { font-size: 1.25rem; color: #fff; }
+#accordionSidebar .sidebar-brand-text {
+    display: flex; flex-direction: column; gap: 0.1rem;
+    text-align: left; margin: 0 0 0 0.1rem !important;
+}
+#accordionSidebar .sidebar-brand-text .brand-name {
+    font-weight: 800; font-size: 1rem; color: #fff; letter-spacing: 0.01em;
+}
+#accordionSidebar .sidebar-brand-text .brand-name sup { font-size: 0.55rem; opacity: 0.85; }
+#accordionSidebar .sidebar-brand-text .brand-role {
+    font-size: 0.62rem;
+    color: rgba(255, 255, 255, 0.72);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+}
+
+/* hide divider immediately after brand (we use spacing instead) */
+#accordionSidebar > hr.sidebar-divider.my-0 { display: none; }
+#accordionSidebar hr.sidebar-divider {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin: 0.4rem 1rem;
+    opacity: 1;
+}
+
+/* ---------- Search ---------- */
+#accordionSidebar .sidebar-search { list-style: none; padding: 0.1rem 0.85rem 0.55rem; }
+#accordionSidebar .sidebar-search-wrap { position: relative; display: flex; align-items: center; }
+#accordionSidebar .sidebar-search-icon {
+    position: absolute; left: 0.7rem; top: 50%; transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.78rem;
+    pointer-events: none;
+}
+#accordionSidebar .sidebar-search-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    color: #fff;
+    font-size: 0.82rem;
+    padding: 0.46rem 2rem 0.46rem 2rem;
+    line-height: 1.2;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    -webkit-appearance: none;
+}
+#accordionSidebar .sidebar-search-input::placeholder { color: rgba(255, 255, 255, 0.55); }
+#accordionSidebar .sidebar-search-input:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.28);
+}
+#accordionSidebar .sidebar-search-input::-webkit-search-cancel-button,
+#accordionSidebar .sidebar-search-input::-webkit-search-decoration { -webkit-appearance: none; display: none; }
+#accordionSidebar .sidebar-search-clear {
+    position: absolute; right: 0.4rem; top: 50%; transform: translateY(-50%);
+    border: 0; background: transparent;
+    color: rgba(255, 255, 255, 0.7);
+    width: 1.5rem; height: 1.5rem; border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.72rem; cursor: pointer;
+}
+#accordionSidebar .sidebar-search-clear:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+#accordionSidebar .sidebar-search-empty {
+    display: flex; align-items: center; gap: 0.45rem;
+    padding: 0.6rem 0.5rem 0.2rem;
+    font-size: 0.74rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+#accordionSidebar .sidebar-search-empty i { font-size: 0.85rem; opacity: 0.75; }
+
+/* filtered-out items hidden via JS-added class */
+#accordionSidebar .nav-item.is-filtered,
+#accordionSidebar .collapse-item.is-filtered,
+#accordionSidebar .sidebar-heading.is-filtered { display: none !important; }
+body.sidebar-search-active #accordionSidebar > hr.sidebar-divider { display: none !important; }
+/* keep submenus open during search to expose matches */
+body.sidebar-search-active #accordionSidebar .nav-item .collapse { display: block !important; height: auto !important; }
+body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner { padding: 0.32rem; }
+
+/* ---------- Section headings ---------- */
+#accordionSidebar .sidebar-heading {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    padding: 0.45rem 1.2rem 0.25rem;
+    text-transform: uppercase;
+}
+
+/* ---------- Nav items ---------- */
+#accordionSidebar .nav-item { margin: 0.12rem 0.6rem; }
+#accordionSidebar .nav-item .nav-link {
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.84rem;
+    font-weight: 500;
+    border-radius: 12px;
+    padding: 0.62rem 0.85rem;
+    display: flex; align-items: center; gap: 0.7rem;
+    min-height: 2.6rem;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+    /* sb-admin-2 hard-codes `.sidebar .nav-link { width: 14rem }` (224px) which
+       overflows the sidebar by ~18px because the parent .nav-item has 0.6rem
+       horizontal margin. Force the link to size to its container instead. */
+    width: auto !important;
+    text-align: left;
+}
+#accordionSidebar .nav-item .nav-link i {
+    width: 1.2rem;
+    flex: 0 0 1.2rem;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.95rem;
+    margin: 0;
+}
+#accordionSidebar .nav-item .nav-link span {
+    flex: 1 1 0; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    color: inherit;
+}
+/* chevron sits flush next to the span (no auto margin so the span actually grows) */
+#accordionSidebar .nav-link[data-toggle="collapse"]::after {
+    margin-left: 0.35rem !important;
+}
+#accordionSidebar .nav-item .nav-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    transform: translateX(2px);
+}
+#accordionSidebar .nav-item .nav-link:hover i { color: #fff; }
+
+/* expanded parent (submenu open) */
+#accordionSidebar .nav-item .nav-link[aria-expanded="true"] {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+#accordionSidebar .nav-item .nav-link[aria-expanded="true"] i { color: #fff; }
+
+/* active item — pill with left indicator */
+#accordionSidebar .nav-item.active > .nav-link {
+    background: rgba(255, 255, 255, 0.18) !important;
+    color: #fff !important;
+    box-shadow: inset 3px 0 0 #fff;
+}
+#accordionSidebar .nav-item.active > .nav-link i { color: #fff !important; }
+
+/* collapse arrow */
+#accordionSidebar .nav-link[data-toggle="collapse"]::after {
+    content: '\f078';
+    font-family: 'Font Awesome 5 Free'; font-weight: 900;
+    margin-left: auto;
+    font-size: 0.62rem;
+    opacity: 0.65;
+    transition: transform 0.2s ease;
+}
+#accordionSidebar .nav-link[data-toggle="collapse"][aria-expanded="true"]::after {
+    transform: rotate(180deg);
+    opacity: 1;
+}
+
+/* ---------- Submenu ---------- */
+#accordionSidebar .collapse-inner,
+#accordionSidebar .collapsing .collapse-inner {
+    background: rgba(0, 0, 0, 0.20) !important;
+    border-radius: 14px;
+    margin: 0.18rem 0.6rem 0.3rem;
+    padding: 0.32rem;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
 #accordionSidebar .collapse-inner .collapse-item {
     display: flex !important;
     align-items: center;
+    color: rgba(255, 255, 255, 0.75) !important;
+    background: transparent !important;
+    font-size: 0.78rem;
+    font-weight: 500;
+    border-radius: 10px;
+    padding: 0.46rem 0.7rem 0.46rem 1.55rem;
+    min-height: 2.1rem;
+    margin: 0.06rem 0;
+    position: relative;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+#accordionSidebar .collapse-inner .collapse-item::before {
+    content: '';
+    position: absolute; left: 0.85rem; top: 50%;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.35);
+    transform: translateY(-50%);
+    transition: background 0.18s ease;
 }
 #accordionSidebar .collapse-inner .collapse-item span {
     flex: 1;
@@ -87,10 +333,34 @@ function isParentActive($pages, $current) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: inherit;
 }
 #accordionSidebar .collapse-inner .collapse-item i {
-    flex-shrink: 0;
+    width: 1rem; flex: 0 0 1rem; flex-shrink: 0;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.6) !important;
+    margin-right: 0.45rem !important;
+    text-align: center;
 }
+#accordionSidebar .collapse-inner .collapse-item:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+}
+#accordionSidebar .collapse-inner .collapse-item:hover::before { background: #fff; }
+#accordionSidebar .collapse-inner .collapse-item:hover i { color: #fff !important; }
+#accordionSidebar .collapse-inner .collapse-item.active {
+    background: #fff !important;
+    color: #4338ca !important;
+    font-weight: 600;
+}
+#accordionSidebar .collapse-inner .collapse-item.active::before { background: #4338ca; }
+#accordionSidebar .collapse-inner .collapse-item.active i { color: #4338ca !important; }
+
+/* sidebar toggler footer */
+#accordionSidebar #sidebarToggle {
+    background: rgba(255, 255, 255, 0.16);
+}
+#accordionSidebar #sidebarToggle::before { color: rgba(255, 255, 255, 0.85); }
 
 #wrapper,
 #content-wrapper,
@@ -305,35 +575,42 @@ function isParentActive($pages, $current) {
         top: 0;
     }
 
+    /* Submenu on mobile keeps the desktop dark/glass treatment for consistency. */
     #accordionSidebar .nav-item .collapse .collapse-inner,
     #accordionSidebar .nav-item .collapsing .collapse-inner {
-        border-radius: 1rem;
-        box-shadow: none;
-        background: rgba(255, 255, 255, 0.92) !important;
-        padding: 0.38rem 0;
+        padding: 0.35rem;
     }
-
     #accordionSidebar .collapse-inner .collapse-item {
-        margin: 0 0.38rem;
-        padding: 0.58rem 0.72rem;
+        padding: 0.58rem 0.72rem 0.58rem 1.55rem;
         min-height: 2.45rem;
-        border-radius: 0.78rem;
-        font-size: 0.79rem;
+        font-size: 0.8rem;
     }
 
-    #accordionSidebar .collapse-inner .collapse-item i {
-        width: 0.95rem;
-        margin-right: 0.6rem !important;
-        font-size: 0.82rem;
-    }
+    /* On mobile, the .mobile-sidebar-head already shows branding —
+       hide the regular .sidebar-brand to avoid duplication & wasted space. */
+    #accordionSidebar .sidebar-brand { display: none !important; }
+    /* show the role badge inside mobile head instead */
+    #accordionSidebar .mobile-sidebar-head .mobile-sidebar-title strong { white-space: nowrap; }
 
-    #accordionSidebar .collapse-inner .collapse-item.active {
-        background: #eff6ff;
-        color: #1d4ed8;
+    /* Tighter nav-link on mobile so longer labels like
+       "Agent & Reseller", "Voucher Hotspot" don't get clipped. */
+    #accordionSidebar.toggled .nav-item .nav-link,
+    body.sidebar-toggled #accordionSidebar .nav-item .nav-link {
+        padding: 0.7rem 0.7rem;
+        gap: 0.55rem;
     }
-
-    #accordionSidebar .collapse-inner .collapse-item.active i {
-        color: #1d4ed8;
+    #accordionSidebar.toggled .nav-item .nav-link i,
+    body.sidebar-toggled #accordionSidebar .nav-item .nav-link i {
+        width: 1rem; flex: 0 0 1rem; font-size: 0.88rem;
+    }
+    #accordionSidebar.toggled .nav-item .nav-link[data-toggle="collapse"]::after,
+    body.sidebar-toggled #accordionSidebar .nav-item .nav-link[data-toggle="collapse"]::after {
+        font-size: 0.56rem;
+        margin-left: 0.3rem;
+    }
+    #accordionSidebar.toggled .nav-item,
+    body.sidebar-toggled #accordionSidebar .nav-item {
+        margin: 0.1rem 0.5rem;
     }
 
     #accordionSidebar .sidebar-heading,
@@ -436,20 +713,35 @@ function isParentActive($pages, $current) {
     <li class="mobile-sidebar-head d-md-none">
         <div class="mobile-sidebar-title">
             <strong>RAF BOT WIFI</strong>
-            <span>Navigasi cepat admin</span>
+            <span>Admin Panel</span>
         </div>
         <button type="button" class="mobile-sidebar-close" id="mobileSidebarClose" aria-label="Tutup navigasi">
             <i class="fas fa-times"></i>
         </button>
     </li>
     <a class="sidebar-brand d-flex align-items-center justify-content-center" href="/">
-        <div class="sidebar-brand-icon rotate-n-15">
+        <div class="sidebar-brand-icon">
             <i class="fas fa-robot"></i>
         </div>
-        <div class="sidebar-brand-text mx-3">RAF BOT<sup>WIFI</sup></div>
+        <div class="sidebar-brand-text mx-3">
+            <span class="brand-name">RAF BOT<sup>WIFI</sup></span>
+            <span class="brand-role">Admin Panel</span>
+        </div>
     </a>
 
-    <hr class="sidebar-divider my-0">
+    <li class="sidebar-search">
+        <div class="sidebar-search-wrap">
+            <i class="fas fa-search sidebar-search-icon"></i>
+            <input type="search" id="sidebarMenuSearch" class="sidebar-search-input"
+                   placeholder="Cari menu..." autocomplete="off" aria-label="Cari menu sidebar">
+            <button type="button" id="sidebarMenuSearchClear" class="sidebar-search-clear" hidden aria-label="Kosongkan pencarian">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="sidebar-search-empty" id="sidebarMenuSearchEmpty" hidden>
+            <i class="fas fa-inbox"></i> Tidak ada menu yang cocok
+        </div>
+    </li>
 
     <li class="nav-item <?php echo isActive('/', $current_page) ? 'active' : ''; ?>">
         <a class="nav-link" href="/">
@@ -786,9 +1078,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const handleResize = function () {
         if (window.innerWidth > 767.98) {
+            // Desktop: just clean up the mobile-drawer body class. Do NOT touch
+            // sidebar.toggled here because the user may have manually collapsed it
+            // (sb-admin-2's #sidebarToggle button toggles that class).
             document.body.classList.remove('sidebar-toggled');
         } else if (!document.body.classList.contains('sidebar-toggled')) {
             sidebar.classList.add('toggled');
+        }
+    };
+
+    // One-time cleanup on initial load: sb-admin-2.js auto-adds `.toggled` at
+    // <480px during render and never restores it on desktop. Wipe the stuck
+    // state so a fresh desktop load always shows an expanded sidebar. (We don't
+    // do this on resize events to preserve user manual collapse.)
+    const cleanupInitialToggleStuck = function () {
+        if (window.innerWidth > 767.98) {
+            document.body.classList.remove('sidebar-toggled');
+            sidebar.classList.remove('toggled');
         }
     };
 
@@ -820,5 +1126,79 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.addEventListener('resize', handleResize);
     handleResize();
+    // Initial-load cleanup (separate from resize) — wins the race against
+    // sb-admin-2.js which may add `.toggled` at <480px during early render.
+    cleanupInitialToggleStuck();
+    setTimeout(cleanupInitialToggleStuck, 50);
+    setTimeout(cleanupInitialToggleStuck, 250);
+
+    // -------------------------------------------------------------
+    // Live menu search filter (>=50 menus on admin sidebar).
+    // -------------------------------------------------------------
+    const searchInput = document.getElementById('sidebarMenuSearch');
+    const searchClear = document.getElementById('sidebarMenuSearchClear');
+    const searchEmpty = document.getElementById('sidebarMenuSearchEmpty');
+    if (searchInput) {
+        // Open submenus during search so matches are visible immediately.
+        const navItems = Array.from(sidebar.querySelectorAll('li.nav-item:not(.sidebar-search)'));
+        const headings = Array.from(sidebar.querySelectorAll('.sidebar-heading'));
+
+        function normalise(s) { return (s || '').toLowerCase().trim(); }
+
+        function applyFilter(q) {
+            q = normalise(q);
+            const active = q.length > 0;
+            document.body.classList.toggle('sidebar-search-active', active);
+            searchClear.hidden = !active;
+
+            // headings always hidden during search (we lift items into a flat list visually)
+            headings.forEach(h => h.classList.toggle('is-filtered', active));
+
+            let totalVisible = 0;
+            navItems.forEach(item => {
+                const link = item.querySelector(':scope > .nav-link');
+                const linkText = normalise(link ? link.textContent : '');
+                const childItems = Array.from(item.querySelectorAll('.collapse-item'));
+
+                if (!active) {
+                    item.classList.remove('is-filtered');
+                    childItems.forEach(ci => ci.classList.remove('is-filtered'));
+                    return;
+                }
+
+                const parentMatch = linkText.includes(q);
+                let childMatchCount = 0;
+                childItems.forEach(ci => {
+                    const m = normalise(ci.textContent).includes(q);
+                    ci.classList.toggle('is-filtered', !m && !parentMatch);
+                    if (m || parentMatch) childMatchCount++;
+                });
+
+                const itemHasChildren = childItems.length > 0;
+                const itemVisible = parentMatch || childMatchCount > 0;
+                item.classList.toggle('is-filtered', !itemVisible);
+                if (itemVisible) totalVisible++;
+                // If parent itself matched, reveal all its children too
+                if (itemVisible && parentMatch && itemHasChildren) {
+                    childItems.forEach(ci => ci.classList.remove('is-filtered'));
+                }
+            });
+
+            searchEmpty.hidden = !(active && totalVisible === 0);
+        }
+
+        let debounceId = null;
+        searchInput.addEventListener('input', function () {
+            const v = searchInput.value;
+            clearTimeout(debounceId);
+            debounceId = setTimeout(() => applyFilter(v), 60);
+        });
+        searchInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') { searchInput.value = ''; applyFilter(''); searchInput.blur(); }
+        });
+        searchClear.addEventListener('click', function () {
+            searchInput.value = ''; applyFilter(''); searchInput.focus();
+        });
+    }
 });
 </script>

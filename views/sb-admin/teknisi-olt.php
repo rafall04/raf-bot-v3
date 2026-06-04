@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="/css/sb-admin-2.min.css" rel="stylesheet">
     <link href="/css/dashboard-modern.css" rel="stylesheet">
+    <link href="/css/teknisi-theme.css" rel="stylesheet">
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     <style>
         .status-badge { font-size: 0.85rem; padding: 0.4em 0.8em; }
@@ -18,7 +19,7 @@
         .rx-power-warning { color: #f6c23e; font-weight: 600; }
         .rx-power-bad { color: #e74a3b; font-weight: 600; }
         .refresh-timer { font-size: 0.8rem; color: #858796; }
-        .olt-stats-card { border-left: 4px solid; transition: transform 0.2s; cursor: pointer; }
+        .olt-stats-card { transition: transform 0.2s; cursor: pointer; }
         .olt-stats-card:hover { transform: translateY(-2px); }
         .olt-stats-card.online { border-left-color: #1cc88a; }
         .olt-stats-card.offline { border-left-color: #858796; }
@@ -67,11 +68,15 @@
                 <?php include '_role_aware_teknisi_topbar.php'; ?>
 
                 <div class="container-fluid">
-                    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-                        <h1 class="h3 mb-0 text-gray-800">
-                            <i class="fas fa-broadcast-tower text-primary"></i> Monitor OLT
-                        </h1>
-                        <div class="d-flex align-items-center flex-wrap">
+                    <div class="tk-page-head">
+                        <div class="tk-title">
+                            <span class="tk-title-icon"><i class="fas fa-broadcast-tower"></i></span>
+                            <div>
+                                <h1>Monitor OLT</h1>
+                                <p class="tk-subtitle">Pantau status ONT pelanggan secara real-time</p>
+                            </div>
+                        </div>
+                        <div class="tk-actions align-items-center">
                             <span class="refresh-timer mr-3" id="lastUpdateTime">Belum dimuat</span>
                             <div class="mr-3 d-flex align-items-center">
                                 <label class="switch mb-0 mr-2">
@@ -91,56 +96,48 @@
                     </div>
 
                     <!-- Statistics Cards -->
-                    <div class="row mb-4">
+                    <div class="row tk-stats-row mb-4">
                         <div class="col-6 col-xl-3 mb-4">
-                            <div class="card olt-stats-card online shadow h-100 py-2" data-filter="online">
+                            <div class="card olt-stats-card online tk-stat tk-accent-success shadow" data-filter="online">
                                 <div class="card-body">
-                                    <div class="row no-gutters align-items-center">
-                                        <div class="col mr-2">
-                                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Online</div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="statOnline">-</div>
-                                        </div>
-                                        <div class="col-auto"><i class="fas fa-check-circle fa-2x text-success"></i></div>
+                                    <div>
+                                        <div class="tk-stat-label">Online</div>
+                                        <div class="tk-stat-value" id="statOnline">-</div>
                                     </div>
+                                    <div class="tk-stat-icon"><i class="fas fa-check-circle"></i></div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-6 col-xl-3 mb-4">
-                            <div class="card olt-stats-card offline shadow h-100 py-2" data-filter="offline">
+                            <div class="card olt-stats-card offline tk-stat tk-accent-secondary shadow" data-filter="offline">
                                 <div class="card-body">
-                                    <div class="row no-gutters align-items-center">
-                                        <div class="col mr-2">
-                                            <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">Offline</div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="statOffline">-</div>
-                                        </div>
-                                        <div class="col-auto"><i class="fas fa-times-circle fa-2x text-secondary"></i></div>
+                                    <div>
+                                        <div class="tk-stat-label">Offline</div>
+                                        <div class="tk-stat-value" id="statOffline">-</div>
                                     </div>
+                                    <div class="tk-stat-icon"><i class="fas fa-times-circle"></i></div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-6 col-xl-3 mb-4">
-                            <div class="card olt-stats-card los shadow h-100 py-2" data-filter="los">
+                            <div class="card olt-stats-card los tk-stat tk-accent-warning shadow" data-filter="los">
                                 <div class="card-body">
-                                    <div class="row no-gutters align-items-center">
-                                        <div class="col mr-2">
-                                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">LOS</div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="statLos">-</div>
-                                        </div>
-                                        <div class="col-auto"><i class="fas fa-exclamation-triangle fa-2x text-warning"></i></div>
+                                    <div>
+                                        <div class="tk-stat-label">LOS</div>
+                                        <div class="tk-stat-value" id="statLos">-</div>
                                     </div>
+                                    <div class="tk-stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-6 col-xl-3 mb-4">
-                            <div class="card olt-stats-card dying-gasp shadow h-100 py-2" data-filter="dying_gasp">
+                            <div class="card olt-stats-card dying-gasp tk-stat tk-accent-danger shadow" data-filter="dying_gasp">
                                 <div class="card-body">
-                                    <div class="row no-gutters align-items-center">
-                                        <div class="col mr-2">
-                                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Dying Gasp</div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="statDyingGasp">-</div>
-                                        </div>
-                                        <div class="col-auto"><i class="fas fa-bolt fa-2x text-danger"></i></div>
+                                    <div>
+                                        <div class="tk-stat-label">Dying Gasp</div>
+                                        <div class="tk-stat-value" id="statDyingGasp">-</div>
                                     </div>
+                                    <div class="tk-stat-icon"><i class="fas fa-bolt"></i></div>
                                 </div>
                             </div>
                         </div>

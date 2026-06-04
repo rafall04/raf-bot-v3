@@ -18,6 +18,7 @@ SideEffects: POST perubahan template ke `/api/templates` dan memicu reload cache
     <link href="/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="/css/sb-admin-2.min.css" rel="stylesheet">
+    <link href="/css/admin-theme.css" rel="stylesheet">
   <link href="/css/dashboard-modern.css" rel="stylesheet">
     <style>
         #accordionSidebar .nav-item.active .nav-link {

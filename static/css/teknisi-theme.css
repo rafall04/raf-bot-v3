@@ -1,0 +1,1077 @@
+/* ============================================================
+   RAF BOT · Teknisi Theme Layer (overhaul total)
+   Loaded AFTER sb-admin-2 + dashboard-modern on teknisi pages.
+   Purely presentational — does not touch IDs, JS, or markup behaviour.
+   ============================================================ */
+
+:root {
+    --tk-primary: #6366f1;
+    --tk-primary-dark: #4f46e5;
+    --tk-primary-soft: #eef2ff;
+    --tk-success: #10b981;
+    --tk-success-soft: #ecfdf5;
+    --tk-info: #3b82f6;
+    --tk-info-soft: #eff6ff;
+    --tk-warning: #f59e0b;
+    --tk-warning-soft: #fffbeb;
+    --tk-danger: #ef4444;
+    --tk-danger-soft: #fef2f2;
+
+    --tk-ink: #0f172a;
+    --tk-ink-soft: #475569;
+    --tk-muted: #94a3b8;
+    --tk-line: #e9edf5;
+    --tk-surface: #ffffff;
+    --tk-surface-2: #f8fafc;
+    --tk-canvas: #f1f5f9;
+
+    --tk-radius: 18px;
+    --tk-radius-sm: 12px;
+    --tk-radius-pill: 999px;
+    --tk-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+    --tk-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+    --tk-shadow-lg: 0 18px 48px rgba(15, 23, 42, 0.14);
+    --tk-sidebar: linear-gradient(180deg, #1e1b4b 0%, #312e81 52%, #4338ca 100%);
+}
+
+/* ---------- Base canvas & typography ---------- */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--tk-canvas);
+    color: var(--tk-ink);
+    letter-spacing: 0.005em;
+    -webkit-font-smoothing: antialiased;
+}
+
+#content-wrapper {
+    background: var(--tk-canvas);
+}
+
+.container-fluid {
+    padding: 1.6rem 1.75rem 2.5rem;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--tk-ink);
+    letter-spacing: -0.01em;
+}
+
+a { color: var(--tk-primary-dark); }
+
+/* ============================================================
+   SIDEBAR — glass / pill navigation
+   ============================================================ */
+#accordionSidebar {
+    background: var(--tk-sidebar) !important;
+    box-shadow: 0 0 40px rgba(15, 23, 42, 0.12);
+    padding-bottom: 1rem;
+}
+
+#accordionSidebar .sidebar-brand {
+    padding: 1.35rem 1rem 1.1rem;
+    letter-spacing: 0.02em;
+}
+
+#accordionSidebar .sidebar-brand-icon i {
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
+}
+
+#accordionSidebar .sidebar-brand-text {
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+
+#accordionSidebar hr.sidebar-divider {
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    margin: 0.55rem 1rem;
+}
+
+#accordionSidebar .sidebar-heading {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 0.35rem 1.15rem 0.25rem;
+}
+
+#accordionSidebar .nav-item {
+    margin: 0.12rem 0.7rem;
+}
+
+#accordionSidebar .nav-item .nav-link {
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.86rem;
+    font-weight: 500;
+    border-radius: var(--tk-radius-sm);
+    padding: 0.7rem 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+    /* sb-admin-2 hard-codes `.sidebar .nav-link { width: 14rem }` which is wider
+       than the link's container (nav-item has horizontal margin) and overflows
+       the sidebar by ~3px on the right. Let the link fill its own container. */
+    width: auto !important;
+    text-align: left;
+}
+
+#accordionSidebar .nav-item .nav-link i {
+    font-size: 0.95rem;
+    width: 1.25rem;
+    flex: 0 0 1.25rem;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+    transition: color 0.18s ease;
+}
+
+/* keep long labels on a single line instead of wrapping/clipping */
+#accordionSidebar .nav-item .nav-link span {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* expanded sidebar needs room for the longest labels (e.g. "Monitoring Pembayaran") */
+@media (min-width: 768px) {
+    #accordionSidebar:not(.toggled) {
+        width: 15rem !important;
+    }
+}
+
+#accordionSidebar .nav-item .nav-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+#accordionSidebar .nav-item .nav-link:hover i { color: #fff; }
+
+#accordionSidebar .nav-item.active > .nav-link {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.85);
+}
+
+/* expanded submenu parent */
+#accordionSidebar .nav-item .nav-link[aria-expanded="true"] {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+#accordionSidebar .nav-item.active > .nav-link i { color: #fff; }
+
+/* submenu */
+#accordionSidebar .collapse-inner,
+#accordionSidebar .collapsing .collapse-inner {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border-radius: var(--tk-radius-sm);
+    margin: 0.15rem 0.7rem 0.25rem;
+    padding: 0.35rem;
+}
+
+#accordionSidebar .collapse-inner .collapse-item {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.82rem;
+    border-radius: 10px;
+    padding: 0.5rem 0.75rem;
+}
+
+#accordionSidebar .collapse-inner .collapse-item:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+#accordionSidebar .collapse-inner .collapse-item.active {
+    background: #fff;
+    color: var(--tk-primary-dark);
+    font-weight: 600;
+}
+
+#accordionSidebar #sidebarToggle {
+    background: rgba(255, 255, 255, 0.18);
+}
+#accordionSidebar #sidebarToggle::before { color: rgba(255, 255, 255, 0.9); }
+
+/* ============================================================
+   TOPBAR
+   ============================================================ */
+.topbar {
+    height: auto;
+    min-height: 4.2rem;
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: saturate(1.4) blur(8px);
+    border-bottom: 1px solid var(--tk-line);
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03) !important;
+}
+
+.topbar #sidebarToggleTop {
+    color: var(--tk-ink-soft);
+}
+
+.topbar .img-profile {
+    width: 2.3rem;
+    height: 2.3rem;
+    border: 2px solid var(--tk-primary-soft);
+}
+
+.topbar .nav-link #loggedInTechnicianInfo,
+.topbar .nav-link span {
+    color: var(--tk-ink-soft);
+    font-weight: 600;
+}
+
+.topbar .dropdown-menu {
+    border: 1px solid var(--tk-line);
+    border-radius: var(--tk-radius-sm);
+    box-shadow: var(--tk-shadow-lg);
+    padding: 0.4rem;
+}
+
+.topbar .dropdown-menu .dropdown-item {
+    border-radius: 8px;
+    font-size: 0.85rem;
+    padding: 0.55rem 0.75rem;
+}
+
+/* ============================================================
+   PAGE HEADER
+   ============================================================ */
+.tk-page-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.6rem;
+}
+
+.tk-page-head .tk-title {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+}
+
+.tk-page-head .tk-title-icon {
+    flex: 0 0 auto;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: #fff;
+    background: linear-gradient(135deg, var(--tk-primary) 0%, var(--tk-primary-dark) 100%);
+    box-shadow: 0 8px 18px rgba(79, 70, 229, 0.28);
+}
+
+.tk-page-head h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.15;
+}
+
+.tk-page-head .tk-subtitle {
+    color: var(--tk-ink-soft);
+    font-size: 0.86rem;
+    margin: 0.15rem 0 0;
+}
+
+.tk-page-head .tk-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* ============================================================
+   CARDS
+   ============================================================ */
+.card {
+    background: var(--tk-surface);
+    border: 1px solid var(--tk-line);
+    border-radius: var(--tk-radius);
+    box-shadow: var(--tk-shadow-sm);
+}
+
+.card.shadow,
+.card.shadow-sm {
+    box-shadow: var(--tk-shadow) !important;
+}
+
+.card .card-header {
+    background: transparent;
+    border-bottom: 1px solid var(--tk-line);
+    padding: 1.1rem 1.4rem;
+    border-radius: var(--tk-radius) var(--tk-radius) 0 0;
+}
+
+.card .card-header h6,
+.card .card-header .m-0 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--tk-ink);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.card .card-header h6 i,
+.card .card-header .m-0 i { color: var(--tk-primary); }
+
+.card .card-body { padding: 1.4rem; }
+
+/* Kill SB Admin 2 hard left-border accents in favour of soft top accent */
+.card.border-left-primary,
+.card.border-left-success,
+.card.border-left-info,
+.card.border-left-warning,
+.card.border-left-danger {
+    border-left: 1px solid var(--tk-line) !important;
+}
+
+/* ============================================================
+   STAT CARDS  (.tk-stat — new) + legacy .stats-card uplift
+   ============================================================ */
+.tk-stat {
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+}
+
+.tk-stat .card-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem 1.35rem;
+}
+
+.tk-stat .tk-stat-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tk-muted);
+    margin-bottom: 0.35rem;
+}
+
+.tk-stat .tk-stat-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--tk-ink);
+    letter-spacing: -0.02em;
+}
+
+.tk-stat .tk-stat-icon {
+    flex: 0 0 auto;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+}
+
+.tk-stat::after {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    border-radius: var(--tk-radius) 0 0 var(--tk-radius);
+}
+.tk-stat.tk-accent-primary::after { background: var(--tk-primary); }
+.tk-stat.tk-accent-success::after { background: var(--tk-success); }
+.tk-stat.tk-accent-info::after    { background: var(--tk-info); }
+.tk-stat.tk-accent-warning::after { background: var(--tk-warning); }
+.tk-stat.tk-accent-danger::after  { background: var(--tk-danger); }
+.tk-stat.tk-accent-secondary::after { background: var(--tk-muted); }
+
+.tk-accent-primary .tk-stat-icon { background: var(--tk-primary-soft); color: var(--tk-primary-dark); }
+.tk-accent-success .tk-stat-icon { background: var(--tk-success-soft); color: var(--tk-success); }
+.tk-accent-info    .tk-stat-icon { background: var(--tk-info-soft);    color: var(--tk-info); }
+.tk-accent-warning .tk-stat-icon { background: var(--tk-warning-soft); color: var(--tk-warning); }
+.tk-accent-danger  .tk-stat-icon { background: var(--tk-danger-soft);  color: var(--tk-danger); }
+.tk-accent-secondary .tk-stat-icon { background: #f1f5f9; color: var(--tk-ink-soft); }
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.btn {
+    border-radius: var(--tk-radius-sm);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.5rem 1.05rem;
+    transition: transform 0.12s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn-sm { padding: 0.38rem 0.8rem; font-size: 0.8rem; border-radius: 10px; }
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--tk-primary) 0%, var(--tk-primary-dark) 100%);
+    border: none;
+    box-shadow: 0 6px 16px rgba(79, 70, 229, 0.24);
+}
+.btn-primary:hover { box-shadow: 0 10px 22px rgba(79, 70, 229, 0.32); }
+
+.btn-success {
+    background: linear-gradient(135deg, #34d399 0%, var(--tk-success) 100%);
+    border: none;
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.24);
+}
+.btn-danger {
+    background: linear-gradient(135deg, #f87171 0%, var(--tk-danger) 100%);
+    border: none;
+}
+.btn-info {
+    background: linear-gradient(135deg, #60a5fa 0%, var(--tk-info) 100%);
+    border: none;
+}
+.btn-secondary {
+    background: #fff;
+    color: var(--tk-ink-soft);
+    border: 1px solid var(--tk-line);
+}
+.btn-secondary:hover { background: #f8fafc; color: var(--tk-ink); }
+
+.btn-outline-primary {
+    border: 1px solid var(--tk-primary);
+    color: var(--tk-primary-dark);
+}
+.btn-outline-primary:hover {
+    background: var(--tk-primary-soft);
+    color: var(--tk-primary-dark);
+}
+
+/* ============================================================
+   FORMS
+   ============================================================ */
+label, .form-group > label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--tk-ink-soft);
+    margin-bottom: 0.4rem;
+}
+
+.form-control,
+.custom-select {
+    border: 1px solid var(--tk-line);
+    border-radius: var(--tk-radius-sm);
+    font-size: 0.9rem;
+    color: var(--tk-ink);
+    padding: 0.6rem 0.85rem;
+    height: auto;
+    background-color: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.form-control::placeholder { color: var(--tk-muted); }
+.form-control:focus,
+.custom-select:focus {
+    border-color: var(--tk-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.form-text { font-size: 0.74rem; }
+
+/* ============================================================
+   BADGES — soft pill style
+   ============================================================ */
+.badge {
+    font-weight: 600;
+    font-size: 0.72rem;
+    padding: 0.4em 0.7em;
+    border-radius: var(--tk-radius-pill);
+    letter-spacing: 0.01em;
+}
+.badge i { margin-right: 0.2rem; }
+
+.badge-pending,
+.badge-warning { background: var(--tk-warning-soft) !important; color: #b45309 !important; }
+.badge-approved,
+.badge-success { background: var(--tk-success-soft) !important; color: #047857 !important; }
+.badge-rejected,
+.badge-danger  { background: var(--tk-danger-soft) !important; color: #b91c1c !important; }
+.badge-paid,
+.badge-info    { background: var(--tk-info-soft) !important; color: #1d4ed8 !important; }
+.badge-primary { background: var(--tk-primary-soft) !important; color: var(--tk-primary-dark) !important; }
+.badge-secondary { background: #f1f5f9 !important; color: var(--tk-ink-soft) !important; }
+
+/* ============================================================
+   TABLES + DataTables
+   ============================================================ */
+.table {
+    color: var(--tk-ink);
+    margin-bottom: 0;
+}
+.table thead th {
+    border-top: none;
+    border-bottom: 1px solid var(--tk-line);
+    background: #f8fafc;
+    color: var(--tk-ink-soft);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.85rem 1rem;
+    white-space: nowrap;
+}
+.table td {
+    border-top: 1px solid var(--tk-line);
+    padding: 0.85rem 1rem;
+    vertical-align: middle;
+    font-size: 0.875rem;
+}
+.table.table-bordered,
+.table.table-bordered td,
+.table.table-bordered th { border: none; }
+.table.table-bordered td { border-top: 1px solid var(--tk-line); }
+.table-hover tbody tr { transition: background 0.12s ease; }
+.table-hover tbody tr:hover { background: var(--tk-primary-soft); }
+
+.dataTables_wrapper .dataTables_length select,
+.dataTables_wrapper .dataTables_filter input {
+    border: 1px solid var(--tk-line);
+    border-radius: 10px;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.85rem;
+}
+/* the length control is a Bootstrap .custom-select with a background caret —
+   give it room so option digits (e.g. "100") never overlap the arrow */
+.dataTables_wrapper .dataTables_length select.custom-select {
+    width: auto;
+    min-width: 4.5rem;
+    padding-right: 2rem;
+    background-position: right 0.65rem center;
+    background-size: 0.65rem;
+}
+.dataTables_wrapper .dataTables_filter input:focus {
+    border-color: var(--tk-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    outline: none;
+}
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter,
+.dataTables_wrapper .dataTables_info { color: var(--tk-ink-soft); font-size: 0.83rem; }
+.dataTables_wrapper .dataTables_length label,
+.dataTables_wrapper .dataTables_filter label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0;
+    font-weight: 600;
+    color: var(--tk-ink-soft);
+}
+.dataTables_wrapper .dataTables_filter input { margin-left: 0; }
+
+/* ---- DataTables controls on mobile: stack, full-width, no overlap ---- */
+@media (max-width: 767.98px) {
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter {
+        float: none;
+        width: 100%;
+        text-align: left;
+        margin-bottom: 0.75rem;
+    }
+    .dataTables_wrapper .dataTables_filter label {
+        flex-wrap: wrap;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+    .dataTables_wrapper .dataTables_paginate {
+        float: none;
+        text-align: center;
+        margin-top: 0.5rem;
+    }
+    .dataTables_wrapper .dataTables_info {
+        text-align: center;
+        padding-top: 0.5rem;
+    }
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    border-radius: 9px !important;
+    border: 1px solid transparent !important;
+    margin: 0 1px;
+    padding: 0.35rem 0.7rem !important;
+    color: var(--tk-ink-soft) !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: var(--tk-primary-soft) !important;
+    border-color: transparent !important;
+    color: var(--tk-primary-dark) !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.current,
+.dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+    background: linear-gradient(135deg, var(--tk-primary) 0%, var(--tk-primary-dark) 100%) !important;
+    border-color: transparent !important;
+    color: #fff !important;
+}
+
+/* ============================================================
+   MODALS
+   ============================================================ */
+.modal-content {
+    border: none;
+    border-radius: var(--tk-radius);
+    box-shadow: var(--tk-shadow-lg);
+    overflow: hidden;
+}
+.modal-header {
+    border-bottom: 1px solid var(--tk-line);
+    padding: 1.1rem 1.4rem;
+}
+.modal-header .modal-title {
+    font-size: 1rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.modal-header.bg-danger { background: linear-gradient(135deg, #f87171, var(--tk-danger)) !important; }
+.modal-header.bg-primary { background: linear-gradient(135deg, var(--tk-primary), var(--tk-primary-dark)) !important; }
+.modal-body { padding: 1.4rem; }
+.modal-footer { border-top: 1px solid var(--tk-line); padding: 1rem 1.4rem; }
+
+/* ============================================================
+   ALERTS
+   ============================================================ */
+.alert {
+    border: none;
+    border-radius: var(--tk-radius-sm);
+    font-size: 0.88rem;
+    box-shadow: var(--tk-shadow-sm);
+}
+.alert-success { background: var(--tk-success-soft); color: #047857; }
+.alert-danger  { background: var(--tk-danger-soft);  color: #b91c1c; }
+.alert-warning { background: var(--tk-warning-soft); color: #b45309; }
+.alert-info    { background: var(--tk-info-soft);    color: #1d4ed8; }
+
+/* ============================================================
+   SHARED COMPONENTS (filter tabs, badge variants, empty state, section title)
+   ============================================================ */
+.filter-tabs {
+    display: flex;
+    gap: 0.6rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+.filter-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--tk-radius-pill);
+    cursor: pointer;
+    border: 1px solid var(--tk-line);
+    background: #fff;
+    color: var(--tk-ink-soft);
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.18s ease;
+}
+.filter-tab:hover {
+    border-color: var(--tk-primary);
+    color: var(--tk-primary-dark);
+    background: var(--tk-primary-soft);
+}
+.filter-tab.active {
+    background: linear-gradient(135deg, var(--tk-primary), var(--tk-primary-dark));
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 6px 16px rgba(79, 70, 229, 0.22);
+}
+.filter-tab .count {
+    background: rgba(15, 23, 42, 0.08);
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--tk-radius-pill);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.filter-tab.active .count { background: rgba(255, 255, 255, 0.25); }
+
+/* badge name variants used across pages -> soft pills, consistent with theme */
+.badge-lunas,
+.badge-paid    { background: var(--tk-success-soft) !important; color: #047857 !important; }
+.badge-belum   { background: var(--tk-danger-soft) !important;  color: #b91c1c !important; }
+.badge-lg { font-size: 0.8rem; padding: 0.45em 0.8em; }
+.badge-sm { font-size: 0.66rem; padding: 0.3em 0.6em; }
+
+/* empty state for tables / lists */
+.tk-empty {
+    text-align: center;
+    padding: 2.75rem 1rem;
+    color: var(--tk-muted);
+}
+.tk-empty i { font-size: 2.5rem; margin-bottom: 0.8rem; opacity: 0.45; display: block; }
+.tk-empty p { margin: 0; font-size: 0.9rem; }
+
+/* section titles (also normalises dashboard-modern's .dashboard-section-title) */
+.tk-section-title,
+.dashboard-section-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--tk-ink);
+    margin: 1.5rem 0 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+@media (max-width: 767.98px) {
+    .filter-tabs {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.55rem;
+    }
+    .filter-tab { width: 100%; justify-content: space-between; }
+}
+
+/* ---- Select2 (searchable customer/package pickers) themed to match ---- */
+.select2-container { width: 100% !important; }
+.select2-container--default .select2-selection--single,
+.select2-container--bootstrap .select2-selection--single {
+    height: auto;
+    min-height: calc(1.5em + 1.2rem + 2px);
+    border: 1px solid var(--tk-line);
+    border-radius: var(--tk-radius-sm);
+    padding: 0.5rem 0.85rem;
+    display: flex;
+    align-items: center;
+    background: #fff;
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: var(--tk-ink);
+    padding: 0;
+    line-height: 1.5;
+}
+.select2-container--default .select2-selection--single .select2-selection__placeholder { color: var(--tk-muted); }
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 100%;
+    top: 0;
+    right: 8px;
+}
+.select2-container--default.select2-container--open .select2-selection--single,
+.select2-container--default.select2-container--focus .select2-selection--single {
+    border-color: var(--tk-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+.select2-dropdown {
+    border: 1px solid var(--tk-line);
+    border-radius: var(--tk-radius-sm);
+    box-shadow: var(--tk-shadow-lg);
+    overflow: hidden;
+    z-index: 1060;
+}
+.select2-search--dropdown { padding: 0.6rem; }
+.select2-search--dropdown .select2-search__field {
+    border: 1px solid var(--tk-line);
+    border-radius: 10px;
+    padding: 0.55rem 0.7rem;
+    font-size: 16px; /* prevent iOS zoom */
+}
+.select2-search--dropdown .select2-search__field:focus {
+    border-color: var(--tk-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+.select2-results__option { padding: 0.55rem 0.85rem; font-size: 0.88rem; }
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background: var(--tk-primary);
+    color: #fff;
+}
+.select2-container--default .select2-results__option[aria-selected=true] {
+    background: var(--tk-primary-soft);
+    color: var(--tk-primary-dark);
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.sticky-footer {
+    background: transparent !important;
+}
+.sticky-footer .copyright {
+    color: var(--tk-muted);
+    font-size: 0.8rem;
+}
+
+/* scroll-to-top */
+.scroll-to-top {
+    background: linear-gradient(135deg, var(--tk-primary), var(--tk-primary-dark));
+    border-radius: 12px;
+    box-shadow: var(--tk-shadow);
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 991.98px) {
+    .container-fluid { padding: 1.1rem 1.1rem 2rem; }
+    .tk-page-head h1 { font-size: 1.3rem; }
+    .tk-stat .tk-stat-value { font-size: 1.35rem; }
+}
+
+/* Stat-card rows: use a symmetric grid on small screens so the gap between the
+   two columns matches the outer margins (Bootstrap gutters make the inner gap 2x
+   the outer margin, which looks lopsided). Applies to every page via .tk-stats-row. */
+@media (max-width: 767.98px) {
+    .tk-stats-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+        margin-left: 0;
+        margin-right: 0;
+    }
+    .tk-stats-row > [class*="col-"] {
+        width: auto;
+        max-width: none;
+        flex: none;
+        padding-left: 0;
+        padding-right: 0;
+        margin-bottom: 0 !important;
+    }
+    .tk-stats-row > [class*="col-"] > .card { height: 100%; }
+}
+
+@media (max-width: 575.98px) {
+    .container-fluid { padding: 0.9rem 0.9rem 1.75rem; }
+    .tk-stats-row { gap: 0.75rem; }
+    .tk-page-head { align-items: flex-start; }
+    .tk-page-head .tk-title-icon { width: 2.6rem; height: 2.6rem; font-size: 1.05rem; }
+    .tk-page-head h1 { font-size: 1.18rem; }
+    .tk-page-head .tk-actions { width: 100%; }
+    .tk-page-head .tk-actions .btn { flex: 1 1 auto; }
+    .card .card-body { padding: 1.1rem; }
+
+    /* Stat cards on narrow screens: stack the icon on top so the value gets the
+       full card width (prevents "Rp 10.000" wrapping / large rupiah overflowing)
+       and keeps all cards a uniform height. */
+    .tk-stat .card-body {
+        flex-direction: column-reverse;
+        align-items: flex-start;
+        justify-content: flex-start;
+        gap: 0.8rem;
+        padding: 1.05rem 1.1rem;
+    }
+    .tk-stat .tk-stat-icon { width: 2.5rem; height: 2.5rem; font-size: 1.05rem; }
+    .tk-stat .tk-stat-label { font-size: 0.64rem; letter-spacing: 0.05em; margin-bottom: 0.2rem; }
+    .tk-stat .tk-stat-value { font-size: 1.2rem; line-height: 1.15; }
+    .tk-stat > .card-body > div:not(.tk-stat-icon) { width: 100%; min-width: 0; }
+    .tk-stat .tk-stat-icon { flex: 0 0 auto; align-self: flex-start; }
+}
+
+/* Leaflet 1.9+ applies `mix-blend-mode: plus-lighter` to map tiles which
+   washes them out (looks blurry/milky) over non-pure-white backgrounds.
+   Force normal blending — sharp satellite imagery. */
+.leaflet-tile,
+.leaflet-tile-container .leaflet-tile { mix-blend-mode: normal !important; }
+
+/* ============================================================
+   DARK MODE  (body.tk-dark) — flips variables + overrides every
+   hardcoded / bootstrap surface so no light patches leak through.
+   ============================================================ */
+body.tk-dark {
+    --tk-ink: #e6eaf2;
+    --tk-ink-soft: #aab4c5;
+    --tk-muted: #7b879c;
+    --tk-line: #2b3852;
+    --tk-surface: #1b2436;
+    --tk-surface-2: #232f45;
+    --tk-canvas: #0e1521;
+    --tk-primary-soft: rgba(99, 102, 241, 0.22);
+    --tk-success-soft: rgba(16, 185, 129, 0.16);
+    --tk-info-soft: rgba(59, 130, 246, 0.16);
+    --tk-warning-soft: rgba(245, 158, 11, 0.16);
+    --tk-danger-soft: rgba(239, 68, 68, 0.16);
+    --tk-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --tk-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+    --tk-shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.6);
+    background: var(--tk-canvas) !important;
+    color: var(--tk-ink);
+}
+body.tk-dark #content-wrapper { background: var(--tk-canvas); }
+
+/* generic text/background utilities from sb-admin-2 */
+body.tk-dark .bg-white { background-color: var(--tk-surface) !important; }
+body.tk-dark .bg-light,
+body.tk-dark .bg-gray-100,
+body.tk-dark .bg-gray-200 { background-color: var(--tk-surface-2) !important; }
+body.tk-dark .text-gray-900,
+body.tk-dark .text-gray-800,
+body.tk-dark .text-dark,
+body.tk-dark .text-black-50 { color: var(--tk-ink) !important; }
+body.tk-dark .text-gray-700,
+body.tk-dark .text-gray-600,
+body.tk-dark .text-gray-500 { color: var(--tk-ink-soft) !important; }
+body.tk-dark .text-gray-400,
+body.tk-dark .text-gray-300,
+body.tk-dark .text-muted { color: var(--tk-muted) !important; }
+body.tk-dark hr { border-top-color: var(--tk-line); }
+body.tk-dark a { color: #a5b4fc; }
+
+/* topbar + dropdowns */
+body.tk-dark .topbar { background: rgba(20, 27, 42, 0.85) !important; border-bottom-color: var(--tk-line); }
+body.tk-dark .topbar #sidebarToggleTop { color: var(--tk-ink-soft); }
+body.tk-dark .dropdown-menu { background: var(--tk-surface); border-color: var(--tk-line); }
+body.tk-dark .dropdown-item { color: var(--tk-ink-soft); }
+body.tk-dark .dropdown-item:hover,
+body.tk-dark .dropdown-item:focus { background: var(--tk-primary-soft); color: var(--tk-ink); }
+body.tk-dark .dropdown-divider { border-top-color: var(--tk-line); }
+
+/* cards / tables */
+body.tk-dark .card .card-header h6,
+body.tk-dark .card .card-header .m-0 { color: var(--tk-ink); }
+body.tk-dark .table { color: var(--tk-ink); }
+body.tk-dark .table thead th { background: #141d2c; color: var(--tk-ink-soft); border-bottom-color: var(--tk-line); }
+body.tk-dark .table td,
+body.tk-dark .table.table-bordered td { border-top-color: var(--tk-line); }
+body.tk-dark .table-hover tbody tr:hover { background: var(--tk-primary-soft); }
+
+/* forms */
+body.tk-dark .form-control,
+body.tk-dark .custom-select {
+    background-color: var(--tk-surface);
+    color: var(--tk-ink);
+    border-color: var(--tk-line);
+}
+body.tk-dark .form-control::placeholder { color: var(--tk-muted); }
+body.tk-dark .form-control:disabled,
+body.tk-dark .form-control[readonly] { background-color: #141d2c; color: var(--tk-ink-soft); }
+body.tk-dark .input-group-text { background: #141d2c !important; color: var(--tk-ink-soft) !important; border-color: var(--tk-line) !important; }
+body.tk-dark .custom-control-label { color: var(--tk-ink-soft); }
+
+/* pagination (Bootstrap .page-link, used by DataTables bootstrap4) */
+body.tk-dark .page-link { background: var(--tk-surface); color: var(--tk-ink-soft); border-color: var(--tk-line); }
+body.tk-dark .page-link:hover { background: var(--tk-primary-soft); color: var(--tk-ink); border-color: var(--tk-line); }
+body.tk-dark .page-item.disabled .page-link { background: var(--tk-surface); color: var(--tk-muted); border-color: var(--tk-line); }
+body.tk-dark .page-item.active .page-link { background: var(--tk-primary); border-color: var(--tk-primary); color: #fff; }
+
+/* buttons */
+body.tk-dark .btn-secondary { background: var(--tk-surface); color: var(--tk-ink); border-color: var(--tk-line); }
+body.tk-dark .btn-secondary:hover { background: var(--tk-surface-2); color: var(--tk-ink); }
+body.tk-dark .btn-outline-primary { color: #a5b4fc; border-color: #6366f1; }
+body.tk-dark .btn-outline-secondary { color: var(--tk-ink-soft); border-color: var(--tk-line); }
+body.tk-dark .btn-light { background: var(--tk-surface-2); color: var(--tk-ink); border-color: var(--tk-line); }
+
+/* modals */
+body.tk-dark .modal-content { background: var(--tk-surface); color: var(--tk-ink); }
+body.tk-dark .modal-header,
+body.tk-dark .modal-footer { border-color: var(--tk-line); }
+body.tk-dark .close { color: var(--tk-ink); text-shadow: none; }
+body.tk-dark .close:hover { color: #fff; }
+
+/* badges — keep soft translucent tint, lift text colour for contrast */
+body.tk-dark .badge-success,
+body.tk-dark .badge-approved,
+body.tk-dark .badge-lunas,
+body.tk-dark .badge-paid { color: #6ee7b7 !important; }
+body.tk-dark .badge-danger,
+body.tk-dark .badge-rejected,
+body.tk-dark .badge-belum { color: #fca5a5 !important; }
+body.tk-dark .badge-warning,
+body.tk-dark .badge-pending { color: #fcd34d !important; }
+body.tk-dark .badge-info { color: #93c5fd !important; }
+body.tk-dark .badge-primary { color: #c7d2fe !important; }
+body.tk-dark .badge-secondary { background: rgba(255, 255, 255, 0.08) !important; color: var(--tk-ink-soft) !important; }
+
+/* alerts */
+body.tk-dark .alert-success { color: #6ee7b7; }
+body.tk-dark .alert-danger { color: #fca5a5; }
+body.tk-dark .alert-warning { color: #fcd34d; }
+body.tk-dark .alert-info { color: #93c5fd; }
+
+/* filter tabs */
+body.tk-dark .filter-tab { background: var(--tk-surface); color: var(--tk-ink-soft); border-color: var(--tk-line); }
+body.tk-dark .filter-tab:hover { background: var(--tk-primary-soft); color: var(--tk-ink); }
+body.tk-dark .filter-tab .count { background: rgba(255, 255, 255, 0.1); }
+
+/* stat cards */
+body.tk-dark .tk-stat .tk-stat-value { color: var(--tk-ink); }
+body.tk-dark .tk-accent-secondary .tk-stat-icon { background: var(--tk-surface-2); color: var(--tk-ink-soft); }
+
+/* DataTables controls */
+body.tk-dark .dataTables_wrapper .dataTables_length select,
+body.tk-dark .dataTables_wrapper .dataTables_filter input { background: var(--tk-surface); color: var(--tk-ink); border-color: var(--tk-line); }
+body.tk-dark .dataTables_wrapper .dataTables_paginate .paginate_button { color: var(--tk-ink-soft) !important; }
+
+/* Select2 (all themes/variants) */
+body.tk-dark .select2-selection { background: var(--tk-surface) !important; border-color: var(--tk-line) !important; }
+body.tk-dark .select2-selection__rendered { color: var(--tk-ink) !important; }
+body.tk-dark .select2-selection__placeholder { color: var(--tk-muted) !important; }
+body.tk-dark .select2-selection--multiple .select2-selection__choice { background: var(--tk-primary-soft); border-color: var(--tk-line); color: var(--tk-ink); }
+body.tk-dark .select2-dropdown { background: var(--tk-surface); border-color: var(--tk-line); }
+body.tk-dark .select2-results__option { color: var(--tk-ink); }
+body.tk-dark .select2-results__option[aria-selected=true] { background: var(--tk-primary-soft); color: #c7d2fe; }
+body.tk-dark .select2-search--dropdown .select2-search__field { background: #141d2c; color: var(--tk-ink); border-color: var(--tk-line); }
+
+/* SweetAlert2 */
+body.tk-dark .swal2-popup { background: var(--tk-surface); color: var(--tk-ink); }
+body.tk-dark .swal2-title,
+body.tk-dark .swal2-html-container { color: var(--tk-ink); }
+
+/* scroll-to-top stays branded; nothing to do */
+
+/* dark-mode toggle button in topbar */
+.tk-theme-toggle {
+    border: 0;
+    background: transparent;
+    color: var(--tk-ink-soft);
+    width: 2.3rem;
+    height: 2.3rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.tk-theme-toggle:hover { background: var(--tk-primary-soft); color: var(--tk-primary-dark); }
+body.tk-dark .tk-theme-toggle:hover { color: #fff; }
+
+/* ============================================================
+   DARK MODE — patches for page-specific inline light surfaces
+   (body.tk-dark .x out-ranks each page's inline `.x` by specificity,
+    so these win regardless of stylesheet order)
+   ============================================================ */
+/* Kasbon */
+body.tk-dark .tk-preview-box { background: linear-gradient(135deg, rgba(99, 102, 241, 0.16), rgba(168, 85, 247, 0.12)); border-color: var(--tk-line); }
+body.tk-dark .amount-preview { color: #a5b4fc; }
+body.tk-dark .tk-chip { background: var(--tk-surface); color: var(--tk-ink-soft); border-color: var(--tk-line); }
+body.tk-dark .tk-chip:hover { background: var(--tk-primary-soft); color: #c7d2fe; border-color: var(--tk-primary); }
+body.tk-dark .tk-amount-group .input-group-text { background: #141d2c; color: var(--tk-ink-soft); border-color: var(--tk-line); }
+
+/* Monitoring Pembayaran */
+body.tk-dark .customer-summary { background: var(--tk-surface-2); }
+body.tk-dark .customer-summary h5 { color: #a5b4fc; }
+body.tk-dark .customer-summary .detail-row { border-bottom-color: var(--tk-line); }
+body.tk-dark .customer-summary .detail-label { color: var(--tk-muted); }
+body.tk-dark .customer-summary .detail-value { color: var(--tk-ink); }
+body.tk-dark .package-badge { background: rgba(99, 102, 241, 0.20); color: #c7d2fe; }
+body.tk-dark .table-payment th { background: #141d2c; color: var(--tk-ink-soft); }
+body.tk-dark .customer-name { color: var(--tk-ink); }
+body.tk-dark .customer-phone { color: var(--tk-muted); }
+
+/* Pasang Baru (PSB) */
+body.tk-dark .photo-upload-container { background: var(--tk-surface-2); border-color: var(--tk-line); }
+body.tk-dark .photo-upload-container:hover,
+body.tk-dark .photo-upload-container.dragover { background: var(--tk-primary-soft); border-color: var(--tk-primary); }
+body.tk-dark .error-message { background: rgba(239, 68, 68, 0.16); color: #fca5a5; }
+
+/* Manajemen Tiket */
+body.tk-dark .otp-box { background: var(--tk-surface-2); }
+body.tk-dark .current-step-guidance { background: var(--tk-primary-soft); }
+
+/* Monitor OLT */
+body.tk-dark .info-card.status { background: var(--tk-surface-2); border-color: var(--tk-line); }
+body.tk-dark .clickable-row:hover { background-color: var(--tk-primary-soft); }
+
+/* Peta Jaringan — only the page chrome; map tiles/legend/controls stay light by design */
+body.tk-dark .map-instructions-header { background-color: var(--tk-surface-2); border-color: var(--tk-line); color: var(--tk-ink-soft); }
+body.tk-dark #wifiInfoModalBody .card-header { background-color: #141d2c; color: var(--tk-ink); }

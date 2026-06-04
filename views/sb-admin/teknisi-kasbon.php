@@ -11,25 +11,78 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="/css/sb-admin-2.min.css" rel="stylesheet">
     <link href="/css/dashboard-modern.css" rel="stylesheet">
+    <link href="/css/teknisi-theme.css" rel="stylesheet">
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     <style>
-        .stats-card { border-radius: 10px; transition: transform 0.2s; }
-        .stats-card:hover { transform: translateY(-2px); }
-        .stats-card .card-body { padding: 1.25rem; }
-        .stats-icon { width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
-        .stats-value { font-size: 1.75rem; font-weight: 700; }
-        .stats-label { font-size: 0.85rem; color: #6c757d; }
-        
-        .badge-pending { background-color: #ffc107; color: #000; }
-        .badge-approved { background-color: #28a745; color: white; }
-        .badge-rejected { background-color: #dc3545; color: white; }
-        .badge-paid { background-color: #17a2b8; color: white; }
-        
-        .kasbon-form { background: #f8f9fc; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
-        .kasbon-form h5 { color: #4e73df; margin-bottom: 15px; }
-        
-        .amount-input { font-size: 1.5rem; font-weight: 600; text-align: right; }
-        .amount-preview { font-size: 1.25rem; color: #28a745; font-weight: 600; }
+        /* Page-specific: kasbon submission form */
+        .tk-amount-group .input-group-text {
+            background: #f8fafc;
+            border: 1px solid var(--tk-line);
+            border-right: none;
+            border-radius: var(--tk-radius-sm) 0 0 var(--tk-radius-sm);
+            color: var(--tk-ink-soft);
+            font-weight: 700;
+            font-size: 1.1rem;
+            padding: 0 1rem;
+        }
+        .tk-amount-group .amount-input {
+            font-size: 1.6rem;
+            font-weight: 800;
+            text-align: right;
+            border-left: none;
+            border-radius: 0 var(--tk-radius-sm) var(--tk-radius-sm) 0;
+            letter-spacing: -0.02em;
+        }
+        .tk-amount-group:focus-within .input-group-text {
+            border-color: var(--tk-primary);
+        }
+
+        /* quick-amount chips */
+        .tk-chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+        .tk-chip {
+            border: 1px solid var(--tk-line);
+            background: #fff;
+            color: var(--tk-ink-soft);
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.4rem 0.85rem;
+            border-radius: var(--tk-radius-pill);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .tk-chip:hover {
+            border-color: var(--tk-primary);
+            background: var(--tk-primary-soft);
+            color: var(--tk-primary-dark);
+        }
+
+        /* preview + submit panel */
+        .tk-preview-box {
+            background: linear-gradient(135deg, #eef2ff 0%, #faf5ff 100%);
+            border: 1px solid #e0e7ff;
+            border-radius: var(--tk-radius);
+            padding: 1.35rem;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: center;
+        }
+        .tk-preview-box .tk-preview-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--tk-muted);
+        }
+        .amount-preview {
+            font-size: 2rem;
+            color: var(--tk-primary-dark);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin: 0.35rem 0 1.1rem;
+            line-height: 1.1;
+        }
     </style>
 </head>
 
@@ -41,102 +94,114 @@
                 <?php include '_role_aware_teknisi_topbar.php'; ?>
 
                 <div class="container-fluid">
-                    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-                        <h1 class="h3 mb-0 text-gray-800">
-                            <i class="fas fa-hand-holding-usd text-primary"></i> Kasbon Teknisi
-                        </h1>
-                        <button class="btn btn-primary btn-sm" id="refreshBtn">
-                            <i class="fas fa-sync-alt"></i> Refresh Data
-                        </button>
+                    <div class="tk-page-head">
+                        <div class="tk-title">
+                            <span class="tk-title-icon"><i class="fas fa-hand-holding-usd"></i></span>
+                            <div>
+                                <h1>Kasbon Teknisi</h1>
+                                <p class="tk-subtitle">Ajukan dan pantau status pinjaman kasbon Anda</p>
+                            </div>
+                        </div>
+                        <div class="tk-actions">
+                            <button class="btn btn-primary btn-sm" id="refreshBtn">
+                                <i class="fas fa-sync-alt"></i> Refresh Data
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Stats Cards -->
-                    <div class="row mb-4">
+                    <div class="row tk-stats-row mb-4">
                         <div class="col-6 col-xl-3 mb-3">
-                            <div class="card stats-card border-left-warning shadow h-100">
+                            <div class="card tk-stat tk-accent-warning shadow">
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div class="stats-label text-uppercase">Menunggu Approval</div>
-                                            <div class="stats-value text-warning" id="pendingAmount">Rp 0</div>
-                                        </div>
-                                        <div class="stats-icon bg-warning text-white"><i class="fas fa-clock"></i></div>
+                                    <div>
+                                        <div class="tk-stat-label">Menunggu Approval</div>
+                                        <div class="tk-stat-value" id="pendingAmount">Rp 0</div>
                                     </div>
+                                    <div class="tk-stat-icon"><i class="fas fa-clock"></i></div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-6 col-xl-3 mb-3">
-                            <div class="card stats-card border-left-success shadow h-100">
+                            <div class="card tk-stat tk-accent-success shadow">
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div class="stats-label text-uppercase">Saldo Hutang Aktif</div>
-                                            <div class="stats-value text-success" id="approvedAmount">Rp 0</div>
-                                        </div>
-                                        <div class="stats-icon bg-success text-white"><i class="fas fa-check"></i></div>
+                                    <div>
+                                        <div class="tk-stat-label">Saldo Hutang Aktif</div>
+                                        <div class="tk-stat-value" id="approvedAmount">Rp 0</div>
                                     </div>
+                                    <div class="tk-stat-icon"><i class="fas fa-check"></i></div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-6 col-xl-3 mb-3">
-                            <div class="card stats-card border-left-info shadow h-100">
+                            <div class="card tk-stat tk-accent-info shadow">
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div class="stats-label text-uppercase">Total Cicilan/Lunas</div>
-                                            <div class="stats-value text-info" id="paidAmount">Rp 0</div>
-                                        </div>
-                                        <div class="stats-icon bg-info text-white"><i class="fas fa-check-double"></i></div>
+                                    <div>
+                                        <div class="tk-stat-label">Total Cicilan/Lunas</div>
+                                        <div class="tk-stat-value" id="paidAmount">Rp 0</div>
                                     </div>
+                                    <div class="tk-stat-icon"><i class="fas fa-check-double"></i></div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-6 col-xl-3 mb-3">
-                            <div class="card stats-card border-left-primary shadow h-100">
+                            <div class="card tk-stat tk-accent-primary shadow">
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div class="stats-label text-uppercase">Total Pengajuan</div>
-                                            <div class="stats-value text-primary" id="totalKasbon">0</div>
-                                        </div>
-                                        <div class="stats-icon bg-primary text-white"><i class="fas fa-list"></i></div>
+                                    <div>
+                                        <div class="tk-stat-label">Total Pengajuan</div>
+                                        <div class="tk-stat-value" id="totalKasbon">0</div>
                                     </div>
+                                    <div class="tk-stat-icon"><i class="fas fa-list"></i></div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Form Pengajuan Kasbon -->
-                    <div class="kasbon-form">
-                        <h5><i class="fas fa-plus-circle"></i> Ajukan Kasbon Baru</h5>
-                        <form id="kasbonForm">
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="kasbonAmount">Nominal Kasbon</label>
-                                        <input type="number" class="form-control amount-input" id="kasbonAmount" 
-                                               placeholder="0" min="1000" max="10000000" required>
-                                        <small class="form-text text-muted">Min: Rp 1.000 | Max: Rp 10.000.000</small>
+                    <div class="card shadow mb-4">
+                        <div class="card-header">
+                            <h6 class="m-0"><i class="fas fa-plus-circle"></i> Ajukan Kasbon Baru</h6>
+                        </div>
+                        <div class="card-body">
+                            <form id="kasbonForm">
+                                <div class="row">
+                                    <div class="col-lg-7">
+                                        <div class="form-group">
+                                            <label for="kasbonAmount">Nominal Kasbon</label>
+                                            <div class="input-group tk-amount-group">
+                                                <div class="input-group-prepend">
+                                                    <span class="input-group-text">Rp</span>
+                                                </div>
+                                                <input type="number" class="form-control amount-input" id="kasbonAmount"
+                                                       placeholder="0" min="1000" max="10000000" required>
+                                            </div>
+                                            <div class="tk-chip-row">
+                                                <button type="button" class="tk-chip" onclick="setKasbonAmount(100000)">+ Rp 100rb</button>
+                                                <button type="button" class="tk-chip" onclick="setKasbonAmount(250000)">+ Rp 250rb</button>
+                                                <button type="button" class="tk-chip" onclick="setKasbonAmount(500000)">+ Rp 500rb</button>
+                                                <button type="button" class="tk-chip" onclick="setKasbonAmount(1000000)">+ Rp 1jt</button>
+                                                <button type="button" class="tk-chip" onclick="setKasbonAmount(0)">Reset</button>
+                                            </div>
+                                            <small class="form-text text-muted">Minimal Rp 1.000 &middot; Maksimal Rp 10.000.000</small>
+                                        </div>
+                                        <div class="form-group mb-lg-0">
+                                            <label for="kasbonDescription">Keterangan <span class="text-muted font-weight-normal">(opsional)</span></label>
+                                            <input type="text" class="form-control" id="kasbonDescription"
+                                                   placeholder="Contoh: Keperluan operasional lapangan" maxlength="200">
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-5 mt-3 mt-lg-0">
+                                        <div class="tk-preview-box">
+                                            <span class="tk-preview-label">Jumlah Diajukan</span>
+                                            <div class="amount-preview" id="amountPreview">Rp 0</div>
+                                            <button type="submit" class="btn btn-success btn-block" id="submitKasbonBtn">
+                                                <i class="fas fa-paper-plane"></i> Ajukan Kasbon
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>Preview</label>
-                                        <div class="amount-preview" id="amountPreview">Rp 0</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="kasbonDescription">Keterangan (Opsional)</label>
-                                        <input type="text" class="form-control" id="kasbonDescription" 
-                                               placeholder="Contoh: Keperluan operasional" maxlength="200">
-                                    </div>
-                                </div>
-                            </div>
-                            <button type="submit" class="btn btn-success" id="submitKasbonBtn">
-                                <i class="fas fa-paper-plane"></i> Ajukan Kasbon
-                            </button>
-                        </form>
+                            </form>
+                        </div>
                     </div>
 
                     <!-- Data Table -->
@@ -233,7 +298,7 @@
         });
 
         function loadTechnicianInfo() {
-            fetch('/api/teknisi/me', { credentials: 'include' })
+            fetch('/api/me', { credentials: 'include' })
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 200 && data.data) {
@@ -444,6 +509,17 @@
                 btn.prop('disabled', false).html('Ya, Batalkan');
                 kasbonToCancel = null;
             });
+        }
+
+        function setKasbonAmount(delta) {
+            const input = document.getElementById('kasbonAmount');
+            if (delta === 0) {
+                input.value = '';
+            } else {
+                const current = parseInt(input.value) || 0;
+                input.value = Math.min(current + delta, 10000000);
+            }
+            input.dispatchEvent(new Event('input', { bubbles: true }));
         }
 
         function escapeHtml(text) {

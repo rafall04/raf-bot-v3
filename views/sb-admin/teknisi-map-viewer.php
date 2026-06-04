@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="/css/sb-admin-2.min.css" rel="stylesheet">
   <link href="/css/dashboard-modern.css" rel="stylesheet">
+    <link href="/css/teknisi-theme.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2-bootstrap-theme/0.1.0-beta.10/select2-bootstrap.min.css" />
@@ -336,7 +337,15 @@
                 <?php include '_role_aware_teknisi_topbar.php'; ?>
 
                 <div class="container-fluid">
-                    <h1 class="h3 mb-2 text-gray-800">Peta Jaringan</h1>
+                    <div class="tk-page-head">
+                        <div class="tk-title">
+                            <span class="tk-title-icon"><i class="fas fa-map-marked-alt"></i></span>
+                            <div>
+                                <h1>Peta Jaringan</h1>
+                                <p class="tk-subtitle">Visualisasi ODC, ODP, dan pelanggan pada peta</p>
+                            </div>
+                        </div>
+                    </div>
                     <div class="map-instructions-header">
                         <span class="flex-grow-1">
                            <i class="fas fa-info-circle"></i> <strong>Petunjuk:</strong> Klik marker ODC/ODP untuk info. Klik marker pelanggan untuk info dan opsi kelola. Gunakan tombol <i class="fas fa-crosshairs"></i> untuk ke lokasi GPS Anda.
@@ -899,7 +908,19 @@
 
             networkMarkersLayer.addTo(map); customerMarkersLayer.addTo(map); linesLayer.addTo(map);
 
-            const baseMaps = { "Satelit": satelliteLayer, "OpenStreetMap": osmLayer };
+            // Hybrid = satellite + CARTO labels overlay (OSM-based, good Indonesia coverage,
+            // unlike Esri's sparse reference layers in rural ID).
+            const hybridLayer = L.layerGroup([
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: satelliteMaxZoom, maxNativeZoom: 18, attribution: 'Tiles &copy; Esri'
+                }),
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
+                    subdomains: 'abcd', maxZoom: 19, maxNativeZoom: 19,
+                    attribution: '&copy; OSM &copy; CARTO', pane: 'overlayPane'
+                })
+            ]);
+
+            const baseMaps = { "Hybrid": hybridLayer, "Satelit": satelliteLayer, "OpenStreetMap": osmLayer };
             const overlayMaps = { "Aset Jaringan": networkMarkersLayer, "Pelanggan": customerMarkersLayer, "Koneksi Antar Aset": linesLayer };
             L.control.layers(baseMaps, overlayMaps, {collapsed: true}).addTo(map);
 
@@ -926,14 +947,14 @@
             });
             if (map) new GpsMapControl().addTo(map);
 
-            map.on('baselayerchange', e => { 
-                const newMaxZoom = e.name === "Satelit" ? satelliteMaxZoom : osmMaxZoom;
+            map.on('baselayerchange', e => {
+                const newMaxZoom = (e.name === "Satelit" || e.name === "Hybrid") ? satelliteMaxZoom : osmMaxZoom;
                 map.options.maxZoom = newMaxZoom;
                 if (map.getZoom() > newMaxZoom) map.setZoom(newMaxZoom);
                 // Update maxNativeZoom untuk layer yang aktif
                 const activeLayer = e.layer;
                 if (activeLayer && activeLayer.options) {
-                    if (e.name === "Satelit" && activeLayer.options.maxNativeZoom) {
+                    if ((e.name === "Satelit" || e.name === "Hybrid") && activeLayer.options.maxNativeZoom) {
                         activeLayer.options.maxNativeZoom = 18;
                     }
                 }

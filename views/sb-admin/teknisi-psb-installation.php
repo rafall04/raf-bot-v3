@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="/css/sb-admin-2.min.css" rel="stylesheet">
     <link href="/css/dashboard-modern.css" rel="stylesheet">
+    <link href="/css/teknisi-theme.css" rel="stylesheet">
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2-bootstrap-theme/0.1.0-beta.10/select2-bootstrap.min.css" />
@@ -150,13 +151,19 @@
 
                 <div class="container-fluid">
                     <!-- Page Header -->
-                    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-                        <h1 class="h3 mb-0 text-gray-800">Proses Instalasi PSB</h1>
-                        <div>
+                    <div class="tk-page-head">
+                        <div class="tk-title">
+                            <span class="tk-title-icon"><i class="fas fa-tools"></i></span>
+                            <div>
+                                <h1>Proses Instalasi PSB</h1>
+                                <p class="tk-subtitle">Kelola progres instalasi perangkat pelanggan baru</p>
+                            </div>
+                        </div>
+                        <div class="tk-actions">
                             <a href="/teknisi-psb" class="btn btn-outline-primary">
                                 <i class="fas fa-user-plus"></i> Daftar Pelanggan Baru
                             </a>
-                            <a href="/teknisi-psb-setup" class="btn btn-outline-success">
+                            <a href="/teknisi-psb-setup" class="btn btn-outline-primary">
                                 <i class="fas fa-wifi"></i> Setup Pelanggan
                             </a>
                         </div>

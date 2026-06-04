@@ -11,26 +11,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="/css/sb-admin-2.min.css" rel="stylesheet">
     <link href="/css/dashboard-modern.css" rel="stylesheet">
+    <link href="/css/teknisi-theme.css" rel="stylesheet">
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     <style>
-        .stats-card { border-radius: 10px; transition: transform 0.2s; }
-        .stats-card:hover { transform: translateY(-2px); }
-        .stats-card .card-body { padding: 1.25rem; }
-        .stats-icon { width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
-        .stats-value { font-size: 1.75rem; font-weight: 700; }
-        .stats-label { font-size: 0.85rem; color: #6c757d; }
-        
-        .badge-lunas { background-color: #28a745; color: white; }
-        .badge-belum { background-color: #dc3545; color: white; }
-        .badge-pending { background-color: #ffc107; color: #000; }
-        
-        .filter-tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .filter-tab { padding: 8px 16px; border-radius: 20px; cursor: pointer; border: 2px solid #e3e6f0; background: white; transition: all 0.2s; font-weight: 500; }
-        .filter-tab:hover { border-color: #4e73df; }
-        .filter-tab.active { background: #4e73df; color: white; border-color: #4e73df; }
-        .filter-tab .count { background: rgba(0,0,0,0.1); padding: 2px 8px; border-radius: 10px; margin-left: 5px; font-size: 0.8rem; }
-        .filter-tab.active .count { background: rgba(255,255,255,0.2); }
-        
+        /* stat cards, badges & filter tabs are governed by teknisi-theme.css */
         .table-payment th { background: #f8f9fc; font-weight: 600; font-size: 0.85rem; }
         .table-payment td { vertical-align: middle; }
         .customer-info { display: flex; flex-direction: column; }
@@ -53,52 +37,14 @@
             min-width: 640px;
         }
 
-        .filter-tabs {
-            align-items: stretch;
-        }
-
-        .filter-tab {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.35rem;
-        }
-
-        @media (max-width: 991.98px) {
-            .stats-value {
-                font-size: 1.5rem;
-            }
-
-            .stats-card .card-body {
-                padding: 1rem;
-            }
-        }
-
         @media (max-width: 767.98px) {
             .container-fluid {
                 padding: 0.875rem;
             }
 
-            .d-sm-flex.align-items-center.justify-content-between {
-                flex-direction: column;
-                align-items: stretch !important;
-                gap: 0.85rem;
-            }
-
             #refreshBtn {
                 width: 100%;
                 justify-content: center;
-            }
-
-            .filter-tabs {
-                display: grid;
-                grid-template-columns: 1fr;
-                gap: 0.6rem;
-            }
-
-            .filter-tab {
-                width: 100%;
-                justify-content: space-between;
             }
 
             .table-responsive {
@@ -152,13 +98,19 @@
                 <?php include '_role_aware_teknisi_topbar.php'; ?>
 
                 <div class="container-fluid">
-                    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-                        <h1 class="h3 mb-0 text-gray-800">
-                            <i class="fas fa-file-invoice-dollar text-primary"></i> Monitoring Pembayaran
-                        </h1>
-                        <button class="btn btn-primary btn-sm" id="refreshBtn">
-                            <i class="fas fa-sync-alt"></i> Refresh Data
-                        </button>
+                    <div class="tk-page-head">
+                        <div class="tk-title">
+                            <span class="tk-title-icon"><i class="fas fa-file-invoice-dollar"></i></span>
+                            <div>
+                                <h1>Monitoring Pembayaran</h1>
+                                <p class="tk-subtitle">Pantau status pembayaran pelanggan periode berjalan</p>
+                            </div>
+                        </div>
+                        <div class="tk-actions">
+                            <button class="btn btn-primary btn-sm" id="refreshBtn">
+                                <i class="fas fa-sync-alt"></i> Refresh Data
+                            </button>
+                        </div>
                     </div>
 
                     <div class="alert alert-info mb-4">
@@ -167,56 +119,48 @@
                     </div>
 
                     <!-- Stats Cards -->
-                    <div class="row mb-4">
+                    <div class="row tk-stats-row mb-4">
                         <div class="col-6 col-xl-3 mb-3">
-                            <div class="card stats-card border-left-primary shadow h-100">
+                            <div class="card tk-stat tk-accent-primary shadow">
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div class="stats-label text-uppercase">Total Pelanggan</div>
-                                            <div class="stats-value text-primary" id="totalCustomers">-</div>
-                                        </div>
-                                        <div class="stats-icon bg-primary text-white"><i class="fas fa-users"></i></div>
+                                    <div>
+                                        <div class="tk-stat-label">Total Pelanggan</div>
+                                        <div class="tk-stat-value" id="totalCustomers">-</div>
                                     </div>
+                                    <div class="tk-stat-icon"><i class="fas fa-users"></i></div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-6 col-xl-3 mb-3">
-                            <div class="card stats-card border-left-success shadow h-100">
+                            <div class="card tk-stat tk-accent-success shadow">
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div class="stats-label text-uppercase">Sudah Bayar</div>
-                                            <div class="stats-value text-success" id="paidCount">-</div>
-                                        </div>
-                                        <div class="stats-icon bg-success text-white"><i class="fas fa-check-circle"></i></div>
+                                    <div>
+                                        <div class="tk-stat-label">Sudah Bayar</div>
+                                        <div class="tk-stat-value" id="paidCount">-</div>
                                     </div>
+                                    <div class="tk-stat-icon"><i class="fas fa-check-circle"></i></div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-6 col-xl-3 mb-3">
-                            <div class="card stats-card border-left-danger shadow h-100">
+                            <div class="card tk-stat tk-accent-danger shadow">
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div class="stats-label text-uppercase">Belum Bayar</div>
-                                            <div class="stats-value text-danger" id="unpaidCount">-</div>
-                                        </div>
-                                        <div class="stats-icon bg-danger text-white"><i class="fas fa-exclamation-circle"></i></div>
+                                    <div>
+                                        <div class="tk-stat-label">Belum Bayar</div>
+                                        <div class="tk-stat-value" id="unpaidCount">-</div>
                                     </div>
+                                    <div class="tk-stat-icon"><i class="fas fa-exclamation-circle"></i></div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-6 col-xl-3 mb-3">
-                            <div class="card stats-card border-left-warning shadow h-100">
+                            <div class="card tk-stat tk-accent-warning shadow">
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div class="stats-label text-uppercase">Persentase Lunas</div>
-                                            <div class="stats-value text-warning" id="paidPercentage">-</div>
-                                        </div>
-                                        <div class="stats-icon bg-warning text-white"><i class="fas fa-percentage"></i></div>
+                                    <div>
+                                        <div class="tk-stat-label">Persentase Lunas</div>
+                                        <div class="tk-stat-value" id="paidPercentage">-</div>
                                     </div>
+                                    <div class="tk-stat-icon"><i class="fas fa-percentage"></i></div>
                                 </div>
                             </div>
                         </div>
@@ -289,7 +233,7 @@
 
     <!-- Request Payment Modal -->
     <div class="modal fade" id="requestPaymentModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header bg-success text-white">
                     <h5 class="modal-title"><i class="fas fa-money-bill-wave"></i> Request Pembayaran</h5>
@@ -348,7 +292,7 @@
 
     <!-- Detail Modal -->
     <div class="modal fade" id="detailModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title"><i class="fas fa-user"></i> Detail Pelanggan</h5>
@@ -401,7 +345,7 @@
         }
 
         function loadTechnicianInfo() {
-            fetch('/api/teknisi/me', { credentials: 'include' })
+            fetch('/api/me', { credentials: 'include' })
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 200 && data.data) {
@@ -760,6 +704,20 @@
             }
         }
 
+        // Open the payment modal FROM the detail modal. Must wait for the detail
+        // modal to fully hide first; otherwise its `hidden.bs.modal` handler strips
+        // `modal-open`/the backdrop from <body> after the payment modal is already
+        // shown, breaking scroll lock on mobile (hidden bug).
+        function openPaymentFromDetail(id) {
+            const $detail = $('#detailModal');
+            if ($detail.hasClass('show')) {
+                $detail.one('hidden.bs.modal', function () { openPaymentModal(id); });
+                $detail.modal('hide');
+            } else {
+                openPaymentModal(id);
+            }
+        }
+
         function submitPaymentRequest() {
             if (!selectedCustomerId) {
                 showAlert('danger', 'Pelanggan tidak dipilih');
@@ -921,7 +879,7 @@
                 actionSection = `
                     <hr>
                     <div class="text-center">
-                        <button class="btn btn-success btn-lg" onclick="$('#detailModal').modal('hide'); openPaymentModal(${customer.id});">
+                        <button class="btn btn-success btn-lg" onclick="openPaymentFromDetail(${customer.id});">
                             <i class="fas fa-money-bill-wave"></i> Lihat Opsi Pembayaran
                         </button>
                         ${pendingNotes.length ? `<div class="small text-warning mt-2"><i class="fas fa-info-circle"></i> ${pendingNotes.join(', ')}.</div>` : ''}

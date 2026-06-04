@@ -12,6 +12,7 @@
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2-bootstrap-theme/0.1.0-beta.10/select2-bootstrap.min.css" />
     <link href="/css/dashboard-modern.css" rel="stylesheet">
+    <link href="/css/teknisi-theme.css" rel="stylesheet">
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     <style>
         .ticket-details {
@@ -569,11 +570,19 @@
             <div id="content">
                 <?php include '_role_aware_teknisi_topbar.php'; ?>
                 <div class="container-fluid">
-                    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-                        <h1 class="h3 mb-0 text-gray-800">Manajemen Tiket Laporan</h1>
-                        <button class="btn btn-primary" data-toggle="modal" data-target="#createTicketModal">
-                            <i class="fas fa-ticket-alt"></i> Buat Tiket Baru
-                        </button>
+                    <div class="tk-page-head">
+                        <div class="tk-title">
+                            <span class="tk-title-icon"><i class="fas fa-headset"></i></span>
+                            <div>
+                                <h1>Manajemen Tiket Laporan</h1>
+                                <p class="tk-subtitle">Kelola tiket gangguan & laporan pelanggan</p>
+                            </div>
+                        </div>
+                        <div class="tk-actions">
+                            <button class="btn btn-primary" data-toggle="modal" data-target="#createTicketModal">
+                                <i class="fas fa-ticket-alt"></i> Buat Tiket Baru
+                            </button>
+                        </div>
                     </div>
                     <div id="globalMessage" class="mb-3"></div>
 

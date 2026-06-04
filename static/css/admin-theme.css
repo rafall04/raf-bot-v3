@@ -1,0 +1,434 @@
+/* ============================================================
+   RAF BOT · Admin theme
+   - Modern sidebar (indigo glow + search filter)
+   - Dark mode (body.tk-dark) — light mode untouched
+   ============================================================ */
+
+/* Modern sidebar styles live inline in views/sb-admin/_navbar.php so they
+   apply on every admin page without per-page CSS link. The block below is
+   DARK MODE only (admin-theme.css must be linked for dark mode patches). */
+
+/* (sidebar visual styles moved to views/sb-admin/_navbar.php inline <style>) */
+
+body.tk-dark {
+    /* flip the dashboard's own text/background variables */
+    --dark: #e6eaf2;
+    --light: #1b2436;
+
+    /* dark palette */
+    --d-canvas: #0e1521;
+    --d-surface: #1b2436;
+    --d-surface-2: #232f45;
+    --d-raise: #141d2c;
+    --d-line: #2b3852;
+    --d-ink: #e6eaf2;
+    --d-ink-soft: #aab4c5;
+    --d-muted: #7b879c;
+
+    background: var(--d-canvas) !important;
+    color: var(--d-ink);
+}
+body.tk-dark #content-wrapper { background: var(--d-canvas) !important; }
+
+/* ---------- framework / sb-admin-2 utilities ---------- */
+body.tk-dark .bg-white { background-color: var(--d-surface) !important; }
+body.tk-dark .bg-light,
+body.tk-dark .bg-gray-100,
+body.tk-dark .bg-gray-200 { background-color: var(--d-surface-2) !important; }
+body.tk-dark .text-gray-900,
+body.tk-dark .text-gray-800,
+body.tk-dark .text-dark,
+body.tk-dark .text-black-50 { color: var(--d-ink) !important; }
+body.tk-dark .text-gray-700,
+body.tk-dark .text-gray-600,
+body.tk-dark .text-gray-500 { color: var(--d-ink-soft) !important; }
+body.tk-dark .text-gray-400,
+body.tk-dark .text-gray-300,
+body.tk-dark .text-muted { color: var(--d-muted) !important; }
+body.tk-dark hr { border-top-color: var(--d-line); }
+body.tk-dark a:not(.btn):not(.dropdown-item):not(.nav-link) { color: #a5b4fc; }
+
+/* topbar + dropdowns */
+body.tk-dark .topbar { background: rgba(20, 27, 42, 0.92) !important; border-bottom-color: var(--d-line) !important; }
+body.tk-dark .topbar #sidebarToggleTop { color: var(--d-ink-soft); }
+body.tk-dark .dropdown-menu,
+body.tk-dark .dropdown-list { background: var(--d-surface); border-color: var(--d-line); }
+body.tk-dark .dropdown-item { color: var(--d-ink-soft); }
+body.tk-dark .dropdown-item:hover,
+body.tk-dark .dropdown-item:focus { background: rgba(99, 102, 241, 0.18); color: var(--d-ink); }
+body.tk-dark .dropdown-divider { border-top-color: var(--d-line); }
+body.tk-dark .dropdown-list .dropdown-item { border-bottom-color: var(--d-line); }
+body.tk-dark .dropdown-list .dropdown-item:hover { background-color: var(--d-surface-2); }
+body.tk-dark .topbar-divider { border-right-color: var(--d-line); }
+
+/* cards (sb-admin-2 .card) */
+body.tk-dark .card { background: var(--d-surface); border-color: var(--d-line); }
+body.tk-dark .card-header { background: transparent; border-bottom-color: var(--d-line); color: var(--d-ink); }
+body.tk-dark .card-footer { background: var(--d-raise); border-top-color: var(--d-line); }
+
+/* tables */
+body.tk-dark .table { color: var(--d-ink); }
+body.tk-dark .table thead th { background: var(--d-raise); color: var(--d-ink-soft); border-bottom-color: var(--d-line); }
+body.tk-dark .table td,
+body.tk-dark .table.table-bordered td,
+body.tk-dark .table.table-bordered th { border-color: var(--d-line); }
+body.tk-dark .table-hover tbody tr:hover { background: rgba(99, 102, 241, 0.14); }
+
+/* forms */
+body.tk-dark .form-control,
+body.tk-dark .custom-select {
+    background-color: var(--d-surface);
+    color: var(--d-ink);
+    border-color: var(--d-line);
+}
+body.tk-dark .form-control::placeholder { color: var(--d-muted); }
+body.tk-dark .form-control:disabled,
+body.tk-dark .form-control[readonly] { background-color: var(--d-raise); color: var(--d-ink-soft); }
+body.tk-dark .input-group-text { background: var(--d-raise) !important; color: var(--d-ink-soft) !important; border-color: var(--d-line) !important; }
+body.tk-dark .custom-control-label { color: var(--d-ink-soft); }
+
+/* buttons */
+body.tk-dark .btn-secondary { background: var(--d-surface); color: var(--d-ink); border-color: var(--d-line); }
+body.tk-dark .btn-secondary:hover { background: var(--d-surface-2); color: var(--d-ink); }
+body.tk-dark .btn-light { background: var(--d-surface-2); color: var(--d-ink); border-color: var(--d-line); }
+
+/* modals */
+body.tk-dark .modal-content { background: var(--d-surface); color: var(--d-ink); }
+body.tk-dark .modal-header,
+body.tk-dark .modal-footer { border-color: var(--d-line); }
+body.tk-dark .close { color: var(--d-ink); text-shadow: none; }
+body.tk-dark .close:hover { color: #fff; }
+
+/* badges (soft tint + lifted text) */
+body.tk-dark .badge-success { color: #6ee7b7 !important; }
+body.tk-dark .badge-danger { color: #fca5a5 !important; }
+body.tk-dark .badge-warning { color: #fcd34d !important; }
+body.tk-dark .badge-info { color: #93c5fd !important; }
+body.tk-dark .badge-secondary { background: rgba(255, 255, 255, 0.08) !important; color: var(--d-ink-soft) !important; }
+
+/* alerts */
+body.tk-dark .alert-success { background: rgba(16,185,129,.16); color: #6ee7b7; border-color: transparent; }
+body.tk-dark .alert-danger { background: rgba(239,68,68,.16); color: #fca5a5; border-color: transparent; }
+body.tk-dark .alert-warning { background: rgba(245,158,11,.16); color: #fcd34d; border-color: transparent; }
+body.tk-dark .alert-info { background: rgba(59,130,246,.16); color: #93c5fd; border-color: transparent; }
+body.tk-dark .alert-light { background: var(--d-surface-2) !important; color: var(--d-ink-soft) !important; border-color: var(--d-line) !important; }
+body.tk-dark .alert-secondary { background: var(--d-surface-2); color: var(--d-ink-soft); border-color: var(--d-line); }
+
+/* Bootstrap custom-file input */
+body.tk-dark .custom-file-label { background: var(--d-surface) !important; color: var(--d-ink) !important; border-color: var(--d-line) !important; }
+body.tk-dark .custom-file-label::after { background: var(--d-surface-2) !important; color: var(--d-ink) !important; border-left-color: var(--d-line) !important; }
+
+/* pagination */
+body.tk-dark .page-link { background: var(--d-surface); color: var(--d-ink-soft); border-color: var(--d-line); }
+body.tk-dark .page-link:hover { background: rgba(99,102,241,.18); color: var(--d-ink); }
+body.tk-dark .page-item.disabled .page-link { background: var(--d-surface); color: var(--d-muted); border-color: var(--d-line); }
+body.tk-dark .page-item.active .page-link { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* Select2 */
+body.tk-dark .select2-selection { background: var(--d-surface) !important; border-color: var(--d-line) !important; }
+body.tk-dark .select2-selection__rendered { color: var(--d-ink) !important; }
+body.tk-dark .select2-dropdown { background: var(--d-surface); border-color: var(--d-line); }
+body.tk-dark .select2-results__option { color: var(--d-ink); }
+body.tk-dark .select2-search--dropdown .select2-search__field { background: var(--d-raise); color: var(--d-ink); border-color: var(--d-line); }
+
+/* SweetAlert2 */
+body.tk-dark .swal2-popup { background: var(--d-surface); color: var(--d-ink); }
+body.tk-dark .swal2-title,
+body.tk-dark .swal2-html-container { color: var(--d-ink); }
+
+/* ============================================================
+   DASHBOARD-specific surfaces (index.php inline classes)
+   ============================================================ */
+body.tk-dark .dashboard-card,
+body.tk-dark .workspace-panel,
+body.tk-dark .workspace-panel .card-header,
+body.tk-dark .snapshot-panel { background: var(--d-surface) !important; border-color: var(--d-line) !important; }
+body.tk-dark .dashboard-card:hover { border-color: #3a4a6b !important; }
+body.tk-dark .card-icon-container { background: rgba(255, 255, 255, 0.06) !important; }
+body.tk-dark .dashboard-card:hover .card-icon-container { background: rgba(255, 255, 255, 0.12) !important; }
+body.tk-dark .snapshot-panel-header { background: var(--d-raise) !important; border-bottom-color: var(--d-line) !important; color: var(--d-ink); }
+body.tk-dark .action-link { background: var(--d-raise); border-color: var(--d-line); color: var(--d-ink); }
+body.tk-dark .action-link:hover { background: rgba(99, 102, 241, 0.18); border-color: var(--primary); color: var(--d-ink); }
+body.tk-dark .action-link-icon { background: rgba(99, 102, 241, 0.22); }
+body.tk-dark .card-title-text,
+body.tk-dark .workspace-panel-subtitle,
+body.tk-dark .action-link-meta,
+body.tk-dark .login-history-time,
+body.tk-dark .login-history-ip,
+body.tk-dark .dashboard-header p,
+body.tk-dark .card-subtitle { color: var(--d-muted); }
+body.tk-dark #qr_img { background: #fff; } /* QR code must stay light to scan */
+
+/* ============================================================
+   monitoring.css surfaces (stat cards, panels, resources, traffic)
+   ============================================================ */
+body.tk-dark .modern-card,
+body.tk-dark .modern-card.error { background: var(--d-surface) !important; border-color: var(--d-line) !important; color: var(--d-ink); }
+body.tk-dark .modern-card .card-content h2 { color: var(--d-ink); }
+body.tk-dark .modern-card .card-content p,
+body.tk-dark .monitoring-meta-text,
+body.tk-dark .resource-header span,
+body.tk-dark .traffic-stat .stat-label,
+body.tk-dark .traffic-stat .stat-total,
+body.tk-dark .description-block > .description-text { color: var(--d-muted); }
+body.tk-dark .monitoring-meta { border-top-color: var(--d-line); }
+
+body.tk-dark .modern-panel { background: var(--d-surface) !important; border-color: var(--d-line) !important; }
+body.tk-dark .panel-header { background: var(--d-raise) !important; border-bottom-color: var(--d-line) !important; }
+body.tk-dark .panel-header h5 { color: var(--d-ink); }
+body.tk-dark .panel-footer { background: var(--d-raise) !important; border-top-color: var(--d-line) !important; }
+body.tk-dark .panel-footer .col-6:first-child .traffic-stat { border-right-color: var(--d-line); }
+body.tk-dark .modern-panel:hover .panel-body { background: transparent; }
+
+body.tk-dark .resource-card { background: var(--d-raise) !important; border-color: var(--d-line) !important; }
+body.tk-dark .resource-value,
+body.tk-dark .traffic-stat .stat-value { color: var(--d-ink); }
+body.tk-dark .resource-header i { color: var(--d-ink-soft); }
+
+body.tk-dark .interface-selector-wrapper .form-select,
+body.tk-dark .form-select { background: var(--d-surface) !important; color: var(--d-ink) !important; border-color: var(--d-line) !important; }
+body.tk-dark .modern-progress,
+body.tk-dark .progress { background: var(--d-raise); }
+
+body.tk-dark .monitoring-state-badge.state-healthy { color: #6ee7b7; }
+body.tk-dark .monitoring-state-badge.state-stale { color: #fcd34d; }
+body.tk-dark .monitoring-state-badge.state-disconnected { color: #fca5a5; }
+
+body.tk-dark .user-card { background: var(--d-surface); border-color: var(--d-line); }
+body.tk-dark .btn-tool { color: var(--d-muted); }
+body.tk-dark .btn-tool:hover { color: var(--d-ink); }
+
+/* login history toolbar / generic light toolbars on the dashboard */
+body.tk-dark .login-history-toolbar { background: var(--d-raise) !important; border-color: var(--d-line) !important; }
+
+/* ============================================================
+   LAYOUT POLISH (light + dark) — uniform monitoring stat cards
+   System Health → Hotspot Active were uneven on mobile because a card
+   with a 1-line label was shorter than its 2-line neighbours, leaving
+   the icons misaligned. Make every card fill its column = equal height.
+   ============================================================ */
+.modern-card {
+    height: 100%;
+    align-items: center;
+}
+.modern-card .card-icon { align-self: center; }
+
+@media (max-width: 575.98px) {
+    .modern-card {
+        min-height: 5.4rem;        /* matches a 2-line label card */
+        gap: 0.65rem;
+    }
+    .modern-card .card-content h2 { font-size: 1.3rem; }
+    .modern-card .card-content p {
+        font-size: 0.68rem;
+        line-height: 1.25;
+    }
+}
+
+/* ============================================================
+   LAYOUT POLISH — uniform KPI status cards
+   Core Status (Bot/Mikrotik/GenieACS/Users) and Access & Connectivity
+   were uneven: narrow cards let the subtitle wrap to 2 lines (h≈141)
+   while wider cards stayed 1 line (h≈102). Keep title/subtitle on a
+   single line + a shared min-height so every status box matches.
+   ============================================================ */
+.dashboard-kpi-row .dashboard-card { min-height: 6.5rem; }
+.dashboard-kpi-row .card-icon-container {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    flex-shrink: 0;
+}
+.dashboard-kpi-row .card-icon-container i { font-size: 1.25rem; }
+.dashboard-kpi-row .card-info { min-width: 0; }
+/* Only the secondary subtitle is forced to one line (it was the wrap culprit);
+   the title keeps its natural size so it isn't truncated. */
+.dashboard-kpi-row .card-subtitle {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dashboard-kpi-row .card-subtitle span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+/* Mobile: full-width single column, uniform height, content centred.
+   (Content-heavy KPI cards read better full-width than cramped 2-up.) */
+@media (max-width: 575.98px) {
+    .dashboard-kpi-row .card-content { align-items: center; }
+    .dashboard-kpi-row .card-value { font-size: 1.4rem; }
+}
+
+/* ============================================================
+   LAYOUT POLISH — Finance Workspace / Quick Actions
+   ============================================================ */
+/* Hero revenue card fills its grid cell so it doesn't leave empty space
+   next to the taller 4-metric stack; content vertically centred. */
+.workspace-panel .finance-workspace-grid { align-items: stretch; }
+.finance-hero-card.dashboard-card { height: 100%; }
+.finance-hero-card .card-body { display: flex; align-items: center; }
+.finance-hero-card .card-content { width: 100%; }
+
+/* Quick Actions panel sizes to its content instead of being stretched to the
+   tall Finance panel (which left a big empty area under the 4 shortcuts). */
+.row.match-height > [class*="col-"]:has(> .workspace-panel .action-list) {
+    align-self: flex-start;
+}
+.row.match-height > [class*="col-"]:has(> .workspace-panel .action-list) > .workspace-panel {
+    height: auto;
+    flex-grow: 0;
+}
+
+/* ============================================================
+   Dark/light toggle button (admin topbar)
+   ============================================================ */
+.tk-theme-toggle {
+    border: 0;
+    background: transparent;
+    color: #6b7280;
+    width: 2.3rem; height: 2.3rem;
+    border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1rem; cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.tk-theme-toggle:hover { background: rgba(99, 102, 241, 0.1); color: var(--primary-dark, #4f46e5); }
+body.tk-dark .tk-theme-toggle { color: var(--d-ink-soft); }
+body.tk-dark .tk-theme-toggle:hover { background: rgba(99, 102, 241, 0.18); color: #fff; }
+
+/* ============================================================
+   DARK MODE — patches for page-specific inline classes that have
+   their own near-white backgrounds in admin pages. `body.tk-dark .x`
+   out-specifies per-page inline `.x` regardless of stylesheet order.
+   ============================================================ */
+/* Generic "card-like" containers used across many admin pages */
+body.tk-dark .filter-section,
+body.tk-dark .form-section,
+body.tk-dark .card-modern,
+body.tk-dark .stat-card,
+body.tk-dark .stats-card,
+body.tk-dark .payment-card,
+body.tk-dark .agent-card,
+body.tk-dark .ao-card,
+body.tk-dark .voucher-card,
+body.tk-dark .preview-card,
+body.tk-dark .qr-card,
+body.tk-dark .topup-request-card,
+body.tk-dark .progress-card,
+body.tk-dark .detail-section,
+body.tk-dark .save-button-container,
+body.tk-dark .period-selector,
+body.tk-dark .keywords-container,
+body.tk-dark .alert-panel,
+body.tk-dark .alert-panel-item,
+body.tk-dark .invoice-wrapper,
+body.tk-dark .print-toolbar,
+body.tk-dark .teknisi-stats,
+body.tk-dark .health-item,
+body.tk-dark .toast-notification,
+body.tk-dark .toast-header { background: var(--d-surface) !important; border-color: var(--d-line) !important; color: var(--d-ink); }
+
+/* slightly elevated surface */
+body.tk-dark .action-buttons,
+body.tk-dark .loading-content,
+body.tk-dark .search-results,
+body.tk-dark .isolir-page,
+body.tk-dark .path-item { background: var(--d-surface-2) !important; border-color: var(--d-line) !important; color: var(--d-ink); }
+
+/* status/state badges left visible — soft tinted text */
+body.tk-dark .badge-status-otw,
+body.tk-dark .badge-pending { color: #fcd34d !important; }
+body.tk-dark .badge-status-arrived { color: #fdba74 !important; }
+body.tk-dark .badge-disabled,
+body.tk-dark .badge-notfound,
+body.tk-dark .failed-badge { background: rgba(239,68,68,.16) !important; color: #fca5a5 !important; }
+body.tk-dark .badge-diff { background: rgba(245,158,11,.16) !important; color: #fcd34d !important; }
+body.tk-dark .test-warning,
+body.tk-dark .severity-warning { background: rgba(245,158,11,.16) !important; color: #fcd34d !important; }
+body.tk-dark .test-error { background: rgba(239,68,68,.16) !important; color: #fca5a5 !important; }
+body.tk-dark .healthy { background: rgba(16,185,129,.16) !important; color: #6ee7b7 !important; }
+
+/* state classes that may sit on tr/td (avoid coloring whole rows white) */
+body.tk-dark .disabled-row,
+body.tk-dark .not-found,
+body.tk-dark .manual,
+body.tk-dark .device-manual,
+body.tk-dark .selected,
+body.tk-dark .status-phase1_completed { background: var(--d-surface-2) !important; color: var(--d-ink); }
+body.tk-dark .action-DELETE { background: rgba(239,68,68,.12) !important; color: #fca5a5; }
+
+/* Buka/Custom Isolir page chrome (full-screen wrapper) */
+body.tk-dark .isolir-page { background: var(--d-canvas) !important; color: var(--d-ink); }
+
+/* Map-viewer chrome — page surfaces dark; Leaflet tiles/legend intentionally stay light */
+body.tk-dark .map-sidebar,
+body.tk-dark .map-instructions-header { background: var(--d-surface) !important; border-color: var(--d-line) !important; color: var(--d-ink); }
+
+/* Voucher-send qty/type micro-buttons */
+body.tk-dark .qty-btn,
+body.tk-dark .type-btn { background: var(--d-surface) !important; color: var(--d-ink); border-color: var(--d-line) !important; }
+body.tk-dark .qty-btn:hover,
+body.tk-dark .type-btn:hover { background: rgba(99,102,241,.18) !important; }
+
+/* filter pill tabs (admin-kasbon and similar) — inactive state dark */
+body.tk-dark .filter-tab { background: var(--d-surface) !important; color: var(--d-ink-soft) !important; border-color: var(--d-line) !important; }
+body.tk-dark .filter-tab:hover { background: rgba(99,102,241,.18) !important; color: var(--d-ink) !important; }
+body.tk-dark .filter-tab.active { background: linear-gradient(135deg, var(--primary, #6366f1), var(--primary-dark, #4f46e5)) !important; color: #fff !important; border-color: transparent !important; }
+
+/* voucher status pills */
+body.tk-dark .badge-sent { background: rgba(16,185,129,.16) !important; color: #6ee7b7 !important; }
+body.tk-dark .badge-generated { background: rgba(99,102,241,.18) !important; color: #c7d2fe !important; }
+
+/* Bootstrap nav-tabs (saldo-management etc) */
+body.tk-dark .nav-tabs { border-bottom-color: var(--d-line); }
+body.tk-dark .nav-tabs .nav-link { color: var(--d-ink-soft); border-color: transparent; background: transparent; }
+body.tk-dark .nav-tabs .nav-link:hover { border-color: var(--d-line) var(--d-line) transparent; color: var(--d-ink); }
+body.tk-dark .nav-tabs .nav-link.active,
+body.tk-dark .nav-tabs .nav-item.show .nav-link { background: var(--d-surface) !important; color: var(--d-ink) !important; border-color: var(--d-line) var(--d-line) var(--d-surface) !important; }
+body.tk-dark .nav-pills .nav-link.active,
+body.tk-dark .nav-pills .show > .nav-link { background: var(--primary, #6366f1) !important; color: #fff !important; }
+
+/* Isolir pages (buka-isolir / custom-isolir) */
+body.tk-dark .isolir-card,
+body.tk-dark .isolir-summary-box,
+body.tk-dark .isolir-note-box { background: var(--d-surface) !important; border-color: var(--d-line) !important; color: var(--d-ink); }
+body.tk-dark .isolir-card.accent-card { border-color: var(--primary, #6366f1) !important; }
+body.tk-dark .isolir-pill { background: var(--d-surface-2) !important; color: var(--d-ink-soft) !important; border-color: var(--d-line) !important; }
+body.tk-dark .isolir-pill.profile { color: #c7d2fe !important; }
+body.tk-dark .isolir-pill.ready { background: rgba(16,185,129,.16) !important; color: #6ee7b7 !important; }
+body.tk-dark .isolir-pill.busy { background: rgba(245,158,11,.16) !important; color: #fcd34d !important; }
+
+/* speed-boost-config sections */
+body.tk-dark .settings-section { background: var(--d-surface) !important; border-color: var(--d-line) !important; color: var(--d-ink); }
+
+/* map-viewer quick filter buttons */
+body.tk-dark .quick-filter-buttons { background: var(--d-surface) !important; border-color: var(--d-line) !important; }
+body.tk-dark .quick-filter-btn { background: var(--d-surface-2) !important; color: var(--d-ink) !important; border-color: var(--d-line) !important; }
+body.tk-dark .quick-filter-btn:hover,
+body.tk-dark .quick-filter-btn.active { background: rgba(99,102,241,.22) !important; color: #c7d2fe !important; border-color: var(--primary, #6366f1) !important; }
+body.tk-dark .stat-item { background: var(--d-surface-2) !important; border-color: var(--d-line) !important; color: var(--d-ink); }
+
+/* Leaflet 1.9+ applies `mix-blend-mode: plus-lighter` to map tiles to hide
+   sub-pixel seams. On any non-pure-white background that washes the tiles out
+   and they look blurry/milky. Force normal blending — sharp satellite imagery. */
+.leaflet-tile,
+.leaflet-tile-container .leaflet-tile { mix-blend-mode: normal !important; }
+
+/* templates page placeholder list */
+body.tk-dark .placeholder-list li { background: var(--d-surface-2) !important; color: var(--d-ink); border-color: var(--d-line) !important; }
+body.tk-dark .placeholder-list code,
+body.tk-dark pre,
+body.tk-dark code { background: var(--d-raise) !important; color: #c7d2fe !important; border-color: var(--d-line) !important; }
+
+/* generic informational box panels */
+body.tk-dark .info-box,
+body.tk-dark .info-card,
+body.tk-dark .hint-box { background: var(--d-surface-2) !important; border-color: var(--d-line) !important; color: var(--d-ink); }
+
+/* psb-rekap status badges */
+body.tk-dark .status-badge.status-completed { background: rgba(16,185,129,.16) !important; color: #6ee7b7 !important; }
+body.tk-dark .status-badge.status-pending { background: rgba(245,158,11,.16) !important; color: #fcd34d !important; }
+body.tk-dark .status-badge.status-cancelled,
+body.tk-dark .status-badge.status-failed { background: rgba(239,68,68,.16) !important; color: #fca5a5 !important; }

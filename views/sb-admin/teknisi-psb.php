@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="/css/sb-admin-2.min.css" rel="stylesheet">
     <link href="/css/dashboard-modern.css" rel="stylesheet">
+    <link href="/css/teknisi-theme.css" rel="stylesheet">
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -357,11 +358,19 @@
 
                 <div class="container-fluid">
                     <!-- Page Header -->
-                    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-                        <h1 class="h3 mb-0 text-gray-800">Daftar Calon Pelanggan (PSB)</h1>
-                        <a href="/teknisi-psb-installation" class="btn btn-primary">
-                            <i class="fas fa-list"></i> Lihat Daftar Instalasi
-                        </a>
+                    <div class="tk-page-head">
+                        <div class="tk-title">
+                            <span class="tk-title-icon"><i class="fas fa-user-plus"></i></span>
+                            <div>
+                                <h1>Daftar Calon Pelanggan</h1>
+                                <p class="tk-subtitle">Registrasi data awal calon pelanggan Pasang Baru</p>
+                            </div>
+                        </div>
+                        <div class="tk-actions">
+                            <a href="/teknisi-psb-installation" class="btn btn-primary">
+                                <i class="fas fa-list"></i> Lihat Daftar Instalasi
+                            </a>
+                        </div>
                     </div>
 
                     <!-- Messages -->
