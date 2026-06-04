@@ -27,6 +27,14 @@ database/user/
 database/migrations/*.sqlite
 database/migrations/*.sqlite3
 
+# SQLite WAL mode companion files (lihat lib/sqlite-pragmas.js)
+database/*.sqlite-wal
+database/*.sqlite-shm
+database/*.sqlite3-wal
+database/*.sqlite3-shm
+database/migrations/*.sqlite-wal
+database/migrations/*.sqlite-shm
+
 # User & account data (PII)
 views/users.json
 database/accounts.json

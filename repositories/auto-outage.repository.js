@@ -71,6 +71,17 @@ function createAutoOutageRepository(overrides = {}) {
     const deps = { ...defaultDeps(), ...overrides };
     const dbPath = deps.getDatabasePath("users.sqlite");
     const db = deps.db || new deps.sqlite3.Database(dbPath);
+    // Apply WAL + busy_timeout (idempotent, journal_mode persisten di file header).
+    if (!deps.db) {
+        try {
+            const { applySqlitePragmas } = require("../lib/sqlite-pragmas");
+            applySqlitePragmas(db).catch((pragmaErr) => {
+                console.warn(`[AUTO_OUTAGE_REPO_PRAGMA_WARN] ${pragmaErr.message}`);
+            });
+        } catch (_e) {
+            // Ignore — pragma helper opsional, jangan break repository instantiation.
+        }
+    }
 
     function run(sql, params = []) {
         return new Promise((resolve, reject) => {
