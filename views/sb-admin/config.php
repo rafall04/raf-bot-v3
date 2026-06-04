@@ -24,6 +24,15 @@
   <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
+  <style>
+    .config-nav { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.5rem; padding: 0; list-style: none; border: none; }
+    .config-nav .nav-link { cursor: pointer; border: 1px solid #d1d3e2; border-radius: .5rem; color: #5a5c69; background: #fff; padding: .5rem 1rem; font-weight: 600; }
+    .config-nav .nav-link:hover { background: #eaecf4; }
+    .config-nav .nav-link.active { background: #4e73df; color: #fff; border-color: #4e73df; }
+    .config-pane { display: none; }
+    .config-pane.active { display: block; }
+  </style>
+
 </head>
 
 <body id="page-top">
@@ -55,8 +64,21 @@
             <p>Kelola dan monitor perbarui konfigurasi</p>
           </div>
 
+          <!-- Tab navigation -->
+          <ul class="nav config-nav" id="configNav">
+            <li><a class="nav-link active" data-pane="pane-mikrotik">MikroTik</a></li>
+            <li><a class="nav-link" data-pane="pane-bot">Wifi &amp; Bot</a></li>
+            <li><a class="nav-link" data-pane="pane-welcome">Pesan Selamat Datang</a></li>
+            <li><a class="nav-link" data-pane="pane-billing">Penagihan &amp; Isolir</a></li>
+            <li><a class="nav-link" data-pane="pane-technical">Teknis</a></li>
+            <li><a class="nav-link" data-pane="pane-backup">Backup Telegram</a></li>
+            <li><a class="nav-link" data-pane="pane-olt">OLT HIOSO</a></li>
+          </ul>
+
+          <div id="configForm">
+
           <!-- Mikrotik Devices Configuration -->
-          <!-- Table Section -->
+          <div class="config-pane active" id="pane-mikrotik">
           <h4 class="dashboard-section-title">Konfigurasi MikroTik</h4>
           <div class="card table-card mb-4">
             <div class="card-header">
@@ -82,8 +104,9 @@
             </div>
           </div>
 
-          <!-- DataTales Example -->
-          <form id="configForm" method="POST" onsubmit="return false;">
+          </div><!-- /#pane-mikrotik -->
+
+          <div class="config-pane" id="pane-bot">
             <!-- Table Section -->
           <h4 class="dashboard-section-title">Konfigurasi Wifi & Bot</h4>
           <div class="card table-card mb-4">
@@ -141,6 +164,12 @@
               </div>
             </div>
 
+            <div class="d-flex justify-content-end mb-4">
+              <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-bot"><i class="fas fa-save"></i> Simpan Wifi &amp; Bot</button>
+            </div>
+          </div><!-- /#pane-bot -->
+
+          <div class="config-pane" id="pane-welcome">
             <!-- Table Section -->
           <h4 class="dashboard-section-title">Konfigurasi Pesan Selamat Datang</h4>
           <div class="card table-card mb-4">
@@ -164,6 +193,12 @@
               </div>
             </div>
 
+            <div class="d-flex justify-content-end mb-4">
+              <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-welcome"><i class="fas fa-save"></i> Simpan Pesan Selamat Datang</button>
+            </div>
+          </div><!-- /#pane-welcome -->
+
+          <div class="config-pane" id="pane-billing">
             <!-- Table Section -->
           <h4 class="dashboard-section-title">Konfigurasi Penagihan & Isolir</h4>
           <div class="card table-card mb-4">
@@ -279,6 +314,12 @@
               </div>
             </div>
 
+            <div class="d-flex justify-content-end mb-4">
+              <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-billing"><i class="fas fa-save"></i> Simpan Penagihan &amp; Isolir</button>
+            </div>
+          </div><!-- /#pane-billing -->
+
+          <div class="config-pane" id="pane-technical">
             <!-- Table Section -->
           <h4 class="dashboard-section-title">Konfigurasi Teknis</h4>
           <div class="card table-card mb-4">
@@ -411,6 +452,12 @@
               </div>
             </div>
 
+            <div class="d-flex justify-content-end mb-4">
+              <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-technical"><i class="fas fa-save"></i> Simpan Konfigurasi Teknis</button>
+            </div>
+          </div><!-- /#pane-technical -->
+
+          <div class="config-pane" id="pane-backup">
             <!-- Telegram Backup Configuration -->
             <h4 class="dashboard-section-title">Backup Database ke Telegram</h4>
             <div class="card table-card mb-4">
@@ -461,6 +508,9 @@
               </div>
             </div>
 
+          </div><!-- /#pane-backup -->
+
+          <div class="config-pane" id="pane-olt">
             <!-- OLT HIOSO Configuration -->
             <h4 class="dashboard-section-title">Konfigurasi OLT HIOSO</h4>
             
@@ -574,10 +624,8 @@
               </div>
             </div>
 
-            <div class="d-flex w-100 mb-4" style="justify-content: end;">
-              <button type="submit" class="btn btn-primary">Simpan Semua Konfigurasi</button>
-            </div>
-          </form>
+          </div><!-- /#pane-olt -->
+          </div><!-- /#configForm -->
         </div>
         <!-- /.container-fluid -->
 
@@ -883,55 +931,83 @@
             }
         });
 
-      // Handle form submission
-      form.addEventListener('submit', function(event) {
-        event.preventDefault();
+      // ===== Navigasi tab (ringan, tanpa pindah node DOM) =====
+      const configNav = document.getElementById('configNav');
+      if (configNav) {
+        configNav.addEventListener('click', function(event) {
+          const link = event.target.closest('.nav-link');
+          if (!link) return;
+          event.preventDefault();
+          const paneId = link.dataset.pane;
+          configNav.querySelectorAll('.nav-link').forEach(l => l.classList.toggle('active', l === link));
+          document.querySelectorAll('#configForm .config-pane').forEach(p => p.classList.toggle('active', p.id === paneId));
+        });
+      }
 
-        const formData = new FormData(form);
-        const data = Object.fromEntries(formData.entries());
-        
-        // Add bank accounts to data
-        data.bankAccounts = window.bankAccounts;
+      // ===== Simpan per-bagian =====
+      // Konversi tipe (boolean/yes-no) dilakukan di backend berdasar nama key,
+      // jadi cukup kirim name=value apa adanya. /api/config melakukan merge
+      // parsial sehingga bagian lain tidak terhapus.
+      function collectPaneData(pane) {
+        const data = {};
+        pane.querySelectorAll('input[name], select[name], textarea[name]').forEach(el => {
+          if (el.type === 'checkbox') {
+            data[el.name] = el.checked ? 'true' : 'false';
+          } else {
+            data[el.name] = el.value;
+          }
+        });
+        // Pane Penagihan memuat daftar rekening bank dinamis.
+        if (pane.querySelector('#bankAccountsList')) {
+          data.bankAccounts = window.bankAccounts || [];
+        }
+        return data;
+      }
 
-        const submitButton = form.querySelector('button[type="submit"]');
-        submitButton.disabled = true;
-        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Menyimpan...';
+      document.querySelectorAll('.config-save-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const pane = document.getElementById(this.dataset.pane);
+          if (!pane) return;
+          const btnEl = this;
+          const original = btnEl.innerHTML;
+          const data = collectPaneData(pane);
 
-        fetch('/api/config', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include', // ✅ Fixed by script
-          body: JSON.stringify(data),
-        })
-        .then(response => {
+          btnEl.disabled = true;
+          btnEl.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Menyimpan...';
+
+          fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+          })
+          .then(response => {
             if (!response.ok) {
-                // Try to get error message from JSON response
-                return response.json().then(err => { throw new Error(err.message || `HTTP error! status: ${response.status}`) });
+              return response.json().then(err => { throw new Error(err.message || `HTTP error! status: ${response.status}`) });
             }
             return response.json();
-        })
-        .then(result => {
-          Swal.fire({
-            icon: 'success',
-            title: 'Berhasil!',
-            text: result.message || 'Konfigurasi berhasil disimpan.',
-            timer: 2000,
-            showConfirmButton: false
+          })
+          .then(result => {
+            Swal.fire({
+              icon: 'success',
+              title: 'Berhasil!',
+              text: result.message || 'Konfigurasi berhasil disimpan.',
+              timer: 2000,
+              showConfirmButton: false
+            });
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+              icon: 'error',
+              title: 'Oops...',
+              text: error.message || 'Terjadi kesalahan saat menyimpan konfigurasi!',
+            });
+          })
+          .finally(() => {
+            btnEl.disabled = false;
+            btnEl.innerHTML = original;
           });
-        })
-        .catch(error => {
-          console.error('Error:', error);
-          Swal.fire({
-            icon: 'error',
-            title: 'Oops...',
-            text: error.message || 'Terjadi kesalahan saat menyimpan konfigurasi!',
-          });
-        })
-        .finally(() => {
-            submitButton.disabled = false;
-            submitButton.innerHTML = 'Simpan Semua Konfigurasi';
         });
       });
 
