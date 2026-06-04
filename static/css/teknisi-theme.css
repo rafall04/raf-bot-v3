@@ -1074,4 +1074,53 @@ body.tk-dark .clickable-row:hover { background-color: var(--tk-primary-soft); }
 
 /* Peta Jaringan — only the page chrome; map tiles/legend/controls stay light by design */
 body.tk-dark .map-instructions-header { background-color: var(--tk-surface-2); border-color: var(--tk-line); color: var(--tk-ink-soft); }
-body.tk-dark #wifiInfoModalBody .card-header { background-color: #141d2c; color: var(--tk-ink); }
+body.tk-dark #wifiInfoModalBody .card-header { background-color: var(--tk-surface-2); color: var(--tk-ink); }
+
+/* ============================================================
+   DARK MODE — global Bootstrap surfaces that page popups rely on
+   (list groups, badge-light, nested cards inside modals, popovers).
+   Without these, modal-body content rendered by JS (Perangkat
+   Terhubung, Info WiFi, dll.) stays putih meski body sudah .tk-dark.
+   ============================================================ */
+body.tk-dark .list-group { background: transparent; }
+body.tk-dark .list-group-item {
+    background-color: transparent;
+    color: var(--tk-ink);
+    border-color: var(--tk-line);
+}
+body.tk-dark .list-group-item.active {
+    background-color: var(--tk-primary);
+    border-color: var(--tk-primary);
+    color: #fff;
+}
+body.tk-dark .list-group-item-action:hover,
+body.tk-dark .list-group-item-action:focus { background-color: var(--tk-primary-soft); color: var(--tk-ink); }
+body.tk-dark .list-group-item-action:active { background-color: var(--tk-surface-2); color: var(--tk-ink); }
+
+/* Lift nested cards inside modals so mereka tidak menyatu dengan
+   modal-content (keduanya pakai --tk-surface di dark mode). */
+body.tk-dark .modal .card { background-color: var(--tk-surface-2); border-color: var(--tk-line); }
+body.tk-dark .modal .card .card-header { background-color: transparent; border-bottom-color: var(--tk-line); color: var(--tk-ink); }
+body.tk-dark .modal .card .card-body { color: var(--tk-ink); }
+body.tk-dark .modal hr { border-top-color: var(--tk-line); }
+
+/* badge-light — default abu muda jadi sulit dibaca / kontras tinggi di dark mode */
+body.tk-dark .badge-light {
+    background-color: var(--tk-surface-2) !important;
+    color: var(--tk-ink-soft) !important;
+    border: 1px solid var(--tk-line);
+}
+
+/* Bootstrap popover/tooltip (jarang dipakai tapi bila muncul di topbar/help) */
+body.tk-dark .popover { background-color: var(--tk-surface); border-color: var(--tk-line); }
+body.tk-dark .popover-header { background-color: var(--tk-surface-2); color: var(--tk-ink); border-bottom-color: var(--tk-line); }
+body.tk-dark .popover-body { color: var(--tk-ink); }
+body.tk-dark .tooltip-inner { background-color: var(--tk-surface-2); color: var(--tk-ink); }
+
+/* Loading overlay popup (PSB) — kotak putih di tengah overlay gelap */
+body.tk-dark .loading-content { background: var(--tk-surface); color: var(--tk-ink); border: 1px solid var(--tk-line); }
+
+/* Modal header bg-primary tetap branded; pastikan text-white tetap putih */
+body.tk-dark .modal-header.bg-primary,
+body.tk-dark .modal-header.bg-primary .modal-title,
+body.tk-dark .modal-header.bg-primary .close { color: #fff; }
