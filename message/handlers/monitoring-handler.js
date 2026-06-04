@@ -172,7 +172,9 @@ function handleAllSaldo(isOwner, reply, mess, config, atm) {
 /**
  * Handle all user
  */
-function handleAllUser(reply, users) {
+function handleAllUser(isOwner, reply, mess, users) {
+    if (!isOwner) throw mess.owner;
+
     const entries = (users || []).map((user) => (
         'Nama: ' + user.name +
         '\nNo Telepon: ' + (user.phone_number ? user.phone_number.split('|').join(', ') : '') +

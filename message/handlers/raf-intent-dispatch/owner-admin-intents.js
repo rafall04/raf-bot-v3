@@ -24,8 +24,8 @@ async function handleVc123Intent(context) {
 }
 
 async function handleAllUserIntent(context) {
-    const { handleAllUser, reply, users } = context;
-    handleAllUser(reply, users);
+    const { handleAllUser, isOwner, reply, mess, users } = context;
+    handleAllUser(isOwner, reply, mess, users);
 }
 
 async function handleCariPelangganIntent(context) {
