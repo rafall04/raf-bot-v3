@@ -539,9 +539,9 @@ async function handleGangguanMatiOnlineResponse({ sender, body, reply, msg, raf 
             `Tiket WiFi baru ${ticketId}`,
             {
                 ticketId,
-                customerName: state.targetUser.name,
-                customerPhone: state.targetUser.phone_number.split('|')[0],
-                customerAddress: state.targetUser.address,
+                customerName: state.targetUser.name || '-',
+                customerPhone: (state.targetUser.phone_number || '').split('|')[0] || '-',
+                customerAddress: state.targetUser.address || '-',
                 customerPackage: state.targetUser.subscription || 'N/A'
             }
         );

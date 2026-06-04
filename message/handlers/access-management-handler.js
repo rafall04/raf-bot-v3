@@ -34,7 +34,13 @@ async function handleAccessManagement({ sender, args, users, reply, global, db, 
         );
     }
 
-    const phoneNumbers = user.phone_number.split("|");
+    const phoneNumbers = (user.phone_number || '').split("|").filter(Boolean);
+    if (phoneNumbers.length === 0) {
+        throw renderResponseTemplate(
+            'access_no_primary_phone',
+            '❌ Data nomor utama pelanggan belum lengkap. Silakan hubungi admin.'
+        );
+    }
     const primaryPhone = phoneNumbers[0]; // Nomor utama (pertama)
     const accessLimit = global.config.accessLimit || 3;
 
