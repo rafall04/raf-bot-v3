@@ -40,7 +40,12 @@ function writeDevices(deps, devices) {
 }
 
 function updateEnvFile(deps, key, value) {
-    let envContent = deps.fs.readFileSync(deps.envPath, "utf8");
+    // .env di-gitignore (tak ikut clone) -> buat baru bila belum ada,
+    // jangan ENOENT. File ini tempat sinkronisasi kredensial MikroTik aktif
+    // (IP_MC/NAME_MC/PASSWORD_MC/dst) yang dibaca lib/mikrotik.js.
+    let envContent = deps.fs.existsSync(deps.envPath)
+        ? deps.fs.readFileSync(deps.envPath, "utf8")
+        : "";
     const keyRegex = new RegExp(`^${key}=.*$`, "m");
 
     if (keyRegex.test(envContent)) {
@@ -237,11 +242,15 @@ function createMikrotikDeviceConfigService(overrides = {}) {
             });
 
             const activeDevice = devices[index];
-            updateEnvFile(deps, "IP_MC", activeDevice.ip);
-            updateEnvFile(deps, "NAME_MC", activeDevice.name);
-            updateEnvFile(deps, "PASSWORD_MC", activeDevice.password);
-            updateEnvFile(deps, "PORT_MC", activeDevice.port || "8728");
-            updateEnvFile(deps, "MONITOR_INTERFACE", activeDevice.monitoring_interface || "ether1");
+            try {
+                updateEnvFile(deps, "IP_MC", activeDevice.ip);
+                updateEnvFile(deps, "NAME_MC", activeDevice.name);
+                updateEnvFile(deps, "PASSWORD_MC", activeDevice.password);
+                updateEnvFile(deps, "PORT_MC", activeDevice.port || "8728");
+                updateEnvFile(deps, "MONITOR_INTERFACE", activeDevice.monitoring_interface || "ether1");
+            } catch (envError) {
+                console.error("[ENV_UPDATE_WARN] Failed to update .env file after setting active device:", envError.message);
+            }
             writeDevices(deps, devices);
 
             return {
