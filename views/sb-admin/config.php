@@ -29,6 +29,10 @@
     .config-nav .nav-link { cursor: pointer; border: 1px solid #d1d3e2; border-radius: .5rem; color: #5a5c69; background: #fff; padding: .5rem 1rem; font-weight: 600; }
     .config-nav .nav-link:hover { background: #eaecf4; }
     .config-nav .nav-link.active { background: #4e73df; color: #fff; border-color: #4e73df; }
+    /* dark mode: samakan dengan permukaan tema gelap */
+    body.tk-dark .config-nav .nav-link { background: var(--d-surface); color: var(--d-ink-soft); border-color: var(--d-line); }
+    body.tk-dark .config-nav .nav-link:hover { background: var(--d-surface-2); color: var(--d-ink); border-color: var(--d-line); }
+    body.tk-dark .config-nav .nav-link.active { background: var(--primary); color: #fff; border-color: var(--primary); }
     .config-pane { display: none; }
     .config-pane.active { display: block; }
   </style>

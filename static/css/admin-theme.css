@@ -432,3 +432,73 @@ body.tk-dark .status-badge.status-completed { background: rgba(16,185,129,.16) !
 body.tk-dark .status-badge.status-pending { background: rgba(245,158,11,.16) !important; color: #fcd34d !important; }
 body.tk-dark .status-badge.status-cancelled,
 body.tk-dark .status-badge.status-failed { background: rgba(239,68,68,.16) !important; color: #fca5a5 !important; }
+
+/* ============================================================
+   DARK MODE — global Bootstrap surfaces yang dipakai popup admin
+   (list groups, badge-light, nested cards di dalam modal, popover,
+   judul modal). modern-ui.css men-set h1-h6 ke --raf-dark (#1f2937),
+   yang nyaris tak terbaca di latar gelap; juga .list-group-item dan
+   .badge-light tetap putih karena tidak ada override.
+   ============================================================ */
+body.tk-dark h1,
+body.tk-dark h2,
+body.tk-dark h3,
+body.tk-dark h4,
+body.tk-dark h5,
+body.tk-dark h6,
+body.tk-dark .h1,
+body.tk-dark .h2,
+body.tk-dark .h3,
+body.tk-dark .h4,
+body.tk-dark .h5,
+body.tk-dark .h6 { color: var(--d-ink); }
+body.tk-dark .modal-title { color: var(--d-ink); }
+/* tetap putih untuk modal-header bertema (gradient/bg-primary/bg-danger) */
+body.tk-dark .modal-header.bg-primary,
+body.tk-dark .modal-header.bg-success,
+body.tk-dark .modal-header.bg-info,
+body.tk-dark .modal-header.bg-warning,
+body.tk-dark .modal-header.bg-danger,
+body.tk-dark .modal-header[style*="gradient"] { color: #fff; }
+body.tk-dark .modal-header.bg-primary .modal-title,
+body.tk-dark .modal-header.bg-success .modal-title,
+body.tk-dark .modal-header.bg-info .modal-title,
+body.tk-dark .modal-header.bg-warning .modal-title,
+body.tk-dark .modal-header.bg-danger .modal-title,
+body.tk-dark .modal-header[style*="gradient"] .modal-title,
+body.tk-dark .modal-header[style*="gradient"] .close { color: #fff; }
+
+/* list groups (popup teknisi sudah; admin paritas) */
+body.tk-dark .list-group { background: transparent; }
+body.tk-dark .list-group-item {
+    background-color: transparent;
+    color: var(--d-ink);
+    border-color: var(--d-line);
+}
+body.tk-dark .list-group-item.active {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+body.tk-dark .list-group-item-action:hover,
+body.tk-dark .list-group-item-action:focus { background-color: rgba(99,102,241,.18); color: var(--d-ink); }
+body.tk-dark .list-group-item-action:active { background-color: var(--d-surface-2); color: var(--d-ink); }
+
+/* nested card di dalam modal — lift agar tidak menyatu dengan modal-content */
+body.tk-dark .modal .card { background-color: var(--d-surface-2); border-color: var(--d-line); }
+body.tk-dark .modal .card .card-header { background-color: transparent; border-bottom-color: var(--d-line); color: var(--d-ink); }
+body.tk-dark .modal .card .card-body { color: var(--d-ink); }
+body.tk-dark .modal hr { border-top-color: var(--d-line); }
+
+/* badge-light: default #f8f9fc + #3a3b45 — silau di dark mode */
+body.tk-dark .badge-light {
+    background-color: var(--d-surface-2) !important;
+    color: var(--d-ink-soft) !important;
+    border: 1px solid var(--d-line);
+}
+
+/* Bootstrap popover / tooltip */
+body.tk-dark .popover { background-color: var(--d-surface); border-color: var(--d-line); }
+body.tk-dark .popover-header { background-color: var(--d-surface-2); color: var(--d-ink); border-bottom-color: var(--d-line); }
+body.tk-dark .popover-body { color: var(--d-ink); }
+body.tk-dark .tooltip-inner { background-color: var(--d-surface-2); color: var(--d-ink); }
