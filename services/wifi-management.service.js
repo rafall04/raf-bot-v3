@@ -92,10 +92,12 @@ function replyWifiPasswordConfirm(reply, renderResponseTemplate, newPassword, ss
 }
 
 function replyWifiPasswordSuccess(reply, renderResponseTemplate, newPassword, ssidInfo = "") {
+    // Sengaja tidak echo `newPassword` plaintext di pesan sukses — hindari leak via
+    // screenshot/forward chat. Customer baru saja mengetik password, mereka sudah tahu.
     return reply(renderWithFallback(
         renderResponseTemplate,
         "convo_ganti_sandi_success",
-        `Berhasil. Kata sandi WiFi ${ssidInfo}telah diubah menjadi: \`${newPassword}\`.`,
+        `Berhasil. Kata sandi WiFi ${ssidInfo}sudah diubah sesuai yang Anda kirim tadi. Simpan password tersebut dengan baik.`,
         {
             sandi_wifi_baru: newPassword,
             ssidInfo

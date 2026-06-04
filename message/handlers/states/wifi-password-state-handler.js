@@ -175,7 +175,7 @@ async function handleAskNewPassword(userState, chats, reply, sender, global) {
         deleteUserState(sender);
         return reply(renderResponseTemplate(
             'wifi_password_change_success',
-            `✅ *Berhasil!*\n\nKata sandi WiFi telah diubah menjadi: \`${newPassword}\`\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password ini dengan baik!\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
+            `✅ *Berhasil!*\n\nKata sandi WiFi sudah diubah sesuai yang Anda kirim tadi.\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password tersebut dengan baik dan jangan dibagikan.\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
             { ssidInfo: '', newPassword }
         ));
     } catch (error) {
@@ -254,7 +254,7 @@ async function handleAskNewPasswordBulk(userState, chats, reply, sender, global)
             : `untuk SSID ${ssidsToChange[0]}`;
         return reply(renderResponseTemplate(
             'wifi_password_change_success',
-            `✅ *Berhasil!*\n\nKata sandi WiFi ${ssidInfo} telah diubah menjadi: \`${newPassword}\`\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password ini dengan baik!\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
+            `✅ *Berhasil!*\n\nKata sandi WiFi ${ssidInfo} sudah diubah sesuai yang Anda kirim tadi.\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password tersebut dengan baik dan jangan dibagikan.\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
             { ssidInfo: `${ssidInfo} `, newPassword }
         ));
     } catch (error) {
@@ -314,7 +314,7 @@ async function handleConfirmGantiSandi(userState, userReply, reply, sender, glob
         deleteUserState(sender);
         return reply(renderResponseTemplate(
             'wifi_password_change_success',
-            `✅ *Berhasil!*\n\nKata sandi WiFi untuk SSID ${ssid_id} telah diubah menjadi: \`${sandi_wifi_baru}\`\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password ini dengan baik!\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
+            `✅ *Berhasil!*\n\nKata sandi WiFi untuk SSID ${ssid_id} sudah diubah sesuai yang Anda kirim tadi.\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password tersebut dengan baik dan jangan dibagikan.\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
             { ssidInfo: `untuk SSID ${ssid_id} `, newPassword: sandi_wifi_baru }
         ));
     } catch (error) {
@@ -376,7 +376,7 @@ async function handleConfirmGantiSandiBulk(userState, userReply, reply, sender, 
         deleteUserState(sender);
         return reply(renderResponseTemplate(
             'wifi_password_change_success',
-            `✅ *Berhasil!*\n\nKata sandi WiFi untuk *${bulkSsids.length} SSID* telah diubah menjadi: \`${sandi_wifi_baru}\`\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password ini dengan baik!\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
+            `✅ *Berhasil!*\n\nKata sandi WiFi untuk *${bulkSsids.length} SSID* sudah diubah sesuai yang Anda kirim tadi.\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password tersebut dengan baik dan jangan dibagikan.\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
             { ssidInfo: `untuk *${bulkSsids.length} SSID* `, newPassword: sandi_wifi_baru }
         ));
     } catch (error) {
