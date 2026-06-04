@@ -53,7 +53,6 @@
   "isolirManualDefaultDisconnect": true,
   "isolirManualDefaultReboot": false,
   "isolirOpenDefaultReboot": false,
-  "rekening_details": "ISI_REKENING_DETAILS",
   "company": {
     "name": "RAF NET",
     "address": "Ds. Dander Kab. Bojonegoro",

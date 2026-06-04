@@ -290,11 +290,6 @@
                       <option value="false">Nonaktif</option>
                     </select>
                   </div>
-                   <div class="mb-3">
-                    <label for="rekening_details" class="form-label">Detail Rekening</label>
-                    <textarea class="form-control" id="rekening_details" name="rekening_details" rows="4"></textarea>
-                    <small class="form-text text-muted">Informasi rekening yang akan ditampilkan di notifikasi tagihan.</small>
-                  </div>
               </div>
             </div>
 
@@ -858,7 +853,6 @@
                 setValue('isolirManualDefaultDisconnect', json.data.isolirManualDefaultDisconnect !== false ? "true" : "false");
                 setValue('isolirManualDefaultReboot', json.data.isolirManualDefaultReboot === true ? "true" : "false");
                 setValue('isolirOpenDefaultReboot', json.data.isolirOpenDefaultReboot !== false ? "true" : "false");
-                setValue('rekening_details', json.data.rekening_details);
                 setValue('site_url_bot', json.data.site_url_bot, 'http://127.0.0.1:3100');
                 setValue('genieacsBaseUrl', json.data.genieacsBaseUrl);
                 setValue('genieacsEnabled', json.data.genieacsEnabled !== false ? "true" : "false");
