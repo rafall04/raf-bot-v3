@@ -850,6 +850,27 @@ async function handleGangguanLemotResponse({ sender, body, reply, msg, raf }) {
             const packageSpeedMatch = userPackage.match(/(\d+)\s*mbps/i);
             const packageSpeed = packageSpeedMatch ? parseInt(packageSpeedMatch[1]) : null;
 
+            // Tolak angka tidak masuk akal: 0 atau NaN, atau > 2x paket (kemungkinan salah ketik).
+            if (!Number.isFinite(speed) || speed <= 0) {
+                return {
+                    success: true,
+                    message: renderResponseTemplate(
+                        'smart_report_handler_speedtest_invalid',
+                        '⚠️ Angka speedtest tidak valid. Coba kirim ulang hasil speedtest, contoh: "speedtest 5 mbps".'
+                    )
+                };
+            }
+            if (packageSpeed && speed > packageSpeed * 2) {
+                return {
+                    success: true,
+                    message: renderResponseTemplate(
+                        'smart_report_handler_speedtest_unrealistic',
+                        `⚠️ Angka ${speed} Mbps terlalu tinggi untuk paket ${packageSpeed} Mbps. Coba kirim ulang hasil speedtest yang benar.`,
+                        { speed, packageSpeed }
+                    )
+                };
+            }
+
             if (packageSpeed && speed < packageSpeed * 0.5) {
                 // Speed < 50% dari paket - perlu pengecekan
                 setUserState(sender, {
