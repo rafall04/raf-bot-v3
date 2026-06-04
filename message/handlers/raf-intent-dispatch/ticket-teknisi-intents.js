@@ -147,7 +147,10 @@ async function handleProsesTiketIntent(context) {
         return reply(format('error_format_proses'));
     }
 
-    const result = await handleProsesTicket(sender, ticketId, reply);
+    // Pass account teknisi yang sudah di-resolve LID-aware oleh raf-context.
+    // isTeknisi adalah account object (atau undefined). Untuk owner murni, fallback ke phone-match internal.
+    const teknisiAccount = isTeknisi && typeof isTeknisi === 'object' ? isTeknisi : null;
+    const result = await handleProsesTicket(sender, ticketId, reply, teknisiAccount);
     return reply(result.message);
 }
 

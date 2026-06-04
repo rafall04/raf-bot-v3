@@ -40,56 +40,69 @@ async function sendCustomerNotification(ticket, message) {
 // generateOTP is imported from ../../lib/otp-generator
 
 /**
- * Handle "proses" command - teknisi takes ticket
+ * Resolve teknisi account dari sender (LID-aware).
+ * Dipakai sebagai fallback bila caller tidak pass teknisi account yang sudah resolved.
  */
-async function handleProsesTicket(sender, ticketId, reply) {
+function resolveTeknisiFromSender(sender) {
+    const senderNumber = sender.replace('@s.whatsapp.net', '');
+    const isLid = sender.endsWith('@lid');
+
+    return global.accounts.find(acc => {
+        if (!acc || acc.role !== 'teknisi') return false;
+
+        // LID-aware: match by stored lid field jika sender @lid
+        if (isLid && acc.lid && acc.lid === sender) return true;
+
+        // Phone-number match (legacy + canonical)
+        if (!acc.phone_number) return false;
+        const phone = acc.phone_number;
+        const phoneNoPrefix = senderNumber.startsWith('62') ? senderNumber.substring(2) : senderNumber;
+        return phone === phoneNoPrefix
+            || phone === senderNumber
+            || `62${phone}` === senderNumber;
+    });
+}
+
+/**
+ * Handle "proses" command - teknisi takes ticket
+ * @param sender   JID asli pengirim (sudah include @lid bila MD)
+ * @param ticketId
+ * @param reply
+ * @param teknisiAccount Optional. Account teknisi yang sudah di-resolve di pipeline.
+ *                      Disarankan pass dari dispatcher supaya LID-aware (lihat raf-context.resolveActorCapabilities).
+ */
+async function handleProsesTicket(sender, ticketId, reply, teknisiAccount = null) {
     try {
         // Find ticket
         const ticket = global.reports.find(r => r.ticketId === ticketId.toUpperCase());
-        
+
         if (!ticket) {
             return {
                 success: false,
                 message: renderResponseTemplate('teknisi_workflow_ticket_not_found', `Tiket *${ticketId}* tidak ditemukan.`, { ticketId })
             };
         }
-        
+
         if (ticket.status === 'process') {
             return {
                 success: false,
                 message: renderResponseTemplate('teknisi_workflow_already_processed', `Tiket *${ticketId}* sudah diproses oleh teknisi lain.`, { ticketId })
             };
         }
-        
+
         if (ticket.status === 'completed' || ticket.status === 'selesai') {
             return {
                 success: false,
                 message: renderResponseTemplate('teknisi_workflow_already_completed', `Tiket *${ticketId}* sudah selesai.`, { ticketId })
             };
         }
-        
-        // Get teknisi info - handle phone number format
-        const senderNumber = sender.replace('@s.whatsapp.net', '');
-        
-        // Remove 62 prefix if exists to match database format
-        let phoneToMatch = senderNumber;
-        if (senderNumber.startsWith('62')) {
-            phoneToMatch = senderNumber.substring(2);
-        }
-        
-        // Find teknisi by matching phone number (with or without 62)
-        const teknisi = global.accounts.find(acc => {
-            if (acc.role !== 'teknisi') return false;
-            
-            // Match either with or without 62 prefix
-            return acc.phone_number === phoneToMatch || 
-                   acc.phone_number === senderNumber ||
-                   `62${acc.phone_number}` === senderNumber;
-        });
-        
+
+        // Pakai account dari pipeline kalau ada (LID-aware via raf-context). Fallback resolusi lokal.
+        const teknisi = teknisiAccount || resolveTeknisiFromSender(sender);
+
         if (!teknisi) {
-            console.error(`[TEKNISI_NOT_FOUND] Sender: ${senderNumber}, phoneToMatch: ${phoneToMatch}`);
-            console.error(`[TEKNISI_NOT_FOUND] Available teknisi:`, global.accounts.filter(a => a.role === 'teknisi').map(a => a.phone_number));
+            console.error(`[TEKNISI_NOT_FOUND] Sender: ${sender}, teknisiAccount provided: ${!!teknisiAccount}`);
+            console.error(`[TEKNISI_NOT_FOUND] Available teknisi:`, global.accounts.filter(a => a.role === 'teknisi').map(a => ({ phone: a.phone_number, lid: a.lid })));
             return {
                 success: false,
                 message: renderResponseTemplate('teknisi_workflow_not_registered', 'Nomor ini belum terdaftar sebagai petugas.')
