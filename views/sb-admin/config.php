@@ -63,7 +63,7 @@
               <h6>Konfigurasi MikroTik</h6>
             </div>
             <div class="card-body">
-              <button class="btn btn-primary mb-3" data-toggle="modal" data-target="#mikrotikDeviceModal" id="addMikrotikDeviceBtn">Tambah Perangkat</button>
+              <button type="button" class="btn btn-primary mb-3" data-toggle="modal" data-target="#mikrotikDeviceModal" id="addMikrotikDeviceBtn">Tambah Perangkat</button>
               <div class="table-responsive">
                 <table class="table table-bordered" id="mikrotikDevicesTable" width="100%" cellspacing="0">
                   <thead>
@@ -552,7 +552,7 @@
                 <h6>Daftar Perangkat OLT</h6>
               </div>
               <div class="card-body">
-                <button class="btn btn-primary mb-3" data-toggle="modal" data-target="#oltDeviceModal" id="addOltDeviceBtn">
+                <button type="button" class="btn btn-primary mb-3" data-toggle="modal" data-target="#oltDeviceModal" id="addOltDeviceBtn">
                   <i class="fas fa-plus"></i> Tambah OLT
                 </button>
                 <div class="table-responsive">
@@ -953,9 +953,9 @@
                 <td>${device.name}</td>
                 <td>${device.active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-secondary">Inactive</span>'}</td>
                 <td>
-                  <button class="btn btn-sm btn-info setActiveBtn" data-id="${device.id}" ${device.active ? 'disabled' : ''}>Set Active</button>
-                  <button class="btn btn-sm btn-warning editBtn" data-id="${device.id}">Edit</button>
-                  <button class="btn btn-sm btn-danger deleteBtn" data-id="${device.id}">Delete</button>
+                  <button type="button" class="btn btn-sm btn-info setActiveBtn" data-id="${device.id}" ${device.active ? 'disabled' : ''}>Set Active</button>
+                  <button type="button" class="btn btn-sm btn-warning editBtn" data-id="${device.id}">Edit</button>
+                  <button type="button" class="btn btn-sm btn-danger deleteBtn" data-id="${device.id}">Delete</button>
                 </td>
               `;
             });
@@ -1536,13 +1536,13 @@ a.n ${account.name || '[Nama]'}</small>
                       '<span class="badge badge-secondary">Nonaktif</span>'}
                   </td>
                   <td>
-                    <button class="btn btn-sm btn-info test-olt-device" data-id="${device.id}">
+                    <button type="button" class="btn btn-sm btn-info test-olt-device" data-id="${device.id}">
                       <i class="fas fa-plug"></i> Test
                     </button>
-                    <button class="btn btn-sm btn-warning edit-olt-device" data-id="${device.id}">
+                    <button type="button" class="btn btn-sm btn-warning edit-olt-device" data-id="${device.id}">
                       <i class="fas fa-edit"></i> Edit
                     </button>
-                    <button class="btn btn-sm btn-danger delete-olt-device" data-id="${device.id}">
+                    <button type="button" class="btn btn-sm btn-danger delete-olt-device" data-id="${device.id}">
                       <i class="fas fa-trash"></i> Hapus
                     </button>
                   </td>
