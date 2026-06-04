@@ -83,6 +83,10 @@ router.get('/auto-outage', checkRole(['admin', 'owner', 'superadmin']), (req, re
     res.render('sb-admin/auto-outage.php');
 });
 
+router.get('/admin-olt', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/admin-olt.php');
+});
+
 router.get('/agent-management', (req, res) => {
     res.render('sb-admin/agent-management.php');
 });
