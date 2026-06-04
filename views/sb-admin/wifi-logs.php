@@ -484,8 +484,8 @@
                     const changeDetails = formatChangeDetails(log);
                     row.append(`<td class="log-details">${changeDetails}</td>`);
                     
-                    // Changed By
-                    row.append(`<td><strong>${log.changedBy}</strong></td>`);
+                    // Changed By (actor attribution)
+                    row.append(`<td>${formatActorCell(log)}</td>`);
                     
                     // Source
                     const sourceBadge = getSourceBadge(log.changeSource);
@@ -496,6 +496,43 @@
                     
                     tbody.append(row);
                 });
+            }
+
+            // Badge per role aktor + nama/identifier + nomor WA (kalau ada).
+            // Fallback ke log.changedBy untuk entry lama yang belum punya field attribution.
+            const ROLE_BADGE = {
+                customer: { cls: 'badge-success', label: 'Customer' },
+                teknisi: { cls: 'badge-info', label: 'Teknisi' },
+                admin: { cls: 'badge-danger', label: 'Admin' },
+                owner: { cls: 'badge-dark', label: 'Owner' },
+                system: { cls: 'badge-secondary', label: 'Sistem' }
+            };
+
+            function escapeHtml(str) {
+                return String(str == null ? '' : str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function formatActorCell(log) {
+                const role = log.actorRole;
+                const identifier = log.actorIdentifier;
+                const phone = log.actorPhone;
+
+                if (role && ROLE_BADGE[role]) {
+                    const meta = ROLE_BADGE[role];
+                    const nameLine = role === 'customer'
+                        ? '<strong>Customer</strong>'
+                        : `<strong>${escapeHtml(identifier || meta.label)}</strong>`;
+                    const phoneLine = phone ? `<br><small class="text-muted">${escapeHtml(phone)}</small>` : '';
+                    return `<span class="badge ${meta.cls} log-source">${meta.label}</span><br>${nameLine}${phoneLine}`;
+                }
+
+                // Legacy log tanpa actor fields → tampilkan changedBy mentah.
+                return `<strong>${escapeHtml(log.changedBy || '-')}</strong>`;
             }
 
             function getChangeTypeBadge(changeType) {

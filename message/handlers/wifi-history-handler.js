@@ -10,6 +10,46 @@ const { getWifiChangeLogs } = require('../../lib/wifi-logger');
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
 const { renderResponseTemplate } = require('./template-helpers');
 
+const ROLE_LABEL = {
+    customer: 'Anda sendiri',
+    teknisi: 'Teknisi',
+    admin: 'Admin',
+    owner: 'Admin Pemilik',
+    system: 'Sistem'
+};
+
+const SOURCE_LABEL = {
+    wa_bot: 'WhatsApp Bot',
+    web_admin: 'Panel Admin',
+    web_technician: 'Panel Teknisi',
+    api: 'API'
+};
+
+/**
+ * Bangun label "Oleh" untuk pesan history pelanggan.
+ * Pakai field attribution baru (actorRole + actorIdentifier) bila ada;
+ * fallback ke changedBy untuk entry log lama.
+ */
+function formatActorLabel(log) {
+    const role = log?.actorRole;
+    const identifier = log?.actorIdentifier;
+    if (role && ROLE_LABEL[role]) {
+        if (role === 'customer') return ROLE_LABEL.customer;
+        if (identifier && identifier !== role) {
+            return `${ROLE_LABEL[role]} ${identifier}`;
+        }
+        return ROLE_LABEL[role];
+    }
+    const raw = log?.changedBy || 'Tidak diketahui';
+    if (raw === 'customer') return ROLE_LABEL.customer;
+    return raw;
+}
+
+function formatSourceLabel(source) {
+    if (!source) return null;
+    return SOURCE_LABEL[source] || source;
+}
+
 /**
  * Handle HISTORY_WIFI intent - Show WiFi change history
  */
@@ -81,7 +121,11 @@ async function handleHistoryWifi(sender, reply, global, msg, raf) {
                 }
             }
 
-            message += `   Oleh: ${log.changedBy}\n`;
+            message += `   Oleh: ${formatActorLabel(log)}\n`;
+            const sourceLabel = formatSourceLabel(log.changeSource);
+            if (sourceLabel) {
+                message += `   Via: ${sourceLabel}\n`;
+            }
             if (log.notes) {
                 message += `   Info: ${log.notes}\n`;
             }

@@ -14,30 +14,66 @@ function sanitizePhone(identifier = "") {
         .replace("@lid", "");
 }
 
+/**
+ * Ambil nomor utama pelanggan (primary di kolom phone_number, dipisah `|`).
+ * Fallback ke sanitized sender hanya kalau user benar-benar tidak punya phone_number.
+ */
+function pickCustomerPrimaryPhone(user, fallbackSender) {
+    if (user?.phone_number) {
+        const primary = String(user.phone_number).split("|")[0].trim();
+        if (primary) return sanitizePhone(primary);
+    }
+    return sanitizePhone(fallbackSender || "");
+}
+
+/**
+ * Normalisasi actor argument jadi shape { role, identifier, phone, displayName }.
+ * Default `customer` saat tidak provided supaya backward-compat dengan caller lama.
+ */
+function normalizeActor(actor, fallbackSender) {
+    const role = actor?.role || "customer";
+    const phone = actor?.phone || sanitizePhone(fallbackSender || "");
+    const displayName = actor?.displayName || null;
+    const identifier = actor?.identifier || (role === "customer" ? "customer" : displayName || phone || role);
+    return { role, identifier, phone, displayName };
+}
+
+function buildChangedByLabel(actor) {
+    if (!actor || actor.role === "customer") return "customer";
+    // teknisi / admin / owner → nama display + role suffix supaya audit jelas.
+    const label = actor.displayName || actor.identifier || actor.phone || actor.role;
+    return `${actor.role}:${label}`;
+}
+
 function createWifiRepository(options = {}) {
     const logWifiChange = options.logWifiChange || require("../lib/wifi-logger").logWifiChange;
     const buildWebWifiLogPayload = options.buildWebWifiLogPayload || require("../lib/wifi-logger").buildWebWifiLogPayload;
 
     return {
-        async saveWifiNameChange(user, newName, sender, type) {
+        async saveWifiNameChange(user, newName, sender, type, actor = null, oldName = null) {
+            const actorCtx = normalizeActor(actor, sender);
             return logWifiChange({
                 userId: user.id,
                 deviceId: user.device_id,
                 changeType: "name",
                 changes: {
-                    oldName: "ada",
+                    oldName: oldName || "(tidak dicatat)",
                     newName
                 },
-                changedBy: "customer",
+                changedBy: buildChangedByLabel(actorCtx),
                 changeSource: "wa_bot",
                 customerName: user.name,
-                customerPhone: sanitizePhone(sender),
+                customerPhone: pickCustomerPrimaryPhone(user, sender),
+                actorRole: actorCtx.role,
+                actorIdentifier: actorCtx.identifier,
+                actorPhone: actorCtx.phone,
                 reason: `Perubahan nama WiFi melalui WhatsApp Bot (${type})`,
                 notes: type === "bulk_auto" ? `Mengubah nama untuk ${user.bulk.length} SSID` : null
             });
         },
 
-        async saveWifiPasswordChange(user, newPassword, sender, type) {
+        async saveWifiPasswordChange(user, newPassword, sender, type, actor = null) {
+            const actorCtx = normalizeActor(actor, sender);
             return logWifiChange({
                 userId: user.id,
                 deviceId: user.device_id,
@@ -45,10 +81,13 @@ function createWifiRepository(options = {}) {
                 changes: {
                     newPassword
                 },
-                changedBy: "customer",
+                changedBy: buildChangedByLabel(actorCtx),
                 changeSource: "wa_bot",
                 customerName: user.name,
-                customerPhone: sanitizePhone(sender),
+                customerPhone: pickCustomerPrimaryPhone(user, sender),
+                actorRole: actorCtx.role,
+                actorIdentifier: actorCtx.identifier,
+                actorPhone: actorCtx.phone,
                 reason: `Perubahan password WiFi melalui WhatsApp Bot (${type})`,
                 notes: type === "bulk_auto" ? `Mengubah password untuk ${user.bulk.length} SSID` : null
             });

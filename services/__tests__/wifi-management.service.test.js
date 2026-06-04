@@ -47,7 +47,9 @@ describe("wifi-management.service", () => {
             expect.objectContaining({ id: 1 }),
             "WiFi Baru",
             "6281@s.whatsapp.net",
-            "single"
+            "single",
+            null,
+            null
         );
         expect(deleteUserState).toHaveBeenCalledWith("6281@s.whatsapp.net");
         expect(reply).toHaveBeenCalledWith(expect.stringContaining("WiFi Baru"));

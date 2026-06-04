@@ -22,6 +22,29 @@ function sanitizePhone(identifier = '') {
         .replace('@lid', '');
 }
 
+/**
+ * Bangun field log attribution dari userState.actor (kalau ada) — fallback ke `customer`.
+ * Pattern yang sama dipakai di wifi-name-state-handler.js.
+ */
+function buildActorLogFields(userState, fallbackSender) {
+    const actor = userState?.actor || null;
+    const role = actor?.role || 'customer';
+    const displayName = actor?.displayName || null;
+    const identifier = actor?.identifier || (role === 'customer' ? 'customer' : displayName || role);
+    const actorPhone = actor?.phone || sanitizePhone(fallbackSender || '');
+    const changedBy = role === 'customer' ? 'customer' : `${role}:${displayName || identifier}`;
+    const targetPhone = userState?.targetUser?.phone_number
+        ? sanitizePhone(String(userState.targetUser.phone_number).split('|')[0])
+        : sanitizePhone(fallbackSender || '');
+    return {
+        changedBy,
+        customerPhone: targetPhone,
+        actorRole: role,
+        actorIdentifier: identifier,
+        actorPhone
+    };
+}
+
 function getSelectedSsids(userState) {
     if (userState.selected_ssids && userState.selected_ssids.length) {
         return userState.selected_ssids;
@@ -153,6 +176,7 @@ async function handleAskNewPassword(userState, chats, reply, sender, global) {
             throw new Error(result.message);
         }
 
+        const actorFields = buildActorLogFields(userState, sender);
         await logWifiChange({
             userId: userState.targetUser.id,
             deviceId: userState.targetUser.device_id,
@@ -162,14 +186,13 @@ async function handleAskNewPassword(userState, chats, reply, sender, global) {
                 newPassword,
                 ssidId: userState.ssid_id || '1'
             },
-            changedBy: 'customer',
             changeSource: 'wa_bot',
             customerName: userState.targetUser.name || 'Customer',
-            customerPhone: sanitizePhone(sender),
             reason: `WiFi password change via WhatsApp Bot (SSID ${userState.ssid_id || '1'})`,
             notes: `Password changed for SSID ${userState.ssid_id || '1'}`,
             ipAddress: 'WhatsApp',
-            userAgent: 'WhatsApp Bot'
+            userAgent: 'WhatsApp Bot',
+            ...actorFields
         });
 
         deleteUserState(sender);
@@ -229,6 +252,7 @@ async function handleAskNewPasswordBulk(userState, chats, reply, sender, global)
             throw new Error(response.message);
         }
 
+        const actorFields = buildActorLogFields(userState, sender);
         await logWifiChange({
             userId: userState.targetUser.id,
             deviceId: userState.targetUser.device_id,
@@ -238,14 +262,13 @@ async function handleAskNewPasswordBulk(userState, chats, reply, sender, global)
                 newPassword,
                 ssidIds: ssidsToChange.join(', ')
             },
-            changedBy: 'customer',
             changeSource: 'wa_bot',
             customerName: userState.targetUser.name || 'Customer',
-            customerPhone: sanitizePhone(sender),
             reason: `WiFi password change via WhatsApp Bot (${ssidsToChange.length} SSIDs)`,
             notes: `Changed password for SSIDs: ${ssidsToChange.join(', ')}`,
             ipAddress: 'WhatsApp',
-            userAgent: 'WhatsApp Bot'
+            userAgent: 'WhatsApp Bot',
+            ...actorFields
         });
 
         deleteUserState(sender);
@@ -292,6 +315,7 @@ async function handleConfirmGantiSandi(userState, userReply, reply, sender, glob
             throw new Error(result.message);
         }
 
+        const actorFields = buildActorLogFields(userState, sender);
         await logWifiChange({
             userId: targetUser.id,
             deviceId: targetUser.device_id,
@@ -301,14 +325,13 @@ async function handleConfirmGantiSandi(userState, userReply, reply, sender, glob
                 newPassword: sandi_wifi_baru,
                 ssidId: ssid_id
             },
-            changedBy: 'customer',
             changeSource: 'wa_bot',
             customerName: targetUser.name,
-            customerPhone: sanitizePhone(sender),
             reason: 'Perubahan password WiFi melalui WhatsApp Bot',
             notes: `Mengubah password untuk SSID ${ssid_id}`,
             ipAddress: 'WhatsApp',
-            userAgent: 'WhatsApp Bot'
+            userAgent: 'WhatsApp Bot',
+            ...actorFields
         });
 
         deleteUserState(sender);
@@ -354,6 +377,7 @@ async function handleConfirmGantiSandiBulk(userState, userReply, reply, sender, 
             throw new Error(result.message);
         }
 
+        const actorFields = buildActorLogFields(userState, sender);
         await logWifiChange({
             userId: targetUser.id,
             deviceId: targetUser.device_id,
@@ -363,14 +387,13 @@ async function handleConfirmGantiSandiBulk(userState, userReply, reply, sender, 
                 newPassword: sandi_wifi_baru,
                 ssidIds: bulkSsids.join(', ')
             },
-            changedBy: 'customer',
             changeSource: 'wa_bot',
             customerName: targetUser.name,
-            customerPhone: sanitizePhone(sender),
             reason: 'Perubahan password WiFi melalui WhatsApp Bot (Bulk)',
             notes: `Mengubah password untuk ${bulkSsids.length} SSID: ${bulkSsids.join(', ')}`,
             ipAddress: 'WhatsApp',
-            userAgent: 'WhatsApp Bot'
+            userAgent: 'WhatsApp Bot',
+            ...actorFields
         });
 
         deleteUserState(sender);

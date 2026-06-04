@@ -22,6 +22,30 @@ function sanitizePhone(identifier = '') {
         .replace('@lid', '');
 }
 
+/**
+ * Bangun field log attribution dari userState.actor (kalau ada) — fallback ke `customer`.
+ * Memastikan log mencatat siapa benar-benar trigger (customer self / teknisi / owner)
+ * dan customerPhone selalu nomor pelanggan, bukan nomor pelaku.
+ */
+function buildActorLogFields(userState, fallbackSender) {
+    const actor = userState?.actor || null;
+    const role = actor?.role || 'customer';
+    const displayName = actor?.displayName || null;
+    const identifier = actor?.identifier || (role === 'customer' ? 'customer' : displayName || role);
+    const actorPhone = actor?.phone || sanitizePhone(fallbackSender || '');
+    const changedBy = role === 'customer' ? 'customer' : `${role}:${displayName || identifier}`;
+    const targetPhone = userState?.targetUser?.phone_number
+        ? sanitizePhone(String(userState.targetUser.phone_number).split('|')[0])
+        : sanitizePhone(fallbackSender || '');
+    return {
+        changedBy,
+        customerPhone: targetPhone,
+        actorRole: role,
+        actorIdentifier: identifier,
+        actorPhone
+    };
+}
+
 function getSelectedSsids(userState) {
     if (userState.selected_ssids && userState.selected_ssids.length) {
         return userState.selected_ssids;
@@ -172,22 +196,22 @@ async function handleAskNewName(userState, chats, reply, sender, global) {
             }
         }
 
+        const actorFields = buildActorLogFields(userState, sender);
         await logWifiChange({
             userId: userState.targetUser.id,
             deviceId: userState.targetUser.device_id,
             changeType: 'ssid_name',
             changes: {
-                oldSsidName: 'Previous',
+                oldSsidName: userState.ssid_info_old || userState.ssid_info || '(tidak dicatat)',
                 newSsidName: newName
             },
-            changedBy: 'customer',
             changeSource: 'wa_bot',
             customerName: userState.targetUser.name || 'Customer',
-            customerPhone: sanitizePhone(sender),
             reason: `WiFi name change via WhatsApp Bot (${ssidsToChange.join(', ')})`,
             notes: ssidsToChange.length > 1 ? `Changed ${ssidsToChange.length} SSIDs` : `Changed SSID ${ssidsToChange[0]}`,
             ipAddress: 'WhatsApp',
-            userAgent: 'WhatsApp Bot'
+            userAgent: 'WhatsApp Bot',
+            ...actorFields
         });
 
         deleteUserState(sender);
@@ -250,22 +274,22 @@ async function handleConfirmGantiNamaBulk(userState, userReply, reply, sender, g
             }
         }
 
+        const actorFields = buildActorLogFields(userState, sender);
         await logWifiChange({
             userId: targetUser.id,
             deviceId: targetUser.device_id,
             changeType: 'ssid_name',
             changes: {
-                oldSsidName: 'Previous',
+                oldSsidName: userState.ssid_info_old || userState.ssid_info || '(tidak dicatat)',
                 newSsidName: nama_wifi_baru
             },
-            changedBy: 'customer',
             changeSource: 'wa_bot',
             customerName: targetUser.name,
-            customerPhone: sanitizePhone(sender),
             reason: 'Perubahan nama WiFi melalui WhatsApp Bot',
             notes: `Mengubah ${ssidsToChange.length} SSID`,
             ipAddress: 'WhatsApp',
-            userAgent: 'WhatsApp Bot'
+            userAgent: 'WhatsApp Bot',
+            ...actorFields
         });
 
         deleteUserState(sender);

@@ -20,6 +20,29 @@ function sanitizePhone(identifier = "") {
         .replace("@lid", "");
 }
 
+/**
+ * Bangun actor object berdasarkan context bot WA.
+ * - Kalau staff (owner/teknisi) trigger via `gantinamawifi 123 X` / `gantisandiwifi 123 X`
+ *   → role staff dengan nama dari pushname dan nomor sender.
+ * - Kalau customer self-service → role customer.
+ *
+ * Dipakai untuk audit trail di wifi_change_logs (lihat lib/wifi-logger.js).
+ */
+function buildWifiActor({ isOwner, isTeknisi, providedId, sender, pushname }) {
+    const isStaffActing = (isOwner || isTeknisi) && providedId;
+    if (!isStaffActing) {
+        return { role: "customer", identifier: "customer", phone: sanitizePhone(sender), displayName: null };
+    }
+    const role = isOwner ? "owner" : "teknisi";
+    const phone = sanitizePhone(sender);
+    return {
+        role,
+        identifier: pushname || phone || role,
+        phone,
+        displayName: pushname || null
+    };
+}
+
 function getStateKey(sender, stateSender) {
     return stateSender || sender;
 }
@@ -146,7 +169,7 @@ function createWifiManagementService(overrides = {}) {
         ...overrides
     };
 
-    function handleFallbackNameChange({ stateKey, user, newName, reply, setUserState, renderResponseTemplate }) {
+    function handleFallbackNameChange({ stateKey, user, newName, reply, setUserState, renderResponseTemplate, actor = null }) {
         if (newName && newName.trim().length > 0) {
             if (newName.length > 32) {
                 return replyWifiTemplate(reply, renderResponseTemplate, "wifi_management_name_too_long");
@@ -156,7 +179,8 @@ function createWifiManagementService(overrides = {}) {
                 step: "SELECT_CHANGE_MODE",
                 targetUser: user,
                 nama_wifi_baru: newName,
-                bulk_ssids: user.bulk
+                bulk_ssids: user.bulk,
+                actor
             });
 
             return replyWifiTemplate(reply, renderResponseTemplate, "wifi_management_name_mode_prompt", {
@@ -168,7 +192,8 @@ function createWifiManagementService(overrides = {}) {
         buildWifiStateSetter(setUserState, stateKey, {
             step: "SELECT_CHANGE_MODE_FIRST",
             targetUser: user,
-            bulk_ssids: user.bulk
+            bulk_ssids: user.bulk,
+            actor
         });
 
         return replyWifiTemplate(reply, renderResponseTemplate, "wifi_management_name_mode_prompt", {
@@ -177,7 +202,7 @@ function createWifiManagementService(overrides = {}) {
         });
     }
 
-    function handleFallbackPasswordChange({ stateKey, user, newPassword, reply, setUserState, renderResponseTemplate }) {
+    function handleFallbackPasswordChange({ stateKey, user, newPassword, reply, setUserState, renderResponseTemplate, actor = null }) {
         if (newPassword && newPassword.trim().length > 0) {
             if (newPassword.length < 8) {
                 return reply(renderWithFallback(renderResponseTemplate, "convo_ganti_sandi_too_short", "⚠️ Kata sandi terlalu pendek, minimal harus 8 karakter."));
@@ -187,7 +212,8 @@ function createWifiManagementService(overrides = {}) {
                 step: "SELECT_CHANGE_PASSWORD_MODE",
                 targetUser: user,
                 sandi_wifi_baru: newPassword,
-                bulk_ssids: user.bulk
+                bulk_ssids: user.bulk,
+                actor
             });
 
             return replyWifiTemplate(reply, renderResponseTemplate, "wifi_management_password_mode_prompt", {
@@ -199,7 +225,8 @@ function createWifiManagementService(overrides = {}) {
         buildWifiStateSetter(setUserState, stateKey, {
             step: "SELECT_CHANGE_PASSWORD_MODE_FIRST",
             targetUser: user,
-            bulk_ssids: user.bulk
+            bulk_ssids: user.bulk,
+            actor
         });
 
         return replyWifiTemplate(reply, renderResponseTemplate, "wifi_management_password_mode_prompt", {
@@ -208,28 +235,29 @@ function createWifiManagementService(overrides = {}) {
         });
     }
 
-    async function logWifiNameChange(user, newName, sender, type) {
+    async function logWifiNameChange(user, newName, sender, type, actor = null, oldName = null) {
         try {
-            await deps.wifiRepository.saveWifiNameChange(user, newName, sender, type);
+            await deps.wifiRepository.saveWifiNameChange(user, newName, sender, type, actor, oldName);
         } catch (error) {
             console.error("[LOG_WIFI_NAME_CHANGE] Error:", error);
         }
     }
 
-    async function logWifiPasswordChange(user, newPassword, sender, type) {
+    async function logWifiPasswordChange(user, newPassword, sender, type, actor = null) {
         try {
-            await deps.wifiRepository.saveWifiPasswordChange(user, newPassword, sender, type);
+            await deps.wifiRepository.saveWifiPasswordChange(user, newPassword, sender, type, actor);
         } catch (error) {
             console.error("[LOG_WIFI_PASSWORD_CHANGE] Error:", error);
         }
     }
 
-    async function handleSingleSSIDNameChange({ stateKey, user, newName, reply, global, rawSender = null, setUserState, deleteUserState, renderResponseTemplate }) {
+    async function handleSingleSSIDNameChange({ stateKey, user, newName, reply, global, rawSender = null, setUserState, deleteUserState, renderResponseTemplate, actor = null }) {
         if (!newName || newName.trim().length === 0) {
             buildWifiStateSetter(setUserState, stateKey, {
                 step: "ASK_NEW_NAME_FOR_SINGLE",
                 targetUser: user,
-                ssid_id: user.ssid_id || "1"
+                ssid_id: user.ssid_id || "1",
+                actor
             });
 
             return reply(renderWithFallback(
@@ -248,7 +276,8 @@ function createWifiManagementService(overrides = {}) {
                 step: "CONFIRM_GANTI_NAMA",
                 targetUser: user,
                 nama_wifi_baru: newName,
-                ssid_id: user.ssid_id || "1"
+                ssid_id: user.ssid_id || "1",
+                actor
             });
 
             return reply(renderWithFallback(
@@ -264,7 +293,7 @@ function createWifiManagementService(overrides = {}) {
             if (!result.success) {
                 throw new Error(result.message);
             }
-            await logWifiNameChange(user, newName, buildWifiLogSender(rawSender, stateKey), "single");
+            await logWifiNameChange(user, newName, buildWifiLogSender(rawSender, stateKey), "single", actor);
             deleteUserState(stateKey);
             return reply(`✅ *Berhasil!*\n\nNama WiFi telah diubah menjadi: *"${newName}"*\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• Modem akan restart otomatis\n• Anda mungkin perlu menyambung ulang perangkat Anda\n\n💡 Jika ada masalah, hubungi admin untuk bantuan.`);
         } catch (error) {
@@ -274,12 +303,13 @@ function createWifiManagementService(overrides = {}) {
         }
     }
 
-    async function handleBulkAutoNameChange({ stateKey, user, newName, reply, rawSender = null, setUserState, deleteUserState, renderResponseTemplate }) {
+    async function handleBulkAutoNameChange({ stateKey, user, newName, reply, rawSender = null, setUserState, deleteUserState, renderResponseTemplate, actor = null }) {
         if (!newName || newName.trim().length === 0) {
             buildWifiStateSetter(setUserState, stateKey, {
                 step: "ASK_NEW_NAME_FOR_BULK_AUTO",
                 targetUser: user,
-                bulk_ssids: user.bulk
+                bulk_ssids: user.bulk,
+                actor
             });
             return reply(renderWithFallback(
                 renderResponseTemplate,
@@ -302,7 +332,7 @@ function createWifiManagementService(overrides = {}) {
                 throw new Error(response.message);
             }
 
-            await logWifiNameChange(user, newName, buildWifiLogSender(rawSender, stateKey), "bulk_auto");
+            await logWifiNameChange(user, newName, buildWifiLogSender(rawSender, stateKey), "bulk_auto", actor);
             deleteUserState(stateKey);
             return reply(`✅ *Berhasil!*\n\nNama WiFi untuk *semua SSID* telah diubah menjadi: *"${newName}"*\n\n📝 *Catatan:*\n• Perubahan akan aktif dalam 1-2 menit\n• Modem akan restart otomatis\n• Anda mungkin perlu menyambung ulang perangkat Anda`);
         } catch (error) {
@@ -312,12 +342,13 @@ function createWifiManagementService(overrides = {}) {
         }
     }
 
-    async function handleSingleSSIDPasswordChange({ stateKey, user, newPassword, reply, global, rawSender = null, setUserState, deleteUserState, renderResponseTemplate }) {
+    async function handleSingleSSIDPasswordChange({ stateKey, user, newPassword, reply, global, rawSender = null, setUserState, deleteUserState, renderResponseTemplate, actor = null }) {
         if (!newPassword || newPassword.trim().length === 0) {
             buildWifiStateSetter(setUserState, stateKey, {
                 step: "ASK_NEW_PASSWORD",
                 targetUser: user,
-                ssid_id: user.ssid_id || "1"
+                ssid_id: user.ssid_id || "1",
+                actor
             });
             return replyWifiPasswordPrompt(reply, renderResponseTemplate);
         }
@@ -331,7 +362,8 @@ function createWifiManagementService(overrides = {}) {
                 step: "CONFIRM_GANTI_SANDI",
                 targetUser: user,
                 sandi_wifi_baru: newPassword,
-                ssid_id: user.ssid_id || "1"
+                ssid_id: user.ssid_id || "1",
+                actor
             });
             return replyWifiPasswordConfirm(reply, renderResponseTemplate, newPassword, user.ssid_id || "1");
         }
@@ -341,7 +373,7 @@ function createWifiManagementService(overrides = {}) {
             if (!result.success) {
                 throw new Error(result.message);
             }
-            await logWifiPasswordChange(user, newPassword, buildWifiLogSender(rawSender, stateKey), "single");
+            await logWifiPasswordChange(user, newPassword, buildWifiLogSender(rawSender, stateKey), "single", actor);
             deleteUserState(stateKey);
             return replyWifiPasswordSuccess(reply, renderResponseTemplate, newPassword);
         } catch (error) {
@@ -351,12 +383,13 @@ function createWifiManagementService(overrides = {}) {
         }
     }
 
-    async function handleBulkAutoPasswordChange({ stateKey, user, newPassword, reply, rawSender = null, setUserState, deleteUserState, renderResponseTemplate }) {
+    async function handleBulkAutoPasswordChange({ stateKey, user, newPassword, reply, rawSender = null, setUserState, deleteUserState, renderResponseTemplate, actor = null }) {
         if (!newPassword || newPassword.trim().length === 0) {
             buildWifiStateSetter(setUserState, stateKey, {
                 step: "ASK_NEW_PASSWORD_BULK_AUTO",
                 targetUser: user,
-                bulk_ssids: user.bulk
+                bulk_ssids: user.bulk,
+                actor
             });
             return replyWifiBulkPasswordPrompt(reply, renderResponseTemplate);
         }
@@ -375,7 +408,7 @@ function createWifiManagementService(overrides = {}) {
                 throw new Error(response.message);
             }
 
-            await logWifiPasswordChange(user, newPassword, buildWifiLogSender(rawSender, stateKey), "bulk_auto");
+            await logWifiPasswordChange(user, newPassword, buildWifiLogSender(rawSender, stateKey), "bulk_auto", actor);
             deleteUserState(stateKey);
             return replyWifiPasswordSuccess(reply, renderResponseTemplate, newPassword, "untuk *semua SSID* ");
         } catch (error) {
@@ -417,6 +450,9 @@ function createWifiManagementService(overrides = {}) {
             } else {
                 newName = args.length > keywordLength ? args.slice(keywordLength).join(" ").trim() : "";
             }
+
+            // Actor untuk audit trail — siapa yang sebenarnya trigger perubahan via WA.
+            const actor = buildWifiActor({ isOwner, isTeknisi, providedId, sender, pushname });
 
             const resolved = await deps.resolveTargetUser({ sender, users, msg, raf, providedId });
             const user = resolved.user;
@@ -464,7 +500,8 @@ function createWifiManagementService(overrides = {}) {
                             targetUser: user,
                             nama_wifi_baru: newName,
                             bulk_ssids: user.bulk,
-                            ssid_info: currentSSIDs
+                            ssid_info: currentSSIDs,
+                            actor
                         });
 
                         return replyWifiTemplate(reply, renderResponseTemplate, "wifi_management_name_mode_prompt", {
@@ -477,7 +514,8 @@ function createWifiManagementService(overrides = {}) {
                         step: "SELECT_CHANGE_MODE_FIRST",
                         targetUser: user,
                         bulk_ssids: user.bulk,
-                        ssid_info: currentSSIDs
+                        ssid_info: currentSSIDs,
+                        actor
                     });
 
                     return replyWifiTemplate(reply, renderResponseTemplate, "wifi_management_name_mode_prompt", {
@@ -486,22 +524,22 @@ function createWifiManagementService(overrides = {}) {
                     });
                 } catch (error) {
                     console.error("[GANTI_NAMA_WIFI] Error getting current SSID:", error);
-                    return handleFallbackNameChange({ stateKey, user, newName, reply, setUserState, deleteUserState, renderResponseTemplate });
+                    return handleFallbackNameChange({ stateKey, user, newName, reply, setUserState, deleteUserState, renderResponseTemplate, actor });
                 }
             }
 
             if (hasMultipleSSIDs && !global.config.custom_wifi_modification) {
-                return handleBulkAutoNameChange({ stateKey, user, newName, reply, global, rawSender: sender, setUserState, deleteUserState, renderResponseTemplate });
+                return handleBulkAutoNameChange({ stateKey, user, newName, reply, global, rawSender: sender, setUserState, deleteUserState, renderResponseTemplate, actor });
             }
 
-            return handleSingleSSIDNameChange({ stateKey, user, newName, reply, global, rawSender: sender, setUserState, deleteUserState, renderResponseTemplate });
+            return handleSingleSSIDNameChange({ stateKey, user, newName, reply, global, rawSender: sender, setUserState, deleteUserState, renderResponseTemplate, actor });
         } catch (error) {
             console.error("[GANTI_NAMA_WIFI_ERROR]", error);
             return replyWifiTemplate(context.reply, renderResponseTemplate, "wifi_management_info_check_failed");
         }
     }
 
-    async function handleBulkPasswordChange({ stateKey, user, newPassword, reply, setUserState, renderResponseTemplate }) {
+    async function handleBulkPasswordChange({ stateKey, user, newPassword, reply, setUserState, renderResponseTemplate, actor = null }) {
         return deps.getSSIDInfo(user.device_id).then(({ ssid }) => {
             const currentSSIDs = buildCurrentSsidInfo(ssid, user.bulk);
 
@@ -515,7 +553,8 @@ function createWifiManagementService(overrides = {}) {
                     targetUser: user,
                     sandi_wifi_baru: newPassword,
                     bulk_ssids: user.bulk,
-                    ssid_info: currentSSIDs
+                    ssid_info: currentSSIDs,
+                    actor
                 });
 
                 return reply(`SSID WiFi yang tersedia:\n${currentSSIDs}\n\nAnda ingin mengubah kata sandi WiFi menjadi: \`${newPassword}\`\n\nPilih mode perubahan:\n1️⃣ Ubah satu SSID saja\n2️⃣ Ubah semua SSID sekaligus\n\nBalas dengan angka pilihan Anda.`);
@@ -525,7 +564,8 @@ function createWifiManagementService(overrides = {}) {
                 step: "SELECT_CHANGE_PASSWORD_MODE_FIRST",
                 targetUser: user,
                 bulk_ssids: user.bulk,
-                ssid_info: currentSSIDs
+                ssid_info: currentSSIDs,
+                actor
             });
 
             return replyWifiTemplate(reply, renderResponseTemplate, "wifi_management_password_mode_prompt", {
@@ -534,7 +574,7 @@ function createWifiManagementService(overrides = {}) {
             });
         }).catch((error) => {
             console.error("[GANTI_SANDI_WIFI] Error getting current SSID:", error);
-            return handleFallbackPasswordChange({ stateKey, user, newPassword, reply, setUserState, renderResponseTemplate });
+            return handleFallbackPasswordChange({ stateKey, user, newPassword, reply, setUserState, renderResponseTemplate, actor });
         });
     }
 
@@ -571,6 +611,9 @@ function createWifiManagementService(overrides = {}) {
                 newPassword = args.length > keywordLength ? args.slice(keywordLength).join(" ").trim() : "";
             }
 
+            // Actor untuk audit trail (lihat handleGantiNamaWifi untuk pola yang sama).
+            const actor = buildWifiActor({ isOwner, isTeknisi, providedId, sender, pushname });
+
             const resolved = await deps.resolveTargetUser({ sender, users, msg, raf, providedId });
             const user = resolved.user;
 
@@ -603,14 +646,14 @@ function createWifiManagementService(overrides = {}) {
             const hasMultipleSSIDs = user.bulk && user.bulk.length > 0;
 
             if (useBulk) {
-                return handleBulkPasswordChange({ stateKey, user, newPassword, reply, setUserState, renderResponseTemplate });
+                return handleBulkPasswordChange({ stateKey, user, newPassword, reply, setUserState, renderResponseTemplate, actor });
             }
 
             if (hasMultipleSSIDs && !global.config.custom_wifi_modification) {
-                return handleBulkAutoPasswordChange({ stateKey, user, newPassword, reply, global, rawSender: sender, setUserState, deleteUserState, renderResponseTemplate });
+                return handleBulkAutoPasswordChange({ stateKey, user, newPassword, reply, global, rawSender: sender, setUserState, deleteUserState, renderResponseTemplate, actor });
             }
 
-            return handleSingleSSIDPasswordChange({ stateKey, user, newPassword, reply, global, rawSender: sender, setUserState, deleteUserState, renderResponseTemplate });
+            return handleSingleSSIDPasswordChange({ stateKey, user, newPassword, reply, global, rawSender: sender, setUserState, deleteUserState, renderResponseTemplate, actor });
         } catch (error) {
             console.error("[GANTI_SANDI_WIFI_ERROR]", error);
             return replyWifiTemplate(context.reply, renderResponseTemplate, "wifi_management_info_check_failed");
