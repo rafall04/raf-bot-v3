@@ -397,8 +397,17 @@ async function handleGangguanMatiOfflineResponse({ sender, body, reply, findUser
         };
     }
 
-    // 3 = sudah bisa/normal kembali
-    if (response === '3' || response.includes('sudah bisa') || response.includes('sudahbisa') || response.includes('normal')) {
+    // 3 = sudah bisa/normal kembali (cek dulu — masalah selesai punya prioritas)
+    const solvedKeywords = [
+        'sudah bisa', 'sudahbisa', 'udah bisa', 'udahbisa',
+        'sudah normal', 'udah normal', 'normal',
+        'sudah ok', 'udah ok', 'sudah oke', 'udah oke',
+        'sudah selesai', 'udah selesai',
+        'sudah jalan', 'udah jalan',
+        'sudah aktif', 'udah aktif',
+        'sudah nyala', 'udah nyala'
+    ];
+    if (response === '3' || solvedKeywords.some(kw => response.includes(kw))) {
         deleteUserState(sender);
         return {
             success: true,
@@ -409,8 +418,16 @@ async function handleGangguanMatiOfflineResponse({ sender, body, reply, findUser
         };
     }
 
-    // 1 = sudah dicoba masih mati
-    if (response === '1' || response === 'sudah dicoba' || response.includes('sudah') && !response.includes('belum')) {
+    // 1 = sudah dicoba masih mati — whitelist eksplisit, hindari fallthrough generik "sudah"
+    const stillDownKeywords = [
+        'sudah dicoba', 'udah dicoba',
+        'sudah coba', 'udah coba',
+        'tetap mati', 'tetapmati',
+        'masih mati', 'masihmati',
+        'belum bisa', 'belumbisa',
+        'belum nyala', 'belumnyala'
+    ];
+    if (response === '1' || stillDownKeywords.some(kw => response.includes(kw))) {
         // User sudah troubleshoot tapi masih mati - CREATE HIGH PRIORITY TICKET
         // Set state for optional photo upload
         const ticketId = generateTicketId();
