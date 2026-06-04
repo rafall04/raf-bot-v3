@@ -175,6 +175,7 @@
                                             <th>PPPoE</th>
                                             <th>Redaman (dBm)</th>
                                             <th>Status OLT</th>
+                                            <th>OLT</th>
                                             <th>Slot/ONU</th>
                                             <th>Aksi</th>
                                         </tr>
@@ -264,15 +265,19 @@
                     <div class="info-card status">
                         <h6 class="font-weight-bold text-primary mb-3"><i class="fas fa-cogs"></i> Informasi Teknis</h6>
                         <div class="row">
-                            <div class="col-md-4 mb-2">
+                            <div class="col-md-3 mb-2">
+                                <div class="detail-label"><i class="fas fa-broadcast-tower mr-1"></i> Nama OLT</div>
+                                <div class="detail-value" id="modalOltName">-</div>
+                            </div>
+                            <div class="col-md-3 mb-2">
                                 <div class="detail-label">MAC OLT</div>
                                 <div class="detail-value mac-address" id="modalMacOlt">-</div>
                             </div>
-                            <div class="col-md-4 mb-2">
+                            <div class="col-md-3 mb-2">
                                 <div class="detail-label">MAC MikroTik</div>
                                 <div class="detail-value mac-address" id="modalMacMikrotik">-</div>
                             </div>
-                            <div class="col-md-4 mb-2">
+                            <div class="col-md-3 mb-2">
                                 <div class="detail-label">Slot / ONU ID</div>
                                 <div class="detail-value" id="modalSlotOnu">-</div>
                             </div>
@@ -400,11 +405,15 @@
                             return data;
                         }
                     },
-                    { 
+                    {
                         data: 'olt_status', title: 'Status',
                         render: (data, type, row) => type === 'display' ? renderOltStatus(row) : data || ''
                     },
-                    { 
+                    {
+                        data: 'olt_name', title: 'OLT',
+                        render: (data, type, row) => type === 'display' ? renderOltName(row) : (data || '')
+                    },
+                    {
                         data: null, title: 'Slot/ONU',
                         render: (data, type, row) => (row.slot_id && row.onu_id) ? `${row.slot_id}/${row.onu_id}` : '-'
                     },
@@ -543,6 +552,7 @@
             $('#modalPackage').text(customer.customer_package || '-');
             $('#modalAddress').text(customer.customer_address || '-');
             $('#modalPhone').text(customer.customer_phone || '-');
+            $('#modalOltName').text(customer.olt_name || '-');
             $('#modalMacOlt').text(customer.mac_olt || '-');
             
             // MAC MikroTik dengan indikator source
@@ -682,6 +692,17 @@
             if (row.is_los) return '<span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> LOS</span>';
             if (row.olt_status === 'Online') return '<span class="badge badge-success"><i class="fas fa-check"></i></span>';
             return '<span class="badge badge-secondary"><i class="fas fa-times"></i></span>';
+        }
+
+        function renderOltName(row) {
+            if (!row.olt_name) return '<span class="text-muted">-</span>';
+            const safeName = $('<div>').text(row.olt_name).html();
+            const title = row.olt_host ? `Host: ${row.olt_host}` : 'Nama OLT';
+            // Tanda "dari cache" bila ONT tidak sedang terbaca di OLT (mac_olt N/A).
+            const cached = row.mac_olt === 'N/A'
+                ? ' <i class="fas fa-history text-muted" title="Diketahui dari cache (ONT sedang offline)"></i>'
+                : '';
+            return `<span class="badge badge-light border" title="${title}"><i class="fas fa-broadcast-tower text-primary mr-1"></i>${safeName}</span>${cached}`;
         }
 
         function updateStatsFromData(data) {

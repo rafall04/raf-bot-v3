@@ -630,6 +630,12 @@ router.get('/matched', async (req, res) => {
                     }
                 }
                 
+                // Simpan mapping MAC -> OLT supaya ONT yang sedang offline pun
+                // tetap bisa diketahui ikut OLT mana di query berikutnya.
+                if (matchedOnu.macAddress && matchedOnu.olt_id) {
+                    oltManager.updateMacCache(matchedOnu.macAddress, matchedOnu.olt_id, matchedOnu.olt_name, matchedOnu.olt_host);
+                }
+
                 matchedData.push({
                     user_id: user.id,
                     customer_name: user.name,
@@ -637,6 +643,9 @@ router.get('/matched', async (req, res) => {
                     mac_mikrotik: macInfo.mac,
                     mac_source: macInfo.source, // 'active' atau 'cached'
                     mac_olt: matchedOnu.macAddress,
+                    olt_id: matchedOnu.olt_id || null,
+                    olt_name: matchedOnu.olt_name || null,
+                    olt_host: matchedOnu.olt_host || null,
                     rx_power: matchedOnu.rxPower,
                     olt_status: finalStatus,
                     is_dying_gasp: isDyingGasp,
@@ -671,7 +680,10 @@ router.get('/matched', async (req, res) => {
                 }
                 
                 console.log(`[OLT] User ${user.pppoe_username}: ONT not in OLT, status: ${finalStatus} (cached slot/onu: ${cachedInfo?.slot_id}/${cachedInfo?.onu_id})`);
-                
+
+                // ONT tidak ada di OLT saat ini; coba kenali OLT-nya dari cache MAC.
+                const cachedOlt = oltManager.getOltFromMac(macInfo.mac);
+
                 matchedData.push({
                     user_id: user.id,
                     customer_name: user.name,
@@ -679,6 +691,9 @@ router.get('/matched', async (req, res) => {
                     mac_mikrotik: macInfo.mac,
                     mac_source: macInfo.source,
                     mac_olt: 'N/A',
+                    olt_id: cachedOlt ? cachedOlt.oltId : null,
+                    olt_name: cachedOlt ? cachedOlt.oltName : null,
+                    olt_host: cachedOlt ? cachedOlt.oltHost : null,
                     rx_power: 'N/A',
                     olt_status: finalStatus,
                     is_dying_gasp: isDyingGasp,
