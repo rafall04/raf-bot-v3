@@ -147,11 +147,18 @@
                     <div class="card shadow mb-4">
                         <div class="card-header py-3 d-flex justify-content-between align-items-center flex-wrap">
                             <h6 class="m-0 font-weight-bold text-primary">
-                                <i class="fas fa-list"></i> Data ONT Pelanggan
+                                <i class="fas fa-list"></i> Data ONU OLT
                                 <small class="text-muted ml-2">(Klik baris untuk detail)</small>
                             </h6>
-                            <div class="d-flex align-items-center mt-2 mt-md-0">
-                                <select id="statusFilter" class="form-control form-control-sm mr-2" style="width: auto;">
+                            <div class="d-flex align-items-center mt-2 mt-md-0 flex-wrap">
+                                <select id="oltSelector" class="form-control form-control-sm mr-2 mb-1" style="width: auto;" title="Pilih OLT">
+                                    <option value="all">Semua OLT</option>
+                                </select>
+                                <div class="btn-group btn-group-sm mr-2 mb-1" role="group" id="viewModeToggle" title="Mode tampilan">
+                                    <button type="button" class="btn btn-primary" data-view="all">Semua ONU</button>
+                                    <button type="button" class="btn btn-outline-primary" data-view="matched">Pelanggan</button>
+                                </div>
+                                <select id="statusFilter" class="form-control form-control-sm mr-2 mb-1" style="width: auto;">
                                     <option value="">Semua Status</option>
                                     <option value="online">Online</option>
                                     <option value="offline">Offline</option>
@@ -311,11 +318,15 @@
         let pppoeUserMacMap = new Map();
         let currentCustomerData = null;
         let oltColdRetryDone = false;
+        let currentOltFilter = 'all';   // id OLT terpilih ('all' = semua)
+        let currentViewMode = 'all';    // 'all' = semua ONU | 'matched' = hanya pelanggan terdaftar
+        let oltDevicesList = [];        // daftar OLT dari API (untuk dropdown)
         const AUTO_REFRESH_INTERVAL = 30000;
 
         $(document).ready(async function() {
             loadTechnicianInfo();
             initDataTable();
+            initOltViewControls();
             // Pastikan data pelanggan siap sebelum query OLT agar enrichment lengkap di paint pertama
             await loadUsersData();
             loadAllData();
@@ -366,18 +377,23 @@
             dataTableInstance = $('#oltDataTable').DataTable({
                 data: [],
                 columns: [
-                    { 
-                        data: null, title: 'Pelanggan',
+                    {
+                        data: null, title: 'Pelanggan / ONU',
                         render: (data, type, row) => {
                             if (type === 'display') {
-                                let html = `<strong>${row.customer_name || '-'}</strong>`;
-                                if (row.customer_address) {
-                                    const addr = row.customer_address.length > 30 ? row.customer_address.substring(0, 30) + '...' : row.customer_address;
-                                    html += `<br><small class="customer-info">${addr}</small>`;
+                                if (row.customer_name) {
+                                    let html = `<strong>${row.customer_name}</strong>`;
+                                    if (row.customer_address) {
+                                        const addr = row.customer_address.length > 30 ? row.customer_address.substring(0, 30) + '...' : row.customer_address;
+                                        html += `<br><small class="customer-info">${addr}</small>`;
+                                    }
+                                    return html;
                                 }
-                                return html;
+                                // ONU belum terhubung ke pelanggan: tampilkan identitas ONU.
+                                const ident = row.description || row.serial || '-';
+                                return `<span class="text-muted"><i class="fas fa-plug"></i> ${ident}</span><br><small class="text-muted">(belum terdaftar)</small>`;
                             }
-                            return row.customer_name || '';
+                            return row.customer_name || row.description || row.serial || '';
                         }
                     },
                     { 
@@ -423,7 +439,7 @@
                     {
                         data: null, title: 'Aksi', orderable: false, searchable: false,
                         render: (data, type, row) => {
-                            return `<button class="btn btn-info btn-sm btn-detail" data-user-id="${row.user_id}" title="Lihat Detail">
+                            return `<button class="btn btn-info btn-sm btn-detail" data-key="${row._key}" title="Lihat Detail">
                                 <i class="fas fa-info-circle"></i>
                             </button>`;
                         }
@@ -439,22 +455,22 @@
                 },
                 dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
                 createdRow: function(row, data) {
-                    $(row).addClass('clickable-row').attr('data-user-id', data.user_id);
+                    $(row).addClass('clickable-row').attr('data-key', data._key);
                 }
             });
 
             // Row click handler
             $('#oltDataTable tbody').on('click', 'tr.clickable-row', function(e) {
                 if ($(e.target).closest('button').length) return; // Ignore button clicks
-                const userId = $(this).data('user-id');
-                if (userId) showCustomerDetail(userId);
+                const key = $(this).data('key');
+                if (key) showCustomerDetail(key);
             });
 
             // Button click handler
             $('#oltDataTable tbody').on('click', '.btn-detail', function(e) {
                 e.stopPropagation();
-                const userId = $(this).data('user-id');
-                if (userId) showCustomerDetail(userId);
+                const key = $(this).data('key');
+                if (key) showCustomerDetail(key);
             });
         }
 
@@ -491,11 +507,46 @@
             } catch (e) { console.error('PPPoE error:', e); }
         }
 
+        // Kontrol view OLT-centric: dropdown pilih OLT + toggle Semua ONU / Pelanggan.
+        function initOltViewControls() {
+            $('#oltSelector').on('change', function () {
+                currentOltFilter = this.value || 'all';
+                loadOltMatchedData();
+            });
+            $('#viewModeToggle button').on('click', function () {
+                currentViewMode = $(this).data('view');
+                $('#viewModeToggle button').removeClass('btn-primary').addClass('btn-outline-primary');
+                $(this).removeClass('btn-outline-primary').addClass('btn-primary');
+                renderCurrentView();
+            });
+        }
+
+        function populateOltSelector(devices) {
+            oltDevicesList = devices || [];
+            const opts = ['<option value="all">Semua OLT</option>'].concat(
+                oltDevicesList.map(d => {
+                    const tag = d.brand && d.brand !== 'auto' ? ` (${String(d.brand).toUpperCase()})` : '';
+                    return `<option value="${d.id}">${d.name}${tag}</option>`;
+                })
+            );
+            const $sel = $('#oltSelector');
+            if ($sel.children().length !== opts.length) $sel.html(opts.join(''));
+            $sel.val(currentOltFilter);
+        }
+
+        function renderCurrentView() {
+            const view = currentViewMode === 'matched' ? matchedData.filter(r => r.matched) : matchedData;
+            updateStatsFromData(view);
+            dataTableInstance.clear().rows.add(view).draw();
+        }
+
         async function loadOltMatchedData() {
             try {
-                const res = await fetch('/api/olt/matched?_=' + Date.now(), { credentials: 'include' });
+                const oltParam = (currentOltFilter && currentOltFilter !== 'all')
+                    ? '&oltId=' + encodeURIComponent(currentOltFilter) : '';
+                const res = await fetch('/api/olt/onus?_=' + Date.now() + oltParam, { credentials: 'include' });
                 const result = await res.json();
-                
+
                 if (result.status === 200) {
                     if (!result.enabled) {
                         showAlert('warning', 'OLT tidak diaktifkan. Aktifkan di Konfigurasi.');
@@ -507,22 +558,26 @@
                         showAlert('danger', result.message || 'Gagal mengambil data OLT');
                         return;
                     }
-                    
+
+                    if (Array.isArray(result.oltDevices)) populateOltSelector(result.oltDevices);
+
                     matchedData = result.data || [];
-                    
+
                     // Enrich with user data and online status
                     matchedData.forEach(item => {
+                        item._key = `${item.olt_id}|${item.slot_id}|${item.onu_id}`;
                         item.is_online = activePppoeUsersMap.has(item.pppoe_username);
-                        const user = usersData.find(u => u.id == item.user_id);
-                        if (user) {
-                            item.customer_phone = user.phone;
-                            item.customer_package = user.subscription;
-                            item.customer_address = user.address || item.customer_address;
+                        if (item.user_id) {
+                            const user = usersData.find(u => u.id == item.user_id);
+                            if (user) {
+                                item.customer_phone = user.phone || item.customer_phone;
+                                item.customer_package = user.subscription || item.customer_package;
+                                item.customer_address = user.address || item.customer_address;
+                            }
                         }
                     });
-                    
-                    updateStatsFromData(matchedData);
-                    dataTableInstance.clear().rows.add(matchedData).draw();
+
+                    renderCurrentView();
                     hideAlert();
 
                     // Cold-start backend: poll OLT/SNMP pertama bisa belum siap sehingga data kosong.
@@ -539,18 +594,19 @@
             }
         }
 
-        function showCustomerDetail(userId) {
-            const customer = matchedData.find(m => m.user_id == userId);
+        function showCustomerDetail(key) {
+            const customer = matchedData.find(m => m._key === key);
             if (!customer) {
-                alert('Data pelanggan tidak ditemukan');
+                alert('Data ONU tidak ditemukan');
                 return;
             }
-            
+
             currentCustomerData = customer;
-            
-            // Update modal content
-            $('#modalCustomerName').text(customer.customer_name || 'Detail Pelanggan');
-            $('#modalName').text(customer.customer_name || '-');
+
+            // Update modal content (ONU belum terdaftar → pakai identitas ONU).
+            const displayName = customer.customer_name || customer.description || customer.serial || 'Detail ONU';
+            $('#modalCustomerName').text(displayName);
+            $('#modalName').text(customer.customer_name || '(belum terdaftar)');
             $('#modalPppoe').text(customer.pppoe_username || '-');
             $('#modalPackage').text(customer.customer_package || '-');
             $('#modalAddress').text(customer.customer_address || '-');
