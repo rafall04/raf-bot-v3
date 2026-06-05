@@ -284,4 +284,32 @@ describe("payment-flow.service", () => {
             expect.objectContaining({ label: "voucher_code" })
         );
     });
+
+    test("processVoucherPurchase: voucher dibuat tapi confirmATM GAGAL → kode TIDAK dikirim (anti orphan free voucher)", async () => {
+        setResponseTemplate("payment_flow_voucher_purchase_processing", "PROC");
+        setResponseTemplate("payment_flow_voucher_purchase_failure", "FAIL ${errorMessage}");
+
+        const reply = jest.fn();
+        const sendCritical = jest.fn().mockResolvedValue({ delivered: true });
+        const service = createPaymentFlowService({ sendCritical });
+        const helpers = {
+            checkhargavoucher: jest.fn(() => true),
+            checkprofvc: jest.fn(() => "VC-1"),
+            checkdurasivc: jest.fn(() => "1 Jam"),
+            checkhargavc: jest.fn(() => 1000),
+            checkATMuser: jest.fn().mockResolvedValue(5000),
+            // Deduct GAGAL setelah voucher dibuat.
+            confirmATM: jest.fn().mockRejectedValue(new Error("DB locked")),
+            getvoucher: jest.fn().mockResolvedValue({ ok: true, data: { username: "ORPHAN1" } })
+        };
+
+        await service.processVoucherPurchase("6281@s.whatsapp.net", "Tester", "1000", reply, helpers, {
+            config: { nama: "RAF Test" }
+        });
+
+        // Kode voucher TIDAK dikirim (pelanggan belum bayar — hindari voucher gratis).
+        expect(sendCritical).not.toHaveBeenCalled();
+        // Pelanggan diberi tahu gagal + saldo tidak terpotong.
+        expect(reply).toHaveBeenLastCalledWith(expect.stringContaining("TIDAK terpotong"));
+    });
 });

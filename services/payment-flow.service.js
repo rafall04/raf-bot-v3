@@ -20,6 +20,36 @@ function renderResponseTemplate(key, data = {}, fallback = "") {
     return result.found && result.text.trim() ? result.text : (fallback || key);
 }
 
+const VOUCHER_ORPHAN_FILE = path.join(__dirname, "..", "database", "voucher_orphans.json");
+
+/**
+ * Catat voucher "orphan" — sudah dibuat di MikroTik tapi saldo GAGAL dipotong.
+ * Skenario langka (DB error setelah balance pre-check), tapi tanpa pencatatan,
+ * voucher bocor diam-diam (rugi ISP) dan admin tidak tahu harus void yang mana.
+ * File ini jadi worklist rekonsiliasi admin. Best-effort: kegagalan tulis tidak
+ * mengganggu alur (sudah ada log error terpisah).
+ */
+function recordVoucherOrphan(entry) {
+    try {
+        let list = [];
+        if (fs.existsSync(VOUCHER_ORPHAN_FILE)) {
+            const raw = fs.readFileSync(VOUCHER_ORPHAN_FILE, "utf8");
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) list = parsed;
+        }
+        list.push({
+            id: `orphan_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            timestamp: new Date().toISOString(),
+            resolved: false,
+            ...entry
+        });
+        if (list.length > 500) list = list.slice(-500);
+        fs.writeFileSync(VOUCHER_ORPHAN_FILE, JSON.stringify(list, null, 2), "utf8");
+    } catch (err) {
+        console.error("[VOUCHER_ORPHAN] Gagal mencatat orphan:", err.message);
+    }
+}
+
 function createNotImplemented(name) {
     return async function notImplemented() {
         throw new Error(`${name} is not implemented yet`);
@@ -144,7 +174,28 @@ function createPaymentFlowService(overrides = {}) {
             const voucherData = voucherResult.data || {};
             const voucherCode = `${voucherData.username}`;
 
-            await confirmATM(sender, hargavc123);
+            // Voucher SUDAH dibuat di MikroTik. Potong saldo sekarang. Kalau GAGAL,
+            // voucher jadi orphan (ada di MikroTik, belum dibayar). Catat untuk
+            // rekonsiliasi admin + JANGAN kirim kode (pelanggan belum bayar) — hindari
+            // bocor voucher gratis diam-diam. Saldo pelanggan tidak terpotong.
+            try {
+                await confirmATM(sender, hargavc123);
+            } catch (deductErr) {
+                recordVoucherOrphan({
+                    sender: sender.split("@")[0],
+                    voucherCode,
+                    profile: profvc123,
+                    price: hargavc123,
+                    reason: deductErr?.message || "deduct_failed"
+                });
+                deps.logger?.error?.("[VOUCHER_ORPHAN] Saldo gagal dipotong setelah voucher dibuat", {
+                    sender: sender.split("@")[0], voucherCode, error: deductErr?.message
+                });
+                await replyFunc(renderResponseTemplate("payment_flow_voucher_purchase_failure", {
+                    errorMessage: "Terjadi kendala saat memproses pembayaran. Saldo Anda TIDAK terpotong. Mohon coba lagi atau hubungi Admin."
+                }));
+                return;
+            }
             const currentSaldoAfterPurchase = await checkATMuser(sender);
             const formattedSaldoAfterPurchase = convertRupiah.convert(currentSaldoAfterPurchase);
 

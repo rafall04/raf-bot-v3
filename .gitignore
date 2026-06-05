@@ -82,6 +82,7 @@ database/*-cache.json
 database/*_cache.json
 database/olt-*.json
 database/failed_critical_deliveries.json
+database/voucher_orphans.json
 
 # Announcements & news (user-generated)
 database/announcements.json
