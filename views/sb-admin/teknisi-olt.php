@@ -415,7 +415,10 @@
                     },
                     {
                         data: null, title: 'Slot/ONU',
-                        render: (data, type, row) => (row.slot_id && row.onu_id) ? `${row.slot_id}/${row.onu_id}` : '-'
+                        render: (data, type, row) => {
+                            if (row.pon_name) return row.pon_name; // GPON: label human (ONU-1:1)
+                            return (row.slot_id && row.onu_id) ? `${row.slot_id}/${row.onu_id}` : '-';
+                        }
                     },
                     {
                         data: null, title: 'Aksi', orderable: false, searchable: false,
@@ -552,17 +555,30 @@
             $('#modalPackage').text(customer.customer_package || '-');
             $('#modalAddress').text(customer.customer_address || '-');
             $('#modalPhone').text(customer.customer_phone || '-');
-            $('#modalOltName').text(customer.olt_name || '-');
-            $('#modalMacOlt').text(customer.mac_olt || '-');
-            
+            const brandBadge = customer.olt_brand === 'zte'
+                ? ' <span class="badge badge-info" title="GPON">ZTE GPON</span>'
+                : (customer.olt_brand === 'hioso' ? ' <span class="badge badge-secondary" title="EPON">HIOSO</span>' : '');
+            $('#modalOltName').html((customer.olt_name || '-') + brandBadge);
+
+            // GPON tanpa MAC ONU → tampilkan Serial Number.
+            if (customer.mac_olt && customer.mac_olt !== 'N/A') {
+                $('#modalMacOlt').text(customer.mac_olt);
+            } else if (customer.serial) {
+                $('#modalMacOlt').text('SN: ' + customer.serial);
+            } else {
+                $('#modalMacOlt').text('-');
+            }
+
             // MAC MikroTik dengan indikator source
             let macMikrotikHtml = customer.mac_mikrotik || '-';
             if (customer.mac_source === 'cached') {
                 macMikrotikHtml += ' <span class="badge badge-warning" title="MAC dari cache (pelanggan offline)"><i class="fas fa-history"></i></span>';
+            } else if (customer.mac_source === 'olt' || (!customer.mac_mikrotik && customer.olt_brand === 'zte')) {
+                macMikrotikHtml = '<span class="text-muted">— (match via PPPoE)</span>';
             }
             $('#modalMacMikrotik').html(macMikrotikHtml);
-            
-            $('#modalSlotOnu').text((customer.slot_id && customer.onu_id) ? `${customer.slot_id} / ${customer.onu_id}` : '-');
+
+            $('#modalSlotOnu').text(customer.pon_name || ((customer.slot_id && customer.onu_id) ? `${customer.slot_id} / ${customer.onu_id}` : '-'));
             
             // Connection status
             const isOnline = activePppoeUsersMap.has(customer.pppoe_username);
@@ -698,11 +714,14 @@
             if (!row.olt_name) return '<span class="text-muted">-</span>';
             const safeName = $('<div>').text(row.olt_name).html();
             const title = row.olt_host ? `Host: ${row.olt_host}` : 'Nama OLT';
-            // Tanda "dari cache" bila ONT tidak sedang terbaca di OLT (mac_olt N/A).
-            const cached = row.mac_olt === 'N/A'
+            // Tanda "dari cache" hanya untuk EPON (match via MAC). GPON (ZTE) match via
+            // PPPoE — mac_olt='N/A' itu normal, bukan tanda offline.
+            const isGpon = row.olt_brand === 'zte';
+            const cached = (row.mac_olt === 'N/A' && !isGpon)
                 ? ' <i class="fas fa-history text-muted" title="Diketahui dari cache (ONT sedang offline)"></i>'
                 : '';
-            return `<span class="badge badge-light border" title="${title}"><i class="fas fa-broadcast-tower text-primary mr-1"></i>${safeName}</span>${cached}`;
+            const brandTag = isGpon ? ' <span class="badge badge-info" title="GPON">GPON</span>' : '';
+            return `<span class="badge badge-light border" title="${title}"><i class="fas fa-broadcast-tower text-primary mr-1"></i>${safeName}</span>${brandTag}${cached}`;
         }
 
         function updateStatsFromData(data) {
