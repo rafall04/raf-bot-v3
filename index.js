@@ -283,12 +283,19 @@ async function startApp() {
         });
         
         // Message deduplication tracker
-        const processedMessages = new Set();
+        // Dedup pesan pakai per-message TTL (Map id→timestamp), BUKAN clear-all.
+        // clear-all menghapus seluruh state serentak → pesan di detik ke-59 bisa
+        // diproses ulang di detik ke-61. Dengan TTL per-message, tiap id terlindungi
+        // penuh selama window-nya.
+        const processedMessages = new Map(); // messageId -> timestamp(ms)
         const MESSAGE_CACHE_DURATION = 60000; // 1 minute
-        
-        // Clear old messages periodically
+
+        // Prune hanya entry yang sudah lewat TTL (bukan wipe semua).
         setInterval(() => {
-            processedMessages.clear();
+            const cutoff = Date.now() - MESSAGE_CACHE_DURATION;
+            for (const [id, ts] of processedMessages) {
+                if (ts < cutoff) processedMessages.delete(id);
+            }
         }, MESSAGE_CACHE_DURATION);
         
         raf.ev.on('messages.upsert', async m => {
@@ -303,7 +310,7 @@ async function startApp() {
             }
             
             if (messageId) {
-                processedMessages.add(messageId);
+                processedMessages.set(messageId, Date.now());
             }
             
             try {
