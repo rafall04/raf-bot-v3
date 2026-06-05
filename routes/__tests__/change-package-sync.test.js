@@ -13,6 +13,7 @@ const mockWithLock = jest.fn(async (_key, handler) => handler());
 const mockGetDatabasePath = jest.fn(() => 'users.sqlite');
 const mockDbRun = jest.fn();
 const mockDbClose = jest.fn();
+const mockSendCritical = jest.fn();
 
 jest.mock('../../lib/database', () => ({
   loadJSON: (...args) => mockLoadJSON(...args)
@@ -56,6 +57,10 @@ jest.mock('sqlite3', () => ({
       close: (...args) => mockDbClose(...args)
     }))
   })
+}));
+
+jest.mock('../../lib/whatsapp-critical-delivery', () => ({
+  sendCritical: (...args) => mockSendCritical(...args)
 }));
 
 const router = require('../change-package');
@@ -114,6 +119,7 @@ describe('change-package sync policy', () => {
     mockDbClose.mockImplementation(() => {});
     mockLogActivity.mockResolvedValue(true);
     mockRenderTemplate.mockReturnValue('template');
+    mockSendCritical.mockResolvedValue({ delivered: true, attempts: 1 });
   });
 
   afterEach(() => {
@@ -165,6 +171,142 @@ describe('change-package sync policy', () => {
       expect(global.users[0].subscription).toBe('Paket Baru');
       expect(mockUpdatePPPoEProfile).not.toHaveBeenCalled();
       expect(mockDbRun).toHaveBeenCalled();
+    } finally {
+      await stopServer(server);
+    }
+  });
+});
+
+describe('change-package customer notification (sendCritical)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    global.config = { sync_to_mikrotik: true };
+    global.users = [
+      { id: 11, name: 'Customer A', subscription: 'Paket Lama', subscription_price: 100000, pppoe_username: 'cust-a', phone_number: '08123' },
+      { id: 12, name: 'Customer B', subscription: 'Paket Lama', subscription_price: 100000, pppoe_username: 'cust-b', phone_number: '08999' }
+    ];
+    mockLoadJSON.mockReturnValue([{ name: 'Paket Baru', price: 150000 }]);
+    mockGetProfileBySubscription.mockReturnValue('PROFILE-BARU');
+    mockUpdatePPPoEProfile.mockResolvedValue({ ok: true });
+    mockDeleteActivePPPoEUser.mockResolvedValue({ ok: true });
+    mockAssertMikrotikResult.mockImplementation((result) => {
+      if (!result || result.ok !== true) throw new Error(result?.message || 'mikrotik error');
+      return result;
+    });
+    mockIsMikrotikSyncEnabled.mockImplementation(() => global.config.sync_to_mikrotik !== false);
+    mockDbRun.mockImplementation((_sql, _params, callback) => callback.call({ changes: 1 }, null));
+    mockDbClose.mockImplementation(() => {});
+    mockLogActivity.mockResolvedValue(true);
+    mockRenderTemplate.mockReturnValue('Halo, paket Anda berubah.');
+    mockSendCritical.mockResolvedValue({ delivered: true, attempts: 1 });
+  });
+
+  afterEach(() => {
+    delete global.config;
+    delete global.users;
+  });
+
+  test('single change notifies customer via sendCritical (label package_change)', async () => {
+    const app = createApp();
+    const { server, baseUrl } = await startServer(app);
+    try {
+      const response = await fetch(`${baseUrl}/api/change-package/11`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_package: 'Paket Baru', sync_mikrotik: false })
+      });
+      const payload = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(mockSendCritical).toHaveBeenCalledTimes(1);
+      const [recipient, message, options] = mockSendCritical.mock.calls[0];
+      expect(recipient).toBe('08123');
+      expect(message).toEqual({ text: 'Halo, paket Anda berubah.' });
+      expect(options.label).toBe('package_change');
+      expect(payload.data.notify).toMatchObject({ notified: true, delivered: 1, total: 1, queued: 0 });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  test('notification failure does NOT fail the package change (best-effort + dead-letter)', async () => {
+    mockSendCritical.mockResolvedValue({ delivered: false, attempts: 4, errorCode: 'WHATSAPP_NOT_CONNECTED' });
+
+    const app = createApp();
+    const { server, baseUrl } = await startServer(app);
+    try {
+      const response = await fetch(`${baseUrl}/api/change-package/11`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_package: 'Paket Baru', sync_mikrotik: false })
+      });
+      const payload = await response.json();
+
+      // Perubahan paket tetap sukses meski notifikasi gagal.
+      expect(response.status).toBe(200);
+      expect(global.users[0].subscription).toBe('Paket Baru');
+      expect(payload.data.notify).toMatchObject({ notified: false, delivered: 0, queued: 1 });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  test('customer without phone is skipped gracefully (no_phone)', async () => {
+    global.users[0].phone_number = '';
+    const app = createApp();
+    const { server, baseUrl } = await startServer(app);
+    try {
+      const response = await fetch(`${baseUrl}/api/change-package/11`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_package: 'Paket Baru', sync_mikrotik: false })
+      });
+      const payload = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(mockSendCritical).not.toHaveBeenCalled();
+      expect(payload.data.notify.skipped).toBe('no_phone');
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  test('BULK change notifies every successful customer + summary count', async () => {
+    const app = createApp();
+    const { server, baseUrl } = await startServer(app);
+    try {
+      const response = await fetch(`${baseUrl}/api/change-package/bulk/change`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_ids: [11, 12], new_package: 'Paket Baru', sync_mikrotik: false })
+      });
+      const payload = await response.json();
+
+      expect(response.status).toBe(200);
+      // Dulu jalur bulk TIDAK memberi tahu siapa pun — sekarang 1 per pelanggan sukses.
+      expect(mockSendCritical).toHaveBeenCalledTimes(2);
+      expect(payload.summary).toMatchObject({ total: 2, success: 2, notified: 2 });
+      expect(payload.data.every((r) => r.notify && r.notify.notified)).toBe(true);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  test('multi-phone customer (a|b) notified on both numbers', async () => {
+    global.users[0].phone_number = '08123|08456';
+    const app = createApp();
+    const { server, baseUrl } = await startServer(app);
+    try {
+      const response = await fetch(`${baseUrl}/api/change-package/11`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_package: 'Paket Baru', sync_mikrotik: false })
+      });
+      const payload = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(mockSendCritical).toHaveBeenCalledTimes(2);
+      expect(payload.data.notify).toMatchObject({ notified: true, delivered: 2, total: 2, queued: 0 });
     } finally {
       await stopServer(server);
     }

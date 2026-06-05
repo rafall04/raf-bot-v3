@@ -2,9 +2,9 @@
  * Header Doc
  * Purpose: Mengelola perubahan paket pelanggan dari panel admin dan sinkronisasi notifikasi/domain terkait.
  * Caller: Express route registry/API admin.
- * Deps: Database JSON/SQLite, activity logger, security rate-limit, MikroTik helper, templating, request lock, domain events, gateway readiness, dan helper timing WA.
- * MainFuncs: Router perubahan paket dan helper notifikasi hasil approval paket.
- * SideEffects: Membaca/menulis data pelanggan/request, update MikroTik, log activity, dan emit event notifikasi WhatsApp.
+ * Deps: Database JSON/SQLite, activity logger, security rate-limit, MikroTik helper, templating, request lock, dan whatsapp-critical-delivery (sendCritical).
+ * MainFuncs: Router perubahan paket (single + bulk) dan helper notifikasi pelanggan terjamin (sendCritical: wait-ready + retry + dead-letter).
+ * SideEffects: Membaca/menulis data pelanggan/request, update MikroTik, log activity, dan kirim notifikasi WhatsApp ke pelanggan (dead-letter bila gagal).
  */
 
 const express = require('express');
@@ -22,13 +22,8 @@ const {
 const { getProfileBySubscription } = require('../lib/myfunc');
 const { renderTemplate } = require('../lib/templating');
 const { withLock } = require('../lib/request-lock');
-const { DOMAIN_EVENTS, emitAsync } = require('../lib/domain-events');
-const { initializeDomainNotificationListeners } = require('../lib/domain-notification-listeners');
-const { isReady } = require('../lib/whatsapp-gateway');
-const { waitForWhatsAppDelay } = require('../lib/wa-timing');
+const { sendCritical } = require('../lib/whatsapp-critical-delivery');
 const sqlite3 = require('sqlite3').verbose();
-
-initializeDomainNotificationListeners();
 
 // Get database connection
 function getDb() {
@@ -250,9 +245,11 @@ router.post('/:userId', ensureAdmin, rateLimit('change-package', 20, 60000), asy
                         userAgent: req.headers['user-agent']
                     }).catch(console.error);
                     
-                    // Notify customer via WhatsApp
-                    notifyCustomerPackageChange(user, oldPackage, new_package, newPackageData.price);
-                    
+                    // Notify customer via WhatsApp (terjamin: sendCritical + dead-letter).
+                    // Di-await supaya status notifikasi bisa ditampilkan ke admin, tapi
+                    // best-effort — kegagalan kirim tidak membatalkan perubahan paket.
+                    const notify = await notifyCustomerPackageChange(user, oldPackage, new_package, newPackageData.price);
+
                     db.close();
                     resolve(res.json({
                         status: 200,
@@ -266,7 +263,8 @@ router.post('/:userId', ensureAdmin, rateLimit('change-package', 20, 60000), asy
                             sync_policy: isMikrotikSyncEnabled() ? 'enabled' : 'disabled',
                             sync_status: syncResult.status,
                             sync_message: syncResult.message,
-                            mikrotik_sync: syncResult
+                            mikrotik_sync: syncResult,
+                            notify
                         }
                     }));
                 });
@@ -359,6 +357,10 @@ router.post('/bulk/change', ensureAdmin, rateLimit('bulk-change-package', 5, 600
                 global.users[userIndex].subscription_price = newPackageData.price;
             }
 
+            // Beri tahu pelanggan (terjamin: sendCritical + dead-letter). Sebelumnya
+            // jalur bulk TIDAK pernah memberi tahu pelanggan sama sekali.
+            const notify = await notifyCustomerPackageChange(user, oldPackage, new_package, newPackageData.price);
+
             results.push({
                 user_id: userId,
                 user_name: user.name,
@@ -368,10 +370,14 @@ router.post('/bulk/change', ensureAdmin, rateLimit('bulk-change-package', 5, 600
                 sync_policy: isMikrotikSyncEnabled() ? 'enabled' : 'disabled',
                 sync_status: syncResult.status,
                 sync_message: syncResult.message,
-                mikrotik_sync: syncResult
+                mikrotik_sync: syncResult,
+                notify
             });
         }
-        
+
+        const successCount = results.filter(r => r.success).length;
+        const notifiedCount = results.filter(r => r.success && r.notify && r.notify.notified).length;
+
         // Log activity
         logActivity({
             userId: req.user.id,
@@ -380,17 +386,22 @@ router.post('/bulk/change', ensureAdmin, rateLimit('bulk-change-package', 5, 600
             actionType: 'BULK_UPDATE',
             resourceType: 'package_change',
             resourceId: 'bulk',
-            resourceName: `${results.filter(r => r.success).length} pelanggan`,
-            description: `Admin mengubah paket ${results.filter(r => r.success).length} pelanggan ke ${new_package}`,
+            resourceName: `${successCount} pelanggan`,
+            description: `Admin mengubah paket ${successCount} pelanggan ke ${new_package} (${notifiedCount} pelanggan diberi tahu via WA)`,
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
         }).catch(console.error);
-        
+
         db.close();
         res.json({
             status: 200,
-            message: `Berhasil mengubah paket ${results.filter(r => r.success).length} dari ${user_ids.length} pelanggan`,
-            data: results
+            message: `Berhasil mengubah paket ${successCount} dari ${user_ids.length} pelanggan`,
+            data: results,
+            summary: {
+                total: user_ids.length,
+                success: successCount,
+                notified: notifiedCount
+            }
         });
     } catch (error) {
         db.close();
@@ -399,28 +410,38 @@ router.post('/bulk/change', ensureAdmin, rateLimit('bulk-change-package', 5, 600
     }
 });
 
-// Helper: Notify customer about package change
+// Helper: Notify customer about package change.
+//
+// Pakai sendCritical (tunggu-ready + retry + DEAD-LETTER) — BUKAN fire-and-forget.
+// Notifikasi perubahan paket tidak boleh hilang diam-diam saat WA sedang reconnect:
+// kalau gagal, masuk dead-letter dan otomatis di-retry saat WA tersambung lagi.
+// Best-effort terhadap caller: TIDAK pernah throw — kegagalan kirim tidak boleh
+// menggagalkan perubahan paket yang sudah commit di DB/MikroTik.
+//
+// @returns {Promise<{notified, delivered, total, queued, skipped?}>}
 async function notifyCustomerPackageChange(user, oldPackage, newPackage, newPrice) {
-    if (!isReady()) return;
-    if (!user.phone_number) return;
-    
+    if (!user || !user.phone_number) {
+        return { notified: false, delivered: 0, total: 0, queued: 0, skipped: 'no_phone' };
+    }
+
+    const priceNum = Number(newPrice) || 0;
     let message;
     try {
         const unifiedMessage = renderTemplate('package_changed', {
             customer_name: user.name,
             old_package: oldPackage || '-',
             new_package: newPackage,
-            new_price: `Rp ${newPrice.toLocaleString('id-ID')}/bulan`,
+            new_price: `Rp ${priceNum.toLocaleString('id-ID')}/bulan`,
             effective_date: new Date().toLocaleDateString('id-ID'),
             company_name: global.config?.companyName || 'RAF NET'
         });
-        if (!unifiedMessage.startsWith('Error: Template')) {
+        if (unifiedMessage && !unifiedMessage.startsWith('Error: Template')) {
             message = unifiedMessage;
         }
     } catch (e) {
         console.error('[PACKAGE_CHANGE_TEMPLATE_ERROR]', e.message);
     }
-    
+
     // Fallback message if template not available
     if (!message) {
         message = `🔔 *INFO PERUBAHAN PAKET* 🔔\n\n` +
@@ -428,35 +449,43 @@ async function notifyCustomerPackageChange(user, oldPackage, newPackage, newPric
             `Paket internet Anda telah diubah:\n\n` +
             `📦 *Paket Lama:* ${oldPackage || '-'}\n` +
             `📦 *Paket Baru:* ${newPackage}\n` +
-            `💰 *Harga Baru:* Rp ${newPrice.toLocaleString('id-ID')}/bulan\n\n` +
+            `💰 *Harga Baru:* Rp ${priceNum.toLocaleString('id-ID')}/bulan\n\n` +
             `Perubahan ini berlaku mulai sekarang.\n` +
             `Jika ada pertanyaan, silakan hubungi kami.\n\n` +
             `Terima kasih 🙏`;
     }
-    
-    try {
-        const phones = user.phone_number.split('|');
-        
-        for (const phone of phones) {
-            if (!phone || !phone.trim()) continue;
-            let jid = phone.trim();
-            if (jid.startsWith('0')) jid = '62' + jid.substring(1);
-            if (!jid.endsWith('@s.whatsapp.net')) jid += '@s.whatsapp.net';
-            
-            try {
-                await waitForWhatsAppDelay(1000);
-                await emitAsync(DOMAIN_EVENTS.PACKAGE_CHANGE_APPROVED, {
-                    recipient: jid,
-                    message: { text: message }
-                });
-                console.log(`[PACKAGE_CHANGE_NOTIF] Sent to ${user.name}`);
-            } catch (e) {
-                console.error('[PACKAGE_CHANGE_NOTIF_ERROR]', e.message);
-            }
-        }
-    } catch (error) {
-        console.error('[PACKAGE_CHANGE_NOTIF_ERROR]', error);
+
+    const phones = String(user.phone_number).split('|').map((p) => p.trim()).filter(Boolean);
+    if (phones.length === 0) {
+        return { notified: false, delivered: 0, total: 0, queued: 0, skipped: 'no_phone' };
     }
+
+    let delivered = 0;
+    for (const phone of phones) {
+        try {
+            // waitForReadyMs dipangkas (8s) supaya request admin tidak menggantung
+            // lama saat WA down — sisanya dijamin lewat dead-letter + auto-retry.
+            const result = await sendCritical(phone, { text: message }, {
+                label: 'package_change',
+                waitForReadyMs: 8000,
+            });
+            if (result && result.delivered) {
+                delivered += 1;
+                console.log(`[PACKAGE_CHANGE_NOTIF] Terkirim ke ${user.name} (${phone})`);
+            } else {
+                console.warn(`[PACKAGE_CHANGE_NOTIF] Masuk antrian dead-letter untuk ${user.name} (${phone})`);
+            }
+        } catch (e) {
+            console.error('[PACKAGE_CHANGE_NOTIF_ERROR]', e.message);
+        }
+    }
+
+    return {
+        notified: delivered > 0,
+        delivered,
+        total: phones.length,
+        queued: phones.length - delivered, // belum terkirim → dead-letter, auto-retry saat WA reconnect
+    };
 }
 
 module.exports = router;

@@ -178,16 +178,35 @@ $(document).ready(function() {
                 })
                 .done(function(response) {
                     if (response.status === 200) {
-                        const syncDetails = response.sync_message
-                            ? `<br><small class="text-muted">${response.sync_message}</small>`
+                        const data = response.data || {};
+                        const syncStatus = data.sync_status || response.sync_status;
+                        const syncMessage = data.sync_message || response.sync_message;
+                        const syncDetails = syncMessage
+                            ? `<br><small class="text-muted">${syncMessage}</small>`
                             : '';
-                        const title = response.sync_status === 'applied_locally_sync_disabled'
+                        const title = syncStatus === 'applied_locally_sync_disabled'
                             ? 'Tersimpan Lokal'
                             : 'Berhasil!';
+
+                        // Status notifikasi WhatsApp ke pelanggan.
+                        let notifyLine = '';
+                        const notify = data.notify;
+                        if (notify) {
+                            if (notify.skipped === 'no_phone') {
+                                notifyLine = '<br><small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Pelanggan tidak punya nomor WA — tidak dinotifikasi.</small>';
+                            } else if (notify.notified && (notify.queued || 0) === 0) {
+                                notifyLine = '<br><small class="text-success"><i class="fas fa-check-circle"></i> Pelanggan sudah diberi tahu via WhatsApp.</small>';
+                            } else if ((notify.delivered || 0) > 0) {
+                                notifyLine = `<br><small class="text-success"><i class="fas fa-check-circle"></i> ${notify.delivered}/${notify.total} nomor diberi tahu via WhatsApp.</small>`;
+                            } else {
+                                notifyLine = '<br><small class="text-warning"><i class="fas fa-clock"></i> Notifikasi WA masuk antrian — akan dikirim ulang otomatis saat WhatsApp tersambung.</small>';
+                            }
+                        }
+
                         Swal.fire({
-                            icon: response.sync_status === 'failed_sync' ? 'warning' : 'success',
+                            icon: syncStatus === 'failed_sync' ? 'warning' : 'success',
                             title,
-                            html: `Paket berhasil diubah${syncDetails}`
+                            html: `Paket berhasil diubah${syncDetails}${notifyLine}`
                         });
                         resetForm();
                         loadHistory();
