@@ -191,7 +191,10 @@ module.exports = async (raf, msg, m, options = {}) => {
     const statikCatalog = getRuntimeCollection(requestRuntime, 'statik', runtimeGlobalScope);
     const voucherCatalog = voucherRepository.getVoucherCatalog();
 
-    if (((msg.key.id.startsWith("BAE5") && msg.key.id.length < 32) || (msg.key.id.startsWith("3EB0") && msg.key.id.length < 32)) && msg.key?.fromMe) return;
+    // Skip echo status/broadcast fromMe berformat ID pendek. Optional-chaining +
+    // fallback string supaya pesan tanpa msg.key.id tidak crash sebelum guard utama.
+    const msgKeyId = msg.key?.id || '';
+    if (((msgKeyId.startsWith("BAE5") && msgKeyId.length < 32) || (msgKeyId.startsWith("3EB0") && msgKeyId.length < 32)) && msg.key?.fromMe) return;
     const messageContext = extractMessageContext(msg);
     if (!messageContext) {
         console.log('[WARNING] chats is undefined, skipping message processing');
