@@ -27,27 +27,55 @@ function clampNumber(value, min, max, fallback) {
  * di-clamp ke rentang aman supaya admin tak bisa men-set nilai berbahaya
  * (mis. window 0 → langsung broadcast tanpa konfirmasi).
  */
+function asBool(v) {
+    return v === true || v === "true" || v === "1" || v === 1;
+}
+
 function normalizeLosConfig(input = {}) {
     const confirmationWindowMinutes = clampNumber(input.confirmationWindowMinutes, 1, 60, 3);
     const clusterFlushSeconds = clampNumber(input.clusterFlushSeconds, 1, 300, 20);
     const rebroadcastCooldownMinutes = clampNumber(input.rebroadcastCooldownMinutes, 1, 720, 30);
+    // Notifikasi pelanggan terjadwal setelah teknisi (default 60 menit).
+    const nc = input.notifyCustomer || {};
+    const customerDelayMinutes = clampNumber(
+        input.customerNotifyDelayMinutes != null ? input.customerNotifyDelayMinutes : nc.delayMinutes,
+        1, 1440, 60
+    );
+    const ncDefault = DEFAULTS.notifyCustomer || {};
     return {
-        enabled: input.enabled === true || input.enabled === "true",
+        enabled: asBool(input.enabled),
         confidenceThreshold: clampNumber(input.confidenceThreshold, 0, 1, DEFAULTS.confidenceThreshold),
         confirmationWindowMs: Math.round(confirmationWindowMinutes * 60 * 1000),
         clusterFlushMs: Math.round(clusterFlushSeconds * 1000),
         clusterThreshold: Math.round(clampNumber(input.clusterThreshold, 2, 100, DEFAULTS.clusterThreshold)),
         rebroadcastCooldownMs: Math.round(rebroadcastCooldownMinutes * 60 * 1000),
+        notifyCustomer: {
+            enabled: asBool(input.notifyCustomerEnabled != null ? input.notifyCustomerEnabled : nc.enabled),
+            delayMs: Math.round(customerDelayMinutes * 60 * 1000),
+            onlyIfStillDown: input.customerOnlyIfStillDown != null
+                ? asBool(input.customerOnlyIfStillDown)
+                : (nc.onlyIfStillDown !== false),
+            messageTemplate: (input.customerMessageTemplate != null ? input.customerMessageTemplate : nc.messageTemplate)
+                || ncDefault.messageTemplate || "",
+        },
     };
 }
 
 /** Tambah field human-friendly turunan supaya UI tinggal pakai. */
 function decorateForView(cfg) {
+    const nc = cfg.notifyCustomer || DEFAULTS.notifyCustomer || {};
+    const ncDefault = DEFAULTS.notifyCustomer || {};
     return {
         ...cfg,
         confirmationWindowMinutes: Math.round((cfg.confirmationWindowMs || DEFAULTS.confirmationWindowMs) / 60000),
         clusterFlushSeconds: Math.round((cfg.clusterFlushMs || DEFAULTS.clusterFlushMs) / 1000),
         rebroadcastCooldownMinutes: Math.round((cfg.rebroadcastCooldownMs || DEFAULTS.rebroadcastCooldownMs) / 60000),
+        notifyCustomer: {
+            enabled: nc.enabled === true,
+            onlyIfStillDown: nc.onlyIfStillDown !== false,
+            delayMinutes: Math.round((nc.delayMs || ncDefault.delayMs || 3600000) / 60000),
+            messageTemplate: nc.messageTemplate || ncDefault.messageTemplate || "",
+        },
     };
 }
 

@@ -220,6 +220,12 @@
     "confirmationWindowMs": 180000,
     "clusterFlushMs": 20000,
     "clusterThreshold": 3,
-    "rebroadcastCooldownMs": 1800000
+    "rebroadcastCooldownMs": 1800000,
+    "notifyCustomer": {
+      "enabled": false,
+      "delayMs": 3600000,
+      "onlyIfStillDown": true,
+      "messageTemplate": ""
+    }
   }
 }

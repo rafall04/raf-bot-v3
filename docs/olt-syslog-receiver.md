@@ -335,13 +335,49 @@ berjalan, insiden tetap tercatat untuk review manual.
     "confirmationWindowMs": 180000,
     "clusterFlushMs": 20000,
     "clusterThreshold": 3,
-    "rebroadcastCooldownMs": 1800000
+    "rebroadcastCooldownMs": 1800000,
+    "notifyCustomer": {
+      "enabled": false,
+      "delayMs": 3600000,
+      "onlyIfStillDown": true,
+      "messageTemplate": ""
+    }
   }
 }
 ```
 
 Default **OFF** (`enabled: false`). Aktifkan + atur via halaman admin **LOS Broadcast
 (Fiber)** di menu Komunikasi (`/los-broadcast`), atau API `/api/admin/los-broadcast/*`.
+
+### Arti `confidenceThreshold` (0–1)
+
+Tiap LOS diberi skor keyakinan (`classification_confidence`) oleh classifier +
+rxPower: **1.0** = sangat yakin fiber putus, **0.6** = cukup yakin (LOS tanpa
+dying-gasp), **< threshold** → tidak auto-broadcast (dicatat `low_confidence`).
+Naikkan untuk lebih hati-hati; turunkan untuk lebih sensitif.
+
+### `rebroadcastCooldownMs` = anti-kedip (BUKAN pengulangan)
+
+**1 insiden = 1 broadcast.** Sekali LOS sebuah modem di-broadcast, modem itu masuk
+daftar *insiden aktif* dan TIDAK di-broadcast lagi sampai pulih (Discovery).
+`rebroadcastCooldownMs` hanya mencegah modem yang *turun-naik-turun cepat* (flapping)
+memicu alert baru berulang dalam jeda tersebut. Map `lastBroadcast` di-prune otomatis
+saat membengkak (anti memory-leak).
+
+### Notifikasi pelanggan otomatis (`notifyCustomer`)
+
+Opsional. Setelah teknisi diberi tahu, jadwalkan info ke **pelanggan** bahwa
+koneksinya terdeteksi putus:
+- `enabled` — default OFF.
+- `delayMs` — jeda setelah teknisi diberi tahu (default 1 jam).
+- `onlyIfStillDown` — bila `true` (disarankan), batal kirim jika modem sudah pulih
+  sebelum jeda berakhir.
+- `messageTemplate` — placeholder: `{customer_name}`, `{address}`, `{mac}`, `{slot}`,
+  `{onu}`, `{company_name}`. Kosong → pakai template default.
+
+Pelanggan hanya bisa dinotifikasi bila MAC ONU bisa dipetakan ke data pelanggan
+(resolver best-effort/offline berbasis field MAC di record user, atau resolver custom
+yang di-inject). Bila tak teridentifikasi → insiden ditandai `customer_unresolved`.
 
 ### Beda dengan Auto Outage
 

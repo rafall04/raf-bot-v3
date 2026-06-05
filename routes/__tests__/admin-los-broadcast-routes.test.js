@@ -146,8 +146,25 @@ describe("normalizeLosConfig", () => {
         expect(c.enabled).toBe(false);
         expect(c.confirmationWindowMs).toBe(180000); // 3 menit
         expect(c.clusterThreshold).toBe(3);
+        expect(c.notifyCustomer).toMatchObject({ enabled: false, delayMs: 3600000, onlyIfStillDown: true });
     });
     test("enabled menerima string 'true'", () => {
         expect(normalizeLosConfig({ enabled: "true" }).enabled).toBe(true);
+    });
+    test("notifikasi pelanggan: menit→ms + template + onlyIfStillDown", () => {
+        const c = normalizeLosConfig({
+            notifyCustomerEnabled: "true",
+            customerNotifyDelayMinutes: 90,
+            customerMessageTemplate: "Halo {customer_name}",
+            customerOnlyIfStillDown: "false",
+        });
+        expect(c.notifyCustomer.enabled).toBe(true);
+        expect(c.notifyCustomer.delayMs).toBe(5400000); // 90 menit
+        expect(c.notifyCustomer.messageTemplate).toBe("Halo {customer_name}");
+        expect(c.notifyCustomer.onlyIfStillDown).toBe(false);
+    });
+    test("customerNotifyDelayMinutes di-clamp ke rentang aman (max 1440)", () => {
+        expect(normalizeLosConfig({ customerNotifyDelayMinutes: 99999 }).notifyCustomer.delayMs).toBe(1440 * 60 * 1000);
+        expect(normalizeLosConfig({ customerNotifyDelayMinutes: 0 }).notifyCustomer.delayMs).toBe(1 * 60 * 1000);
     });
 });

@@ -82,8 +82,18 @@
                     <div class="form-group col-md-6">
                       <label>Ambang Keyakinan (0–1)</label>
                       <input type="number" step="0.05" min="0" max="1" class="form-control" name="confidenceThreshold" value="0.6">
-                      <small class="text-muted">Hanya LOS dengan confidence ≥ nilai ini yang di-broadcast.</small>
+                      <small class="text-muted">Tingkat keyakinan sistem bahwa ini benar LOS (fiber), bukan dying-gasp.</small>
                     </div>
+                  </div>
+                  <div class="alert alert-light border" style="font-size:.82rem;">
+                    <strong>Arti "Ambang Keyakinan" (0–1):</strong> setiap LOS diberi skor keyakinan oleh sistem.
+                    <ul class="mb-1 mt-1 pl-3">
+                      <li><strong>1.0</strong> = sangat yakin LOS/fiber putus (mis. ada bukti rxPower menurun).</li>
+                      <li><strong>0.6</strong> = cukup yakin (default — LOS tanpa dying-gasp).</li>
+                      <li><strong>&lt; 0.6</strong> = ragu → <em>tidak</em> auto-broadcast (dicatat sebagai <code>low_confidence</code>).</li>
+                    </ul>
+                    Naikkan (mis. 0.8) bila ingin lebih hati-hati (lebih sedikit panggilan teknisi, risiko ada yang terlewat).
+                    Turunkan (mis. 0.5) bila ingin lebih sensitif (lebih banyak alert, risiko false-alarm).
                   </div>
                   <div class="form-row">
                     <div class="form-group col-md-6">
@@ -92,8 +102,9 @@
                       <small class="text-muted">Tunggu sekian menit; jika ONU pulih (Discovery) → broadcast dibatalkan.</small>
                     </div>
                     <div class="form-group col-md-6">
-                      <label>Cooldown Re-broadcast (menit)</label>
+                      <label>Jeda Anti-Kedip / Flapping (menit)</label>
                       <input type="number" min="1" max="720" class="form-control" name="rebroadcastCooldownMinutes" value="30">
+                      <small class="text-muted"><strong>Bukan pengulangan broadcast.</strong> 1 insiden = 1 broadcast. Ini hanya mencegah modem yang turun-naik-turun cepat memicu alert berkali-kali dalam jeda ini.</small>
                     </div>
                   </div>
                   <div class="form-row">
@@ -121,8 +132,43 @@
                 <hr>
                 <p class="mb-1"><strong>LOS sedang pending:</strong> <span id="statePendingCount">0</span></p>
                 <pre id="statePendingMacs" class="bg-light p-2 rounded" style="min-height:60px; max-height:160px; overflow:auto;">-</pre>
+                <p class="mb-1"><strong>Insiden aktif (sudah broadcast, belum pulih):</strong> <span id="stateActiveCount">0</span></p>
                 <p class="text-muted mb-0"><small>Timer in-memory: jika proses restart saat window berjalan, insiden tetap tercatat untuk review manual.</small></p>
               </div>
+            </div>
+          </div>
+
+          <div class="los-card mt-4">
+            <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-dark"><i class="fas fa-user-clock"></i> Notifikasi Otomatis ke Pelanggan</h6></div>
+            <div class="card-body">
+              <p class="text-muted">Setelah teknisi diberi tahu, sistem bisa otomatis memberi tahu <strong>pelanggan</strong> bahwa koneksinya terdeteksi putus — <em>setelah jeda tertentu</em> (mis. 1 jam), dan <strong>hanya jika modem masih belum pulih</strong>.</p>
+              <form id="custForm">
+                <div class="form-row">
+                  <div class="form-group col-md-4">
+                    <label>Status</label>
+                    <select class="form-control" name="notifyCustomerEnabled"><option value="false">Nonaktif</option><option value="true">Aktif</option></select>
+                  </div>
+                  <div class="form-group col-md-4">
+                    <label>Jeda Setelah Teknisi (menit)</label>
+                    <input type="number" min="1" max="1440" class="form-control" name="customerNotifyDelayMinutes" value="60">
+                    <small class="text-muted">Default 60 = 1 jam.</small>
+                  </div>
+                  <div class="form-group col-md-4">
+                    <label>Hanya jika masih putus?</label>
+                    <select class="form-control" name="customerOnlyIfStillDown"><option value="true">Ya (disarankan)</option><option value="false">Tetap kirim</option></select>
+                    <small class="text-muted">"Ya" → batal kirim bila modem sudah pulih sebelum jeda.</small>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Template Pesan ke Pelanggan</label>
+                  <textarea class="form-control" name="customerMessageTemplate" rows="6"></textarea>
+                  <small class="text-muted">Placeholder: <code>{customer_name}</code>, <code>{address}</code>, <code>{mac}</code>, <code>{slot}</code>, <code>{onu}</code>, <code>{company_name}</code>.</small>
+                </div>
+                <div class="alert alert-warning" style="font-size:.82rem;">
+                  <i class="fas fa-exclamation-triangle"></i> Pelanggan hanya bisa dinotifikasi bila MAC ONU bisa dipetakan ke data pelanggan (mis. nomor WA tersimpan). Jika tidak teridentifikasi, insiden ditandai <code>customer_unresolved</code> agar admin bisa info manual.
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Simpan Notifikasi Pelanggan</button>
+              </form>
             </div>
           </div>
 
@@ -140,7 +186,7 @@
             </div>
             <div class="card-body table-responsive">
               <table class="table table-bordered los-table" id="incidentsTable">
-                <thead><tr><th>Terdeteksi</th><th>Status</th><th>MAC</th><th>Slot/ONU</th><th>OLT</th><th>Pelanggan</th><th>Conf</th><th>Area?</th><th>Terkirim</th></tr></thead>
+                <thead><tr><th>Terdeteksi</th><th>Status</th><th>MAC</th><th>Slot/ONU</th><th>OLT</th><th>Pelanggan</th><th>Conf</th><th>Area?</th><th>Terkirim</th><th>Notif Pelanggan</th></tr></thead>
                 <tbody></tbody>
               </table>
             </div>
@@ -179,16 +225,29 @@
       f.elements.rebroadcastCooldownMinutes.value = cfg.rebroadcastCooldownMinutes;
       f.elements.clusterFlushSeconds.value = cfg.clusterFlushSeconds;
       f.elements.clusterThreshold.value = cfg.clusterThreshold;
+      // Notifikasi pelanggan
+      const nc = cfg.notifyCustomer || {};
+      const c = document.getElementById('custForm');
+      c.elements.notifyCustomerEnabled.value = nc.enabled ? 'true' : 'false';
+      c.elements.customerNotifyDelayMinutes.value = nc.delayMinutes != null ? nc.delayMinutes : 60;
+      c.elements.customerOnlyIfStillDown.value = (nc.onlyIfStillDown === false) ? 'false' : 'true';
+      c.elements.customerMessageTemplate.value = nc.messageTemplate || '';
     }
+    // Endpoint /config mengganti SELURUH config, jadi payload selalu gabungan kedua form.
     function configPayload() {
       const f = document.getElementById('cfgForm');
+      const c = document.getElementById('custForm');
       return {
         enabled: asBool(f.elements.enabled.value),
         confidenceThreshold: Number(f.elements.confidenceThreshold.value),
         confirmationWindowMinutes: Number(f.elements.confirmationWindowMinutes.value),
         rebroadcastCooldownMinutes: Number(f.elements.rebroadcastCooldownMinutes.value),
         clusterFlushSeconds: Number(f.elements.clusterFlushSeconds.value),
-        clusterThreshold: Number(f.elements.clusterThreshold.value)
+        clusterThreshold: Number(f.elements.clusterThreshold.value),
+        notifyCustomerEnabled: asBool(c.elements.notifyCustomerEnabled.value),
+        customerNotifyDelayMinutes: Number(c.elements.customerNotifyDelayMinutes.value),
+        customerOnlyIfStillDown: asBool(c.elements.customerOnlyIfStillDown.value),
+        customerMessageTemplate: c.elements.customerMessageTemplate.value
       };
     }
 
@@ -202,6 +261,8 @@
       document.getElementById('statePendingCount').textContent = s.pendingCount || 0;
       document.getElementById('metricPending').textContent = s.pendingCount || 0;
       document.getElementById('statePendingMacs').textContent = (s.pendingMacs && s.pendingMacs.length) ? s.pendingMacs.join('\n') : '-';
+      const ac = document.getElementById('stateActiveCount');
+      if (ac) ac.textContent = s.activeIncidentCount || 0;
     }
     async function loadIncidents() {
       const status = document.getElementById('statusFilter').value;
@@ -219,12 +280,13 @@
         const cust = it.customer ? (it.customer.name || '-') + (it.customer.address ? ' — ' + it.customer.address : '') : '-';
         const slotOnu = (it.slot != null || it.onu != null) ? esc(it.slot) + '/' + esc(it.onu) : '-';
         const delivered = (it.deliveredCount != null && it.recipientsCount != null) ? (it.deliveredCount + '/' + it.recipientsCount) : '-';
+        const cnotif = it.customerNotifyStatus || '-';
         tbody.insertAdjacentHTML('beforeend',
           `<tr><td>${esc(it.detectedAt)}</td>`
           + `<td><span class="badge-status st-${esc(it.status)}">${esc(it.status)}</span></td>`
           + `<td>${esc(it.mac)}</td><td>${slotOnu}</td><td>${esc(it.oltId)}</td>`
           + `<td>${esc(cust)}</td><td>${it.confidence != null ? esc(it.confidence) : '-'}</td>`
-          + `<td>${it.areaOutage ? 'Ya' : '-'}</td><td>${esc(delivered)}</td></tr>`);
+          + `<td>${it.areaOutage ? 'Ya' : '-'}</td><td>${esc(delivered)}</td><td>${esc(cnotif)}</td></tr>`);
       });
       document.getElementById('metricBroadcasted').textContent = bc;
       document.getElementById('metricRecovered').textContent = rec;
@@ -234,13 +296,20 @@
       await Promise.all([loadConfig(), loadState(), loadIncidents()]);
     }
 
-    document.getElementById('cfgForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
+    async function saveConfig(successMsg) {
       try {
         await request('/config', { method: 'POST', body: JSON.stringify(configPayload()) });
-        Swal.fire('Tersimpan', 'Konfigurasi LOS broadcast berhasil disimpan.', 'success');
+        Swal.fire('Tersimpan', successMsg, 'success');
         await loadConfig();
       } catch (err) { Swal.fire('Gagal', err.message, 'error'); }
+    }
+    document.getElementById('cfgForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      saveConfig('Konfigurasi LOS broadcast berhasil disimpan.');
+    });
+    document.getElementById('custForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      saveConfig('Konfigurasi notifikasi pelanggan berhasil disimpan.');
     });
     document.getElementById('btnRefresh').onclick = () => refreshAll().catch((e) => Swal.fire('Gagal', e.message, 'error'));
     document.getElementById('statusFilter').onchange = () => loadIncidents().catch(() => {});
