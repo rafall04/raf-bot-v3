@@ -19,7 +19,7 @@ const oltLogScraper = require('../lib/olt-log-scraper');
 const oltManager = require('../lib/olt-manager');
 
 // Import driver registry (multi-merk OLT). Dispatch per device.brand.
-const { resolveDriver, listDrivers } = require('../lib/olt-drivers');
+const { resolveDriver, getDriver, listDrivers, detectBrand } = require('../lib/olt-drivers');
 
 // ============================================
 // CACHE SYSTEM untuk performa lebih baik
@@ -37,6 +37,39 @@ const pppoeCache = {
     ttl: 15000,           // Cache valid 15 detik
     loading: false
 };
+
+// Cache hasil query semua OLT (multi-device). Penting untuk GPON ZTE yang walk-nya
+// lama (~24 dtk untuk 608 ONU) — tanpa cache tiap request /matched akan sangat lambat.
+const multiOltCache = {
+    data: null,
+    timestamp: 0,
+    ttl: 30000,           // Cache valid 30 detik
+    loading: false
+};
+
+/**
+ * getMultipleOltData dengan cache TTL + guard concurrent (mirip getCachedOltData).
+ */
+async function getCachedMultipleOltData(oltDevices, forceRefresh = false) {
+    const now = Date.now();
+    if (!forceRefresh && multiOltCache.data && (now - multiOltCache.timestamp) < multiOltCache.ttl) {
+        return multiOltCache.data;
+    }
+    if (multiOltCache.loading && multiOltCache.data) {
+        return multiOltCache.data;
+    }
+    multiOltCache.loading = true;
+    try {
+        const result = await getMultipleOltData(oltDevices);
+        if (result.status === 'success') {
+            multiOltCache.data = result;
+            multiOltCache.timestamp = now;
+        }
+        return result;
+    } finally {
+        multiOltCache.loading = false;
+    }
+}
 
 // ============================================
 // LAST CALLER ID CACHE - Menyimpan MAC terakhir per PPPoE username
@@ -550,9 +583,10 @@ router.get('/matched', async (req, res) => {
             });
         }
 
-        // Get OLT data dari semua OLT (parallel query)
+        // Get OLT data dari semua OLT (parallel query, dengan cache 30 dtk)
         console.log(`[OLT] Fetching matched ONT data from ${oltDevices.length} OLT(s)`);
-        const oltResult = await getMultipleOltData(oltDevices);
+        const forceRefresh = req.query.force === 'true';
+        const oltResult = await getCachedMultipleOltData(oltDevices, forceRefresh);
 
         if (oltResult.status !== 'success') {
             return res.json({
@@ -580,14 +614,22 @@ router.get('/matched', async (req, res) => {
 
         // Build matched data menggunakan last caller ID untuk offline users
         const matchedData = [];
-        const oltByMac = {};
-        
-        // Index OLT data by MAC prefix untuk quick lookup
+        const oltByMac = {};      // EPON (HIOSO): prefix MAC → onu
+        const oltByPppoe = {};    // GPON (ZTE): description (=username PPPoE) → onu
+        const oltBySerial = {};   // GPON: serial number → onu
+
+        // Index OLT data untuk quick lookup. ONU EPON pakai MAC; ONU GPON (mac='N/A')
+        // pakai deskripsi(pppoe)/serial. Guard panjang MAC agar 'N/A'→'NA' tidak masuk.
         oltResult.onus.forEach(onu => {
             const normalizedMac = normalizeMAC(onu.macAddress);
-            if (normalizedMac) {
-                const prefix = normalizedMac.substring(0, 10);
-                oltByMac[prefix] = onu;
+            if (normalizedMac && normalizedMac.length >= 10) {
+                oltByMac[normalizedMac.substring(0, 10)] = onu;
+            }
+            if (onu.description && String(onu.description).includes('@')) {
+                oltByPppoe[String(onu.description).trim().toLowerCase()] = onu;
+            }
+            if (onu.serial) {
+                oltBySerial[String(onu.serial).trim().toLowerCase()] = onu;
             }
         });
 
@@ -596,16 +638,24 @@ router.get('/matched', async (req, res) => {
         // itu berarti ONT dalam kondisi DYING GASP (adaptor mati)
         for (const user of users) {
             if (!user.pppoe_username) continue;
-            
-            // Get MAC dari active session atau last known
+            const pppoeKey = String(user.pppoe_username).trim().toLowerCase();
+
+            // Resolusi identitas brand-agnostik: PPPoE(deskripsi GPON) → serial → MAC(EPON).
+            let matchedOnu = oltByPppoe[pppoeKey] || null;
+            if (!matchedOnu && user.olt_serial) {
+                matchedOnu = oltBySerial[String(user.olt_serial).trim().toLowerCase()] || null;
+            }
+
+            // MAC dari active session / last known (EPON). Bisa null untuk pelanggan GPON.
             const macInfo = getMacForUser(user.pppoe_username, pppoeActive);
-            if (!macInfo) continue;
-            
-            const userMacPrefix = normalizeMAC(macInfo.mac).substring(0, 10);
-            
-            // Cari ONU yang match
-            const matchedOnu = oltByMac[userMacPrefix];
-            
+            if (!matchedOnu && macInfo) {
+                const userMacPrefix = normalizeMAC(macInfo.mac).substring(0, 10);
+                matchedOnu = oltByMac[userMacPrefix] || null;
+            }
+
+            // Tidak ada cara identifikasi sama sekali → lewati.
+            if (!matchedOnu && !macInfo) continue;
+
             // Debug log untuk user tertentu
             if (user.pppoe_username.includes('tes@') || user.pppoe_username.includes('mbah')) {
                 console.log(`[OLT DEBUG] User: ${user.pppoe_username}, MAC: ${macInfo.mac}, Source: ${macInfo.source}, Found in OLT: ${!!matchedOnu}`);
@@ -634,8 +684,9 @@ router.get('/matched', async (req, res) => {
                 }
                 
                 // Simpan mapping MAC -> OLT supaya ONT yang sedang offline pun
-                // tetap bisa diketahui ikut OLT mana di query berikutnya.
-                if (matchedOnu.macAddress && matchedOnu.olt_id) {
+                // tetap bisa diketahui ikut OLT mana di query berikutnya. (EPON saja;
+                // GPON macAddress='N/A' jadi di-skip.)
+                if (matchedOnu.macAddress && matchedOnu.macAddress !== 'N/A' && matchedOnu.olt_id) {
                     oltManager.updateMacCache(matchedOnu.macAddress, matchedOnu.olt_id, matchedOnu.olt_name, matchedOnu.olt_host);
                 }
 
@@ -643,9 +694,13 @@ router.get('/matched', async (req, res) => {
                     user_id: user.id,
                     customer_name: user.name,
                     pppoe_username: user.pppoe_username,
-                    mac_mikrotik: macInfo.mac,
-                    mac_source: macInfo.source, // 'active' atau 'cached'
+                    mac_mikrotik: macInfo ? macInfo.mac : null,
+                    mac_source: macInfo ? macInfo.source : 'olt', // 'active'/'cached'/'olt' (GPON match by pppoe)
                     mac_olt: matchedOnu.macAddress,
+                    serial: matchedOnu.serial || null,
+                    description: matchedOnu.description || null,
+                    pon_name: matchedOnu.ponName || null,
+                    olt_brand: matchedOnu.olt_brand || null,
                     olt_id: matchedOnu.olt_id || null,
                     olt_name: matchedOnu.olt_name || null,
                     olt_host: matchedOnu.olt_host || null,
@@ -694,6 +749,10 @@ router.get('/matched', async (req, res) => {
                     mac_mikrotik: macInfo.mac,
                     mac_source: macInfo.source,
                     mac_olt: 'N/A',
+                    serial: null,
+                    description: null,
+                    pon_name: null,
+                    olt_brand: null,
                     olt_id: cachedOlt ? cachedOlt.oltId : null,
                     olt_name: cachedOlt ? cachedOlt.oltName : null,
                     olt_host: cachedOlt ? cachedOlt.oltHost : null,
@@ -1211,8 +1270,8 @@ router.post('/devices/:id/test', async (req, res) => {
             return res.status(404).json({ status: 404, message: 'OLT tidak ditemukan' });
         }
 
-        console.log(`[OLT] Testing connection to ${device.name} (${device.host})`);
-        
+        console.log(`[OLT] Testing connection to ${device.name} (${device.host}) brand=${device.brand || 'auto'}`);
+
         const config = {
             host: device.host,
             port: device.snmpPort || 161,
@@ -1220,16 +1279,32 @@ router.post('/devices/:id/test', async (req, res) => {
             timeout: device.snmpTimeout || 15000,
             retries: device.snmpRetries || 2
         };
-        
-        const result = await getOltData(config);
+
+        // Auto-deteksi merk via sysObjectID bila brand 'auto'/kosong, lalu simpan balik ke config
+        // supaya query berikutnya langsung pakai driver yang benar tanpa probe lagi.
+        let brand = device.brand || 'auto';
+        let detectedBrand = null;
+        if (brand === 'auto') {
+            detectedBrand = await detectBrand(config);
+            brand = detectedBrand;
+            const cfg = loadConfig();
+            const dev = cfg.olt && cfg.olt.devices && cfg.olt.devices.find(d => d.id === id);
+            if (dev) { dev.brand = detectedBrand; saveConfig(cfg); }
+        }
+
+        const driver = getDriver(brand);
+        const result = await driver.getOltData(config);
 
         if (result.status === 'success') {
+            const detectNote = detectedBrand ? ` (terdeteksi: ${driver.label})` : '';
             res.json({
                 status: 200,
-                message: `Koneksi berhasil! Ditemukan ${result.onus.length} ONT`,
+                message: `Koneksi berhasil! Ditemukan ${result.onus.length} ONT${detectNote}`,
                 data: {
                     timestamp: result.timestamp,
-                    onuCount: result.onus.length
+                    onuCount: result.onus.length,
+                    brand: brand,
+                    brandLabel: driver.label
                 }
             });
         } else {

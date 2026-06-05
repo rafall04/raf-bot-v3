@@ -610,6 +610,7 @@
                       <tr>
                         <th>Nama</th>
                         <th>IP Address</th>
+                        <th>Merk</th>
                         <th>SNMP Port</th>
                         <th>Status</th>
                         <th>Aksi</th>
@@ -741,9 +742,19 @@
           <div class="form-group">
             <label for="oltDeviceHost">IP Address</label>
             <input type="text" class="form-control" id="oltDeviceHost" name="host" placeholder="192.168.1.100" required>
-            <small class="form-text text-muted">Alamat IP OLT HIOSO</small>
+            <small class="form-text text-muted">Alamat IP OLT</small>
           </div>
-          
+
+          <div class="form-group">
+            <label for="oltDeviceBrand">Merk OLT</label>
+            <select class="form-control" id="oltDeviceBrand" name="brand">
+              <option value="auto">Auto-deteksi (rekomendasi)</option>
+              <option value="hioso">HIOSO EPON</option>
+              <option value="zte">ZTE C320/C300 GPON</option>
+            </select>
+            <small class="form-text text-muted">Pilih merk, atau "Auto-deteksi" untuk kenali otomatis via SNMP saat test koneksi.</small>
+          </div>
+
           <hr class="my-4">
           <h6 class="text-primary mb-3"><i class="fas fa-network-wired"></i> Konfigurasi SNMP</h6>
           
@@ -1594,18 +1605,21 @@ a.n ${account.name || '[Nama]'}</small>
             
             if (devices.length === 0) {
               const row = oltDevicesTable.insertRow();
-              row.innerHTML = '<td colspan="5" class="text-center text-muted">Belum ada perangkat OLT. Klik "Tambah OLT" untuk menambahkan.</td>';
+              row.innerHTML = '<td colspan="6" class="text-center text-muted">Belum ada perangkat OLT. Klik "Tambah OLT" untuk menambahkan.</td>';
               console.log('[OLT] No devices found');
             } else {
               devices.forEach(device => {
                 console.log('[OLT] Adding device to table:', device);
                 const row = oltDevicesTable.insertRow();
+                const brandLabels = { auto: 'Auto', hioso: 'HIOSO EPON', zte: 'ZTE GPON' };
+                const brandKey = device.brand || 'auto';
                 row.innerHTML = `
                   <td>${device.name}</td>
                   <td>${device.host}</td>
+                  <td><span class="badge badge-info">${brandLabels[brandKey] || brandKey}</span></td>
                   <td>${device.snmpPort || 161}</td>
                   <td>
-                    ${device.enabled !== false ? 
+                    ${device.enabled !== false ?
                       '<span class="badge badge-success">Aktif</span>' : 
                       '<span class="badge badge-secondary">Nonaktif</span>'}
                   </td>
@@ -1675,6 +1689,7 @@ a.n ${account.name || '[Nama]'}</small>
       const data = {
         name: document.getElementById('oltDeviceName').value.trim(),
         host: document.getElementById('oltDeviceHost').value.trim(),
+        brand: document.getElementById('oltDeviceBrand').value || 'auto',
         snmpPort: parseInt(document.getElementById('oltDeviceSnmpPort').value) || 161,
         snmpCommunity: document.getElementById('oltDeviceSnmpCommunity').value.trim() || 'public',
         snmpTimeout: parseInt(document.getElementById('oltDeviceSnmpTimeout').value) || 30000,
@@ -1720,6 +1735,7 @@ a.n ${account.name || '[Nama]'}</small>
               document.getElementById('oltDeviceId').value = device.id;
               document.getElementById('oltDeviceName').value = device.name;
               document.getElementById('oltDeviceHost').value = device.host;
+              document.getElementById('oltDeviceBrand').value = device.brand || 'auto';
               document.getElementById('oltDeviceSnmpPort').value = device.snmpPort || 161;
               document.getElementById('oltDeviceSnmpCommunity').value = device.snmpCommunity || 'public';
               document.getElementById('oltDeviceSnmpTimeout').value = device.snmpTimeout || 30000;
