@@ -49,6 +49,40 @@
         }
         .info-card.signal .text-white-50 { color: rgba(255,255,255,0.7) !important; }
         .info-card.status { background: #f8f9fc; border: 1px solid #e3e6f0; }
+        /* ── Loading overlay & empty state ───────────────────────────── */
+        .olt-card-body { position: relative; min-height: 200px; }
+        .olt-loading-overlay {
+            position: absolute; inset: 0; z-index: 20;
+            background: rgba(255,255,255,0.9);
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 0 0 0.35rem 0.35rem;
+            animation: olt-fade-in 0.2s ease;
+        }
+        .olt-loading-content { text-align: center; max-width: 340px; padding: 1rem; }
+        .olt-spinner {
+            width: 46px; height: 46px; margin: 0 auto 0.85rem;
+            border: 4px solid #e3e6f0; border-top-color: #4e73df;
+            border-radius: 50%; animation: olt-spin 0.8s linear infinite;
+        }
+        @keyframes olt-spin { to { transform: rotate(360deg); } }
+        .olt-loading-title { font-weight: 700; color: #4e73df; }
+        .olt-loading-sub { font-size: 0.85rem; color: #858796; margin-top: 0.25rem; min-height: 1.1em; }
+        .olt-progress {
+            width: 220px; height: 4px; margin: 0.9rem auto 0;
+            background: #e3e6f0; border-radius: 2px; overflow: hidden; position: relative;
+        }
+        .olt-progress-bar {
+            position: absolute; top: 0; height: 100%; width: 35%;
+            background: linear-gradient(90deg, #4e73df, #36b9cc); border-radius: 2px;
+            animation: olt-indet 1.15s ease-in-out infinite;
+        }
+        @keyframes olt-indet { 0% { left: -35%; } 100% { left: 100%; } }
+        @keyframes olt-fade-in { from { opacity: 0; } to { opacity: 1; } }
+        .olt-empty { text-align: center; padding: 2.75rem 1rem; color: #858796; animation: olt-fade-in 0.25s ease; }
+        .olt-empty > i { font-size: 2.75rem; color: #d1d3e2; margin-bottom: 0.75rem; display: block; }
+        .olt-empty .olt-empty-title { font-weight: 600; color: #5a5c69; font-size: 1.05rem; }
+        .btn.is-loading { pointer-events: none; opacity: 0.65; }
+        .olt-just-loaded tbody tr { animation: olt-fade-in 0.3s ease; }
         @media (max-width: 768px) {
             .container-fluid { padding: 0.75rem; }
             h1.h3 { font-size: 1.25rem; }
@@ -92,7 +126,7 @@
                     </div>
 
                     <div id="oltStatusAlert" class="alert alert-info" style="display: none;">
-                        <i class="fas fa-info-circle"></i> <span id="oltStatusMessage"></span>
+                        <span id="oltStatusMessage"></span>
                     </div>
 
                     <!-- Statistics Cards -->
@@ -173,8 +207,23 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
+                        <div class="card-body olt-card-body">
+                            <!-- Loading overlay (animasi ringan saat ambil data dari OLT) -->
+                            <div id="oltLoadingOverlay" class="olt-loading-overlay" style="display: none;">
+                                <div class="olt-loading-content">
+                                    <div class="olt-spinner"></div>
+                                    <div class="olt-loading-title" id="oltLoadingTitle">Memuat data ONU…</div>
+                                    <div class="olt-loading-sub" id="oltLoadingSub">Menghubungi OLT</div>
+                                    <div class="olt-progress"><div class="olt-progress-bar"></div></div>
+                                </div>
+                            </div>
+                            <!-- Empty state: belum pilih OLT -->
+                            <div id="oltEmptyState" class="olt-empty" style="display: none;">
+                                <i class="fas fa-network-wired"></i>
+                                <div class="olt-empty-title">Pilih OLT untuk memuat data</div>
+                                <div class="small">Data ONU diambil langsung dari OLT yang dipilih.</div>
+                            </div>
+                            <div class="table-responsive" id="oltTableWrap">
                                 <table class="table table-bordered table-hover" id="oltDataTable" width="100%">
                                     <thead class="thead-light">
                                         <tr>
@@ -321,6 +370,7 @@
         let currentOltFilter = '';      // '' = belum pilih | 'all' = semua | id OLT tertentu
         let currentViewMode = 'all';    // 'all' = semua ONU | 'matched' = hanya pelanggan terdaftar
         let oltDevicesList = [];        // daftar OLT dari API (untuk dropdown)
+        let oltLoading = false;         // guard supaya tidak dobel-fetch saat load berjalan
         const AUTO_REFRESH_INTERVAL = 30000;
 
         $(document).ready(async function() {
@@ -477,10 +527,18 @@
         async function loadAllData(showLoading = false) {
             // Belum pilih OLT → jangan query apa pun.
             if (!currentOltFilter) { showOltEmptyState(); return; }
-            if (showLoading) {
-                $('#refreshOltBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+            if (oltLoading) return; // cegah dobel-fetch
+            oltLoading = true;
+
+            // Overlay penuh hanya untuk load eksplisit / pertama; auto-refresh senyap.
+            const explicit = showLoading || matchedData.length === 0;
+            if (explicit) {
+                setControlsLoading(true);
+                const dev = oltDevicesList.find(d => d.id === currentOltFilter);
+                const oltName = currentOltFilter === 'all' ? 'semua OLT' : (dev ? dev.name : 'OLT');
+                showLoadingOverlay('Memuat data ONU…', 'Menghubungi ' + oltName + ' — OLT besar bisa ~30 detik');
             }
-            showAlert('info', '<i class="fas fa-spinner fa-spin"></i> Memuat data ONU dari OLT… (OLT besar bisa ~30 detik)');
+
             try {
                 await loadPppoeData();
                 await loadOltMatchedData(showLoading);
@@ -489,8 +547,26 @@
                 console.error('Error:', e);
                 showAlert('danger', 'Gagal memuat data: ' + e.message);
             } finally {
-                $('#refreshOltBtn').prop('disabled', false).html('<i class="fas fa-sync-alt"></i> Refresh');
+                if (explicit) { hideLoadingOverlay(); setControlsLoading(false); }
+                oltLoading = false;
             }
+        }
+
+        // ── Loading overlay & kontrol ────────────────────────────────────
+        function showLoadingOverlay(title, sub) {
+            $('#oltLoadingTitle').text(title || 'Memuat data ONU…');
+            $('#oltLoadingSub').text(sub || '');
+            $('#oltEmptyState').hide();
+            $('#oltTableWrap').show();
+            $('#oltLoadingOverlay').css('display', 'flex');
+            hideAlert();
+        }
+        function hideLoadingOverlay() { $('#oltLoadingOverlay').hide(); }
+
+        function setControlsLoading(on) {
+            $('#oltSelector').prop('disabled', on);
+            $('#refreshOltBtn').prop('disabled', on).toggleClass('is-loading', on)
+                .html(on ? '<i class="fas fa-spinner fa-spin"></i> Memuat…' : '<i class="fas fa-sync-alt"></i> Refresh');
         }
 
         async function loadPppoeData() {
@@ -548,7 +624,10 @@
         function showOltEmptyState() {
             updateStats(0, 0, 0, 0);
             if (dataTableInstance) dataTableInstance.clear().draw();
-            showAlert('info', '<i class="fas fa-hand-pointer"></i> Pilih OLT di atas untuk memuat data ONU.');
+            hideLoadingOverlay();
+            $('#oltTableWrap').hide();
+            $('#oltEmptyState').show();
+            hideAlert();
         }
 
         function populateOltSelector(devices) {
@@ -568,6 +647,10 @@
             const view = currentViewMode === 'matched' ? matchedData.filter(r => r.matched) : matchedData;
             updateStatsFromData(view);
             dataTableInstance.clear().rows.add(view).draw();
+            $('#oltEmptyState').hide();
+            $('#oltTableWrap').show();
+            const $wrap = $('#oltTableWrap').addClass('olt-just-loaded');
+            setTimeout(() => $wrap.removeClass('olt-just-loaded'), 400);
         }
 
         async function loadOltMatchedData(force = false) {
@@ -872,9 +955,10 @@
         }
 
         function showAlert(type, msg) {
-            $('#oltStatusAlert').removeClass('alert-info alert-warning alert-danger')
+            const icons = { info: 'fa-info-circle', warning: 'fa-exclamation-triangle', danger: 'fa-times-circle', success: 'fa-check-circle' };
+            $('#oltStatusAlert').removeClass('alert-info alert-warning alert-danger alert-success')
                 .addClass('alert-' + type).show();
-            $('#oltStatusMessage').text(msg);
+            $('#oltStatusMessage').html('<i class="fas ' + (icons[type] || 'fa-info-circle') + '"></i> ' + msg);
         }
 
         function hideAlert() { $('#oltStatusAlert').hide(); }
