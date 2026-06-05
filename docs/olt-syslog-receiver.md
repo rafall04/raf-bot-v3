@@ -154,19 +154,102 @@ yang sama. Strategi:
 Setelah 1–2 minggu monitoring (ratio syslog vs scrape events seimbang, tidak ada
 miss), boleh disable scraper dengan menonaktifkan `webEnabled` di OLT config.
 
-## Future: Phase 2 (rxPower correlation) & Phase 3 (cluster detection)
+## Phase 2: rxPower correlation (sudah diimplementasi)
 
-Phase 1 ini cuma syslog dasar. Roadmap selanjutnya:
+Phase 2 menambah sinyal optik untuk memperkuat klasifikasi DG vs LOS. Saat
+offline event tiba via syslog, sistem cek riwayat rxPower ONU tersebut sebelum
+ia mati:
 
-- **Phase 2** — Track rxPower trend per ONU (ring buffer 30 menit). Saat event
-  offline tiba, lookup rxPower 60 detik sebelumnya:
-  - Healthy (`> -25 dBm`) lalu langsung offline → DG hint
-  - Declining trend lalu offline → LOS hint
-  - Tambah `signals[]` ke event JSON dengan confidence weighted
+- **Healthy + stabil** (`≥ -25 dBm`) lalu mati mendadak → menguatkan **Dying Gasp**
+  (sinyal optik bagus, yang mati cuma power adaptor)
+- **Menurun** (tren melemah, slope `≤ -0.5 dBm/menit`) → menguatkan **LOS**
+  (degradasi/putus fiber)
+- **Lemah** (`≤ -27 dBm`) → menguatkan **LOS**
+
+Output event JSON sekarang punya field tambahan (additive, tidak break consumer lama):
+
+```json
+{
+  "mac": "C0F6EC1EFFDA",
+  "event_type": "los",
+  "classification_confidence": 0.85,
+  "signals": [
+    { "source": "syslog", "indicator": "lost-without-dying-gasp", "hint": "los", "weight": 0 },
+    { "source": "rxpower", "indicator": "...", "hint": "los", "weight": 0.25,
+      "trend": "declining", "last_rx_before": -28.0,
+      "reason": "rxPower menurun (-2.67 dBm/menit) sebelum offline — konsisten dengan LOS." }
+  ],
+  "source": "syslog",
+  "correlated_with_dg": false
+}
+```
+
+### Confidence model
+
+`event_type` ditentukan oleh korelasi syslog (authoritative). `classification_confidence`
+mengukur seberapa yakin label itu benar:
+
+| event_type | Base confidence | Alasan |
+|------------|-----------------|--------|
+| `dying-gasp` | 0.85 | Pesan dying-gasp terlihat sebelum Lost |
+| `los` | 0.60 | Lost tanpa DG — bisa jadi packet DG hilang di transit UDP |
+| `discovery` | 1.00 | Recovery tidak ambigu |
+
+rxPower yang **setuju** menaikkan confidence sebesar weight-nya; yang
+**bertentangan** menurunkan setengah weight (flag ambiguitas, bukan override label).
+Clamp `[0.3, 0.99]`.
+
+Contoh nilai praktis:
+- DG + rxPower healthy-stable → 0.85 + 0.15 = **0.99** (sangat yakin DG)
+- DG + rxPower declining → 0.85 − 0.125 = **0.73** (mungkin fiber issue yang juga trigger DG sesaat)
+- LOS + rxPower declining → 0.60 + 0.25 = **0.85** (yakin fiber)
+- LOS + rxPower healthy → 0.60 − 0.075 = **0.53** (mungkin DG packet hilang — sebenarnya power outage)
+
+Confidence rendah (< 0.6) = sinyal bertentangan → admin sebaiknya verifikasi manual.
+
+### Enable Phase 2
+
+```json
+{
+  "oltRxPowerHistory": {
+    "enabled": true,
+    "intervalMs": 60000
+  }
+}
+```
+
+- Poller SNMP berjalan tiap `intervalMs` (default 60 detik), sample rxPower
+  semua ONU dari OLT enabled, simpan ring buffer 30 menit di memori.
+- Tradeoff interval: lebih sering = resolusi korelasi lebih baik tapi beban SNMP
+  lebih tinggi. 60 detik biasanya cukup.
+- **Jam OLT tidak relevan**: setiap sample distempel jam server saat SNMP read,
+  korelasi pakai jam server saat syslog diterima. Pipeline timing 100% independen
+  dari jam OLT yang tidak sinkron.
+
+Poller butuh OLT SNMP terkonfigurasi (`config.olt.devices[]` atau `config.olt`).
+Cek status: lihat log `[OLT-rxPoller] Starting (interval: 60s)` saat boot.
+
+## Catatan penting: independensi jam OLT
+
+Jam OLT Hioso sering tidak sinkron (drift jauh). Seluruh pipeline DG/LOS
+dirancang **tidak bergantung jam OLT sama sekali**:
+
+| Tahap | Sumber waktu | Catatan |
+|-------|--------------|---------|
+| Syslog event diterima | `Date.now()` jam server saat packet tiba | Header timestamp OLT di-parse tapi **dibuang** untuk logika |
+| Korelasi DG → Lost | Selisih jam server kedua packet | Bukan selisih jam OLT |
+| rxPower sample | `Date.now()` saat SNMP read selesai | Ring buffer di-index jam server |
+| Korelasi rxPower ↔ offline | `event.server_time` (jam server) | Tidak pernah pakai jam OLT |
+
+Karena syslog & SNMP keduanya push/pull realtime (latency milidetik), jam server
+saat terima ≈ waktu kejadian sebenarnya. Drift jam OLT tidak mempengaruhi apa pun.
+
+## Future: Phase 3 (cluster detection) & Phase 4 (composite)
 
 - **Phase 3** — PON-port + geografi clustering. N ONU offline simultan di area
   sama → mass-DG (PLN). 1 ONU isolated → LOS. Butuh customer location data
   (belum ada di DB current).
 
-- **Phase 4** — Confidence scoring composite dari semua sinyal (syslog +
-  rxPower + cluster). Output `{classification, confidence, signals[], recommended_action}`.
+- **Phase 4** — Recommended action otomatis berdasar confidence + cluster:
+  `{classification, confidence, signals[], recommended_action}`. Mis. "tunggu
+  PLN restore" (mass-DG) vs "kirim teknisi cek fiber" (isolated LOS).
