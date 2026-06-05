@@ -71,50 +71,50 @@ Ketik:
             teknisiState.currentPhotoCategory = "extra";
             return {
                 handled: true,
-                message: `âœ… *SIAP TERIMA FOTO TAMBAHAN*
+                message: `✅ *SIAP TERIMA FOTO TAMBAHAN*
 
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
-ðŸ“Ž *UPLOAD FOTO TAMBAHAN*
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+━━━━━━━━━━━━━━━━
+📎 *UPLOAD FOTO TAMBAHAN*
+━━━━━━━━━━━━━━━━
 
-ðŸ“¸ Kirim foto tambahan:
-â€¢ Foto sudut berbeda
-â€¢ Foto detail tertentu
-â€¢ Dokumentasi lain yang relevan
+📸 Kirim foto tambahan:
+• Foto sudut berbeda
+• Foto detail tertentu
+• Dokumentasi lain yang relevan
 
-ðŸ’¡ *Batas:*
-â€¢ Maksimal ${5 - teknisiState.uploadedPhotos.length} foto lagi
-â€¢ Setelah selesai ketik *DONE*
+💡 *Batas:*
+• Maksimal ${5 - teknisiState.uploadedPhotos.length} foto lagi
+• Setelah selesai ketik *DONE*
 
-âž¡ï¸ *Kirim foto sekarang...*`
+➡️ *Kirim foto sekarang...*`
             };
         }
         if (response === "tidak" || response === "no") {
             teknisiState.step = "AWAITING_COMPLETION_CONFIRMATION";
-            const problemFilled = teknisiState.photoCategories.problem ? "âœ…" : "âšª";
-            const speedtestFilled = teknisiState.photoCategories.speedtest ? "âœ…" : "âšª";
-            const resultFilled = teknisiState.photoCategories.result ? "âœ…" : "âšª";
+            const problemFilled = teknisiState.photoCategories.problem ? "✅" : "⚪";
+            const speedtestFilled = teknisiState.photoCategories.speedtest ? "✅" : "⚪";
+            const resultFilled = teknisiState.photoCategories.result ? "✅" : "⚪";
             return {
                 handled: true,
-                message: `âœ… *DOKUMENTASI LENGKAP!*
+                message: `✅ *DOKUMENTASI LENGKAP!*
 
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
-ðŸ“Š *RINGKASAN DOKUMENTASI:*
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+━━━━━━━━━━━━━━━━
+📊 *RINGKASAN DOKUMENTASI:*
+━━━━━━━━━━━━━━━━
 
 ${problemFilled} 1. Foto penyebab masalah
 ${speedtestFilled} 2. Screenshot speedtest
 ${resultFilled} 3. Foto hasil perbaikan
-âšª Tidak ada foto tambahan
+⚪ Tidak ada foto tambahan
 
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
-ðŸ“Œ *STEP TERAKHIR:*
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+━━━━━━━━━━━━━━━━
+📌 *STEP TERAKHIR:*
+━━━━━━━━━━━━━━━━
 
-âž¡ï¸ Ketik salah satu:
-   â€¢ *done*
-   â€¢ *lanjut*
-   â€¢ *next*
+➡️ Ketik salah satu:
+   • *done*
+   • *lanjut*
+   • *next*
 
 Untuk melanjutkan input catatan perbaikan`
             };
@@ -144,22 +144,22 @@ Untuk melanjutkan input catatan perbaikan`
 
         return {
             handled: true,
-            message: `ðŸ“ *REVIEW SEBELUM FINALISASI*
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+            message: `📝 *REVIEW SEBELUM FINALISASI*
+━━━━━━━━━━━━━━━━
 
-ðŸ“‹ *ID Tiket:* ${teknisiState.ticketId}
-ðŸ“¸ *Dokumentasi:* ${teknisiState.uploadedPhotos.length} foto
-ðŸ“ *Catatan Resolusi:*
+📋 *ID Tiket:* ${teknisiState.ticketId}
+📸 *Dokumentasi:* ${teknisiState.uploadedPhotos.length} foto
+📝 *Catatan Resolusi:*
 ${chats}
 
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
-âš ï¸ *KONFIRMASI PENYELESAIAN*
+━━━━━━━━━━━━━━━━
+⚠️ *KONFIRMASI PENYELESAIAN*
 
 Apakah perbaikan sudah selesai dan data di atas sudah benar?
 
-ðŸ“Œ *STEP TERAKHIR:*
-âž¡ï¸ Ketik *ya* = Selesaikan tiket & kirim ke pelanggan
-âž¡ï¸ Ketik *tidak* = Edit ulang catatan`
+📌 *STEP TERAKHIR:*
+➡️ Ketik *ya* = Selesaikan tiket & kirim ke pelanggan
+➡️ Ketik *tidak* = Edit ulang catatan`
         };
     }
 
