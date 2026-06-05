@@ -958,12 +958,12 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/broadcast', '/auto-outage', '/announcements', '/news', '/templates', '/wifi-templates'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseKomunikasi" aria-expanded="<?php echo isParentActive(['/broadcast', '/auto-outage', '/announcements', '/news', '/templates', '/wifi-templates'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseKomunikasi">
+    <li class="nav-item <?php echo isParentActive(['/broadcast', '/auto-outage', '/los-broadcast', '/announcements', '/news', '/templates', '/wifi-templates'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseKomunikasi" aria-expanded="<?php echo isParentActive(['/broadcast', '/auto-outage', '/los-broadcast', '/announcements', '/news', '/templates', '/wifi-templates'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseKomunikasi">
             <i class="fas fa-fw fa-comments"></i>
             <span>Komunikasi</span>
         </a>
-        <div id="collapseKomunikasi" class="collapse <?php echo isParentActive(['/broadcast', '/auto-outage', '/announcements', '/news', '/templates', '/wifi-templates'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingKomunikasi" data-parent="#accordionSidebar">
+        <div id="collapseKomunikasi" class="collapse <?php echo isParentActive(['/broadcast', '/auto-outage', '/los-broadcast', '/announcements', '/news', '/templates', '/wifi-templates'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingKomunikasi" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/broadcast', $current_page) ? 'active' : ''; ?>" href="/broadcast">
                     <i class="fas fa-fw fa-bullhorn mr-2"></i>
@@ -972,6 +972,10 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/auto-outage', $current_page) ? 'active' : ''; ?>" href="/auto-outage">
                     <i class="fas fa-fw fa-satellite-dish mr-2"></i>
                     <span>Auto Outage</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/los-broadcast', $current_page) ? 'active' : ''; ?>" href="/los-broadcast">
+                    <i class="fas fa-fw fa-bolt mr-2"></i>
+                    <span>LOS Broadcast (Fiber)</span>
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/announcements', $current_page) ? 'active' : ''; ?>" href="/announcements">
                     <i class="fas fa-fw fa-volume-up mr-2"></i>

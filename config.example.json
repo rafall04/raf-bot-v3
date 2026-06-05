@@ -203,5 +203,23 @@
         "enabled": true
       }
     ]
+  },
+  "oltSyslog": {
+    "enabled": false,
+    "host": "0.0.0.0",
+    "port": 5514,
+    "lostGraceMs": 4000
+  },
+  "oltRxPowerHistory": {
+    "enabled": false,
+    "intervalMs": 60000
+  },
+  "oltLosBroadcast": {
+    "enabled": false,
+    "confidenceThreshold": 0.6,
+    "confirmationWindowMs": 180000,
+    "clusterFlushMs": 20000,
+    "clusterThreshold": 3,
+    "rebroadcastCooldownMs": 1800000
   }
 }

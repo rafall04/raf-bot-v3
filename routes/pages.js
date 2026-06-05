@@ -87,6 +87,10 @@ router.get('/admin-olt', checkRole(['admin', 'owner', 'superadmin']), (req, res)
     res.render('sb-admin/admin-olt.php');
 });
 
+router.get('/los-broadcast', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/los-broadcast.php');
+});
+
 router.get('/agent-management', (req, res) => {
     res.render('sb-admin/agent-management.php');
 });

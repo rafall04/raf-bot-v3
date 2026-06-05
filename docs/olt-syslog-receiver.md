@@ -295,3 +295,59 @@ saat terima ≈ waktu kejadian sebenarnya. Drift jam OLT tidak mempengaruhi apa 
 - **Phase 4** — Recommended action otomatis berdasar confidence + cluster:
   `{classification, confidence, signals[], recommended_action}`. Mis. "tunggu
   PLN restore" (mass-DG) vs "kirim teknisi cek fiber" (isolated LOS).
+
+## LOS Auto-Broadcast ke Teknisi (sudah diimplementasi)
+
+Realisasi sebagian Phase 3/4 untuk sisi LOS: saat event `los` (fiber putus, **bukan**
+dying-gasp) terdeteksi, sistem otomatis broadcast WhatsApp ke seluruh teknisi.
+
+**Modul:** `lib/olt-los-broadcaster.js` — di-hook dari:
+- `olt-syslog-receiver.emitEvent()` (jalur utama, push, sudah ber-confidence).
+- `olt-log-scraper.scrapeOltLog()` secara **edge-triggered** (hanya saat transisi
+  LOS baru muncul / pulih), supaya meniru semantik push & broadcast sekali per insiden.
+
+**Presisi (anti salah-panggil teknisi):**
+1. **Confirmation window** (default 3 menit) — LOS ditahan; kalau ONU pulih
+   (Discovery) dalam window → **batal** (anggap flap/kedip, bukan putus).
+2. **Confidence gate** (default ≥ 0.6) — LOS confidence rendah → dicatat
+   `low_confidence`, tidak broadcast.
+3. **Cluster aggregation** — beberapa LOS terkonfirmasi dalam satu OLT digabung jadi
+   1 pesan; bila ≥ `clusterThreshold` (default 3) → framing **"dugaan gangguan area/uplink"**.
+4. **Dedup + cooldown** — 1 broadcast per insiden; MAC sama tidak di-broadcast ulang
+   dalam `rebroadcastCooldownMs` (default 30 menit).
+
+**Robust:** kirim via `sendCritical` (retry + dead-letter); insiden dipersist ke
+`database/los-incidents.json` untuk audit + halaman admin.
+
+**Penerima:** seluruh akun `role === 'teknisi'` yang punya `phone_number`.
+
+**Catatan jam:** semua timer pakai `Date.now()` jam server (lihat bagian independensi
+jam OLT di atas). Timer in-memory & ber-`unref()`; bila proses restart saat window
+berjalan, insiden tetap tercatat untuk review manual.
+
+### Config (`config.json`)
+
+```json
+{
+  "oltLosBroadcast": {
+    "enabled": true,
+    "confidenceThreshold": 0.6,
+    "confirmationWindowMs": 180000,
+    "clusterFlushMs": 20000,
+    "clusterThreshold": 3,
+    "rebroadcastCooldownMs": 1800000
+  }
+}
+```
+
+Default **OFF** (`enabled: false`). Aktifkan + atur via halaman admin **LOS Broadcast
+(Fiber)** di menu Komunikasi (`/los-broadcast`), atau API `/api/admin/los-broadcast/*`.
+
+### Beda dengan Auto Outage
+
+| | LOS Broadcast (ini) | Auto Outage |
+|---|---|---|
+| Sumber | OLT (layer optik) | MikroTik PPPoE |
+| Pemicu | Event LOS, segera | Ambang waktu offline (~jam) |
+| Bisa bedakan DG vs LOS? | **Ya** | Tidak |
+| Tujuan | Teknisi (dispatch fiber) | Pelanggan / tiket |
