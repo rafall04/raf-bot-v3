@@ -375,9 +375,14 @@ koneksinya terdeteksi putus:
 - `messageTemplate` — placeholder: `{customer_name}`, `{address}`, `{mac}`, `{slot}`,
   `{onu}`, `{company_name}`. Kosong → pakai template default.
 
-Pelanggan hanya bisa dinotifikasi bila MAC ONU bisa dipetakan ke data pelanggan
-(resolver best-effort/offline berbasis field MAC di record user, atau resolver custom
-yang di-inject). Bila tak teridentifikasi → insiden ditandai `customer_unresolved`.
+Pelanggan hanya bisa dinotifikasi bila MAC ONU bisa dipetakan ke data pelanggan.
+Resolver default (`lib/olt-customer-resolver.js`) bekerja **offline & tanpa beban
+MikroTik baru**: membaca `database/last-caller-id-cache.json` (yang sudah dipelihara
+dashboard OLT tiap pelanggan online) lalu `matchMAC` (toleran selisih 2 digit terakhir
+OLT vs MikroTik) → cari user via `pppoe_username`. Karena pakai MAC *terakhir diketahui*,
+resolve tetap jalan walau pelanggan sedang offline saat LOS. Bila tak teridentifikasi →
+insiden ditandai `customer_unresolved` (admin info manual). Resolver bisa diganti via
+`deps.resolveCustomer`.
 
 ### Beda dengan Auto Outage
 
