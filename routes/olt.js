@@ -828,6 +828,122 @@ router.get('/matched', async (req, res) => {
 });
 
 /**
+ * GET /api/olt/onus?oltId=<id>
+ * View OLT-centric: SEMUA ONU dari OLT (atau satu OLT bila oltId diberikan),
+ * tiap ONU dianotasi pelanggan bila ke-match. TIDAK tergantung DB pelanggan —
+ * berguna untuk laptop tes / OLT yang ONU-nya belum dipetakan ke pelanggan.
+ * Matching ONU→pelanggan: deskripsi(PPPoE) → serial → MAC-prefix (via last-caller-id).
+ */
+router.get('/onus', async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ status: 401, message: 'Unauthorized' });
+        }
+
+        const globalConfig = oltManager.getOltGlobalConfig();
+        if (!globalConfig.enabled) {
+            return res.json({ status: 200, message: 'OLT tidak diaktifkan', data: [], enabled: false });
+        }
+
+        let oltDevices = oltManager.getOltDevices();
+        if (oltDevices.length === 0) {
+            return res.json({ status: 200, message: 'Tidak ada OLT yang dikonfigurasi', data: [], enabled: true, error: true });
+        }
+
+        const forceRefresh = req.query.force === 'true';
+        const oltResult = await getCachedMultipleOltData(oltDevices, forceRefresh);
+        if (oltResult.status !== 'success') {
+            return res.json({ status: 200, message: oltResult.message || 'Gagal mengambil data OLT', data: [], enabled: true, error: true });
+        }
+
+        // Index pelanggan untuk anotasi (ONU → pelanggan).
+        const users = global.users || [];
+        const usersByPppoe = new Map();
+        const usersBySerial = new Map();
+        for (const u of users) {
+            if (!u) continue;
+            if (u.pppoe_username) usersByPppoe.set(String(u.pppoe_username).trim().toLowerCase(), u);
+            if (u.olt_serial) usersBySerial.set(String(u.olt_serial).trim().toLowerCase(), u);
+        }
+        // MAC-prefix → pppoe (dari last-caller-id) untuk anotasi ONU EPON.
+        const pppoeByMacPrefix = {};
+        lastCallerIdCache.forEach((info, pppoe) => {
+            if (info && info.mac) {
+                const p = normalizeMAC(info.mac).substring(0, 10);
+                if (p.length >= 10) pppoeByMacPrefix[p] = pppoe;
+            }
+        });
+
+        const findCustomer = (onu) => {
+            if (onu.description) {
+                const u = usersByPppoe.get(String(onu.description).trim().toLowerCase());
+                if (u) return u;
+            }
+            if (onu.serial) {
+                const u = usersBySerial.get(String(onu.serial).trim().toLowerCase());
+                if (u) return u;
+            }
+            const macNorm = normalizeMAC(onu.macAddress);
+            if (macNorm && macNorm.length >= 10) {
+                const pppoe = pppoeByMacPrefix[macNorm.substring(0, 10)];
+                if (pppoe) {
+                    const u = usersByPppoe.get(String(pppoe).trim().toLowerCase());
+                    if (u) return u;
+                }
+            }
+            return null;
+        };
+
+        const wantOltId = req.query.oltId && req.query.oltId !== 'all' ? String(req.query.oltId) : null;
+
+        const rows = [];
+        for (const onu of oltResult.onus) {
+            if (wantOltId && onu.olt_id !== wantOltId) continue;
+            const u = findCustomer(onu);
+            rows.push({
+                olt_id: onu.olt_id || null,
+                olt_name: onu.olt_name || null,
+                olt_host: onu.olt_host || null,
+                olt_brand: onu.olt_brand || null,
+                pon_name: onu.ponName || null,
+                slot_id: onu.slotId,
+                onu_id: onu.id,
+                description: onu.description || null,
+                serial: onu.serial || null,
+                mac_olt: onu.macAddress,
+                rx_power: onu.rxPower,
+                olt_status: onu.status,
+                is_los: onu.isLos,
+                is_dying_gasp: onu.isDyingGasp,
+                // Anotasi pelanggan (null bila tak ke-match).
+                matched: !!u,
+                user_id: u ? u.id : null,
+                customer_name: u ? u.name : null,
+                pppoe_username: u ? u.pppoe_username : (onu.description || null),
+                customer_address: u ? (u.address || u.alamat || null) : null,
+                customer_phone: u ? (u.phone_number || null) : null,
+                customer_package: u ? (u.paket || u.package || null) : null,
+            });
+        }
+
+        res.json({
+            status: 200,
+            message: 'OK',
+            timestamp: oltResult.timestamp,
+            enabled: true,
+            data: rows,
+            totalOnu: rows.length,
+            matchedCount: rows.filter(r => r.matched).length,
+            oltDevices: oltDevices.map(d => ({ id: d.id, name: d.name, host: d.host, brand: d.brand || 'auto' })),
+            oltResults: oltResult.oltResults
+        });
+    } catch (error) {
+        console.error('[OLT] Error getting all ONUs:', error);
+        res.status(500).json({ status: 500, message: error.message });
+    }
+});
+
+/**
  * GET /api/olt/customer/:userId
  * Get ONT status for specific customer - MENGGUNAKAN CACHE untuk performa
  */

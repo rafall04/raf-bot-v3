@@ -4,7 +4,7 @@
 Header Doc
 Purpose: Halaman admin untuk monitor OLT ONT pelanggan secara real-time (status, redaman, LOS, dying gasp).
 Caller: `routes/pages.js` pada path `/admin-olt`.
-Deps: `_navbar.php`, `topbar.php`, API `/api/olt/matched`, `/api/olt/refresh-single`, `/api/mikrotik/ppp-active-users`, `/api/users`.
+Deps: `_navbar.php`, `topbar.php`, API `/api/olt/onus` (OLT-centric, semua ONU + anotasi pelanggan), `/api/olt/refresh-single`, `/api/mikrotik/ppp-active-users`, `/api/users`.
 MainFuncs: `loadAllData`, `loadOltMatchedData`, `showCustomerDetail`, `refreshCustomerOlt`.
 SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak menulis ke DB.
 -->
@@ -153,11 +153,18 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
                     <div class="card shadow mb-4">
                         <div class="card-header py-3 d-flex justify-content-between align-items-center flex-wrap">
                             <h6 class="m-0 font-weight-bold text-primary">
-                                <i class="fas fa-list"></i> Data ONT Pelanggan
+                                <i class="fas fa-list"></i> Data ONU OLT
                                 <small class="text-muted ml-2">(Klik baris untuk detail)</small>
                             </h6>
-                            <div class="d-flex align-items-center mt-2 mt-md-0">
-                                <select id="statusFilter" class="form-control form-control-sm mr-2" style="width: auto;">
+                            <div class="d-flex align-items-center mt-2 mt-md-0 flex-wrap">
+                                <select id="oltSelector" class="form-control form-control-sm mr-2 mb-1" style="width: auto;" title="Pilih OLT">
+                                    <option value="all">Semua OLT</option>
+                                </select>
+                                <div class="btn-group btn-group-sm mr-2 mb-1" role="group" id="viewModeToggle" title="Mode tampilan">
+                                    <button type="button" class="btn btn-primary" data-view="all">Semua ONU</button>
+                                    <button type="button" class="btn btn-outline-primary" data-view="matched">Pelanggan</button>
+                                </div>
+                                <select id="statusFilter" class="form-control form-control-sm mr-2 mb-1" style="width: auto;">
                                     <option value="">Semua Status</option>
                                     <option value="online">Online</option>
                                     <option value="offline">Offline</option>
@@ -321,10 +328,14 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
         let pppoeUserMacMap = new Map();
         let currentCustomerData = null;
         let oltColdRetryDone = false;
+        let currentOltFilter = 'all';   // id OLT terpilih ('all' = semua)
+        let currentViewMode = 'all';    // 'all' = semua ONU | 'matched' = hanya pelanggan terdaftar
+        let oltDevicesList = [];        // daftar OLT dari API (untuk dropdown)
         const AUTO_REFRESH_INTERVAL = 30000;
 
         $(document).ready(async function() {
             initDataTable();
+            initOltViewControls();
             await loadUsersData();
             loadAllData();
 
@@ -358,17 +369,22 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
                 data: [],
                 columns: [
                     {
-                        data: null, title: 'Pelanggan',
+                        data: null, title: 'Pelanggan / ONU',
                         render: (data, type, row) => {
                             if (type === 'display') {
-                                let html = `<strong>${row.customer_name || '-'}</strong>`;
-                                if (row.customer_address) {
-                                    const addr = row.customer_address.length > 30 ? row.customer_address.substring(0, 30) + '...' : row.customer_address;
-                                    html += `<br><small class="customer-info">${addr}</small>`;
+                                if (row.customer_name) {
+                                    let html = `<strong>${row.customer_name}</strong>`;
+                                    if (row.customer_address) {
+                                        const addr = row.customer_address.length > 30 ? row.customer_address.substring(0, 30) + '...' : row.customer_address;
+                                        html += `<br><small class="customer-info">${addr}</small>`;
+                                    }
+                                    return html;
                                 }
-                                return html;
+                                // ONU belum terhubung ke pelanggan: tampilkan identitas ONU.
+                                const ident = row.description || row.serial || '-';
+                                return `<span class="text-muted"><i class="fas fa-plug"></i> ${ident}</span><br><small class="text-muted">(belum terdaftar)</small>`;
                             }
-                            return row.customer_name || '';
+                            return row.customer_name || row.description || row.serial || '';
                         }
                     },
                     {
@@ -415,7 +431,7 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
                     {
                         data: null, title: 'Aksi', orderable: false, searchable: false,
                         render: (data, type, row) => {
-                            return `<button class="btn btn-info btn-sm btn-detail" data-user-id="${row.user_id}" title="Lihat Detail">
+                            return `<button class="btn btn-info btn-sm btn-detail" data-key="${row._key}" title="Lihat Detail">
                                 <i class="fas fa-info-circle"></i>
                             </button>`;
                         }
@@ -431,20 +447,20 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
                 },
                 dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
                 createdRow: function(row, data) {
-                    $(row).addClass('clickable-row').attr('data-user-id', data.user_id);
+                    $(row).addClass('clickable-row').attr('data-key', data._key);
                 }
             });
 
             $('#oltDataTable tbody').on('click', 'tr.clickable-row', function(e) {
                 if ($(e.target).closest('button').length) return;
-                const userId = $(this).data('user-id');
-                if (userId) showCustomerDetail(userId);
+                const key = $(this).data('key');
+                if (key) showCustomerDetail(key);
             });
 
             $('#oltDataTable tbody').on('click', '.btn-detail', function(e) {
                 e.stopPropagation();
-                const userId = $(this).data('user-id');
-                if (userId) showCustomerDetail(userId);
+                const key = $(this).data('key');
+                if (key) showCustomerDetail(key);
             });
         }
 
@@ -481,9 +497,46 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
             } catch (e) { console.error('PPPoE error:', e); }
         }
 
+        // Kontrol view OLT-centric: dropdown pilih OLT + toggle Semua ONU / Pelanggan.
+        function initOltViewControls() {
+            $('#oltSelector').on('change', function () {
+                currentOltFilter = this.value || 'all';
+                loadOltMatchedData(); // re-fetch dengan filter OLT (server-side)
+            });
+            $('#viewModeToggle button').on('click', function () {
+                currentViewMode = $(this).data('view');
+                $('#viewModeToggle button').removeClass('btn-primary').addClass('btn-outline-primary');
+                $(this).removeClass('btn-outline-primary').addClass('btn-primary');
+                renderCurrentView(); // filter client-side dari data yang sudah dimuat
+            });
+        }
+
+        function populateOltSelector(devices) {
+            oltDevicesList = devices || [];
+            const opts = ['<option value="all">Semua OLT</option>'].concat(
+                oltDevicesList.map(d => {
+                    const tag = d.brand && d.brand !== 'auto' ? ` (${String(d.brand).toUpperCase()})` : '';
+                    return `<option value="${d.id}">${d.name}${tag}</option>`;
+                })
+            );
+            const $sel = $('#oltSelector');
+            // Rebuild hanya bila jumlah opsi berubah (jangan reset pilihan tiap auto-refresh).
+            if ($sel.children().length !== opts.length) $sel.html(opts.join(''));
+            $sel.val(currentOltFilter);
+        }
+
+        // Render ulang dari matchedData sesuai view mode (tanpa fetch ulang).
+        function renderCurrentView() {
+            const view = currentViewMode === 'matched' ? matchedData.filter(r => r.matched) : matchedData;
+            updateStatsFromData(view);
+            dataTableInstance.clear().rows.add(view).draw();
+        }
+
         async function loadOltMatchedData() {
             try {
-                const res = await fetch('/api/olt/matched?_=' + Date.now(), { credentials: 'include' });
+                const oltParam = (currentOltFilter && currentOltFilter !== 'all')
+                    ? '&oltId=' + encodeURIComponent(currentOltFilter) : '';
+                const res = await fetch('/api/olt/onus?_=' + Date.now() + oltParam, { credentials: 'include' });
                 const result = await res.json();
 
                 if (result.status === 200) {
@@ -498,20 +551,24 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
                         return;
                     }
 
-                    matchedData = result.data || [];
+                    if (Array.isArray(result.oltDevices)) populateOltSelector(result.oltDevices);
 
+                    matchedData = result.data || [];
                     matchedData.forEach(item => {
+                        // Key stabil per-ONU (untuk modal & klik baris; user_id bisa null).
+                        item._key = `${item.olt_id}|${item.slot_id}|${item.onu_id}`;
                         item.is_online = activePppoeUsersMap.has(item.pppoe_username);
-                        const user = usersData.find(u => u.id == item.user_id);
-                        if (user) {
-                            item.customer_phone = user.phone;
-                            item.customer_package = user.subscription;
-                            item.customer_address = user.address || item.customer_address;
+                        if (item.user_id) {
+                            const user = usersData.find(u => u.id == item.user_id);
+                            if (user) {
+                                item.customer_phone = user.phone || item.customer_phone;
+                                item.customer_package = user.subscription || item.customer_package;
+                                item.customer_address = user.address || item.customer_address;
+                            }
                         }
                     });
 
-                    updateStatsFromData(matchedData);
-                    dataTableInstance.clear().rows.add(matchedData).draw();
+                    renderCurrentView();
                     hideAlert();
 
                     if (matchedData.length === 0 && !oltColdRetryDone) {
@@ -526,16 +583,18 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
             }
         }
 
-        function showCustomerDetail(userId) {
-            const customer = matchedData.find(m => m.user_id == userId);
+        function showCustomerDetail(key) {
+            const customer = matchedData.find(m => m._key === key);
             if (!customer) {
-                alert('Data pelanggan tidak ditemukan');
+                alert('Data ONU tidak ditemukan');
                 return;
             }
             currentCustomerData = customer;
 
-            $('#modalCustomerName').text(customer.customer_name || 'Detail Pelanggan');
-            $('#modalName').text(customer.customer_name || '-');
+            // ONU belum terdaftar → pakai identitas ONU sebagai judul.
+            const displayName = customer.customer_name || customer.description || customer.serial || 'Detail ONU';
+            $('#modalCustomerName').text(displayName);
+            $('#modalName').text(customer.customer_name || '(belum terdaftar)');
             $('#modalPppoe').text(customer.pppoe_username || '-');
             $('#modalPackage').text(customer.customer_package || '-');
             $('#modalAddress').text(customer.customer_address || '-');
