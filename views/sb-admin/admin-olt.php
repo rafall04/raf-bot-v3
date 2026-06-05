@@ -455,11 +455,13 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
                         render: (data, type, row) => {
                             if (type === 'display') return renderRxPower(data);
                             if (type === 'sort' || type === 'type') {
+                                // N/A → 9999 supaya tersortir ke BAWAH (redaman valid tampil dulu),
+                                // bukan menumpuk di atas saat sort "Terburuk" (ascending).
                                 if (data && data !== 'N/A') {
                                     const num = parseFloat(data);
-                                    return isNaN(num) ? -999 : num;
+                                    return isNaN(num) ? 9999 : num;
                                 }
-                                return -999;
+                                return 9999;
                             }
                             return data;
                         }

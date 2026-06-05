@@ -953,6 +953,12 @@ router.get('/onus', async (req, res) => {
             });
         }
 
+        // Diagnostik: berapa baris yang DIKIRIM ke browser dengan redaman terisi.
+        const rxFilled = rows.filter(r => r.rx_power && r.rx_power !== 'N/A').length;
+        console.log(`[OLT-onus] oltId=${wantOltId || 'all'} → kirim ${rows.length} baris ke browser, rx terisi=${rxFilled}`);
+
+        // Jangan biarkan browser meng-cache JSON ini (selalu data segar).
+        res.set('Cache-Control', 'no-store');
         res.json({
             status: 200,
             message: 'OK',
