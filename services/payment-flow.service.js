@@ -36,6 +36,8 @@ function defaultDeps() {
         normalizeJidForSaldo: require("../lib/jid-utils").normalizeJidForSaldo,
         getSocket: require("../lib/whatsapp-gateway").getSocket,
         getConnectionState: require("../lib/whatsapp-gateway").getConnectionState,
+        // Pengiriman kritis (kode voucher) — retry + dead-letter, tidak hilang diam-diam.
+        sendCritical: require("../lib/whatsapp-critical-delivery").sendCritical,
         logger: require("../lib/logger").logger
     };
 }
@@ -146,12 +148,24 @@ function createPaymentFlowService(overrides = {}) {
             const currentSaldoAfterPurchase = await checkATMuser(sender);
             const formattedSaldoAfterPurchase = convertRupiah.convert(currentSaldoAfterPurchase);
 
-            await replyFunc(renderResponseTemplate("payment_flow_voucher_purchase_success", {
+            const successText = renderResponseTemplate("payment_flow_voucher_purchase_success", {
                 packageName: durasivc123,
                 voucherCode,
                 remainingBalance: formattedSaldoAfterPurchase,
                 serviceName: globalScope.config.nama
-            }));
+            });
+
+            // KRITIS: saldo sudah terpotong + voucher sudah dibuat. Kode HARUS sampai
+            // ke pelanggan. Kirim via sendCritical (retry + dead-letter) — kalau gagal
+            // total, kode tersimpan di dead-letter untuk relay admin, tidak hilang.
+            const delivery = await deps.sendCritical(sender, { text: successText }, { label: "voucher_code" });
+            if (!delivery.delivered) {
+                deps.logger?.error?.("[VOUCHER] Kode voucher gagal terkirim, tersimpan di dead-letter", {
+                    sender: sender.split("@")[0],
+                    voucherCode,
+                    errorCode: delivery.errorCode,
+                });
+            }
         } catch (err) {
             let userFriendlyErrorMessage = "Terjadi kesalahan saat membuat voucher. ";
             if (err.message) {

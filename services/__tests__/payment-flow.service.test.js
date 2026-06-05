@@ -254,7 +254,10 @@ describe("payment-flow.service", () => {
         setResponseTemplate("payment_flow_voucher_purchase_success", "CUSTOM_VOUCHER_SUCCESS ${voucherCode} ${packageName}");
 
         const reply = jest.fn();
-        const service = createPaymentFlowService();
+        // Kode voucher (pesan sukses) sekarang dikirim via sendCritical (retry +
+        // dead-letter), BUKAN reply biasa — supaya kode tidak hilang diam-diam.
+        const sendCritical = jest.fn().mockResolvedValue({ delivered: true, attempts: 1 });
+        const service = createPaymentFlowService({ sendCritical });
         const helpers = {
             checkhargavoucher: jest.fn((price) => price === "1000"),
             checkprofvc: jest.fn(() => "VC-1"),
@@ -274,6 +277,11 @@ describe("payment-flow.service", () => {
             config: { nama: "RAF Test" }
         });
         expect(reply).toHaveBeenCalledWith("CUSTOM_VOUCHER_PROCESSING");
-        expect(reply).toHaveBeenLastCalledWith("CUSTOM_VOUCHER_SUCCESS VCR123 1 Jam");
+        // Kode voucher dikirim via sendCritical, bukan reply.
+        expect(sendCritical).toHaveBeenCalledWith(
+            "6281@s.whatsapp.net",
+            { text: "CUSTOM_VOUCHER_SUCCESS VCR123 1 Jam" },
+            expect.objectContaining({ label: "voucher_code" })
+        );
     });
 });

@@ -10,8 +10,7 @@ const saldoManager = require('../../lib/saldo-manager');
 const convertRupiah = require('rupiah-format');
 const { logger } = require('../../lib/logger');
 const { resolveCanonicalCustomerContext, normalizePhoneToJid, maskPhoneNumber } = require('../../lib/jid-utils');
-const { sendMessage } = require('../../lib/whatsapp-delivery-service');
-const { getSocket, isReady } = require('../../lib/whatsapp-gateway');
+const { getSocket } = require('../../lib/whatsapp-gateway');
 const { renderResponseTemplate } = require('./template-helpers');
 const { getUserState, setUserState, deleteUserState } = require('./conversation-handler');
 
@@ -376,29 +375,30 @@ async function executeTransferAfterConfirmation({ senderId, senderNumber, sender
         { target_number: targetNumber, target_label: targetLabel, jumlah: jumlahFmt, sisa_saldo: sisaSaldoFmt }
     ));
 
-    // Notify recipient kalau WA siap.
-    if (isReady()) {
-        try {
-            const { renderTemplate } = require('../../lib/templating');
-            const recipientSaldo = await saldoManager.getUserSaldo(targetId);
-            const namaPengirim = senderPushName || senderNumber;
+    // Notify recipient. Saldo SUDAH ter-kredit atomik (transferSaldo), jadi uang
+    // tidak hilang walau notifikasi gagal — tapi penerima berhak tahu. Pakai
+    // sendCritical: retry + wait-for-ready + dead-letter (relay admin kalau gagal total).
+    try {
+        const { renderTemplate } = require('../../lib/templating');
+        const { sendCritical } = require('../../lib/whatsapp-critical-delivery');
+        const recipientSaldo = await saldoManager.getUserSaldo(targetId);
+        const namaPengirim = senderPushName || senderNumber;
 
-            const message = renderTemplate('transfer_saldo_masuk', {
-                jumlah: convertRupiah.convert(amount),
-                nama_pengirim: namaPengirim,
-                formattedSaldo: convertRupiah.convert(recipientSaldo)
+        const message = renderTemplate('transfer_saldo_masuk', {
+            jumlah: convertRupiah.convert(amount),
+            nama_pengirim: namaPengirim,
+            formattedSaldo: convertRupiah.convert(recipientSaldo)
+        });
+
+        const delivery = await sendCritical(targetId, { text: message }, { label: 'transfer_masuk' });
+        if (!delivery.delivered) {
+            logger.error('Transfer notification gagal terkirim ke penerima (tersimpan di dead-letter):', {
+                targetId, errorCode: delivery.errorCode
             });
-
-            const delivery = await sendMessage(targetId, { text: message });
-            if (!delivery.sent) {
-                throw new Error(delivery.warning || delivery.errorCode || 'SEND_FAILED');
-            }
-        } catch (error) {
-            console.error('[SEND_MESSAGE_ERROR]', { targetId, error: error.message });
-            logger.error('Failed to send transfer notification to recipient:', error);
         }
-    } else {
-        logger.warn('Cannot send transfer notification - WhatsApp not connected');
+    } catch (error) {
+        console.error('[SEND_MESSAGE_ERROR]', { targetId, error: error.message });
+        logger.error('Failed to send transfer notification to recipient:', error);
     }
 }
 

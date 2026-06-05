@@ -81,6 +81,7 @@ database/olt-mac-cache.json
 database/*-cache.json
 database/*_cache.json
 database/olt-*.json
+database/failed_critical_deliveries.json
 
 # Announcements & news (user-generated)
 database/announcements.json
