@@ -66,8 +66,23 @@ function mikrotik_read_input($key, $argvIndex = null, $required = true, $default
 
     if ($argvIndex !== null && isset($GLOBALS['argv']) && array_key_exists($argvIndex, $GLOBALS['argv'])) {
         $value = $GLOBALS['argv'][$argvIndex];
+    } elseif (isset($_POST[$key])) {
+        // POST mendahului GET — kredensial dipindah dari query string ke body
+        // supaya tidak muncul di webserver access log / browser history.
+        $value = $_POST[$key];
     } elseif (isset($_GET[$key])) {
         $value = $_GET[$key];
+    } else {
+        // Fallback: caller bisa kirim JSON body. Decode sekali, cache di GLOBALS.
+        if (!isset($GLOBALS['__MIKROTIK_JSON_BODY__'])) {
+            $raw = file_get_contents('php://input');
+            $GLOBALS['__MIKROTIK_JSON_BODY__'] = ($raw && strlen($raw))
+                ? (json_decode($raw, true) ?: [])
+                : [];
+        }
+        if (is_array($GLOBALS['__MIKROTIK_JSON_BODY__']) && array_key_exists($key, $GLOBALS['__MIKROTIK_JSON_BODY__'])) {
+            $value = $GLOBALS['__MIKROTIK_JSON_BODY__'][$key];
+        }
     }
 
     if ($required && ($value === null || $value === '')) {
