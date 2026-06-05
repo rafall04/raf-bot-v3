@@ -155,3 +155,6 @@ coverage/
 
 # Local git worktrees
 .worktrees/
+
+# OLT SNMP discovery dumps (lokal, besar)
+scripts/out/
