@@ -712,12 +712,42 @@ router.get('/app/:type/:id?', async (req, res) => {
     }
 });
 
+// Lock per reference_id untuk callback pembayaran — cegah pemrosesan konkuren
+// (double credit) untuk transaksi yang sama. In-process; cukup untuk single instance.
+const _paymentCallbackLocks = new Map();
+function acquirePaymentCallbackLock(key) {
+    const previous = _paymentCallbackLocks.get(key) || Promise.resolve();
+    let release;
+    const slot = new Promise((resolve) => { release = resolve; });
+    const chained = previous.then(() => slot);
+    _paymentCallbackLocks.set(key, chained);
+    return previous.then(() => () => {
+        release();
+        if (_paymentCallbackLocks.get(key) === chained) {
+            _paymentCallbackLocks.delete(key);
+        }
+    });
+}
+
 router.post('/callback/payment', async (req, res) => {
     const { reference_id, status_code } = req.body;
+    let releaseCallbackLock = null;
     try {
         const pay = global.payment.find(val => val.reffId == reference_id);
         if (!pay) throw !1;
         if (status_code == '1') {
+            // Idempotency cepat: kalau sudah diproses, balas 200 tanpa external call / re-credit.
+            if (checkStatusPayment(reference_id)) throw !0;
+
+            // Serialize per reference_id — cegah DUA callback konkuren memproses
+            // pembayaran yang sama dua kali (verify + getvoucher/addKoinUser tidak atomik
+            // tanpa lock → potensi double voucher / double saldo).
+            releaseCallbackLock = await acquirePaymentCallbackLock(reference_id);
+
+            // Re-check setelah memegang lock: callback lain mungkin sudah menyelesaikan
+            // pemrosesan saat kita menunggu antrian lock.
+            if (checkStatusPayment(reference_id)) throw !0;
+
             // KEAMANAN: JANGAN percaya body callback mentah — bisa di-forge → free saldo/voucher.
             // Verifikasi langsung ke iPaymu pakai trxId yang KITA simpan saat membuat transaksi.
             const verify = await verifyIpaymuTransaction(pay.trxId);
@@ -741,8 +771,6 @@ router.post('/callback/payment', async (req, res) => {
                 throw !1;
             }
 
-            let isDone = checkStatusPayment(reference_id);
-            if (isDone) throw !0;
             if (pay.tag == 'buynow') {
                 const prof = checkprofvc(`${pay.amount}`);
                 const durasivc = checkdurasivc(prof);
@@ -810,6 +838,8 @@ router.post('/callback/payment', async (req, res) => {
         }
     } catch(err) {
         res.status(err ? 200 : 500).json({ status: err });
+    } finally {
+        if (releaseCallbackLock) releaseCallbackLock();
     }
 });
 
