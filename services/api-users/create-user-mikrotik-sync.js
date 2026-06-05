@@ -8,7 +8,7 @@
  */
 "use strict";
 
-async function syncMikrotikForNewUser(deps, { newUser, userData, registrationMode, addToMikrotik, skipMikrotik, syncEnabled }) {
+async function syncMikrotikForNewUser(deps, { newUser, userData, registrationMode, addToMikrotik, skipMikrotik, syncEnabled, actor = null, requestMeta = null }) {
     let mikrotikSync = deps.buildMikrotikSyncResult("skipped_no_pppoe", "Tidak ada sinkronisasi MikroTik yang diperlukan.");
 
     if (registrationMode === "new") {
@@ -68,6 +68,45 @@ async function syncMikrotikForNewUser(deps, { newUser, userData, registrationMod
                     });
                     if (!deviceResult.ok) {
                         throw new Error(deviceResult.message);
+                    }
+
+                    // Audit log: WiFi awal (nama+sandi) yang di-set admin/teknisi saat
+                    // buat pelanggan baru WAJIB tercatat untuk tracking — sebelumnya
+                    // jalur ini set WiFi via GenieACS tanpa nulis ke wifi_change_logs.
+                    if (wifiSSID && wifiPassword && typeof deps.logWifiChange === "function") {
+                        try {
+                            const staffRole = (actor?.role || "").toLowerCase();
+                            const actorRole = ["admin", "owner", "superadmin"].includes(staffRole)
+                                ? (staffRole === "superadmin" ? "admin" : staffRole)
+                                : (staffRole === "teknisi" ? "teknisi" : "admin");
+                            await deps.logWifiChange({
+                                userId: String(newUser.id),
+                                deviceId,
+                                changeType: "both",
+                                changes: {
+                                    oldSsidName: "(baru)",
+                                    newSsidName: wifiSSID,
+                                    oldPassword: null,
+                                    newPassword: wifiPassword,
+                                    passwordChanged: true,
+                                    ssidNameChanged: true,
+                                    ssidId: ssidIndices[0] || "1"
+                                },
+                                changedBy: actor?.username || "system",
+                                changeSource: actorRole === "teknisi" ? "web_technician" : "web_admin",
+                                actorRole,
+                                actorIdentifier: actor?.username || null,
+                                actorPhone: null,
+                                customerName: newUser.name,
+                                customerPhone: newUser.phone_number,
+                                reason: "Konfigurasi WiFi awal saat pembuatan pelanggan baru",
+                                notes: `Registrasi mode new. Paket: ${newUser.subscription || "-"}`,
+                                ipAddress: requestMeta?.ipAddress || "N/A",
+                                userAgent: requestMeta?.userAgent || "N/A"
+                            });
+                        } catch (wifiLogErr) {
+                            deps.logger.error?.("[USER_CREATE_WIFI_LOG_ERROR]", wifiLogErr.message);
+                        }
                     }
                 } catch (deviceError) {
                     deps.logger.error?.("[USER_CREATE_MODE_NEW_ERROR] Failed to apply device config (WiFi/PPPoE) via GenieACS:", deviceError.message);

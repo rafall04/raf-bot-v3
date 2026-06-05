@@ -36,6 +36,7 @@ function defaultDeps() {
         renderTemplate: null,
         sendMessage: null,
         getStatusSnapshot: null,
+        logWifiChange: null,
         logger: console
     };
 }

@@ -45,7 +45,9 @@ async function upsertUserFromAdminPanel(deps, service, { userData, actor, reques
         registrationMode,
         addToMikrotik,
         skipMikrotik,
-        syncEnabled
+        syncEnabled,
+        actor,
+        requestMeta
     });
     const mikrotikSync = syncResult.mikrotikSync;
 

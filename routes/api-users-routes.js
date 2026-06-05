@@ -14,6 +14,7 @@ const { triggerWhatsAppReconnect } = require('../lib/whatsapp-bootstrap');
 const { asyncHandler, createError, ErrorTypes } = require('../lib/error-handler');
 const { createApiUsersRepository } = require('../repositories/api-users.repository');
 const { createApiUsersService } = require('../services/api-users.service');
+const { logWifiChange } = require('../lib/wifi-logger');
 
 function createApiUsersRouter(deps) {
     const {
@@ -175,6 +176,7 @@ function createApiUsersRouter(deps) {
         renderTemplate,
         sendMessage,
         getStatusSnapshot,
+        logWifiChange,
         logger: console
     });
 

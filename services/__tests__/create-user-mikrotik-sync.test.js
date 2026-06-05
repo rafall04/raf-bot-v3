@@ -81,4 +81,45 @@ describe('syncMikrotikForNewUser - mode new (E1 batch GenieACS)', () => {
 
         expect(genieHelper.updatePsbDeviceConfig).not.toHaveBeenCalled();
     });
+
+    test('WiFi awal di-set saat create user → tercatat di wifi log dengan atribusi aktor', async () => {
+        const logWifiChange = jest.fn().mockResolvedValue(undefined);
+        const deps = baseDeps({ logWifiChange });
+        const newUser = { id: 42, name: 'Budi', phone_number: '628111', pppoe_username: 'u1', pppoe_password: 'p1', subscription: 'PKT-10' };
+        const userData = { device_id: 'dev-1', wifi_ssid: 'RAF-BUDI', wifi_password: 'rahasia123', ssid_indices: ['1'] };
+
+        await syncMikrotikForNewUser(deps, {
+            newUser, userData, registrationMode: 'new', addToMikrotik: false, skipMikrotik: false, syncEnabled: true,
+            actor: { username: 'teknisi_andi', role: 'teknisi' },
+            requestMeta: { ipAddress: '10.0.0.9', userAgent: 'UA' }
+        });
+
+        expect(logWifiChange).toHaveBeenCalledTimes(1);
+        const logged = logWifiChange.mock.calls[0][0];
+        expect(logged).toMatchObject({
+            userId: '42',
+            deviceId: 'dev-1',
+            changeType: 'both',
+            changeSource: 'web_technician',
+            actorRole: 'teknisi',
+            actorIdentifier: 'teknisi_andi',
+            customerName: 'Budi',
+            customerPhone: '628111'
+        });
+        expect(logged.changes).toMatchObject({ newSsidName: 'RAF-BUDI', newPassword: 'rahasia123', passwordChanged: true });
+    });
+
+    test('WiFi log TIDAK dipanggil kalau wifi_ssid/password kosong', async () => {
+        const logWifiChange = jest.fn();
+        const deps = baseDeps({ logWifiChange });
+        const newUser = { id: 7, name: 'X', pppoe_username: 'u1', pppoe_password: 'p1', subscription: 'PKT' };
+        const userData = { device_id: 'dev-1', ssid_indices: ['1'] }; // tanpa wifi_ssid/password
+
+        await syncMikrotikForNewUser(deps, {
+            newUser, userData, registrationMode: 'new', addToMikrotik: false, skipMikrotik: false, syncEnabled: true,
+            actor: { username: 'admin1', role: 'admin' }
+        });
+
+        expect(logWifiChange).not.toHaveBeenCalled();
+    });
 });
