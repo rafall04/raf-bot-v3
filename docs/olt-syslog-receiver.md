@@ -4,14 +4,36 @@ UDP syslog listener untuk OLT Hioso events realtime. Alternatif push-based ke
 HTTP scrape (`lib/olt-log-scraper.js`) yang sebelumnya satu-satunya sumber
 klasifikasi Dying Gasp vs LOS.
 
-## Kenapa syslog?
+## GROUND TRUTH — tervalidasi tes fisik (OLT Hioso EPON, Jun 2026)
 
-OLT Hioso firmware tidak expose OID SNMP yang membedakan **Dying Gasp** (DG —
-adaptor mati/PLN outage) dari **LOS** (Loss of Signal — fiber putus). Keduanya
-muncul sebagai `lastDownCause = 1` di OID `.1.3.6.1.4.1.25355.3.2.6.3.2.1.41`.
+Dikonfirmasi dengan **mencabut langsung** di OLT produksi (192.168.11.2):
 
-Workaround sebelumnya: scrape web UI log dengan polling 1 menit, regex parse
-text, korelasi DG-then-Lost dalam window 60 detik.
+| Penyebab | Tanda tangan log | Penjelasan fisik |
+|----------|------------------|------------------|
+| **DG** (power adaptor cabut / PLN mati) | `dying-gasp` + `Lost` di **detik yang sama** | ONU pakai sisa kapasitor untuk kirim "dying-gasp" sebelum mati |
+| **LOS** (fiber/FO cabut) | `Lost` **SAJA**, tanpa dying-gasp | ONU masih punya listrik → tidak sekarat → cuma diam. OLT kehilangan ONU |
+
+Bukti LOS nyata: MAC `28:53:4E:D5:DB:B2` slot `0/1/1:22` saat fibernya dicabut
+menghasilkan `Lost` tanpa dying-gasp — satu-satunya event seperti itu di antara
+puluhan event DG yang semuanya berpasangan dying-gasp+Lost.
+
+**Pembeda satu-satunya = kehadiran `dying-gasp` di log.** Ini dipakai sebagai
+sumber kebenaran. Lihat test regresi `lib/__tests__/olt-event-classifier.test.js`
+("ground truth regression").
+
+### Kenapa BUKAN SNMP?
+
+OLT Hioso EPON ini **tidak bisa deteksi dying-gasp via SNMP** (beda dengan OLT
+GPON ZTE dll yang punya OID dying-gasp proper). OID `lastDownCause`
+(`.1.3.6.1.4.1.25355.3.2.6.3.2.1.41`) **tidak membedakan** DG vs LOS — sudah
+diverifikasi, nilainya tidak konsisten/tidak bermakna untuk tujuan ini. Jadi
+SNMP resmi dicoret sebagai sumber klasifikasi; rxPower (lihat Phase 2) hanya
+backup.
+
+## Kenapa syslog (vs scrape)?
+
+Scraper web UI sudah akurat untuk DG/LOS (baca log batch — dying-gasp & Lost
+dua-duanya kelihatan). Syslog adalah upgrade keandalan & latensi:
 
 Syslog lebih robust:
 
@@ -54,7 +76,8 @@ Edit `config.json` (atau via admin UI kalau sudah ada):
     "enabled": true,
     "port": 5514,
     "host": "0.0.0.0",
-    "correlationWindowMs": 60000
+    "correlationWindowMs": 60000,
+    "lostGraceMs": 4000
   }
 }
 ```
@@ -63,6 +86,25 @@ Edit `config.json` (atau via admin UI kalau sudah ada):
   tapi butuh `CAP_NET_BIND_SERVICE` atau root.
 - `host`: `0.0.0.0` listen di semua interface; ganti ke IP spesifik kalau perlu.
 - `correlationWindowMs`: window untuk match DG → Lost. Default 60 detik.
+- `lostGraceMs`: grace window untuk reorder-safety (lihat di bawah). Default 4 detik.
+
+### Grace window — kenapa LOS ditahan ~4 detik
+
+Data nyata: `dying-gasp` dan `Lost` datang di **detik yang sama**. Di syslog
+(2 paket UDP terpisah), urutan tidak dijamin — kalau `Lost` diproses sebelum
+`dying-gasp`, naif-nya kita salah vonis LOS padahal DG.
+
+Solusi: saat `Lost` tiba **tanpa** dying-gasp pending, korelator **menahan**
+keputusan selama `lostGraceMs`. Kalau dying-gasp menyusul dalam grace → emit DG.
+Kalau lewat grace tetap tidak ada → baru emit LOS. Prinsip **"tidak pernah emit
+klasifikasi salah"** — penting kalau ada auto-dispatch teknisi pada LOS.
+
+Catatan:
+- Kasus normal (DG dulu baru Lost) **tidak kena delay** — langsung DG.
+- Hanya kasus Lost-tanpa-DG (true LOS atau reorder) yang ditahan ~4 detik.
+- Delay 4 detik untuk vonis LOS tidak berdampak operasional (ONU offline juga).
+- Jalur **scraper TIDAK pakai grace** — dia baca log batch, dying-gasp & Lost
+  pasti dua-duanya terlihat sekaligus. Grace hanya untuk syslog realtime.
 
 Restart bot. Cek log:
 ```
