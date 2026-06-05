@@ -335,6 +335,11 @@ router.post('/config', (req, res) => {
             if (typeof restartLogScraper === 'function') {
                 restartLogScraper();
             }
+            // Restart juga poller SNMP-LOS (mis. ZTE) supaya device baru langsung dipantau.
+            try {
+                const { restartSnmpLosPoller } = require('../lib/olt-snmp-los-poller');
+                if (typeof restartSnmpLosPoller === 'function') restartSnmpLosPoller();
+            } catch (_e) { /* ignore */ }
             
             res.json({
                 status: 200,
@@ -1131,6 +1136,11 @@ router.post('/devices', (req, res) => {
             if (typeof restartLogScraper === 'function') {
                 restartLogScraper();
             }
+            // Restart juga poller SNMP-LOS (mis. ZTE) supaya device baru langsung dipantau.
+            try {
+                const { restartSnmpLosPoller } = require('../lib/olt-snmp-los-poller');
+                if (typeof restartSnmpLosPoller === 'function') restartSnmpLosPoller();
+            } catch (_e) { /* ignore */ }
             
             res.json({
                 status: 200,
@@ -1191,6 +1201,11 @@ router.put('/devices/:id', (req, res) => {
             if (typeof restartLogScraper === 'function') {
                 restartLogScraper();
             }
+            // Restart juga poller SNMP-LOS (mis. ZTE) supaya device baru langsung dipantau.
+            try {
+                const { restartSnmpLosPoller } = require('../lib/olt-snmp-los-poller');
+                if (typeof restartSnmpLosPoller === 'function') restartSnmpLosPoller();
+            } catch (_e) { /* ignore */ }
             
             res.json({
                 status: 200,
@@ -1238,6 +1253,11 @@ router.delete('/devices/:id', (req, res) => {
             if (typeof restartLogScraper === 'function') {
                 restartLogScraper();
             }
+            // Restart juga poller SNMP-LOS (mis. ZTE) supaya device baru langsung dipantau.
+            try {
+                const { restartSnmpLosPoller } = require('../lib/olt-snmp-los-poller');
+                if (typeof restartSnmpLosPoller === 'function') restartSnmpLosPoller();
+            } catch (_e) { /* ignore */ }
             
             res.json({
                 status: 200,

@@ -222,6 +222,7 @@
     "clusterFlushMs": 20000,
     "clusterThreshold": 3,
     "rebroadcastCooldownMs": 1800000,
+    "snmpPollIntervalMs": 90000,
     "notifyCustomer": {
       "enabled": false,
       "delayMs": 3600000,
