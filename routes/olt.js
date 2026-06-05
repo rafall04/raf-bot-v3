@@ -38,37 +38,44 @@ const pppoeCache = {
     loading: false
 };
 
-// Cache hasil query semua OLT (multi-device). Penting untuk GPON ZTE yang walk-nya
-// lama (~24 dtk untuk 608 ONU) — tanpa cache tiap request /matched akan sangat lambat.
-const multiOltCache = {
-    data: null,
-    timestamp: 0,
-    ttl: 30000,           // Cache valid 30 detik
-    loading: false
-};
+// Cache hasil query OLT, PER-KEY. Penting untuk GPON ZTE yang walk-nya lama
+// (~30 dtk untuk 608 ONU). Key: 'all' (semua OLT) atau oltId tertentu — supaya
+// "pilih 1 OLT" hanya query OLT itu (tak ikut walk OLT lain yang lambat).
+const OLT_CACHE_TTL = 30000;
+const oltDataCacheMap = new Map(); // key -> { data, timestamp, loading }
 
 /**
- * getMultipleOltData dengan cache TTL + guard concurrent (mirip getCachedOltData).
+ * getMultipleOltData dengan cache TTL per-key + guard concurrent.
+ * @param {string} key 'all' atau oltId
+ * @param {Array} devices device(s) yang akan diquery untuk key ini
  */
-async function getCachedMultipleOltData(oltDevices, forceRefresh = false) {
+async function getCachedOltDataByKey(key, devices, forceRefresh = false) {
     const now = Date.now();
-    if (!forceRefresh && multiOltCache.data && (now - multiOltCache.timestamp) < multiOltCache.ttl) {
-        return multiOltCache.data;
+    let entry = oltDataCacheMap.get(key);
+    if (!entry) { entry = { data: null, timestamp: 0, loading: false }; oltDataCacheMap.set(key, entry); }
+
+    if (!forceRefresh && entry.data && (now - entry.timestamp) < OLT_CACHE_TTL) {
+        return entry.data;
     }
-    if (multiOltCache.loading && multiOltCache.data) {
-        return multiOltCache.data;
+    if (entry.loading && entry.data) {
+        return entry.data;
     }
-    multiOltCache.loading = true;
+    entry.loading = true;
     try {
-        const result = await getMultipleOltData(oltDevices);
+        const result = await getMultipleOltData(devices);
         if (result.status === 'success') {
-            multiOltCache.data = result;
-            multiOltCache.timestamp = now;
+            entry.data = result;
+            entry.timestamp = now;
         }
         return result;
     } finally {
-        multiOltCache.loading = false;
+        entry.loading = false;
     }
+}
+
+// Kompat: /matched tetap pakai key 'all' (semua OLT).
+async function getCachedMultipleOltData(oltDevices, forceRefresh = false) {
+    return getCachedOltDataByKey('all', oltDevices, forceRefresh);
 }
 
 // ============================================
@@ -846,12 +853,33 @@ router.get('/onus', async (req, res) => {
         }
 
         let oltDevices = oltManager.getOltDevices();
+        const deviceList = oltDevices.map(d => ({ id: d.id, name: d.name, host: d.host, brand: d.brand || 'auto' }));
+
+        // Mode ringan: hanya kembalikan daftar OLT untuk isi dropdown (tanpa query ONU).
+        // Dipakai dashboard agar "pilih OLT dulu, baru ambil data".
+        if (req.query.devicesOnly === 'true') {
+            return res.json({ status: 200, message: 'OK', enabled: true, data: [], oltDevices: deviceList });
+        }
+
         if (oltDevices.length === 0) {
             return res.json({ status: 200, message: 'Tidak ada OLT yang dikonfigurasi', data: [], enabled: true, error: true });
         }
 
+        // Pilih OLT tertentu → query OLT itu saja (cache per-OLT). 'all'/kosong → semua.
+        const wantOltId = req.query.oltId && req.query.oltId !== 'all' ? String(req.query.oltId) : null;
+        let targetDevices = oltDevices;
+        let cacheKey = 'all';
+        if (wantOltId) {
+            const dev = oltDevices.find(d => d.id === wantOltId);
+            if (!dev) {
+                return res.json({ status: 200, message: 'OLT tidak ditemukan', data: [], enabled: true, oltDevices: deviceList });
+            }
+            targetDevices = [dev];
+            cacheKey = wantOltId;
+        }
+
         const forceRefresh = req.query.force === 'true';
-        const oltResult = await getCachedMultipleOltData(oltDevices, forceRefresh);
+        const oltResult = await getCachedOltDataByKey(cacheKey, targetDevices, forceRefresh);
         if (oltResult.status !== 'success') {
             return res.json({ status: 200, message: oltResult.message || 'Gagal mengambil data OLT', data: [], enabled: true, error: true });
         }
@@ -894,10 +922,9 @@ router.get('/onus', async (req, res) => {
             return null;
         };
 
-        const wantOltId = req.query.oltId && req.query.oltId !== 'all' ? String(req.query.oltId) : null;
-
         const rows = [];
         for (const onu of oltResult.onus) {
+            // (oltResult sudah hanya berisi OLT terpilih bila wantOltId; cek ini jaring pengaman.)
             if (wantOltId && onu.olt_id !== wantOltId) continue;
             const u = findCustomer(onu);
             rows.push({
@@ -934,7 +961,7 @@ router.get('/onus', async (req, res) => {
             data: rows,
             totalOnu: rows.length,
             matchedCount: rows.filter(r => r.matched).length,
-            oltDevices: oltDevices.map(d => ({ id: d.id, name: d.name, host: d.host, brand: d.brand || 'auto' })),
+            oltDevices: deviceList,
             oltResults: oltResult.oltResults
         });
     } catch (error) {

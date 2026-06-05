@@ -158,7 +158,7 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
                             </h6>
                             <div class="d-flex align-items-center mt-2 mt-md-0 flex-wrap">
                                 <select id="oltSelector" class="form-control form-control-sm mr-2 mb-1" style="width: auto;" title="Pilih OLT">
-                                    <option value="all">Semua OLT</option>
+                                    <option value="">— Pilih OLT —</option>
                                 </select>
                                 <div class="btn-group btn-group-sm mr-2 mb-1" role="group" id="viewModeToggle" title="Mode tampilan">
                                     <button type="button" class="btn btn-primary" data-view="all">Semua ONU</button>
@@ -328,7 +328,7 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
         let pppoeUserMacMap = new Map();
         let currentCustomerData = null;
         let oltColdRetryDone = false;
-        let currentOltFilter = 'all';   // id OLT terpilih ('all' = semua)
+        let currentOltFilter = '';      // '' = belum pilih | 'all' = semua | id OLT tertentu
         let currentViewMode = 'all';    // 'all' = semua ONU | 'matched' = hanya pelanggan terdaftar
         let oltDevicesList = [];        // daftar OLT dari API (untuk dropdown)
         const AUTO_REFRESH_INTERVAL = 30000;
@@ -337,7 +337,7 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
             initDataTable();
             initOltViewControls();
             await loadUsersData();
-            loadAllData();
+            await loadDevicesOnly(); // hanya isi dropdown OLT; data ONU dimuat setelah pilih OLT
 
             $('#refreshOltBtn').on('click', () => loadAllData(true));
             $('#autoRefreshToggle').on('change', function() {
@@ -465,12 +465,15 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
         }
 
         async function loadAllData(showLoading = false) {
+            // Belum pilih OLT → jangan query apa pun (hemat: tak walk OLT lambat tanpa diminta).
+            if (!currentOltFilter) { showOltEmptyState(); return; }
             if (showLoading) {
                 $('#refreshOltBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
             }
+            showAlert('info', '<i class="fas fa-spinner fa-spin"></i> Memuat data ONU dari OLT… (OLT besar bisa ~30 detik)');
             try {
                 await loadPppoeData();
-                await loadOltMatchedData();
+                await loadOltMatchedData(showLoading); // refresh eksplisit → force bypass cache
                 updateLastUpdateTime();
             } catch (e) {
                 console.error('Error:', e);
@@ -500,20 +503,47 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
         // Kontrol view OLT-centric: dropdown pilih OLT + toggle Semua ONU / Pelanggan.
         function initOltViewControls() {
             $('#oltSelector').on('change', function () {
-                currentOltFilter = this.value || 'all';
-                loadOltMatchedData(); // re-fetch dengan filter OLT (server-side)
+                currentOltFilter = this.value; // '' | 'all' | id
+                oltColdRetryDone = false;
+                if (!currentOltFilter) { showOltEmptyState(); return; }
+                loadAllData(true); // muat data OLT terpilih (+ pppoe)
             });
             $('#viewModeToggle button').on('click', function () {
                 currentViewMode = $(this).data('view');
                 $('#viewModeToggle button').removeClass('btn-primary').addClass('btn-outline-primary');
                 $(this).removeClass('btn-outline-primary').addClass('btn-primary');
-                renderCurrentView(); // filter client-side dari data yang sudah dimuat
+                if (currentOltFilter) renderCurrentView(); // filter client-side dari data yang sudah dimuat
             });
+        }
+
+        // Hanya isi dropdown OLT (tanpa query ONU). "Pilih OLT dulu, baru ambil data."
+        async function loadDevicesOnly() {
+            try {
+                const res = await fetch('/api/olt/onus?devicesOnly=true&_=' + Date.now(), { credentials: 'include' });
+                const result = await res.json();
+                if (result.status === 200) {
+                    if (!result.enabled) {
+                        showAlert('warning', 'OLT tidak diaktifkan. Aktifkan di Konfigurasi.');
+                        return;
+                    }
+                    populateOltSelector(result.oltDevices || []);
+                    showOltEmptyState();
+                }
+            } catch (e) {
+                console.error('Load devices error:', e);
+                showAlert('danger', 'Gagal memuat daftar OLT: ' + e.message);
+            }
+        }
+
+        function showOltEmptyState() {
+            updateStats(0, 0, 0, 0);
+            if (dataTableInstance) dataTableInstance.clear().draw();
+            showAlert('info', '<i class="fas fa-hand-pointer"></i> Pilih OLT di atas untuk memuat data ONU.');
         }
 
         function populateOltSelector(devices) {
             oltDevicesList = devices || [];
-            const opts = ['<option value="all">Semua OLT</option>'].concat(
+            const opts = ['<option value="">— Pilih OLT —</option>', '<option value="all">Semua OLT</option>'].concat(
                 oltDevicesList.map(d => {
                     const tag = d.brand && d.brand !== 'auto' ? ` (${String(d.brand).toUpperCase()})` : '';
                     return `<option value="${d.id}">${d.name}${tag}</option>`;
@@ -532,11 +562,13 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
             dataTableInstance.clear().rows.add(view).draw();
         }
 
-        async function loadOltMatchedData() {
+        async function loadOltMatchedData(force = false) {
+            if (!currentOltFilter) { showOltEmptyState(); return; }
             try {
                 const oltParam = (currentOltFilter && currentOltFilter !== 'all')
                     ? '&oltId=' + encodeURIComponent(currentOltFilter) : '';
-                const res = await fetch('/api/olt/onus?_=' + Date.now() + oltParam, { credentials: 'include' });
+                const forceParam = force ? '&force=true' : '';
+                const res = await fetch('/api/olt/onus?_=' + Date.now() + oltParam + forceParam, { credentials: 'include' });
                 const result = await res.json();
 
                 if (result.status === 200) {
