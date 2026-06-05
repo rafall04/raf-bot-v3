@@ -21,7 +21,7 @@ const { downloadMedia } = require("../lib/whatsapp.adapter");
 const { getBuffer, fetchJson, fetchText, getRandom, getGroupAdmins, runtime, sleep, convert, convertGif, html2Txt } = require("../lib/myfunc");
 const { wifimenu, menupaket, menubelivoucher, menupasang, menuowner, customermenu, techinisionmenu, menuvoucher } = require("./wifi");
 const { getSSIDInfo } = require("../lib/wifi");
-const { getPppStats, getHotspotStats, statusap, getvoucher, addpppoe, addbinding, addqueue } = require("../lib/mikrotik");
+const { getPppStats, getHotspotStats, statusap, getvoucher, addPPPoEUser, addbinding, addqueue } = require("../lib/mikrotik");
 const { addPayment } = require("../lib/payment");
 const { getIntentFromKeywords } = require('../lib/wifi_template_handler');
 const { templatesCache, renderTemplate } = require("../lib/templating");
@@ -606,7 +606,8 @@ module.exports = async (raf, msg, m, options = {}) => {
             addbinding,
             addqueue,
             handleAddPPP,
-            addpppoe,
+            addpppoe: addPPPoEUser, // M6: aliased ke addPPPoEUser (direct spawn) — addpppoe HTTP path
+            // skip dependency raf-bot self-call (axios → Express → php-express → spawn).
             handleTopup,
             handleDelSaldo,
             handleTransfer,

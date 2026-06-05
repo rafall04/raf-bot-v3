@@ -64,24 +64,41 @@ function mikrotik_success($operation, $message, $data, $startedAt, $httpCode = 2
 function mikrotik_read_input($key, $argvIndex = null, $required = true, $default = null) {
     $value = $default;
 
+    // Source priority (paling tinggi ke paling rendah):
+    // 1. env `MTIN_<key>` (M7) — untuk nilai sensitif: password tidak muncul di `ps aux`.
+    // 2. argv pada index `$argvIndex` (CLI spawn legacy non-sensitif).
+    // 3. $_POST (M3) — kredensial via HTTP body, tidak masuk access log.
+    // 4. $_GET — fallback legacy.
+    // 5. JSON body — caller modern HTTP yang kirim Content-Type: application/json.
+    $envKey = 'MTIN_' . $key;
+    $envValue = getenv($envKey);
+    if ($envValue !== false && $envValue !== '') {
+        return $envValue;
+    }
+
     if ($argvIndex !== null && isset($GLOBALS['argv']) && array_key_exists($argvIndex, $GLOBALS['argv'])) {
-        $value = $GLOBALS['argv'][$argvIndex];
-    } elseif (isset($_POST[$key])) {
-        // POST mendahului GET — kredensial dipindah dari query string ke body
-        // supaya tidak muncul di webserver access log / browser history.
-        $value = $_POST[$key];
-    } elseif (isset($_GET[$key])) {
-        $value = $_GET[$key];
-    } else {
-        // Fallback: caller bisa kirim JSON body. Decode sekali, cache di GLOBALS.
-        if (!isset($GLOBALS['__MIKROTIK_JSON_BODY__'])) {
-            $raw = file_get_contents('php://input');
-            $GLOBALS['__MIKROTIK_JSON_BODY__'] = ($raw && strlen($raw))
-                ? (json_decode($raw, true) ?: [])
-                : [];
+        $candidate = $GLOBALS['argv'][$argvIndex];
+        // Argv slot kosong = placeholder M7 (sensitive value pindah ke env). Fallback ke sumber lain.
+        if ($candidate !== '') {
+            $value = $candidate;
         }
-        if (is_array($GLOBALS['__MIKROTIK_JSON_BODY__']) && array_key_exists($key, $GLOBALS['__MIKROTIK_JSON_BODY__'])) {
-            $value = $GLOBALS['__MIKROTIK_JSON_BODY__'][$key];
+    }
+
+    if ($value === null || $value === '') {
+        if (isset($_POST[$key]) && $_POST[$key] !== '') {
+            $value = $_POST[$key];
+        } elseif (isset($_GET[$key]) && $_GET[$key] !== '') {
+            $value = $_GET[$key];
+        } else {
+            if (!isset($GLOBALS['__MIKROTIK_JSON_BODY__'])) {
+                $raw = file_get_contents('php://input');
+                $GLOBALS['__MIKROTIK_JSON_BODY__'] = ($raw && strlen($raw))
+                    ? (json_decode($raw, true) ?: [])
+                    : [];
+            }
+            if (is_array($GLOBALS['__MIKROTIK_JSON_BODY__']) && array_key_exists($key, $GLOBALS['__MIKROTIK_JSON_BODY__'])) {
+                $value = $GLOBALS['__MIKROTIK_JSON_BODY__'][$key];
+            }
         }
     }
 
