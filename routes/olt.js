@@ -18,6 +18,9 @@ const oltLogScraper = require('../lib/olt-log-scraper');
 // Import OLT Manager
 const oltManager = require('../lib/olt-manager');
 
+// Import driver registry (multi-merk OLT). Dispatch per device.brand.
+const { resolveDriver, listDrivers } = require('../lib/olt-drivers');
+
 // ============================================
 // CACHE SYSTEM untuk performa lebih baik
 // ============================================
@@ -891,7 +894,7 @@ router.post('/refresh-single', async (req, res) => {
                 };
                 
                 try {
-                    const r = await getSingleOnuData(config, slotId, onuId);
+                    const r = await resolveDriver(olt).getSingleOnuData(config, slotId, onuId);
                     if (r.status === 'success' && r.data && r.data.rxPower !== 'N/A') {
                         return r;
                     }
@@ -992,12 +995,13 @@ router.get('/devices', (req, res) => {
 
         const devices = oltManager.getOltDevices();
         const globalConfig = oltManager.getOltGlobalConfig();
-        
+
         res.json({
             status: 200,
             data: {
                 devices: devices,
-                globalConfig: globalConfig
+                globalConfig: globalConfig,
+                brands: listDrivers() // daftar merk OLT yang didukung (untuk dropdown UI)
             }
         });
     } catch (error) {
@@ -1016,12 +1020,12 @@ router.post('/devices', (req, res) => {
             return res.status(403).json({ status: 403, message: 'Forbidden' });
         }
 
-        const { name, host, snmpPort, snmpCommunity, snmpTimeout, snmpRetries, webUsername, webPassword } = req.body;
+        const { name, host, brand, snmpPort, snmpCommunity, snmpTimeout, snmpRetries, webUsername, webPassword } = req.body;
 
         if (!name || !host) {
-            return res.status(400).json({ 
-                status: 400, 
-                message: 'Nama dan host OLT diperlukan' 
+            return res.status(400).json({
+                status: 400,
+                message: 'Nama dan host OLT diperlukan'
             });
         }
 
@@ -1050,6 +1054,7 @@ router.post('/devices', (req, res) => {
             id: newId,
             name: name,
             host: host,
+            brand: brand || 'auto',
             snmpPort: parseInt(snmpPort) || 161,
             snmpCommunity: snmpCommunity || 'public',
             snmpTimeout: parseInt(snmpTimeout) || 30000,
@@ -1093,10 +1098,10 @@ router.put('/devices/:id', (req, res) => {
         }
 
         const { id } = req.params;
-        const { name, host, snmpPort, snmpCommunity, snmpTimeout, snmpRetries, webUsername, webPassword, enabled } = req.body;
+        const { name, host, brand, snmpPort, snmpCommunity, snmpTimeout, snmpRetries, webUsername, webPassword, enabled } = req.body;
 
         const config = loadConfig();
-        
+
         if (!config.olt || !config.olt.devices) {
             return res.status(404).json({ status: 404, message: 'OLT tidak ditemukan' });
         }
@@ -1111,6 +1116,7 @@ router.put('/devices/:id', (req, res) => {
             ...config.olt.devices[deviceIndex],
             name: name || config.olt.devices[deviceIndex].name,
             host: host || config.olt.devices[deviceIndex].host,
+            brand: brand || config.olt.devices[deviceIndex].brand || 'auto',
             snmpPort: parseInt(snmpPort) || config.olt.devices[deviceIndex].snmpPort,
             snmpCommunity: snmpCommunity || config.olt.devices[deviceIndex].snmpCommunity,
             snmpTimeout: parseInt(snmpTimeout) || config.olt.devices[deviceIndex].snmpTimeout,
@@ -1234,6 +1240,22 @@ router.post('/devices/:id/test', async (req, res) => {
         }
     } catch (error) {
         console.error('[OLT] Error testing device:', error);
+        res.status(500).json({ status: 500, message: error.message });
+    }
+});
+
+/**
+ * GET /api/olt/drivers
+ * Daftar merk OLT yang didukung (untuk dropdown brand di form device).
+ */
+router.get('/drivers', (req, res) => {
+    try {
+        if (!req.user || !['admin', 'owner'].includes(req.user.role)) {
+            return res.status(403).json({ status: 403, message: 'Forbidden' });
+        }
+        res.json({ status: 200, data: listDrivers() });
+    } catch (error) {
+        console.error('[OLT] Error listing drivers:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });

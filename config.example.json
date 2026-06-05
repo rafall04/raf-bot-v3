@@ -193,6 +193,7 @@
       {
         "id": "olt1",
         "name": "OLT Pusat",
+        "brand": "auto",
         "host": "ISI_HOST",
         "snmpPort": 161,
         "snmpCommunity": "public",
