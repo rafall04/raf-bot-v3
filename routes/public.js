@@ -17,6 +17,9 @@ const multer = require('multer');
 
 // Local dependencies that were used by these routes in index.js
 const pay = require("../lib/ipaymu");
+// Verifikasi server-to-server status transaksi iPaymu (dipakai di callback).
+// Diberi nama lain karena `pay` di-shadow oleh record pembayaran di dalam handler callback.
+const verifyIpaymuTransaction = require("../lib/ipaymu").checkTransaction;
 const { getvoucher } = require("../lib/mikrotik");
 const { addKoinUser, addATM, checkATMuser } = require('../lib/saldo');
 const { updateStatusPayment, checkStatusPayment, delPayment, addPayBuy, addPayment, updateKetPayment } = require('../lib/payment');
@@ -715,6 +718,29 @@ router.post('/callback/payment', async (req, res) => {
         const pay = global.payment.find(val => val.reffId == reference_id);
         if (!pay) throw !1;
         if (status_code == '1') {
+            // KEAMANAN: JANGAN percaya body callback mentah — bisa di-forge → free saldo/voucher.
+            // Verifikasi langsung ke iPaymu pakai trxId yang KITA simpan saat membuat transaksi.
+            const verify = await verifyIpaymuTransaction(pay.trxId);
+            if (!verify || !verify.ok || !verify.paid) {
+                console.warn('[PAYMENT_CALLBACK_REJECT] iPaymu belum konfirmasi LUNAS — kredit ditolak.', {
+                    reference_id, trxId: pay.trxId, ipaymu_status: verify?.status, ipaymu_error: verify?.error
+                });
+                throw !1; // 500 → minta iPaymu retry callback; jangan kredit.
+            }
+            // Cegah substitusi trx: referenceId & amount dari iPaymu harus cocok dgn record kita.
+            if (verify.referenceId != null && String(verify.referenceId) !== String(reference_id)) {
+                console.warn('[PAYMENT_CALLBACK_REJECT] referenceId iPaymu tidak cocok.', {
+                    reference_id, ipaymu_referenceId: verify.referenceId
+                });
+                throw !1;
+            }
+            if (verify.amount != null && pay.amount != null && parseInt(verify.amount, 10) < parseInt(pay.amount, 10)) {
+                console.warn('[PAYMENT_CALLBACK_REJECT] amount iPaymu kurang dari tagihan.', {
+                    reference_id, ipaymu_amount: verify.amount, expected: pay.amount
+                });
+                throw !1;
+            }
+
             let isDone = checkStatusPayment(reference_id);
             if (isDone) throw !0;
             if (pay.tag == 'buynow') {
