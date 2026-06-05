@@ -713,7 +713,7 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
     }
 }
 </style>
-<ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+<ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar" aria-label="Navigasi cepat admin">
     <li class="mobile-sidebar-head d-md-none">
         <div class="mobile-sidebar-title">
             <strong>RAF BOT WIFI</strong>
