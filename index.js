@@ -374,12 +374,30 @@ async function startApp() {
                 }
 
                 io.emit('message', buildWhatsAppSocketPayload('open'));
-                
+
                 if (global.wasDisconnected) {
                     await global.alertSystem.sendAlert('info', 'SERVICE_RECOVERED', {
                         service: 'WhatsApp'
                     });
                     global.wasDisconnected = false;
+                }
+
+                // Flush pesan kritis yang gagal terkirim saat WA down (dead-letter).
+                // Kode voucher / notifikasi transfer yang tertahan otomatis dikirim
+                // ulang begitu koneksi pulih. Non-blocking + delay supaya socket stabil.
+                try {
+                    const { retryFailedDeliveries } = require('./lib/whatsapp-critical-delivery');
+                    setTimeout(() => {
+                        retryFailedDeliveries()
+                            .then((r) => {
+                                if (r.attempted > 0) {
+                                    console.log(`[WA_CRITICAL] Reconnect flush: ${r.delivered}/${r.attempted} pesan kritis terkirim ulang`);
+                                }
+                            })
+                            .catch((err) => console.error('[WA_CRITICAL] Reconnect flush error:', err.message));
+                    }, 10000);
+                } catch (flushInitError) {
+                    console.error('[WA_CRITICAL] Flush init error:', flushInitError.message);
                 }
                 
             } else if (connection === 'connecting') {
