@@ -6,12 +6,9 @@
 const snmp = require('net-snmp');
 
 const baseOid = process.argv[2];
-const host = process.argv[3] || '103.171.83.121';
-const community = process.argv[4] || 'onewanro';
-const port = parseInt(process.argv[5], 10) || 1601;
+if (!baseOid) { console.error('Usage: node olt-zte-columns.js <baseOid> <host> <community> <port>'); process.exit(1); }
+const { host, community, port } = require('./_olt-args')(3);
 const CAP = 6000;
-
-if (!baseOid) { console.error('baseOid wajib'); process.exit(1); }
 
 function colOf(oid) {
     // Kolom = OID tanpa index ONU. Index ONU ZTE = <ponIfIndex>.<onuId>,

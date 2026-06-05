@@ -9,9 +9,7 @@ const snmp = require('net-snmp');
 const fs = require('fs');
 const path = require('path');
 
-const host = process.argv[2] || '103.171.83.121';
-const community = process.argv[3] || 'onewanro';
-const port = parseInt(process.argv[4], 10) || 1601;
+const { host, community, port } = require('./_olt-args')(2);
 
 const OUT_DIR = path.join(__dirname, 'out');
 fs.mkdirSync(OUT_DIR, { recursive: true });

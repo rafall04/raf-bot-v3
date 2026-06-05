@@ -62,6 +62,20 @@ Tabel hardware ONU (bukan power): `...3.50.11.2.1.1`=vendor `ZTEG`, `...3.50.11.
 3. **Konfirmasi kolom 2 (`.28.1.1.2`) memang = username PPPoE** untuk sample pelanggan nyata
    (cocokkan dengan `users.pppoe_username` di DB).
 
+## ✅ Hasil smoke test driver (live, 2026-06-05)
+
+`node scripts/olt-zte-smoke.js <host> <community> <port>` → driver `lib/olt-drivers/zte.js`:
+- `detectBrand → zte` (auto-deteksi enterprise 3902 jalan).
+- **608 ONU ter-parse**, status: `Online 495, Offline 98, LOS 15` (cocok histogram phaseState).
+- Serial ✓ (`ZTEGD5D42874`), **deskripsi = username PPPoE ✓** (`caper@suwito`, `caper@lurah`).
+- RX power realistis ✓: −10.20 / −12.76 / −26.57 / −28.41 dBm (rentang GPON wajar → skala `−raw/100` makin yakin).
+- Full walk 608 ONU ≈ 24 dtk (perlu cache seperti HIOSO untuk poll rutin).
+
+### Refinement diketahui (belum kritis)
+- **ponName**: `ifName[ponIfIndex]` malah menghasilkan `xgei_1/3/2` (bukan `gpon_…`). Lebih baik
+  pakai kolom `.28.1.1.3` (`ONU-1:1`) sebagai label PON/ONU human. (Kosmetik; data inti benar.)
+- **offlineReason enum** masih provisional (LOS=15 terdeteksi, tapi kode persis belum diverifikasi CLI).
+
 ## Capabilities driver ZTE (rencana)
 
 ```

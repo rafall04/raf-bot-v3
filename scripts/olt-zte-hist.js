@@ -4,7 +4,7 @@
  * Usage: node scripts/olt-zte-hist.js
  */
 const snmp = require('net-snmp');
-const host = '103.171.83.121', community = 'onewanro', port = 1601;
+const { host, community, port } = require('./_olt-args')(2);
 
 const COLS = {
     'phaseState .28.2.1.3': '1.3.6.1.4.1.3902.1012.3.28.2.1.3',

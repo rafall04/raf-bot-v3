@@ -4,9 +4,7 @@
  */
 const snmp = require('net-snmp');
 
-const host = process.argv[2] || '103.171.83.121';
-const community = process.argv[3] || 'onewanro';
-const port = parseInt(process.argv[4], 10) || 1601;
+const { host, community, port } = require('./_olt-args')(2);
 
 const OIDS = {
     sysDescr: '1.3.6.1.2.1.1.1.0',
