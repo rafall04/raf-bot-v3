@@ -13,6 +13,7 @@ const { createError, ErrorTypes } = require("../lib/error-handler");
 const { withLock } = require("../lib/request-lock");
 const { logActivity } = require("../lib/activity-logger");
 const { sendMessage, sendMessageToMany } = require("../lib/whatsapp-delivery-service");
+const { sendCritical } = require("../lib/whatsapp-critical-delivery");
 const { renderCategoryTemplate } = require("../lib/template-service");
 const {
     updatePPPoEProfile,
@@ -61,6 +62,22 @@ function normalizeTechnicianJid(phoneNumber) {
     return `62${normalized}@s.whatsapp.net`;
 }
 
+/**
+ * Kirim notifikasi terjamin (sendCritical) secara best-effort: TIDAK pernah throw,
+ * supaya kegagalan kirim tidak menggagalkan approval yang sudah commit ke DB/MikroTik.
+ * Fallback ke deps.sendMessage hanya bila sendCritical tak tersedia (mis. test lama).
+ */
+async function deliverCritical(deps, recipient, message, label) {
+    const send = deps.sendCritical || deps.sendMessage;
+    if (!send) return { delivered: false, error: "no_sender" };
+    try {
+        return await send(recipient, message, { label, waitForReadyMs: 8000 });
+    } catch (err) {
+        console.error(`[PKG_CHANGE_NOTIF_ERROR] ${label}:`, err.message);
+        return { delivered: false, error: err.message };
+    }
+}
+
 function defaultDeps() {
     return {
         repository: createAdminRepository(),
@@ -68,6 +85,7 @@ function defaultDeps() {
         logActivity,
         sendMessage,
         sendMessageToMany,
+        sendCritical,
         updatePPPoEProfile,
         deleteActivePPPoEUser,
         assertMikrotikResult,
@@ -385,13 +403,19 @@ function createAdminService(overrides = {}) {
                     deps.repository.replacePackageChangeRequest(requestIndex, request);
                     deps.repository.persistPackageChangeRequests();
 
+                    // Notifikasi hasil approval/reject — terjamin (sendCritical: tunggu-ready
+                    // + retry + dead-letter, auto-retry saat WA reconnect). Best-effort: DB &
+                    // MikroTik sudah commit di atas, jadi kegagalan kirim TIDAK boleh
+                    // menggagalkan approval (jangan throw — sendCritical sendiri tidak throw).
                     const customer = deps.repository.getUserById(request.userId);
                     if (customer && customer.phone_number) {
                         const phoneNumbers = customer.phone_number
                             .split("|")
                             .map((item) => item.trim())
                             .filter(Boolean);
-                        await deps.sendMessageToMany(phoneNumbers, { text: notificationMessage });
+                        for (const phone of phoneNumbers) {
+                            await deliverCritical(deps, phone, { text: notificationMessage }, "package_change_approval");
+                        }
                     }
 
                     const technician = deps.repository.getAccountById(request.requestedById);
@@ -411,9 +435,7 @@ function createAdminService(overrides = {}) {
                             processedBy: actorCtx.username
                         });
 
-                        await deps.sendMessage(normalizeTechnicianJid(technician.phone_number), {
-                            text: technicianMessage
-                        });
+                        await deliverCritical(deps, normalizeTechnicianJid(technician.phone_number), { text: technicianMessage }, "package_change_approval_teknisi");
                     }
 
                     return {

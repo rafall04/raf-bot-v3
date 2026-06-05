@@ -21,6 +21,12 @@ jest.mock("../../lib/whatsapp-delivery-service", () => ({
     sendMessage: jest.fn(),
     sendMessageToMany: jest.fn()
 }));
+jest.mock("../../lib/whatsapp-critical-delivery", () => ({
+    sendCritical: jest.fn()
+}));
+jest.mock("../../lib/template-service", () => ({
+    renderCategoryTemplate: jest.fn(() => ({ text: "notif-msg" }))
+}));
 jest.mock("../../lib/mikrotik", () => ({
     updatePPPoEProfile: jest.fn(),
     deleteActivePPPoEUser: jest.fn(),
@@ -111,5 +117,90 @@ describe("admin.service", () => {
         )).rejects.toMatchObject({ statusCode: 502 });
 
         expect(repository.updateUserSubscription).not.toHaveBeenCalled();
+    });
+
+    test("approve sukses → notifikasi customer + teknisi lewat sendCritical (guaranteed)", async () => {
+        const request = {
+            id: "REQ-3",
+            userId: 20,
+            requestedPackageName: "Biz",
+            requestedById: 30,
+            currentPackageName: "Basic",
+            status: "pending"
+        };
+        const repository = {
+            findPackageChangeRequestIndexById: jest.fn().mockReturnValue(0),
+            getPackageChangeRequests: jest.fn().mockReturnValue([request]),
+            getUserById: jest.fn().mockReturnValue({ id: 20, name: "User A", pppoe_username: "ppp-a", subscription: "Basic", phone_number: "08123" }),
+            getPackageByName: jest.fn().mockReturnValue({ name: "Biz", profile: "biz-20m" }),
+            getConfig: jest.fn().mockReturnValue({}),
+            updateUserSubscription: jest.fn(),
+            syncUserSubscriptionCache: jest.fn(),
+            replacePackageChangeRequest: jest.fn(),
+            persistPackageChangeRequests: jest.fn(),
+            getAccountById: jest.fn().mockReturnValue({ id: 30, name: "Teknisi B", phone_number: "08999" })
+        };
+        const sendCritical = jest.fn().mockResolvedValue({ delivered: true, attempts: 1 });
+        const sendMessageToMany = jest.fn();
+        const sendMessage = jest.fn();
+        const service = createAdminService({
+            repository,
+            withLock: jest.fn(async (_key, handler) => handler()),
+            isMikrotikSyncEnabled: jest.fn().mockReturnValue(false), // skip MikroTik → fokus notifikasi
+            logActivity: jest.fn().mockResolvedValue(true),
+            sendCritical,
+            sendMessageToMany,
+            sendMessage
+        });
+
+        const result = await service.approvePackageChange(
+            { requestId: "REQ-3", action: "approve", notes: "" },
+            { id: 1, username: "admin", role: "admin" }
+        );
+
+        expect(result.status).toBe(200);
+        expect(repository.updateUserSubscription).toHaveBeenCalledWith(20, "Biz");
+        // Customer + teknisi notif lewat sendCritical (BUKAN sendMessageToMany/sendMessage lama).
+        expect(sendCritical).toHaveBeenCalledTimes(2);
+        const labels = sendCritical.mock.calls.map((c) => c[2].label);
+        expect(labels).toContain("package_change_approval");
+        expect(labels).toContain("package_change_approval_teknisi");
+        expect(sendMessageToMany).not.toHaveBeenCalled();
+    });
+
+    test("approve sukses tetap berhasil walau notifikasi gagal (best-effort)", async () => {
+        const request = {
+            id: "REQ-4", userId: 21, requestedPackageName: "Biz", requestedById: 31,
+            currentPackageName: "Basic", status: "pending"
+        };
+        const repository = {
+            findPackageChangeRequestIndexById: jest.fn().mockReturnValue(0),
+            getPackageChangeRequests: jest.fn().mockReturnValue([request]),
+            getUserById: jest.fn().mockReturnValue({ id: 21, name: "User C", pppoe_username: "ppp-c", subscription: "Basic", phone_number: "08123" }),
+            getPackageByName: jest.fn().mockReturnValue({ name: "Biz", profile: "biz-20m" }),
+            getConfig: jest.fn().mockReturnValue({}),
+            updateUserSubscription: jest.fn(),
+            syncUserSubscriptionCache: jest.fn(),
+            replacePackageChangeRequest: jest.fn(),
+            persistPackageChangeRequests: jest.fn(),
+            getAccountById: jest.fn().mockReturnValue(null)
+        };
+        // sendCritical menolak (throw) → deliverCritical harus menelan, approval tetap 200.
+        const sendCritical = jest.fn().mockRejectedValue(new Error("gateway boom"));
+        const service = createAdminService({
+            repository,
+            withLock: jest.fn(async (_key, handler) => handler()),
+            isMikrotikSyncEnabled: jest.fn().mockReturnValue(false),
+            logActivity: jest.fn().mockResolvedValue(true),
+            sendCritical
+        });
+
+        const result = await service.approvePackageChange(
+            { requestId: "REQ-4", action: "approve", notes: "" },
+            { id: 1, username: "admin", role: "admin" }
+        );
+
+        expect(result.status).toBe(200);
+        expect(repository.updateUserSubscription).toHaveBeenCalledWith(21, "Biz");
     });
 });
