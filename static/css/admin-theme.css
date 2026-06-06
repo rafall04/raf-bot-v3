@@ -12,23 +12,38 @@
 
 body.tk-dark {
     /* flip the dashboard's own text/background variables */
-    --dark: #e6eaf2;
-    --light: #1b2436;
+    --dark: #e9eef8;
+    --light: #151c2b;
 
-    /* dark palette */
-    --d-canvas: #0e1521;
-    --d-surface: #1b2436;
-    --d-surface-2: #232f45;
-    --d-raise: #141d2c;
-    --d-line: #2b3852;
-    --d-ink: #e6eaf2;
-    --d-ink-soft: #aab4c5;
-    --d-muted: #7b879c;
+    /* ── Elegant deep-slate palette (cohesive with indigo accent) ──
+       Cleaner, deeper canvas → crisper card elevation; translucent borders
+       (no heavy navy lines); soft shadows give depth instead of flat black. */
+    --d-canvas:     #0a0e17;   /* page background (darkest) */
+    --d-raise:      #0f1420;   /* recessed: table head/footer, inputs-disabled */
+    --d-surface:    #141b29;   /* cards / panels (clearly above canvas) */
+    --d-surface-2:  #1d2740;   /* elevated / hover / nested */
+    --d-line:       rgba(148, 163, 184, 0.10);   /* soft translucent hairline */
+    --d-line-2:     rgba(148, 163, 184, 0.18);   /* stronger (hover/active) */
+    --d-ink:        #e9eef8;   /* primary text (high contrast) */
+    --d-ink-soft:   #aab6cb;   /* secondary text */
+    --d-muted:      #6b7689;   /* tertiary / hints */
+    --d-accent:     #818cf8;   /* indigo-300, pops on dark */
+    --d-elev-1: 0 1px 2px rgba(0,0,0,0.35), 0 6px 18px -8px rgba(0,0,0,0.45);
+    --d-elev-2: 0 10px 34px -12px rgba(0,0,0,0.6), 0 2px 8px -4px rgba(0,0,0,0.4);
 
-    background: var(--d-canvas) !important;
     color: var(--d-ink);
+    background-color: var(--d-canvas) !important;
 }
-body.tk-dark #content-wrapper { background: var(--d-canvas) !important; }
+/* Subtle depth: faint indigo/cyan aura at the top corners — modern, not flat.
+   Lives on the scroll area so it stays put while content scrolls. */
+body.tk-dark #content-wrapper {
+    background-color: var(--d-canvas) !important;
+    background-image:
+        radial-gradient(1100px 460px at 82% -10%, rgba(99, 102, 241, 0.10), transparent 60%),
+        radial-gradient(820px 380px at -5% 2%, rgba(56, 189, 248, 0.045), transparent 55%) !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+}
 
 /* ---------- framework / sb-admin-2 utilities ---------- */
 body.tk-dark .bg-white { background-color: var(--d-surface) !important; }
@@ -48,8 +63,14 @@ body.tk-dark .text-muted { color: var(--d-muted) !important; }
 body.tk-dark hr { border-top-color: var(--d-line); }
 body.tk-dark a:not(.btn):not(.dropdown-item):not(.nav-link) { color: #a5b4fc; }
 
-/* topbar + dropdowns */
-body.tk-dark .topbar { background: rgba(20, 27, 42, 0.92) !important; border-bottom-color: var(--d-line) !important; }
+/* topbar + dropdowns — frosted glass */
+body.tk-dark .topbar {
+    background: rgba(13, 18, 30, 0.72) !important;
+    -webkit-backdrop-filter: saturate(150%) blur(14px);
+    backdrop-filter: saturate(150%) blur(14px);
+    border-bottom: 1px solid var(--d-line) !important;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.02);
+}
 body.tk-dark .topbar #sidebarToggleTop { color: var(--d-ink-soft); }
 body.tk-dark .dropdown-menu,
 body.tk-dark .dropdown-list { background: var(--d-surface); border-color: var(--d-line); }
@@ -60,6 +81,103 @@ body.tk-dark .dropdown-divider { border-top-color: var(--d-line); }
 body.tk-dark .dropdown-list .dropdown-item { border-bottom-color: var(--d-line); }
 body.tk-dark .dropdown-list .dropdown-item:hover { background-color: var(--d-surface-2); }
 body.tk-dark .topbar-divider { border-right-color: var(--d-line); }
+
+/* ============================================================
+   ELEGANCE LAYER — depth, smooth motion, refined controls.
+   This is what makes dark mode feel modern instead of flat-black.
+   ============================================================ */
+/* Soft elevation + smooth hover on every card-like surface */
+body.tk-dark .card,
+body.tk-dark .modern-card,
+body.tk-dark .modern-panel,
+body.tk-dark .dashboard-card,
+body.tk-dark .workspace-panel,
+body.tk-dark .snapshot-panel,
+body.tk-dark .filter-section,
+body.tk-dark .form-section,
+body.tk-dark .card-modern,
+body.tk-dark .stat-card,
+body.tk-dark .stats-card,
+body.tk-dark .payment-card,
+body.tk-dark .agent-card,
+body.tk-dark .ao-card,
+body.tk-dark .voucher-card,
+body.tk-dark .preview-card,
+body.tk-dark .qr-card,
+body.tk-dark .detail-section,
+body.tk-dark .settings-section,
+body.tk-dark .isolir-card,
+body.tk-dark .user-card {
+    box-shadow: var(--d-elev-1);
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+/* Lift on hover (non-jittery: shadow + border brighten) */
+body.tk-dark .card:hover,
+body.tk-dark .modern-card:hover,
+body.tk-dark .modern-panel:hover,
+body.tk-dark .stat-card:hover,
+body.tk-dark .payment-card:hover,
+body.tk-dark .agent-card:hover,
+body.tk-dark .voucher-card:hover {
+    border-color: var(--d-line-2) !important;
+    box-shadow: var(--d-elev-2);
+}
+/* Clickable shortcut cards get a real lift */
+body.tk-dark .dashboard-card:hover,
+body.tk-dark .action-link:hover {
+    box-shadow: var(--d-elev-2);
+    transform: translateY(-2px);
+}
+
+/* Refined focus ring (indigo glow, not the default washed blue) */
+body.tk-dark .form-control:focus,
+body.tk-dark .custom-select:focus,
+body.tk-dark .form-select:focus,
+body.tk-dark .select2-container--focus .select2-selection {
+    border-color: var(--d-accent) !important;
+    box-shadow: 0 0 0 0.2rem rgba(129, 140, 248, 0.22) !important;
+    background-color: var(--d-surface) !important;
+}
+
+/* Primary buttons — gradient + soft glow */
+body.tk-dark .btn-primary,
+body.tk-dark .btn-primary-custom {
+    background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
+    border: none !important;
+    box-shadow: 0 4px 14px -5px rgba(99, 102, 241, 0.55);
+    transition: filter .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+body.tk-dark .btn-primary:hover,
+body.tk-dark .btn-primary-custom:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 6px 20px -6px rgba(99, 102, 241, 0.7);
+}
+body.tk-dark .btn-primary:active,
+body.tk-dark .btn-primary-custom:active { transform: translateY(1px); }
+body.tk-dark .btn-outline-primary { color: var(--d-accent); border-color: rgba(129, 140, 248, 0.5); }
+body.tk-dark .btn-outline-primary:hover { background: rgba(129, 140, 248, 0.16); color: #c7d2fe; border-color: var(--d-accent); }
+
+/* Dropdown / popover / modal depth */
+body.tk-dark .dropdown-menu,
+body.tk-dark .dropdown-list,
+body.tk-dark .modal-content,
+body.tk-dark .swal2-popup,
+body.tk-dark .select2-dropdown,
+body.tk-dark .popover { box-shadow: var(--d-elev-2) !important; }
+
+/* Thin, dark, indigo-tinted scrollbars (Chromium + Firefox) */
+body.tk-dark ::-webkit-scrollbar { width: 11px; height: 11px; }
+body.tk-dark ::-webkit-scrollbar-track { background: transparent; }
+body.tk-dark ::-webkit-scrollbar-thumb {
+    background: #2a3550;
+    border-radius: 999px;
+    border: 2px solid var(--d-canvas);
+}
+body.tk-dark ::-webkit-scrollbar-thumb:hover { background: #3a496b; }
+body.tk-dark * { scrollbar-width: thin; scrollbar-color: #2a3550 transparent; }
+
+/* Text selection in brand indigo */
+body.tk-dark ::selection { background: rgba(129, 140, 248, 0.32); color: #fff; }
 
 /* cards (sb-admin-2 .card) */
 body.tk-dark .card { background: var(--d-surface); border-color: var(--d-line); }
@@ -75,16 +193,18 @@ body.tk-dark .table.table-bordered th { border-color: var(--d-line); }
 body.tk-dark .table-hover tbody tr:hover { background: rgba(99, 102, 241, 0.14); }
 
 /* forms */
+/* Inputs look gently recessed (darker than the card) with a clearly visible
+   hairline, then lift to the surface tone on focus — modern "inset field" look. */
 body.tk-dark .form-control,
 body.tk-dark .custom-select {
-    background-color: var(--d-surface);
+    background-color: var(--d-raise);
     color: var(--d-ink);
-    border-color: var(--d-line);
+    border-color: var(--d-line-2);
 }
 body.tk-dark .form-control::placeholder { color: var(--d-muted); }
 body.tk-dark .form-control:disabled,
-body.tk-dark .form-control[readonly] { background-color: var(--d-raise); color: var(--d-ink-soft); }
-body.tk-dark .input-group-text { background: var(--d-raise) !important; color: var(--d-ink-soft) !important; border-color: var(--d-line) !important; }
+body.tk-dark .form-control[readonly] { background-color: #0b0f19; color: var(--d-ink-soft); }
+body.tk-dark .input-group-text { background: var(--d-surface-2) !important; color: var(--d-ink-soft) !important; border-color: var(--d-line-2) !important; }
 body.tk-dark .custom-control-label { color: var(--d-ink-soft); }
 
 /* buttons */
