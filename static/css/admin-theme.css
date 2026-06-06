@@ -622,3 +622,196 @@ body.tk-dark .popover { background-color: var(--d-surface); border-color: var(--
 body.tk-dark .popover-header { background-color: var(--d-surface-2); color: var(--d-ink); border-bottom-color: var(--d-line); }
 body.tk-dark .popover-body { color: var(--d-ink); }
 body.tk-dark .tooltip-inner { background-color: var(--d-surface-2); color: var(--d-ink); }
+
+/* ============================================================
+   DARK MODE — REAL-MOBILE AUDIT FIXES
+   Hasil audit live (mobile 375×812) di dashboard/users/admin-olt + modal
+   "Tambah Pelanggan". Memburu kebocoran terakhir: garis putih default
+   Bootstrap, varian *-sm, overlay putih, label form-check, stat card borders.
+   ============================================================ */
+
+/* (1) Bootstrap tables — garis putih di td/th + DataTables sorting headers.
+   Heavyweight !important + every-side karena `.table-bordered td/th` punya
+   inline `border-color: #dee2e6` di sb-admin-2 + `th.sorting` border tambahan. */
+body.tk-dark .table,
+body.tk-dark .table th,
+body.tk-dark .table td,
+body.tk-dark .table-bordered,
+body.tk-dark .table-bordered th,
+body.tk-dark .table-bordered td,
+body.tk-dark .table thead th,
+body.tk-dark .table tbody + tbody,
+body.tk-dark table.dataTable.no-footer,
+body.tk-dark table.dataTable th.sorting,
+body.tk-dark table.dataTable th.sorting_asc,
+body.tk-dark table.dataTable th.sorting_desc,
+body.tk-dark table.dataTable th.sorting_disabled,
+body.tk-dark table.dataTable td.sorting_1 {
+    border-color: var(--d-line) !important;
+}
+/* DataTables striping/hover */
+body.tk-dark .table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(255, 255, 255, 0.018);
+}
+
+/* (2) Varian kecil input/select — *-sm tak ter-target oleh rules sebelumnya
+   karena spec di sb-admin-2 lebih spesifik dengan kelas tambahan. */
+body.tk-dark .form-control-sm,
+body.tk-dark .custom-select-sm,
+body.tk-dark select.form-control-sm,
+body.tk-dark input.form-control-sm,
+body.tk-dark textarea.form-control-sm,
+body.tk-dark .dataTables_wrapper .dataTables_length select,
+body.tk-dark .dataTables_wrapper .dataTables_filter input {
+    background-color: var(--d-raise) !important;
+    color: var(--d-ink) !important;
+    border-color: var(--d-line-2) !important;
+}
+body.tk-dark .form-control-sm::placeholder { color: var(--d-muted) !important; }
+
+/* (3) Loading overlay HARDCODED putih di olt halaman (rgba 255,255,255,0.9). */
+body.tk-dark .olt-loading-overlay {
+    background: rgba(15, 20, 32, 0.86) !important; /* canvas-ish, agar overlay tetap diasosiasikan sbg "above" */
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+body.tk-dark .olt-loading-title { color: var(--d-accent) !important; }
+body.tk-dark .olt-loading-sub { color: var(--d-ink-soft) !important; }
+body.tk-dark .olt-progress { background: var(--d-surface-2) !important; }
+body.tk-dark .olt-spinner { border-color: var(--d-line-2); border-top-color: var(--d-accent); }
+
+/* (4) Inline `border-left: 4px solid #e3e6f0` di .olt-stats-card (& siblings) */
+body.tk-dark .olt-stats-card,
+body.tk-dark .olt-stats-card.online,
+body.tk-dark .olt-stats-card.offline,
+body.tk-dark .olt-stats-card.los,
+body.tk-dark .olt-stats-card.dying-gasp,
+body.tk-dark .border-left-primary,
+body.tk-dark .border-left-success,
+body.tk-dark .border-left-info,
+body.tk-dark .border-left-warning,
+body.tk-dark .border-left-danger {
+    /* Tetap punya warna kategori di left-border, sisi lain hairline gelap halus.
+       border-left WIDTH harus 4px supaya kategori benar-benar kelihatan;
+       inline `.olt-stats-card { border-left: 4px solid #e3e6f0 }` di file PHP
+       dikalahkan rule sb-admin-2 .card di dark, jadi kita restore di sini. */
+    border-top-color: var(--d-line) !important;
+    border-right-color: var(--d-line) !important;
+    border-bottom-color: var(--d-line) !important;
+    border-left-width: 4px !important;
+    border-left-style: solid !important;
+}
+body.tk-dark .olt-stats-card.online { border-left-color: #34d399 !important; }
+body.tk-dark .olt-stats-card.offline { border-left-color: #6b7280 !important; }
+body.tk-dark .olt-stats-card.los { border-left-color: #fbbf24 !important; }
+body.tk-dark .olt-stats-card.dying-gasp { border-left-color: #f87171 !important; }
+body.tk-dark .border-left-primary { border-left: 4px solid #6366f1 !important; }
+body.tk-dark .border-left-success { border-left: 4px solid #34d399 !important; }
+body.tk-dark .border-left-info { border-left: 4px solid #38bdf8 !important; }
+body.tk-dark .border-left-warning { border-left: 4px solid #fbbf24 !important; }
+body.tk-dark .border-left-danger { border-left: 4px solid #f87171 !important; }
+
+/* (5) Form-check label di modal/form — Bootstrap warnanya #212529 (default body
+   text) → di dark mode jadi "lebih gelap dari gelap". */
+body.tk-dark label,
+body.tk-dark .form-check-label,
+body.tk-dark .form-label,
+body.tk-dark .col-form-label,
+body.tk-dark .custom-control-label,
+body.tk-dark fieldset legend {
+    color: var(--d-ink) !important;
+}
+/* required/optional helper text */
+body.tk-dark .form-text,
+body.tk-dark small.text-muted,
+body.tk-dark .form-text.text-muted { color: var(--d-muted) !important; }
+
+/* (6) Modal header/footer — border default Bootstrap #dee2e6, modal-content border
+   juga putih untuk modal yang punya inline border. */
+body.tk-dark .modal-content { border: 1px solid var(--d-line) !important; }
+body.tk-dark .modal-header,
+body.tk-dark .modal-footer { border-color: var(--d-line) !important; }
+body.tk-dark .modal-body { color: var(--d-ink); }
+
+/* (7) Card border yang bocor karena inline-style (.card.shadow + inline).
+   Pakai per-side biar tidak menimpa border-left-color kategori (olt-stats-card,
+   border-left-* utilities) — itu kasus konkrit di /admin-olt. */
+body.tk-dark .card,
+body.tk-dark .card.shadow,
+body.tk-dark .card.shadow-sm,
+body.tk-dark .card-header,
+body.tk-dark .card-footer {
+    border-top-color: var(--d-line) !important;
+    border-right-color: var(--d-line) !important;
+    border-bottom-color: var(--d-line) !important;
+}
+/* Kartu generic TANPA modifier kategori (border-left-*, olt-stats-card.X) —
+   set left ke hairline juga supaya tetap rapi. Diatasi via :not(). */
+body.tk-dark .card:not(.olt-stats-card):not(.border-left-primary):not(.border-left-success):not(.border-left-info):not(.border-left-warning):not(.border-left-danger),
+body.tk-dark .card-header,
+body.tk-dark .card-footer { border-left-color: var(--d-line) !important; }
+
+/* (8) Sidebar mobile drawer button & active collapse items — tadi punya
+   bg light saat hover/active di mobile. */
+body.tk-dark .mobile-sidebar-close { background: var(--d-surface-2) !important; color: var(--d-ink) !important; }
+body.tk-dark .collapse-inner.bg-white { background: var(--d-surface) !important; }
+body.tk-dark .collapse-item { color: var(--d-ink-soft) !important; }
+body.tk-dark .collapse-item:hover,
+body.tk-dark .collapse-item.active { background: rgba(99, 102, 241, 0.18) !important; color: var(--d-ink) !important; }
+
+/* (9) Leaflet zoom controls & attribution di modal "Tambah Pelanggan"
+   — sengaja peta tetap terang, tapi controls tepinya jadi terlihat di dark UI. */
+body.tk-dark .leaflet-control-zoom a,
+body.tk-dark .leaflet-bar a {
+    background-color: var(--d-surface) !important;
+    color: var(--d-ink) !important;
+    border-color: var(--d-line-2) !important;
+}
+body.tk-dark .leaflet-control-zoom a:hover { background-color: var(--d-surface-2) !important; }
+body.tk-dark .leaflet-control-attribution {
+    background: rgba(20, 27, 41, 0.72) !important;
+    color: var(--d-ink-soft) !important;
+}
+body.tk-dark .leaflet-control-attribution a { color: var(--d-accent) !important; }
+
+/* (10) DataTables Length/Filter labels (text "Show 10 entries", "Search:") */
+body.tk-dark .dataTables_length,
+body.tk-dark .dataTables_filter,
+body.tk-dark .dataTables_info,
+body.tk-dark .dataTables_paginate { color: var(--d-ink-soft) !important; }
+body.tk-dark .dataTables_wrapper label { color: var(--d-ink-soft) !important; }
+
+/* (11) <textarea> kosong-class dan input bertype email/tel/number tak selalu kena
+   selector .form-control kalau tema lain men-set inline. */
+body.tk-dark textarea.form-control,
+body.tk-dark input[type="text"].form-control,
+body.tk-dark input[type="email"].form-control,
+body.tk-dark input[type="number"].form-control,
+body.tk-dark input[type="tel"].form-control,
+body.tk-dark input[type="password"].form-control,
+body.tk-dark input[type="search"].form-control,
+body.tk-dark input[type="date"].form-control {
+    background-color: var(--d-raise) !important;
+    color: var(--d-ink) !important;
+    border-color: var(--d-line-2) !important;
+}
+
+/* (12) "btn btn-sm" yang default sb-admin-2 inheritannya dari btn-light → bg
+   nyaris putih saat tidak di-style. Bukan masalah di semua page, tapi pengaman. */
+body.tk-dark .btn:not([class*="btn-"]):not(.btn-link) {
+    background-color: var(--d-surface-2);
+    color: var(--d-ink);
+    border-color: var(--d-line);
+}
+
+/* (13) Card hover dari sb-admin-2 (.h-100.py-2 dll) yang punya shadow rendah
+   — beri elevation halus di dark. */
+body.tk-dark .shadow,
+body.tk-dark .shadow-sm { box-shadow: var(--d-elev-1) !important; }
+
+/* (14) Empty-state title di OLT dashboard pakai inline `color: #5a5c69`. */
+body.tk-dark .olt-empty,
+body.tk-dark .olt-empty-title,
+body.tk-dark .olt-empty .small { color: var(--d-ink) !important; }
+body.tk-dark .olt-empty > i { color: var(--d-muted) !important; }
+body.tk-dark .olt-empty .small { color: var(--d-ink-soft) !important; }
