@@ -229,5 +229,14 @@
       "onlyIfStillDown": true,
       "messageTemplate": ""
     }
+  },
+  "cctvMonitor": {
+    "enabled": false,
+    "pollIntervalMs": 60000,
+    "confirmationMinutes": 15,
+    "rebroadcastCooldownMs": 1800000,
+    "notifyRecovery": true,
+    "messageDown": "",
+    "messageUp": ""
   }
 }

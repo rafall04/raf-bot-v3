@@ -91,6 +91,10 @@ router.get('/los-broadcast', checkRole(['admin', 'owner', 'superadmin']), (req, 
     res.render('sb-admin/los-broadcast.php');
 });
 
+router.get('/cctv-monitor', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/cctv-monitor.php');
+});
+
 router.get('/agent-management', (req, res) => {
     res.render('sb-admin/agent-management.php');
 });

@@ -931,8 +931,8 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
     </li>
     <?php endif; ?>
 
-    <li class="nav-item <?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseJaringan" aria-expanded="<?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseJaringan">
+    <li class="nav-item <?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/cctv-monitor'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseJaringan" aria-expanded="<?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/cctv-monitor'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseJaringan">
             <i class="fas fa-fw fa-network-wired"></i>
             <span>Jaringan</span>
         </a>
@@ -953,6 +953,10 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/admin-olt', $current_page) ? 'active' : ''; ?>" href="/admin-olt">
                     <i class="fas fa-fw fa-broadcast-tower mr-2"></i>
                     <span>Monitor OLT</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/cctv-monitor', $current_page) ? 'active' : ''; ?>" href="/cctv-monitor">
+                    <i class="fas fa-fw fa-video mr-2"></i>
+                    <span>Monitor CCTV</span>
                 </a>
             </div>
         </div>
