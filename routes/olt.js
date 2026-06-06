@@ -960,6 +960,8 @@ router.get('/onus', async (req, res) => {
                 serial: onu.serial || null,
                 mac_olt: onu.macAddress,
                 rx_power: onu.rxPower,
+                tx_power: onu.txPower || 'N/A',       // ONU Tx upstream (GPON ZTE; HIOSO N/A)
+                attenuation: onu.attenuation || 'N/A', // atenuasi downstream ≈ (GPON ZTE)
                 olt_status: onu.status,
                 is_los: onu.isLos,
                 is_dying_gasp: onu.isDyingGasp,

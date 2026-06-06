@@ -238,6 +238,8 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
                                             <th>Pelanggan</th>
                                             <th>PPPoE</th>
                                             <th>Redaman (dBm)</th>
+                                            <th title="Daya pancar ONU (upstream)">ONU Tx</th>
+                                            <th title="Atenuasi downstream (≈ launch − redaman)">Atenuasi</th>
                                             <th>Status OLT</th>
                                             <th>OLT</th>
                                             <th>Slot/ONU</th>
@@ -300,6 +302,14 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
                                 <small class="text-white-50 mt-2 d-block" id="modalLastCheck">-</small>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Optik GPON tambahan (ZTE): ONU Tx, Atenuasi downstream. OLT Rx upstream
+                         tidak tersedia via SNMP C320 (hanya CLI `show pon power attenuation`). -->
+                    <div class="row text-center mb-3" id="modalGponOptic" style="display: none;">
+                        <div class="col-4"><small class="text-muted d-block">ONU Tx (upstream)</small><div class="font-weight-bold" id="modalOnuTx">-</div></div>
+                        <div class="col-4"><small class="text-muted d-block">Atenuasi ≈ (down)</small><div class="font-weight-bold" id="modalAtten">-</div></div>
+                        <div class="col-4"><small class="text-muted d-block">OLT Rx (upstream)</small><div class="text-muted"><small>hanya di CLI OLT</small></div></div>
                     </div>
 
                     <div class="info-card status">
@@ -465,6 +475,14 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
                             }
                             return data;
                         }
+                    },
+                    {
+                        data: 'tx_power', title: 'ONU Tx',
+                        render: (data) => (data && data !== 'N/A') ? data : '<span class="text-muted">-</span>'
+                    },
+                    {
+                        data: 'attenuation', title: 'Atenuasi',
+                        render: (data) => (data && data !== 'N/A') ? data : '<span class="text-muted">-</span>'
                     },
                     {
                         data: 'olt_status', title: 'Status',
@@ -752,6 +770,16 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
                 '<span class="badge badge-secondary"><i class="fas fa-times"></i> Offline</span>');
 
             updateModalRxPower(customer.rx_power, customer.olt_status, customer.is_dying_gasp, customer.is_los);
+
+            // Optik GPON tambahan (ONU Tx + Atenuasi) — hanya untuk ZTE.
+            if (customer.olt_brand === 'zte' && (customer.tx_power || customer.attenuation)) {
+                $('#modalOnuTx').text(customer.tx_power && customer.tx_power !== 'N/A' ? customer.tx_power : '-');
+                $('#modalAtten').text(customer.attenuation && customer.attenuation !== 'N/A' ? customer.attenuation : '-');
+                $('#modalGponOptic').show();
+            } else {
+                $('#modalGponOptic').hide();
+            }
+
             $('#modalLastCheck').text('Terakhir cek: ' + new Date().toLocaleTimeString('id-ID'));
             $('#customerDetailModal').modal('show');
         }
