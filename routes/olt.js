@@ -42,35 +42,56 @@ const pppoeCache = {
 // (~30 dtk untuk 608 ONU). Key: 'all' (semua OLT) atau oltId tertentu — supaya
 // "pilih 1 OLT" hanya query OLT itu (tak ikut walk OLT lain yang lambat).
 const OLT_CACHE_TTL = 30000;
-const oltDataCacheMap = new Map(); // key -> { data, timestamp, loading }
+const oltDataCacheMap = new Map(); // key -> { data, timestamp, loading, refreshPromise }
 
 /**
- * getMultipleOltData dengan cache TTL per-key + guard concurrent.
+ * Refresh satu entry cache (query OLT). Dedup: jika sudah ada refresh berjalan,
+ * pakai promise yang sama (tidak walk dobel).
+ */
+function refreshOltEntry(entry, devices) {
+    if (entry.loading && entry.refreshPromise) return entry.refreshPromise;
+    entry.loading = true;
+    entry.refreshPromise = (async () => {
+        try {
+            const result = await getMultipleOltData(devices);
+            if (result.status === 'success') {
+                entry.data = result;
+                entry.timestamp = Date.now();
+            }
+            return result;
+        } finally {
+            entry.loading = false;
+            entry.refreshPromise = null;
+        }
+    })();
+    return entry.refreshPromise;
+}
+
+/**
+ * getMultipleOltData dengan cache per-key + STALE-WHILE-REVALIDATE.
+ * Walk ZTE ~24 dtk; agar dashboard tak nunggu tiap kali: setelah data pertama ada,
+ * sajikan data lama SEKETIKA dan refresh di background. Hanya load pertama (belum
+ * ada data) atau forceRefresh (tombol Refresh) yang menunggu walk.
  * @param {string} key 'all' atau oltId
- * @param {Array} devices device(s) yang akan diquery untuk key ini
+ * @param {Array} devices device(s)
+ * @param {boolean} forceRefresh tunggu data segar (abaikan cache)
  */
 async function getCachedOltDataByKey(key, devices, forceRefresh = false) {
     const now = Date.now();
     let entry = oltDataCacheMap.get(key);
-    if (!entry) { entry = { data: null, timestamp: 0, loading: false }; oltDataCacheMap.set(key, entry); }
+    if (!entry) { entry = { data: null, timestamp: 0, loading: false, refreshPromise: null }; oltDataCacheMap.set(key, entry); }
 
-    if (!forceRefresh && entry.data && (now - entry.timestamp) < OLT_CACHE_TTL) {
+    if (forceRefresh) {
+        return refreshOltEntry(entry, devices); // tunggu segar
+    }
+    const fresh = entry.data && (now - entry.timestamp) < OLT_CACHE_TTL;
+    if (fresh) return entry.data;
+    if (entry.data) {
+        // Basi tapi ada → sajikan seketika + refresh di background (tak ditunggu).
+        if (!entry.loading) refreshOltEntry(entry, devices).catch(() => {});
         return entry.data;
     }
-    if (entry.loading && entry.data) {
-        return entry.data;
-    }
-    entry.loading = true;
-    try {
-        const result = await getMultipleOltData(devices);
-        if (result.status === 'success') {
-            entry.data = result;
-            entry.timestamp = now;
-        }
-        return result;
-    } finally {
-        entry.loading = false;
-    }
+    return refreshOltEntry(entry, devices); // load pertama → tunggu
 }
 
 // Kompat: /matched tetap pakai key 'all' (semua OLT).

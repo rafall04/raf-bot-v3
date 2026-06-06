@@ -391,7 +391,7 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
             await loadUsersData();
             await loadDevicesOnly(); // hanya isi dropdown OLT; data ONU dimuat setelah pilih OLT
 
-            $('#refreshOltBtn').on('click', () => loadAllData(true));
+            $('#refreshOltBtn').on('click', () => loadAllData(true, true)); // Refresh = paksa data segar
             $('#autoRefreshToggle').on('change', function() {
                 this.checked ? startAutoRefresh() : stopAutoRefresh();
             });
@@ -518,7 +518,7 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
             });
         }
 
-        async function loadAllData(showLoading = false) {
+        async function loadAllData(showLoading = false, force = false) {
             // Belum pilih OLT → jangan query apa pun (hemat: tak walk OLT lambat tanpa diminta).
             if (!currentOltFilter) { showOltEmptyState(); return; }
             if (oltLoading) return; // cegah dobel-fetch (mis. klik refresh saat masih memuat)
@@ -536,7 +536,7 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
 
             try {
                 await loadPppoeData();
-                await loadOltMatchedData(showLoading); // refresh eksplisit → force bypass cache
+                await loadOltMatchedData(force); // force hanya saat tombol Refresh (bukan saat pilih OLT)
                 updateLastUpdateTime();
             } catch (e) {
                 console.error('Error:', e);
@@ -587,7 +587,7 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
                 currentOltFilter = this.value; // '' | 'all' | id
                 oltColdRetryDone = false;
                 if (!currentOltFilter) { showOltEmptyState(); return; }
-                loadAllData(true); // muat data OLT terpilih (+ pppoe)
+                loadAllData(true, false); // overlay + SWR (instan bila ter-cache, tak paksa walk)
             });
             $('#viewModeToggle button').on('click', function () {
                 currentViewMode = $(this).data('view');

@@ -381,7 +381,7 @@
             await loadUsersData();
             await loadDevicesOnly(); // hanya isi dropdown OLT; data ONU dimuat setelah pilih OLT
             
-            $('#refreshOltBtn').on('click', () => loadAllData(true));
+            $('#refreshOltBtn').on('click', () => loadAllData(true, true)); // Refresh = paksa data segar
             $('#autoRefreshToggle').on('change', function() {
                 this.checked ? startAutoRefresh() : stopAutoRefresh();
             });
@@ -525,7 +525,7 @@
             });
         }
 
-        async function loadAllData(showLoading = false) {
+        async function loadAllData(showLoading = false, force = false) {
             // Belum pilih OLT → jangan query apa pun.
             if (!currentOltFilter) { showOltEmptyState(); return; }
             if (oltLoading) return; // cegah dobel-fetch
@@ -542,7 +542,7 @@
 
             try {
                 await loadPppoeData();
-                await loadOltMatchedData(showLoading);
+                await loadOltMatchedData(force); // force hanya saat tombol Refresh (bukan saat pilih OLT)
                 updateLastUpdateTime();
             } catch (e) {
                 console.error('Error:', e);
@@ -593,7 +593,7 @@
                 currentOltFilter = this.value; // '' | 'all' | id
                 oltColdRetryDone = false;
                 if (!currentOltFilter) { showOltEmptyState(); return; }
-                loadAllData(true);
+                loadAllData(true, false); // overlay + SWR (instan bila ter-cache)
             });
             $('#viewModeToggle button').on('click', function () {
                 currentViewMode = $(this).data('view');
