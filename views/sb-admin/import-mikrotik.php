@@ -794,7 +794,7 @@
                 const filterProfile = document.getElementById('filterProfile');
                 filterProfile.innerHTML = '<option value="">Semua Profile</option>';
                 profiles.forEach(profile => {
-                    filterProfile.innerHTML += `<option value="${profile}">${profile}</option>`;
+                    filterProfile.add(new Option(profile, profile));
                 });
                 
                 // Show sections

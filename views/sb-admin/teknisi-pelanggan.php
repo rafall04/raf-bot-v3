@@ -1629,8 +1629,8 @@
 
                 if(data && Array.isArray(data)){
                     data.forEach(v => {
-                        if(createSubscriptionSelect) createSubscriptionSelect.innerHTML += `<option value="${v.name}">${v.name}</option>`;
-                        if(editSubscriptionSelect) editSubscriptionSelect.innerHTML += `<option value="${v.name}">${v.name}</option>`;
+                        if(createSubscriptionSelect) createSubscriptionSelect.add(new Option(v.name, v.name));
+                        if(editSubscriptionSelect) editSubscriptionSelect.add(new Option(v.name, v.name));
                     });
                 }
 
