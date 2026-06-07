@@ -1431,23 +1431,7 @@ if ($monitoringEnabled) {
     <script src="/js/sb-admin-2.js"></script>
     <script src="/socket.io/socket.io.js"></script>
 
-    <script>
-    // Dark / light mode toggle (persisted; admin dashboard has its own inline topbar)
-    (function () {
-        function syncIcon() {
-            var icon = document.querySelector('#tkThemeToggle i');
-            if (icon) { icon.className = document.body.classList.contains('tk-dark') ? 'fas fa-sun' : 'fas fa-moon'; }
-        }
-        syncIcon();
-        document.addEventListener('click', function (e) {
-            var btn = e.target.closest && e.target.closest('#tkThemeToggle');
-            if (!btn) { return; }
-            var isDark = document.body.classList.toggle('tk-dark');
-            try { localStorage.setItem('tkTheme', isDark ? 'dark' : 'light'); } catch (err) {}
-            syncIcon();
-        });
-    })();
-    </script>
+    <script src="/js/theme.js"></script>
 
     <script>
         const socket = io();

@@ -161,23 +161,7 @@ window.topbarUserData = {
     setTimeout(updateUserHeader, 100);
 })();
 </script>
-<script>
-// Dark / light mode toggle (persisted; shared across all admin pages).
-(function () {
-    function syncIcon() {
-        var icon = document.querySelector('#tkThemeToggle i');
-        if (icon) { icon.className = document.body.classList.contains('tk-dark') ? 'fas fa-sun' : 'fas fa-moon'; }
-    }
-    syncIcon();
-    document.addEventListener('click', function (e) {
-        var btn = e.target.closest && e.target.closest('#tkThemeToggle');
-        if (!btn) { return; }
-        var isDark = document.body.classList.toggle('tk-dark');
-        try { localStorage.setItem('tkTheme', isDark ? 'dark' : 'light'); } catch (err) {}
-        syncIcon();
-    });
-})();
-</script>
+<script src="/js/theme.js"></script>
 <?php
 ?>
 <!-- Topbar -->

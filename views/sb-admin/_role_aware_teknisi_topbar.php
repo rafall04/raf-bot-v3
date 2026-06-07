@@ -46,25 +46,6 @@ if (!empty($shellRoleContext['isAdminLike'])) {
         .catch(function () { /* leave placeholder on failure */ });
 })();
 
-// Dark / light mode toggle (persisted in localStorage, shared across all teknisi pages).
-(function () {
-    var KEY = 'tkTheme';
-    function syncIcon() {
-        var isDark = document.body.classList.contains('tk-dark');
-        var icon = document.querySelector('#tkThemeToggle i');
-        if (icon) { icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon'; }
-    }
-    // body class may already be set by the early script in the sidebar partial.
-    syncIcon();
-    document.addEventListener('click', function (e) {
-        var btn = e.target.closest && e.target.closest('#tkThemeToggle');
-        if (!btn) { return; }
-        var isDark = document.body.classList.toggle('tk-dark');
-        try { localStorage.setItem(KEY, isDark ? 'dark' : 'light'); } catch (err) {}
-        syncIcon();
-    });
-})();
-
 // Safeguard against Bootstrap 4 stacked-modal scroll bug: when one modal hides
 // while another is still open, BS4 strips `modal-open` from <body>, breaking the
 // remaining modal's scroll lock on mobile. Re-assert it. (Runs once jQuery is ready.)
@@ -77,3 +58,4 @@ window.addEventListener('load', function () {
     });
 });
 </script>
+<script src="/js/theme.js"></script>

@@ -209,23 +209,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 
+  <script src="/js/theme.js"></script>
   <script>
-    // Dark / light mode toggle (shared behaviour; this page has a custom topbar)
-    (function () {
-      function syncIcon() {
-        var icon = document.querySelector('#tkThemeToggle i');
-        if (icon) { icon.className = document.body.classList.contains('tk-dark') ? 'fas fa-sun' : 'fas fa-moon'; }
-      }
-      syncIcon();
-      document.addEventListener('click', function (e) {
-        var btn = e.target.closest && e.target.closest('#tkThemeToggle');
-        if (!btn) { return; }
-        var isDark = document.body.classList.toggle('tk-dark');
-        try { localStorage.setItem('tkTheme', isDark ? 'dark' : 'light'); } catch (err) {}
-        syncIcon();
-      });
-    })();
-
     // Safeguard: keep <body>.modal-open while any modal is still shown (BS4 stacked-modal fix).
     $(document).on('hidden.bs.modal', function () {
       if ($('.modal.show').length) { $('body').addClass('modal-open'); }
