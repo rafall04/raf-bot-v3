@@ -727,8 +727,9 @@ async function handleSaleCustomer(msg, sender, reply, chats) {
  * Handle state: AGENT_VOUCHER_SALE_CONFIRM - Agent confirms sale
  */
 async function handleSaleConfirm(msg, sender, reply, chats, raf = null, global = null) {
+    let userState;
     try {
-        const userState = getUserState(sender);
+        userState = getUserState(sender);
         const userReply = chats.toLowerCase().trim();
         
         if (userReply !== 'ya' && userReply !== 'y' && userReply !== 'yes' && userReply !== 'ok' && userReply !== 'oke') {
