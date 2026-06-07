@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { getSSIDInfo } = require('../lib/wifi');
+const { getAllPPPoESecrets, getMikrotikDiagnostics } = require('../lib/mikrotik');
 const { createApiPsbRepository } = require('../repositories/api-psb.repository');
 const { createApiPsbService } = require('../services/api-psb.service');
 

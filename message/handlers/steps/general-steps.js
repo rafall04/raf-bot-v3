@@ -13,6 +13,7 @@ const { rebootRouter } = require("../../../lib/wifi");
 const { sendMessage } = require("../../../lib/whatsapp-delivery-service");
 const { isReady } = require("../../../lib/whatsapp-gateway");
 const { renderCategoryTemplate } = require("../../../lib/template-service");
+const { getUserState } = require("../conversation-handler");
 
 function renderResponseTemplate(key, fallbackOrData, maybeData) {
     // Dukung dua signature:
