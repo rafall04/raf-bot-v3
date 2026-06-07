@@ -235,8 +235,9 @@
       const counts = items.reduce((acc, item) => { acc[item.status] = (acc[item.status] || 0) + 1; return acc; }, {});
       document.getElementById('metricOffline').textContent = counts.offline || 0;
       document.getElementById('metricOnline').textContent = counts.online || 0;
+      const escapeHtml = (value) => String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       items.forEach((item) => {
-        tbody.insertAdjacentHTML('beforeend', `<tr><td><span class="ao-pill">${item.status || '-'}</span></td><td>${item.user_id || '-'}</td><td>${item.pppoe_username || '-'}</td><td>${item.router_id || '-'}</td><td>${item.offline_since || '-'}</td><td>${item.last_logged_out || '-'}</td><td>${item.broadcast_count || 0}</td><td>${item.last_detection_reason || '-'}</td></tr>`);
+        tbody.insertAdjacentHTML('beforeend', `<tr><td><span class="ao-pill">${escapeHtml(item.status || '-')}</span></td><td>${escapeHtml(item.user_id || '-')}</td><td>${escapeHtml(item.pppoe_username || '-')}</td><td>${escapeHtml(item.router_id || '-')}</td><td>${escapeHtml(item.offline_since || '-')}</td><td>${escapeHtml(item.last_logged_out || '-')}</td><td>${item.broadcast_count || 0}</td><td>${escapeHtml(item.last_detection_reason || '-')}</td></tr>`);
       });
     }
     async function loadLogs() {
@@ -246,8 +247,9 @@
       tbody.innerHTML = '';
       const latest = items[0];
       document.getElementById('metricIgnored').textContent = latest?.summary_json?.ignored_active_ppp || 0;
+      const escapeHtml = (value) => String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       items.forEach((item) => {
-        tbody.insertAdjacentHTML('beforeend', `<tr><td>${item.started_at || '-'}</td><td>${item.router_id || '-'}</td><td>${item.total_db_users || 0}</td><td>${item.total_active_ppp || 0}</td><td>${item.total_offline_candidates || 0}</td><td>${item.total_skipped || 0}</td><td>${item.error_message || '-'}</td></tr>`);
+        tbody.insertAdjacentHTML('beforeend', `<tr><td>${escapeHtml(item.started_at || '-')}</td><td>${escapeHtml(item.router_id || '-')}</td><td>${item.total_db_users || 0}</td><td>${item.total_active_ppp || 0}</td><td>${item.total_offline_candidates || 0}</td><td>${item.total_skipped || 0}</td><td>${escapeHtml(item.error_message || '-')}</td></tr>`);
       });
     }
     async function refreshAll() { await Promise.all([loadRules(), loadStates(), loadLogs()]); }

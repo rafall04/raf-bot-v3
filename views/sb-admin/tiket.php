@@ -604,7 +604,8 @@
             </div>`;
             setTimeout(() => { if (globalMessageDiv.querySelector('.alert')) $(globalMessageDiv.querySelector('.alert')).alert('close'); }, 7000);
         }
-        function formatTicketDetailsAdmin(d) { return d ? `Nama: ${d.name||'N/A'}\nAlamat: ${d.address||'N/A'}\nPaket: ${d.subscription||'N/A'}\nPPPoE: ${d.pppoe_username||'N/A'}` : 'N/A';}
+        function escapeHtml(value) { return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+        function formatTicketDetailsAdmin(d) { return d ? `Nama: ${escapeHtml(d.name||'N/A')}\nAlamat: ${escapeHtml(d.address||'N/A')}\nPaket: ${escapeHtml(d.subscription||'N/A')}\nPPPoE: ${escapeHtml(d.pppoe_username||'N/A')}` : 'N/A';}
         function normalizeTicketStatusAdmin(status) {
             const normalizedStatus = (status || '').toLowerCase().trim();
 
@@ -1223,7 +1224,7 @@
                                            'Customer';
                         row.insertCell().textContent = `${customerName} (${ticket.pelangganId ? ticket.pelangganId.split('@')[0] : 'N/A'})`;
                         row.insertCell().innerHTML = `<div class="ticket-details-admin">${formatTicketDetailsAdmin(ticket.pelangganDataSystem)}</div>`;
-                        row.insertCell().innerHTML = `<div class="report-text-admin">${ticket.laporanText || '-'}</div>`;
+                        row.insertCell().innerHTML = `<div class="report-text-admin">${escapeHtml(ticket.laporanText || '-')}</div>`;
                         
                         // Photo column - Count ALL photos (customer + teknisi)
                         let photoCell = row.insertCell();
