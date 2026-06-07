@@ -4,34 +4,39 @@
    Purely presentational — does not touch IDs, JS, or markup behaviour.
    ============================================================ */
 
+/* Primitif desain bersama (skala indigo/slate/semantic/radius). */
+@import url('/css/tokens.css');
+
 :root {
-    --tk-primary: #6366f1;
-    --tk-primary-dark: #4f46e5;
-    --tk-primary-soft: #eef2ff;
-    --tk-success: #10b981;
-    --tk-success-soft: #ecfdf5;
-    --tk-info: #3b82f6;
-    --tk-info-soft: #eff6ff;
-    --tk-warning: #f59e0b;
-    --tk-warning-soft: #fffbeb;
-    --tk-danger: #ef4444;
-    --tk-danger-soft: #fef2f2;
+    /* Token semantik teknisi → dipetakan ke primitif di tokens.css.
+       Nilai akhir identik; var() hanya menghapus duplikasi hex. */
+    --tk-primary: var(--indigo-500);
+    --tk-primary-dark: var(--indigo-600);
+    --tk-primary-soft: var(--indigo-50);
+    --tk-success: var(--color-success);
+    --tk-success-soft: var(--color-success-soft);
+    --tk-info: var(--color-info);
+    --tk-info-soft: var(--color-info-soft);
+    --tk-warning: var(--color-warning);
+    --tk-warning-soft: var(--color-warning-soft);
+    --tk-danger: var(--color-danger);
+    --tk-danger-soft: var(--color-danger-soft);
 
-    --tk-ink: #0f172a;
-    --tk-ink-soft: #475569;
-    --tk-muted: #94a3b8;
-    --tk-line: #e9edf5;
-    --tk-surface: #ffffff;
-    --tk-surface-2: #f8fafc;
-    --tk-canvas: #f1f5f9;
+    --tk-ink: var(--slate-900);
+    --tk-ink-soft: var(--slate-600);
+    --tk-muted: var(--slate-400);
+    --tk-line: #e9edf5; /* bespoke (tanpa primitif Tailwind padanan) */
+    --tk-surface: var(--white);
+    --tk-surface-2: var(--slate-50);
+    --tk-canvas: var(--slate-100);
 
-    --tk-radius: 18px;
-    --tk-radius-sm: 12px;
-    --tk-radius-pill: 999px;
+    --tk-radius: var(--radius-lg);
+    --tk-radius-sm: var(--radius-sm);
+    --tk-radius-pill: var(--radius-pill);
     --tk-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
     --tk-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
     --tk-shadow-lg: 0 18px 48px rgba(15, 23, 42, 0.14);
-    --tk-sidebar: linear-gradient(180deg, #1e1b4b 0%, #312e81 52%, #4338ca 100%);
+    --tk-sidebar: linear-gradient(180deg, var(--indigo-950) 0%, var(--indigo-900) 52%, var(--indigo-700) 100%);
 }
 
 /* ---------- Base canvas & typography ---------- */

@@ -1,0 +1,51 @@
+/* ============================================================
+   RAF BOT · Design Tokens (lapisan primitif)
+   ------------------------------------------------------------
+   Purpose : Satu sumber kebenaran untuk primitif desain (skala
+             warna indigo/slate, warna semantik, radius). Lapisan
+             tema (admin-theme.css, teknisi-theme.css) MEMETAKAN
+             token semantiknya ke primitif di sini lewat var(),
+             bukan menulis ulang hex.
+   Caller  : Diimpor via `@import url('/css/tokens.css');` di puncak
+             admin-theme.css & teknisi-theme.css (otomatis termuat di
+             semua halaman yang sudah me-link tema tsb-admin).
+   Catatan : Nilai di bawah = palet Tailwind yang SUDAH dipakai
+             aplikasi (verbatim), jadi adopsi token = nol perubahan
+             visual; hanya menghapus duplikasi nilai.
+   ============================================================ */
+
+:root {
+    /* ── Brand: Indigo ─────────────────────────────────────── */
+    --indigo-50: #eef2ff;
+    --indigo-300: #a5b4fc;
+    --indigo-400: #818cf8;
+    --indigo-500: #6366f1; /* warna brand utama */
+    --indigo-600: #4f46e5;
+    --indigo-700: #4338ca;
+    --indigo-900: #312e81;
+    --indigo-950: #1e1b4b;
+
+    /* ── Netral: Slate (mode terang) ───────────────────────── */
+    --white: #ffffff;
+    --slate-50: #f8fafc;
+    --slate-100: #f1f5f9;
+    --slate-200: #e2e8f0;
+    --slate-400: #94a3b8;
+    --slate-600: #475569;
+    --slate-900: #0f172a;
+
+    /* ── Warna semantik (+ tint lembut) ────────────────────── */
+    --color-success: #10b981;
+    --color-success-soft: #ecfdf5;
+    --color-info: #3b82f6;
+    --color-info-soft: #eff6ff;
+    --color-warning: #f59e0b;
+    --color-warning-soft: #fffbeb;
+    --color-danger: #ef4444;
+    --color-danger-soft: #fef2f2;
+
+    /* ── Skala radius ──────────────────────────────────────── */
+    --radius-sm: 12px;
+    --radius-lg: 18px;
+    --radius-pill: 999px;
+}
