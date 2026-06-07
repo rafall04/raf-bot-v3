@@ -91,7 +91,7 @@ const { createHttpApp } = require('./lib/http-app');
 const { registerRoutes } = require('./lib/routes-registry');
 const { registerProcessLifecycleHandlers } = require('./lib/process-lifecycle');
 const { registerHttpSecurity } = require('./lib/http-security');
-const { registerHttpAuth } = require('./lib/http-auth-bootstrap');
+const { registerHttpAuth, requirePhpPageAuth } = require('./lib/http-auth-bootstrap');
 const { createHttpSocketBootstrap } = require('./lib/http-socket-bootstrap');
 const { initializeUploadDirs } = require('./lib/upload-helper');
 const { startWhatsApp, registerWhatsAppStarter, syncWhatsAppRuntime, clearWhatsAppRuntime } = require('./lib/whatsapp-bootstrap');
@@ -198,8 +198,9 @@ app.set('views', 'views');
 app.engine('php', phpExpress.engine);
 app.set('view engine', 'php');
 
-// PHP file handler
-app.all(/.+\.php$/, phpExpress.router);
+// PHP file handler — di-guard agar halaman/endpoint .php hanya dapat dirender untuk
+// akun staf yang terautentikasi (menutup bypass auth via URL .php; lihat http-auth-bootstrap).
+app.all(/.+\.php$/, requirePhpPageAuth, phpExpress.router);
 app.use(errorHandler);
 
 const {
