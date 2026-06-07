@@ -200,10 +200,7 @@ async function handleCustomerConfirmDoneIntent(context) {
         handleRemoteResponse,
         sender,
         lowerMessage,
-        reply,
-        global,
-        format,
-        handleFinalConfirmation
+        reply
     } = context;
 
     if (!isOwner && !isTeknisi) {
@@ -218,25 +215,10 @@ async function handleCustomerConfirmDoneIntent(context) {
         }
     }
 
-    const report = global.reports.find(r =>
-        r.ticketId === ticketId &&
-        r.pelangganId === sender
-    );
-
-    if (!report) {
-        return reply(format('error_ticket_not_found'));
-    }
-
-    const result = await handleFinalConfirmation({
-        ticketId,
-        completionCode: code,
-        isFromCustomer: true,
-        sender
-    });
-
-    if (result.message) {
-        await reply(result.message);
-    }
+    // Tidak ada konfirmasi remote yang cocok untuk pelanggan ini (atau pemanggil
+    // owner/teknisi yang semestinya memakai KONFIRMASI_SELESAI). Tidak ada aksi
+    // lanjutan. Blok sebelumnya memakai `ticketId`/`code` yang tak pernah tersedia
+    // di context (selalu ReferenceError) — dihapus karena tak fungsional.
 }
 
 async function handleCekLokasiTeknisiIntent(context) {
