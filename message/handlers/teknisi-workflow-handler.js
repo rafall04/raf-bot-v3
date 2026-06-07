@@ -133,7 +133,6 @@ async function handleProsesTicket(sender, ticketId, reply, teknisiAccount = null
         })();
         
         // Notify customer with OTP - Send to ALL registered numbers
-        const customerJid = ticket.pelangganId;
         const customerMessage = renderResponseTemplate('teknisi_workflow_process_customer_otp', `Tiket *${ticketId}* sedang diproses.
 
 Teknisi: *${teknisi.name || teknisi.username}*
@@ -335,7 +334,6 @@ async function handleSampaiLokasi(sender, ticketId, _reply) {
         Object.assign(ticket, updatedTicket);
         
         // Notify customer (same pattern as OTW notification)
-        const customerJid = ticket.pelangganId;
         const teknisiName = ticket.teknisiName || ticket.processedByTeknisiName || 'Teknisi';
         
         // Get teknisi phone number for customer contact
@@ -494,7 +492,6 @@ async function handleVerifikasiOTP(sender, ticketId, otp, _reply) {
         Object.assign(ticket, updatedTicket);
         
         // Notify customer - Send to ALL registered numbers
-        const customerJid = ticket.pelangganId;
         const customerMessage = renderResponseTemplate('teknisi_workflow_repair_started_customer', `Perbaikan tiket *${ticketId}* sudah dimulai.
 
 Petugas: *${ticket.teknisiName}*
@@ -620,7 +617,6 @@ Silakan kirim foto dulu.`, {
         clearUploadQueue(sender);
         
         // Notify customer - Send to ALL registered numbers
-        const customerJid = ticket.pelangganId;
         const customerMessage = renderResponseTemplate('teknisi_workflow_completion_customer_notification', `Tiket *${ticketId}* sudah ditutup.
 
 Teknisi: *${ticket.teknisiName}*
@@ -942,7 +938,6 @@ async function handleCompleteTicket(sender, state, _reply) {
         Object.assign(ticket, completedTicket);
         
         // Notify customer
-        const customerJid = ticket.pelangganId;
         const customerMessage = renderResponseTemplate('teknisi_workflow_complete_ticket_customer_notification', `Halo ${ticket.pelangganName},
 
 Tiket *${ticketId}* telah selesai diperbaiki.

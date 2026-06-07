@@ -88,24 +88,7 @@ function createApiUsersRouter(deps) {
         return getUsersRepo()?.getAll() || getRuntimeStateValue('users', []);
     }
 
-    function setUsers(nextUsers) {
-        const usersRepo = getUsersRepo();
-        if (usersRepo) {
-            return usersRepo.setAll(nextUsers);
-        }
-        global['users'] = nextUsers;
-        return nextUsers;
-    }
 
-    function updateUsers(updater) {
-        const usersRepo = getUsersRepo();
-        if (usersRepo) {
-            return usersRepo.update(updater);
-        }
-        const nextUsers = typeof updater === 'function' ? updater(getUsers()) : updater;
-        global['users'] = nextUsers;
-        return nextUsers;
-    }
 
     function getPackages() {
         return getPackagesRepo()?.getAll() || getRuntimeStateValue('packages', []);
@@ -121,22 +104,8 @@ function createApiUsersRouter(deps) {
         return nextPackages;
     }
 
-    function getAccounts() {
-        return getAccountsRepo()?.getAll() || getRuntimeStateValue('accounts', []);
-    }
 
-    function getNetworkAssets() {
-        return getNetworkAssetsRepo()?.getAll() || getRuntimeStateValue('networkAssets', []);
-    }
 
-    function setNetworkAssets(nextAssets) {
-        const assetsRepo = getNetworkAssetsRepo();
-        if (assetsRepo) {
-            return assetsRepo.setAll(nextAssets);
-        }
-        global['networkAssets'] = nextAssets;
-        return nextAssets;
-    }
 
     function getConfig() {
         return getRuntime()?.getConfig?.() || getRuntimeStateValue('config', {}) || {};

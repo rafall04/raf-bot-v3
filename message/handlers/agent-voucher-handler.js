@@ -942,7 +942,7 @@ async function handleAgentCheckInventory(msg, sender, reply, raf = null) {
         
         // Get agent inventory
         const inventory = agentVoucherManager.getAgentInventory(agentCred.agentId);
-        const stats = agentVoucherManager.getAgentVoucherStats(agentCred.agentId);
+        agentVoucherManager.getAgentVoucherStats(agentCred.agentId);
         
         // Build message
         let message = `📦 *INVENTORY VOUCHER AGENT*\n\n`;

@@ -33,7 +33,6 @@ session.get(oids, (error, varbinds) => {
         console.log('Error:', error.message);
     } else {
         varbinds.forEach((vb, i) => {
-            const typeName = snmp.ObjectType[vb.type] || `Unknown(${vb.type})`;
             let value = '';
             
             if (vb.type === snmp.ObjectType.NoSuchInstance) {

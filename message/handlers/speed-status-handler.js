@@ -16,9 +16,6 @@ function renderResponseTemplate(key, data = {}) {
     return result.found && result.text.trim() ? result.text : key;
 }
 
-async function deliverPayload(recipient, payload, options = {}) {
-    return sendMessage(recipient, payload, options);
-}
 
 async function deliverText(recipient, text, options = {}) {
     return sendMessage(recipient, { text }, options);

@@ -96,7 +96,7 @@ const mess = {
     get reportAlreadyDone_detail() { return format('mess_reportAlreadyDone_detail'); },
 }
 
-const reportsDbPathRaf = path.join(__dirname, '../database/reports.json');
+path.join(__dirname, '../database/reports.json');
 
 // Handler imports - Smart Report
 const { buatLaporanGangguan } = require('./handlers/ticket-creation-handler');
@@ -245,7 +245,7 @@ module.exports = async (raf, msg, m, options = {}) => {
         console.log(`[AUTH_DEBUG] PrimaryID: ${primarySenderId}, OpsionalJID: ${optionalJid}, isSaldo: ${isSaldo !== false && isSaldo !== null}, isOwner: ${isOwner}, isTeknisi: ${!!isTeknisi}`);
     }
 
-    const isUrl = (uri) => {
+    (uri) => {
         return uri.match(new RegExp(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%.+#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%+.#?&/=]*)/, 'gi'))
     }
 
@@ -312,7 +312,7 @@ module.exports = async (raf, msg, m, options = {}) => {
     }
 
     const rupiah = await saldoRepository.getSaldoUser(primarySenderId);
-    const rupiah123 = convertRupiah.convert(rupiah)
+    convertRupiah.convert(rupiah)
 
     try {
         if (isProcessing(stateSender)) {

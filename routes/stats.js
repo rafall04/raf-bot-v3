@@ -42,28 +42,6 @@ function withTimeout(promise, timeoutMs, defaultValue = null) {
     ]);
 }
 
-function execPHPWithTimeout(scriptPath, timeoutMs = 2000) {
-    return withTimeout(
-        execPromise(`php "${scriptPath}"`, { maxBuffer: 1024 * 1024 }),
-        timeoutMs,
-        { error: true, connected: false, message: 'Timeout', timeout: true }
-    ).then(({ stdout, stderr }) => {
-        if (stderr && !stdout) {
-            throw new Error(stderr);
-        }
-        try {
-            const parsed = JSON.parse(stdout || '{}');
-            if (parsed.connected === undefined) {
-                parsed.connected = false;
-            }
-            return parsed;
-        } catch (_e) {
-            return { error: true, connected: false, message: 'Invalid JSON response', raw: stdout };
-        }
-    }).catch(e => {
-        return { error: true, connected: false, message: e.message || 'Execution failed' };
-    });
-}
 
 function ensureAuthenticated(req, res, next) {
     if (!req.user) {

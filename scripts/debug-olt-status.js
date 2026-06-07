@@ -119,7 +119,7 @@ async function main() {
         });
         
         sorted.forEach(item => {
-            const phaseDesc = getPhaseStateDesc(item.phaseState);
+            getPhaseStateDesc(item.phaseState);
             console.log(
                 `${item.slot}/${item.onu.padStart(3)}    | ` +
                 `${(item.phaseState || '-').padStart(15)} | ` +

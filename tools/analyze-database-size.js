@@ -81,7 +81,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                         console.log('─'.repeat(70));
                         console.log('  Total indexes:', indexes.length);
                         indexes.forEach((idx, i) => {
-                            const idxName = idx.sql ? idx.sql.substring(0, 80) : idx.name;
+                            idx.sql ? idx.sql.substring(0, 80) : idx.name;
                             console.log(`  ${i + 1}. ${idx.name}`);
                             if (idx.sql) {
                                 console.log(`     ${idx.sql.substring(0, 80)}${idx.sql.length > 80 ? '...' : ''}`);

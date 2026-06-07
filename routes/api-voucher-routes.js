@@ -43,13 +43,7 @@ function createApiVoucherRouter({
         return getRuntime()?.repositories?.voucher || null;
     }
 
-    function getUsersRepo() {
-        return getRuntime()?.repositories?.users || null;
-    }
 
-    function getPackagesRepo() {
-        return getRuntime()?.repositories?.packages || null;
-    }
 
     function getConfig() {
         return getRuntime()?.getConfig?.() || getRuntimeStateValue('config', {}) || {};
@@ -68,9 +62,6 @@ function createApiVoucherRouter({
         return Array.isArray(profiles) ? profiles : [];
     }
 
-    function getVoucherProfileById(profileId) {
-        return getVoucherProfiles().find((item) => item.prof === profileId) || null;
-    }
 
     const apiVoucherRepository = createApiVoucherRepository({
         runtime: getRuntime(),

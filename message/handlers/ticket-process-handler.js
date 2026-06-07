@@ -252,11 +252,6 @@ async function handleVerifikasiOTP(sender, ticketId, otp, _reply) {
         const state = getUserState(sender);
         
         // Check if user has state with OTP data (multiple valid steps)
-        const validSteps = [
-            'TICKET_PROCESSING', 
-            'AWAITING_LOCATION_FOR_JOURNEY',
-            'TICKET_PROCESSING_WITH_LOCATION'
-        ];
         if (!state || !state.otp) {
             return {
                 success: false,

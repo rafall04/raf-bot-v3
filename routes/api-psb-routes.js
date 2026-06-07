@@ -83,66 +83,25 @@ function createApiPsbRouter(deps) {
         return fallbackValue;
     }
 
-    function getDb() {
-        return getRuntime()?.getDb?.() || getRuntimeStateValue('db', null);
-    }
 
-    function getPsbDb() {
-        return getRuntime()?.repositories?.psbDb?.get() || getRuntimeStateValue('psbDb', null);
-    }
 
     function getUsers() {
         return getRuntime()?.repositories?.users?.getAll() || getRuntimeStateValue('users', []);
     }
 
-    function updateUsers(updater) {
-        const usersRepo = getRuntime()?.repositories?.users || null;
-        if (usersRepo) {
-            return usersRepo.update(updater);
-        }
-        const nextUsers = typeof updater === 'function' ? updater(getUsers()) : updater;
-        global['users'] = nextUsers;
-        return nextUsers;
-    }
 
     function getPackages() {
         return getRuntime()?.repositories?.packages?.getAll() || getRuntimeStateValue('packages', []);
     }
 
-    function getAccounts() {
-        return getRuntime()?.repositories?.accounts?.getAll() || getRuntimeStateValue('accounts', []);
-    }
 
-    function getConfig() {
-        return getRuntime()?.getConfig?.() || getRuntimeStateValue('config', {}) || {};
-    }
 
-    function getCronConfig() {
-        return getRuntime()?.repositories?.cronConfig?.get() || getRuntimeStateValue('cronConfig', {}) || {};
-    }
 
     function getPsbRecords() {
         return getRuntime()?.repositories?.psbRecords?.getAll() || getRuntimeStateValue('psbRecords', []);
     }
 
-    function setPsbRecords(nextRecords) {
-        const psbRepo = getRuntime()?.repositories?.psbRecords || null;
-        if (psbRepo) {
-            return psbRepo.setAll(nextRecords);
-        }
-        global['psbRecords'] = nextRecords;
-        return nextRecords;
-    }
 
-    function updatePsbRecords(updater) {
-        const psbRepo = getRuntime()?.repositories?.psbRecords || null;
-        if (psbRepo) {
-            return psbRepo.update(updater);
-        }
-        const nextRecords = typeof updater === 'function' ? updater(getPsbRecords()) : updater;
-        global['psbRecords'] = nextRecords;
-        return nextRecords;
-    }
 
 const apiPsbRepository = createApiPsbRepository({
     runtime: getRuntime()
@@ -460,7 +419,6 @@ router.get('/psb/list-devices', ensureAuthenticatedStaff, async (req, res) => {
             });
         }
 
-        const psbProjectionFields = '_id,Device.DeviceInfo,InternetGatewayDevice.DeviceInfo,VirtualParameters,InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1,Device.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1,Events.Registered,_lastInform';
         const psbResult = await listPsbDevices({
             filterType: psbFilterType,
             serialNumberFilter: psbSerialNumberFilter,

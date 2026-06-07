@@ -8,11 +8,6 @@
  */
 "use strict";
 
-function createNotImplemented(name) {
-    return async function notImplemented() {
-        throw new Error(`${name} is not implemented yet`);
-    };
-}
 
 function sanitizePhone(identifier = "") {
     return String(identifier || "")

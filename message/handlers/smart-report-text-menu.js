@@ -54,15 +54,6 @@ function renderResponseTemplate(key, fallback, data = {}) {
 }
 
 // Generate ticket ID function
-function generateTicketId(length = 7) {
-    const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let result = '';
-    const charactersLength = characters.length;
-    for (let i = 0; i < length; i++) {
-        result += characters.charAt(Math.floor(Math.random() * charactersLength));
-    }
-    return result;
-}
 
 /**
  * Start report flow dengan menu interaktif
@@ -801,9 +792,6 @@ async function createReportTicket({ sender, state, reply: _reply }) {
 /**
  * Notify technicians with delay to prevent spam
  */
-async function notifyTechnicians(report) {
-    return notifyNewReport(report, { photoBuffers: report.photoBuffers || [] });
-}
 
 module.exports = {
     startReportFlow,

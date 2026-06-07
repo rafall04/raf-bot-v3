@@ -40,7 +40,7 @@ const {
 const { renderCategoryTemplate } = require('../lib/template-service');
 
 const router = express.Router();
-const reportsDbPath = path.join(__dirname, '..', 'database', 'reports.json');
+path.join(__dirname, '..', 'database', 'reports.json');
 
 // Debug flag for verbose logging
 const DEBUG = process.env.TICKET_DEBUG === 'true' || false;

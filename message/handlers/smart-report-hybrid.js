@@ -13,15 +13,6 @@ const { sendMessage } = require('../../lib/whatsapp-delivery-service');
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
 
 // Generate ticket ID
-function generateTicketId(length = 7) {
-    const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let result = '';
-    const charactersLength = characters.length;
-    for (let i = 0; i < length; i++) {
-        result += characters.charAt(Math.floor(Math.random() * charactersLength));
-    }
-    return result;
-}
 
 /**
  * Handle Direct Internet Mati Report
@@ -317,34 +308,6 @@ async function handleDirectLemotResponse({ sender, response, reply: _reply }) {
 /**
  * Notify technicians
  */
-async function notifyTechnicians(report) {
-    return notifyNewReport(report, { photoBuffers: report.photoBuffers || [] });
-    const teknisiAccounts = global.accounts.filter(acc => acc.role === 'teknisi');
-
-    for (const teknisi of teknisiAccounts) {
-        if (!teknisi.phone_number) continue;
-
-        const teknisiJid = teknisi.phone_number.includes('@') ?
-            teknisi.phone_number :
-            `${teknisi.phone_number}@s.whatsapp.net`;
-
-        const urgentIcon = report.priority === 'HIGH' ? '🚨 URGENT!' : '📢';
-        const message = `${urgentIcon} *TIKET BARU*\n\n` +
-            `📋 ID: *${report.ticketId}*\n` +
-            `👤 ${report.pelangganName}\n` +
-            `📱 ${report.pelangganPhone}\n` +
-            `━━━━━━━━━━━━━━━━\n` +
-            `*Masalah:* ${report.laporanText}\n` +
-            `*Direct Report:* ${report.directReport ? '✅ Ya' : '❌ Tidak'}\n\n` +
-            `Ketik: *proses ${report.ticketId}*`;
-
-        try {
-            await sendMessage(teknisiJid, { text: message });
-        } catch (err) {
-            console.error(`[NOTIFY_ERROR] Failed to notify ${teknisi.username}:`, err);
-        }
-    }
-}
 
 module.exports = {
     handleDirectMatiReport,

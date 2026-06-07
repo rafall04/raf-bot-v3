@@ -441,19 +441,6 @@ ${locationData.googleMapsUrl}
 /**
  * Helper: Format phone to WhatsApp JID
  */
-function formatPhoneToJid(phone) {
-    if (!phone) return '';
-    phone = phone.trim();
-    if (phone.endsWith('@s.whatsapp.net')) {
-        return phone;
-    }
-    if (phone.startsWith('0')) {
-        phone = `62${phone.substring(1)}`;
-    } else if (!phone.startsWith('62')) {
-        phone = `62${phone}`;
-    }
-    return `${phone}@s.whatsapp.net`;
-}
 
 /**
  * Save location to file for persistence
