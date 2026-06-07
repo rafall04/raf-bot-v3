@@ -11,7 +11,8 @@ $current_page = strtok($current_page, '?');
 // Apply saved dark/light theme ASAP to avoid a flash of the wrong theme.
 (function () {
     try {
-        if (localStorage.getItem('tkTheme') === 'dark') {
+        var s = localStorage.getItem('tkTheme');
+        if (s === 'dark' || (!s && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.body.classList.add('tk-dark');
         }
     } catch (e) {}

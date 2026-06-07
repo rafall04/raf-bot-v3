@@ -82,7 +82,7 @@ function isParentActive($pages, $current) {
 ?>
 <script>
 // Apply saved dark/light theme ASAP (before paint) to avoid a flash.
-(function () { try { if (localStorage.getItem('tkTheme') === 'dark') { document.body.classList.add('tk-dark'); } } catch (e) {} })();
+(function () { try { var s = localStorage.getItem('tkTheme'); if (s === 'dark' || (!s && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) { document.body.classList.add('tk-dark'); } } catch (e) {} })();
 </script>
 <style>
 /* ============================================================
