@@ -4,9 +4,9 @@
  * Best of both worlds - flexible untuk semua tipe user
  */
 
-const { isDeviceOnline, getDeviceOfflineMessage } = require('../../lib/device-status');
+const { isDeviceOnline, getDeviceOfflineMessage: _getDeviceOfflineMessage } = require('../../lib/device-status');
 const { setUserState, getUserState, deleteUserState } = require('./conversation-handler');
-const { getResponseTimeMessage, isWithinWorkingHours } = require('../../lib/working-hours-helper');
+const { getResponseTimeMessage: _getResponseTimeMessage, isWithinWorkingHours: _isWithinWorkingHours } = require('../../lib/working-hours-helper');
 const { createCustomerReportTicket } = require('../../lib/report-orchestration-service');
 const { notifyNewReport } = require('../../lib/report-notification-service');
 const { sendMessage } = require('../../lib/whatsapp-delivery-service');
@@ -27,7 +27,7 @@ function generateTicketId(length = 7) {
  * Handle Direct Internet Mati Report
  * Langsung proses tanpa menu
  */
-async function handleDirectMatiReport({ sender, pushname, reply, msg, raf }) {
+async function handleDirectMatiReport({ sender, pushname: _pushname, reply: _reply, msg, raf }) {
     try {
         // Resolusi pelanggan terpadu (LID-aware: remoteJidAlt → getPNForLID → stored-mapping → pre-warm USync).
         const { user } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
@@ -126,7 +126,7 @@ async function handleDirectMatiReport({ sender, pushname, reply, msg, raf }) {
  * Handle Direct Internet Lemot Report
  * Langsung masuk troubleshooting
  */
-async function handleDirectLemotReport({ sender, pushname, reply, msg, raf }) {
+async function handleDirectLemotReport({ sender, pushname: _pushname, reply: _reply, msg, raf }) {
     try {
         // Resolusi pelanggan terpadu (LID-aware: remoteJidAlt → getPNForLID → stored-mapping → pre-warm USync).
         const { user } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
@@ -218,7 +218,7 @@ async function createDirectTicket({ user, issueType, priority, deviceStatus, des
 /**
  * Handle confirmation responses
  */
-async function handleDirectConfirmation({ sender, response, reply }) {
+async function handleDirectConfirmation({ sender, response, reply: _reply }) {
     const state = getUserState(sender);
     if (!state || state.step !== 'CONFIRM_DIRECT_MATI') {
         return { success: false };
@@ -265,7 +265,7 @@ async function handleDirectConfirmation({ sender, response, reply }) {
 /**
  * Handle direct lemot troubleshoot response
  */
-async function handleDirectLemotResponse({ sender, response, reply }) {
+async function handleDirectLemotResponse({ sender, response, reply: _reply }) {
     const state = getUserState(sender);
     if (!state || state.step !== 'DIRECT_LEMOT_TROUBLESHOOT') {
         return { success: false };

@@ -9,14 +9,14 @@
 
 const convertRupiah = require('rupiah-format');
 
-const { getUserState, setUserState, deleteUserState } = require('./conversation-handler');
+const { getUserState: _getUserState, setUserState, deleteUserState: _deleteUserState } = require('./conversation-handler');
 const { renderResponseTemplate } = require('./template-helpers');
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
 
 /**
  * Handle check billing
  */
-async function handleCekTagihan({ plainSenderNumber, pushname, reply, mess, global, renderTemplate, msg, raf, sender }) {
+async function handleCekTagihan({ plainSenderNumber: _plainSenderNumber, pushname, reply, mess, global, renderTemplate, msg, raf, sender }) {
     try {
         // Resolusi pelanggan terpadu (LID-aware: remoteJidAlt → getPNForLID → stored-mapping → pre-warm USync).
         const { user } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
@@ -71,7 +71,7 @@ async function handleCekTagihan({ plainSenderNumber, pushname, reply, mess, glob
 /**
  * Handle package change request
  */
-async function handleUbahPaket({ plainSenderNumber, reply, mess, global, temp, msg, raf, sender }) {
+async function handleUbahPaket({ plainSenderNumber, reply, mess, global, temp: _temp, msg, raf, sender }) {
     try {
         // Resolusi pelanggan terpadu (LID-aware: remoteJidAlt → getPNForLID → stored-mapping → pre-warm USync).
         const { user } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });

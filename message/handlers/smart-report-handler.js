@@ -37,9 +37,9 @@ function generateTicketId(length = 7) {
  * Handle GANGGUAN_MATI - Internet mati/putus total (HIGH Priority)
  * Auto-detect device status via GenieACS
  */
-async function handleGangguanMati({ sender, pushname, userPelanggan, reply, findUserByPhone, msg, raf }) {
+async function handleGangguanMati({ sender, pushname: _pushname, userPelanggan: _userPelanggan, reply: _reply, findUserByPhone: _findUserByPhone, msg, raf }) {
     try {
-        const { user, plainSenderNumber } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
+        const { user, plainSenderNumber: _plainSenderNumber } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
         console.log(`[USER_SEARCH] Sender: ${sender}, Found: ${user ? user.name : 'NOT FOUND'}`);
 
         // Handle @lid users - no manual verification needed
@@ -172,7 +172,7 @@ async function handleGangguanMati({ sender, pushname, userPelanggan, reply, find
  * Handle Auto-Redirect from LEMOT to MATI when device is offline
  * This function is called automatically when user reports "lemot" but device is actually offline
  */
-async function handleGangguanMatiAutoRedirect({ sender, pushname, userPelanggan, reply, findUserByPhone, deviceStatus, targetUser, originalReport, msg, raf }) {
+async function handleGangguanMatiAutoRedirect({ sender, pushname: _pushname, userPelanggan: _userPelanggan, reply: _reply, findUserByPhone: _findUserByPhone, deviceStatus, targetUser, originalReport, msg: _msg, raf: _raf }) {
     try {
         const user = targetUser;  // User already found and passed from lemot handler
         const minutesAgo = deviceStatus.minutesAgo || 'lebih dari 30';
@@ -254,7 +254,7 @@ async function handleGangguanMatiAutoRedirect({ sender, pushname, userPelanggan,
  */
 async function handleGangguanLemot({ sender, pushname, userPelanggan, reply, findUserByPhone, msg, raf }) {
     try {
-        const { user, plainSenderNumber } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
+        const { user, plainSenderNumber: _plainSenderNumber } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
         console.log(`[USER_SEARCH] Sender: ${sender}, Found: ${user ? user.name : 'NOT FOUND'}`);
 
         // Handle @lid users - no manual verification needed
@@ -381,7 +381,7 @@ async function handleGangguanLemot({ sender, pushname, userPelanggan, reply, fin
 /**
  * Handle follow-up response for GANGGUAN_MATI (Device OFFLINE)
  */
-async function handleGangguanMatiOfflineResponse({ sender, body, reply, findUserByPhone, msg, raf }) {
+async function handleGangguanMatiOfflineResponse({ sender, body, reply: _reply, findUserByPhone: _findUserByPhone, msg: _msg, raf: _raf }) {
     const state = getUserState(sender);
     const response = body.toLowerCase().trim();
 
@@ -504,7 +504,7 @@ async function handleGangguanMatiOfflineResponse({ sender, body, reply, findUser
 /**
  * Handle follow-up response for GANGGUAN_MATI (Device ONLINE - WiFi issue)
  */
-async function handleGangguanMatiOnlineResponse({ sender, body, reply, msg, raf }) {
+async function handleGangguanMatiOnlineResponse({ sender, body, reply: _reply, msg: _msg, raf: _raf }) {
     const state = getUserState(sender);
     const response = body.toLowerCase().trim();
 
@@ -605,7 +605,7 @@ async function notifyTechnicians(report) {
 /**
  * Helper function to create LEMOT ticket after photo upload
  */
-async function createLemotTicket(sender, state, reply) {
+async function createLemotTicket(sender, state, _reply) {
     const speedInfo = state.speedTest ? `Speed test: ${state.speedTest} Mbps` : 'Belum speed test';
 
     // Get estimation time
@@ -811,7 +811,7 @@ async function handleLemotPhotoUpload({ sender, response, photoPath, photoBuffer
 /**
  * Handle follow-up response for GANGGUAN_LEMOT
  */
-async function handleGangguanLemotResponse({ sender, body, reply, msg, raf }) {
+async function handleGangguanLemotResponse({ sender, body, reply: _reply, msg: _msg, raf: _raf }) {
     const state = getUserState(sender);
     const response = body.toLowerCase().trim();
 

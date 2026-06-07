@@ -24,7 +24,7 @@ const teknisiLocations = new Map();
 /**
  * Teknisi mulai perjalanan dan share lokasi
  */
-async function handleMulaiPerjalanan(sender, ticketId, teknisiInfo, reply) {
+async function handleMulaiPerjalanan(sender, ticketId, teknisiInfo, _reply) {
     try {
         // Validate ticket exists
         const report = global.reports.find(r => r.ticketId === ticketId.toUpperCase());
@@ -155,7 +155,7 @@ Pelanggan: ${report.pelangganName}
 /**
  * Handle lokasi dari teknisi
  */
-async function handleTeknisiShareLocation(sender, location, reply) {
+async function handleTeknisiShareLocation(sender, location, _reply) {
     try {
         const state = getUserState(sender);
         
@@ -360,7 +360,7 @@ Setelah sampai di lokasi, ketik:
 /**
  * Pelanggan cek lokasi teknisi
  */
-async function handleCekLokasiTeknisi(sender, ticketId, reply) {
+async function handleCekLokasiTeknisi(sender, ticketId, _reply) {
     try {
         // Normalize ticket ID
         ticketId = ticketId.toUpperCase();
@@ -490,7 +490,7 @@ function loadLocationFromFile(ticketId) {
 /**
  * Pelanggan cek semua tiket aktif
  */
-async function handleTiketSaya(sender, reply) {
+async function handleTiketSaya(sender, _reply) {
     try {
         // Find active tickets for this customer
         const myTickets = global.reports

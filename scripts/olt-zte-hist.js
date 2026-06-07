@@ -18,7 +18,7 @@ function walkCol(base) {
     return new Promise((resolve) => {
         const s = snmp.createSession(host, community, { version: snmp.Version2c, port, timeout: 8000, retries: 1 });
         const hist = {}; let n = 0, done = false;
-        const fin = () => { if (done) return; done = true; try { s.close(); } catch (e) {} resolve({ hist, n }); };
+        const fin = () => { if (done) return; done = true; try { s.close(); } catch (_e) {} resolve({ hist, n }); };
         s.on('error', fin);
         s.walk(base, 30, (vbs) => {
             for (const vb of vbs) {

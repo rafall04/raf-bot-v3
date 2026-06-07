@@ -135,7 +135,7 @@ router.post('/request', ensureAuthenticatedStaff, rateLimit('partial-payment', 3
         if (isNaN(amountPaid) || amountPaid <= 0) {
             return res.status(400).json({ status: 400, message: 'Nominal pembayaran harus lebih dari 0' });
         }
-    } catch (error) {
+    } catch (_error) {
         return res.status(400).json({ status: 400, message: 'Input tidak valid' });
     }
     

@@ -383,7 +383,7 @@ function createAdminOpsService(overrides = {}) {
 
             try {
                 await deps.runDb("VACUUM");
-            } catch (error) {
+            } catch (_error) {
                 console.warn("[/api/admin/delete-all-users] WARNING: VACUUM failed. Deleted data may still exist in file.");
             }
 

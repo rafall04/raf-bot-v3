@@ -66,7 +66,7 @@ function getVoucherProfiles() {
     if (!profiles || profiles.length === 0) {
         try {
             profiles = loadJSON("voucher.json");
-        } catch (_error) {
+        } catch (__error) {
             profiles = [];
         }
     }

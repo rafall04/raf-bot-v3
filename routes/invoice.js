@@ -229,7 +229,7 @@ router.post('/send-invoice-manual', ensureAdmin, async (req, res) => {
         }
         
         // Generate invoice
-        const { createInvoice, calculateInvoiceDueDate, getInvoiceSettings } = require('../lib/invoice-generator');
+        const { createInvoice, calculateInvoiceDueDate: _calculateInvoiceDueDate, getInvoiceSettings: _getInvoiceSettings } = require('../lib/invoice-generator');
         const { createInvoicePDF } = require('../lib/pdf-invoice-generator');
         
         const invoiceData = createInvoice(user, {
@@ -367,7 +367,7 @@ router.route('/invoice-settings')
             const {
                 companyName, companyAddress, companyPhone, companyEmail, 
                 companyNpwp, companyWebsite, enableTax, taxRate, invoicePrefix, 
-                dueDays, dueDateType, dueDateDay, autoSend, sendPDF, template,
+                dueDays, dueDateType, dueDateDay, autoSend, sendPDF, template: _template,
                 bankName, bankAccountNumber, bankAccountName, bankBranch, paymentInstructions,
                 pdfTheme, logoUrl, headerText, footerText, billingTitle, serviceTitle,
                 showCustomerID, showCustomerPhone, showServiceSpeed, showServiceDescription, 

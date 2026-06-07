@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Import OLT library
-const { getOltData, getSingleOnuData, getMultipleOltData, getSingleOnuDataWithCache, matchOltWithCustomers, matchMAC, normalizeMAC } = require('../lib/olt-hioso');
+const { getOltData, getSingleOnuData: _getSingleOnuData, getMultipleOltData, getSingleOnuDataWithCache, matchOltWithCustomers: _matchOltWithCustomers, matchMAC, normalizeMAC } = require('../lib/olt-hioso');
 const { getActivePPPoEUsers } = require('../lib/mikrotik');
 
 // Import OLT Log Scraper
@@ -367,7 +367,7 @@ router.post('/config', (req, res) => {
             try {
                 const { restartSnmpLosPoller } = require('../lib/olt-snmp-los-poller');
                 if (typeof restartSnmpLosPoller === 'function') restartSnmpLosPoller();
-            } catch (_e) { /* ignore */ }
+            } catch (__e) { /* ignore */ }
             
             res.json({
                 status: 200,
@@ -1135,7 +1135,7 @@ router.post('/refresh-single', async (req, res) => {
                         return r;
                     }
                     return null;
-                } catch (error) {
+                } catch (_error) {
                     return null;
                 }
             });
@@ -1312,7 +1312,7 @@ router.post('/devices', (req, res) => {
             try {
                 const { restartSnmpLosPoller } = require('../lib/olt-snmp-los-poller');
                 if (typeof restartSnmpLosPoller === 'function') restartSnmpLosPoller();
-            } catch (_e) { /* ignore */ }
+            } catch (__e) { /* ignore */ }
             
             res.json({
                 status: 200,
@@ -1377,7 +1377,7 @@ router.put('/devices/:id', (req, res) => {
             try {
                 const { restartSnmpLosPoller } = require('../lib/olt-snmp-los-poller');
                 if (typeof restartSnmpLosPoller === 'function') restartSnmpLosPoller();
-            } catch (_e) { /* ignore */ }
+            } catch (__e) { /* ignore */ }
             
             res.json({
                 status: 200,
@@ -1429,7 +1429,7 @@ router.delete('/devices/:id', (req, res) => {
             try {
                 const { restartSnmpLosPoller } = require('../lib/olt-snmp-los-poller');
                 if (typeof restartSnmpLosPoller === 'function') restartSnmpLosPoller();
-            } catch (_e) { /* ignore */ }
+            } catch (__e) { /* ignore */ }
             
             res.json({
                 status: 200,

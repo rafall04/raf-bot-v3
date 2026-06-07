@@ -10,7 +10,7 @@
 const express = require('express');
 const router = express.Router();
 const { logActivity } = require('../lib/activity-logger');
-const { rateLimit, validateInput } = require('../lib/security');
+const { rateLimit, validateInput: _validateInput } = require('../lib/security');
 const { getDatabasePath } = require('../lib/env-config');
 const { renderTemplate } = require('../lib/templating');
 const { formatCurrency, formatDate } = require('../lib/message-template-helper');
@@ -113,7 +113,7 @@ router.get('/:userId', ensureAdmin, async (req, res) => {
                 });
             }
         );
-    } catch (error) {
+    } catch (_error) {
         db.close();
         res.status(500).json({ status: 500, message: 'Terjadi kesalahan server' });
     }
@@ -411,7 +411,7 @@ router.delete('/:userId', ensureAdmin, async (req, res) => {
                 res.json({ status: 200, message: 'Diskon berhasil dihapus' });
             });
         });
-    } catch (error) {
+    } catch (_error) {
         db.close();
         res.status(500).json({ status: 500, message: 'Terjadi kesalahan server' });
     }
@@ -501,7 +501,7 @@ router.get('/effective-price/:userId', async (req, res) => {
                 });
             }
         );
-    } catch (error) {
+    } catch (_error) {
         db.close();
         res.status(500).json({ status: 500, message: 'Terjadi kesalahan server' });
     }
@@ -561,7 +561,7 @@ router.get('/list/all', ensureAdmin, async (req, res) => {
             
             res.json({ status: 200, data: usersWithDiscount });
         });
-    } catch (error) {
+    } catch (_error) {
         db.close();
         res.status(500).json({ status: 500, message: 'Terjadi kesalahan server' });
     }

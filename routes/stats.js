@@ -7,12 +7,11 @@
  * SideEffects: Dapat memicu start/reconnect bot dan menutup socket aktif lewat gateway runtime.
  */
 const express = require('express');
-const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
 const { exec } = require('child_process');
 const util = require('util');
-const { getSSIDInfo, rebootRouter } = require('../lib/wifi');
+const { getSSIDInfo: _getSSIDInfo, rebootRouter } = require('../lib/wifi');
 const { getGenieAcsDiagnostics, getWifiInfo } = require('../lib/genieacs');
 const { getPppStats, getHotspotStats, getMikrotikDiagnostics } = require('../lib/mikrotik');
 const { getStatusSnapshot, canReconnect, closeActiveSocket } = require('../lib/whatsapp-gateway');
@@ -58,7 +57,7 @@ function execPHPWithTimeout(scriptPath, timeoutMs = 2000) {
                 parsed.connected = false;
             }
             return parsed;
-        } catch (e) {
+        } catch (_e) {
             return { error: true, connected: false, message: 'Invalid JSON response', raw: stdout };
         }
     }).catch(e => {

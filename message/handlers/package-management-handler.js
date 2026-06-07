@@ -9,14 +9,14 @@
 
 const convertRupiah = require('rupiah-format');
 
-const { getUserState, setUserState, deleteUserState } = require('./conversation-handler');
+const { getUserState: _getUserState, setUserState, deleteUserState: _deleteUserState } = require('./conversation-handler');
 const { renderResponseTemplate } = require('./template-helpers');
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
 
 /**
  * Handle package change request
  */
-async function handleUbahPaket({ sender, plainSenderNumber, pushname, reply, mess, global, msg, raf }) {
+async function handleUbahPaket({ sender, plainSenderNumber: _plainSenderNumber, pushname, reply, mess, global, msg, raf }) {
     try {
         // Resolusi pelanggan terpadu (LID-aware: remoteJidAlt → getPNForLID → stored-mapping → pre-warm USync).
         const { user } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
@@ -122,7 +122,7 @@ async function handleUbahPaket({ sender, plainSenderNumber, pushname, reply, mes
 /**
  * Handle speed boost request
  */
-async function handleRequestSpeedBoost({ sender, plainSenderNumber, pushname, reply, mess, global, temp, msg, raf }) {
+async function handleRequestSpeedBoost({ sender, plainSenderNumber: _plainSenderNumber, pushname, reply, mess, global, temp: _temp, msg, raf }) {
     try {
         // Resolusi pelanggan terpadu (LID-aware: remoteJidAlt → getPNForLID → stored-mapping → pre-warm USync).
         const { user } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });

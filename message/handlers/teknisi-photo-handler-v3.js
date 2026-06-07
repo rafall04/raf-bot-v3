@@ -3,8 +3,6 @@
  * Properly handles concurrent uploads without hanging
  */
 
-const fs = require('fs');
-const path = require('path');
 const { getUserState, setUserState } = require('./conversation-handler');
 
 // Photo upload sessions

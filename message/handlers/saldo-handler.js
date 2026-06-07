@@ -9,7 +9,7 @@
 const saldoManager = require('../../lib/saldo-manager');
 const convertRupiah = require('rupiah-format');
 const { logger } = require('../../lib/logger');
-const { resolveCanonicalCustomerContext, normalizePhoneToJid, maskPhoneNumber } = require('../../lib/jid-utils');
+const { resolveCanonicalCustomerContext, normalizePhoneToJid, maskPhoneNumber: _maskPhoneNumber } = require('../../lib/jid-utils');
 const { getSocket } = require('../../lib/whatsapp-gateway');
 const { renderResponseTemplate } = require('./template-helpers');
 const { getUserState, setUserState, deleteUserState } = require('./conversation-handler');
@@ -26,7 +26,7 @@ function isTargetRegistered(targetId, targetNumber) {
     try {
         const row = saldoManager.getUserSaldoData?.(targetId);
         if (row) return true;
-    } catch (_) {}
+    } catch (__) {}
 
     // 2. Pelanggan terdaftar dengan nomor ini sebagai primary atau secondary.
     if (Array.isArray(global.users)) {
@@ -283,7 +283,7 @@ async function handleCancelTopup(msg, sender, reply) {
 /**
  * Handle voucher purchase with saldo
  */
-async function handleBeliVoucher(msg, sender, reply, pushname) {
+async function handleBeliVoucher(msg, sender, reply, _pushname) {
     try {
         const resolution = await resolveCanonicalSenderOrReply({
             sender,

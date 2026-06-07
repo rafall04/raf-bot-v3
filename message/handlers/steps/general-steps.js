@@ -200,7 +200,7 @@ async function handleGeneralSteps({ userState, sender, chats, pushname, reply, s
         // Ticket Processing Confirmation
         case 'CONFIRM_PROCESS_TICKET': {
             if (['ya', 'ok', 'lanjut', 'iya', 'y'].includes(userReply)) {
-                const { ticketIdToProcess, reportData } = userState;
+                const { ticketIdToProcess, reportData: _reportData } = userState;
                 const reportIndex = global.reports.findIndex(r => r.ticketId === ticketIdToProcess);
                 
                 if (reportIndex !== -1) {

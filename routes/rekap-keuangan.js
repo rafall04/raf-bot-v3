@@ -72,7 +72,7 @@ function mapEntry(entry) {
     let metadata = {};
     try {
         metadata = entry.metadata_json ? JSON.parse(entry.metadata_json) : {};
-    } catch (error) {
+    } catch (_error) {
         metadata = {};
     }
 

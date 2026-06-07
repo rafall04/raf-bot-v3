@@ -53,7 +53,7 @@ function formatPhoneNumber(phone) {
  * Handler ini tidak digunakan di routing message/raf.js
  * TODO: Hapus handler ini setelah memastikan tidak ada dependencies
  */
-async function handleProsesTicket(sender, ticketId, teknisiInfo, reply) {
+async function handleProsesTicket(sender, ticketId, teknisiInfo, _reply) {
     try {
         console.warn('[legacyTicketProcessAdapterUsed]', {
             action: 'handleProsesTicket',
@@ -247,7 +247,7 @@ async function handleProsesTicket(sender, ticketId, teknisiInfo, reply) {
  * Handler ini tidak digunakan di routing message/raf.js
  * TODO: Hapus handler ini setelah memastikan tidak ada dependencies
  */
-async function handleVerifikasiOTP(sender, ticketId, otp, reply) {
+async function handleVerifikasiOTP(sender, ticketId, otp, _reply) {
     try {
         const state = getUserState(sender);
         
@@ -352,7 +352,7 @@ async function handleVerifikasiOTP(sender, ticketId, otp, reply) {
  * Handler ini tidak digunakan di routing message/raf.js
  * TODO: Hapus handler ini setelah memastikan tidak ada dependencies
  */
-async function handleCompleteTicket({ sender, ticketId, resolutionNotes, uploadedPhotos, reply }) {
+async function handleCompleteTicket({ sender, ticketId, resolutionNotes, uploadedPhotos, reply: _reply }) {
     try {
         console.warn('[legacyTicketProcessAdapterUsed]', {
             action: 'handleCompleteTicket',
@@ -464,7 +464,7 @@ async function handleFinalConfirmation({ ticketId, completionCode, isFromCustome
             ticketId,
             sender
         });
-        const { ticket: report, durationMinutes } = finalizeCustomerConfirmation({
+        const { ticket: _report, durationMinutes } = finalizeCustomerConfirmation({
             ticketId,
             completionCode,
             isFromCustomer

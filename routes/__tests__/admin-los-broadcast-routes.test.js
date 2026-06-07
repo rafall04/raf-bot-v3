@@ -28,7 +28,7 @@ function request(app, method, path, payload) {
                 res.on("data", (c) => { data += c; });
                 res.on("end", () => server.close(() => {
                     let parsed = null;
-                    try { parsed = data ? JSON.parse(data) : null; } catch (_e) { parsed = { raw: data }; }
+                    try { parsed = data ? JSON.parse(data) : null; } catch (__e) { parsed = { raw: data }; }
                     resolve({ status: res.statusCode, body: parsed });
                 }));
             });

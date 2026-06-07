@@ -153,7 +153,7 @@ function createAdminDatabaseOpsService(overrides = {}) {
             try {
                 const fileContent = deps.fs.readFileSync(uploadedFilePath, "utf8");
                 usersData = JSON.parse(fileContent);
-            } catch (error) {
+            } catch (_error) {
                 throw createError(
                     ErrorTypes.VALIDATION_ERROR,
                     "File JSON tidak valid atau rusak. Pastikan file adalah JSON yang valid.",

@@ -16,7 +16,7 @@ const { hasAuthenticatedSession, isReady } = require('../../../lib/whatsapp-gate
 /**
  * Handle topup conversation steps
  */
-async function handleSaldoSteps({ userState, sender, chats, pushname, reply, setUserState, deleteUserState }) {
+async function handleSaldoSteps({ userState, sender, chats, pushname, reply: _reply, setUserState, deleteUserState }) {
     const userReply = chats.toLowerCase().trim();
     
     switch (userState.step) {

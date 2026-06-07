@@ -149,7 +149,7 @@ function getPaymentMethodLabel(method) {
 function readSessionPaymentMethodPreference() {
     try {
         return sessionStorage.getItem(DEFAULT_ADMIN_PAYMENT_METHOD_STORAGE_KEY);
-    } catch (error) {
+    } catch (_error) {
         return null;
     }
 }
@@ -157,7 +157,7 @@ function readSessionPaymentMethodPreference() {
 function writeSessionPaymentMethodPreference(method) {
     try {
         sessionStorage.setItem(DEFAULT_ADMIN_PAYMENT_METHOD_STORAGE_KEY, method);
-    } catch (error) {
+    } catch (_error) {
         // Ignore storage errors; UI state remains the source of truth for this page session.
     }
 }

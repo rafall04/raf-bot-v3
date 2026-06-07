@@ -12,7 +12,7 @@ function optionalRequire(path, exportName, fallback) {
     try {
         const loaded = require(path);
         return loaded?.[exportName] || fallback;
-    } catch (_error) {
+    } catch (__error) {
         return fallback;
     }
 }

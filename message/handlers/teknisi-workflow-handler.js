@@ -6,14 +6,12 @@
  * SideEffects: Mutasi tiket di `global.reports`, state percakapan teknisi, queue foto, dan pengiriman notifikasi WhatsApp pelanggan.
  */
 
-const fs = require('fs');
-const path = require('path');
-const { normalizePhone, deduplicatePhones, isSameRecipient } = require('../../lib/notification-tracker');
+const { normalizePhone: _normalizePhone, deduplicatePhones: _deduplicatePhones, isSameRecipient: _isSameRecipient } = require('../../lib/notification-tracker');
 const { getUserState, setUserState, deleteUserState, format } = require('./conversation-handler');
-const { clearUploadQueue } = require('./teknisi-photo-handler-v3');
+const { clearUploadQueue: _clearUploadQueue } = require('./teknisi-photo-handler-v3');
 const { notifyCustomerTicketUpdate } = require('../../lib/report-notification-service');
 const {
-    ensureTicketShape,
+    ensureTicketShape: _ensureTicketShape,
     processTicket: processTicketWorkflow,
     markTicketOtw,
     markTicketArrived,
@@ -181,7 +179,7 @@ Langkah berikutnya: ketik *otw ${ticketId}*.`, {
 /**
  * Handle "otw" command - teknisi on the way
  */
-async function handleOTW(sender, ticketId, locationUrl, reply) {
+async function handleOTW(sender, ticketId, locationUrl, _reply) {
     try {
         // Find ticket
         const ticket = global.reports.find(r => r.ticketId === ticketId.toUpperCase());
@@ -296,7 +294,7 @@ Saat tiba, ketik: *sampai ${ticketId.toUpperCase()}*.`, {
 /**
  * Handle "sampai" command - teknisi arrived
  */
-async function handleSampaiLokasi(sender, ticketId, reply) {
+async function handleSampaiLokasi(sender, ticketId, _reply) {
     try {
         // Find ticket
         const ticket = global.reports.find(r => r.ticketId === ticketId.toUpperCase());
@@ -453,7 +451,7 @@ function getNextPhotoStep(state) {
 /**
  * Handle OTP verification
  */
-async function handleVerifikasiOTP(sender, ticketId, otp, reply) {
+async function handleVerifikasiOTP(sender, ticketId, otp, _reply) {
     try {
         // Find ticket
         const ticket = global.reports.find(r => r.ticketId === ticketId.toUpperCase());
@@ -554,7 +552,7 @@ Kirim foto pertama sekarang.`, { ticketId })
 /**
  * Handle completion with photos
  */
-async function handleSelesaiTicket(sender, ticketId, reply) {
+async function handleSelesaiTicket(sender, ticketId, _reply) {
     try {
         // Check teknisi state
         const state = getUserState(sender);
@@ -916,7 +914,7 @@ async function handleTeknisiCompletionConfirmationState(sender, chats) {
 /**
  * Complete ticket with resolution notes
  */
-async function handleCompleteTicket(sender, state, reply) {
+async function handleCompleteTicket(sender, state, _reply) {
     try {
         const ticketId = state.ticketId;
         const reportIndex = global.reports.findIndex(r => r.ticketId === ticketId);

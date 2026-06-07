@@ -152,7 +152,7 @@ router.get('/:userId', ensureAdmin, async (req, res) => {
 // POST /api/change-package/:userId - Change package for a user
 router.post('/:userId', ensureAdmin, rateLimit('change-package', 20, 60000), async (req, res) => {
     const { userId } = req.params;
-    const { new_package, sync_mikrotik, notes } = req.body;
+    const { new_package, sync_mikrotik, notes: _notes } = req.body;
     
     if (!new_package) {
         return res.status(400).json({ status: 400, message: 'Paket baru harus dipilih' });
@@ -204,7 +204,7 @@ router.post('/:userId', ensureAdmin, rateLimit('change-package', 20, 60000), asy
                 WHERE id = ?
             `;
             
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve, _reject) => {
                 db.run(sql, [new_package, newPackageData.price, now, userId], async function(err) {
                     if (err) {
                         db.close();

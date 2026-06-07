@@ -47,7 +47,7 @@ function tryReverseRun(run) {
     }
     try {
         return utf8Strict.decode(bytes.subarray(0, n)); // reversal sukses → UTF-8 valid
-    } catch (_e) {
+    } catch (__e) {
         return run; // bukan double-encoded UTF-8 yang bersih → jangan utak-atik
     }
 }

@@ -231,13 +231,13 @@ function registerAdminDatabaseRoutes(router, deps) {
                 const sqlite3Test = require("sqlite3").verbose();
                 const testDb = new sqlite3Test.Database(uploadedPath, sqlite3Test.OPEN_READONLY, (testErr) => {
                     if (testErr) {
-                        try { if (fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath); } catch (_cleanupErr) {}
+                        try { if (fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath); } catch (__cleanupErr) {}
                         return res.status(400).json({ status: 400, message: "File is not a valid SQLite database", data: null });
                     }
                     testDb.get("SELECT name FROM sqlite_master WHERE type='table' AND name='users'", [], async (checkErr, row) => {
                         await new Promise((resolve) => testDb.close(() => resolve()));
                         if (checkErr || !row) {
-                            try { if (fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath); } catch (_cleanupErr) {}
+                            try { if (fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath); } catch (__cleanupErr) {}
                             return res.status(400).json({ status: 400, message: "Database does not contain users table", data: null });
                         }
                         const timestamp = Date.now();
@@ -247,7 +247,7 @@ function registerAdminDatabaseRoutes(router, deps) {
                         try {
                             if (fs.existsSync(dbPath)) fs.copyFileSync(dbPath, backupPath);
                             fs.copyFileSync(uploadedPath, dbPath);
-                            try { if (fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath); } catch (_cleanupErr) {}
+                            try { if (fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath); } catch (__cleanupErr) {}
                             let migrationResult = null;
                             if (autoMigrate) {
                                 const { columnResult, versionResults, versionError } = await runDatabaseMigrations();
@@ -284,7 +284,7 @@ function registerAdminDatabaseRoutes(router, deps) {
                                 });
                             }
                         } catch (replaceErr) {
-                            try { if (fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath); } catch (_cleanupErr) {}
+                            try { if (fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath); } catch (__cleanupErr) {}
                             res.status(500).json({ status: 500, message: "Error replacing database: " + replaceErr.message, data: null });
                         }
                     });

@@ -3,7 +3,6 @@
  */
 
 const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
 const { getDatabasePath } = require('../lib/env-config');
 
 const dbPath = getDatabasePath('database.sqlite');

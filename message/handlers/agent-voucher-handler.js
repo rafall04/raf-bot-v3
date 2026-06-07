@@ -48,7 +48,7 @@ async function extractPhoneFromLid(sender, msg, raf = null) {
                     return phoneNumber;
                 }
             }
-        } catch (error) {
+        } catch (_error) {
             // Silent fail
         }
     }
@@ -275,7 +275,7 @@ async function handlePurchaseQuantity(msg, sender, reply, chats) {
 /**
  * Handle state: AGENT_VOUCHER_PURCHASE_PAYMENT - Agent selects payment method
  */
-async function handlePurchasePayment(msg, sender, reply, chats, raf = null) {
+async function handlePurchasePayment(msg, sender, reply, chats, _raf = null) {
     try {
         const userState = getUserState(sender);
         const paymentChoice = parseInt(chats.trim());
@@ -408,7 +408,7 @@ async function handleAgentVoucherPurchaseConversation(msg, sender, reply, chats,
 /**
  * Handle agent sell voucher - Initial command
  */
-async function handleAgentSellVoucher(msg, sender, reply, temp, raf = null, users = [], global = null) {
+async function handleAgentSellVoucher(msg, sender, reply, temp, raf = null, users = [], _global = null) {
     try {
         // Extract real phone number from @lid if needed
         const phoneNumberToSearch = await extractPhoneFromLid(sender, msg, raf);
@@ -726,7 +726,7 @@ async function handleSaleCustomer(msg, sender, reply, chats) {
 /**
  * Handle state: AGENT_VOUCHER_SALE_CONFIRM - Agent confirms sale
  */
-async function handleSaleConfirm(msg, sender, reply, chats, raf = null, global = null) {
+async function handleSaleConfirm(msg, sender, reply, chats, _raf = null, global = null) {
     let userState;
     try {
         userState = getUserState(sender);

@@ -6,7 +6,7 @@
  */
 
 const convertRupiah = require('rupiah-format');
-const { getUserState, setUserState, deleteUserState, mess } = require('./conversation-handler');
+const { getUserState: _getUserState, setUserState, deleteUserState: _deleteUserState, mess } = require('./conversation-handler');
 
 /**
  * Handle check bill request

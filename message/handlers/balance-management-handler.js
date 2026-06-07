@@ -26,7 +26,7 @@ async function resolveCanonicalSender(sender, msg, flow) {
 /**
  * Handle topup balance
  */
-async function handleTopup({ q, isOwner, sender, reply, msg, mess, raf, checkATMuser, addATM, addKoinUser }) {
+async function handleTopup({ q, isOwner, sender, reply, msg, mess, raf: _raf, checkATMuser: _checkATMuser, addATM: _addATM, addKoinUser }) {
     try {
         if (!isOwner) throw mess.owner;
         if (!q.includes('|')) throw mess.wrongFormat;
@@ -148,7 +148,7 @@ async function handleDelSaldo({ q, isOwner, reply, mess, checkATMuser, checkRegi
 /**
  * Handle balance transfer
  */
-async function handleTransfer({ q, sender, reply, msg, mess, raf, checkATMuser, addATM, addKoinUser, confirmATM, format }) {
+async function handleTransfer({ q, sender, reply, msg, mess, raf: _raf, checkATMuser, addATM: _addATM, addKoinUser, confirmATM, format }) {
     try {
         if (!q.includes('|')) return reply(format('mess_wrongFormat'));
 
@@ -200,7 +200,7 @@ async function handleTransfer({ q, sender, reply, msg, mess, raf, checkATMuser, 
             if (senderSaldoData && senderSaldoData.pushname) {
                 namaPengirim = senderSaldoData.pushname;
             }
-        } catch (err) {
+        } catch (_err) {
             // Ignore error, continue with other methods
         }
 

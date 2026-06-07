@@ -54,7 +54,7 @@ function mapDatabaseUserForNotification(row) {
     if (row.bulk) {
         try {
             bulk = JSON.parse(row.bulk);
-        } catch (error) {
+        } catch (_error) {
             bulk = [];
         }
     }

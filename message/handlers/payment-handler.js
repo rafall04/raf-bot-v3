@@ -6,14 +6,14 @@
  */
 
 const axios = require('axios');
-const { getUserState, setUserState, deleteUserState } = require('./conversation-handler');
+const { getUserState: _getUserState, setUserState: _setUserState, deleteUserState: _deleteUserState } = require('./conversation-handler');
 
 /**
  * Handle payment status change request
  * @param {Object} params - Parameters for payment request
  * @returns {Promise<Object>} Response object
  */
-async function handlePaymentRequest({ sender, userTeknisi, targetUser, newStatus, reply }) {
+async function handlePaymentRequest({ sender: _sender, userTeknisi, targetUser, newStatus, reply: _reply }) {
     try {
         // Validate teknisi permissions
         if (!userTeknisi || userTeknisi.role !== 'teknisi') {

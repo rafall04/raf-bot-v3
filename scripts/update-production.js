@@ -13,7 +13,6 @@
  */
 
 const { execSync } = require('child_process');
-const path = require('path');
 
 const skipBackup = process.argv.includes('--no-backup');
 const skipInstall = process.argv.includes('--no-install');
@@ -28,7 +27,7 @@ function exec(cmd, silent = false) {
             encoding: 'utf8', 
             stdio: silent ? 'pipe' : 'inherit' 
         });
-    } catch (e) {
+    } catch (_e) {
         return null;
     }
 }

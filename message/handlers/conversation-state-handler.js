@@ -18,7 +18,7 @@ const {
     handleSelectSsidToChange,
     handleAskNewName,
     handleAskNewNameBulkAuto,
-    handleConfirmGantiNamaBulk
+    handleConfirmGantiNamaBulk: _handleConfirmGantiNamaBulk
 } = require('./states/wifi-name-state-handler');
 
 const {
@@ -27,15 +27,15 @@ const {
     handleAskNewPassword,
     handleAskNewPasswordBulk,
     handleAskNewPasswordBulkAuto,
-    handleConfirmGantiSandi,
-    handleConfirmGantiSandiBulk
+    handleConfirmGantiSandi: _handleConfirmGantiSandi,
+    handleConfirmGantiSandiBulk: _handleConfirmGantiSandiBulk
 } = require('./states/wifi-password-state-handler');
 
 const {
     handleConfirmCancelTicket,
     handleConfirmReboot,
     handleAskPowerLevel,
-    handleConfirmGantiPower,
+    handleConfirmGantiPower: _handleConfirmGantiPower,
     handleSelectSodChoice,
     handleConfirmSodChoice,
     handleAskPackageChoice,
@@ -53,18 +53,18 @@ async function handleConversationState(params) {
         chats,
         reply,
         global,
-        isOwner,
-        isTeknisi,
-        users,
-        args,
-        entities,
-        plainSenderNumber,
+        isOwner: _isOwner,
+        isTeknisi: _isTeknisi,
+        users: _users,
+        args: _args,
+        entities: _entities,
+        plainSenderNumber: _plainSenderNumber,
         pushname,
-        mess,
-        sleep,
-        getSSIDInfo,
-        namabot,
-        buatLaporanGangguan
+        mess: _mess,
+        sleep: _sleep,
+        getSSIDInfo: _getSSIDInfo,
+        namabot: _namabot,
+        buatLaporanGangguan: _buatLaporanGangguan
     } = params;
 
     // Always use managed state store as the source of truth.

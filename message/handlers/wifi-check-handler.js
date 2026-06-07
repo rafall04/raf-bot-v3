@@ -8,8 +8,8 @@
  */
 
 const { getSSIDInfo } = require('../../lib/wifi');
-const { getProfileBySubscription } = require('../../lib/myfunc');
-const { getONUInfo } = require('../../lib/wifi');
+const { getProfileBySubscription: _getProfileBySubscription } = require('../../lib/myfunc');
+const { getONUInfo: _getONUInfo } = require('../../lib/wifi');
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
 const { renderResponseTemplate } = require('./template-helpers');
 

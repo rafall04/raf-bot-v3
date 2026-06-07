@@ -7,7 +7,7 @@
  * SideEffects: Menyimpan tracking per-user di memori dan mengirim reminder WhatsApp.
  */
 
-const { setUserState, getUserState } = require('./conversation-handler');
+const { setUserState: _setUserState, getUserState: _getUserState } = require('./conversation-handler');
 const { renderResponseTemplate } = require('./template-helpers');
 
 // Photo tracking per user

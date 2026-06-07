@@ -53,7 +53,7 @@ session.walk(MAC_OID, (varbinds) => {
             // Don't break - let walk continue to see if there are more
         }
     }
-}, async (error) => {
+}, async (_error) => {
     console.log(`\nWalk completed. Total MACs scanned: ${count}`);
     
     if (!foundSlot) {

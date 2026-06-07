@@ -7,8 +7,6 @@
  * SideEffects: Membaca/menulis `global.speed_requests`, mengubah `global.tempStates`, dan mengirim pesan WhatsApp.
  */
 
-const fs = require('fs');
-const path = require('path');
 const convertRupiah = require('rupiah-format');
 const { saveSpeedRequests } = require('../../lib/database');
 const { sendMessage } = require('../../lib/whatsapp-delivery-service');
@@ -17,7 +15,7 @@ const {
     getAvailableSpeedBoostsFromMatrix,
     calculateBoostPriceFromMatrix,
     getAvailablePaymentMethods,
-    validateSpeedBoostRequest,
+    validateSpeedBoostRequest: _validateSpeedBoostRequest,
     getMessageTemplate,
     loadSpeedBoostConfig
 } = require('../../lib/speed-boost-matrix-helper');

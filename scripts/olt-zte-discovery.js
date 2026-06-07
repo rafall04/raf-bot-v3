@@ -49,7 +49,7 @@ function walkBase(label, baseOid) {
         let done = false;
         const finish = () => {
             if (done) return; done = true;
-            try { session.close(); } catch (e) { /* ignore */ }
+            try { session.close(); } catch (_e) { /* ignore */ }
             resolve({ label, baseOid, rows });
         };
         session.on('error', (e) => { rows.push(`# session-error: ${e.message}`); finish(); });

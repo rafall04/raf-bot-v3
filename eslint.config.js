@@ -84,7 +84,7 @@ module.exports = [
             globals: { ...nodeGlobals, ...appRuntimeGlobals, ...jestGlobals }
         },
         rules: {
-            'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+            'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
             'no-undef': 'error'
         }
     },

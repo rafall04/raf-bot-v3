@@ -11,8 +11,6 @@ process.env.TZ = 'Asia/Jakarta';
 const express = require('express');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
-const fs = require('fs');
-const path = require('path');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const phpExpress = require('php-express')({
@@ -23,7 +21,7 @@ const phpExpress = require('php-express')({
 // Tanpa `php` di PATH, halaman tersebut diam-diam error 500 — beri peringatan jelas.
 try {
     require('child_process').execSync('php -v', { stdio: 'ignore' });
-} catch (e) {
+} catch (_e) {
     const line = '='.repeat(72);
     console.warn(line);
     console.warn('[PHP_CHECK] Binary `php` tidak ditemukan di PATH.');
@@ -34,7 +32,6 @@ try {
 }
 const qrcode = require('qrcode');
 const P = require('pino');
-const Boom = require('@hapi/boom');
 // HTTPS enforcement removed - Cloudflare Tunnel handles HTTPS
 
 
@@ -206,9 +203,9 @@ app.all(/.+\.php$/, phpExpress.router);
 app.use(errorHandler);
 
 const {
-    server,
+    server: _server,
     io,
-    cleanupOldPendingRequests,
+    cleanupOldPendingRequests: _cleanupOldPendingRequests,
     startHttpServer
 } = createHttpSocketBootstrap({
     app,
@@ -347,7 +344,7 @@ async function startApp() {
         });
 
         raf.ev.on('connection.update', async update => {
-            const { connection, lastDisconnect, qr } = update
+            const { connection, lastDisconnect, qr: _qr } = update
             
             global.monitoring.updateConnectionStatus('whatsapp', connection);
             

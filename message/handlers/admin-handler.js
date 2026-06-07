@@ -6,7 +6,7 @@
  */
 
 const { getPppStats, getHotspotStats } = require("../../lib/mikrotik");
-const { getUserState, setUserState, deleteUserState, mess } = require('./conversation-handler');
+const { getUserState: _getUserState, setUserState: _setUserState, deleteUserState: _deleteUserState, mess: _mess } = require('./conversation-handler');
 
 /**
  * Handle PPPoE statistics request

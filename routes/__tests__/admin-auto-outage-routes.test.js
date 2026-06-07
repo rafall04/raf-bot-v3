@@ -34,7 +34,7 @@ function request(app, method, path, payload) {
                         let parsed = null;
                         try {
                             parsed = data ? JSON.parse(data) : null;
-                        } catch (_error) {
+                        } catch (__error) {
                             parsed = { raw: data };
                         }
                         resolve({

@@ -38,7 +38,7 @@ function walkLimited(baseOid, limit = 20) {
                 });
                 count++;
             }
-        }, (error) => {
+        }, (_error) => {
             resolve(results);
         });
         

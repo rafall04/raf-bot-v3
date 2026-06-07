@@ -338,7 +338,7 @@ describe('tickets workflow integration', () => {
             await stopServer(server);
             try {
                 fs.unlinkSync(getLocationFilePath(created.ticketId));
-            } catch (cleanupError) { /* ignore */ }
+            } catch (_cleanupError) { /* ignore */ }
         }
     });
 

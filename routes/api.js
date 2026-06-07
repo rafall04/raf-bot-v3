@@ -9,8 +9,6 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const multer = require('multer');
-const axios = require('axios');
 const { hashPassword, comparePassword } = require('../lib/password');
 const {
     updatePPPoEProfile,
@@ -21,12 +19,12 @@ const {
     getPPPProfiles,
     getHotspotProfiles,
     assertMikrotikResult,
-    getMikrotikDiagnostics,
+    getMikrotikDiagnostics: _getMikrotikDiagnostics,
     isMikrotikSyncEnabled,
 } = require('../lib/mikrotik');
 const { getProfileBySubscription } = require('../lib/myfunc');
 const { handlePaidStatusChange } = require('../lib/approval-logic');
-const { getPeriodParts, evaluateCollectionSettlement } = require('../lib/technician-collection-settlement');
+const { getPeriodParts, evaluateCollectionSettlement: _evaluateCollectionSettlement } = require('../lib/technician-collection-settlement');
 const {
     applyPaymentStatusChange,
     getEffectivePrice,
@@ -49,7 +47,6 @@ const { logActivity } = require('../lib/activity-logger');
 const { insertPSBRecord, updatePSBRecord, getPSBRecord, getPSBRecordsByStatus, movePSBToUsers, getNextAvailablePSBId, getNextAvailableUserId } = require('../lib/psb-database');
 const { logWifiChange } = require('../lib/wifi-logger');
 const { getGenieAcsConfig, getGenieAcsFeatureStatus } = require('../lib/genieacs');
-const crypto = require('crypto');
 const { rateLimit } = require('../lib/security');
 const { withLock } = require('../lib/request-lock');
 const {

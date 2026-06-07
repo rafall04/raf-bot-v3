@@ -2,11 +2,11 @@ const express = require('express');
 const crypto = require('crypto');
 const { hashPassword } = require('../lib/password');
 const { renderTemplate, templatesCache } = require('../lib/templating');
-const { normalizePhoneNumber } = require('../lib/utils');
+const { normalizePhoneNumber: _normalizePhoneNumber } = require('../lib/utils');
 const { logActivity } = require('../lib/activity-logger');
-const { updatePPPoEProfile, deleteActivePPPoEUser, getPPPoEUserProfile, getAllPPPoESecrets, assertMikrotikResult, isMikrotikSyncEnabled } = require('../lib/mikrotik');
+const { updatePPPoEProfile, deleteActivePPPoEUser, getPPPoEUserProfile: _getPPPoEUserProfile, getAllPPPoESecrets, assertMikrotikResult, isMikrotikSyncEnabled } = require('../lib/mikrotik');
 const { getProfileBySubscription } = require('../lib/myfunc');
-const { rebootRouter } = require('../lib/wifi');
+const { rebootRouter: _rebootRouter } = require('../lib/wifi');
 const { sendMessageToMany } = require('../lib/whatsapp-delivery-service');
 const { hasAuthenticatedSession, getConnectionState } = require('../lib/whatsapp-gateway');
 const {

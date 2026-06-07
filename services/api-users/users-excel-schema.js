@@ -271,7 +271,7 @@ function normalizeBulkValue(value) {
             if (Array.isArray(parsed)) {
                 return parsed.map((item) => normalizeString(item)).filter(Boolean);
             }
-        } catch (error) {
+        } catch (_error) {
             return normalizePipeList(normalized);
         }
     }

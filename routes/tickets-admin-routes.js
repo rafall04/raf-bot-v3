@@ -11,7 +11,7 @@
 const {
     express,
     ensureAdmin,
-    DEBUG,
+    DEBUG: _DEBUG,
     logActivity,
     saveReports,
     isWithinWorkingHours,

@@ -8,7 +8,7 @@
  */
 
 const { getPppStats, getHotspotStats, statusap } = require('../../lib/mikrotik');
-const { format } = require('./conversation-handler');
+const { format: _format } = require('./conversation-handler');
 const { renderResponseTemplate } = require('./template-helpers');
 
 /**

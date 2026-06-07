@@ -64,7 +64,7 @@ async function extractPhoneFromLid(sender, msg, raf = null) {
                     return phoneNumber;
                 }
             }
-        } catch (error) {
+        } catch (_error) {
             // Only log actual errors, not warnings
             logger.debug(`[LID_EXTRACT] Signal repository unavailable for ${sender}`);
         }
@@ -84,7 +84,7 @@ async function extractPhoneFromLid(sender, msg, raf = null) {
  * Shows all available agents/outlets
  * Command: agent, agen, outlet, list agent
  */
-async function handleListAgents(msg, sender, reply, pushname) {
+async function handleListAgents(msg, sender, reply, _pushname) {
     try {
         const agents = agentManager.getAllAgents(true);
         

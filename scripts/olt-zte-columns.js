@@ -25,7 +25,7 @@ let total = 0, done = false;
 
 function finish() {
     if (done) return; done = true;
-    try { session.close(); } catch (e) { /* ignore */ }
+    try { session.close(); } catch (_e) { /* ignore */ }
     console.log(`\n[COLUMNS] base=${baseOid} total=${total} kolom=${cols.size}\n`);
     for (const [col, info] of cols) {
         let extra = '';

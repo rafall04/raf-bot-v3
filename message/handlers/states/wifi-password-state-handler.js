@@ -291,11 +291,11 @@ async function handleAskNewPasswordBulk(userState, chats, reply, sender, global)
     }
 }
 
-async function handleAskNewPasswordBulkAuto(userState, chats, reply, sender, global, axios) {
+async function handleAskNewPasswordBulkAuto(userState, chats, reply, sender, global, _axios) {
     return handleAskNewPasswordBulk(userState, chats, reply, sender, global);
 }
 
-async function handleConfirmGantiSandi(userState, userReply, reply, sender, global, axios) {
+async function handleConfirmGantiSandi(userState, userReply, reply, sender, _global, _axios) {
     const response = userReply.toLowerCase().trim();
 
     if (!['ya', 'ok', 'lanjut', 'iya', 'y'].includes(response)) {
@@ -350,7 +350,7 @@ async function handleConfirmGantiSandi(userState, userReply, reply, sender, glob
     }
 }
 
-async function handleConfirmGantiSandiBulk(userState, userReply, reply, sender, global, axios) {
+async function handleConfirmGantiSandiBulk(userState, userReply, reply, sender, _global, _axios) {
     const response = userReply.toLowerCase().trim();
 
     if (!['ya', 'ok', 'lanjut', 'iya', 'y'].includes(response)) {

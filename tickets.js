@@ -10,7 +10,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const { saveReports, loadJSON, saveJSON } = require('../lib/database');
+const { saveReports, loadJSON: _loadJSON, saveJSON: _saveJSON } = require('../lib/database');
 const { logActivity } = require('../lib/activity-logger');
 const { rateLimit } = require('../lib/security');
 const { withLock } = require('../lib/request-lock');
@@ -63,7 +63,7 @@ function buildWorkingHoursNotice(config, nextAvailable) {
 }
 
 // Import working hours helper
-const { isWithinWorkingHours, getNextAvailableMessage, getResponseTimeMessage } = require('../lib/working-hours-helper');
+const { isWithinWorkingHours, getNextAvailableMessage, getResponseTimeMessage: _getResponseTimeMessage } = require('../lib/working-hours-helper');
 
 /**
  * Configure multer for photo uploads

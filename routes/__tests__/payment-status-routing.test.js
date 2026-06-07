@@ -47,7 +47,7 @@ const {
     applyPaymentStatusChange,
     getEffectivePrice,
     getPaymentDiagnostics,
-    getPaymentPositionForPeriod,
+    getPaymentPositionForPeriod: _getPaymentPositionForPeriod,
     normalizeUserPaymentMethod
 } = require("../../lib/payment-finance-service");
 const { getPeriodParts } = require("../../lib/technician-collection-settlement");

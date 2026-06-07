@@ -268,7 +268,7 @@ $(document).ready(function() {
                     var newVal = typeof log.new_value === 'string' ? JSON.parse(log.new_value) : log.new_value;
                     newPkg = newVal.subscription || '-';
                 }
-            } catch (e) {}
+            } catch (_e) {}
 
             var time = log.created_at ? new Date(log.created_at).toLocaleString('id-ID') : '-';
             tbody.append(

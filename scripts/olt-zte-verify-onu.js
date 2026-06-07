@@ -20,13 +20,13 @@ function session() { return snmp.createSession(host, community, { version: snmp.
 function walk(base, cap = 6000) {
   return new Promise((resolve) => {
     const s = session(); const rows = []; let done = false;
-    const fin = () => { if (done) return; done = true; try { s.close(); } catch (e) {} resolve(rows); };
+    const fin = () => { if (done) return; done = true; try { s.close(); } catch (_e) {} resolve(rows); };
     s.on('error', fin);
     s.walk(base, 30, (vbs) => { for (const vb of vbs) { if (vb.type === snmp.ObjectType.EndOfMibView) { fin(); return; } const oid = vb.oid.replace(/^\./, ''); if (!oid.startsWith(base.replace(/^\./, ''))) { fin(); return; } let v = vb.value; if (Buffer.isBuffer(v)) v = v.toString('utf8').replace(/[\x00-\x1F]/g, ''); rows.push({ oid, v: String(v) }); if (rows.length >= cap) { fin(); return; } } }, () => fin());
   });
 }
 function get(oids) {
-  return new Promise((resolve) => { const s = session(); s.get(oids, (err, vbs) => { try { s.close(); } catch (e) {} if (err) return resolve({}); const o = {}; vbs.forEach((vb, i) => { o[oids[i]] = snmp.isVarbindError(vb) ? null : (Buffer.isBuffer(vb.value) ? vb.value.toString('utf8') : Number(vb.value)); }); resolve(o); }); });
+  return new Promise((resolve) => { const s = session(); s.get(oids, (err, vbs) => { try { s.close(); } catch (_e) {} if (err) return resolve({}); const o = {}; vbs.forEach((vb, i) => { o[oids[i]] = snmp.isVarbindError(vb) ? null : (Buffer.isBuffer(vb.value) ? vb.value.toString('utf8') : Number(vb.value)); }); resolve(o); }); });
 }
 
 // Coba beberapa encoding untuk raw → dBm, return array {enc, val}

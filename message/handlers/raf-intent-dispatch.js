@@ -36,7 +36,7 @@ function resolveAgentContext({
                         senderInfo.method = 'signal_repository';
                     }
                 }
-            } catch (error) {
+            } catch (_error) {
             }
         }
 

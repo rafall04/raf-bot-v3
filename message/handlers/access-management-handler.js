@@ -15,7 +15,7 @@ const { resolveCustomerBySender } = require('../../lib/jid-utils');
 /**
  * Handle access management
  */
-async function handleAccessManagement({ sender, args, users, reply, global, db, msg, raf }) {
+async function handleAccessManagement({ sender, args, users: _users, reply, global, db, msg, raf }) {
     // Resolusi pelanggan terpadu (LID-aware: remoteJidAlt → getPNForLID → stored-mapping → pre-warm USync).
     const { user } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
 

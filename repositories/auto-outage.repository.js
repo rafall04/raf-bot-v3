@@ -29,7 +29,7 @@ function parseJson(value, fallback) {
     if (typeof value !== "string") return value;
     try {
         return JSON.parse(value);
-    } catch (_error) {
+    } catch (__error) {
         return fallback;
     }
 }
@@ -78,7 +78,7 @@ function createAutoOutageRepository(overrides = {}) {
             applySqlitePragmas(db).catch((pragmaErr) => {
                 console.warn(`[AUTO_OUTAGE_REPO_PRAGMA_WARN] ${pragmaErr.message}`);
             });
-        } catch (_e) {
+        } catch (__e) {
             // Ignore — pragma helper opsional, jangan break repository instantiation.
         }
     }

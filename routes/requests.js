@@ -21,7 +21,7 @@ const {
 } = require('../lib/technician-collection-settlement');
 const {
     applyPaymentStatusChange,
-    getPackagePrice,
+    getPackagePrice: _getPackagePrice,
     getEffectivePrice,
     normalizeUserPaymentMethod,
     normalizePaymentRequestScope,

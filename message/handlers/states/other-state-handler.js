@@ -69,7 +69,7 @@ async function handleConfirmCancelTicket(userState, userReply, reply, sender, gl
     reply(renderResponseTemplate("other_cancel_ticket_confirm_invalid"));
 }
 
-async function handleConfirmReboot(userState, userReply, reply, sender, global) {
+async function handleConfirmReboot(userState, userReply, reply, sender, _global) {
     if (["ya", "ok", "lanjut", "iya", "y"].includes(userReply)) {
         const { targetUser } = userState;
         reply(renderResponseTemplate("other_reboot_processing", { customerName: targetUser.name }));
@@ -109,7 +109,7 @@ async function handleAskPowerLevel(userState, chats, reply) {
     return reply(renderResponseTemplate("other_power_confirm", { powerLevel: newPowerLevel }));
 }
 
-async function handleConfirmGantiPower(userState, userReply, reply, sender, global) {
+async function handleConfirmGantiPower(userState, userReply, reply, sender, _global) {
     if (["ya", "ok", "lanjut", "iya", "y"].includes(userReply)) {
         const { targetUser, level_daya } = userState;
         reply(renderResponseTemplate("other_power_processing", { customerName: targetUser.name }));
@@ -155,7 +155,7 @@ async function handleSelectSodChoice(userState, userReply, reply, convertRupiah)
     }));
 }
 
-async function handleConfirmSodChoice(userState, userReply, reply, sender, global) {
+async function handleConfirmSodChoice(userState, userReply, reply, sender, _global) {
     if (["ya", "ok", "lanjut", "iya", "y"].includes(userReply)) {
         const { selectedOption } = userState;
         const paymentCode = `SOD${Date.now().toString().slice(-6)}`;
@@ -194,7 +194,7 @@ async function handleAskPackageChoice(userState, userReply, reply, convertRupiah
     }));
 }
 
-async function handleConfirmPackageChoice(userState, userReply, reply, sender, global) {
+async function handleConfirmPackageChoice(userState, userReply, reply, sender, _global) {
     if (["ya", "ok", "lanjut", "iya", "y"].includes(userReply)) {
         const { user, selectedPackage } = userState;
 

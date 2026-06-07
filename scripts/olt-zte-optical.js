@@ -18,7 +18,7 @@ function session() {
 function walk(base, cap = 4000) {
     return new Promise((resolve) => {
         const s = session(); const rows = []; let done = false;
-        const fin = () => { if (done) return; done = true; try { s.close(); } catch (e) {} resolve(rows); };
+        const fin = () => { if (done) return; done = true; try { s.close(); } catch (_e) {} resolve(rows); };
         s.on('error', fin);
         s.walk(base, 30, (vbs) => {
             for (const vb of vbs) {
@@ -38,7 +38,7 @@ function get(oids) {
     return new Promise((resolve) => {
         const s = session();
         s.get(oids, (err, vbs) => {
-            try { s.close(); } catch (e) {}
+            try { s.close(); } catch (_e) {}
             if (err) return resolve({});
             const out = {};
             vbs.forEach((vb, i) => {

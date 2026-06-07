@@ -8,7 +8,6 @@
  */
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const cors = require('cors');
 const convertRupiah = require('rupiah-format');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
@@ -22,15 +21,15 @@ const pay = require("../lib/ipaymu");
 const verifyIpaymuTransaction = require("../lib/ipaymu").checkTransaction;
 const { getvoucher } = require("../lib/mikrotik");
 const { addKoinUser, addATM, checkATMuser } = require('../lib/saldo');
-const { updateStatusPayment, checkStatusPayment, delPayment, addPayBuy, addPayment, updateKetPayment } = require('../lib/payment');
+const { updateStatusPayment, checkStatusPayment, delPayment: _delPayment, addPayBuy: _addPayBuy, addPayment, updateKetPayment } = require('../lib/payment');
 const { checkprofvc, checkdurasivc, checkhargavc } = require('../lib/voucher');
-const { saveReports, saveSpeedRequests, savePackageChangeRequests, loadJSON } = require('../lib/database');
+const { saveReports: _saveReports, saveSpeedRequests, savePackageChangeRequests: _savePackageChangeRequests, loadJSON: _loadJSON } = require('../lib/database');
 const { authCache } = require('../lib/auth-cache');
-const { comparePassword, hashPassword } = require('../lib/password');
+const { comparePassword, hashPassword: _hashPassword } = require('../lib/password');
 const { apiAuth } = require('../lib/auth');
-const { normalizePhoneNumber } = require('../lib/utils');
+const { normalizePhoneNumber: _normalizePhoneNumber } = require('../lib/utils');
 const { generateSecureOTP, checkOTPRequestLimit, checkOTPVerifyLimit, resetOTPAttempts, isOTPValid } = require('../lib/otp');
-const { asyncHandler, createError, ErrorTypes, validateRequired, dbOperation } = require('../lib/error-handler');
+const { asyncHandler, createError, ErrorTypes, validateRequired, dbOperation: _dbOperation } = require('../lib/error-handler');
 const { renderTemplate } = require('../lib/templating');
 const { renderCategoryTemplate } = require('../lib/template-service');
 const { sendSuccess, sendError } = require('../lib/response-helper');
@@ -50,11 +49,11 @@ const {
     customerLoginValidation,
     otpRequestValidation,
     otpVerifyValidation,
-    updateAccountValidation,
-    submitReportValidation,
+    updateAccountValidation: _updateAccountValidation,
+    submitReportValidation: _submitReportValidation,
     requestSpeedValidation,
     cancelSpeedRequestValidation,
-    requestPackageChangeValidation
+    requestPackageChangeValidation: _requestPackageChangeValidation
 } = require('../lib/middleware/validation');
 
 const router = express.Router();
@@ -260,7 +259,7 @@ router.post('/api/login', loginValidation, asyncHandler(async (req, res) => {
             userAgent,
             success: false,
             failureReason: 'Rate limit exceeded'
-        }).catch(logErr => {
+        }).catch(_logErr => {
             // Ignore logging errors
         });
         

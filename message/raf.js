@@ -10,28 +10,26 @@
 
 const { isProcessing, setProcessing, clearProcessing } = require('../lib/state-manager');
 
-const fs = require("fs");
 const convertRupiah = require('rupiah-format');
-const axios = require('axios');
 const path = require('path');
-const { exec } = require('child_process');
+const { exec: _exec } = require('child_process');
 
-const { color, bgcolor } = require("../lib/color");
+const { color: _color, bgcolor: _bgcolor } = require("../lib/color");
 const { downloadMedia } = require("../lib/whatsapp.adapter");
-const { getBuffer, fetchJson, fetchText, getRandom, getGroupAdmins, runtime, sleep, convert, convertGif, html2Txt } = require("../lib/myfunc");
-const { wifimenu, menupaket, menubelivoucher, menupasang, menuowner, customermenu, techinisionmenu, menuvoucher } = require("./wifi");
+const { getBuffer: _getBuffer, fetchJson: _fetchJson, fetchText: _fetchText, getRandom: _getRandom, getGroupAdmins: _getGroupAdmins, runtime: _runtime, sleep, convert: _convert, convertGif: _convertGif, html2Txt: _html2Txt } = require("../lib/myfunc");
+const { wifimenu: _wifimenu, menupaket: _menupaket, menubelivoucher: _menubelivoucher, menupasang: _menupasang, menuowner: _menuowner, customermenu: _customermenu, techinisionmenu: _techinisionmenu, menuvoucher: _menuvoucher } = require("./wifi");
 const { getSSIDInfo } = require("../lib/wifi");
-const { getPppStats, getHotspotStats, statusap, getvoucher, addPPPoEUser, addbinding, addqueue } = require("../lib/mikrotik");
+const { getPppStats: _getPppStats, getHotspotStats: _getHotspotStats, statusap: _statusap, getvoucher, addPPPoEUser, addbinding, addqueue } = require("../lib/mikrotik");
 const { addPayment } = require("../lib/payment");
 const { getIntentFromKeywords } = require('../lib/wifi_template_handler');
 const { templatesCache, renderTemplate } = require("../lib/templating");
-const { savePackageChangeRequests, saveSpeedRequests } = require("../lib/database");
+const { savePackageChangeRequests: _savePackageChangeRequests, saveSpeedRequests: _saveSpeedRequests } = require("../lib/database");
 const { INTENT_OWNER_MAP } = require("./handlers/intent-owner-map");
 const domainHandlers = require('./handlers/domain-handlers');
 const domainServices = require('./handlers/domain-services');
 const {
-    handleGangguanMati,
-    handleGangguanLemot,
+    handleGangguanMati: _handleGangguanMati,
+    handleGangguanLemot: _handleGangguanLemot,
     handleGangguanMatiOfflineResponse,
     handleGangguanMatiOnlineResponse,
     handleLemotPhotoUpload,
@@ -39,7 +37,7 @@ const {
 } = require('./handlers/smart-report-handler');
 const {
     handleCompletionConfirmation,
-    handleRemoteRequest,
+    handleRemoteRequest: _handleRemoteRequest,
     handleRemoteResponse
 } = require('./handlers/ticket-process-handler');
 const { getUserState, setUserState, deleteUserState } = require('./handlers/conversation-handler');
@@ -50,7 +48,7 @@ const { routeConversationState } = require('./handlers/conversation-state-router
 const { handleLegacyTeknisiStateTransitions } = require('./handlers/legacy-teknisi-state-handler');
 const { sendReply, sendContactCard } = require('./handlers/reply-runtime');
 const {
-    handleMulaiPerjalanan,
+    handleMulaiPerjalanan: _handleMulaiPerjalanan,
     handleTeknisiShareLocation,
     handleActiveTicketLocationUpdate,
     handleCekLokasiTeknisi,
@@ -71,7 +69,6 @@ const {
     handleAgentSelfProfile
 } = require('./handlers/agent');
 const agentVoucherConversationHandlers = require('./handlers/agent-voucher-handler');
-const qr = require('qr-image')
 const pay = require("../lib/ipaymu")
 
 const format = (key, data = {}) => {
@@ -103,7 +100,7 @@ const reportsDbPathRaf = path.join(__dirname, '../database/reports.json');
 
 // Handler imports - Smart Report
 const { buatLaporanGangguan } = require('./handlers/ticket-creation-handler');
-const { processVoucherPurchase, handleVoucherChoiceState } = require('./handlers/payment-processor-handler');
+const { processVoucherPurchase: _processVoucherPurchase, handleVoucherChoiceState } = require('./handlers/payment-processor-handler');
 const { handleMenuSelection, handleTroubleshootResult, handleMatiConfirmation, handleMatiTroubleshootOptions, handleMatiPhotoUpload } = require('./handlers/smart-report-text-menu');
 const { handleDirectConfirmation, handleDirectLemotResponse } = require('./handlers/smart-report-hybrid');
 const { handleCustomerPhotoUpload } = require('./handlers/customer-photo-handler');
@@ -146,7 +143,7 @@ const {
 const { resolveAgentContext, dispatchIntent } = require('./handlers/raf-intent-dispatch');
 
 // Library imports
-const { normalizeJid, normalizeJidForSaldo, findUserWithLidSupport, normalizePhoneNumber, normalizePhoneToJid, extractSenderInfo, processLidVerification, buildCanonicalContext } = require('../lib/jid-utils');
+const { normalizeJid: _normalizeJid, normalizeJidForSaldo: _normalizeJidForSaldo, findUserWithLidSupport, normalizePhoneNumber: _normalizePhoneNumber, normalizePhoneToJid: _normalizePhoneToJid, extractSenderInfo, processLidVerification, buildCanonicalContext } = require('../lib/jid-utils');
 const agentTransactionManager = require('../lib/agent-transaction-manager');
 const agentManager = require('../lib/agent-manager');
 const { getReportsUploadsPath, getTeknisiUploadsPathByTicket } = require('../lib/path-helper');

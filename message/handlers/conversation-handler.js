@@ -5,8 +5,6 @@
  * Menangani percakapan multi-step dengan user
  */
 
-const fs = require("fs");
-const path = require("path");
 const { templatesCache } = require("../../lib/templating");
 
 // Helper untuk format template

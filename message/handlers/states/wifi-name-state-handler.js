@@ -232,11 +232,11 @@ async function handleAskNewName(userState, chats, reply, sender, global) {
     }
 }
 
-async function handleAskNewNameBulkAuto(userState, chats, reply, sender, global, axios) {
+async function handleAskNewNameBulkAuto(userState, chats, reply, sender, global, _axios) {
     return handleAskNewName(userState, chats, reply, sender, global);
 }
 
-async function handleConfirmGantiNamaBulk(userState, userReply, reply, sender, global, axios) {
+async function handleConfirmGantiNamaBulk(userState, userReply, reply, sender, _global, _axios) {
     if (!['ya', 'ok', 'lanjut', 'iya', 'y'].includes(userReply)) {
         return reply(renderResponseTemplate('convo_balasan_ya_tidak', "Mohon balas *'ya'* untuk melanjutkan atau ketik *'batal'* untuk membatalkan."));
     }

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
-const { saveAccounts, loadJSON, saveJSON } = require('../lib/database');
+const { saveAccounts, loadJSON, saveJSON: _saveJSON } = require('../lib/database');
 
 // Middleware untuk memastikan hanya admin yang bisa akses
 const adminOnly = (req, res, next) => {

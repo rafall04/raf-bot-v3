@@ -69,7 +69,7 @@ function cleanupOldBackups() {
                 filesByType[type].push(file);
             }
             
-            for (const [type, typeFiles] of Object.entries(filesByType)) {
+            for (const [_type, typeFiles] of Object.entries(filesByType)) {
                 // Sort by timestamp (newest first)
                 typeFiles.sort().reverse();
                 

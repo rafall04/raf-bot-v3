@@ -227,7 +227,7 @@ function getRouteCacheStats() {
     let validEntries = 0;
     let expiredEntries = 0;
     
-    for (const [key, value] of routeCache.entries()) {
+    for (const [_key, value] of routeCache.entries()) {
         if (now - value.timestamp < CACHE_DURATION) {
             validEntries++;
         } else {

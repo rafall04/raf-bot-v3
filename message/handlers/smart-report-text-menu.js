@@ -7,7 +7,7 @@
  * SideEffects: Membaca state/customer/report global legacy, menulis state percakapan, membuat tiket, dan mengirim notifikasi WhatsApp teknisi.
  */
 
-const { isDeviceOnline, getDeviceOfflineMessage } = require('../../lib/device-status');
+const { isDeviceOnline, getDeviceOfflineMessage: _getDeviceOfflineMessage } = require('../../lib/device-status');
 const { setUserState, getUserState, deleteUserState, format } = require('./conversation-handler');
 const { getResponseTimeMessage, isWithinWorkingHours } = require('../../lib/working-hours-helper');
 const { hasActiveReport } = require('../../lib/report-helper');
@@ -67,7 +67,7 @@ function generateTicketId(length = 7) {
 /**
  * Start report flow dengan menu interaktif
  */
-async function startReportFlow({ sender, pushname, reply, msg, raf, stateKey }) {
+async function startReportFlow({ sender, pushname: _pushname, reply: _reply, msg, raf, stateKey }) {
     try {
         const resolved = await resolveCustomerBySender({
             users: global.users || [],
@@ -187,7 +187,7 @@ async function handleMenuSelection({ sender, choice, reply, msg = null, raf = nu
 /**
  * Handle Internet Mati with Troubleshooting Options
  */
-async function handleInternetMati({ sender, pushname, reply, msg, raf, stateKey }) {
+async function handleInternetMati({ sender, pushname: _pushname, reply: _reply, msg, raf, stateKey }) {
     try {
         const resolved = await resolveCustomerBySender({
             users: global.users || [],
@@ -297,7 +297,7 @@ async function handleInternetMati({ sender, pushname, reply, msg, raf, stateKey 
 /**
  * Handle Internet Lemot with Auto-Redirect if Device Offline
  */
-async function handleInternetLemot({ sender, pushname, reply, msg, raf, stateKey }) {
+async function handleInternetLemot({ sender, pushname: _pushname, reply: _reply, msg, raf, stateKey }) {
     try {
         const resolved = await resolveCustomerBySender({
             users: global.users || [],
@@ -538,7 +538,7 @@ async function handleMatiConfirmation({ sender, response, reply }) {
 /**
  * Handle MATI Troubleshooting Options (1/2/3)
  */
-async function handleMatiTroubleshootOptions({ sender, response, reply }) {
+async function handleMatiTroubleshootOptions({ sender, response, reply: _reply }) {
     const state = getUserState(sender);
     if (!state || !['REPORT_MATI_TROUBLESHOOT', 'MATI_TROUBLESHOOT_OPTIONS'].includes(state.step)) {
         return { success: false };
@@ -717,7 +717,7 @@ async function handleMatiPhotoUpload({ sender, response, photoPath, photoBuffer,
 /**
  * Create report ticket
  */
-async function createReportTicket({ sender, state, reply }) {
+async function createReportTicket({ sender, state, reply: _reply }) {
     try {
         const user = getReportCustomer(state);
 

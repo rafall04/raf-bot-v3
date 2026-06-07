@@ -27,7 +27,7 @@ router.post('/devices', (req, res) => {
     try {
         const saved = registry.upsert(req.body || {});
         // hot-reload monitor agar device baru langsung dipantau
-        try { monitor.restartCctvMonitor(); } catch (_e) { /* ignore */ }
+        try { monitor.restartCctvMonitor(); } catch (__e) { /* ignore */ }
         res.json({ status: 200, message: 'OK', data: saved });
     } catch (e) {
         res.status(400).json({ status: 400, message: e.message });
@@ -40,7 +40,7 @@ router.put('/devices/:id', (req, res) => {
     if (!existing) return res.status(404).json({ status: 404, message: 'CCTV tidak ditemukan' });
     try {
         const saved = registry.upsert({ ...existing, ...req.body, id: req.params.id });
-        try { monitor.restartCctvMonitor(); } catch (_e) { /* ignore */ }
+        try { monitor.restartCctvMonitor(); } catch (__e) { /* ignore */ }
         res.json({ status: 200, message: 'OK', data: saved });
     } catch (e) {
         res.status(400).json({ status: 400, message: e.message });
@@ -50,7 +50,7 @@ router.put('/devices/:id', (req, res) => {
 router.delete('/devices/:id', (req, res) => {
     if (!ensureAdmin(req, res)) return;
     registry.remove(req.params.id);
-    try { monitor.restartCctvMonitor(); } catch (_e) { /* ignore */ }
+    try { monitor.restartCctvMonitor(); } catch (__e) { /* ignore */ }
     res.json({ status: 200, message: 'OK' });
 });
 

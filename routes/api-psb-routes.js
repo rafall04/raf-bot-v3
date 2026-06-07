@@ -23,7 +23,7 @@ function createApiPsbRouter(deps) {
         assertMikrotikResult,
         getProfileBySubscription,
         validatePhoneNumbers,
-        normalizePhone,
+        normalizePhone: _normalizePhone,
         parseGoogleMapsLink,
         validateCoordinates,
         generateRandomPassword,
@@ -34,11 +34,11 @@ function createApiPsbRouter(deps) {
         logActivity,
         insertPSBRecord,
         updatePSBRecord,
-        getPSBRecord,
-        getPSBRecordsByStatus,
+        getPSBRecord: _getPSBRecord,
+        getPSBRecordsByStatus: _getPSBRecordsByStatus,
         movePSBToUsers,
         getNextAvailablePSBId,
-        getNextAvailableUserId,
+        getNextAvailableUserId: _getNextAvailableUserId,
         logWifiChange,
         rateLimit,
         withLock,
@@ -63,7 +63,7 @@ function createApiPsbRouter(deps) {
         redactPppoeFilter,
         ensureAuthenticatedStaff,
         ensureAdmin,
-        psbService,
+        psbService: _psbService,
     } = deps;
 
     const router = express.Router();

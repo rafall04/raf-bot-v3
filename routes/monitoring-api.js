@@ -55,7 +55,7 @@ function executePHP(phpFile, req, res) {
             // Try to parse as JSON
             const data = JSON.parse(stdout);
             res.json(data);
-        } catch (parseError) {
+        } catch (_parseError) {
             // If not JSON, return as text
             res.send(stdout);
         }

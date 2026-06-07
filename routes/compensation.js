@@ -13,7 +13,7 @@ const router = express.Router();
 const fs = require('fs');
 const path = require('path');
 const { saveCompensations } = require('../lib/database');
-const { renderTemplate, templatesCache } = require('../lib/templating');
+const { renderTemplate: _renderTemplate, templatesCache } = require('../lib/templating');
 const { ProfileUpdateService } = require('../lib/services/profile-update-service');
 
 // Middleware for admin-only routes
