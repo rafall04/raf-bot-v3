@@ -4,6 +4,9 @@
    - Dark mode (body.tk-dark) — light mode untouched
    ============================================================ */
 
+/* Primitif desain bersama (skala indigo/slate/semantic + shade status). */
+@import url('/css/tokens.css');
+
 /* Modern sidebar styles live inline in views/sb-admin/_navbar.php so they
    apply on every admin page without per-page CSS link. The block below is
    DARK MODE only (admin-theme.css must be linked for dark mode patches). */
@@ -27,7 +30,7 @@ body.tk-dark {
     --d-ink:        #e9eef8;   /* primary text (high contrast) */
     --d-ink-soft:   #aab6cb;   /* secondary text */
     --d-muted:      #6b7689;   /* tertiary / hints */
-    --d-accent:     #818cf8;   /* indigo-300, pops on dark */
+    --d-accent:     var(--indigo-400);   /* indigo-300, pops on dark */
     --d-elev-1: 0 1px 2px rgba(0,0,0,0.35), 0 6px 18px -8px rgba(0,0,0,0.45);
     --d-elev-2: 0 10px 34px -12px rgba(0,0,0,0.6), 0 2px 8px -4px rgba(0,0,0,0.4);
 
@@ -61,7 +64,7 @@ body.tk-dark .text-gray-400,
 body.tk-dark .text-gray-300,
 body.tk-dark .text-muted { color: var(--d-muted) !important; }
 body.tk-dark hr { border-top-color: var(--d-line); }
-body.tk-dark a:not(.btn):not(.dropdown-item):not(.nav-link) { color: #a5b4fc; }
+body.tk-dark a:not(.btn):not(.dropdown-item):not(.nav-link) { color: var(--indigo-300); }
 
 /* topbar + dropdowns — frosted glass */
 body.tk-dark .topbar {
@@ -142,7 +145,7 @@ body.tk-dark .select2-container--focus .select2-selection {
 /* Primary buttons — gradient + soft glow */
 body.tk-dark .btn-primary,
 body.tk-dark .btn-primary-custom {
-    background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
+    background: linear-gradient(135deg, var(--indigo-500), var(--indigo-600)) !important;
     border: none !important;
     box-shadow: 0 4px 14px -5px rgba(99, 102, 241, 0.55);
     transition: filter .15s ease, box-shadow .15s ease, transform .15s ease;
@@ -155,7 +158,7 @@ body.tk-dark .btn-primary-custom:hover {
 body.tk-dark .btn-primary:active,
 body.tk-dark .btn-primary-custom:active { transform: translateY(1px); }
 body.tk-dark .btn-outline-primary { color: var(--d-accent); border-color: rgba(129, 140, 248, 0.5); }
-body.tk-dark .btn-outline-primary:hover { background: rgba(129, 140, 248, 0.16); color: #c7d2fe; border-color: var(--d-accent); }
+body.tk-dark .btn-outline-primary:hover { background: rgba(129, 140, 248, 0.16); color: var(--indigo-200); border-color: var(--d-accent); }
 
 /* Dropdown / popover / modal depth */
 body.tk-dark .dropdown-menu,
@@ -220,17 +223,17 @@ body.tk-dark .close { color: var(--d-ink); text-shadow: none; }
 body.tk-dark .close:hover { color: #fff; }
 
 /* badges (soft tint + lifted text) */
-body.tk-dark .badge-success { color: #6ee7b7 !important; }
-body.tk-dark .badge-danger { color: #fca5a5 !important; }
-body.tk-dark .badge-warning { color: #fcd34d !important; }
-body.tk-dark .badge-info { color: #93c5fd !important; }
+body.tk-dark .badge-success { color: var(--emerald-300) !important; }
+body.tk-dark .badge-danger { color: var(--red-300) !important; }
+body.tk-dark .badge-warning { color: var(--amber-300) !important; }
+body.tk-dark .badge-info { color: var(--blue-300) !important; }
 body.tk-dark .badge-secondary { background: rgba(255, 255, 255, 0.08) !important; color: var(--d-ink-soft) !important; }
 
 /* alerts */
-body.tk-dark .alert-success { background: rgba(16,185,129,.16); color: #6ee7b7; border-color: transparent; }
-body.tk-dark .alert-danger { background: rgba(239,68,68,.16); color: #fca5a5; border-color: transparent; }
-body.tk-dark .alert-warning { background: rgba(245,158,11,.16); color: #fcd34d; border-color: transparent; }
-body.tk-dark .alert-info { background: rgba(59,130,246,.16); color: #93c5fd; border-color: transparent; }
+body.tk-dark .alert-success { background: rgba(16,185,129,.16); color: var(--emerald-300); border-color: transparent; }
+body.tk-dark .alert-danger { background: rgba(239,68,68,.16); color: var(--red-300); border-color: transparent; }
+body.tk-dark .alert-warning { background: rgba(245,158,11,.16); color: var(--amber-300); border-color: transparent; }
+body.tk-dark .alert-info { background: rgba(59,130,246,.16); color: var(--blue-300); border-color: transparent; }
 body.tk-dark .alert-light { background: var(--d-surface-2) !important; color: var(--d-ink-soft) !important; border-color: var(--d-line) !important; }
 body.tk-dark .alert-secondary { background: var(--d-surface-2); color: var(--d-ink-soft); border-color: var(--d-line); }
 
@@ -310,9 +313,9 @@ body.tk-dark .form-select { background: var(--d-surface) !important; color: var(
 body.tk-dark .modern-progress,
 body.tk-dark .progress { background: var(--d-raise); }
 
-body.tk-dark .monitoring-state-badge.state-healthy { color: #6ee7b7; }
-body.tk-dark .monitoring-state-badge.state-stale { color: #fcd34d; }
-body.tk-dark .monitoring-state-badge.state-disconnected { color: #fca5a5; }
+body.tk-dark .monitoring-state-badge.state-healthy { color: var(--emerald-300); }
+body.tk-dark .monitoring-state-badge.state-stale { color: var(--amber-300); }
+body.tk-dark .monitoring-state-badge.state-disconnected { color: var(--red-300); }
 
 body.tk-dark .user-card { background: var(--d-surface); border-color: var(--d-line); }
 body.tk-dark .btn-tool { color: var(--d-muted); }
@@ -414,7 +417,7 @@ body.tk-dark .login-history-toolbar { background: var(--d-raise) !important; bor
     font-size: 1rem; cursor: pointer;
     transition: background 0.15s ease, color 0.15s ease;
 }
-.tk-theme-toggle:hover { background: rgba(99, 102, 241, 0.1); color: var(--primary-dark, #4f46e5); }
+.tk-theme-toggle:hover { background: rgba(99, 102, 241, 0.1); color: var(--primary-dark, var(--indigo-600)); }
 body.tk-dark .tk-theme-toggle { color: var(--d-ink-soft); }
 body.tk-dark .tk-theme-toggle:hover { background: rgba(99, 102, 241, 0.18); color: #fff; }
 
@@ -459,16 +462,16 @@ body.tk-dark .path-item { background: var(--d-surface-2) !important; border-colo
 
 /* status/state badges left visible — soft tinted text */
 body.tk-dark .badge-status-otw,
-body.tk-dark .badge-pending { color: #fcd34d !important; }
-body.tk-dark .badge-status-arrived { color: #fdba74 !important; }
+body.tk-dark .badge-pending { color: var(--amber-300) !important; }
+body.tk-dark .badge-status-arrived { color: var(--orange-300) !important; }
 body.tk-dark .badge-disabled,
 body.tk-dark .badge-notfound,
-body.tk-dark .failed-badge { background: rgba(239,68,68,.16) !important; color: #fca5a5 !important; }
-body.tk-dark .badge-diff { background: rgba(245,158,11,.16) !important; color: #fcd34d !important; }
+body.tk-dark .failed-badge { background: rgba(239,68,68,.16) !important; color: var(--red-300) !important; }
+body.tk-dark .badge-diff { background: rgba(245,158,11,.16) !important; color: var(--amber-300) !important; }
 body.tk-dark .test-warning,
-body.tk-dark .severity-warning { background: rgba(245,158,11,.16) !important; color: #fcd34d !important; }
-body.tk-dark .test-error { background: rgba(239,68,68,.16) !important; color: #fca5a5 !important; }
-body.tk-dark .healthy { background: rgba(16,185,129,.16) !important; color: #6ee7b7 !important; }
+body.tk-dark .severity-warning { background: rgba(245,158,11,.16) !important; color: var(--amber-300) !important; }
+body.tk-dark .test-error { background: rgba(239,68,68,.16) !important; color: var(--red-300) !important; }
+body.tk-dark .healthy { background: rgba(16,185,129,.16) !important; color: var(--emerald-300) !important; }
 
 /* state classes that may sit on tr/td (avoid coloring whole rows white) */
 body.tk-dark .disabled-row,
@@ -477,7 +480,7 @@ body.tk-dark .manual,
 body.tk-dark .device-manual,
 body.tk-dark .selected,
 body.tk-dark .status-phase1_completed { background: var(--d-surface-2) !important; color: var(--d-ink); }
-body.tk-dark .action-DELETE { background: rgba(239,68,68,.12) !important; color: #fca5a5; }
+body.tk-dark .action-DELETE { background: rgba(239,68,68,.12) !important; color: var(--red-300); }
 
 /* Buka/Custom Isolir page chrome (full-screen wrapper) */
 body.tk-dark .isolir-page { background: var(--d-canvas) !important; color: var(--d-ink); }
@@ -495,11 +498,11 @@ body.tk-dark .type-btn:hover { background: rgba(99,102,241,.18) !important; }
 /* filter pill tabs (admin-kasbon and similar) — inactive state dark */
 body.tk-dark .filter-tab { background: var(--d-surface) !important; color: var(--d-ink-soft) !important; border-color: var(--d-line) !important; }
 body.tk-dark .filter-tab:hover { background: rgba(99,102,241,.18) !important; color: var(--d-ink) !important; }
-body.tk-dark .filter-tab.active { background: linear-gradient(135deg, var(--primary, #6366f1), var(--primary-dark, #4f46e5)) !important; color: #fff !important; border-color: transparent !important; }
+body.tk-dark .filter-tab.active { background: linear-gradient(135deg, var(--primary, var(--indigo-500)), var(--primary-dark, var(--indigo-600))) !important; color: #fff !important; border-color: transparent !important; }
 
 /* voucher status pills */
-body.tk-dark .badge-sent { background: rgba(16,185,129,.16) !important; color: #6ee7b7 !important; }
-body.tk-dark .badge-generated { background: rgba(99,102,241,.18) !important; color: #c7d2fe !important; }
+body.tk-dark .badge-sent { background: rgba(16,185,129,.16) !important; color: var(--emerald-300) !important; }
+body.tk-dark .badge-generated { background: rgba(99,102,241,.18) !important; color: var(--indigo-200) !important; }
 
 /* Bootstrap nav-tabs (saldo-management etc) */
 body.tk-dark .nav-tabs { border-bottom-color: var(--d-line); }
@@ -508,17 +511,17 @@ body.tk-dark .nav-tabs .nav-link:hover { border-color: var(--d-line) var(--d-lin
 body.tk-dark .nav-tabs .nav-link.active,
 body.tk-dark .nav-tabs .nav-item.show .nav-link { background: var(--d-surface) !important; color: var(--d-ink) !important; border-color: var(--d-line) var(--d-line) var(--d-surface) !important; }
 body.tk-dark .nav-pills .nav-link.active,
-body.tk-dark .nav-pills .show > .nav-link { background: var(--primary, #6366f1) !important; color: #fff !important; }
+body.tk-dark .nav-pills .show > .nav-link { background: var(--primary, var(--indigo-500)) !important; color: #fff !important; }
 
 /* Isolir pages (buka-isolir / custom-isolir) */
 body.tk-dark .isolir-card,
 body.tk-dark .isolir-summary-box,
 body.tk-dark .isolir-note-box { background: var(--d-surface) !important; border-color: var(--d-line) !important; color: var(--d-ink); }
-body.tk-dark .isolir-card.accent-card { border-color: var(--primary, #6366f1) !important; }
+body.tk-dark .isolir-card.accent-card { border-color: var(--primary, var(--indigo-500)) !important; }
 body.tk-dark .isolir-pill { background: var(--d-surface-2) !important; color: var(--d-ink-soft) !important; border-color: var(--d-line) !important; }
-body.tk-dark .isolir-pill.profile { color: #c7d2fe !important; }
-body.tk-dark .isolir-pill.ready { background: rgba(16,185,129,.16) !important; color: #6ee7b7 !important; }
-body.tk-dark .isolir-pill.busy { background: rgba(245,158,11,.16) !important; color: #fcd34d !important; }
+body.tk-dark .isolir-pill.profile { color: var(--indigo-200) !important; }
+body.tk-dark .isolir-pill.ready { background: rgba(16,185,129,.16) !important; color: var(--emerald-300) !important; }
+body.tk-dark .isolir-pill.busy { background: rgba(245,158,11,.16) !important; color: var(--amber-300) !important; }
 
 /* speed-boost-config sections */
 body.tk-dark .settings-section { background: var(--d-surface) !important; border-color: var(--d-line) !important; color: var(--d-ink); }
@@ -527,7 +530,7 @@ body.tk-dark .settings-section { background: var(--d-surface) !important; border
 body.tk-dark .quick-filter-buttons { background: var(--d-surface) !important; border-color: var(--d-line) !important; }
 body.tk-dark .quick-filter-btn { background: var(--d-surface-2) !important; color: var(--d-ink) !important; border-color: var(--d-line) !important; }
 body.tk-dark .quick-filter-btn:hover,
-body.tk-dark .quick-filter-btn.active { background: rgba(99,102,241,.22) !important; color: #c7d2fe !important; border-color: var(--primary, #6366f1) !important; }
+body.tk-dark .quick-filter-btn.active { background: rgba(99,102,241,.22) !important; color: var(--indigo-200) !important; border-color: var(--primary, var(--indigo-500)) !important; }
 body.tk-dark .stat-item { background: var(--d-surface-2) !important; border-color: var(--d-line) !important; color: var(--d-ink); }
 
 /* Leaflet 1.9+ applies `mix-blend-mode: plus-lighter` to map tiles to hide
@@ -540,7 +543,7 @@ body.tk-dark .stat-item { background: var(--d-surface-2) !important; border-colo
 body.tk-dark .placeholder-list li { background: var(--d-surface-2) !important; color: var(--d-ink); border-color: var(--d-line) !important; }
 body.tk-dark .placeholder-list code,
 body.tk-dark pre,
-body.tk-dark code { background: var(--d-raise) !important; color: #c7d2fe !important; border-color: var(--d-line) !important; }
+body.tk-dark code { background: var(--d-raise) !important; color: var(--indigo-200) !important; border-color: var(--d-line) !important; }
 
 /* generic informational box panels */
 body.tk-dark .info-box,
@@ -548,10 +551,10 @@ body.tk-dark .info-card,
 body.tk-dark .hint-box { background: var(--d-surface-2) !important; border-color: var(--d-line) !important; color: var(--d-ink); }
 
 /* psb-rekap status badges */
-body.tk-dark .status-badge.status-completed { background: rgba(16,185,129,.16) !important; color: #6ee7b7 !important; }
-body.tk-dark .status-badge.status-pending { background: rgba(245,158,11,.16) !important; color: #fcd34d !important; }
+body.tk-dark .status-badge.status-completed { background: rgba(16,185,129,.16) !important; color: var(--emerald-300) !important; }
+body.tk-dark .status-badge.status-pending { background: rgba(245,158,11,.16) !important; color: var(--amber-300) !important; }
 body.tk-dark .status-badge.status-cancelled,
-body.tk-dark .status-badge.status-failed { background: rgba(239,68,68,.16) !important; color: #fca5a5 !important; }
+body.tk-dark .status-badge.status-failed { background: rgba(239,68,68,.16) !important; color: var(--red-300) !important; }
 
 /* ============================================================
    DARK MODE — global Bootstrap surfaces yang dipakai popup admin
@@ -701,15 +704,15 @@ body.tk-dark .border-left-danger {
     border-left-width: 4px !important;
     border-left-style: solid !important;
 }
-body.tk-dark .olt-stats-card.online { border-left-color: #34d399 !important; }
+body.tk-dark .olt-stats-card.online { border-left-color: var(--emerald-400) !important; }
 body.tk-dark .olt-stats-card.offline { border-left-color: #6b7280 !important; }
-body.tk-dark .olt-stats-card.los { border-left-color: #fbbf24 !important; }
-body.tk-dark .olt-stats-card.dying-gasp { border-left-color: #f87171 !important; }
-body.tk-dark .border-left-primary { border-left: 4px solid #6366f1 !important; }
-body.tk-dark .border-left-success { border-left: 4px solid #34d399 !important; }
+body.tk-dark .olt-stats-card.los { border-left-color: var(--amber-400) !important; }
+body.tk-dark .olt-stats-card.dying-gasp { border-left-color: var(--red-400) !important; }
+body.tk-dark .border-left-primary { border-left: 4px solid var(--indigo-500) !important; }
+body.tk-dark .border-left-success { border-left: 4px solid var(--emerald-400) !important; }
 body.tk-dark .border-left-info { border-left: 4px solid #38bdf8 !important; }
-body.tk-dark .border-left-warning { border-left: 4px solid #fbbf24 !important; }
-body.tk-dark .border-left-danger { border-left: 4px solid #f87171 !important; }
+body.tk-dark .border-left-warning { border-left: 4px solid var(--amber-400) !important; }
+body.tk-dark .border-left-danger { border-left: 4px solid var(--red-400) !important; }
 
 /* (5) Form-check label di modal/form — Bootstrap warnanya #212529 (default body
    text) → di dark mode jadi "lebih gelap dari gelap". */

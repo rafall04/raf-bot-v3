@@ -17,6 +17,7 @@
 :root {
     /* ── Brand: Indigo ─────────────────────────────────────── */
     --indigo-50: #eef2ff;
+    --indigo-200: #c7d2fe;
     --indigo-300: #a5b4fc;
     --indigo-400: #818cf8;
     --indigo-500: #6366f1; /* warna brand utama */
@@ -43,6 +44,16 @@
     --color-warning-soft: #fffbeb;
     --color-danger: #ef4444;
     --color-danger-soft: #fef2f2;
+
+    /* ── Shade aksen status (dipakai pada mode gelap admin) ── */
+    --emerald-300: #6ee7b7;
+    --emerald-400: #34d399;
+    --amber-300: #fcd34d;
+    --amber-400: #fbbf24;
+    --red-300: #fca5a5;
+    --red-400: #f87171;
+    --blue-300: #93c5fd;
+    --orange-300: #fdba74;
 
     /* ── Skala radius ──────────────────────────────────────── */
     --radius-sm: 12px;
