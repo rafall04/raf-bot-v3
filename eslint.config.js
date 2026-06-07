@@ -56,7 +56,8 @@ const browserGlobals = {
     DOMParser: 'readonly', HTMLElement: 'readonly', Node: 'readonly',
     $: 'readonly', jQuery: 'readonly', Chart: 'readonly', bootstrap: 'readonly',
     io: 'readonly', Swal: 'readonly', feather: 'readonly', moment: 'readonly',
-    L: 'readonly', google: 'readonly', grecaptcha: 'readonly'
+    L: 'readonly', google: 'readonly', grecaptcha: 'readonly',
+    toastr: 'readonly', Notification: 'readonly'
 };
 
 module.exports = [
