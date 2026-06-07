@@ -347,6 +347,16 @@
             });
         }
 
+        // Escape HTML untuk cegah XSS saat merender data pelanggan (mis. nama) via innerHTML.
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function searchCustomer() {
             const searchTerm = document.getElementById('customerSearch').value.toLowerCase().trim();
             const resultsContainer = document.getElementById('customerSearchResults');
@@ -361,7 +371,7 @@
                 filteredCustomers.slice(0, 5).forEach(customer => { // Batasi hasil pencarian misal 5
                     if (!selectedCustomerIds.has(customer.id.toString())) {
                         const div = document.createElement('div');
-                        div.innerHTML = `<span>${customer.name} (ID: ${customer.id}, PPPoE: ${customer.pppoe_username || 'N/A'})</span><button type="button" class="btn btn-sm btn-outline-primary add-customer-btn">Tambah</button>`;
+                        div.innerHTML = `<span>${escapeHtml(customer.name)} (ID: ${escapeHtml(customer.id)}, PPPoE: ${escapeHtml(customer.pppoe_username || 'N/A')})</span><button type="button" class="btn btn-sm btn-outline-primary add-customer-btn">Tambah</button>`;
                         div.querySelector('.add-customer-btn').onclick = (e) => { e.stopPropagation(); selectCustomer(customer); };
                         resultsContainer.appendChild(div);
                     }
@@ -393,7 +403,7 @@
                 const customer = allCustomers.find(c => c.id.toString() === customerId);
                 if (customer) {
                     const div = document.createElement('div');
-                    div.innerHTML = `<span>${customer.name} (ID: ${customer.id}, PPPoE: ${customer.pppoe_username || 'N/A'})</span><button type="button" class="btn btn-sm btn-danger btn-remove-customer"><i class="fas fa-trash"></i></button>`;
+                    div.innerHTML = `<span>${escapeHtml(customer.name)} (ID: ${escapeHtml(customer.id)}, PPPoE: ${escapeHtml(customer.pppoe_username || 'N/A')})</span><button type="button" class="btn btn-sm btn-danger btn-remove-customer"><i class="fas fa-trash"></i></button>`;
                     div.querySelector('.btn-remove-customer').onclick = () => removeCustomer(customerId);
                     selectedContainer.appendChild(div);
                 }
