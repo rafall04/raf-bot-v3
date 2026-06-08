@@ -53,7 +53,7 @@ const browserGlobals = {
     Image: 'readonly', Event: 'readonly', CustomEvent: 'readonly', FileList: 'readonly',
     getComputedStyle: 'readonly', requestAnimationFrame: 'readonly',
     MutationObserver: 'readonly', IntersectionObserver: 'readonly', ResizeObserver: 'readonly',
-    DOMParser: 'readonly', HTMLElement: 'readonly', Node: 'readonly',
+    DOMParser: 'readonly', HTMLElement: 'readonly', Node: 'readonly', Option: 'readonly',
     $: 'readonly', jQuery: 'readonly', Chart: 'readonly', bootstrap: 'readonly',
     io: 'readonly', Swal: 'readonly', feather: 'readonly', moment: 'readonly',
     L: 'readonly', google: 'readonly', grecaptcha: 'readonly',
