@@ -2,16 +2,11 @@
 <html lang="id">
 
 <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>RAF BOT - Kasbon Teknisi</title>
-
-    <link href="/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="/css/sb-admin-2.min.css" rel="stylesheet">
-    <link href="/css/dashboard-modern.css" rel="stylesheet">
-    <link href="/css/teknisi-theme.css" rel="stylesheet">
+    <?php
+    $pageTitle = 'RAF BOT - Kasbon Teknisi';
+    $themeRole = 'teknisi';
+    include __DIR__ . '/_head.php';
+    ?>
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     <style>
         /* Page-specific: kasbon submission form */
