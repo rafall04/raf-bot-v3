@@ -11,17 +11,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta name="description" content="RAF BOT Auto Outage">
-  <meta name="author" content="RAF BOT">
-  <title>RAF BOT - Auto Outage</title>
-  <link href="/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link href="/css/sb-admin-2.min.css" rel="stylesheet">
-  <link href="/css/admin-theme.css" rel="stylesheet">
-  <link href="/css/dashboard-modern.css" rel="stylesheet">
+    <?php
+    $pageTitle = 'RAF BOT - Auto Outage';
+    $themeRole = 'admin';
+    $pageDescription = 'RAF BOT Auto Outage';
+    include __DIR__ . '/_head.php';
+    ?>
+
   <style>
     .ao-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 1rem; }
     .ao-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; box-shadow: 0 12px 30px rgba(15,23,42,0.06); }
