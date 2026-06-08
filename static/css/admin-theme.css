@@ -926,3 +926,23 @@ body:not(.tk-dark) .bg-gradient-primary {
     background-color: var(--indigo-500);
     background-image: linear-gradient(180deg, var(--indigo-500) 10%, var(--indigo-700) 100%);
 }
+
+/* — Bentuk modern (mode terang): radius tombol + dropdown lebih lembut.
+   Radius .btn tak merusak .btn-group: aturan sudut-dalam Bootstrap lebih
+   spesifik sehingga tetap menang. — */
+body:not(.tk-dark) .btn {
+    border-radius: 0.5rem;
+}
+body:not(.tk-dark) .btn-sm,
+body:not(.tk-dark) .btn-group-sm > .btn {
+    border-radius: 0.4rem;
+}
+body:not(.tk-dark) .dropdown-menu {
+    border-radius: 0.6rem;
+    border-color: var(--slate-200);
+    box-shadow: 0 0.5rem 1.5rem rgba(15, 23, 42, 0.12);
+    padding: 0.35rem;
+}
+body:not(.tk-dark) .dropdown-item {
+    border-radius: 0.4rem;
+}
