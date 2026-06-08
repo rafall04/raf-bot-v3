@@ -882,13 +882,14 @@ label, .form-group > label {
    hardcoded / bootstrap surface so no light patches leak through.
    ============================================================ */
 body.tk-dark {
-    --tk-ink: #e6eaf2;
-    --tk-ink-soft: #aab4c5;
-    --tk-muted: #7b879c;
-    --tk-line: #2b3852;
-    --tk-surface: #1b2436;
-    --tk-surface-2: #232f45;
-    --tk-canvas: #0e1521;
+    /* Surface gelap dari primitif kanonik (selaras dengan admin). */
+    --tk-ink: var(--dark-ink);
+    --tk-ink-soft: var(--dark-ink-soft);
+    --tk-muted: var(--dark-muted);
+    --tk-line: #2b3852; /* border solid khas teknisi (belum diunifikasi) */
+    --tk-surface: var(--dark-surface);
+    --tk-surface-2: var(--dark-surface-2);
+    --tk-canvas: var(--dark-canvas);
     --tk-primary-soft: rgba(99, 102, 241, 0.22);
     --tk-success-soft: rgba(16, 185, 129, 0.16);
     --tk-info-soft: rgba(59, 130, 246, 0.16);

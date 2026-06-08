@@ -59,4 +59,17 @@
     --radius-sm: 12px;
     --radius-lg: 18px;
     --radius-pill: 999px;
+
+    /* ── Surface gelap kanonik (body.tk-dark — admin & teknisi) ──
+       Palet "elegant deep-slate" yang dulu hanya di admin-theme.css;
+       kini sumber tunggal agar mode gelap kedua panel konsisten. */
+    --dark-canvas: #0a0e17;
+    --dark-raise: #0f1420;
+    --dark-surface: #141b29;
+    --dark-surface-2: #1d2740;
+    --dark-ink: #e9eef8;
+    --dark-ink-soft: #aab6cb;
+    --dark-muted: #6b7689;
+    --dark-line: rgba(148, 163, 184, 0.1);
+    --dark-line-2: rgba(148, 163, 184, 0.18);
 }

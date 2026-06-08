@@ -21,15 +21,15 @@ body.tk-dark {
     /* ── Elegant deep-slate palette (cohesive with indigo accent) ──
        Cleaner, deeper canvas → crisper card elevation; translucent borders
        (no heavy navy lines); soft shadows give depth instead of flat black. */
-    --d-canvas:     #0a0e17;   /* page background (darkest) */
-    --d-raise:      #0f1420;   /* recessed: table head/footer, inputs-disabled */
-    --d-surface:    #141b29;   /* cards / panels (clearly above canvas) */
-    --d-surface-2:  #1d2740;   /* elevated / hover / nested */
-    --d-line:       rgba(148, 163, 184, 0.10);   /* soft translucent hairline */
-    --d-line-2:     rgba(148, 163, 184, 0.18);   /* stronger (hover/active) */
-    --d-ink:        #e9eef8;   /* primary text (high contrast) */
-    --d-ink-soft:   #aab6cb;   /* secondary text */
-    --d-muted:      #6b7689;   /* tertiary / hints */
+    --d-canvas:     var(--dark-canvas);     /* page background (darkest) */
+    --d-raise:      var(--dark-raise);      /* recessed: table head/footer, inputs-disabled */
+    --d-surface:    var(--dark-surface);    /* cards / panels (clearly above canvas) */
+    --d-surface-2:  var(--dark-surface-2);  /* elevated / hover / nested */
+    --d-line:       var(--dark-line);       /* soft translucent hairline */
+    --d-line-2:     var(--dark-line-2);     /* stronger (hover/active) */
+    --d-ink:        var(--dark-ink);        /* primary text (high contrast) */
+    --d-ink-soft:   var(--dark-ink-soft);   /* secondary text */
+    --d-muted:      var(--dark-muted);      /* tertiary / hints */
     --d-accent:     var(--indigo-400);   /* indigo-300, pops on dark */
     --d-elev-1: 0 1px 2px rgba(0,0,0,0.35), 0 6px 18px -8px rgba(0,0,0,0.45);
     --d-elev-2: 0 10px 34px -12px rgba(0,0,0,0.6), 0 2px 8px -4px rgba(0,0,0,0.4);
