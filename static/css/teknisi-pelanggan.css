@@ -1,0 +1,329 @@
+        .map-in-modal { height: 280px; width: 100%; margin-bottom: 15px; border: 1px solid #ddd; border-radius: .35rem; }
+        .modal-lg { max-width: 800px; }
+        .form-label { margin-bottom: .3rem; font-size: 0.8rem; font-weight: 500; }
+        .form-control-sm { font-size: 0.8rem; padding: .25rem .5rem; height: calc(1.5em + .5rem + 2px); }
+        .btn-sm { padding: .25rem .5rem; font-size: .75rem; }
+        .modal-body { max-height: calc(100vh - 200px); overflow-y: auto; }
+        .select2-container--bootstrap .select2-selection--single { height: calc(1.5em + .75rem + 2px)!important; padding: .375rem .75rem!important; }
+        .select2-container--bootstrap .select2-selection--single .select2-selection__rendered { line-height: 1.5 !important; }
+        .phone-number-item { margin-bottom: 0.5rem; }
+        /* Added for SSID Modal */
+        #edit-ssid-container .form-group, #edit-ssid-passwd-container .form-group { margin-bottom: 0.75rem; }
+        .loading-spinner-container { text-align: center; padding: 20px; }
+
+        /* --- Modernized Sidebar Styles --- */
+        #accordionSidebar .sidebar-brand .sidebar-brand-text {
+            font-weight: 700; /* Make brand text slightly bolder */
+        }
+
+        #accordionSidebar .nav-item .nav-link {
+            padding: 0.85rem 1.1rem; /* Slightly more padding */
+            letter-spacing: 0.02em; /* Subtle letter spacing */
+            transition: all 0.2s ease-in-out; /* Smoother transitions */
+        }
+
+        #accordionSidebar .nav-item .nav-link i.fas {
+            margin-right: 0.75rem; /* Increase space between icon and text */
+            font-size: 0.9rem; /* Slightly adjust icon size */
+            width: 1.25em; /* Ensure icons align well */
+        }
+
+        /* Style for active nav item */
+        #accordionSidebar .nav-item.active .nav-link {
+            background-color: rgba(255, 255, 255, 0.1); /* Subtle background for active item */
+            font-weight: 600; /* Make active item text slightly bolder */
+            border-left: 3px solid #4e73df; /* Primary color left border for active item */
+            color: #ffffff; /* Ensure text is white */
+        }
+        #accordionSidebar .nav-item.active .nav-link i {
+            color: #ffffff; /* Ensure icon is white */
+        }
+         #accordionSidebar .nav-item.active .nav-link span {
+            color: #ffffff; /* Ensure text is white */
+        }
+
+        #accordionSidebar .nav-item:hover .nav-link:not([aria-expanded="true"]) { /* Avoid changing style of expanded accordions headers on hover */
+           background-color: rgba(255, 255, 255, 0.05); /* Subtle hover */
+        }
+        /* Ensure the active item's style takes precedence over hover */
+        #accordionSidebar .nav-item.active:hover .nav-link {
+             background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Sidebar Headings */
+        #accordionSidebar .sidebar-heading {
+            font-size: 0.7rem; /* Slightly larger and clearer heading */
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: rgba(255, 255, 255, 0.7); /* Lighter color for headings to differentiate */
+            padding: 0.5rem 1.1rem; /* Match nav-link horizontal padding */
+            margin-top: 0.75rem; /* More space above headings */
+            margin-bottom: 0.25rem;
+        }
+
+        /* When sidebar is toggled (icon view) */
+        #accordionSidebar.toggled .nav-item .nav-link {
+            padding: 0.75rem 0.75rem; /* Adjust padding for icon-only view */
+            justify-content: center;
+        }
+        #accordionSidebar.toggled .nav-item.active .nav-link {
+            padding-left: calc(0.75rem - 3px); /* Account for border */
+        }
+
+        #accordionSidebar.toggled .nav-item .nav-link i.fas {
+            margin-right: 0; /* No margin when icon only */
+            font-size: 1rem; /* Icons can be slightly larger in toggled view */
+        }
+         #accordionSidebar.toggled .sidebar-brand .sidebar-brand-icon i {
+            font-size: 1.5rem; /* Make brand icon a bit more prominent when toggled */
+        }
+
+        /* Style for collapsed menu items in the sidebar */
+        #accordionSidebar .collapse-inner {
+            border-radius: 0.35rem; /* Match card radius */
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+        }
+        #accordionSidebar .collapse-inner .collapse-item {
+            padding: 0.6rem 1.5rem; /* More padding for sub-items */
+            font-size: 0.8rem;
+            transition: background-color 0.2s ease-in-out, padding-left 0.2s ease-in-out;
+            color: #3a3b45; /* Darker text for better readability on white bg */
+        }
+        #accordionSidebar .collapse-inner .collapse-item:hover,
+        #accordionSidebar .collapse-inner .collapse-item:focus {
+            background-color: #eaecf4; /* Standard hover for light background submenus */
+            padding-left: 1.7rem; /* Indent on hover for feedback */
+            color: #2e2f37;
+        }
+        #accordionSidebar .collapse-inner .collapse-item.active {
+            background-color: #e0e3eb; /* Active state for sub-items */
+            font-weight: 600;
+            color: #4e73df; /* Primary color for active sub-item */
+        }
+        #accordionSidebar .collapse-inner .collapse-header {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #858796; /* Darker text for headers in light submenus */
+            margin: 0.75rem 1.5rem 0.25rem 1.5rem; /* Adjusted margin */
+            padding: 0;
+        }
+        /* CSS for GPS button on Leaflet map */
+        .leaflet-control-custom {
+            background-color: white;
+            border: 2px solid rgba(0,0,0,0.2);
+            border-radius: 4px;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            text-align: center;
+            cursor: pointer;
+        }
+        .leaflet-control-custom i {
+            font-size: 16px;
+            color: #007bff; /* Bootstrap primary color */
+        }
+        /* MODIFIED: Added CSS for Leaflet layer control in modal */
+        .leaflet-control-layers {
+            font-size: 0.8rem;
+        }
+        .leaflet-control-layers-expanded {
+             padding: 6px 10px 6px 6px;
+        }
+        
+        /* Ensure proper spacing between buttons */
+        #refreshPppoeBtn,
+        #refreshDataBtn {
+            margin-bottom: 0 !important;
+        }
+
+        /* --- DataTable Show Entries Refinement --- */
+        .dataTables_length {
+            /* Minor padding adjustment for alignment with other controls like search bar */
+            padding-top: 0.1rem;
+            padding-bottom: 0.5rem; /* Add some space below, especially on mobile */
+        }
+
+        .dataTables_length label {
+            display: flex;          /* Use flexbox for the label content */
+            align-items: center;    /* Vertically align "Show", select, and "entries" */
+            gap: 0.4em;             /* Provides spacing between "Show", select, and "entries" */
+            font-size: 0.875rem;    /* Adjust font size as needed, matches common small text in admin panels */
+            margin-bottom: 0;       /* Remove any default bottom margin from the label itself */
+            white-space: nowrap;    /* Prevents the label text from wrapping in awkward places */
+        }
+
+        .dataTables_length label select.form-control,
+        .dataTables_length label select.custom-select {
+            width: auto;            /* Allows the select box to size to its content (e.g., "10", "100") */
+            font-size: 0.875rem;    /* Match font size with the label text */
+            padding-left: 0.5rem;   /* Adjust padding if necessary */
+            padding-right: 1.75rem; /* Ensure space for dropdown arrow in custom-select */
+            flex-shrink: 0;         /* Prevent the select box from shrinking too much */
+        }
+
+        /* Adjustments for smaller screens */
+        @media (max-width: 767.98px) { /* Affects screens smaller than md Bootstrap breakpoint */
+            /* "Show entries" alignment */
+            div.dataTables_wrapper div.dataTables_length {
+                text-align: left;   /* Align the "Show entries" control to the left on mobile */
+            }
+            .dataTables_length label {
+                justify-content: flex-start; /* Align items within the "Show entries" label to the start (left) */
+            }
+
+            /* "Search" input alignment and positioning */
+            div.dataTables_wrapper div.dataTables_filter {
+                text-align: left; /* Override DataTables' default 'text-align: right' for the filter container */
+                margin-top: 0.5rem; /* Add top margin to separate "Search" from "Show entries" */
+            }
+
+            /* Styling for the label containing "Search:" text and the input field */
+            div.dataTables_wrapper div.dataTables_filter label {
+                display: flex;          /* Use flexbox to manage "Search:" text and input field */
+                align-items: center;    /* Vertically align "Search:" text and input field */
+                width: 100%;            /* Make the label span the full width of its container */
+                gap: 0.4em;             /* Creates space between "Search:" text and the input field */
+                font-size: 0.875rem;    /* Consistent font size */
+                margin-bottom: 0;       /* Remove any default bottom margin from the label */
+                white-space: nowrap;    /* Keep "Search:" text on one line */
+            }
+
+            /* Styling for the search input field itself */
+            div.dataTables_wrapper div.dataTables_filter input.form-control,
+            div.dataTables_wrapper div.dataTables_filter input[type="search"] {
+                flex-grow: 1;           /* Allows the input field to take up the remaining horizontal space */
+                margin-left: 0;         /* Remove default margin-left from DataTables as 'gap' on parent label handles spacing */
+                width: auto;            /* Let flex-grow manage the width of the input field */
+            }
+        }
+        /* Style for action button group */
+        .device-action-group {
+            display: flex;
+            flex-wrap: wrap; /* Allow buttons to wrap to next line if space is limited */
+            gap: 5px; /* Space between buttons */
+            margin-bottom: 5px; /* Space below the group */
+        }
+        /* CSS to initially hide the columns */
+        .hidden-column {
+            display: none !important; /* Forces the column to be hidden */
+        }
+        
+        /* ===== MOBILE RESPONSIVE STYLES ===== */
+        @media (max-width: 768px) {
+            .container-fluid {
+                padding: 0.75rem;
+            }
+            
+            /* Page Header */
+            h1.h3 {
+                font-size: 1.25rem;
+            }
+            
+            /* Card adjustments */
+            .card-body {
+                padding: 1rem;
+            }
+            
+            .card-header {
+                padding: 0.75rem 1rem;
+            }
+            
+            .card-header .d-flex {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .card-header .d-flex > div {
+                width: 100%;
+                display: flex;
+                gap: 0.5rem;
+            }
+            
+            .card-header .btn {
+                flex: 1;
+            }
+            
+            /* Filter row */
+            .row.mt-3 .col-md-3 {
+                margin-bottom: 0.5rem;
+            }
+            
+            /* Table responsive */
+            .table-responsive {
+                font-size: 0.8rem;
+            }
+            
+            .table td, .table th {
+                padding: 0.5rem;
+                white-space: nowrap;
+            }
+            
+            /* Modal adjustments */
+            .modal-dialog {
+                margin: 0.5rem;
+                max-width: calc(100% - 1rem);
+            }
+            
+            .modal-body {
+                max-height: calc(100vh - 150px);
+                padding: 1rem;
+            }
+            
+            .modal-lg {
+                max-width: calc(100% - 1rem);
+            }
+            
+            /* Form controls */
+            .form-control, .form-control-sm, select {
+                font-size: 16px !important; /* Prevents zoom on iOS */
+            }
+            
+            /* Select2 mobile */
+            .select2-container {
+                width: 100% !important;
+            }
+            
+            /* Map in modal */
+            .map-in-modal {
+                height: 200px;
+            }
+            
+            /* Action buttons */
+            .device-action-group {
+                flex-direction: column;
+            }
+            
+            .device-action-group .btn {
+                width: 100%;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .container-fluid {
+                padding: 0.5rem;
+            }
+            
+            h1.h3 {
+                font-size: 1.1rem;
+            }
+            
+            .card-body {
+                padding: 0.75rem;
+            }
+            
+            /* Table extra small */
+            .table-responsive {
+                font-size: 0.75rem;
+            }
+            
+            .table td, .table th {
+                padding: 0.35rem;
+            }
+            
+            /* Map in modal extra small */
+            .map-in-modal {
+                height: 180px;
+            }
+        }

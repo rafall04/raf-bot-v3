@@ -1,0 +1,412 @@
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --info: #3b82f6;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1f2937;
+            --light: #f9fafb;
+            --border-radius: 12px;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f3f4f6;
+            min-height: 100vh;
+        }
+
+        .dashboard-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .dashboard-header h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .dashboard-header p {
+            color: #6b7280;
+            font-size: 0.95rem;
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 1.25rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #e5e7eb;
+        }
+
+        .stats-card .stats-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .stats-card .stats-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .stats-card .stats-label {
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+
+        .card-modern {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #e5e7eb;
+        }
+
+        .card-modern .card-header {
+            background: transparent;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 1rem 1.25rem;
+        }
+
+        .card-modern .card-body {
+            padding: 1.25rem;
+        }
+
+        .btn-primary-modern {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 0.875rem 1.75rem;
+            font-weight: 600;
+            font-size: 1rem;
+            color: white;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-primary-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+            color: white;
+        }
+
+        .btn-primary-modern i {
+            margin-right: 0.5rem;
+        }
+
+        .table-import {
+            font-size: 0.875rem;
+        }
+
+        .table-import th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: var(--dark);
+            border-bottom: 2px solid #e5e7eb;
+            white-space: nowrap;
+        }
+
+        .table-import td {
+            vertical-align: middle;
+        }
+
+        .table-import .form-control {
+            font-size: 0.875rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            min-width: 120px;
+        }
+
+        .table-import .input-phone {
+            min-width: 140px;
+        }
+
+        .table-import .device-select,
+        .table-import .select-device {
+            min-width: 220px;
+        }
+
+        .table-import .input-name {
+            min-width: 150px;
+        }
+
+        .table-import .input-address {
+            min-width: 130px;
+        }
+
+        .phone-container {
+            min-width: 180px;
+        }
+
+        .phone-container .phone-field-item {
+            align-items: center;
+        }
+
+        .phone-container .input-phone {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .phone-container .btn-remove-phone {
+            padding: 0.2rem 0.4rem;
+            font-size: 0.7rem;
+        }
+
+        .phone-container .btn-add-phone {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.5rem;
+        }
+
+        .table-import .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .table-import tr.selected {
+            background-color: rgba(99, 102, 241, 0.05);
+        }
+
+        .table-import tr.disabled-row {
+            opacity: 0.5;
+            background-color: #f9fafb;
+        }
+
+        .badge-profile {
+            font-size: 0.75rem;
+            padding: 0.35rem 0.65rem;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .badge-disabled {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+
+        .badge-active {
+            background-color: #d1fae5;
+            color: #059669;
+        }
+
+        .validation-icon {
+            font-size: 0.875rem;
+        }
+
+        .validation-icon.valid {
+            color: var(--success);
+        }
+
+        .validation-icon.invalid {
+            color: var(--danger);
+        }
+
+        .filter-section {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .default-settings {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 8px;
+            padding: 1rem;
+            border: 1px solid #bae6fd;
+        }
+
+        .ssid-checkbox {
+            display: inline-flex;
+            align-items: center;
+            margin-right: 1rem;
+        }
+
+        .ssid-checkbox input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 0.5rem;
+        }
+
+        .progress-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .progress-card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            min-width: 400px;
+            text-align: center;
+        }
+
+        .import-counter {
+            font-size: 1rem;
+            color: var(--dark);
+            font-weight: 500;
+        }
+
+        .import-counter .count-ready {
+            color: var(--success);
+            font-weight: 700;
+        }
+
+        .import-counter .count-incomplete {
+            color: var(--warning);
+            font-weight: 700;
+        }
+
+        .password-toggle {
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        .password-toggle:hover {
+            color: var(--primary);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #6b7280;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Device Sync Styles */
+        .device-sync-section {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid #f59e0b;
+        }
+
+        .device-sync-section h6 {
+            color: #92400e;
+        }
+
+        .btn-sync-device {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            border: none;
+            color: white;
+            font-weight: 600;
+        }
+
+        .btn-sync-device:hover {
+            background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+            color: white;
+        }
+
+        .device-select {
+            min-width: 200px;
+        }
+
+        .device-matched {
+            background-color: #d1fae5 !important;
+        }
+
+        .device-manual {
+            background-color: #fef3c7 !important;
+        }
+
+        .sync-status {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .sync-status.matched {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        .sync-status.manual {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .sync-status.not-found {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        /* SSID Preset Buttons */
+        .ssid-preset-btn {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+        }
+
+        .ssid-checkbox small {
+            font-size: 0.7rem;
+        }
+
+        /* SSID Row Selector */
+        .ssid-row-selector {
+            min-width: 100px;
+        }
+
+        .ssid-row-selector .ssid-mini-checkbox {
+            display: inline-block;
+            margin: 1px;
+        }
+
+        .ssid-row-selector .ssid-mini-checkbox input {
+            width: 14px;
+            height: 14px;
+        }
+
+        .ssid-row-selector .ssid-mini-checkbox label {
+            font-size: 0.65rem;
+            margin-left: 1px;
+            cursor: pointer;
+        }
+
+        .ssid-row-buttons {
+            margin-top: 4px;
+        }
+
+        .ssid-row-buttons .btn {
+            font-size: 0.6rem;
+            padding: 1px 4px;
+        }
+
+        /* Select2 custom styling */
+        .select2-container--bootstrap .select2-selection--single {
+            height: calc(1.5em + .75rem + 2px) !important;
+            padding: .375rem .75rem !important;
+            border-radius: 6px !important;
+            font-size: 0.875rem !important;
+        }
+
+        .select2-container--bootstrap .select2-selection--single .select2-selection__rendered {
+            line-height: 1.5 !important;
+            padding-left: 0 !important;
+        }
+
+        .select2-container--bootstrap .select2-results__option {
+            font-size: 0.8rem;
+            padding: 6px 12px;
+        }
+
+        .select2-container--bootstrap .select2-results__option small {
+            display: block;
+            color: #6b7280;
+        }
