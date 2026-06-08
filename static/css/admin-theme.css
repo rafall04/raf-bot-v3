@@ -1,7 +1,7 @@
 /* ============================================================
    RAF BOT · Admin theme
    - Modern sidebar (indigo glow + search filter)
-   - Dark mode (body.tk-dark) — light mode untouched
+   - Dark mode (body.tk-dark) + lapisan modern mode terang (brand indigo + micro-interaksi)
    ============================================================ */
 
 /* Primitif desain bersama (skala indigo/slate/semantic + shade status). */
@@ -818,3 +818,61 @@ body.tk-dark .olt-empty-title,
 body.tk-dark .olt-empty .small { color: var(--d-ink) !important; }
 body.tk-dark .olt-empty > i { color: var(--d-muted) !important; }
 body.tk-dark .olt-empty .small { color: var(--d-ink-soft) !important; }
+
+/* ============================================================
+   LIGHT MODE — LAPISAN MODERN (admin)
+   Menyelaraskan mode terang admin ke brand indigo (token). Selama ini
+   'primary' mode terang masih biru lawas SB Admin 2 (#4e73df) padahal
+   sidebar, mode gelap, & teknisi sudah indigo (#6366f1). Plus
+   micro-interaksi (hover/focus/transisi). Mode gelap: lihat body.tk-dark.
+   ============================================================ */
+
+/* — Samakan 'primary' mode terang ke indigo — */
+body:not(.tk-dark) .btn-primary {
+    background-color: var(--indigo-500);
+    border-color: var(--indigo-500);
+}
+body:not(.tk-dark) .btn-primary:hover,
+body:not(.tk-dark) .btn-primary:focus,
+body:not(.tk-dark) .btn-primary:active {
+    background-color: var(--indigo-600) !important;
+    border-color: var(--indigo-600) !important;
+}
+body:not(.tk-dark) .btn-primary:focus,
+body:not(.tk-dark) .btn-primary.focus {
+    box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.5);
+}
+body:not(.tk-dark) .btn-outline-primary {
+    color: var(--indigo-500);
+    border-color: var(--indigo-500);
+}
+body:not(.tk-dark) .btn-outline-primary:hover {
+    background-color: var(--indigo-500);
+    border-color: var(--indigo-500);
+    color: #fff;
+}
+body:not(.tk-dark) .text-primary { color: var(--indigo-500) !important; }
+body:not(.tk-dark) .bg-primary { background-color: var(--indigo-500) !important; }
+body:not(.tk-dark) .border-left-primary { border-left-color: var(--indigo-500) !important; }
+
+/* — Micro-interaksi modern (mode terang) — */
+body:not(.tk-dark) .card {
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+body:not(.tk-dark) .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.75rem 1.5rem rgba(15, 23, 42, 0.1);
+}
+body:not(.tk-dark) .btn {
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
+}
+body:not(.tk-dark) .btn:hover {
+    transform: translateY(-1px);
+}
+body:not(.tk-dark) .btn:active {
+    transform: translateY(0);
+}
+body:not(.tk-dark) .form-control:focus {
+    border-color: var(--indigo-400);
+    box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.2);
+}
