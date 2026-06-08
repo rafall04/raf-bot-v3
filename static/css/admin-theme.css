@@ -946,3 +946,31 @@ body:not(.tk-dark) .dropdown-menu {
 body:not(.tk-dark) .dropdown-item {
     border-radius: 0.4rem;
 }
+
+/* — Modal lebih modern (mode terang): sudut lebih bulat, tanpa border,
+   shadow berlapis. Radius header/footer diselaraskan agar sudut bersih. — */
+body:not(.tk-dark) .modal-content {
+    border: none;
+    border-radius: 0.75rem;
+    box-shadow: 0 1rem 3rem rgba(15, 23, 42, 0.2);
+}
+body:not(.tk-dark) .modal-header {
+    border-top-left-radius: 0.75rem;
+    border-top-right-radius: 0.75rem;
+}
+body:not(.tk-dark) .modal-footer {
+    border-bottom-left-radius: 0.75rem;
+    border-bottom-right-radius: 0.75rem;
+}
+
+/* — Input & select: radius selaras tombol (0.5rem). Input-group tetap
+   utuh (aturan sudut Bootstrap lebih spesifik). — */
+body:not(.tk-dark) .form-control,
+body:not(.tk-dark) .custom-select {
+    border-radius: 0.5rem;
+}
+
+/* — Alert lebih lembut — */
+body:not(.tk-dark) .alert {
+    border-radius: 0.6rem;
+}
