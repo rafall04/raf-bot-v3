@@ -1,0 +1,1541 @@
+        /* Ensure sidebar navbar sits above the Leaflet map (which uses high z-index).
+           Scoped to desktop only — on mobile the sidebar uses position:fixed for the
+           drawer; forcing `position:relative` there breaks the slide-out and leaves
+           the sidebar squashed in-flow at ~146px instead of opening as a 240px drawer. */
+        @media (min-width: 768px) {
+            #accordionSidebar {
+                z-index: 1200 !important;
+                position: relative !important;
+            }
+        }
+        /* Mobile sidebar must keep its fixed-position drawer; just lift z-index. */
+        @media (max-width: 767.98px) {
+            #accordionSidebar { z-index: 1200 !important; }
+        }
+        
+        /* Ensure sidebar collapse menus are above content */
+        #accordionSidebar .collapse,
+        #accordionSidebar .collapsing,
+        #accordionSidebar .collapse.show {
+            z-index: 1201 !important;
+        }
+        
+        /* Ensure sidebar dropdown inner content is clickable */
+        #accordionSidebar .collapse-inner {
+            z-index: 1202 !important;
+            position: relative !important;
+        }
+        
+        /* Map-specific styles only - let sb-admin-2.css handle the layout */
+        #content { 
+            flex-grow: 1; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+        }
+        
+        #content .container-fluid {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            overflow: hidden;
+        }
+        
+        /* Mobile optimizations for container */
+        @media (max-width: 768px) {
+            #content .container-fluid {
+                padding: 0.5rem !important;
+                width: 100%;
+            }
+            
+            .navbar.topbar.mb-2 {
+                margin-bottom: 0 !important;
+            }
+            
+            /* Fix untuk modal yang terpotong di mobile */
+            .modal-dialog {
+                margin: 0.5rem;
+                max-width: calc(100% - 1rem);
+            }
+            
+            .modal-body {
+                max-height: calc(100vh - 150px);
+                padding: 0.75rem;
+            }
+        }
+        #mapContainer {
+            position: relative;
+            width: 100%;
+            flex-grow: 1;
+            /* Scale with viewport so the map is actually usable (was a flat 400px). */
+            min-height: clamp(420px, calc(100vh - 300px), 820px);
+            border-radius: .35rem;
+            box-shadow: 0 .15rem 1.75rem 0 rgba(58,59,69,.15)!important;
+            overflow: hidden;
+            z-index: 1 !important;
+        }
+        @media (max-width: 767.98px) {
+            #mapContainer { min-height: clamp(360px, calc(100vh - 220px), 640px); }
+        }
+        #interactiveMap {
+            width: 100%;
+            height: 100%;
+            border-radius: .35rem;
+            background-color: #f0f0f0;
+            z-index: 1 !important;
+        }
+
+        #mapContainer:-webkit-full-screen { width: 100vw; height: 100vh; padding: 0; margin: 0; background-color: #fff; }
+        #mapContainer:-moz-full-screen { width: 100vw; height: 100vh; padding: 0; margin: 0; background-color: #fff; }
+        #mapContainer:-ms-fullscreen { width: 100vw; height: 100vh; padding: 0; margin: 0; background-color: #fff; }
+        #mapContainer:fullscreen { width: 100vw; height: 100vh; padding: 0; margin: 0; background-color: #fff; }
+
+        #mapContainer:-webkit-full-screen #interactiveMap,
+        #mapContainer:-moz-full-screen #interactiveMap,
+        #mapContainer:-ms-fullscreen #interactiveMap,
+        #mapContainer:fullscreen #interactiveMap {
+            height: 100% !important;
+            width: 100% !important;
+            min-height: 100% !important;
+            border-radius: 0;
+        }
+
+        body:has(#mapContainer:fullscreen) #accordionSidebar,
+        body:has(#mapContainer:fullscreen) .navbar,
+        body:has(#mapContainer:fullscreen) .sticky-footer,
+        body:has(#mapContainer:fullscreen) .map-instructions-header,
+        body:has(#mapContainer:fullscreen) #globalMessageMap,
+        body:has(#mapContainer:fullscreen) .scroll-to-top,
+        body:has(#mapContainer:fullscreen) .h4.mb-0.text-gray-800.d-none.d-md-inline-block
+        {
+            display: none !important;
+        }
+         body:has(#mapContainer:fullscreen) #content-wrapper {
+            padding: 0 !important;
+            margin: 0 !important;
+            height: 100vh;
+         }
+         body:has(#mapContainer:fullscreen) #content {
+            height: 100vh;
+         }
+         body:has(#mapContainer:fullscreen) .container-fluid {
+            padding: 0 !important;
+            height: 100%;
+         }
+
+        .leaflet-popup-content-wrapper { border-radius: 5px; }
+        .leaflet-popup-content { font-size: 0.9rem; line-height: 1.4; max-width: 380px !important; }
+        .leaflet-popup-content b { color: #4e73df; display: block; margin-bottom: 3px; }
+        .leaflet-popup-content p { margin: 4px 0; font-size: 0.85rem; word-wrap: break-word; }
+        .leaflet-popup-content button { margin-top: 8px; margin-right: 5px;}
+        
+        .legend { padding: 6px 8px; font: 14px/16px Arial, Helvetica, sans-serif; background: white; background: rgba(255,255,255,0.9); box-shadow: 0 0 15px rgba(0,0,0,0.2); border-radius: 5px; line-height: 24px; color: #555; max-width: 250px;}
+        .legend i {
+            vertical-align: middle;
+            margin-right: 8px;
+            font-size: 18px;
+        }
+        .legend span > i {
+             text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+        }
+         .legend hr {
+            margin-top: 8px;
+            margin-bottom: 8px;
+            border: 0;
+            border-top: 1px solid #ccc;
+        }
+
+        .select2-container .select2-selection--single { height: calc(1.5em + .75rem + 2px)!important; padding: .375rem .75rem!important; line-height: 1.5; }
+        .select2-container--bootstrap .select2-selection--single .select2-selection__rendered { line-height: calc(1.5em + .75rem)!important; padding-left: 0 !important; }
+        .select2-container--bootstrap .select2-selection--single .select2-selection__arrow { height: calc(1.5em + .75rem + 2px)!important; }
+
+        .map-instructions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background-color: #f8f9fc;
+            border: 1px solid #e3e6f0;
+            border-radius: .35rem;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            flex-wrap: wrap;
+        }
+
+        .modal-body { max-height: calc(100vh - 210px); overflow-y: auto; }
+        .modal-lg { max-width: 800px; }
+        .modal-xl { max-width: 1140px; }
+        
+        /* CRITICAL FIX: Ensure modals and popups are visible in fullscreen mode */
+        .modal { z-index: 10000 !important; }
+        .modal-backdrop { z-index: 9999 !important; }
+        
+        /* Ensure leaflet popups are also visible in fullscreen */
+        .leaflet-popup { z-index: 9998 !important; }
+        .leaflet-popup-pane { z-index: 9998 !important; }
+        
+        /* Tooltip should also be visible */
+        .leaflet-tooltip { z-index: 9997 !important; }
+        .leaflet-tooltip-pane { z-index: 9997 !important; }
+        
+        /* Ensure proper stacking of leaflet layers */
+        .leaflet-overlay-pane { z-index: 400 !important; }
+        .leaflet-shadow-pane { z-index: 500 !important; }
+        .leaflet-marker-pane { z-index: 600 !important; }
+        
+        /* Additional fullscreen-specific fixes */
+        #mapContainer:fullscreen .modal,
+        #mapContainer:-webkit-full-screen .modal,
+        #mapContainer:-moz-full-screen .modal,
+        #mapContainer:-ms-fullscreen .modal {
+            z-index: 10000 !important;
+        }
+        
+        #mapContainer:fullscreen .modal-backdrop,
+        #mapContainer:-webkit-full-screen .modal-backdrop,
+        #mapContainer:-moz-full-screen .modal-backdrop,
+        #mapContainer:-ms-fullscreen .modal-backdrop {
+            z-index: 9999 !important;
+        }
+
+        .form-label { margin-bottom: .3rem; font-size: 0.8rem; font-weight: 500; }
+        .form-control-sm { font-size: 0.8rem; padding: .25rem .5rem; height: calc(1.5em + .5rem + 2px); }
+
+        #manualFullscreenBtn {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+            padding: 6px 10px;
+        }
+        #mapContainer:fullscreen #manualFullscreenBtn,
+        #mapContainer:-webkit-full-screen #manualFullscreenBtn,
+        #mapContainer:-moz-full-screen #manualFullscreenBtn,
+        #mapContainer:-ms-fullscreen #manualFullscreenBtn {
+            bottom: 15px;
+            left: 15px;
+        }
+
+        #wifiInfoModalBody .card-header { background-color: #f8f9fc; font-size: 0.9rem; padding: 0.5rem 1rem;}
+        #wifiInfoModalBody .card-body { font-size: 0.85rem; padding: 0.75rem;}
+        #wifiInfoModalBody .list-group-item { border-left:0; border-right:0; padding-left:0; padding-right:0; font-size: 0.8rem; }
+        #wifiInfoModalBody .device-list { padding-left: 1.25rem; }
+        #wifiInfoModalBody .small {font-size: 0.8em;}
+         #wifi-names-container div { margin-bottom: 2px; }
+
+
+        /* Simplified .leaflet-div-icon and .custom-div-icon CSS */
+        .leaflet-div-icon {
+            background: transparent !important;
+            border: none !important;
+            text-align: center;
+        }
+        .custom-div-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+        .custom-div-icon i {
+            font-size: 24px;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+            display: block;
+            line-height: 1;
+        }
+        /* Label styling, this will now apply to the L.tooltip content */
+        .leaflet-tooltip.leaflet-tooltip-bottom.marker-label-tooltip {
+            background-color: rgba(255, 255, 255, 0.75);
+            color: black;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 1px 4px;
+            border-radius: 3px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            white-space: nowrap;
+            /* Remove default Leaflet tooltip arrow */
+            border: none;
+        }
+        .leaflet-tooltip.leaflet-tooltip-bottom.marker-label-tooltip::before {
+            border-bottom-color: transparent !important; /* Hide arrow */
+        }
+
+
+        .icon-odc i { color: #8A2BE2; }
+        .icon-odp i { color: #FFA500; }
+        .icon-customer-online i { color: #28a745 !important; }
+        .icon-customer-offline i { color: #dc3545 !important; }
+        .icon-customer-unknown i { color: #007bff !important; }
+        
+        /* Connection Monitoring Dashboard Styles */
+        .border-left-success { border-left: 0.25rem solid #28a745 !important; }
+        .border-left-danger { border-left: 0.25rem solid #dc3545 !important; }
+        .border-left-info { border-left: 0.25rem solid #17a2b8 !important; }
+        .border-left-warning { border-left: 0.25rem solid #ffc107 !important; }
+        
+        /* Monitoring Chart Styles */
+        .monitoring-chart {
+            width: 100% !important;
+            max-height: 40px;
+            opacity: 0.8;
+        }
+        
+        @media (max-width: 768px) {
+            .monitoring-chart {
+                max-height: 30px;
+            }
+        }
+        
+        /* Connection Line Styles - Elegant depth effect */
+        .connection-line-base,
+        .connection-line-glow,
+        .connection-line-shadow {
+            pointer-events: none;
+        }
+        
+        .connection-line-base {
+            filter: blur(2px);
+        }
+        
+        .connection-line-glow {
+            filter: blur(3px);
+        }
+        
+        .connection-line-shadow {
+            filter: blur(2px);
+        }
+        
+        /* Waypoint Editor Styles */
+        .waypoint-marker {
+            background: transparent;
+            border: none;
+        }
+        
+        .waypoint-marker-inner {
+            position: relative;
+            width: 30px;
+            height: 40px;
+            background: #ffc107;
+            border: 3px solid #fff;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            cursor: move;
+        }
+        
+        .waypoint-marker-inner i {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+            color: #fff;
+            font-size: 16px;
+        }
+        
+        .waypoint-index {
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%) rotate(45deg);
+            background: #ffc107;
+            color: #000;
+            font-weight: bold;
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            border: 1px solid #fff;
+        }
+        
+        .waypoint-marker:hover .waypoint-marker-inner {
+            background: #ff9800;
+            transform: rotate(-45deg) scale(1.2);
+        }
+        
+        /* Map Sidebar Styles */
+        .map-sidebar {
+            position: fixed;
+            top: 0;
+            right: -320px;
+            width: 320px;
+            height: 100vh;
+            background: #fff;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            z-index: 1050;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        .map-sidebar.open {
+            right: 0;
+        }
+        
+        .map-sidebar-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .map-sidebar-header h6 {
+            margin: 0;
+            font-weight: 600;
+        }
+        
+        .map-sidebar-content {
+            padding: 1rem;
+        }
+        
+        .sidebar-section {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #e3e6f0;
+        }
+        
+        .sidebar-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .sidebar-section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #5a5c69;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .quick-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            background: #f8f9fc;
+            border-radius: 0.35rem;
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: #5a5c69;
+        }
+        
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #4e73df;
+        }
+        
+        .search-results {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e3e6f0;
+            border-radius: 0.35rem;
+            background: #fff;
+        }
+        
+        .search-result-item {
+            padding: 0.5rem;
+            border-bottom: 1px solid #e3e6f0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .search-result-item:hover {
+            background: #f8f9fc;
+        }
+        
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+        
+        .quick-filters {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .quick-filters .form-check {
+            margin-bottom: 0;
+        }
+        
+        .quick-filters .form-check-label {
+            font-size: 0.875rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .alerts-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .alert-item {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0.35rem;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .alert-item.alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 3px solid #17a2b8;
+        }
+        
+        .alert-item.alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 3px solid #ffc107;
+        }
+        
+        .alert-item.alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 3px solid #dc3545;
+        }
+        
+        .alert-item.alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 3px solid #28a745;
+        }
+        
+        .export-buttons {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .map-sidebar-toggle {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1040;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .map-sidebar-toggle:hover {
+            transform: scale(1.1);
+        }
+        
+        .map-sidebar.open ~ .map-sidebar-toggle {
+            display: none;
+        }
+        
+        /* Responsive: Mobile - Sidebar jadi bottom sheet */
+        @media (max-width: 768px) {
+            .map-sidebar {
+                width: 100%;
+                height: 70vh;
+                right: 0;
+                bottom: -70vh;
+                top: auto;
+                border-radius: 1rem 1rem 0 0;
+                transition: bottom 0.3s ease;
+            }
+            
+            .map-sidebar.open {
+                bottom: 0;
+            }
+            
+            .map-sidebar-toggle {
+                bottom: 1rem;
+                right: 1rem;
+                width: 48px;
+                height: 48px;
+            }
+        }
+        
+        /* Overlay saat sidebar open (mobile) */
+        .map-sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1049;
+            display: none;
+        }
+        
+        .map-sidebar.open ~ .map-sidebar-overlay,
+        .map-sidebar-overlay.active {
+            display: block;
+        }
+        
+        @media (min-width: 769px) {
+            .map-sidebar-overlay {
+                display: none !important;
+            }
+        }
+        
+        /* Toast Notifications Styles */
+        .toast-notifications-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1060;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 400px;
+            pointer-events: none;
+        }
+        
+        .toast-notification {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            pointer-events: auto;
+            animation: slideInRight 0.3s ease;
+            border-left: 4px solid;
+            min-width: 300px;
+        }
+        
+        .toast-notification.toast-info {
+            border-left-color: #17a2b8;
+        }
+        
+        .toast-notification.toast-warning {
+            border-left-color: #ffc107;
+        }
+        
+        .toast-notification.toast-danger {
+            border-left-color: #dc3545;
+        }
+        
+        .toast-notification.toast-success {
+            border-left-color: #28a745;
+        }
+        
+        .toast-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        
+        .toast-icon.toast-info {
+            color: #17a2b8;
+        }
+        
+        .toast-icon.toast-warning {
+            color: #ffc107;
+        }
+        
+        .toast-icon.toast-danger {
+            color: #dc3545;
+        }
+        
+        .toast-icon.toast-success {
+            color: #28a745;
+        }
+        
+        .toast-content {
+            flex: 1;
+        }
+        
+        .toast-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+            color: #5a5c69;
+        }
+        
+        .toast-message {
+            font-size: 13px;
+            color: #858796;
+            margin: 0;
+        }
+        
+        .toast-close {
+            background: none;
+            border: none;
+            color: #858796;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .toast-close:hover {
+            color: #5a5c69;
+        }
+        
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+        
+        .toast-notification.removing {
+            animation: slideOutRight 0.3s ease;
+        }
+        
+        /* Alert Panel Styles */
+        .alert-panel {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            width: 380px;
+            max-height: 500px;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-radius: 8px;
+            z-index: 1055;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .alert-panel.open {
+            display: flex;
+        }
+        
+        .alert-panel.minimized {
+            max-height: 50px;
+        }
+        
+        .alert-panel-header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: move;
+        }
+        
+        .alert-panel-header h6 {
+            margin: 0;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .alert-panel-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .alert-panel-actions button {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+        
+        .alert-panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+        
+        .alert-panel-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: #858796;
+        }
+        
+        .alert-panel-empty i {
+            font-size: 48px;
+            margin-bottom: 12px;
+            display: block;
+        }
+        
+        .alert-panel-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 4px solid;
+            background: #f8f9fc;
+            position: relative;
+        }
+        
+        .alert-panel-item.alert-critical {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+        
+        .alert-panel-item.alert-warning {
+            border-left-color: #ffc107;
+            background: #fffbf0;
+        }
+        
+        .alert-panel-item.alert-info {
+            border-left-color: #17a2b8;
+            background: #f0f9fa;
+        }
+        
+        .alert-panel-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        
+        .alert-panel-item-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #5a5c69;
+            flex: 1;
+        }
+        
+        .alert-panel-item-severity {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 8px;
+        }
+        
+        .alert-panel-item-severity.severity-critical {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .alert-panel-item-severity.severity-warning {
+            background: #ffc107;
+            color: #856404;
+        }
+        
+        .alert-panel-item-severity.severity-info {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .alert-panel-item-message {
+            font-size: 13px;
+            color: #858796;
+            margin-bottom: 8px;
+        }
+        
+        .alert-panel-item-time {
+            font-size: 11px;
+            color: #b7b9cc;
+            margin-bottom: 8px;
+        }
+        
+        .alert-panel-item-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .alert-panel-item-actions button {
+            font-size: 12px;
+            padding: 4px 12px;
+        }
+        
+        .alert-panel-toggle {
+            position: fixed;
+            bottom: 80px;
+            right: 2rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1040;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .alert-panel-toggle:hover {
+            transform: scale(1.1);
+        }
+        
+        .alert-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            border: 2px solid white;
+        }
+        
+        @media (max-width: 768px) {
+            .toast-notifications-container {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
+            
+            .toast-notification {
+                min-width: auto;
+            }
+            
+            .alert-panel {
+                width: calc(100% - 20px);
+                right: 10px;
+                left: 10px;
+                max-height: 60vh;
+            }
+            
+            .alert-panel-toggle {
+                bottom: 70px;
+                right: 1rem;
+                width: 48px;
+                height: 48px;
+            }
+        }
+        
+        /* Quick Filter Buttons Styles */
+        .quick-filter-buttons {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 12px;
+            background: #f8f9fc;
+            border: 1px solid #e3e6f0;
+            border-radius: 8px;
+        }
+        
+        .quick-filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .quick-filter-label {
+            font-weight: 600;
+            color: #5a5c69;
+            font-size: 14px;
+            margin-right: 4px;
+        }
+        
+        .quick-filter-btn {
+            border: 1px solid #d1d3e2;
+            background: white;
+            color: #5a5c69;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .quick-filter-btn:hover {
+            background: #f8f9fc;
+            border-color: #bac8f3;
+            color: #4e73df;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .quick-filter-btn.active {
+            background: #4e73df;
+            border-color: #4e73df;
+            color: white;
+            box-shadow: 0 2px 8px rgba(78, 115, 223, 0.3);
+        }
+        
+        .quick-filter-btn.active:hover {
+            background: #375a7f;
+            border-color: #375a7f;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(78, 115, 223, 0.4);
+        }
+        
+        .quick-filter-btn i {
+            font-size: 12px;
+        }
+        
+        #resetQuickFilterBtn {
+            border: 1px solid #d1d3e2;
+            color: #858796;
+        }
+        
+        #resetQuickFilterBtn:hover {
+            background: #f8f9fc;
+            border-color: #bac8f3;
+            color: #4e73df;
+        }
+        
+        @media (max-width: 768px) {
+            .quick-filter-buttons {
+                padding: 8px;
+            }
+            
+            .quick-filter-group {
+                width: 100%;
+                margin-bottom: 8px;
+            }
+            
+            .quick-filter-label {
+                width: 100%;
+                margin-bottom: 4px;
+            }
+            
+            .quick-filter-btn {
+                flex: 1;
+                min-width: calc(50% - 4px);
+                justify-content: center;
+            }
+            
+            #resetQuickFilterBtn {
+                width: 100%;
+            }
+        }
+        
+        .badge-lg { font-size: 0.9rem; padding: 0.4rem 0.6rem; }
+        
+        /* Sembunyikan pesan error default Leaflet "map data not yet available" */
+        .leaflet-tile-container {
+            position: relative;
+            font-size: 0 !important; /* Sembunyikan semua text dengan font-size 0 */
+            line-height: 0 !important;
+            color: transparent !important;
+        }
+        /* Sembunyikan semua text node dan non-image elements */
+        .leaflet-tile-container *:not(img) {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            font-size: 0 !important;
+            line-height: 0 !important;
+            color: transparent !important;
+        }
+        /* Pastikan hanya image tile yang terlihat */
+        .leaflet-tile-container img {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        /* Sembunyikan text node langsung di tile container */
+        .leaflet-tile-pane {
+            font-size: 0 !important;
+            line-height: 0 !important;
+            color: transparent !important;
+        }
+        /* Pastikan tile pane tidak menampilkan text */
+        .leaflet-tile-pane * {
+            font-size: 0 !important;
+            line-height: 0 !important;
+            color: transparent !important;
+        }
+        /* Pastikan image tile tetap terlihat */
+        .leaflet-tile-pane img {
+            font-size: initial !important;
+            line-height: initial !important;
+        }
+
+        
+        .leaflet-control-custom-gps {
+            background-color: white;
+            border: 2px solid rgba(0,0,0,0.2);
+            border-radius: 4px;
+            width: 34px;
+            height: 34px;
+            line-height: 30px;
+            text-align: center;
+            cursor: pointer;
+        }
+        .leaflet-control-custom-gps i {
+            font-size: 16px;
+            color: #007bff;
+        }
+        .leaflet-control-custom-gps:hover {
+            background-color: #f4f4f4;
+        }
+        
+        /* Fix untuk overlap controls di mobile */
+        @media (max-width: 768px) {
+            .leaflet-control-custom-gps {
+                width: 30px;
+                height: 30px;
+                line-height: 26px;
+            }
+            .leaflet-control-custom-gps i {
+                font-size: 14px;
+            }
+            .leaflet-control-zoom {
+                margin-top: 10px !important;
+            }
+            .leaflet-control-layers {
+                margin-right: 5px !important;
+            }
+            #manualFullscreenBtn {
+                bottom: 5px;
+                left: 5px;
+                padding: 4px 8px;
+                font-size: 0.85rem;
+            }
+            
+            /* Ensure map uses full available space */
+            #interactiveMap {
+                height: 100% !important;
+            }
+        }
+        
+        /* Styling for custom label toggles inside the layer control */
+        .leaflet-control-layers-separator {
+            border-top: 1px solid #ddd;
+            margin: 5px 0;
+        }
+        .label-toggle-section {
+            padding: 2px 5px;
+        }
+        .label-toggle-section label {
+            display: flex;
+            align-items: center;
+            font-weight: normal;
+            cursor: pointer;
+        }
+         .label-toggle-section label span {
+            padding-left: 4px;
+         }
+        
+        /* Advanced Legend Styling */
+        .advanced-legend {
+            background: rgba(255,255,255,0.96);
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.18);
+            border-radius: 10px;
+            padding: 8px 10px;
+            font-size: 12.5px;
+            line-height: 1.45;
+            /* keep the legend INSIDE the map viewport (was 80vh which overflowed
+               a 600px-tall map). Leaflet's corner container has no intrinsic height
+               so `100%` doesn't work — use a clamp that fits even short maps. */
+            width: 220px;
+            max-width: 220px;
+            max-height: clamp(280px, calc(100vh - 320px), 540px);
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+        .advanced-legend::-webkit-scrollbar { width: 5px; }
+        .advanced-legend::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.2); border-radius: 999px; }
+        @media (max-width: 767.98px) {
+            .advanced-legend { width: 180px; max-width: 180px; font-size: 11.5px; padding: 6px 8px; }
+        }
+        
+        .advanced-legend-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e3e6f0;
+        }
+        
+        .advanced-legend-header h4 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #5a5c69;
+        }
+        
+        .advanced-legend-toggle-btn {
+            background: none;
+            border: none;
+            color: #5a5c69;
+            cursor: pointer;
+            padding: 4px 8px;
+            font-size: 14px;
+        }
+        
+        .advanced-legend-toggle-btn:hover {
+            color: #4e73df;
+        }
+        
+        .legend-category {
+            margin-bottom: 6px;
+            padding: 5px 6px 5px 8px;
+            background: #f8f9fc;
+            border-radius: 6px;
+            border-left: 3px solid transparent;
+        }
+        
+        .legend-category.legend-category-odc {
+            border-left-color: #8A2BE2;
+        }
+        
+        .legend-category.legend-category-odp {
+            border-left-color: #FFA500;
+        }
+        
+        .legend-category.legend-category-online {
+            border-left-color: #28a745;
+        }
+        
+        .legend-category.legend-category-offline {
+            border-left-color: #dc3545;
+        }
+        
+        .legend-category.legend-category-unknown {
+            border-left-color: #007bff;
+        }
+        
+        .legend-category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        
+        .legend-category-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            color: #5a5c69;
+        }
+        
+        .legend-category-icon {
+            font-size: 18px;
+        }
+        
+        .legend-category-counter {
+            background: #4e73df;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 24px;
+            text-align: center;
+        }
+        
+        .legend-category-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .legend-category-toggle input[type="checkbox"] {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+        
+        .legend-category-toggle label {
+            cursor: pointer;
+            font-size: 12px;
+            color: #858796;
+            margin: 0;
+        }
+        
+        .legend-minimap-container {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e3e6f0;
+        }
+        
+        .legend-minimap {
+            height: 150px;
+            width: 100%;
+            border: 1px solid #e3e6f0;
+            border-radius: 4px;
+            background: #f8f9fc;
+        }
+        
+        .legend-tools {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e3e6f0;
+        }
+        
+        .legend-tools-btn {
+            width: 100%;
+            margin-bottom: 6px;
+            font-size: 12px;
+            padding: 6px 12px;
+        }
+        
+        /* Collapsible Legend Styling (Legacy - keep for compatibility) */
+        .legend-control {
+            box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+            background: #fff;
+            border-radius: 5px;
+        }
+        .legend-control a.legend-toggle {
+            display: block;
+            width: 36px;
+            height: 36px;
+            line-height: 36px;
+            text-align: center;
+            cursor: pointer;
+            color: #333;
+        }
+        .legend-control a.legend-toggle i {
+            font-size: 1.2em;
+        }
+        .legend-control.legend-collapsed .info.legend { display: none; }
+        .legend-control:not(.legend-collapsed) a.legend-toggle { display: none; }
+        .legend-control .info.legend { cursor: pointer; }
+
+
+        #refreshAllDataBtn {
+            margin-bottom: 0px;
+        }
+        #openCustomFilterModalBtn {
+            margin-left: 10px;
+        }
+        
+        /* Fix untuk auto refresh checkbox */
+        .form-check.form-check-inline {
+            white-space: nowrap;
+        }
+        .filter-list-column {
+            max-height: 50vh;
+            overflow-y: auto;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: .25rem;
+        }
+        
+        @media (max-width: 768px) {
+            .filter-list-column {
+                max-height: 30vh;
+            }
+        }
+        .filter-list-column .list-group-item {
+            padding: .5rem .75rem;
+            font-size: 0.85rem;
+        }
+        .filter-list-column .list-group-item label {
+            margin-bottom: 0;
+            font-weight: normal;
+            width: 100%;
+            cursor: pointer;
+        }
+         .filter-list-column .list-group-item input[type="checkbox"] {
+            margin-right: 8px;
+        }
+        .filter-search-input {
+            margin-bottom: 10px;
+        }
+
+        /* Asset Modal Map */
+        #assetModalMap {
+            height: 250px;
+            width: 100%;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: .35rem;
+        }
+        /* Style for Leaflet layer control in asset modal */
+        #assetModal .leaflet-control-layers {
+            font-size: 0.8rem;
+        }
+        #assetModal .leaflet-control-layers-expanded {
+             padding: 6px 10px 6px 6px;
+        }
+
+
+        /* Mobile Responsiveness Improvements */
+@media (max-width: 768px) {
+    #content .container-fluid {
+        padding: 0.5rem !important;
+        height: auto;
+        overflow-y: auto;
+    }
+    
+    #mapContainer {
+        height: calc(100vh - 180px) !important;
+        border-radius: 0;
+        margin: 0;
+        width: 100%;
+    }
+    
+    .map-controls-container {
+        bottom: 80px !important;
+    }
+    
+    /* Remove this duplicate rule as it conflicts with responsive layout */
+    
+    .map-instructions-header {
+        display: none !important; /* Hide instruction header on mobile to maximize map space */
+    }
+    
+    /* Floating action buttons for mobile */
+    #openCustomFilterModalBtn,
+    #refreshAllDataBtn {
+        position: fixed !important;
+        z-index: 999;
+        border-radius: 50% !important;
+        width: 45px !important;
+        height: 45px !important;
+        padding: 0 !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    
+    #openCustomFilterModalBtn {
+        bottom: 140px !important;
+        right: 15px !important;
+        margin: 0 !important;
+    }
+    
+    #refreshAllDataBtn {
+        bottom: 85px !important;
+        right: 15px !important;
+        margin: 0 !important;
+    }
+    
+    #openCustomFilterModalBtn span,
+    #refreshAllDataBtn span {
+        display: none !important;
+    }
+    
+    /* Auto refresh checkbox mobile position */
+    .form-check.form-check-inline {
+        position: fixed !important;
+        bottom: 195px !important;
+        right: 15px !important;
+        background: white !important;
+        padding: 5px 10px !important;
+        border-radius: 20px !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3) !important;
+        margin: 0 !important;
+        z-index: 999;
+    }
+    
+    .form-check.form-check-inline label {
+        font-size: 0.75rem !important;
+        margin-bottom: 0 !important;
+    }
+
+    .h4.mb-0.text-gray-800.d-none.d-md-inline-block {
+        font-size: 1.1rem;
+    }
+    
+    .legend-control, .legend {
+        max-width: 180px;
+        font-size: 12px;
+        line-height: 20px;
+    }
+    
+    .legend i {
+        font-size: 14px;
+    }
+    
+    /* Custom Filter Modal Spacing on Mobile */
+    #customFilterModal .col-md-4 {
+        margin-bottom: 1.5rem;
+    }
+    
+    #customFilterModal .col-md-4:last-child {
+        margin-bottom: 0;
+    }
+}
+        
+        /* Responsif untuk tablet */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            #mapContainer {
+                height: calc(100vh - 160px);
+            }
+            
+            .navbar.topbar {
+                padding: 0.5rem 1rem !important;
+            }
+            
+            .navbar.topbar .h4 {
+                font-size: 1.1rem !important;
+            }
+        }
+        @media (max-width: 575.98px) {
+            #content .container-fluid {
+                padding: 0.25rem;
+            }
+            
+            #mapContainer {
+                height: calc(100vh - 70px) !important;
+            }
+            
+            .map-instructions-header {
+                padding: 6px;
+                font-size: 0.8rem;
+            }
+            
+            .map-instructions-header > span {
+                font-size: 0.8rem;
+            }
+            
+            .map-instructions-header .btn {
+                font-size: 0.8rem;
+                padding: 0.25rem 0.5rem;
+            }
+            
+            .legend-control {
+                display: none;
+            }
+            
+            /* Auto refresh checkbox handled by floating position above */
+            
+            .form-check-label {
+                font-size: 0.85rem;
+            }
+            
+            /* Compact navbar for small screens */
+            .navbar.topbar {
+                padding: 0.375rem 0.75rem !important;
+            }
+            
+            #username-placeholder {
+                display: none !important;
+            }
+        }
