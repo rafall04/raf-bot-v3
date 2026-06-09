@@ -1,0 +1,57 @@
+        .parameter-card {
+            border-left: 4px solid #4e73df;
+            margin-bottom: 1rem;
+        }
+        .parameter-type-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+        }
+        .path-item {
+            background-color: #f8f9fc;
+            border: 1px solid #e3e6f0;
+            border-radius: 0.35rem;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            position: relative;
+        }
+        .path-item .btn-remove {
+            position: absolute;
+            top: 0.25rem;
+            right: 0.25rem;
+            padding: 0.125rem 0.25rem;
+            font-size: 0.75rem;
+        }
+        .add-path-btn {
+            border: 2px dashed #d1d3e2;
+            background: transparent;
+            color: #6c757d;
+            padding: 1rem;
+            text-align: center;
+            border-radius: 0.35rem;
+            transition: all 0.2s;
+        }
+        .add-path-btn:hover {
+            border-color: #4e73df;
+            color: #4e73df;
+            background-color: rgba(78, 115, 223, 0.05);
+        }
+        .test-result {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 0.35rem;
+        }
+        .test-success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .test-error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .test-warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }

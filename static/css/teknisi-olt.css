@@ -1,0 +1,77 @@
+        .status-badge { font-size: 0.85rem; padding: 0.4em 0.8em; }
+        .rx-power-good { color: #1cc88a; font-weight: 600; }
+        .rx-power-warning { color: #f6c23e; font-weight: 600; }
+        .rx-power-bad { color: #e74a3b; font-weight: 600; }
+        .refresh-timer { font-size: 0.8rem; color: #858796; }
+        .olt-stats-card { transition: transform 0.2s; cursor: pointer; }
+        .olt-stats-card:hover { transform: translateY(-2px); }
+        .olt-stats-card.online { border-left-color: #1cc88a; }
+        .olt-stats-card.offline { border-left-color: #858796; }
+        .olt-stats-card.los { border-left-color: #f6c23e; }
+        .olt-stats-card.dying-gasp { border-left-color: #e74a3b; }
+        .customer-info { font-size: 0.85rem; color: #5a5c69; }
+        .mac-address { font-family: 'Courier New', monospace; font-size: 0.8rem; color: #858796; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #1cc88a; }
+        input:checked + .slider:before { transform: translateX(26px); }
+        .clickable-row { cursor: pointer; }
+        .clickable-row:hover { background-color: #f8f9fc; }
+        .detail-label { font-weight: 600; color: #5a5c69; font-size: 0.85rem; }
+        .detail-value { font-size: 0.95rem; }
+        .rx-power-large { font-size: 2.5rem; font-weight: 700; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+        .modal-rx-good { color: #00ff88; }
+        .modal-rx-warning { color: #ffdd00; }
+        .modal-rx-bad { color: #ff4444; }
+        .info-card { border-radius: 0.75rem; padding: 1.25rem; margin-bottom: 1rem; }
+        .info-card.signal { 
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); 
+            color: white; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .info-card.signal .text-white-50 { color: rgba(255,255,255,0.7) !important; }
+        .info-card.status { background: #f8f9fc; border: 1px solid #e3e6f0; }
+        /* ── Loading overlay & empty state ───────────────────────────── */
+        .olt-card-body { position: relative; min-height: 200px; }
+        .olt-loading-overlay {
+            position: absolute; inset: 0; z-index: 20;
+            background: rgba(255,255,255,0.9);
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 0 0 0.35rem 0.35rem;
+            animation: olt-fade-in 0.2s ease;
+        }
+        .olt-loading-content { text-align: center; max-width: 340px; padding: 1rem; }
+        .olt-spinner {
+            width: 46px; height: 46px; margin: 0 auto 0.85rem;
+            border: 4px solid #e3e6f0; border-top-color: #4e73df;
+            border-radius: 50%; animation: olt-spin 0.8s linear infinite;
+        }
+        @keyframes olt-spin { to { transform: rotate(360deg); } }
+        .olt-loading-title { font-weight: 700; color: #4e73df; }
+        .olt-loading-sub { font-size: 0.85rem; color: #858796; margin-top: 0.25rem; min-height: 1.1em; }
+        .olt-progress {
+            width: 220px; height: 4px; margin: 0.9rem auto 0;
+            background: #e3e6f0; border-radius: 2px; overflow: hidden; position: relative;
+        }
+        .olt-progress-bar {
+            position: absolute; top: 0; height: 100%; width: 35%;
+            background: linear-gradient(90deg, #4e73df, #36b9cc); border-radius: 2px;
+            animation: olt-indet 1.15s ease-in-out infinite;
+        }
+        @keyframes olt-indet { 0% { left: -35%; } 100% { left: 100%; } }
+        @keyframes olt-fade-in { from { opacity: 0; } to { opacity: 1; } }
+        .olt-empty { text-align: center; padding: 2.75rem 1rem; color: #858796; animation: olt-fade-in 0.25s ease; }
+        .olt-empty > i { font-size: 2.75rem; color: #d1d3e2; margin-bottom: 0.75rem; display: block; }
+        .olt-empty .olt-empty-title { font-weight: 600; color: #5a5c69; font-size: 1.05rem; }
+        .btn.is-loading { pointer-events: none; opacity: 0.65; }
+        .olt-just-loaded tbody tr { animation: olt-fade-in 0.3s ease; }
+        @media (max-width: 768px) {
+            .container-fluid { padding: 0.75rem; }
+            h1.h3 { font-size: 1.25rem; }
+            .card-body { padding: 1rem; }
+            .table-responsive { font-size: 0.8rem; }
+            .table td, .table th { padding: 0.5rem; }
+            .olt-stats-card .h5 { font-size: 1.2rem; }
+        }

@@ -1,0 +1,622 @@
+        // Global variables
+        let dataTableInstance = null;
+        let autoRefreshInterval = null;
+        let matchedData = [];
+        let usersData = [];
+        let activePppoeUsersMap = new Map();
+        let pppoeUserMacMap = new Map();
+        let currentCustomerData = null;
+        let oltColdRetryDone = false;
+        let currentOltFilter = '';      // '' = belum pilih | 'all' = semua | id OLT tertentu
+        let currentViewMode = 'all';    // 'all' = semua ONU | 'matched' = hanya pelanggan terdaftar
+        let oltDevicesList = [];        // daftar OLT dari API (untuk dropdown)
+        let oltLoading = false;         // guard supaya tidak dobel-fetch saat load berjalan
+        const AUTO_REFRESH_INTERVAL = 30000;
+
+        $(document).ready(async function() {
+            loadTechnicianInfo();
+            initDataTable();
+            initOltViewControls();
+            // Pastikan data pelanggan siap sebelum query OLT agar enrichment lengkap di paint pertama
+            await loadUsersData();
+            await loadDevicesOnly(); // hanya isi dropdown OLT; data ONU dimuat setelah pilih OLT
+            
+            $('#refreshOltBtn').on('click', () => loadAllData(true, true)); // Refresh = paksa data segar
+            $('#autoRefreshToggle').on('change', function() {
+                this.checked ? startAutoRefresh() : stopAutoRefresh();
+            });
+            $('#statusFilter').on('change', function() {
+                filterByStatus(this.value);
+            });
+            $('#sortFilter').on('change', function() {
+                applySorting(this.value);
+            });
+            
+            // Stats card click to filter
+            $('.olt-stats-card').on('click', function() {
+                const filter = $(this).data('filter');
+                $('#statusFilter').val(filter).trigger('change');
+            });
+            
+            // Refresh button in modal
+            $('#refreshCustomerOltBtn').on('click', refreshCustomerOlt);
+        });
+
+        function loadTechnicianInfo() {
+            fetch('/api/me', { credentials: 'include' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 200 && data.user) {
+                        $('#loggedInTechnicianInfo').text(data.user.name || data.user.username);
+                    }
+                }).catch(console.error);
+        }
+
+        async function loadUsersData() {
+            try {
+                const res = await fetch('/api/users?limit=9999', { credentials: 'include' });
+                const result = await res.json();
+                if (result.status === 200 && result.data) {
+                    usersData = result.data;
+                    console.log(`[Users] Loaded ${usersData.length} users`);
+                }
+            } catch (e) { console.error('Error loading users:', e); }
+        }
+
+        function initDataTable() {
+            dataTableInstance = $('#oltDataTable').DataTable({
+                data: [],
+                columns: [
+                    {
+                        data: null, title: 'Pelanggan / ONU',
+                        render: (data, type, row) => {
+                            if (type === 'display') {
+                                if (row.customer_name) {
+                                    let html = `<strong>${row.customer_name}</strong>`;
+                                    if (row.customer_address) {
+                                        const addr = row.customer_address.length > 30 ? row.customer_address.substring(0, 30) + '...' : row.customer_address;
+                                        html += `<br><small class="customer-info">${addr}</small>`;
+                                    }
+                                    return html;
+                                }
+                                // ONU belum terhubung ke pelanggan: tampilkan identitas ONU.
+                                const ident = row.description || row.serial || '-';
+                                return `<span class="text-muted"><i class="fas fa-plug"></i> ${ident}</span><br><small class="text-muted">(belum terdaftar)</small>`;
+                            }
+                            return row.customer_name || row.description || row.serial || '';
+                        }
+                    },
+                    { 
+                        data: 'pppoe_username', title: 'PPPoE',
+                        render: (data, type, row) => {
+                            if (type === 'display') {
+                                let html = data || '-';
+                                if (row.is_online) html += ' <span class="badge badge-success">ON</span>';
+                                return html;
+                            }
+                            return data || '';
+                        }
+                    },
+                    { 
+                        data: 'rx_power', title: 'Redaman',
+                        render: (data, type, row) => {
+                            if (type === 'display') return renderRxPower(data);
+                            if (type === 'sort' || type === 'type') {
+                                // N/A → 9999 supaya tersortir ke BAWAH (redaman valid tampil dulu).
+                                if (data && data !== 'N/A') {
+                                    const num = parseFloat(data);
+                                    return isNaN(num) ? 9999 : num;
+                                }
+                                return 9999;
+                            }
+                            return data;
+                        }
+                    },
+                    {
+                        data: 'tx_power', title: 'ONU Tx',
+                        render: (data) => (data && data !== 'N/A') ? data : '<span class="text-muted">-</span>'
+                    },
+                    {
+                        data: 'attenuation', title: 'Atenuasi',
+                        render: (data) => (data && data !== 'N/A') ? data : '<span class="text-muted">-</span>'
+                    },
+                    {
+                        data: 'olt_status', title: 'Status',
+                        render: (data, type, row) => type === 'display' ? renderOltStatus(row) : data || ''
+                    },
+                    {
+                        data: 'olt_name', title: 'OLT',
+                        render: (data, type, row) => type === 'display' ? renderOltName(row) : (data || '')
+                    },
+                    {
+                        data: null, title: 'Slot/ONU',
+                        render: (data, type, row) => {
+                            if (row.pon_name) return row.pon_name; // GPON: label human (ONU-1:1)
+                            return (row.slot_id && row.onu_id) ? `${row.slot_id}/${row.onu_id}` : '-';
+                        }
+                    },
+                    {
+                        data: null, title: 'Aksi', orderable: false, searchable: false,
+                        render: (data, type, row) => {
+                            return `<button class="btn btn-info btn-sm btn-detail" data-key="${row._key}" title="Lihat Detail">
+                                <i class="fas fa-info-circle"></i>
+                            </button>`;
+                        }
+                    }
+                ],
+                order: [[2, 'asc']], // Default: Redaman ascending (terburuk dulu)
+                pageLength: 25,
+                language: {
+                    search: "Cari:", lengthMenu: "Tampilkan _MENU_",
+                    info: "_START_-_END_ dari _TOTAL_", infoEmpty: "Tidak ada data",
+                    infoFiltered: "(filter dari _MAX_)", zeroRecords: "Tidak ditemukan",
+                    paginate: { first: "«", last: "»", next: "›", previous: "‹" }
+                },
+                dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
+                createdRow: function(row, data) {
+                    $(row).addClass('clickable-row').attr('data-key', data._key);
+                }
+            });
+
+            // Row click handler
+            $('#oltDataTable tbody').on('click', 'tr.clickable-row', function(e) {
+                if ($(e.target).closest('button').length) return; // Ignore button clicks
+                const key = $(this).data('key');
+                if (key) showCustomerDetail(key);
+            });
+
+            // Button click handler
+            $('#oltDataTable tbody').on('click', '.btn-detail', function(e) {
+                e.stopPropagation();
+                const key = $(this).data('key');
+                if (key) showCustomerDetail(key);
+            });
+        }
+
+        async function loadAllData(showLoading = false, force = false) {
+            // Belum pilih OLT → jangan query apa pun.
+            if (!currentOltFilter) { showOltEmptyState(); return; }
+            if (oltLoading) return; // cegah dobel-fetch
+            oltLoading = true;
+
+            // Overlay penuh hanya untuk load eksplisit / pertama; auto-refresh senyap.
+            const explicit = showLoading || matchedData.length === 0;
+            if (explicit) {
+                setControlsLoading(true);
+                const dev = oltDevicesList.find(d => d.id === currentOltFilter);
+                const oltName = currentOltFilter === 'all' ? 'semua OLT' : (dev ? dev.name : 'OLT');
+                showLoadingOverlay('Memuat data ONU…', 'Menghubungi ' + oltName + ' — OLT besar bisa ~30 detik');
+            }
+
+            try {
+                await loadPppoeData();
+                await loadOltMatchedData(force); // force hanya saat tombol Refresh (bukan saat pilih OLT)
+                updateLastUpdateTime();
+            } catch (e) {
+                console.error('Error:', e);
+                showAlert('danger', 'Gagal memuat data: ' + e.message);
+            } finally {
+                if (explicit) { hideLoadingOverlay(); setControlsLoading(false); }
+                oltLoading = false;
+            }
+        }
+
+        // ── Loading overlay & kontrol ────────────────────────────────────
+        function showLoadingOverlay(title, sub) {
+            $('#oltLoadingTitle').text(title || 'Memuat data ONU…');
+            $('#oltLoadingSub').text(sub || '');
+            $('#oltEmptyState').hide();
+            $('#oltTableWrap').show();
+            $('#oltLoadingOverlay').css('display', 'flex');
+            hideAlert();
+        }
+        function hideLoadingOverlay() { $('#oltLoadingOverlay').hide(); }
+
+        function setControlsLoading(on) {
+            $('#oltSelector').prop('disabled', on);
+            $('#refreshOltBtn').prop('disabled', on).toggleClass('is-loading', on)
+                .html(on ? '<i class="fas fa-spinner fa-spin"></i> Memuat…' : '<i class="fas fa-sync-alt"></i> Refresh');
+        }
+
+        async function loadPppoeData() {
+            try {
+                const res = await fetch('/api/mikrotik/ppp-active-users?_=' + Date.now(), { credentials: 'include' });
+                const result = await res.json();
+                if (result.status === 200 && Array.isArray(result.data)) {
+                    activePppoeUsersMap.clear();
+                    pppoeUserMacMap.clear();
+                    result.data.forEach(u => {
+                        if (u.name) {
+                            activePppoeUsersMap.set(u.name, u.address || '');
+                            if (u.caller_id) pppoeUserMacMap.set(u.name, u.caller_id);
+                        }
+                    });
+                }
+            } catch (e) { console.error('PPPoE error:', e); }
+        }
+
+        // Kontrol view OLT-centric: dropdown pilih OLT + toggle Semua ONU / Pelanggan.
+        function initOltViewControls() {
+            $('#oltSelector').on('change', function () {
+                currentOltFilter = this.value; // '' | 'all' | id
+                oltColdRetryDone = false;
+                if (!currentOltFilter) { showOltEmptyState(); return; }
+                loadAllData(true, false); // overlay + SWR (instan bila ter-cache)
+            });
+            $('#viewModeToggle button').on('click', function () {
+                currentViewMode = $(this).data('view');
+                $('#viewModeToggle button').removeClass('btn-primary').addClass('btn-outline-primary');
+                $(this).removeClass('btn-outline-primary').addClass('btn-primary');
+                if (currentOltFilter) renderCurrentView();
+            });
+        }
+
+        // Hanya isi dropdown OLT (tanpa query ONU). "Pilih OLT dulu, baru ambil data."
+        async function loadDevicesOnly() {
+            try {
+                const res = await fetch('/api/olt/onus?devicesOnly=true&_=' + Date.now(), { credentials: 'include' });
+                const result = await res.json();
+                if (result.status === 200) {
+                    if (!result.enabled) {
+                        showAlert('warning', 'OLT tidak diaktifkan. Aktifkan di Konfigurasi.');
+                        return;
+                    }
+                    populateOltSelector(result.oltDevices || []);
+                    showOltEmptyState();
+                }
+            } catch (e) {
+                console.error('Load devices error:', e);
+                showAlert('danger', 'Gagal memuat daftar OLT: ' + e.message);
+            }
+        }
+
+        function showOltEmptyState() {
+            updateStats(0, 0, 0, 0);
+            if (dataTableInstance) dataTableInstance.clear().draw();
+            hideLoadingOverlay();
+            $('#oltTableWrap').hide();
+            $('#oltEmptyState').show();
+            hideAlert();
+        }
+
+        function populateOltSelector(devices) {
+            oltDevicesList = devices || [];
+            const opts = ['<option value="">— Pilih OLT —</option>', '<option value="all">Semua OLT</option>'].concat(
+                oltDevicesList.map(d => {
+                    const tag = d.brand && d.brand !== 'auto' ? ` (${String(d.brand).toUpperCase()})` : '';
+                    return `<option value="${d.id}">${d.name}${tag}</option>`;
+                })
+            );
+            const $sel = $('#oltSelector');
+            if ($sel.children().length !== opts.length) $sel.html(opts.join(''));
+            $sel.val(currentOltFilter);
+        }
+
+        function renderCurrentView() {
+            const view = currentViewMode === 'matched' ? matchedData.filter(r => r.matched) : matchedData;
+            updateStatsFromData(view);
+            dataTableInstance.clear().rows.add(view).draw();
+            $('#oltEmptyState').hide();
+            $('#oltTableWrap').show();
+            const $wrap = $('#oltTableWrap').addClass('olt-just-loaded');
+            setTimeout(() => $wrap.removeClass('olt-just-loaded'), 400);
+        }
+
+        async function loadOltMatchedData(force = false) {
+            if (!currentOltFilter) { showOltEmptyState(); return; }
+            try {
+                const oltParam = (currentOltFilter && currentOltFilter !== 'all')
+                    ? '&oltId=' + encodeURIComponent(currentOltFilter) : '';
+                const forceParam = force ? '&force=true' : '';
+                const res = await fetch('/api/olt/onus?_=' + Date.now() + oltParam + forceParam, { credentials: 'include' });
+                const result = await res.json();
+
+                if (result.status === 200) {
+                    if (!result.enabled) {
+                        showAlert('warning', 'OLT tidak diaktifkan. Aktifkan di Konfigurasi.');
+                        updateStats(0, 0, 0, 0);
+                        dataTableInstance.clear().draw();
+                        return;
+                    }
+                    if (result.error) {
+                        showAlert('danger', result.message || 'Gagal mengambil data OLT');
+                        return;
+                    }
+
+                    if (Array.isArray(result.oltDevices)) populateOltSelector(result.oltDevices);
+
+                    matchedData = result.data || [];
+
+                    // Enrich with user data and online status
+                    matchedData.forEach(item => {
+                        item._key = `${item.olt_id}|${item.slot_id}|${item.onu_id}`;
+                        item.is_online = activePppoeUsersMap.has(item.pppoe_username);
+                        if (item.user_id) {
+                            const user = usersData.find(u => u.id == item.user_id);
+                            if (user) {
+                                item.customer_phone = user.phone || item.customer_phone;
+                                item.customer_package = user.subscription || item.customer_package;
+                                item.customer_address = user.address || item.customer_address;
+                            }
+                        }
+                    });
+
+                    renderCurrentView();
+                    hideAlert();
+
+                    // Cold-start backend: poll OLT/SNMP pertama bisa belum siap sehingga data kosong.
+                    // Lakukan satu kali retry otomatis agar teknisi tidak perlu menekan Refresh manual.
+                    if (matchedData.length === 0 && !oltColdRetryDone) {
+                        oltColdRetryDone = true;
+                        showAlert('info', 'Menyiapkan data OLT… memuat ulang otomatis.');
+                        setTimeout(() => loadAllData(false), 6000);
+                    }
+                }
+            } catch (e) {
+                console.error('OLT error:', e);
+                showAlert('danger', 'Gagal terhubung: ' + e.message);
+            }
+        }
+
+        function showCustomerDetail(key) {
+            const customer = matchedData.find(m => m._key === key);
+            if (!customer) {
+                alert('Data ONU tidak ditemukan');
+                return;
+            }
+
+            currentCustomerData = customer;
+
+            // Update modal content (ONU belum terdaftar → pakai identitas ONU).
+            const displayName = customer.customer_name || customer.description || customer.serial || 'Detail ONU';
+            $('#modalCustomerName').text(displayName);
+            $('#modalName').text(customer.customer_name || '(belum terdaftar)');
+            $('#modalPppoe').text(customer.pppoe_username || '-');
+            $('#modalPackage').text(customer.customer_package || '-');
+            $('#modalAddress').text(customer.customer_address || '-');
+            $('#modalPhone').text(customer.customer_phone || '-');
+            const brandBadge = customer.olt_brand === 'zte'
+                ? ' <span class="badge badge-info" title="GPON">ZTE GPON</span>'
+                : (customer.olt_brand === 'hioso' ? ' <span class="badge badge-secondary" title="EPON">HIOSO</span>' : '');
+            $('#modalOltName').html((customer.olt_name || '-') + brandBadge);
+
+            // GPON tanpa MAC ONU → tampilkan Serial Number.
+            if (customer.mac_olt && customer.mac_olt !== 'N/A') {
+                $('#modalMacOlt').text(customer.mac_olt);
+            } else if (customer.serial) {
+                $('#modalMacOlt').text('SN: ' + customer.serial);
+            } else {
+                $('#modalMacOlt').text('-');
+            }
+
+            // MAC MikroTik dengan indikator source
+            let macMikrotikHtml = customer.mac_mikrotik || '-';
+            if (customer.mac_source === 'cached') {
+                macMikrotikHtml += ' <span class="badge badge-warning" title="MAC dari cache (pelanggan offline)"><i class="fas fa-history"></i></span>';
+            } else if (customer.mac_source === 'olt' || (!customer.mac_mikrotik && customer.olt_brand === 'zte')) {
+                macMikrotikHtml = '<span class="text-muted">— (match via PPPoE)</span>';
+            }
+            $('#modalMacMikrotik').html(macMikrotikHtml);
+
+            $('#modalSlotOnu').text(customer.pon_name || ((customer.slot_id && customer.onu_id) ? `${customer.slot_id} / ${customer.onu_id}` : '-'));
+            
+            // Connection status
+            const isOnline = activePppoeUsersMap.has(customer.pppoe_username);
+            $('#modalConnectionStatus').html(isOnline ? 
+                '<span class="badge badge-success"><i class="fas fa-check"></i> Online</span>' : 
+                '<span class="badge badge-secondary"><i class="fas fa-times"></i> Offline</span>');
+            
+            // RX Power
+            updateModalRxPower(customer.rx_power, customer.olt_status, customer.is_dying_gasp, customer.is_los);
+
+            // Optik GPON tambahan (ONU Tx + Atenuasi) — hanya ZTE.
+            if (customer.olt_brand === 'zte' && (customer.tx_power || customer.attenuation)) {
+                $('#modalOnuTx').text(customer.tx_power && customer.tx_power !== 'N/A' ? customer.tx_power : '-');
+                $('#modalAtten').text(customer.attenuation && customer.attenuation !== 'N/A' ? customer.attenuation : '-');
+                $('#modalGponOptic').show();
+            } else {
+                $('#modalGponOptic').hide();
+            }
+
+            $('#modalLastCheck').text('Terakhir cek: ' + new Date().toLocaleTimeString('id-ID'));
+            
+            $('#customerDetailModal').modal('show');
+        }
+
+        function updateModalRxPower(rxPower, oltStatus, isDyingGasp, isLos) {
+            let rxClass = 'modal-rx-good';
+            let rxStatus = 'Bagus';
+            
+            if (rxPower && rxPower !== 'N/A') {
+                const val = parseFloat(rxPower);
+                if (!isNaN(val)) {
+                    if (val < -25) { rxClass = 'modal-rx-bad'; rxStatus = 'Buruk'; }
+                    else if (val < -20) { rxClass = 'modal-rx-warning'; rxStatus = 'Perhatian'; }
+                }
+                $('#modalRxPower').removeClass('modal-rx-good modal-rx-warning modal-rx-bad').addClass(rxClass).text(rxPower);
+                $('#modalRxStatus').text(rxStatus);
+            } else {
+                $('#modalRxPower').removeClass('modal-rx-good modal-rx-warning modal-rx-bad').text('N/A');
+                $('#modalRxStatus').text('-');
+            }
+            
+            // OLT Status
+            let statusHtml = '';
+            if (isDyingGasp) {
+                statusHtml = '<span class="badge badge-danger"><i class="fas fa-bolt"></i> Dying Gasp</span>';
+            } else if (isLos) {
+                statusHtml = '<span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> LOS</span>';
+            } else if (oltStatus === 'Online') {
+                statusHtml = '<span class="badge badge-success"><i class="fas fa-check"></i> Online</span>';
+            } else {
+                statusHtml = '<span class="badge badge-secondary"><i class="fas fa-times"></i> Offline</span>';
+            }
+            $('#modalOltStatus').html(statusHtml);
+        }
+
+        async function refreshCustomerOlt() {
+            if (!currentCustomerData) return;
+            
+            // Pastikan ada slot_id dan onu_id
+            if (!currentCustomerData.slot_id || !currentCustomerData.onu_id) {
+                alert('Data Slot/ONU tidak tersedia untuk pelanggan ini');
+                return;
+            }
+            
+            const btn = $('#refreshCustomerOltBtn');
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Memuat...');
+            
+            try {
+                // FAST REFRESH - query realtime untuk 1 ONT ini
+                const res = await fetch('/api/olt/refresh-single', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        slotId: currentCustomerData.slot_id,
+                        onuId: currentCustomerData.onu_id
+                    })
+                });
+                const result = await res.json();
+                
+                if (result.status === 200) {
+                    if (result.error) {
+                        // Error dari SNMP
+                        alert(result.message || 'Gagal mengambil data dari OLT');
+                    } else if (result.data) {
+                        // Data berhasil diambil (bisa Online atau Offline)
+                        const data = result.data;
+                        updateModalRxPower(data.rx_power, data.olt_status, data.is_dying_gasp, data.is_los);
+                        $('#modalLastCheck').text('Terakhir cek: ' + new Date().toLocaleTimeString('id-ID'));
+                        
+                        // Update in matchedData array too
+                        const idx = matchedData.findIndex(m => m.user_id == currentCustomerData.user_id);
+                        if (idx !== -1) {
+                            matchedData[idx].rx_power = data.rx_power;
+                            matchedData[idx].olt_status = data.olt_status;
+                            matchedData[idx].is_dying_gasp = data.is_dying_gasp;
+                            matchedData[idx].is_los = data.is_los;
+                            
+                            // Update currentCustomerData juga
+                            currentCustomerData.rx_power = data.rx_power;
+                            currentCustomerData.olt_status = data.olt_status;
+                            currentCustomerData.is_dying_gasp = data.is_dying_gasp;
+                            currentCustomerData.is_los = data.is_los;
+                            
+                            dataTableInstance.clear().rows.add(matchedData).draw();
+                        }
+                    } else {
+                        // Tidak ada data (seharusnya tidak terjadi dengan perbaikan backend)
+                        alert('Data ONT tidak ditemukan di OLT');
+                    }
+                } else {
+                    alert(result.message || 'Gagal refresh data');
+                }
+            } catch (e) {
+                console.error('Refresh error:', e);
+                alert('Gagal refresh: ' + e.message);
+            } finally {
+                btn.prop('disabled', false).html('<i class="fas fa-sync-alt"></i> Refresh Redaman');
+            }
+        }
+
+        function renderRxPower(rxPower) {
+            if (!rxPower || rxPower === 'N/A') return '<span class="text-muted">N/A</span>';
+            const val = parseFloat(rxPower);
+            if (isNaN(val)) return `<span class="text-muted">${rxPower}</span>`;
+            
+            let cls = 'rx-power-good', icon = 'fa-signal';
+            if (val < -25) { cls = 'rx-power-bad'; icon = 'fa-exclamation-circle'; }
+            else if (val < -20) { cls = 'rx-power-warning'; icon = 'fa-exclamation-triangle'; }
+            
+            return `<span class="${cls}"><i class="fas ${icon}"></i> ${rxPower}</span>`;
+        }
+
+        function renderOltStatus(row) {
+            if (row.is_dying_gasp) return '<span class="badge badge-danger"><i class="fas fa-bolt"></i> DG</span>';
+            if (row.is_los) return '<span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> LOS</span>';
+            if (row.olt_status === 'Online') return '<span class="badge badge-success"><i class="fas fa-check"></i></span>';
+            return '<span class="badge badge-secondary"><i class="fas fa-times"></i></span>';
+        }
+
+        function renderOltName(row) {
+            if (!row.olt_name) return '<span class="text-muted">-</span>';
+            const safeName = $('<div>').text(row.olt_name).html();
+            const title = row.olt_host ? `Host: ${row.olt_host}` : 'Nama OLT';
+            // Tanda "dari cache" hanya untuk EPON (match via MAC). GPON (ZTE) match via
+            // PPPoE — mac_olt='N/A' itu normal, bukan tanda offline.
+            const isGpon = row.olt_brand === 'zte';
+            const cached = (row.mac_olt === 'N/A' && !isGpon)
+                ? ' <i class="fas fa-history text-muted" title="Diketahui dari cache (ONT sedang offline)"></i>'
+                : '';
+            const brandTag = isGpon ? ' <span class="badge badge-info" title="GPON">GPON</span>' : '';
+            return `<span class="badge badge-light border" title="${title}"><i class="fas fa-broadcast-tower text-primary mr-1"></i>${safeName}</span>${brandTag}${cached}`;
+        }
+
+        function updateStatsFromData(data) {
+            let online = 0, offline = 0, los = 0, dyingGasp = 0;
+            data.forEach(item => {
+                if (item.is_dying_gasp) dyingGasp++;
+                else if (item.is_los) los++;
+                else if (item.olt_status === 'Online') online++;
+                else offline++;
+            });
+            updateStats(online, offline, los, dyingGasp);
+        }
+
+        function updateStats(online, offline, los, dyingGasp) {
+            $('#statOnline').text(online);
+            $('#statOffline').text(offline);
+            $('#statLos').text(los);
+            $('#statDyingGasp').text(dyingGasp);
+        }
+
+        function filterByStatus(status) {
+            $.fn.dataTable.ext.search = [];
+            if (status) {
+                $.fn.dataTable.ext.search.push((settings, data, dataIndex) => {
+                    const row = dataTableInstance.row(dataIndex).data();
+                    if (!row) return false;
+                    switch (status) {
+                        case 'online': return row.olt_status === 'Online' && !row.is_los && !row.is_dying_gasp;
+                        case 'offline': return row.olt_status !== 'Online' && !row.is_los && !row.is_dying_gasp;
+                        case 'los': return row.is_los === true;
+                        case 'dying_gasp': return row.is_dying_gasp === true;
+                        default: return true;
+                    }
+                });
+            }
+            dataTableInstance.draw();
+        }
+
+        function applySorting(sortType) {
+            switch (sortType) {
+                case 'rx_asc': dataTableInstance.order([2, 'asc']).draw(); break;
+                case 'rx_desc': dataTableInstance.order([2, 'desc']).draw(); break;
+                case 'name_asc': dataTableInstance.order([0, 'asc']).draw(); break;
+                case 'name_desc': dataTableInstance.order([0, 'desc']).draw(); break;
+            }
+        }
+
+        function updateLastUpdateTime() {
+            const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            $('#lastUpdateTime').html(`<i class="fas fa-clock"></i> ${time}`);
+        }
+
+        function startAutoRefresh() {
+            if (autoRefreshInterval) return;
+            autoRefreshInterval = setInterval(() => loadAllData(false), AUTO_REFRESH_INTERVAL);
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) { clearInterval(autoRefreshInterval); autoRefreshInterval = null; }
+        }
+
+        function showAlert(type, msg) {
+            const icons = { info: 'fa-info-circle', warning: 'fa-exclamation-triangle', danger: 'fa-times-circle', success: 'fa-check-circle' };
+            $('#oltStatusAlert').removeClass('alert-info alert-warning alert-danger alert-success')
+                .addClass('alert-' + type).show();
+            $('#oltStatusMessage').html('<i class="fas ' + (icons[type] || 'fa-info-circle') + '"></i> ' + msg);
+        }
+
+        function hideAlert() { $('#oltStatusAlert').hide(); }

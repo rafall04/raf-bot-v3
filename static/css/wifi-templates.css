@@ -1,0 +1,98 @@
+        #accordionSidebar .nav-item.active .nav-link {
+            background-color: rgba(255, 255, 255, 0.1);
+            font-weight: 600;
+            border-left: 3px solid #4e73df;
+            color: #ffffff;
+        }
+        .keyword-badge {
+            display: inline-block;
+            margin: 2px;
+            padding: 5px 10px;
+            background-color: #4e73df;
+            color: white;
+            border-radius: 15px;
+            font-size: 0.85rem;
+        }
+        .keyword-badge .remove-keyword {
+            margin-left: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .keyword-badge .remove-keyword:hover {
+            color: #ff4444;
+        }
+        .keywords-container {
+            min-height: 60px;
+            padding: 10px;
+            border: 1px solid #d1d3e2;
+            border-radius: 0.35rem;
+            background-color: #f8f9fc;
+            margin-bottom: 10px;
+        }
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+        .intent-badge {
+            font-size: 0.9rem;
+            padding: 6px 12px;
+        }
+        .card-header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .info-box {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 0.35rem;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .info-box h6 {
+            color: #0c5460;
+            font-weight: bold;
+        }
+        .info-box p {
+            color: #0c5460;
+            margin-bottom: 0;
+        }
+        /* Category Tabs Styling */
+        .nav-pills .nav-link {
+            border-radius: 0.35rem;
+            padding: 0.75rem 1rem;
+            margin: 0.25rem;
+            transition: all 0.3s ease;
+            color: #6c757d;
+            border: 2px solid transparent;
+        }
+        .nav-pills .nav-link:hover {
+            background-color: #f8f9fc;
+            border-color: #4e73df;
+            color: #4e73df;
+        }
+        .nav-pills .nav-link.active {
+            background-color: #4e73df;
+            color: white;
+            border-color: #4e73df;
+        }
+        .nav-pills .nav-link .badge {
+            background-color: rgba(255, 255, 255, 0.3);
+            color: inherit;
+            font-weight: 600;
+        }
+        .nav-pills .nav-link.active .badge {
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #4e73df;
+        }
+        /* Smooth template transitions */
+        .card[data-category] {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .card[data-category].hidden {
+            display: none;
+            opacity: 0;
+            transform: scale(0.95);
+        }

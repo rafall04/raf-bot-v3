@@ -1,0 +1,97 @@
+        .stat-card {
+            border-left: 4px solid;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .stat-card.total { border-left-color: #4e73df; }
+        .stat-card.phase1 { border-left-color: #f6c23e; }
+        .stat-card.phase2 { border-left-color: #36b9cc; }
+        .stat-card.completed { border-left-color: #1cc88a; }
+        .stat-card.meluncur { border-left-color: #e74a3b; }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #5a5c69;
+        }
+        .stat-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #858796;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .status-phase1_completed { background: #fff3cd; color: #856404; }
+        .status-teknisi_meluncur { background: #cfe2ff; color: #084298; }
+        .status-phase2_completed { background: #d1ecf1; color: #0c5460; }
+        .status-completed { background: #d4edda; color: #155724; }
+        
+        .filter-section {
+            background: #f8f9fc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .photo-preview {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 5px;
+            cursor: pointer;
+            border: 2px solid #ddd;
+        }
+        .photo-preview:hover {
+            border-color: #4e73df;
+        }
+        
+        .detail-section {
+            margin-bottom: 20px;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #5a5c69;
+            margin-bottom: 5px;
+        }
+        .detail-value {
+            color: #858796;
+        }
+        
+        .map-preview {
+            height: 200px;
+            width: 100%;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        
+        .teknisi-stats {
+            background: #f8f9fc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .action-buttons .btn {
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .table-responsive {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .modal-body {
+            max-height: calc(100vh - 210px);
+            overflow-y: auto;
+        }

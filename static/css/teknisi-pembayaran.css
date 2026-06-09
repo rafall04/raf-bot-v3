@@ -1,0 +1,73 @@
+        /* stat cards, badges & filter tabs are governed by teknisi-theme.css */
+        .table-payment th { background: #f8f9fc; font-weight: 600; font-size: 0.85rem; }
+        .table-payment td { vertical-align: middle; }
+        .customer-info { display: flex; flex-direction: column; }
+        .customer-name { font-weight: 600; color: #2e2f37; }
+        .customer-phone { font-size: 0.8rem; color: #6c757d; }
+        .package-badge { background: #e7f1ff; color: #4e73df; padding: 4px 10px; border-radius: 15px; font-size: 0.8rem; font-weight: 500; }
+        .billing-date { font-weight: 500; }
+        .btn-action { padding: 5px 10px; font-size: 0.8rem; }
+        
+        /* Request Payment Modal */
+        .customer-summary { background: #f8f9fc; border-radius: 10px; padding: 15px; margin-bottom: 20px; }
+        .customer-summary h5 { margin-bottom: 10px; color: #4e73df; }
+        .customer-summary .detail-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #e3e6f0; }
+        .customer-summary .detail-row:last-child { border-bottom: none; }
+        .customer-summary .detail-label { color: #6c757d; }
+        .customer-summary .detail-value { font-weight: 600; }
+        .price-highlight { font-size: 1.5rem; color: #28a745; font-weight: 700; }
+
+        .table-payment {
+            min-width: 640px;
+        }
+
+        @media (max-width: 767.98px) {
+            .container-fluid {
+                padding: 0.875rem;
+            }
+
+            #refreshBtn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .table-responsive {
+                margin-left: -0.25rem;
+                margin-right: -0.25rem;
+            }
+
+            .modal-dialog {
+                margin: 0.75rem auto;
+                max-width: calc(100vw - 1rem);
+            }
+
+            .customer-summary .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.2rem;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .container-fluid {
+                padding: 0.75rem;
+            }
+
+            .stats-card .card-body {
+                padding: 0.95rem;
+            }
+
+            .stats-value {
+                font-size: 1.3rem;
+            }
+
+            .stats-icon {
+                width: 42px;
+                height: 42px;
+                font-size: 1.2rem;
+            }
+
+            .price-highlight {
+                font-size: 1.25rem;
+            }
+        }
