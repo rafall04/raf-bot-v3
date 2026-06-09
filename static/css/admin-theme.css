@@ -974,3 +974,47 @@ body:not(.tk-dark) .custom-select {
 body:not(.tk-dark) .alert {
     border-radius: 0.6rem;
 }
+
+/* ============================================================
+   DARK — baris tabel kontekstual (.table-success/-danger/-warning/-info/...)
+   Bootstrap memberi bg TERANG (mis. .table-success #c3e6cb) TANPA set warna
+   teks → di mode gelap teks jadi terang di atas bg terang = TAK TERLIHAT
+   (fatal; mis. baris "Sudah Bayar" di Status Pembayaran). Ganti ke tint
+   gelap semantik + teks terang.
+   ============================================================ */
+body.tk-dark .table-success,
+body.tk-dark .table-success > td,
+body.tk-dark .table-success > th {
+    background-color: rgba(16, 185, 129, 0.18) !important;
+    color: var(--d-ink) !important;
+}
+body.tk-dark .table-danger,
+body.tk-dark .table-danger > td,
+body.tk-dark .table-danger > th {
+    background-color: rgba(239, 68, 68, 0.18) !important;
+    color: var(--d-ink) !important;
+}
+body.tk-dark .table-warning,
+body.tk-dark .table-warning > td,
+body.tk-dark .table-warning > th {
+    background-color: rgba(245, 158, 11, 0.18) !important;
+    color: var(--d-ink) !important;
+}
+body.tk-dark .table-info,
+body.tk-dark .table-info > td,
+body.tk-dark .table-info > th {
+    background-color: rgba(59, 130, 246, 0.18) !important;
+    color: var(--d-ink) !important;
+}
+body.tk-dark .table-active,
+body.tk-dark .table-active > td,
+body.tk-dark .table-active > th {
+    background-color: var(--d-surface-2) !important;
+    color: var(--d-ink) !important;
+}
+body.tk-dark .table-light,
+body.tk-dark .table-light > td,
+body.tk-dark .table-light > th {
+    background-color: var(--d-raise) !important;
+    color: var(--d-ink) !important;
+}
