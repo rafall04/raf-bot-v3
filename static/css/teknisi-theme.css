@@ -1013,6 +1013,14 @@ body.tk-dark .alert-success { color: #6ee7b7; }
 body.tk-dark .alert-danger { color: #fca5a5; }
 body.tk-dark .alert-warning { color: #fcd34d; }
 body.tk-dark .alert-info { color: #93c5fd; }
+/* Varian alert yang tak punya rule soft (primary/secondary/dark/light) =
+   bg terang Bootstrap di dark = island terang. Beri bg gelap + teks terang. */
+body.tk-dark .alert-primary { background: rgba(99, 102, 241, 0.16); color: var(--indigo-200); border-color: transparent; }
+body.tk-dark .alert-secondary,
+body.tk-dark .alert-dark,
+body.tk-dark .alert-light { background: var(--tk-surface-2); color: var(--tk-ink-soft); border-color: var(--tk-line); }
+/* Track .progress (Bootstrap #e9ecef) = island terang di dark. */
+body.tk-dark .progress { background-color: rgba(255, 255, 255, 0.08); }
 
 /* filter tabs */
 body.tk-dark .filter-tab { background: var(--tk-surface); color: var(--tk-ink-soft); border-color: var(--tk-line); }
