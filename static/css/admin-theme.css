@@ -261,10 +261,23 @@ body.tk-dark .select2-dropdown { background: var(--d-surface); border-color: var
 body.tk-dark .select2-results__option { color: var(--d-ink); }
 body.tk-dark .select2-search--dropdown .select2-search__field { background: var(--d-raise); color: var(--d-ink); border-color: var(--d-line); }
 
-/* SweetAlert2 */
-body.tk-dark .swal2-popup { background: var(--d-surface); color: var(--d-ink); }
+/* SweetAlert2 — paksa GELAP penuh (!important agar menang atas CSS Swal2 v11 yang
+   di-inject runtime, apa pun urutan muat). Cover popup, teks, input, validasi. */
+body.tk-dark .swal2-popup { background: var(--d-surface) !important; color: var(--d-ink) !important; }
 body.tk-dark .swal2-title,
-body.tk-dark .swal2-html-container { color: var(--d-ink); }
+body.tk-dark .swal2-html-container,
+body.tk-dark .swal2-content { color: var(--d-ink) !important; }
+body.tk-dark .swal2-input,
+body.tk-dark .swal2-textarea,
+body.tk-dark .swal2-select {
+    background: var(--d-raise) !important;
+    color: var(--d-ink) !important;
+    border-color: var(--d-line-2) !important;
+}
+body.tk-dark .swal2-validation-message {
+    background: var(--d-raise) !important;
+    color: var(--d-ink-soft) !important;
+}
 
 /* ============================================================
    DASHBOARD-specific surfaces (index.php inline classes)

@@ -1046,10 +1046,23 @@ body.tk-dark .select2-results__option { color: var(--tk-ink); }
 body.tk-dark .select2-results__option[aria-selected=true] { background: var(--tk-primary-soft); color: #c7d2fe; }
 body.tk-dark .select2-search--dropdown .select2-search__field { background: #141d2c; color: var(--tk-ink); border-color: var(--tk-line); }
 
-/* SweetAlert2 */
-body.tk-dark .swal2-popup { background: var(--tk-surface); color: var(--tk-ink); }
+/* SweetAlert2 — paksa GELAP penuh (!important agar menang atas CSS Swal2 v11
+   runtime). Cover popup, teks, input, validasi. */
+body.tk-dark .swal2-popup { background: var(--tk-surface) !important; color: var(--tk-ink) !important; }
 body.tk-dark .swal2-title,
-body.tk-dark .swal2-html-container { color: var(--tk-ink); }
+body.tk-dark .swal2-html-container,
+body.tk-dark .swal2-content { color: var(--tk-ink) !important; }
+body.tk-dark .swal2-input,
+body.tk-dark .swal2-textarea,
+body.tk-dark .swal2-select {
+    background: var(--tk-surface-2) !important;
+    color: var(--tk-ink) !important;
+    border-color: var(--tk-line) !important;
+}
+body.tk-dark .swal2-validation-message {
+    background: var(--tk-surface-2) !important;
+    color: var(--tk-ink-soft) !important;
+}
 
 /* scroll-to-top stays branded; nothing to do */
 
