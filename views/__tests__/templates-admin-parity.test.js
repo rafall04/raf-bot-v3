@@ -2,7 +2,7 @@
  * Header Doc
  * Purpose: Source guardrail untuk parity halaman admin template pesan WhatsApp.
  * Caller: Jest test runner.
- * Deps: fs, path, views/sb-admin/templates.php.
+ * Deps: fs, path, views/sb-admin/templates.php, static/js/templates.js.
  * MainFuncs: readTemplateView.
  * SideEffects: Membaca file view tanpa menjalankan PHP/JavaScript.
  */
@@ -11,7 +11,11 @@ const fs = require('fs');
 const path = require('path');
 
 function readTemplateView() {
-  return fs.readFileSync(path.join(__dirname, '..', 'sb-admin', 'templates.php'), 'utf8');
+  // Logika JS halaman dipecah ke static/js/templates.js (externalisasi monolit).
+  // Guardrail tetap membaca KEDUANYA: markup (php) + logika (js).
+  const php = fs.readFileSync(path.join(__dirname, '..', 'sb-admin', 'templates.php'), 'utf8');
+  const js = fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'templates.js'), 'utf8');
+  return php + '\n' + js;
 }
 
 describe('templates admin parity view', () => {
