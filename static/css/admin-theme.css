@@ -223,10 +223,15 @@ body.tk-dark .close { color: var(--d-ink); text-shadow: none; }
 body.tk-dark .close:hover { color: #fff; }
 
 /* badges (soft tint + lifted text) */
-body.tk-dark .badge-success { color: var(--emerald-300) !important; }
-body.tk-dark .badge-danger { color: var(--red-300) !important; }
-body.tk-dark .badge-warning { color: var(--amber-300) !important; }
-body.tk-dark .badge-info { color: var(--blue-300) !important; }
+/* Badge solid (success/danger/warning/info): di dark, set HANYA warna teks ke
+   shade -300 = teks sewarna di atas bg solid = tak terlihat. Jadikan soft badge
+   (bg tint gelap + teks terang) — konsisten dengan badge-sent/status-* di bawah. */
+body.tk-dark .badge-success { background-color: rgba(16, 185, 129, 0.18) !important; color: var(--emerald-300) !important; }
+body.tk-dark .badge-danger { background-color: rgba(239, 68, 68, 0.18) !important; color: var(--red-300) !important; }
+body.tk-dark .badge-warning { background-color: rgba(245, 158, 11, 0.18) !important; color: var(--amber-300) !important; }
+body.tk-dark .badge-info { background-color: rgba(59, 130, 246, 0.18) !important; color: var(--blue-300) !important; }
+/* .bg-warning (amber, bg terang) butuh teks gelap di dark mode agar terbaca */
+body.tk-dark .bg-warning { color: #1f2937 !important; }
 body.tk-dark .badge-secondary { background: rgba(255, 255, 255, 0.08) !important; color: var(--d-ink-soft) !important; }
 
 /* alerts */
