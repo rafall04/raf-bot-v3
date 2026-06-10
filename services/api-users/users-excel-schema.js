@@ -45,6 +45,12 @@ const USER_EXCEL_COLUMNS = [
         example: "Paket Basic"
     },
     {
+        key: "pppoe_username",
+        requiredOnCreate: false,
+        description: "Username PPPoE di MikroTik. Kunci pencocokan rekonsiliasi/auto-outage/isolir — samakan PERSIS dengan nama secret di router.",
+        example: "area@namapelanggan"
+    },
+    {
         key: "device_id",
         requiredOnCreate: false,
         description: "Device ID ONT/ONU bila sudah tersedia.",
@@ -304,6 +310,7 @@ function buildSampleImportRow() {
         phone_number: "6281234567890|6289876543210",
         address: "Jl. Contoh No. 123",
         subscription: "Paket Basic",
+        pppoe_username: "area@namapelanggan",
         device_id: "ONT123456",
         connected_odp_id: "ODP-001",
         latitude: -6.2,
@@ -422,6 +429,7 @@ function normalizeImportRow(rawRow) {
         phone_number: explicitFields.phone_number ? normalizePipeList(rawRow?.phone_number).join("|") : null,
         address: normalizeNullableString(rawRow?.address),
         subscription: normalizeNullableString(rawRow?.subscription),
+        pppoe_username: normalizeNullableString(rawRow?.pppoe_username),
         device_id: normalizeNullableString(rawRow?.device_id),
         connected_odp_id: normalizeNullableString(rawRow?.connected_odp_id),
         latitude: latitudeResult.value,
@@ -457,6 +465,7 @@ function mapUserToExportRow(user) {
         phone_number: user?.phone_number || user?.phone || "",
         address: user?.address || "",
         subscription: user?.subscription || user?.package || "",
+        pppoe_username: user?.pppoe_username || "",
         device_id: user?.device_id || "",
         connected_odp_id: user?.connected_odp_id || user?.odp_id || "",
         latitude: user?.latitude ?? "",

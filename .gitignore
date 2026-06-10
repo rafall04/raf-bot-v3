@@ -114,6 +114,12 @@ uploads/
 temp/
 *.tmp
 
+# Reconciliation/import analysis artifacts (data pelanggan + secret MikroTik — JANGAN commit)
+tmp/mikrotik_secrets.json
+tmp/reconciliation_report.xlsx
+tmp/staging_*.xlsx
+tmp/_*.js
+
 # Logs
 logs/
 *.log
