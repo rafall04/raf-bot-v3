@@ -1064,6 +1064,23 @@ body.tk-dark .swal2-validation-message {
     color: var(--tk-ink-soft) !important;
 }
 
+/* Bootstrap toast (showToast custom di banyak halaman) — teknisi-theme TAK punya
+   coverage toast → container .toast putih + .toast-body teks terang = TAK TERLIHAT
+   di dark. Tambah coverage penuh. */
+body.tk-dark .toast {
+    background-color: var(--tk-surface) !important;
+    color: var(--tk-ink) !important;
+    border-color: var(--tk-line) !important;
+}
+body.tk-dark .toast-body { color: var(--tk-ink) !important; }
+body.tk-dark .toast-header { background-color: var(--tk-surface-2) !important; color: var(--tk-ink); border-color: var(--tk-line) !important; }
+body.tk-dark .toast .close { color: var(--tk-ink); text-shadow: none; }
+body.tk-dark .toast-header.bg-success { background-color: rgba(16, 185, 129, 0.25) !important; }
+body.tk-dark .toast-header.bg-danger { background-color: rgba(239, 68, 68, 0.25) !important; }
+body.tk-dark .toast-header.bg-warning { background-color: rgba(245, 158, 11, 0.25) !important; }
+body.tk-dark .toast-header.bg-info { background-color: rgba(59, 130, 246, 0.25) !important; }
+body.tk-dark .toast-header.bg-primary { background-color: rgba(99, 102, 241, 0.25) !important; }
+
 /* scroll-to-top stays branded; nothing to do */
 
 /* dark-mode toggle button in topbar */

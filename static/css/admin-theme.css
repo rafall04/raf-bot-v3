@@ -472,6 +472,23 @@ body.tk-dark .teknisi-stats,
 body.tk-dark .health-item,
 body.tk-dark .toast-notification,
 body.tk-dark .toast-header { background: var(--d-surface) !important; border-color: var(--d-line) !important; color: var(--d-ink); }
+/* Bootstrap toast (showToast custom di banyak halaman pakai .toast/.toast-body):
+   container .toast = bg PUTIH default Bootstrap + .toast-body teks terang
+   (body.tk-dark) = TAK TERLIHAT di dark. Sebelumnya hanya .toast-header ter-cover. */
+body.tk-dark .toast {
+    background-color: var(--d-surface) !important;
+    color: var(--d-ink) !important;
+    border-color: var(--d-line) !important;
+    box-shadow: var(--d-elev-2);
+}
+body.tk-dark .toast-body { color: var(--d-ink) !important; }
+body.tk-dark .toast .close { color: var(--d-ink); text-shadow: none; }
+/* Header toast tetap berwarna (indikator tipe) — tint gelap semantik + teks putih */
+body.tk-dark .toast-header.bg-success { background-color: rgba(16, 185, 129, 0.25) !important; }
+body.tk-dark .toast-header.bg-danger { background-color: rgba(239, 68, 68, 0.25) !important; }
+body.tk-dark .toast-header.bg-warning { background-color: rgba(245, 158, 11, 0.25) !important; }
+body.tk-dark .toast-header.bg-info { background-color: rgba(59, 130, 246, 0.25) !important; }
+body.tk-dark .toast-header.bg-primary { background-color: rgba(99, 102, 241, 0.25) !important; }
 
 /* slightly elevated surface */
 body.tk-dark .action-buttons,
