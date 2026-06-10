@@ -47,7 +47,7 @@ SideEffects: POST perubahan template ke `/api/templates` dan memicu reload cache
 
                     <!-- Placeholder Documentation Card -->
                     <div class="card shadow mb-4">
-                        <div class="card-header py-3" style="background-color: #f8f9fa;">
+                        <div class="card-header py-3">
                             <h6 class="m-0 font-weight-bold text-info">
                                 <i class="fas fa-info-circle"></i> Standar Placeholder untuk Template
                             </h6>
