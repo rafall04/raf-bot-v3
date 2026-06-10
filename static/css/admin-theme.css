@@ -78,6 +78,8 @@ body.tk-dark .topbar #sidebarToggleTop { color: var(--d-ink-soft); }
 body.tk-dark .dropdown-menu,
 body.tk-dark .dropdown-list { background: var(--d-surface); border-color: var(--d-line); }
 body.tk-dark .dropdown-item { color: var(--d-ink-soft); }
+body.tk-dark .dropdown-item.active,
+body.tk-dark .dropdown-item:active { background-color: var(--indigo-600) !important; color: #fff !important; }
 body.tk-dark .dropdown-item:hover,
 body.tk-dark .dropdown-item:focus { background: rgba(99, 102, 241, 0.18); color: var(--d-ink); }
 body.tk-dark .dropdown-divider { border-top-color: var(--d-line); }
@@ -252,7 +254,7 @@ body.tk-dark .custom-file-label::after { background: var(--d-surface-2) !importa
 body.tk-dark .page-link { background: var(--d-surface); color: var(--d-ink-soft); border-color: var(--d-line); }
 body.tk-dark .page-link:hover { background: rgba(99,102,241,.18); color: var(--d-ink); }
 body.tk-dark .page-item.disabled .page-link { background: var(--d-surface); color: var(--d-muted); border-color: var(--d-line); }
-body.tk-dark .page-item.active .page-link { background: var(--primary); border-color: var(--primary); color: #fff; }
+body.tk-dark .page-item.active .page-link { background: var(--primary); border-color: var(--primary); color: #fff !important; }
 
 /* Select2 */
 body.tk-dark .select2-selection { background: var(--d-surface) !important; border-color: var(--d-line) !important; }

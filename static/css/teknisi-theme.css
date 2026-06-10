@@ -928,7 +928,20 @@ body.tk-dark .dropdown-menu { background: var(--tk-surface); border-color: var(-
 body.tk-dark .dropdown-item { color: var(--tk-ink-soft); }
 body.tk-dark .dropdown-item:hover,
 body.tk-dark .dropdown-item:focus { background: var(--tk-primary-soft); color: var(--tk-ink); }
+body.tk-dark .dropdown-item.active,
+body.tk-dark .dropdown-item:active { background-color: var(--tk-primary-dark); color: #fff; }
 body.tk-dark .dropdown-divider { border-top-color: var(--tk-line); }
+
+/* .nav-tabs: tab aktif Bootstrap = bg PUTIH di dark = island terang. Jadikan
+   surface gelap + teks terang; tab non-aktif & hover juga. */
+body.tk-dark .nav-tabs { border-bottom-color: var(--tk-line); }
+body.tk-dark .nav-tabs .nav-link { color: var(--tk-ink-soft); }
+body.tk-dark .nav-tabs .nav-link:hover { border-color: var(--tk-line) var(--tk-line) transparent; color: var(--tk-ink); }
+body.tk-dark .nav-tabs .nav-link.active {
+    background-color: var(--tk-surface);
+    color: var(--tk-ink);
+    border-color: var(--tk-line) var(--tk-line) var(--tk-surface);
+}
 
 /* cards / tables */
 body.tk-dark .card .card-header h6,
