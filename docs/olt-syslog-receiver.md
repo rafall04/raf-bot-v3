@@ -32,8 +32,20 @@ backup.
 
 ## Kenapa syslog (vs scrape)?
 
-Scraper web UI sudah akurat untuk DG/LOS (baca log batch — dying-gasp & Lost
-dua-duanya kelihatan). Syslog adalah upgrade keandalan & latensi:
+Scraper web UI akurat untuk insiden **kecil** (baca log batch — dying-gasp & Lost
+dua-duanya kelihatan dalam jendela baca). **TAPI saat mass outage / mati total** ratusan
+ONU memuntahkan dying-gasp+Lost serempak: web log dipaginasi newest-page-first, jadi baris
+`Lost` (lebih baru) mendominasi halaman awal sedangkan `dying-gasp` pasangannya terdorong
+ke halaman lebih lama — di luar jendela baca → **salah vonis LOS** justru saat paling kritis.
+
+> Scraper sudah di-**harden** (Jun 2026): kedalaman halaman **adaptif** (baca sampai keluar
+> jendela waktu, bukan cap-3 tetap) + **sortir kronologis** sebelum korelasi (cegah `Lost`
+> diproses sebelum `dying-gasp` pasangannya). Lihat `lib/olt-log-scraper.js` +
+> test `lib/__tests__/olt-log-scraper.test.js`. Namun scraper tetap polling buffer rotasi &
+> bergantung auth/firmware web UI — **band-aid**, bukan solusi struktural.
+
+Syslog menghapus SELURUH kelas masalah ini — tiap event ditangkap saat lahir (tanpa
+paginasi/jendela-baca/rotasi). Upgrade keandalan & latensi:
 
 Syslog lebih robust:
 
@@ -111,28 +123,52 @@ Restart bot. Cek log:
 [OLT-Syslog] Listening on 0.0.0.0:5514
 ```
 
-### 2. Enable forwarding di OLT Hioso
+### 2. Arahkan syslog di OLT Hioso ke bot
 
-**Via CLI** (kalau ada akses):
+**Via Web UI (terverifikasi di OLT 192.168.11.2, firmware EPON Hioso ini):**
+Menu kiri **System Management → System Log Config** (halaman `logServer.asp`). Ada **satu
+field**: **"Syslog Server IP"** → isi IP bot yang routable dari OLT, klik **Apply**.
+
+> ⚠️ **Halaman ini HANYA punya field IP — tidak ada field port.** Firmware mengirim ke
+> **UDP 514 standar** (RFC 3164). Receiver bot default `5514` (non-root) → **mismatch port
+> yang HARUS dijembatani**, lihat sub-bagian di bawah. Tanpa itu paket masuk ke 514 tapi
+> receiver dengar di 5514 = tidak ada event.
+>
+> Saat audit (Jun 2026) OLT sudah menunjuk `192.168.0.15` — **ganti ke IP bot** yang
+> routable dari subnet OLT (OLT di `192.168.11.x`).
+
+**Via CLI** (kalau firmware menyediakannya — sebagian Hioso EPON tidak):
 ```
 config
 logging on
-logging host <BOT_IP> port 5514
+logging host <BOT_IP>      # umumnya tetap UDP 514, bukan 5514
 logging level info
 exit
 write
 ```
 
-Adjust `BOT_IP` ke alamat server raf-bot. Beberapa firmware Hioso pakai
-command yang sedikit beda, mis. `syslog-server`/`snmp-trap`. Cek manual
-sesuai versi firmware.
+#### Jembatan port 514 → 5514 (WAJIB karena OLT kirim ke 514)
 
-**Via Web UI** (kalau CLI tidak accessible):
-1. Login web admin OLT
-2. Menu **Maintenance** atau **System Management** → **Log Configuration**
-3. Enable "Remote Log Server" / "Syslog Forwarding"
-4. Server IP: bot IP, Port: `5514`, Protocol: UDP, Level: `Info` atau `Notice`
-5. Save & apply
+Pilih salah satu:
+
+**(A) Redirect di host bot — disarankan (receiver tetap non-root).** Linux prod:
+```
+sudo iptables -t nat -A PREROUTING -p udp --dport 514 -j REDIRECT --to-ports 5514
+# persist: iptables-persistent / netfilter-persistent
+```
+Biarkan `oltSyslog.port = 5514`.
+
+**(B) Bind receiver langsung di 514.** Set `oltSyslog.port = 514` lalu beri Node izin bind
+port <1024:
+```
+sudo setcap cap_net_bind_service=+ep $(command -v node)   # Linux
+```
+(Windows dev: jalankan sebagai admin — Node bisa bind 514 langsung.)
+
+Verifikasi paket benar-benar sampai (ganti port sesuai pilihan):
+```
+sudo tcpdump -i any -n 'udp port 514' -A     # harus terlihat paket dari IP OLT
+```
 
 ### 3. Verify event masuk
 
@@ -162,9 +198,12 @@ Config `oltSyslog.enabled` belum `true`. Edit config.json + restart.
 ### Bot start, listen log muncul, tapi tidak ada event
 
 Verify:
-1. Firewall bot — open UDP 5514 inbound dari OLT IP
-2. OLT config — pastikan forwarding aktif, IP/port benar
-3. Network — `tcpdump -i any -n 'udp port 5514' -A` di bot, lihat packet masuk
+1. **MISMATCH PORT (tersangka utama)** — OLT Hioso (`logServer.asp`) kirim ke **514**,
+   receiver default **5514**. Pasang jembatan port (lihat Setup #2) atau set
+   `oltSyslog.port=514`. Cek: `tcpdump -i any -n 'udp port 514' -A` — kalau paket terlihat
+   di 514 tapi tak ada `[OLT-Syslog]` event, itu mismatch port.
+2. Firewall bot — open UDP 514 (atau 5514) inbound dari OLT IP
+3. OLT config — `logServer.asp` Syslog Server IP = IP bot yang routable (bukan `192.168.0.15` lama)
 4. OLT severity level — kalau set ke `error`, mungkin DG/LOS events skip. Naikkan ke `info` atau `notice`
 
 ### Bind failed: EADDRINUSE
