@@ -592,6 +592,17 @@ body.tk-dark code { background: var(--d-raise) !important; color: var(--indigo-2
 body.tk-dark .info-box,
 body.tk-dark .info-card,
 body.tk-dark .hint-box { background: var(--d-surface-2) !important; border-color: var(--d-line) !important; color: var(--d-ink); }
+/* teks anak info-box sering di-hardcode warna gelap semantik oleh page (mis.
+   sync-device-id `.info-box p { color:#1e3a8a }`) -> tak terlihat di surface gelap.
+   Paksa terang; modifier .text-* (Bootstrap !important) tetap menang. */
+body.tk-dark .info-box p, body.tk-dark .info-box strong, body.tk-dark .info-box span,
+body.tk-dark .info-box li, body.tk-dark .info-box h6, body.tk-dark .info-box label,
+body.tk-dark .info-card p, body.tk-dark .info-card strong, body.tk-dark .info-card li { color: var(--d-ink); }
+
+/* los-broadcast: .los-card di-set background:#fff inline <style> page -> kartu PUTIH
+   di dark (teks sudah terang via body.tk-dark -> seluruh konten hilang). Gelapkan. */
+body.tk-dark .los-card { background: var(--d-surface) !important; border-color: var(--d-line) !important; }
+body.tk-dark .los-card .card-header { border-bottom-color: var(--d-line) !important; }
 
 /* psb-rekap status badges */
 body.tk-dark .status-badge.status-completed { background: rgba(16,185,129,.16) !important; color: var(--emerald-300) !important; }
