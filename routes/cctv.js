@@ -26,8 +26,10 @@ router.post('/devices', (req, res) => {
     if (!ensureAdmin(req, res)) return;
     try {
         const saved = registry.upsert(req.body || {});
-        // hot-reload monitor agar device baru langsung dipantau
-        try { monitor.restartCctvMonitor(); } catch (__e) { /* ignore */ }
+        // Tak perlu restart monitor: poll membaca daftar device fresh tiap siklus
+        // (devByHost→getDevices) → device baru otomatis terpantau ≤1 poll. Restart
+        // dulu memanggil state.clear() → menghapus insiden in-flight (pending/active),
+        // sehingga broadcast atau notif-pulih bisa hilang saat admin utak-atik daftar.
         res.json({ status: 200, message: 'OK', data: saved });
     } catch (e) {
         res.status(400).json({ status: 400, message: e.message });
@@ -40,7 +42,7 @@ router.put('/devices/:id', (req, res) => {
     if (!existing) return res.status(404).json({ status: 404, message: 'CCTV tidak ditemukan' });
     try {
         const saved = registry.upsert({ ...existing, ...req.body, id: req.params.id });
-        try { monitor.restartCctvMonitor(); } catch (__e) { /* ignore */ }
+        // Tak perlu restart: poll hot-read device tiap siklus (lihat catatan di POST).
         res.json({ status: 200, message: 'OK', data: saved });
     } catch (e) {
         res.status(400).json({ status: 400, message: e.message });
@@ -50,7 +52,8 @@ router.put('/devices/:id', (req, res) => {
 router.delete('/devices/:id', (req, res) => {
     if (!ensureAdmin(req, res)) return;
     registry.remove(req.params.id);
-    try { monitor.restartCctvMonitor(); } catch (__e) { /* ignore */ }
+    // Tak perlu restart: poll hot-read device; host yang hilang berhenti dipantau,
+    // dan pending-nya dibatalkan otomatis di onConfirm (device tak ditemukan).
     res.json({ status: 200, message: 'OK' });
 });
 
