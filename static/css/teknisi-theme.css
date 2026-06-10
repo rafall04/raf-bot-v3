@@ -901,7 +901,16 @@ body.tk-dark {
     background: var(--tk-canvas) !important;
     color: var(--tk-ink);
 }
-body.tk-dark #content-wrapper { background: var(--tk-canvas); }
+/* sb-admin-2 set `#content-wrapper { background:#f8f9fc !important }` → tanpa
+   !important rule ini kalah, area konten tetap PUTIH di dark (h1/teks invisible
+   di SEMUA halaman teknisi). !important + specificity body.tk-dark menang. */
+body.tk-dark #content-wrapper { background: var(--tk-canvas) !important; }
+/* .day-setting (kartu di teknisi-working-hours, didefinisikan di <style> inline
+   page = bg terang, load SETELAH theme) → surface gelap + teks terang. */
+body.tk-dark .day-setting { background-color: var(--tk-surface-2) !important; border-color: var(--tk-line) !important; color: var(--tk-ink); }
+body.tk-dark .day-setting strong,
+body.tk-dark .day-setting label { color: var(--tk-ink) !important; }
+body.tk-dark .card-value { color: var(--tk-ink) !important; }
 
 /* generic text/background utilities from sb-admin-2 */
 body.tk-dark .bg-white { background-color: var(--tk-surface) !important; }
