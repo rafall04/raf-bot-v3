@@ -4,6 +4,7 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
 header("Pragma: no-cache");
 header("Expires: 0");
 header("X-Debug-Version: NO-PLUGIN-2025-11-07");
+require_once __DIR__ . '/_asset.php';
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -18,18 +19,18 @@ header("X-Debug-Version: NO-PLUGIN-2025-11-07");
     <!-- VERSION: 2025-11-07-FINAL - Copied working code from teknisi version -->
     <title>Peta Jaringan</title>
 
-    <link href="/vendor/fontawesome-free/css/all.min.css?v=<?php echo time(); ?>" rel="stylesheet" type="text/css">
+    <link href="<?= rafAssetUrl('/vendor/fontawesome-free/css/all.min.css') ?>" rel="stylesheet" type="text/css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="/css/sb-admin-2.min.css?v=<?php echo time(); ?>" rel="stylesheet">
-    <link href="/css/admin-theme.css" rel="stylesheet">
-  <link href="/css/dashboard-modern.css?v=<?php echo time(); ?>" rel="stylesheet">
+    <link href="<?= rafAssetUrl('/css/sb-admin-2.min.css') ?>" rel="stylesheet">
+    <link href="<?= rafAssetUrl('/css/admin-theme.css') ?>" rel="stylesheet">
+  <link href="<?= rafAssetUrl('/css/dashboard-modern.css') ?>" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.10-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2-bootstrap-theme/0.1.0-beta.10/select2-bootstrap.min.css" />
     <!-- Re-enable fullscreen CSS to match teknisi version -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.fullscreen@1.6.0/Control.FullScreen.css" />
 
-    <link href="/css/map-viewer.css?v=<?php echo time(); ?>" rel="stylesheet">
+    <link href="<?= rafAssetUrl('/css/map-viewer.css') ?>" rel="stylesheet">
     <!-- Mobile sidebar styles handled by sb-admin-2.css -->
 </head>
 

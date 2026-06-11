@@ -17,32 +17,19 @@
  *     $themeRole       string  opsional ('admin'|'teknisi', default 'admin') — pilih tema + urutan.
  *     $pageDescription string  opsional — isi <meta name="description"> (di-escape).
  *     $fontHref        string  opsional — override URL Google Font (default Inter).
- * - MainFuncs: rafAssetUrl($publicPath) — kembalikan URL aset lokal + query versi
- *   (?v=<mtime>) agar cache browser/CDN otomatis invalid saat file berubah, tapi
- *   URL tetap stabil (revalidasi 304 efektif) saat tak berubah — beda dari ?v=time().
- * - SideEffects: echo markup bagian dalam <head> (TANPA tag <head> pembungkus);
- *   baca filemtime() file CSS lokal untuk menyusun query versi cache-bust.
+ * - Deps: _asset.php → rafAssetUrl($publicPath) untuk cache-bust ?v=<mtime> aset
+ *   CSS lokal (URL berubah hanya saat file berubah; revalidasi 304 tetap efektif).
+ * - SideEffects: echo markup bagian dalam <head> (TANPA tag <head> pembungkus).
  */
 $pageTitle = isset($pageTitle) ? $pageTitle : 'RAF BOT';
 $themeRole = (isset($themeRole) && $themeRole === 'teknisi') ? 'teknisi' : 'admin';
 $pageDescription = isset($pageDescription) ? $pageDescription : '';
 $fontHref = isset($fontHref) ? $fontHref : 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
 
-// Cache-busting aset CSS lokal: tempel ?v=<mtime> agar patch CSS (mis. perbaikan
-// dark mode di admin-theme.css) langsung terpakai di browser/Cloudflare tanpa
-// hard-refresh, namun URL stabil saat file tak berubah sehingga revalidasi 304
-// tetap efektif (beda dari ?v=time() yang selalu cache-miss). Guarded agar aman
-// bila partial ini ter-include lebih dari sekali dalam satu request.
-if (!function_exists('rafAssetUrl')) {
-    function rafAssetUrl($publicPath) {
-        // $publicPath = path publik (mis. '/css/admin-theme.css'); file fisik ada
-        // di static/ (lihat mapping express.static di lib/http-security.js). @ agar
-        // file hilang -> fallback tanpa query, bukan warning yang merusak output.
-        $absolute = __DIR__ . '/../../static' . $publicPath;
-        $mtime = @filemtime($absolute);
-        return $mtime !== false ? $publicPath . '?v=' . $mtime : $publicPath;
-    }
-}
+// Helper cache-bust aset lokal (rafAssetUrl) dipisah ke _asset.php agar halaman
+// <head> manual yang belum memakai _head.php pun bisa ikut memakainya. require_once
+// aman dipanggil berulang (fungsi guarded function_exists di dalam _asset.php).
+require_once __DIR__ . '/_asset.php';
 ?>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">

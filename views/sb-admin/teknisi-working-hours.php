@@ -7,9 +7,10 @@
     <title>Pengaturan Jam Kerja Teknisi - RAF NET</title>
     
     <link href="/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
-    <link href="/css/sb-admin-2.min.css" rel="stylesheet">
-  <link href="/css/dashboard-modern.css" rel="stylesheet">
-    <link href="/css/teknisi-theme.css" rel="stylesheet">
+<?php require_once __DIR__ . '/_asset.php'; ?>
+    <link href="<?= rafAssetUrl('/css/sb-admin-2.min.css') ?>" rel="stylesheet">
+  <link href="<?= rafAssetUrl('/css/dashboard-modern.css') ?>" rel="stylesheet">
+    <link href="<?= rafAssetUrl('/css/teknisi-theme.css') ?>" rel="stylesheet">
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     
     <style>

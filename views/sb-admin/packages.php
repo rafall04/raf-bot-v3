@@ -11,7 +11,6 @@
 
   <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
   <link href="/css/modal-lightweight.css" rel="stylesheet">
-  <link href="/css/dashboard-modern.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 

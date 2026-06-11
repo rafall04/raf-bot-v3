@@ -11,14 +11,15 @@
     
     <link href="/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="/css/sb-admin-2.min.css" rel="stylesheet">
-    <link href="/css/admin-theme.css" rel="stylesheet">
+<?php require_once __DIR__ . '/_asset.php'; ?>
+    <link href="<?= rafAssetUrl('/css/sb-admin-2.min.css') ?>" rel="stylesheet">
+    <link href="<?= rafAssetUrl('/css/admin-theme.css') ?>" rel="stylesheet">
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2-bootstrap-theme/0.1.0-beta.10/select2-bootstrap.min.css" />
-    <link href="/css/dashboard-modern.css" rel="stylesheet">
+    <link href="<?= rafAssetUrl('/css/dashboard-modern.css') ?>" rel="stylesheet">
 
-    <link href="/css/tiket.css" rel="stylesheet">
+    <link href="<?= rafAssetUrl('/css/tiket.css') ?>" rel="stylesheet">
 </head>
 
 <body id="page-top">
