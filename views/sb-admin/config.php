@@ -785,7 +785,29 @@
             <input type="password" class="form-control" id="oltDeviceWebPassword" name="webPassword" placeholder="********">
             <small class="form-text text-muted">Password untuk login ke web interface OLT</small>
           </div>
-          
+
+          <hr class="my-4">
+          <h6 class="text-primary mb-3"><i class="fas fa-terminal"></i> Kredensial SSH (Provisioning &amp; Backup)</h6>
+          <p class="small text-muted mb-3">Dipakai halaman <b>Provisioning OLT</b> untuk registrasi ONU via CLI dan backup <code>running-config</code> (ZTE C320/C300).</p>
+
+          <div class="form-group">
+            <label for="oltDeviceSshPort">Port SSH</label>
+            <input type="number" class="form-control" id="oltDeviceSshPort" name="sshPort" placeholder="22" value="22">
+            <small class="form-text text-muted">Port SSH OLT (default: 22)</small>
+          </div>
+
+          <div class="form-group">
+            <label for="oltDeviceSshUsername">Username SSH</label>
+            <input type="text" class="form-control" id="oltDeviceSshUsername" name="sshUsername" placeholder="zte" autocomplete="off">
+            <small class="form-text text-muted">User CLI dengan hak konfigurasi (privileged)</small>
+          </div>
+
+          <div class="form-group">
+            <label for="oltDeviceSshPassword">Password SSH</label>
+            <input type="password" class="form-control" id="oltDeviceSshPassword" name="sshPassword" placeholder="********" autocomplete="new-password">
+            <small class="form-text text-muted">Kosongkan keduanya bila tidak memakai fitur provisioning/backup</small>
+          </div>
+
           <div class="form-group">
             <label for="oltDeviceEnabled">Status</label>
             <select class="form-control" id="oltDeviceEnabled" name="enabled">

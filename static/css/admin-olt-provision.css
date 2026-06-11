@@ -1,0 +1,79 @@
+/**
+ * Header Doc
+ * Purpose: Gaya khusus halaman Provisioning OLT — blok script CLI bergaya terminal,
+ *          log hasil eksekusi per perintah, dan utilitas monospace. Panel terminal sengaja
+ *          selalu gelap (kontras baik di tema terang maupun gelap).
+ * Caller: views/sb-admin/admin-olt-provision.php.
+ * Deps: variabel tema dari tokens.css/admin-theme.css (fallback aman bila tak ada).
+ * MainFuncs: -
+ * SideEffects: -
+ */
+
+.mono {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+/* Blok preview script — gaya terminal (selalu gelap, lintas tema). */
+.cli-script,
+.cli-editor {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+
+.cli-script {
+    background: #0f172a;
+    color: #c7d2fe;
+    border-radius: var(--radius-md, 8px);
+    padding: 0.9rem 1rem;
+    max-height: 420px;
+    overflow: auto;
+    white-space: pre;
+}
+
+/* Log hasil eksekusi per perintah. */
+.cli-result-log {
+    max-height: 320px;
+    overflow: auto;
+    border: 1px solid rgba(100, 116, 139, 0.25);
+    border-radius: var(--radius-md, 8px);
+    padding: 0.4rem 0.6rem;
+}
+
+.cli-line {
+    padding: 0.15rem 0.25rem;
+    border-left: 3px solid transparent;
+}
+
+.cli-line.ok { border-left-color: #22c55e; }
+.cli-line.fail {
+    border-left-color: #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+}
+
+.cli-line .cli-status { display: inline-block; width: 1.2rem; }
+.cli-line.ok .cli-status { color: #22c55e; }
+.cli-line.fail .cli-status { color: #ef4444; }
+
+.cli-error {
+    color: #ef4444;
+    font-size: 0.78rem;
+    margin-left: 1.2rem;
+}
+
+.cli-output {
+    background: #0f172a;
+    color: #fca5a5;
+    font-size: 0.75rem;
+    margin: 0.25rem 0 0.25rem 1.2rem;
+    padding: 0.5rem;
+    border-radius: 6px;
+    max-height: 140px;
+    overflow: auto;
+}
+
+/* Tabel uncfg & backup lebih rapat. */
+#uncfgTable td, #uncfgTable th,
+#backupsTable td, #backupsTable th {
+    vertical-align: middle;
+}

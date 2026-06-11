@@ -1256,7 +1256,7 @@ router.post('/devices', (req, res) => {
             return res.status(403).json({ status: 403, message: 'Forbidden' });
         }
 
-        const { name, host, brand, snmpPort, snmpCommunity, snmpTimeout, snmpRetries, webUsername, webPassword } = req.body;
+        const { name, host, brand, snmpPort, snmpCommunity, snmpTimeout, snmpRetries, webUsername, webPassword, sshPort, sshUsername, sshPassword } = req.body;
 
         if (!name || !host) {
             return res.status(400).json({
@@ -1297,6 +1297,10 @@ router.post('/devices', (req, res) => {
             snmpRetries: parseInt(snmpRetries) || 2,
             webUsername: webUsername || '',
             webPassword: webPassword || '',
+            // Kredensial SSH untuk provisioning ONU & backup config (ZTE C320 dkk).
+            sshPort: parseInt(sshPort) || 22,
+            sshUsername: sshUsername || '',
+            sshPassword: sshPassword || '',
             enabled: true
         };
 
@@ -1339,7 +1343,7 @@ router.put('/devices/:id', (req, res) => {
         }
 
         const { id } = req.params;
-        const { name, host, brand, snmpPort, snmpCommunity, snmpTimeout, snmpRetries, webUsername, webPassword, enabled } = req.body;
+        const { name, host, brand, snmpPort, snmpCommunity, snmpTimeout, snmpRetries, webUsername, webPassword, sshPort, sshUsername, sshPassword, enabled } = req.body;
 
         const config = loadConfig();
 
@@ -1364,6 +1368,10 @@ router.put('/devices/:id', (req, res) => {
             snmpRetries: parseInt(snmpRetries) || config.olt.devices[deviceIndex].snmpRetries,
             webUsername: webUsername !== undefined ? webUsername : config.olt.devices[deviceIndex].webUsername,
             webPassword: webPassword !== undefined ? webPassword : config.olt.devices[deviceIndex].webPassword,
+            // Kredensial SSH (provisioning/backup); undefined = pertahankan nilai lama.
+            sshPort: sshPort !== undefined ? (parseInt(sshPort) || 22) : (config.olt.devices[deviceIndex].sshPort || 22),
+            sshUsername: sshUsername !== undefined ? sshUsername : (config.olt.devices[deviceIndex].sshUsername || ''),
+            sshPassword: sshPassword !== undefined ? sshPassword : (config.olt.devices[deviceIndex].sshPassword || ''),
             enabled: enabled !== undefined ? (enabled === true || enabled === 'true') : config.olt.devices[deviceIndex].enabled
         };
 

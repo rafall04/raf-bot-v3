@@ -66,6 +66,7 @@ database/agent_transactions.json
 database/agent_voucher_inventory.json
 database/agent_voucher_purchases.json
 database/agent_voucher_sales.json
+database/olt_onu_types.json
 
 # Operational data
 database/compensations.json

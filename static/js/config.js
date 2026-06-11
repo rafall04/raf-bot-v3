@@ -840,6 +840,7 @@ a.n ${account.name || '[Nama]'}</small>
       document.getElementById('oltDeviceSnmpCommunity').value = 'public';
       document.getElementById('oltDeviceSnmpTimeout').value = '30000';
       document.getElementById('oltDeviceSnmpRetries').value = '2';
+      document.getElementById('oltDeviceSshPort').value = '22';
       document.getElementById('oltDeviceEnabled').value = 'true';
       oltDeviceModal.find('.modal-title').text('Tambah Perangkat OLT');
     });
@@ -859,6 +860,9 @@ a.n ${account.name || '[Nama]'}</small>
         snmpRetries: parseInt(document.getElementById('oltDeviceSnmpRetries').value) || 2,
         webUsername: document.getElementById('oltDeviceWebUsername').value.trim(),
         webPassword: document.getElementById('oltDeviceWebPassword').value,
+        sshPort: parseInt(document.getElementById('oltDeviceSshPort').value) || 22,
+        sshUsername: document.getElementById('oltDeviceSshUsername').value.trim(),
+        sshPassword: document.getElementById('oltDeviceSshPassword').value,
         enabled: document.getElementById('oltDeviceEnabled').value === 'true'
       };
       
@@ -905,6 +909,9 @@ a.n ${account.name || '[Nama]'}</small>
               document.getElementById('oltDeviceSnmpRetries').value = device.snmpRetries || 2;
               document.getElementById('oltDeviceWebUsername').value = device.webUsername || '';
               document.getElementById('oltDeviceWebPassword').value = device.webPassword || '';
+              document.getElementById('oltDeviceSshPort').value = device.sshPort || 22;
+              document.getElementById('oltDeviceSshUsername').value = device.sshUsername || '';
+              document.getElementById('oltDeviceSshPassword').value = device.sshPassword || '';
               document.getElementById('oltDeviceEnabled').value = device.enabled !== false ? 'true' : 'false';
               
               oltDeviceModal.find('.modal-title').text('Edit Perangkat OLT');

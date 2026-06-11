@@ -87,6 +87,11 @@ router.get('/admin-olt', checkRole(['admin', 'owner', 'superadmin']), (req, res)
     res.render('sb-admin/admin-olt.php');
 });
 
+// Provisioning OLT ZTE: registrasi ONU via SSH, tipe modem, backup konfigurasi.
+router.get('/admin-olt-provision', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/admin-olt-provision.php');
+});
+
 router.get('/los-broadcast', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/los-broadcast.php');
 });

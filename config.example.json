@@ -201,9 +201,18 @@
         "snmpRetries": 2,
         "webUsername": "ISI_WEBUSERNAME",
         "webPassword": "ISI_WEBPASSWORD",
+        "sshPort": 22,
+        "sshUsername": "ISI_SSHUSERNAME",
+        "sshPassword": "ISI_SSHPASSWORD",
         "enabled": true
       }
-    ]
+    ],
+    "backup": {
+      "enabled": false,
+      "schedule": "30 2 * * *",
+      "keep": 30,
+      "sendTelegram": false
+    }
   },
   "oltSyslog": {
     "enabled": false,

@@ -34,6 +34,9 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
                                 <p>Pantau status ONT pelanggan secara real-time (redaman, LOS, dying gasp).</p>
                             </div>
                             <div class="olt-toolbar">
+                                <a href="/admin-olt-provision" class="btn btn-outline-primary" title="Registrasi ONU, tipe modem, backup OLT">
+                                    <i class="fas fa-plug"></i> Provisioning
+                                </a>
                                 <span class="refresh-timer" id="lastUpdateTime">Belum dimuat</span>
                                 <div class="d-flex align-items-center">
                                     <label class="switch mb-0 mr-2">
