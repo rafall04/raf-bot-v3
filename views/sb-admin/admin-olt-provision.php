@@ -230,7 +230,7 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                                 <div class="form-group col-md-8">
                                                     <label for="bkFtpSelfHost">IP bot dari sisi OLT</label>
                                                     <input type="text" id="bkFtpSelfHost" class="form-control" placeholder="172.17.231.2">
-                                                    <small class="form-text text-muted">IP server bot yang bisa di-ping DARI OLT (cek route OLT).</small>
+                                                    <small class="form-text text-muted">IP server bot yang bisa di-ping DARI OLT (cek <code>show ip route</code> di OLT). Di server bot, buka firewall port <b>21</b> + PASV <b>50000-50050</b>.</small>
                                                 </div>
                                                 <div class="form-group col-md-4">
                                                     <label for="bkFtpPort">Port FTP</label>
