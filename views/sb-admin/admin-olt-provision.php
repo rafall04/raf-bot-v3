@@ -69,6 +69,7 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                                 </div>
                                                 <small class="form-text text-muted" id="provOltSshInfo">Kredensial SSH diatur di <a href="/config">Konfigurasi → OLT</a> (edit perangkat).</small>
                                             </div>
+                                            <div class="small text-muted mb-2" id="oltFactsInfo"></div>
                                             <button class="btn btn-primary btn-block" id="scanUncfgBtn"><i class="fas fa-sync-alt"></i> Scan ONU Belum Teregistrasi</button>
                                             <div class="table-responsive mt-3">
                                                 <table class="table table-sm table-bordered" id="uncfgTable">
@@ -76,6 +77,19 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                                     <tbody><tr><td colspan="4" class="text-center text-muted">Belum di-scan</td></tr></tbody>
                                                 </table>
                                             </div>
+
+                                            <hr>
+                                            <h6 class="font-weight-bold text-primary"><i class="fas fa-tools"></i> ONU Terdaftar — cek / konfig / hapus</h6>
+                                            <div class="form-row">
+                                                <div class="col-5"><input type="text" class="form-control form-control-sm" id="toolPonPort" list="ponPortList" placeholder="Port PON (1/2/1)"></div>
+                                                <div class="col-3"><input type="number" class="form-control form-control-sm" id="toolOnuId" min="1" max="128" placeholder="ONU ID"></div>
+                                                <div class="col-4 btn-group">
+                                                    <button class="btn btn-outline-primary btn-sm" id="toolStatusBtn" title="Cek status & redaman"><i class="fas fa-heartbeat"></i></button>
+                                                    <button class="btn btn-outline-secondary btn-sm" id="toolConfigBtn" title="Lihat konfigurasi ONU"><i class="fas fa-file-alt"></i></button>
+                                                    <button class="btn btn-outline-danger btn-sm" id="toolDeleteBtn" title="Hapus ONU dari OLT"><i class="fas fa-trash"></i></button>
+                                                </div>
+                                            </div>
+                                            <div class="small mt-2" id="toolsResult"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -91,7 +105,8 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                                 </div>
                                                 <div class="form-group col-md-3">
                                                     <label for="regPonPort">Port PON</label>
-                                                    <input type="text" class="form-control" id="regPonPort" placeholder="1/3/16" autocomplete="off">
+                                                    <input type="text" class="form-control" id="regPonPort" list="ponPortList" placeholder="1/3/16" autocomplete="off">
+                                                    <datalist id="ponPortList"></datalist>
                                                 </div>
                                                 <div class="form-group col-md-3">
                                                     <label for="regOnuId">ONU ID <a href="#" id="checkOccupancyBtn" class="small" title="Cek slot terpakai & saran ID">cek slot</a></label>
@@ -219,7 +234,7 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                             <button class="btn btn-primary btn-block" id="saveBackupCfgBtn"><i class="fas fa-save"></i> Simpan Setting</button>
                                             <hr>
                                             <button class="btn btn-outline-primary btn-block" id="backupAllBtn"><i class="fas fa-download"></i> Backup Semua OLT Sekarang</button>
-                                            <small class="text-muted d-block mt-1">Backup = capture <code>show running-config</code> via SSH. OLT tanpa kredensial SSH dilewati.</small>
+                                            <small class="text-muted d-block mt-1">Backup = capture <code>show running-config</code> via SSH. OLT tanpa kredensial SSH dilewati. <b>C320 dengan ratusan ONU bisa 15-20 menit per OLT</b> (build config lambat di sisi OLT) — biarkan berjalan; proses gagal hanya bila output berhenti mengalir 2 menit.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -287,11 +302,15 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                     </div>
                     <pre class="cli-script" id="previewScript"></pre>
                     <div class="alert alert-warning small mb-0">
-                        <i class="fas fa-exclamation-triangle"></i> Script dieksekusi <b>baris-per-baris</b> ke OLT dan berhenti di baris pertama yang error. Periksa VLAN/profil sebelum eksekusi.
+                        <i class="fas fa-exclamation-triangle"></i> Script dieksekusi <b>baris-per-baris</b> ke OLT dan berhenti di baris pertama yang error. Baris <code>!</code> dikirim sebagai <code>exit</code> (keluar konteks — wajib di ZXAN). Periksa VLAN/profil sebelum eksekusi.
                     </div>
                     <div class="custom-control custom-checkbox mt-2">
                         <input type="checkbox" class="custom-control-input" id="confirmExecuteCheck">
                         <label class="custom-control-label" for="confirmExecuteCheck">Saya sudah memeriksa script di atas</label>
+                    </div>
+                    <div class="custom-control custom-checkbox mt-1">
+                        <input type="checkbox" class="custom-control-input" id="saveConfigCheck" checked>
+                        <label class="custom-control-label" for="saveConfigCheck">Simpan permanen (<code>write</code>) setelah sukses — tanpa ini registrasi hilang saat OLT reboot</label>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -320,6 +339,27 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                 <div class="modal-footer">
                     <button class="btn btn-outline-danger mr-auto" id="rollbackBtn" style="display:none;"><i class="fas fa-trash-restore"></i> Rollback (hapus ONU)</button>
                     <button class="btn btn-outline-primary" id="checkStatusBtn"><i class="fas fa-heartbeat"></i> Cek Status ONU</button>
+                    <button class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Viewer Konfigurasi ONU -->
+    <div class="modal fade" id="onuConfigModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-file-alt"></i> Konfigurasi ONU — <span id="onuConfigTarget"></span></h5>
+                    <button class="close" type="button" data-dismiss="modal"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <h6 class="small font-weight-bold text-muted">INTERFACE (tcont / gemport / service-port)</h6>
+                    <pre class="cli-script mb-3" id="onuConfigInterface"></pre>
+                    <h6 class="small font-weight-bold text-muted">PON-ONU-MNG (service / wan / vlan port / ssid)</h6>
+                    <pre class="cli-script mb-0" id="onuConfigMng"></pre>
+                </div>
+                <div class="modal-footer">
                     <button class="btn btn-secondary" data-dismiss="modal">Tutup</button>
                 </div>
             </div>

@@ -22,6 +22,7 @@ let placeholderDocs = [];  // cheatsheet placeholder dari API
 let usersData = [];        // pelanggan untuk autofill
 let lastExec = null;       // { deviceId, ponPort, onuId } konteks hasil eksekusi terakhir
 let verifyTimer = null;
+let oltFacts = null;       // fakta OLT terpilih (port PON, tipe ONU, profil, VLAN)
 
 $(document).ready(function () {
     loadDevices();
@@ -33,6 +34,10 @@ $(document).ready(function () {
     // ── Tab 1: registrasi ───────────────────────────────────────────────
     $('#scanUncfgBtn').on('click', scanUncfg);
     $('#testSshBtn').on('click', testSsh);
+    $('#provOltSelect').on('change', function () { loadOltFacts(false); });
+    $('#toolStatusBtn').on('click', toolCheckStatus);
+    $('#toolConfigBtn').on('click', toolShowConfig);
+    $('#toolDeleteBtn').on('click', toolDeleteOnu);
     $('#checkOccupancyBtn').on('click', function (e) { e.preventDefault(); checkOccupancy(); });
     $('#regPonPort').on('change', function () { if (this.value) checkOccupancy(true); });
     $('#regOnuType').on('change', onTypeChange);
@@ -147,10 +152,65 @@ async function loadDevices() {
         }));
         $('#provOltSelect').html(opts.join(''));
         const ready = provDevices.find((d) => d.sshReady);
-        if (ready) $('#provOltSelect').val(ready.id);
+        if (ready) {
+            $('#provOltSelect').val(ready.id);
+            loadOltFacts(false);
+        }
     } catch (e) {
         showAlert('danger', 'Gagal memuat daftar OLT: ' + escapeHtml(e.message));
     }
+}
+
+// ── Fakta OLT (port PON / tipe ONU / profil / VLAN) → datalist form ─────
+
+async function loadOltFacts(force) {
+    oltFacts = null;
+    $('#ponPortList').empty();
+    const dev = currentDevice();
+    if (!dev || !dev.sshReady) { $('#oltFactsInfo').empty(); return; }
+    $('#oltFactsInfo').html('<i class="fas fa-spinner fa-spin"></i> Membaca data OLT (port PON, profil, VLAN)…');
+    try {
+        const json = await api('GET', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/facts${force ? '?force=true' : ''}`);
+        if (json.status !== 200) {
+            $('#oltFactsInfo').html('<span class="text-warning"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(json.message || 'Gagal baca data OLT') + '</span>');
+            return;
+        }
+        oltFacts = json.data;
+        $('#ponPortList').html((oltFacts.ponPorts || []).map((p) => `<option value="${escapeHtml(p)}">`).join(''));
+        $('#oltFactsInfo').html(
+            `<i class="fas fa-check-circle text-success"></i> ${(oltFacts.ponPorts || []).length} port PON • ` +
+            `${(oltFacts.onuTypes || []).length} tipe ONU • tcont: ${(oltFacts.tcontProfiles || []).join(', ') || '-'} • ` +
+            `VLAN: ${(oltFacts.vlans || []).join(', ') || '-'} ` +
+            `<a href="#" id="refreshFactsLink" title="Baca ulang dari OLT"><i class="fas fa-sync-alt"></i></a>`);
+        $('#refreshFactsLink').on('click', function (e) { e.preventDefault(); loadOltFacts(true); });
+        rebuildFactDatalists();
+        onTypeChange(); // pasang datalist ke input parameter lanjutan yang sudah dirender
+    } catch (e) {
+        $('#oltFactsInfo').html('<span class="text-warning">Gagal baca data OLT: ' + escapeHtml(e.message) + '</span>');
+    }
+}
+
+/** Datalist global dari fakta OLT (dipakai input parameter lanjutan). */
+function rebuildFactDatalists() {
+    $('#factDatalists').remove();
+    if (!oltFacts) return;
+    const dl = (id, values) => `<datalist id="${id}">${(values || []).map((v) => `<option value="${escapeHtml(v)}">`).join('')}</datalist>`;
+    $('body').append(`<div id="factDatalists" style="display:none">
+        ${dl('dlOnuType', (oltFacts.onuTypes || []).map((t) => t.name))}
+        ${dl('dlTcont', oltFacts.tcontProfiles)}
+        ${dl('dlTraffic', oltFacts.trafficProfiles)}
+        ${dl('dlVlan', oltFacts.vlans)}
+    </div>`);
+}
+
+/** Map key parameter → datalist fakta OLT (null bila tak ada saran). */
+function datalistForKey(key) {
+    if (!oltFacts) return null;
+    if (key === 'onuType') return 'dlOnuType';
+    if (key === 'tcontProfile') return 'dlTcont';
+    if (key === 'downProfile') return 'dlTraffic';
+    if (/Vlan$/.test(key)) return 'dlVlan';
+    return null;
 }
 
 async function testSsh() {
@@ -285,12 +345,15 @@ function buildAdvancedVars(type) {
     if (!advanced.length) { $body.html('<div class="text-muted small">Profil ini tidak punya parameter tambahan.</div>'); return; }
     const docMap = {};
     placeholderDocs.forEach((p) => { docMap[p.key] = p.desc; });
-    $body.html('<div class="form-row">' + advanced.map((k) => `
+    $body.html('<div class="form-row">' + advanced.map((k) => {
+        const dl = datalistForKey(k);
+        return `
         <div class="form-group col-md-4 mb-2">
             <label class="small mb-0" for="adv_${escapeHtml(k)}" title="${escapeHtml(docMap[k] || '')}">${escapeHtml(k)}</label>
             <input type="text" class="form-control form-control-sm adv-var" id="adv_${escapeHtml(k)}" data-key="${escapeHtml(k)}"
-                   value="${escapeHtml((type.vars && type.vars[k]) || '')}" autocomplete="off">
-        </div>`).join('') + '</div>');
+                   ${dl ? `list="${dl}"` : ''} value="${escapeHtml((type.vars && type.vars[k]) || '')}" autocomplete="off">
+        </div>`;
+    }).join('') + '</div>');
 }
 
 // ════════ Pelanggan → autofill ════════
@@ -380,6 +443,8 @@ async function doPreview() {
         $('#previewScript').text(json.data.script);
         $('#confirmExecuteCheck').prop('checked', false);
         $('#executeBtn').prop('disabled', true);
+        // Preferensi write terakhir (default: aktif).
+        try { $('#saveConfigCheck').prop('checked', localStorage.getItem('oltProvSaveConfig') !== '0'); } catch (_e) { /* abaikan */ }
         if (!json.data.ready) {
             showAlert('warning', 'Placeholder belum terisi: ' + json.data.missing.map(escapeHtml).join(', '), true);
             return;
@@ -395,10 +460,12 @@ async function doExecute() {
     if (!dev) return;
     const type = selectedType();
     const vars = collectVars();
+    const saveConfig = $('#saveConfigCheck').is(':checked');
+    try { localStorage.setItem('oltProvSaveConfig', saveConfig ? '1' : '0'); } catch (_e) { /* private mode */ }
     setBusy('#executeBtn', true, 'Eksekusi via SSH…');
     try {
         const json = await api('POST', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/register`,
-            { onuTypeId: type.id, vars });
+            { onuTypeId: type.id, vars, saveConfig });
         $('#previewModal').modal('hide');
         const data = json.data || {};
         lastExec = { deviceId: dev.id, ponPort: vars.ponPort, onuId: vars.onuId, sn: vars.sn };
@@ -423,7 +490,15 @@ function renderExecResult(ok, message, data) {
     $('#resultTitle').html(ok
         ? '<i class="fas fa-check-circle text-success"></i> Registrasi Berhasil'
         : '<i class="fas fa-times-circle text-danger"></i> Registrasi Gagal');
-    $('#resultSummary').html(`<div class="alert alert-${ok ? 'success' : 'danger'} py-2 mb-2">${escapeHtml(message || '')}</div>`);
+    let persistHtml = '';
+    if (data && data.persist) {
+        persistHtml = data.persist.saved
+            ? '<div class="small text-success"><i class="fas fa-save"></i> Konfigurasi tersimpan permanen (write OK).</div>'
+            : `<div class="small text-danger"><i class="fas fa-exclamation-triangle"></i> Registrasi masuk tapi <b>write GAGAL</b>: ${escapeHtml(data.persist.error || '')} — jalankan write manual atau ulangi dari sini.</div>`;
+    } else if (ok) {
+        persistHtml = '<div class="small text-warning"><i class="fas fa-info-circle"></i> Belum disimpan permanen (write) — registrasi hilang bila OLT reboot.</div>';
+    }
+    $('#resultSummary').html(`<div class="alert alert-${ok ? 'success' : 'danger'} py-2 mb-2">${escapeHtml(message || '')}</div>` + persistHtml);
     const results = (data && data.results) || [];
     $('#resultLog').html(results.map((r, i) => `
         <div class="cli-line ${r.ok ? 'ok' : 'fail'}">
@@ -477,10 +552,12 @@ async function verifyOnu(manual) {
 async function doRollback() {
     if (!lastExec) return;
     if (!confirm(`Hapus ONU gpon-onu_${lastExec.ponPort}:${lastExec.onuId} dari OLT? Tindakan ini menghapus konfigurasi ONU tersebut.`)) return;
+    let saveConfig = true;
+    try { saveConfig = localStorage.getItem('oltProvSaveConfig') !== '0'; } catch (_e) { /* abaikan */ }
     setBusy('#rollbackBtn', true, 'Menghapus…');
     try {
         const json = await api('POST', `/api/olt/provision/devices/${encodeURIComponent(lastExec.deviceId)}/delete-onu`,
-            { ponPort: lastExec.ponPort, onuId: lastExec.onuId });
+            { ponPort: lastExec.ponPort, onuId: lastExec.onuId, saveConfig });
         if (json.status === 200) {
             showAlert('success', 'ONU dihapus dari OLT (rollback selesai).');
             $('#rollbackBtn').hide();
@@ -490,6 +567,91 @@ async function doRollback() {
         }
     } finally {
         setBusy('#rollbackBtn', false);
+    }
+}
+
+// ── Tools: ONU terdaftar (cek status / lihat konfig / hapus) ─────────────
+
+function toolTarget() {
+    const ponPort = $('#toolPonPort').val().trim();
+    const onuId = $('#toolOnuId').val().trim();
+    if (!/^\d{1,2}\/\d{1,2}\/\d{1,2}$/.test(ponPort) || !onuId) {
+        $('#toolsResult').html('<span class="text-warning">Isi Port PON (mis. 1/2/1) dan ONU ID dulu.</span>');
+        return null;
+    }
+    return { ponPort, onuId };
+}
+
+async function toolCheckStatus() {
+    const dev = requireDevice();
+    const t = dev && toolTarget();
+    if (!t) return;
+    setBusy('#toolStatusBtn', true, '');
+    $('#toolsResult').html('<i class="fas fa-spinner fa-spin"></i> Mengambil status…');
+    try {
+        const q = `ponPort=${encodeURIComponent(t.ponPort)}&onuId=${encodeURIComponent(t.onuId)}`;
+        const json = await api('GET', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/onu-status?${q}`);
+        if (json.status !== 200) { $('#toolsResult').html('<span class="text-danger">' + escapeHtml(json.message) + '</span>'); return; }
+        const det = (json.data && json.data.detail) || {};
+        const power = (json.data && json.data.power) || {};
+        const onuRx = power.down && power.down.onuRx != null ? power.down.onuRx.toFixed(2) + ' dBm' : '-';
+        const phase = (det.phaseState || '').toLowerCase() === 'working'
+            ? '<span class="badge badge-success">working</span>'
+            : `<span class="badge badge-warning">${escapeHtml(det.phaseState || 'tidak terdeteksi')}</span>`;
+        $('#toolsResult').html(
+            `<b>gpon-onu_${escapeHtml(t.ponPort)}:${escapeHtml(t.onuId)}</b> ${phase} ` +
+            `• ${escapeHtml(det.name || '-')} • ${escapeHtml(det.type || '-')} • SN ${escapeHtml(det.serial || '-')} ` +
+            `• Rx <b>${escapeHtml(onuRx)}</b> • online ${escapeHtml(det.onlineDuration || '-')}`);
+    } catch (e) {
+        $('#toolsResult').html('<span class="text-danger">Gagal: ' + escapeHtml(e.message) + '</span>');
+    } finally {
+        setBusy('#toolStatusBtn', false);
+    }
+}
+
+async function toolShowConfig() {
+    const dev = requireDevice();
+    const t = dev && toolTarget();
+    if (!t) return;
+    setBusy('#toolConfigBtn', true, '');
+    try {
+        const q = `ponPort=${encodeURIComponent(t.ponPort)}&onuId=${encodeURIComponent(t.onuId)}`;
+        const json = await api('GET', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/onu-config?${q}`);
+        if (json.status !== 200) { $('#toolsResult').html('<span class="text-danger">' + escapeHtml(json.message) + '</span>'); return; }
+        $('#onuConfigTarget').text(`gpon-onu_${t.ponPort}:${t.onuId} (${dev.name})`);
+        $('#onuConfigInterface').text(json.data.interfaceConfig || '(kosong)');
+        $('#onuConfigMng').text(json.data.onuMngConfig || '(kosong)');
+        $('#onuConfigModal').modal('show');
+    } catch (e) {
+        $('#toolsResult').html('<span class="text-danger">Gagal: ' + escapeHtml(e.message) + '</span>');
+    } finally {
+        setBusy('#toolConfigBtn', false);
+    }
+}
+
+async function toolDeleteOnu() {
+    const dev = requireDevice();
+    const t = dev && toolTarget();
+    if (!t) return;
+    if (!confirm(`HAPUS ONU gpon-onu_${t.ponPort}:${t.onuId} dari ${dev.name}?\n\nKonfigurasi ONU tersebut dihapus permanen dari OLT (pelanggan putus). Lanjutkan?`)) return;
+    let saveConfig = true;
+    try { saveConfig = localStorage.getItem('oltProvSaveConfig') !== '0'; } catch (_e) { /* abaikan */ }
+    setBusy('#toolDeleteBtn', true, '');
+    $('#toolsResult').html('<i class="fas fa-spinner fa-spin"></i> Menghapus ONU…');
+    try {
+        const json = await api('POST', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/delete-onu`,
+            { ponPort: t.ponPort, onuId: t.onuId, saveConfig });
+        if (json.status === 200) {
+            const persisted = json.data && json.data.persist && json.data.persist.saved;
+            $('#toolsResult').html('<span class="text-success"><i class="fas fa-check"></i> ONU dihapus.' +
+                (persisted ? ' Tersimpan permanen (write OK).' : ' <b>Belum write</b> — simpan permanen bila perlu.') + '</span>');
+        } else {
+            $('#toolsResult').html('<span class="text-danger">Gagal hapus: ' + escapeHtml(json.message) + '</span>');
+        }
+    } catch (e) {
+        $('#toolsResult').html('<span class="text-danger">Gagal: ' + escapeHtml(e.message) + '</span>');
+    } finally {
+        setBusy('#toolDeleteBtn', false);
     }
 }
 

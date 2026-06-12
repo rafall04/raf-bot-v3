@@ -133,6 +133,32 @@ function registerOltProvisioningRoutes(router, deps) {
         });
     }));
 
+    // Fakta OLT (port PON, tipe ONU, profil tcont/traffic, VLAN) untuk dropdown form.
+    // Di-cache per device (TTL 10 menit) — isinya jarang berubah; ?force=true refresh.
+    const factsCache = new Map(); // deviceId → { data, ts }
+    const FACTS_TTL_MS = 10 * 60 * 1000;
+
+    router.get('/provision/devices/:id/facts', requireStaff, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        const force = req.query.force === 'true';
+        const cached = factsCache.get(device.id);
+        if (!force && cached && Date.now() - cached.ts < FACTS_TTL_MS) {
+            return res.json({ status: 200, data: cached.data, cached: true });
+        }
+        const data = await provision.getOltFacts(device);
+        factsCache.set(device.id, { data, ts: Date.now() });
+        res.json({ status: 200, data, cached: false });
+    }));
+
+    // Viewer konfigurasi lengkap satu ONU (interface + pon-onu-mng) — audit/cek pelanggan.
+    router.get('/provision/devices/:id/onu-config', requireStaff, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        const cfg = await provision.getOnuFullConfig(device, String(req.query.ponPort || ''), req.query.onuId);
+        res.json({ status: 200, data: cfg });
+    }));
+
     // ── Preview & registrasi ─────────────────────────────────────────────────
 
     /** Gabungkan vars profil + vars form lalu validasi; bentuk respons error seragam. */
@@ -177,7 +203,9 @@ function registerOltProvisioningRoutes(router, deps) {
 
         let result;
         try {
-            result = await provision.registerOnu(device, built.profile.scriptTemplate, built.vars);
+            result = await provision.registerOnu(device, built.profile.scriptTemplate, built.vars, {
+                saveConfig: req.body && req.body.saveConfig === true,
+            });
         } catch (e) {
             // Error pra-eksekusi (placeholder kurang / validasi) → 400, bukan 500.
             if (e.missingVars || e.validationErrors) {
@@ -210,7 +238,9 @@ function registerOltProvisioningRoutes(router, deps) {
         if (!device || !requireSsh(device, res)) return;
         const ponPort = String((req.body && req.body.ponPort) || '');
         const onuId = (req.body && req.body.onuId);
-        const result = await provision.deleteOnu(device, ponPort, onuId);
+        const result = await provision.deleteOnu(device, ponPort, onuId, {
+            saveConfig: req.body && req.body.saveConfig === true,
+        });
 
         await audit(req, {
             actionType: 'DELETE',

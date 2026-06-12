@@ -67,9 +67,11 @@ function buildApp(overrides = {}) {
             testSshConnection: jest.fn().mockResolvedValue({ ok: true, prompt: 'ZXAN#', message: 'Terhubung. Prompt: ZXAN#' }),
             listUncfgOnus: jest.fn().mockResolvedValue({ onus: [{ ponPort: '1/3/16', sn: 'ZTEGCCA16805', state: 'unknown' }], raw: '' }),
             getPonOccupancy: jest.fn().mockResolvedValue({ used: [], usedIds: [1, 2], suggestedId: 3, raw: '' }),
-            registerOnu: jest.fn().mockResolvedValue({ ok: true, script: 's', commands: ['c'], results: [{ command: 'c', ok: true }], failedIndex: null }),
-            deleteOnu: jest.fn().mockResolvedValue({ ok: true, results: [], failedIndex: null }),
+            registerOnu: jest.fn().mockResolvedValue({ ok: true, script: 's', commands: ['c'], results: [{ command: 'c', ok: true }], failedIndex: null, persist: null }),
+            deleteOnu: jest.fn().mockResolvedValue({ ok: true, results: [], failedIndex: null, persist: null }),
             getOnuStatus: jest.fn().mockResolvedValue({ detail: { phaseState: 'working' }, power: null, rawDetail: '', rawPower: '' }),
+            getOltFacts: jest.fn().mockResolvedValue({ cards: [], ponPorts: ['1/2/1'], onuTypes: [{ name: 'ALL', description: '' }], tcontProfiles: ['1G'], trafficProfiles: ['1G'], vlans: ['300'] }),
+            getOnuFullConfig: jest.fn().mockResolvedValue({ interfaceConfig: 'interface gpon-onu_1/2/1:1', onuMngConfig: 'pon-onu-mng gpon-onu_1/2/1:1' }),
             ...(overrides.provision || {}),
         },
         store: {
@@ -219,8 +221,43 @@ describe('olt-provisioning routes — preview & register', () => {
         const { app, deps } = buildApp();
         const res = await request(app, 'POST', '/api/olt/provision/devices/olt1/delete-onu', { ponPort: '1/3/16', onuId: 8 });
         expect(res.status).toBe(200);
-        expect(deps.provision.deleteOnu).toHaveBeenCalledWith(expect.objectContaining({ id: 'olt1' }), '1/3/16', 8);
+        expect(deps.provision.deleteOnu).toHaveBeenCalledWith(expect.objectContaining({ id: 'olt1' }), '1/3/16', 8, { saveConfig: false });
         expect(deps.logActivity).toHaveBeenCalledWith(expect.objectContaining({ actionType: 'DELETE' }));
+    });
+
+    test('register meneruskan saveConfig=true ke service (write)', async () => {
+        const { app, deps } = buildApp();
+        const res = await request(app, 'POST', '/api/olt/provision/devices/olt1/register', {
+            onuTypeId: TYPE.id,
+            vars: { ponPort: '1/3/16', onuId: '8', sn: 'ZTEGCCA16805' },
+            saveConfig: true,
+        });
+        expect(res.status).toBe(200);
+        expect(deps.provision.registerOnu).toHaveBeenCalledWith(
+            expect.anything(), expect.anything(), expect.anything(), { saveConfig: true });
+    });
+
+    test('facts: hit pertama query OLT, hit kedua dari cache', async () => {
+        const { app, deps } = buildApp();
+        // Catatan: tiap request() membuat listener baru, tapi router & cache-nya sama.
+        const r1 = await request(app, 'GET', '/api/olt/provision/devices/olt1/facts');
+        expect(r1.status).toBe(200);
+        expect(r1.body.cached).toBe(false);
+        expect(r1.body.data.ponPorts).toEqual(['1/2/1']);
+        const r2 = await request(app, 'GET', '/api/olt/provision/devices/olt1/facts');
+        expect(r2.body.cached).toBe(true);
+        expect(deps.provision.getOltFacts).toHaveBeenCalledTimes(1);
+        const r3 = await request(app, 'GET', '/api/olt/provision/devices/olt1/facts?force=true');
+        expect(r3.body.cached).toBe(false);
+        expect(deps.provision.getOltFacts).toHaveBeenCalledTimes(2);
+    });
+
+    test('onu-config mengembalikan interface + pon-onu-mng', async () => {
+        const { app } = buildApp();
+        const res = await request(app, 'GET', '/api/olt/provision/devices/olt1/onu-config?ponPort=1/2/1&onuId=1');
+        expect(res.status).toBe(200);
+        expect(res.body.data.interfaceConfig).toContain('interface gpon-onu');
+        expect(res.body.data.onuMngConfig).toContain('pon-onu-mng');
     });
 });
 
