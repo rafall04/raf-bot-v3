@@ -15,12 +15,13 @@
 const provision = require('../lib/olt-zte-provision');
 const store = require('../lib/olt-provision-store');
 
-const [host, user, pass, ponPort, snArg] = process.argv.slice(2);
+const [host, user, pass, ponPort, snArg, profileArg] = process.argv.slice(2);
 if (!host || !user || !pass || !ponPort) {
-    console.error('Pakai: node scripts/olt-zte-live-cycle.js <host> <user> <pass> <ponPort-kosong> [sn]');
+    console.error('Pakai: node scripts/olt-zte-live-cycle.js <host> <user> <pass> <ponPort-kosong> [sn] [profileId]');
     process.exit(1);
 }
 const sn = (snArg || 'ZTEGDEAD0001').toUpperCase();
+const profileId = profileArg || 'zte-bridge';
 
 const device = { id: 'live-test', name: 'live-test', host, sshPort: 22, sshUsername: user, sshPassword: pass };
 
@@ -34,19 +35,23 @@ const device = { id: 'live-test', name: 'live-test', host, sshPort: 22, sshUsern
         process.exit(2);
     }
 
-    // 1) Registrasi dummy via template bridge bawaan + nilai yang ADA di OLT ini.
-    const profile = store.getOnuType('zte-bridge');
+    // 1) Registrasi dummy via template profil terpilih + nilai yang ADA di OLT ini.
+    store.restoreBuiltinTypes(); // pastikan profil bawaan terbaru tersedia di store lokal
+    const profile = store.getOnuType(profileId);
+    if (!profile) { console.error(`Profil "${profileId}" tidak ditemukan`); process.exit(2); }
     const vars = {
         ...profile.vars,
         ponPort,
         onuId: String(occ.suggestedId),
         sn,
-        onuType: 'ALL',
         tcontProfile: '1G',   // profil tcont nyata di OLT (verif show gpon profile tcont)
         downProfile: '1G',    // profil traffic nyata
         pppoeVlan: '300',     // VLAN nyata
+        hotspotVlan: '310',
         name: 'TEST-CLAUDE-AUTO',
         description: 'TEST-AKAN-DIHAPUS',
+        pppoeUser: 'TEST-CLAUDE-AUTO',
+        pppoePassword: 'TEST123',
     };
     console.log(`\n[1] Registrasi ONU dummy sn=${sn} → gpon-onu_${ponPort}:${vars.onuId} (template ${profile.id})…`);
     const reg = await provision.registerOnu(device, profile.scriptTemplate, vars, { saveConfig: false });

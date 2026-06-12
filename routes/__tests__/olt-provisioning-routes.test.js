@@ -50,7 +50,7 @@ const TYPE = {
     scriptTemplate: 'conf t\nint gpon-olt_{{ponPort}}\nonu {{onuId}} type {{onuType}} sn {{sn}}\nend',
 };
 
-// validateVars & renderScript asli dipakai supaya perilaku route = produksi.
+// validateVars/renderScript/listPlaceholders asli dipakai supaya perilaku route = produksi.
 const realProvision = require('../../lib/olt-zte-provision');
 
 function buildApp(overrides = {}) {
@@ -64,13 +64,15 @@ function buildApp(overrides = {}) {
         provision: {
             validateVars: realProvision.validateVars,
             renderScript: realProvision.renderScript,
+            listPlaceholders: realProvision.listPlaceholders,
             testSshConnection: jest.fn().mockResolvedValue({ ok: true, prompt: 'ZXAN#', message: 'Terhubung. Prompt: ZXAN#' }),
             listUncfgOnus: jest.fn().mockResolvedValue({ onus: [{ ponPort: '1/3/16', sn: 'ZTEGCCA16805', state: 'unknown' }], raw: '' }),
             getPonOccupancy: jest.fn().mockResolvedValue({ used: [], usedIds: [1, 2], suggestedId: 3, raw: '' }),
             registerOnu: jest.fn().mockResolvedValue({ ok: true, script: 's', commands: ['c'], results: [{ command: 'c', ok: true }], failedIndex: null, persist: null }),
             deleteOnu: jest.fn().mockResolvedValue({ ok: true, results: [], failedIndex: null, persist: null }),
             getOnuStatus: jest.fn().mockResolvedValue({ detail: { phaseState: 'working' }, power: null, rawDetail: '', rawPower: '' }),
-            getOltFacts: jest.fn().mockResolvedValue({ cards: [], ponPorts: ['1/2/1'], onuTypes: [{ name: 'ALL', description: '' }], tcontProfiles: ['1G'], trafficProfiles: ['1G'], vlans: ['300'] }),
+            // Fakta mock berisi port & tipe ONU yang dipakai test (1/3/16, ALL) agar guard lolos.
+            getOltFacts: jest.fn().mockResolvedValue({ cards: [], ponPorts: ['1/2/1', '1/3/16'], onuTypes: [{ name: 'ALL', description: '' }], tcontProfiles: ['1G', 'UP1G'], trafficProfiles: ['1G', 'DOWN1G'], vlans: ['300', '3010'] }),
             getOnuFullConfig: jest.fn().mockResolvedValue({ interfaceConfig: 'interface gpon-onu_1/2/1:1', onuMngConfig: 'pon-onu-mng gpon-onu_1/2/1:1' }),
             ...(overrides.provision || {}),
         },
@@ -84,8 +86,8 @@ function buildApp(overrides = {}) {
             ...(overrides.store || {}),
         },
         backup: {
-            getBackupSettings: jest.fn().mockReturnValue({ enabled: false, schedule: '30 2 * * *', keep: 30, sendTelegram: false }),
-            saveBackupSettings: jest.fn((s) => ({ enabled: !!s.enabled, schedule: s.schedule || '30 2 * * *', keep: 30, sendTelegram: false })),
+            getBackupSettings: jest.fn().mockReturnValue({ enabled: false, schedule: '30 2 * * *', keep: 30, sendTelegram: false, method: 'ftp', ftpSelfHost: '', ftpPort: 21 }),
+            saveBackupSettings: jest.fn((s) => ({ enabled: !!s.enabled, schedule: s.schedule || '30 2 * * *', keep: 30, sendTelegram: false, method: s.method || 'ftp', ftpSelfHost: s.ftpSelfHost || '', ftpPort: s.ftpPort || 21 })),
             runBackupForDevice: jest.fn().mockResolvedValue({ ok: true, deviceId: 'olt1', file: 'olt1_x.cfg', sizeBytes: 10, lines: 5, telegram: null, error: null }),
             runBackupAll: jest.fn().mockResolvedValue({ results: [], okCount: 1, failCount: 0 }),
             listBackups: jest.fn().mockReturnValue([]),
@@ -184,6 +186,61 @@ describe('olt-provisioning routes — preview & register', () => {
         expect(res.body.message).toMatch(/Tipe modem/);
     });
 
+    test('preview menandai factIssues bila port tak ada di OLT (validasi kondisi nyata)', async () => {
+        const { app } = buildApp({
+            provision: { getOltFacts: jest.fn().mockResolvedValue({ ponPorts: ['1/2/1'], onuTypes: [{ name: 'ALL' }], tcontProfiles: [], trafficProfiles: [], vlans: [] }) },
+        });
+        const res = await request(app, 'POST', '/api/olt/provision/devices/olt1/preview', {
+            onuTypeId: TYPE.id,
+            vars: { ponPort: '9/9/9', onuId: '8', sn: 'ZTEGCCA16805' }, // port tak ada
+        });
+        expect(res.status).toBe(200);
+        expect(res.body.data.ready).toBe(false);
+        expect(res.body.data.factIssues.join(' ')).toMatch(/Port PON 9\/9\/9 tidak ada/);
+    });
+
+    test('register DITOLAK 409 bila nilai tak cocok fakta OLT (mencegah konfig setengah-jadi)', async () => {
+        const { app, deps } = buildApp({
+            provision: { getOltFacts: jest.fn().mockResolvedValue({ ponPorts: ['1/2/1'], onuTypes: [{ name: 'ALL' }], tcontProfiles: [], trafficProfiles: [], vlans: [] }) },
+        });
+        const res = await request(app, 'POST', '/api/olt/provision/devices/olt1/register', {
+            onuTypeId: TYPE.id,
+            vars: { ponPort: '9/9/9', onuId: '8', sn: 'ZTEGCCA16805' },
+        });
+        expect(res.status).toBe(409);
+        expect(deps.provision.registerOnu).not.toHaveBeenCalled();
+    });
+
+    test('register force=true melewati guard fakta OLT (fakta basi)', async () => {
+        const { app, deps } = buildApp({
+            provision: { getOltFacts: jest.fn().mockResolvedValue({ ponPorts: ['1/2/1'], onuTypes: [{ name: 'ALL' }], tcontProfiles: [], trafficProfiles: [], vlans: [] }) },
+        });
+        const res = await request(app, 'POST', '/api/olt/provision/devices/olt1/register', {
+            onuTypeId: TYPE.id,
+            vars: { ponPort: '9/9/9', onuId: '8', sn: 'ZTEGCCA16805' },
+            force: true,
+        });
+        expect(res.status).toBe(200);
+        expect(deps.provision.registerOnu).toHaveBeenCalled();
+    });
+
+    test('register DITOLAK 409 bila ONU ID sudah terpakai di port (okupansi)', async () => {
+        const { app, deps } = buildApp({
+            provision: {
+                getPonOccupancy: jest.fn().mockResolvedValue({
+                    used: [{ onuId: 8, type: 'F609', sn: 'ZTEGAAAA1111' }], usedIds: [8], suggestedId: 9, raw: '',
+                }),
+            },
+        });
+        const res = await request(app, 'POST', '/api/olt/provision/devices/olt1/register', {
+            onuTypeId: TYPE.id,
+            vars: { ponPort: '1/3/16', onuId: '8', sn: 'ZTEGCCA16805' },
+        });
+        expect(res.status).toBe(409);
+        expect(res.body.message).toMatch(/sudah terpakai/);
+        expect(deps.provision.registerOnu).not.toHaveBeenCalled();
+    });
+
     test('register sukses → 200 + audit log terpanggil', async () => {
         const { app, deps } = buildApp();
         const res = await request(app, 'POST', '/api/olt/provision/devices/olt1/register', {
@@ -243,7 +300,7 @@ describe('olt-provisioning routes — preview & register', () => {
         const r1 = await request(app, 'GET', '/api/olt/provision/devices/olt1/facts');
         expect(r1.status).toBe(200);
         expect(r1.body.cached).toBe(false);
-        expect(r1.body.data.ponPorts).toEqual(['1/2/1']);
+        expect(r1.body.data.ponPorts).toContain('1/2/1');
         const r2 = await request(app, 'GET', '/api/olt/provision/devices/olt1/facts');
         expect(r2.body.cached).toBe(true);
         expect(deps.provision.getOltFacts).toHaveBeenCalledTimes(1);
@@ -293,6 +350,18 @@ describe('olt-provisioning routes — tipe modem & backup', () => {
         expect(res.status).toBe(200);
         expect(deps.backup.saveBackupSettings).toHaveBeenCalled();
         expect(restartOltBackupTask).toHaveBeenCalled();
+    });
+
+    test('simpan setting backup meneruskan field FTP (method/selfHost/port)', async () => {
+        const { app, deps } = buildApp();
+        const res = await request(app, 'POST', '/api/olt/provision/backup/config', {
+            enabled: true, method: 'ftp', ftpSelfHost: '172.17.231.2', ftpPort: 21,
+        });
+        expect(res.status).toBe(200);
+        expect(deps.backup.saveBackupSettings).toHaveBeenCalledWith(expect.objectContaining({
+            method: 'ftp', ftpSelfHost: '172.17.231.2',
+        }));
+        expect(res.body.data.method).toBe('ftp');
     });
 
     test('download backup dengan nama tidak aman → 400', async () => {

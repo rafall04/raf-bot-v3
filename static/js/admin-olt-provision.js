@@ -442,12 +442,30 @@ async function doPreview() {
         $('#previewMeta').text(`${type.name} → ${dev.name} • gpon-onu_${vars.ponPort}:${vars.onuId} • SN ${vars.sn}`);
         $('#previewScript').text(json.data.script);
         $('#confirmExecuteCheck').prop('checked', false);
+        $('#forceExecuteCheck').prop('checked', false);
         $('#executeBtn').prop('disabled', true);
         // Preferensi write terakhir (default: aktif).
         try { $('#saveConfigCheck').prop('checked', localStorage.getItem('oltProvSaveConfig') !== '0'); } catch (_e) { /* abaikan */ }
-        if (!json.data.ready) {
+
+        if (json.data.missing && json.data.missing.length) {
             showAlert('warning', 'Placeholder belum terisi: ' + json.data.missing.map(escapeHtml).join(', '), true);
             return;
+        }
+        // Hasil validasi terhadap kondisi nyata OLT (profil/VLAN/port harus ada).
+        const issues = json.data.factIssues || [];
+        const $fi = $('#previewFactIssues');
+        if (issues.length) {
+            $fi.removeClass('alert-success').addClass('alert-danger').show().html(
+                '<b><i class="fas fa-shield-alt"></i> Tidak cocok dengan kondisi OLT:</b><br>• ' +
+                issues.map(escapeHtml).join('<br>• '));
+            $('#forceWrap').show();
+        } else if (json.data.factsChecked) {
+            $fi.removeClass('alert-danger').addClass('alert-success').show().html(
+                '<i class="fas fa-shield-alt"></i> Semua nilai cocok dengan kondisi OLT (port, tipe ONU, profil, VLAN).');
+            $('#forceWrap').hide();
+        } else {
+            $fi.hide().empty();
+            $('#forceWrap').hide();
         }
         $('#previewModal').modal('show');
     } finally {
@@ -461,11 +479,21 @@ async function doExecute() {
     const type = selectedType();
     const vars = collectVars();
     const saveConfig = $('#saveConfigCheck').is(':checked');
+    const force = $('#forceWrap').is(':visible') && $('#forceExecuteCheck').is(':checked');
     try { localStorage.setItem('oltProvSaveConfig', saveConfig ? '1' : '0'); } catch (_e) { /* private mode */ }
     setBusy('#executeBtn', true, 'Eksekusi via SSH…');
     try {
         const json = await api('POST', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/register`,
-            { onuTypeId: type.id, vars, saveConfig });
+            { onuTypeId: type.id, vars, saveConfig, force });
+        if (json.status === 409) {
+            // Guard pra-eksekusi server (fakta OLT / okupansi) — tampilkan tanpa menutup preview.
+            $('#previewFactIssues').show().removeClass('alert-success').addClass('alert-danger').html(
+                '<b><i class="fas fa-shield-alt"></i> Ditolak guard pra-eksekusi:</b><br>' +
+                escapeHtml(json.message || '') +
+                (json.errors ? '<br>• ' + json.errors.map(escapeHtml).join('<br>• ') : ''));
+            if (json.errors && json.errors.length) $('#forceWrap').show();
+            return;
+        }
         $('#previewModal').modal('hide');
         const data = json.data || {};
         lastExec = { deviceId: dev.id, ponPort: vars.ponPort, onuId: vars.onuId, sn: vars.sn };
@@ -769,6 +797,13 @@ async function loadBackupCfg() {
         $('#bkEnabled').val(String(d.enabled));
         $('#bkKeep').val(d.keep);
         $('#bkTelegram').val(String(d.sendTelegram));
+        $('#bkMethod').val(d.method || 'ftp');
+        $('#bkFtpSelfHost').val(d.ftpSelfHost || '');
+        $('#bkFtpPort').val(d.ftpPort || 21);
+        $('#bkFtpFields').toggle(($('#bkMethod').val()) === 'ftp');
+        $('#bkMethod').off('change.ftpfields').on('change.ftpfields', function () {
+            $('#bkFtpFields').toggle(this.value === 'ftp');
+        });
         const presets = ['30 2 * * *', '0 3 * * 0', '0 3 1 * *'];
         if (presets.includes(d.schedule)) {
             $('#bkSchedulePreset').val(d.schedule);
@@ -789,6 +824,9 @@ async function saveBackupCfg() {
             schedule,
             keep: parseInt($('#bkKeep').val(), 10) || 30,
             sendTelegram: $('#bkTelegram').val() === 'true',
+            method: $('#bkMethod').val(),
+            ftpSelfHost: $('#bkFtpSelfHost').val().trim(),
+            ftpPort: parseInt($('#bkFtpPort').val(), 10) || 21,
         });
         if (json.status === 200) showAlert('success', 'Setting backup tersimpan. Jadwal: ' + escapeHtml(json.data.schedule));
         else showAlert('danger', escapeHtml(json.message || 'Gagal menyimpan'), true);

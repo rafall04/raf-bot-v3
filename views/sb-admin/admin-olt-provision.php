@@ -218,6 +218,26 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                                 <input type="text" id="bkSchedule" class="form-control" placeholder="30 2 * * *" style="display:none;">
                                                 <small class="form-text text-muted">Format cron 5 kolom, zona waktu WIB.</small>
                                             </div>
+                                            <div class="form-group">
+                                                <label for="bkMethod">Metode Backup</label>
+                                                <select id="bkMethod" class="form-control">
+                                                    <option value="ftp">FTP upload — cepat ±10 detik (startup-config, hasil write terakhir)</option>
+                                                    <option value="capture">Capture running-config — 15-20 menit (kondisi berjalan)</option>
+                                                </select>
+                                                <small class="form-text text-muted">FTP: bot menyalakan FTP receiver sementara lalu menyuruh OLT <code>file upload cfg-startup … ftp …</code>. Pastikan fitur <b>write</b> dipakai saat registrasi agar startup-config selalu terkini.</small>
+                                            </div>
+                                            <div class="form-row" id="bkFtpFields">
+                                                <div class="form-group col-md-8">
+                                                    <label for="bkFtpSelfHost">IP bot dari sisi OLT</label>
+                                                    <input type="text" id="bkFtpSelfHost" class="form-control" placeholder="172.17.231.2">
+                                                    <small class="form-text text-muted">IP server bot yang bisa di-ping DARI OLT (cek route OLT).</small>
+                                                </div>
+                                                <div class="form-group col-md-4">
+                                                    <label for="bkFtpPort">Port FTP</label>
+                                                    <input type="number" id="bkFtpPort" class="form-control" value="21" min="1" max="65535">
+                                                    <small class="form-text text-muted">ZXAN hanya bisa port 21.</small>
+                                                </div>
+                                            </div>
                                             <div class="form-row">
                                                 <div class="form-group col-md-6">
                                                     <label for="bkKeep">Simpan (file/OLT)</label>
@@ -301,6 +321,7 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                         <button class="btn btn-outline-secondary btn-sm" id="copyScriptBtn"><i class="fas fa-copy"></i> Salin</button>
                     </div>
                     <pre class="cli-script" id="previewScript"></pre>
+                    <div id="previewFactIssues" class="alert alert-danger small" style="display:none;"></div>
                     <div class="alert alert-warning small mb-0">
                         <i class="fas fa-exclamation-triangle"></i> Script dieksekusi <b>baris-per-baris</b> ke OLT dan berhenti di baris pertama yang error. Baris <code>!</code> dikirim sebagai <code>exit</code> (keluar konteks — wajib di ZXAN). Periksa VLAN/profil sebelum eksekusi.
                     </div>
@@ -311,6 +332,10 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                     <div class="custom-control custom-checkbox mt-1">
                         <input type="checkbox" class="custom-control-input" id="saveConfigCheck" checked>
                         <label class="custom-control-label" for="saveConfigCheck">Simpan permanen (<code>write</code>) setelah sukses — tanpa ini registrasi hilang saat OLT reboot</label>
+                    </div>
+                    <div class="custom-control custom-checkbox mt-1" id="forceWrap" style="display:none;">
+                        <input type="checkbox" class="custom-control-input" id="forceExecuteCheck">
+                        <label class="custom-control-label text-danger" for="forceExecuteCheck">Abaikan peringatan kondisi OLT di atas (saya yakin fakta OLT basi) — eksekusi tetap</label>
                     </div>
                 </div>
                 <div class="modal-footer">

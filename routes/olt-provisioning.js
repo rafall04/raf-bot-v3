@@ -133,22 +133,65 @@ function registerOltProvisioningRoutes(router, deps) {
         });
     }));
 
-    // Fakta OLT (port PON, tipe ONU, profil tcont/traffic, VLAN) untuk dropdown form.
-    // Di-cache per device (TTL 10 menit) — isinya jarang berubah; ?force=true refresh.
+    // Fakta OLT (port PON, tipe ONU, profil tcont/traffic, VLAN) untuk dropdown form
+    // + validasi pra-eksekusi. Di-cache per device (TTL 10 menit); ?force=true refresh.
     const factsCache = new Map(); // deviceId → { data, ts }
     const FACTS_TTL_MS = 10 * 60 * 1000;
+
+    async function getFactsCached(device, force) {
+        const cached = factsCache.get(device.id);
+        if (!force && cached && Date.now() - cached.ts < FACTS_TTL_MS) {
+            return { data: cached.data, cached: true };
+        }
+        const data = await provision.getOltFacts(device);
+        factsCache.set(device.id, { data, ts: Date.now() });
+        return { data, cached: false };
+    }
+
+    /**
+     * Cocokkan nilai form dengan fakta OLT — kunci "tidak ada miss": profil/VLAN/port
+     * yang tidak ada di OLT ditolak SEBELUM script dieksekusi (mencegah konfigurasi
+     * setengah-jadi karena gagal di tengah script). Hanya memeriksa placeholder yang
+     * benar-benar dipakai template.
+     */
+    function checkVarsAgainstFacts(vars, template, facts) {
+        const issues = [];
+        if (!facts) return issues;
+        const used = new Set(provision.listPlaceholders(template));
+        const has = (k) => used.has(k) && vars[k] !== undefined && vars[k] !== '';
+
+        if (has('ponPort') && Array.isArray(facts.ponPorts) && facts.ponPorts.length
+            && !facts.ponPorts.includes(String(vars.ponPort))) {
+            issues.push(`Port PON ${vars.ponPort} tidak ada di OLT ini (tersedia: ${facts.ponPorts[0]} … ${facts.ponPorts[facts.ponPorts.length - 1]})`);
+        }
+        if (has('onuType') && Array.isArray(facts.onuTypes) && facts.onuTypes.length
+            && !facts.onuTypes.some((t) => t.name === String(vars.onuType))) {
+            const names = facts.onuTypes.map((t) => t.name);
+            issues.push(`Tipe ONU "${vars.onuType}" tidak terdaftar di OLT (tersedia: ${names.slice(0, 10).join(', ')}${names.length > 10 ? ', …' : ''})`);
+        }
+        if (has('tcontProfile') && Array.isArray(facts.tcontProfiles) && facts.tcontProfiles.length
+            && !facts.tcontProfiles.includes(String(vars.tcontProfile))) {
+            issues.push(`Profil T-CONT "${vars.tcontProfile}" tidak ada di OLT (tersedia: ${facts.tcontProfiles.join(', ')})`);
+        }
+        if (has('downProfile') && Array.isArray(facts.trafficProfiles) && facts.trafficProfiles.length
+            && !facts.trafficProfiles.includes(String(vars.downProfile))) {
+            issues.push(`Profil traffic "${vars.downProfile}" tidak ada di OLT (tersedia: ${facts.trafficProfiles.join(', ')})`);
+        }
+        if (Array.isArray(facts.vlans) && facts.vlans.length) {
+            for (const k of Object.keys(vars)) {
+                if (/Vlan$/.test(k) && used.has(k) && !facts.vlans.includes(String(vars[k]))) {
+                    issues.push(`VLAN ${vars[k]} (${k}) belum dibuat di OLT (tersedia: ${facts.vlans.join(', ')})`);
+                }
+            }
+        }
+        return issues;
+    }
 
     router.get('/provision/devices/:id/facts', requireStaff, asyncHandler(async (req, res) => {
         const device = deviceOr404(req, res);
         if (!device || !requireSsh(device, res)) return;
-        const force = req.query.force === 'true';
-        const cached = factsCache.get(device.id);
-        if (!force && cached && Date.now() - cached.ts < FACTS_TTL_MS) {
-            return res.json({ status: 200, data: cached.data, cached: true });
-        }
-        const data = await provision.getOltFacts(device);
-        factsCache.set(device.id, { data, ts: Date.now() });
-        res.json({ status: 200, data, cached: false });
+        const result = await getFactsCached(device, req.query.force === 'true');
+        res.json({ status: 200, data: result.data, cached: result.cached });
     }));
 
     // Viewer konfigurasi lengkap satu ONU (interface + pon-onu-mng) — audit/cek pelanggan.
@@ -184,13 +227,29 @@ function registerOltProvisioningRoutes(router, deps) {
         const built = buildVarsOrRespond(req, res);
         if (!built) return;
         const { script, missing } = provision.renderScript(built.profile.scriptTemplate, built.vars);
+
+        // Validasi terhadap fakta OLT (best-effort: fakta gagal dibaca ≠ preview gagal).
+        let factIssues = [];
+        let factsChecked = false;
+        if (device.sshUsername && device.sshPassword) {
+            try {
+                const facts = (await getFactsCached(device, false)).data;
+                factIssues = checkVarsAgainstFacts(built.vars, built.profile.scriptTemplate, facts);
+                factsChecked = true;
+            } catch (e) {
+                console.warn(`[OLT-PROVISION] facts tidak terbaca utk preview ${device.id}: ${e.message}`);
+            }
+        }
+
         res.json({
             status: 200,
             data: {
                 script,
                 missing,
+                factIssues,
+                factsChecked,
                 profileName: built.profile.name,
-                ready: missing.length === 0,
+                ready: missing.length === 0 && factIssues.length === 0,
             },
         });
     }));
@@ -200,6 +259,47 @@ function registerOltProvisioningRoutes(router, deps) {
         if (!device || !requireSsh(device, res)) return;
         const built = buildVarsOrRespond(req, res);
         if (!built) return;
+        const force = req.body && req.body.force === true;
+
+        // ── Guard pra-eksekusi (mencegah konfigurasi setengah-jadi) ──
+        // 1) Nilai vs fakta OLT (profil/VLAN/port harus ada). Bisa dilewati force=true
+        //    (mis. fakta basi setelah operator baru membuat profil di OLT).
+        if (!force) {
+            try {
+                const facts = (await getFactsCached(device, false)).data;
+                const factIssues = checkVarsAgainstFacts(built.vars, built.profile.scriptTemplate, facts);
+                if (factIssues.length) {
+                    return res.status(409).json({
+                        status: 409,
+                        message: 'Nilai tidak cocok dengan kondisi OLT — perbaiki dulu (atau centang force bila yakin fakta OLT basi).',
+                        errors: factIssues,
+                    });
+                }
+            } catch (e) {
+                console.warn(`[OLT-PROVISION] facts tidak terbaca utk register ${device.id}: ${e.message}`);
+            }
+        }
+        // 2) Okupansi: ONU ID & SN tidak boleh sudah terpakai di port itu (hard block —
+        //    eksekusi pasti gagal/menabrak pelanggan lain).
+        try {
+            const occ = await provision.getPonOccupancy(device, String(built.vars.ponPort));
+            const idTaken = occ.used.find((u) => u.onuId === parseInt(built.vars.onuId, 10));
+            if (idTaken) {
+                return res.status(409).json({
+                    status: 409,
+                    message: `ONU ID ${built.vars.onuId} di port ${built.vars.ponPort} sudah terpakai (SN ${idTaken.sn}, tipe ${idTaken.type}). Saran ID kosong: ${occ.suggestedId}.`,
+                });
+            }
+            const snTaken = occ.used.find((u) => u.sn === String(built.vars.sn).toUpperCase());
+            if (snTaken) {
+                return res.status(409).json({
+                    status: 409,
+                    message: `SN ${built.vars.sn} sudah teregistrasi di port ${built.vars.ponPort} sebagai ONU ${snTaken.onuId}.`,
+                });
+            }
+        } catch (e) {
+            console.warn(`[OLT-PROVISION] cek okupansi gagal utk ${device.id}: ${e.message} — lanjut (OLT akan menolak sendiri bila konflik)`);
+        }
 
         let result;
         try {
