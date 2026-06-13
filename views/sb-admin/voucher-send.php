@@ -41,18 +41,18 @@
                                     <div class="form-section">
                                         <div class="form-section-title"><i class="fas fa-project-diagram"></i> Use Case</div>
                                         <div class="type-selector">
-                                            <div class="type-btn active" data-use-case="direct_customer_sale" onclick="setUseCase('direct_customer_sale')">
+                                            <button type="button" class="type-btn active" data-use-case="direct_customer_sale" onclick="setUseCase('direct_customer_sale')">
                                                 <i class="fas fa-user"></i>End User<br>
                                                 <small class="text-muted">Jual langsung ke pelanggan</small>
-                                            </div>
-                                            <div class="type-btn" data-use-case="agent_purchase" onclick="setUseCase('agent_purchase')">
+                                            </button>
+                                            <button type="button" class="type-btn" data-use-case="agent_purchase" onclick="setUseCase('agent_purchase')">
                                                 <i class="fas fa-store"></i>Agent Purchase<br>
                                                 <small class="text-muted">Stok agent harga reseller</small>
-                                            </div>
-                                            <div class="type-btn" data-use-case="delivery_resend" onclick="setUseCase('delivery_resend')">
+                                            </button>
+                                            <button type="button" class="type-btn" data-use-case="delivery_resend" onclick="setUseCase('delivery_resend')">
                                                 <i class="fas fa-redo"></i>Resend Existing<br>
                                                 <small class="text-muted">Kirim ulang tanpa transaksi baru</small>
-                                            </div>
+                                            </button>
                                         </div>
                                     </div>
 
@@ -60,14 +60,14 @@
                                     <div class="form-section" id="voucherTypeSection">
                                         <div class="form-section-title"><i class="fas fa-tags"></i> Tipe Voucher</div>
                                         <div class="type-selector">
-                                            <div class="type-btn active" data-type="random" onclick="setVoucherType('random')">
+                                            <button type="button" class="type-btn active" data-type="random" onclick="setVoucherType('random')">
                                                 <i class="fas fa-random"></i>Random<br>
                                                 <small class="text-muted">Kode acak 6 karakter</small>
-                                            </div>
-                                            <div class="type-btn" data-type="custom" onclick="setVoucherType('custom')">
+                                            </button>
+                                            <button type="button" class="type-btn" data-type="custom" onclick="setVoucherType('custom')">
                                                 <i class="fas fa-edit"></i>Custom<br>
                                                 <small class="text-muted">Username & Password</small>
-                                            </div>
+                                            </button>
                                         </div>
                                     </div>
 
