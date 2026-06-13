@@ -184,3 +184,17 @@
 
         .custom-creds-row { display: flex; gap: 0.75rem; }
         .custom-creds-row .form-group { flex: 1; margin-bottom: 0; }
+
+        /* Mobile: stack pemilih (Use Case / Tipe Voucher) jadi baris penuh.
+           Tanpa ini, .type-selector flex:1 memaksa 3 tombol berdesakan jadi
+           kolom tinggi-sempit (~90px lebar, ~190px tinggi) yang sulit di-tap
+           akurat di layar kecil — penyebab "tombol tidak ter-klik" di HP. */
+        @media (max-width: 575.98px) {
+            .type-selector { flex-direction: column; }
+            .type-btn { text-align: left; }
+            .type-btn br { display: none; }
+            .type-btn small { display: block; margin-top: 0.15rem; }
+            .custom-creds-row { flex-direction: column; }
+            .custom-creds-row .form-group { margin-bottom: 0.5rem; }
+            .text-center .btn-action { display: block; width: 100%; margin: 0 0 0.5rem !important; }
+        }
