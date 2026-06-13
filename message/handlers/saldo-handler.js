@@ -280,76 +280,11 @@ async function handleCancelTopup(msg, sender, reply) {
     }
 }
 
-/**
- * Handle voucher purchase with saldo
- */
-async function handleBeliVoucher(msg, sender, reply, _pushname) {
-    try {
-        const resolution = await resolveCanonicalSenderOrReply({
-            sender,
-            msg,
-            reply,
-            flow: 'voucher_purchase'
-        });
-        if (!resolution) return;
-        const userId = resolution.canonicalJid;
-
-        // Create user saldo if not exists
-        await saldoManager.createUserSaldo(userId);
-
-        const currentSaldo = await saldoManager.getUserSaldo(userId);
-
-        if (currentSaldo <= 0) {
-            return await reply(renderResponseTemplate(
-                'saldo_voucher_insufficient',
-                '❌ Saldo Anda tidak mencukupi. Silakan topup terlebih dahulu.'
-            ));
-        }
-
-        // Get available vouchers
-        const vouchers = global.voucher || [];
-
-        if (vouchers.length === 0) {
-            return await reply(renderResponseTemplate(
-                'saldo_voucher_no_available',
-                '❌ Maaf, tidak ada voucher yang tersedia saat ini.'
-            ), { skipDuplicateCheck: true });
-        }
-
-        // Build voucher list
-        let voucherList = '';
-        vouchers.forEach((v, index) => {
-            const price = convertRupiah.convert(v.harga || 0);
-            const canBuy = currentSaldo >= (v.harga || 0) ? '✅' : '❌';
-            voucherList += `${index + 1}. ${v.nama} - ${v.durasi}\n`;
-            voucherList += `   Harga: ${price} ${canBuy}\n`;
-        });
-
-        // Gunakan template system untuk menu beli voucher
-        const { renderTemplate } = require('../../lib/templating');
-        const message = renderTemplate('beli_voucher_menu', {
-            formattedSaldo: convertRupiah.convert(currentSaldo),
-            voucher_list: voucherList
-        });
-
-        // Set conversation state for voucher purchase
-        const conversationHandler = require('../handlers/conversation-handler');
-        conversationHandler.setUserState(sender, {
-            step: 'VOUCHER_SELECT',
-            type: 'voucher_purchase',
-            vouchers: vouchers
-        });
-
-        await reply(message);
-
-    } catch (error) {
-        logger.error('Error in handleBeliVoucher:', error);
-        await reply(renderResponseTemplate(
-            'saldo_voucher_buy_error',
-            '❌ Terjadi kesalahan. Silakan coba lagi.'
-        ));
-    }
-}
+// CATATAN: handleBeliVoucher versi lama dihapus dari file ini. Alur beli voucher
+// pelanggan yang AKTIF ada di `services/payment-flow.service.js` (handleBeliVoucher →
+// processVoucherPurchase, state ASK_VOUCHER_CHOICE). Versi lama di sini sudah dead code,
+// memakai field katalog yang salah (v.harga/v.nama/v.durasi vs hargavc/namavc/durasivc)
+// dan state VOUCHER_SELECT yang tidak terdaftar di conversation-state-owner-map.
 
 /**
  * Eksekusi transfer (dipanggil oleh state handler setelah konfirmasi 'ya').
@@ -560,7 +495,6 @@ module.exports = {
     handleCekSaldo,
     handleTopupInit,
     handleCancelTopup,
-    handleBeliVoucher,
     handleTransferSaldo,
     handleTransferConfirmState
 };

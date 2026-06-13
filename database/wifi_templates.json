@@ -356,6 +356,7 @@
       "beli voucher dengan saldo",
       "belivoucherdengansaldo",
       "buy voucher with saldo",
+      "beli voucher",
       "belivoucher"
     ],
     "intent": "BELI_VOUCHER",
@@ -515,10 +516,8 @@
   {
     "keywords": [
       "beli voucher reseller",
-      "beli voucher",
       "purchase voucher",
       "belivoucherreseller",
-      "belivoucher",
       "purchasevoucher"
     ],
     "intent": "AGENT_PURCHASE_VOUCHER",

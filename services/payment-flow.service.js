@@ -178,18 +178,29 @@ function createPaymentFlowService(overrides = {}) {
             // voucher jadi orphan (ada di MikroTik, belum dibayar). Catat untuk
             // rekonsiliasi admin + JANGAN kirim kode (pelanggan belum bayar) — hindari
             // bocor voucher gratis diam-diam. Saldo pelanggan tidak terpotong.
+            //
+            // PENTING: confirmATM/deductSaldo menandai KEGAGALAN lewat nilai kembalian false
+            // (saldo kurang akibat pembelian paralel, DB sibuk/terkunci SQLITE_BUSY, error
+            // commit) — BUKAN throw. Jadi WAJIB cek boolean-nya. Tetap bungkus try/catch agar
+            // jika suatu saat helper berubah jadi melempar, kita tetap masuk jalur orphan dan
+            // TIDAK mengirim voucher gratis.
+            let deducted = false;
+            let deductErrorMessage = "deduct_failed";
             try {
-                await confirmATM(sender, hargavc123);
+                deducted = await confirmATM(sender, hargavc123);
             } catch (deductErr) {
+                deductErrorMessage = deductErr?.message || "deduct_failed";
+            }
+            if (!deducted) {
                 recordVoucherOrphan({
                     sender: sender.split("@")[0],
                     voucherCode,
                     profile: profvc123,
                     price: hargavc123,
-                    reason: deductErr?.message || "deduct_failed"
+                    reason: deductErrorMessage
                 });
                 deps.logger?.error?.("[VOUCHER_ORPHAN] Saldo gagal dipotong setelah voucher dibuat", {
-                    sender: sender.split("@")[0], voucherCode, error: deductErr?.message
+                    sender: sender.split("@")[0], voucherCode, error: deductErrorMessage
                 });
                 await replyFunc(renderResponseTemplate("payment_flow_voucher_purchase_failure", {
                     errorMessage: "Terjadi kendala saat memproses pembayaran. Saldo Anda TIDAK terpotong. Mohon coba lagi atau hubungi Admin."

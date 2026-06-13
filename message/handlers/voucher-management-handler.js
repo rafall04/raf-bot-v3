@@ -62,8 +62,14 @@ async function handleDelProfVoucher({ q, isOwner, reply, mess, checkprofvoucher,
                 `Profil Tidak Ditemukan !!!`
             ));
         } else {
-            voucher.splice(q, 1);
-            fs.writeFileSync('./database/voucher.json', JSON.stringify(voucher));
+            // PENTING: `q` adalah NAMA profil (mis. "Paket-1Bulan"), bukan indeks.
+            // `splice(q, ...)` akan mengkoerce string non-numerik jadi 0 → selalu
+            // menghapus profil pertama. Cari indeks via `prof` lebih dulu.
+            const index = voucher.findIndex((item) => item.prof === q);
+            if (index !== -1) {
+                voucher.splice(index, 1);
+                fs.writeFileSync('./database/voucher.json', JSON.stringify(voucher, null, 2));
+            }
             await reply(renderResponseTemplate(
                 'voucher_profile_delete_success',
                 `Berhasil Menghapus Profil Voucher`
@@ -134,8 +140,13 @@ async function handleDelProfStatik({ q, isOwner, reply, mess, checkStatik, stati
                 `Profil Tidak Ditemukan !!!`
             ));
         } else {
-            statik.splice(q, 1);
-            fs.writeFileSync('./database/statik.json', JSON.stringify(statik));
+            // Sama seperti voucher: `q` adalah NAMA profil, bukan indeks. Cari indeks
+            // via `prof` agar tidak menghapus profil statik pertama secara keliru.
+            const index = statik.findIndex((item) => item.prof === q);
+            if (index !== -1) {
+                statik.splice(index, 1);
+                fs.writeFileSync('./database/statik.json', JSON.stringify(statik, null, 2));
+            }
             await reply(renderResponseTemplate(
                 'statik_profile_delete_success',
                 `Berhasil Menghapus Profil Statik`

@@ -198,6 +198,19 @@ router.get('/voucher-send', checkRole(['admin', 'owner', 'superadmin']), (req, r
     res.render('sb-admin/voucher-send.php');
 });
 
+// Paket Voucher (katalog CRUD) page - ADMIN ONLY
+// Tanpa route eksplisit ini, halaman jatuh ke generic handler '/:type' yang TANPA
+// guard role, sehingga staf non-admin bisa membuka halaman (API tetap dijaga, tapi
+// page-level harus konsisten dengan /voucher-send).
+router.get('/voucher', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/voucher.php');
+});
+
+// Stok Voucher Agent (dashboard reseller) page - ADMIN ONLY
+router.get('/agent-voucher-management', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/agent-voucher-management.php');
+});
+
 // Buka Isolir page - ADMIN ONLY
 router.get('/buka-isolir', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/buka-isolir.php');

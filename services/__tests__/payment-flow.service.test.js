@@ -264,7 +264,9 @@ describe("payment-flow.service", () => {
             checkdurasivc: jest.fn(() => "1 Jam"),
             checkhargavc: jest.fn(() => 1000),
             checkATMuser: jest.fn().mockResolvedValueOnce(5000).mockResolvedValueOnce(4000),
-            confirmATM: jest.fn().mockResolvedValue(undefined),
+            // deductSaldo (dibungkus confirmATM) resolve `true` saat sukses. Mock harus
+            // mencerminkan kontrak itu — jalur sukses kini di-gate pada deduct truthy.
+            confirmATM: jest.fn().mockResolvedValue(true),
             getvoucher: jest.fn().mockResolvedValue({ ok: true, data: { username: "VCR123" } })
         };
 

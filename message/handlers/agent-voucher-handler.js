@@ -14,7 +14,7 @@ const agentManager = require('../../lib/agent-manager');
 const agentTransactionManager = require('../../lib/agent-transaction-manager');
 const { getVoucherProfiles } = require('../../lib/voucher-manager');
 const { logger } = require('../../lib/logger');
-const { extractSenderInfo } = require('../../lib/jid-utils');
+const { extractSenderInfo, normalizeJidForSaldo } = require('../../lib/jid-utils');
 const { getSocket } = require('../../lib/whatsapp-gateway');
 const { sendMessage } = require('../../lib/whatsapp-delivery-service');
 const { getUserState, setUserState, deleteUserState, format } = require('./conversation-handler');
@@ -467,22 +467,31 @@ async function handleAgentSellVoucher(msg, sender, reply, temp, raf = null, user
         let customerName = 'Customer';
         
         if (msg.message?.extendedTextMessage?.contextInfo?.participant) {
-            // This is a reply message, extract customer from reply
-            customerId = msg.message.extendedTextMessage.contextInfo.participant;
-            
-            // Try to find customer name from users database
-            const customerPhone = customerId.split('@')[0];
-            const customer = users.find(u => {
-                if (!u.phone_number) return false;
-                const phoneNumbers = u.phone_number.split('|').map(p => p.trim());
-                return phoneNumbers.some(p => {
-                    const normalized = p.replace(/[^0-9]/g, '');
-                    return normalized === customerPhone || normalized.endsWith(customerPhone) || customerPhone.endsWith(normalized);
+            // Ini balasan (reply) — penulis pesan yang dibalas adalah customer.
+            // contextInfo.participant kerap berupa @lid pada Baileys baru. Normalisasi ke
+            // JID kanonik dulu; JANGAN pakai @lid sebagai target kirim (lihat invariant JID
+            // di CLAUDE.md). Bila tidak bisa dinormalisasi, biarkan customerId null → agent
+            // akan diminta memasukkan nomor customer secara manual.
+            const replyParticipant = msg.message.extendedTextMessage.contextInfo.participant;
+            const normalizedCustomer = await normalizeJidForSaldo(replyParticipant, { raf: raf || getSocket(), allowLid: false });
+
+            if (normalizedCustomer) {
+                customerId = normalizedCustomer;
+
+                // Try to find customer name from users database
+                const customerPhone = customerId.split('@')[0];
+                const customer = users.find(u => {
+                    if (!u.phone_number) return false;
+                    const phoneNumbers = u.phone_number.split('|').map(p => p.trim());
+                    return phoneNumbers.some(p => {
+                        const normalized = p.replace(/[^0-9]/g, '');
+                        return normalized === customerPhone || normalized.endsWith(customerPhone) || customerPhone.endsWith(normalized);
+                    });
                 });
-            });
-            
-            if (customer) {
-                customerName = customer.name || 'Customer';
+
+                if (customer) {
+                    customerName = customer.name || 'Customer';
+                }
             }
         }
         

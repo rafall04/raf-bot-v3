@@ -157,9 +157,9 @@ Terima kasih! 🙏
 📦 Paket: *\${nama_paket}*
 ⏱️ Durasi: *\${durasi}*
 
-� *KREDENSI AL LOGIN:*
+🔐 *KREDENSIAL LOGIN:*
 👤 Username: \`\${username}\`
-� Pasrsword: \`\${password}\`
+🔑 Password: \`\${password}\`
 
 📌 *Cara Penggunaan:*
 1. Hubungkan ke WiFi Hotspot
@@ -450,18 +450,32 @@ Terima kasih! 🙏
                     showResult(data);
                     loadHistory();
                     loadStats();
-                    const requestedCount = data.total_requested || phones.length;
-                    const sentCount = data.total_sent || 0;
-                    const statusLabel = getDeliveryStatusLabel(data.delivery_status);
+                    // Endpoint generate-send memakai field top-level (delivery_status/total_*),
+                    // sedangkan endpoint agent purchase membungkus info kirim di data.data.delivery.
+                    // Derive status terpadu agar toast tidak selalu menampilkan '-'.
+                    const deliveryInfo = data.data?.delivery;
+                    let deliveryStatus = data.delivery_status;
+                    let sentCount = data.total_sent;
+                    let requestedCount = data.total_requested;
+                    if (!deliveryStatus && deliveryInfo) {
+                        requestedCount = deliveryInfo.requested || 0;
+                        sentCount = deliveryInfo.sent || 0;
+                        deliveryStatus = requestedCount === 0
+                            ? 'generated'
+                            : (sentCount === 0 ? 'failed' : (sentCount < requestedCount ? 'partial_sent' : 'sent'));
+                    }
+                    requestedCount = requestedCount || phones.length;
+                    sentCount = sentCount || 0;
+                    const statusLabel = getDeliveryStatusLabel(deliveryStatus);
                     let successMessage = `${generatedCodes.length} voucher berhasil diproses.`;
-                    if (data.delivery_status === 'partial_sent') {
+                    if (deliveryStatus === 'partial_sent') {
                         successMessage = `${statusLabel}: ${sentCount} dari ${requestedCount} nomor berhasil.`;
-                    } else if (data.delivery_status === 'sent') {
+                    } else if (deliveryStatus === 'sent') {
                         successMessage = `${statusLabel}: ${sentCount} nomor berhasil menerima voucher.`;
-                    } else if (data.delivery_status === 'generated') {
+                    } else if (deliveryStatus === 'generated') {
                         successMessage = 'Voucher berhasil di-generate tanpa pengiriman WhatsApp penuh.';
                     }
-                    Swal.fire({ icon: 'success', title: statusLabel, text: successMessage, timer: 1800, showConfirmButton: false });
+                    Swal.fire({ icon: 'success', title: statusLabel || 'Berhasil', text: successMessage, timer: 1800, showConfirmButton: false });
                 } else {
                     Swal.fire('Gagal', data.message, 'error');
                 }

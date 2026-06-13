@@ -93,12 +93,14 @@ async function sendVoucherTextToPhones(message, phones) {
     const requestedPhones = Array.isArray(phones) ? phones.map((phone) => String(phone || "").trim()).filter(Boolean) : [];
     if (requestedPhones.length === 0) return { requestedPhones, sentTo: [], failedTo: [] };
 
+    // Normalisasi IDENTIK untuk kedua sisi (nomor diminta vs JID recipient) agar
+    // pencocokan sentTo akurat. Sebelumnya sisi recipient hanya strip @s.whatsapp.net,
+    // sementara sisi requested strip non-digit + 0→62, sehingga input seperti
+    // "+62 852-..." bisa tercatat "gagal" padahal pesan benar-benar terkirim.
+    const normalizeForCompare = (value) => String(value || "").replace(/\D/g, "").replace(/^0/, "62");
     const delivery = await sendMessageToMany(requestedPhones, { text: message });
-    const sentRecipients = new Set((delivery.recipients || []).map((recipient) => String(recipient || "").replace(/@s\.whatsapp\.net$/, "")));
-    const sentTo = requestedPhones.filter((phone) => {
-        const normalized = String(phone || "").replace(/\D/g, "").replace(/^0/, "62");
-        return sentRecipients.has(normalized);
-    });
+    const sentRecipients = new Set((delivery.recipients || []).map(normalizeForCompare));
+    const sentTo = requestedPhones.filter((phone) => sentRecipients.has(normalizeForCompare(phone)));
     const failedTo = requestedPhones.filter((phone) => !sentTo.includes(phone));
 
     return { requestedPhones, sentTo, failedTo };
