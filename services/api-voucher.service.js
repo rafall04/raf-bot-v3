@@ -8,6 +8,8 @@
  */
 "use strict";
 
+const { getInternalServiceToken, INTERNAL_SERVICE_HEADER } = require("../lib/internal-service-token");
+
 function defaultDeps() {
     return {
         repository: null,
@@ -106,11 +108,17 @@ function createApiVoucherService(overrides = {}) {
                 }
                 vouchersRequested = quantity;
                 const axios = require("axios");
-                const siteUrlBot = deps.getConfig()?.site_url_bot || `http://127.0.0.1:${process.env.PORT || 3100}`;
+                const appConfig = deps.getConfig() || {};
+                const siteUrlBot = appConfig.site_url_bot || `http://127.0.0.1:${process.env.PORT || 3100}`;
+                // adduserhotspot.php berada di belakang guard auth `.php` (requirePhpPageAuth).
+                // Panggilan Node->.php WAJIB membawa token internal-service (pola sama seperti
+                // lib/mikrotik.js); tanpa header ini guard menolak (401 di loopback, atau 404 di
+                // balik reverse-proxy/Cloudflare) sehingga generate voucher gagal total.
+                const internalHeaders = { [INTERNAL_SERVICE_HEADER]: getInternalServiceToken(appConfig.jwt || global.config?.jwt) };
                 for (let i = 0; i < quantity; i += 1) {
                     try {
                         const phpUrl = `${siteUrlBot}/adduserhotspot.php?profil=${encodeURIComponent(profile)}&komen=VoucherSend`;
-                        const phpResponse = await axios.get(phpUrl, { timeout: 15000 });
+                        const phpResponse = await axios.get(phpUrl, { timeout: 15000, headers: internalHeaders });
                         if (phpResponse.data && phpResponse.data.status === "success" && phpResponse.data.data) {
                             generatedVouchers.push({
                                 username: phpResponse.data.data.username,
