@@ -20,9 +20,23 @@ function createApiVoucherRouter({
     resolveVoucherDeliveryStatus,
     buildVoucherSentHistoryEntries,
     getVoucherSentStats,
-    findVoucherHistoryByReference
+    findVoucherHistoryByReference,
+    ensureAuthenticatedStaff
 }) {
     const router = express.Router();
+
+    // Guard staff fail-closed: endpoint voucher (generate/kirim/riwayat kredensial) hanya untuk
+    // staff (admin/owner/superadmin/teknisi). Bila guard tidak diinjeksikan, default ini tetap
+    // menolak non-staff agar pelanggan tidak bisa men-generate voucher atau membaca kredensial.
+    const requireStaff = typeof ensureAuthenticatedStaff === 'function'
+        ? ensureAuthenticatedStaff
+        : (req, res, next) => {
+            if (!req.user || !['admin', 'owner', 'superadmin', 'teknisi'].includes(req.user.role)) {
+                const status = req.user ? 403 : 401;
+                return res.status(status).json({ status, message: 'Akses ditolak.' });
+            }
+            return next();
+        };
 
     function getRuntime() {
         return global.__appRuntime || null;
@@ -83,7 +97,7 @@ function createApiVoucherRouter({
         logger: console
     });
 
-    router.get('/voucher/profiles', async (req, res) => {
+    router.get('/voucher/profiles', requireStaff, async (req, res) => {
         try {
             const result = await apiVoucherService.listVoucherProfiles();
             return res.status(result.status).json(result.body);
@@ -97,7 +111,7 @@ function createApiVoucherRouter({
         }
     });
 
-    router.post('/voucher/generate-send', async (req, res) => {
+    router.post('/voucher/generate-send', requireStaff, async (req, res) => {
         try {
             const result = await apiVoucherService.generateAndSendVouchers({
                 ...req.body,
@@ -114,7 +128,7 @@ function createApiVoucherRouter({
         }
     });
 
-    router.get('/voucher/sent-history', (req, res) => {
+    router.get('/voucher/sent-history', requireStaff, (req, res) => {
         try {
             apiVoucherService.listSentHistory({
                 limit: parseInt(req.query.limit, 10) || 50
@@ -138,7 +152,7 @@ function createApiVoucherRouter({
         }
     });
 
-    router.get('/voucher/sent-stats', (req, res) => {
+    router.get('/voucher/sent-stats', requireStaff, (req, res) => {
         try {
             apiVoucherService.getSentStats()
                 .then((result) => res.status(result.status).json(result.body))
@@ -160,7 +174,7 @@ function createApiVoucherRouter({
         }
     });
 
-    router.post('/member/send-credentials', async (req, res) => {
+    router.post('/member/send-credentials', requireStaff, async (req, res) => {
         try {
             const result = await apiVoucherService.sendMemberCredentials({
                 userId: req.body.userId,

@@ -21,6 +21,7 @@ async function handleAgentVoucherIntent(context) {
         intent,
         msg,
         sender,
+        stateSender,
         reply,
         temp,
         raf,
@@ -29,12 +30,14 @@ async function handleAgentVoucherIntent(context) {
     } = context;
 
     if (intent === "AGENT_PURCHASE_VOUCHER") {
-        await handleAgentPurchaseVoucher(msg, sender, reply, temp, raf);
+        // stateSender (JID kanonik) diteruskan agar state percakapan agent voucher
+        // di-key konsisten dengan pembacaan router (anti-mati untuk pengirim @lid).
+        await handleAgentPurchaseVoucher(msg, sender, reply, temp, raf, stateSender);
         return { handled: true };
     }
 
     if (intent === "AGENT_SELL_VOUCHER") {
-        await handleAgentSellVoucher(msg, sender, reply, temp, raf, users, global);
+        await handleAgentSellVoucher(msg, sender, reply, temp, raf, users, global, stateSender);
         return { handled: true };
     }
 

@@ -75,7 +75,12 @@ async function handleConfirmReboot(userState, userReply, reply, sender, _global)
         reply(renderResponseTemplate("other_reboot_processing", { customerName: targetUser.name }));
 
         try {
-            const result = await rebootRouter(targetUser.device_id, { operation: "wa.confirmReboot" });
+            // featureScope diset saat memulai konfirmasi (adminReboot untuk owner/teknisi,
+            // customerReboot untuk pelanggan) agar gate fitur GenieACS tidak salah dipakai.
+            const result = await rebootRouter(targetUser.device_id, {
+                operation: "wa.confirmReboot",
+                featureScope: userState.featureScope || "adminReboot"
+            });
             if (!result.ok) {
                 throw new Error(result.message || "Task reboot gagal dikirim");
             }

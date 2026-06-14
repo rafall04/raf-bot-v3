@@ -358,8 +358,25 @@ async function handleAgentConfirmation(msg, sender, reply, args) {
         }
         
         logger.info(`[AGENT_CONFIRM] Transaction ${transactionId} confirmed`);
-        
-        // Process saldo addition
+
+        // Pembelian voucher reseller (cash/transfer): stok agent SUDAH diaktifkan di dalam
+        // confirmTransaction(). Tidak ada penambahan saldo topup di sini, jadi JANGAN panggil
+        // processAgentConfirmation (akan gagal "Topup request not found" → pesan "Gagal
+        // memproses saldo" yang menyesatkan) dan jangan kirim notifikasi "TOPUP BERHASIL".
+        if (transaction.transactionType === 'voucher_purchase') {
+            let voucherMsg = `✅ *KONFIRMASI BERHASIL*\n\n`;
+            voucherMsg += `🆔 Transaction: ${transactionId}\n`;
+            voucherMsg += `💰 Jumlah: Rp ${Number(transaction.amount || 0).toLocaleString('id-ID')}\n`;
+            voucherMsg += `✅ Status: Confirmed\n\n`;
+            voucherMsg += `━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+            voucherMsg += `Stok voucher Anda sudah diaktifkan.\n`;
+            voucherMsg += `Ketik *stok voucher* untuk melihat inventory lengkap.\n\n`;
+            voucherMsg += `Terima kasih! 🙏`;
+            await reply(voucherMsg);
+            return;
+        }
+
+        // Process saldo addition (khusus transaksi topup)
         const saldoResult = saldoManager.processAgentConfirmation(transactionId);
         
         if (!saldoResult.success) {

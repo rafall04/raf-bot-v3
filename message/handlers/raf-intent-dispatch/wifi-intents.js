@@ -60,6 +60,7 @@ async function handleRebootModemIntent(context) {
     const {
         handleRebootModem,
         sender,
+        stateSender,
         entities,
         isOwner,
         isTeknisi,
@@ -68,10 +69,15 @@ async function handleRebootModemIntent(context) {
         users,
         reply,
         mess,
-        msg
+        msg,
+        raf
     } = context;
-    handleRebootModem({
+    // stateSender (JID kanonik) wajib diteruskan untuk key state, dan raf untuk
+    // resolusi pelanggan @lid (signalRepository.lidMapping). await agar error/await
+    // tidak bocor keluar concurrency guard di message/raf.js.
+    await handleRebootModem({
         sender,
+        stateSender,
         entities,
         isOwner,
         isTeknisi,
@@ -80,7 +86,8 @@ async function handleRebootModemIntent(context) {
         users,
         reply,
         mess,
-        msg
+        msg,
+        raf
     });
 }
 

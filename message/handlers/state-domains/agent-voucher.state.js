@@ -13,6 +13,7 @@ async function handleAgentVoucherConversationState(context) {
         stateStep,
         msg,
         sender,
+        stateSender,
         reply,
         chats,
         raf,
@@ -22,13 +23,15 @@ async function handleAgentVoucherConversationState(context) {
 
     if (stateStep && stateStep.startsWith("AGENT_VOUCHER_PURCHASE_")) {
         return {
-            handled: !!(await agentVoucherConversationHandlers.handleAgentVoucherPurchaseConversation(msg, sender, reply, chats, raf))
+            // stateSender (JID kanonik) wajib agar read/write state pakai key yang sama
+            // dengan yang diset saat memulai flow (anti-mati untuk pengirim @lid).
+            handled: !!(await agentVoucherConversationHandlers.handleAgentVoucherPurchaseConversation(msg, sender, reply, chats, raf, stateSender))
         };
     }
 
     if (stateStep && stateStep.startsWith("AGENT_VOUCHER_SALE_")) {
         return {
-            handled: !!(await agentVoucherConversationHandlers.handleAgentVoucherSaleConversation(msg, sender, reply, chats, raf, global))
+            handled: !!(await agentVoucherConversationHandlers.handleAgentVoucherSaleConversation(msg, sender, reply, chats, raf, global, stateSender))
         };
     }
 

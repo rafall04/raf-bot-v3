@@ -4,7 +4,7 @@
  * Caller: Dispatcher bot `message/raf.js` pada intent `REBOOT_MODEM`.
  * Deps: `./conversation-handler`, `../../lib/jid-utils`, `./template-helpers` (renderResponseTemplate).
  * MainFuncs: `handleRebootModem`.
- * SideEffects: Menyimpan state konfirmasi `CONFIRM_REBOOT` dan mengirim reply WhatsApp.
+ * SideEffects: Menyimpan state konfirmasi `CONFIRM_REBOOT` (di-key dengan JID kanonik `stateSender`) dan mengirim reply WhatsApp.
  */
 const { setUserState } = require('./conversation-handler');
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
@@ -13,7 +13,12 @@ const { renderResponseTemplate } = require('./template-helpers');
 /**
  * Handle reboot modem request
  */
-async function handleRebootModem({ sender, entities, isOwner, isTeknisi, plainSenderNumber, pushname, users, reply, mess, msg, raf }) {
+async function handleRebootModem({ sender, stateSender, entities, isOwner, isTeknisi, plainSenderNumber, pushname, users, reply, mess, msg, raf }) {
+    // PENTING: state harus di-key dengan JID kanonik (stateSender) karena router
+    // (message/raf.js + routeManagedState) membaca state HANYA via stateSender.
+    // Memakai `sender` mentah (@lid) membuat konfirmasi 'ya' tidak pernah ketemu state
+    // sehingga reboot gagal total untuk pengirim @lid. Fallback ke sender bila tak ada.
+    const stateKey = stateSender || sender;
     // Logika pencarian user yang aman dan konsisten
     let user;
     const providedId = entities.id_pelanggan;
@@ -65,10 +70,13 @@ async function handleRebootModem({ sender, entities, isOwner, isTeknisi, plainSe
         ));
     }
 
-    // Memulai percakapan konfirmasi menggunakan setUserState untuk auto-cleanup
-    setUserState(sender, {
+    // Memulai percakapan konfirmasi menggunakan setUserState untuk auto-cleanup.
+    // featureScope dicatat agar handler konfirmasi memakai gate fitur yang benar:
+    // owner/teknisi -> adminReboot, pelanggan -> customerReboot.
+    setUserState(stateKey, {
         step: 'CONFIRM_REBOOT',
-        targetUser: user
+        targetUser: user,
+        featureScope: (isOwner || isTeknisi) ? 'adminReboot' : 'customerReboot'
     });
     reply(renderResponseTemplate(
         'reboot_confirm_prompt',

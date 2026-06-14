@@ -176,6 +176,9 @@ router.use(createApiVoucherRouter({
     buildVoucherSentHistoryEntries,
     getVoucherSentStats,
     findVoucherHistoryByReference,
+    // Guard staff: cegah pelanggan (req.customer) men-generate voucher MikroTik / membaca
+    // riwayat kredensial. Tanpa ini endpoint hanya terlindung auth global (staff ATAU customer).
+    ensureAuthenticatedStaff,
     runtime: global.__appRuntime || null
 }));
 router.use('/arrears', createArrearsRouter());

@@ -70,8 +70,12 @@ function formatCurrency(amount) {
 /**
  * Handle agent purchase voucher - Initial command
  */
-async function handleAgentPurchaseVoucher(msg, sender, reply, temp, raf = null) {
+async function handleAgentPurchaseVoucher(msg, sender, reply, temp, raf = null, stateSender = null) {
     try {
+        // stateKey = JID kanonik untuk key state percakapan. Router (message/raf.js) membaca
+        // state HANYA via stateSender, jadi state harus di-set dengan key yang sama; sender
+        // mentah (@lid) tetap dipakai untuk resolusi agent.
+        const stateKey = stateSender || sender;
         // Extract real phone number from @lid if needed
         const phoneNumberToSearch = await extractPhoneFromLid(sender, msg, raf);
         
@@ -134,7 +138,7 @@ async function handleAgentPurchaseVoucher(msg, sender, reply, temp, raf = null) 
         );
         
         // Set state
-        setUserState(sender, {
+        setUserState(stateKey, {
             step: 'AGENT_VOUCHER_PURCHASE_SELECT',
             agentId: agentCred.agentId,
             agentName: agent.name,
@@ -155,9 +159,9 @@ async function handleAgentPurchaseVoucher(msg, sender, reply, temp, raf = null) 
 /**
  * Handle state: AGENT_VOUCHER_PURCHASE_SELECT - Agent selects voucher by number
  */
-async function handlePurchaseSelect(msg, sender, reply, chats) {
+async function handlePurchaseSelect(msg, sender, reply, chats, stateKey = sender) {
     try {
-        const userState = getUserState(sender);
+        const userState = getUserState(stateKey);
         const selectedNumber = parseInt(chats.trim());
         
         if (isNaN(selectedNumber) || selectedNumber < 1 || selectedNumber > userState.profiles.length) {
@@ -192,7 +196,7 @@ async function handlePurchaseSelect(msg, sender, reply, chats) {
         );
         
         // Update state
-        setUserState(sender, {
+        setUserState(stateKey, {
             step: 'AGENT_VOUCHER_PURCHASE_QUANTITY',
             agentId: userState.agentId,
             agentName: userState.agentName,
@@ -216,9 +220,9 @@ async function handlePurchaseSelect(msg, sender, reply, chats) {
 /**
  * Handle state: AGENT_VOUCHER_PURCHASE_QUANTITY - Agent inputs quantity
  */
-async function handlePurchaseQuantity(msg, sender, reply, chats) {
+async function handlePurchaseQuantity(msg, sender, reply, chats, stateKey = sender) {
     try {
-        const userState = getUserState(sender);
+        const userState = getUserState(stateKey);
         const quantity = parseInt(chats.trim());
         
         if (isNaN(quantity) || quantity < 1 || quantity > 100) {
@@ -249,7 +253,7 @@ async function handlePurchaseQuantity(msg, sender, reply, chats) {
         );
         
         // Update state
-        setUserState(sender, {
+        setUserState(stateKey, {
             step: 'AGENT_VOUCHER_PURCHASE_PAYMENT',
             agentId: userState.agentId,
             agentName: userState.agentName,
@@ -275,9 +279,9 @@ async function handlePurchaseQuantity(msg, sender, reply, chats) {
 /**
  * Handle state: AGENT_VOUCHER_PURCHASE_PAYMENT - Agent selects payment method
  */
-async function handlePurchasePayment(msg, sender, reply, chats, _raf = null) {
+async function handlePurchasePayment(msg, sender, reply, chats, _raf = null, stateKey = sender) {
     try {
-        const userState = getUserState(sender);
+        const userState = getUserState(stateKey);
         const paymentChoice = parseInt(chats.trim());
         
         if (isNaN(paymentChoice) || paymentChoice < 1 || paymentChoice > 3) {
@@ -313,7 +317,7 @@ async function handlePurchasePayment(msg, sender, reply, chats, _raf = null) {
         }
         
         // Clear state
-        deleteUserState(sender);
+        deleteUserState(stateKey);
         
         let message;
         if (paymentMethod === 'saldo') {
@@ -363,36 +367,37 @@ async function handlePurchasePayment(msg, sender, reply, chats, _raf = null) {
 /**
  * Main handler for agent voucher purchase conversation
  */
-async function handleAgentVoucherPurchaseConversation(msg, sender, reply, chats, raf = null) {
+async function handleAgentVoucherPurchaseConversation(msg, sender, reply, chats, raf = null, stateSender = null) {
     try {
-        const userState = getUserState(sender);
-        
+        const stateKey = stateSender || sender;
+        const userState = getUserState(stateKey);
+
         if (!userState || !userState.step) {
             return false;
         }
-        
+
         // Handle cancel
         const userReply = chats.toLowerCase().trim();
         if (['batal', 'cancel', 'ga jadi', 'gak jadi'].includes(userReply)) {
-            deleteUserState(sender);
+            deleteUserState(stateKey);
             return await reply(renderResponseTemplate(
                 'agent_voucher_cancelled',
                 '✅ Permintaan dibatalkan. Ada lagi yang bisa saya bantu?'
             ));
         }
-        
+
         // Route to appropriate handler based on step
         switch (userState.step) {
             case 'AGENT_VOUCHER_PURCHASE_SELECT':
-                await handlePurchaseSelect(msg, sender, reply, chats);
+                await handlePurchaseSelect(msg, sender, reply, chats, stateKey);
                 return true;
-                
+
             case 'AGENT_VOUCHER_PURCHASE_QUANTITY':
-                await handlePurchaseQuantity(msg, sender, reply, chats);
+                await handlePurchaseQuantity(msg, sender, reply, chats, stateKey);
                 return true;
-                
+
             case 'AGENT_VOUCHER_PURCHASE_PAYMENT':
-                await handlePurchasePayment(msg, sender, reply, chats, raf);
+                await handlePurchasePayment(msg, sender, reply, chats, raf, stateKey);
                 return true;
                 
             default:
@@ -408,8 +413,10 @@ async function handleAgentVoucherPurchaseConversation(msg, sender, reply, chats,
 /**
  * Handle agent sell voucher - Initial command
  */
-async function handleAgentSellVoucher(msg, sender, reply, temp, raf = null, users = [], _global = null) {
+async function handleAgentSellVoucher(msg, sender, reply, temp, raf = null, users = [], _global = null, stateSender = null) {
     try {
+        // stateKey = JID kanonik untuk key state (lihat catatan di handleAgentPurchaseVoucher).
+        const stateKey = stateSender || sender;
         // Extract real phone number from @lid if needed
         const phoneNumberToSearch = await extractPhoneFromLid(sender, msg, raf);
         
@@ -496,7 +503,7 @@ async function handleAgentSellVoucher(msg, sender, reply, temp, raf = null, user
         }
         
         // Set state
-        setUserState(sender, {
+        setUserState(stateKey, {
             step: 'AGENT_VOUCHER_SALE_SELECT',
             agentId: agentCred.agentId,
             agentName: agent.name,
@@ -520,9 +527,9 @@ async function handleAgentSellVoucher(msg, sender, reply, temp, raf = null, user
 /**
  * Handle state: AGENT_VOUCHER_SALE_SELECT - Agent selects voucher by number
  */
-async function handleSaleSelect(msg, sender, reply, chats) {
+async function handleSaleSelect(msg, sender, reply, chats, stateKey = sender) {
     try {
-        const userState = getUserState(sender);
+        const userState = getUserState(stateKey);
         const selectedNumber = parseInt(chats.trim());
         
         if (isNaN(selectedNumber) || selectedNumber < 1 || selectedNumber > userState.availableVouchers.length) {
@@ -547,7 +554,7 @@ async function handleSaleSelect(msg, sender, reply, chats) {
         );
         
         // Update state to input quantity
-        setUserState(sender, {
+        setUserState(stateKey, {
             step: 'AGENT_VOUCHER_SALE_QUANTITY',
             agentId: userState.agentId,
             agentName: userState.agentName,
@@ -571,9 +578,9 @@ async function handleSaleSelect(msg, sender, reply, chats) {
 /**
  * Handle state: AGENT_VOUCHER_SALE_QUANTITY - Agent inputs quantity
  */
-async function handleSaleQuantity(msg, sender, reply, chats) {
+async function handleSaleQuantity(msg, sender, reply, chats, stateKey = sender) {
     try {
-        const userState = getUserState(sender);
+        const userState = getUserState(stateKey);
         const quantity = parseInt(chats.trim());
         
         if (isNaN(quantity) || quantity < 1) {
@@ -607,7 +614,7 @@ async function handleSaleQuantity(msg, sender, reply, chats) {
             );
             
             // Update state to confirm with quantity
-            setUserState(sender, {
+            setUserState(stateKey, {
                 step: 'AGENT_VOUCHER_SALE_CONFIRM',
                 agentId: userState.agentId,
                 agentName: userState.agentName,
@@ -628,7 +635,7 @@ async function handleSaleQuantity(msg, sender, reply, chats) {
             );
             
             // Update state to input customer with quantity
-            setUserState(sender, {
+            setUserState(stateKey, {
                 step: 'AGENT_VOUCHER_SALE_CUSTOMER',
                 agentId: userState.agentId,
                 agentName: userState.agentName,
@@ -652,9 +659,9 @@ async function handleSaleQuantity(msg, sender, reply, chats) {
 /**
  * Handle state: AGENT_VOUCHER_SALE_CUSTOMER - Agent inputs customer number
  */
-async function handleSaleCustomer(msg, sender, reply, chats) {
+async function handleSaleCustomer(msg, sender, reply, chats, stateKey = sender) {
     try {
-        const userState = getUserState(sender);
+        const userState = getUserState(stateKey);
         const customerInput = chats.trim();
         
         // Check if it's a phone number format
@@ -710,7 +717,7 @@ async function handleSaleCustomer(msg, sender, reply, chats) {
         );
         
         // Update state to confirm with quantity
-        setUserState(sender, {
+        setUserState(stateKey, {
             step: 'AGENT_VOUCHER_SALE_CONFIRM',
             agentId: userState.agentId,
             agentName: userState.agentName,
@@ -735,10 +742,10 @@ async function handleSaleCustomer(msg, sender, reply, chats) {
 /**
  * Handle state: AGENT_VOUCHER_SALE_CONFIRM - Agent confirms sale
  */
-async function handleSaleConfirm(msg, sender, reply, chats, _raf = null, global = null) {
+async function handleSaleConfirm(msg, sender, reply, chats, _raf = null, global = null, stateKey = sender) {
     let userState;
     try {
-        userState = getUserState(sender);
+        userState = getUserState(stateKey);
         const userReply = chats.toLowerCase().trim();
         
         if (userReply !== 'ya' && userReply !== 'y' && userReply !== 'yes' && userReply !== 'ok' && userReply !== 'oke') {
@@ -769,7 +776,7 @@ async function handleSaleConfirm(msg, sender, reply, chats, _raf = null, global 
         }
         
         // Clear state
-        deleteUserState(sender);
+        deleteUserState(stateKey);
         
         // Get WiFi name from global config if available
         const wifiName = (global && global.config && global.config.wifi_name) ? global.config.wifi_name : 'RAF NET';
@@ -885,40 +892,41 @@ async function handleSaleConfirm(msg, sender, reply, chats, _raf = null, global 
 /**
  * Main handler for agent voucher sale conversation
  */
-async function handleAgentVoucherSaleConversation(msg, sender, reply, chats, raf = null, global = null) {
+async function handleAgentVoucherSaleConversation(msg, sender, reply, chats, raf = null, global = null, stateSender = null) {
     try {
-        const userState = getUserState(sender);
-        
+        const stateKey = stateSender || sender;
+        const userState = getUserState(stateKey);
+
         if (!userState || !userState.step) {
             return false;
         }
-        
+
         // Handle cancel
         const userReply = chats.toLowerCase().trim();
         if (['batal', 'cancel', 'ga jadi', 'gak jadi'].includes(userReply)) {
-            deleteUserState(sender);
+            deleteUserState(stateKey);
             return await reply(renderResponseTemplate(
                 'agent_voucher_cancelled',
                 '✅ Permintaan dibatalkan. Ada lagi yang bisa saya bantu?'
             ));
         }
-        
+
         // Route to appropriate handler based on step
         switch (userState.step) {
             case 'AGENT_VOUCHER_SALE_SELECT':
-                await handleSaleSelect(msg, sender, reply, chats);
+                await handleSaleSelect(msg, sender, reply, chats, stateKey);
                 return true;
-                
+
             case 'AGENT_VOUCHER_SALE_QUANTITY':
-                await handleSaleQuantity(msg, sender, reply, chats);
+                await handleSaleQuantity(msg, sender, reply, chats, stateKey);
                 return true;
-                
+
             case 'AGENT_VOUCHER_SALE_CUSTOMER':
-                await handleSaleCustomer(msg, sender, reply, chats);
+                await handleSaleCustomer(msg, sender, reply, chats, stateKey);
                 return true;
-                
+
             case 'AGENT_VOUCHER_SALE_CONFIRM':
-                await handleSaleConfirm(msg, sender, reply, chats, raf, global);
+                await handleSaleConfirm(msg, sender, reply, chats, raf, global, stateKey);
                 return true;
                 
             default:
