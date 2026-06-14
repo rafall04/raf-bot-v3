@@ -3,13 +3,13 @@
  * Purpose: Menangani state konfirmasi miscellaneous seperti cancel tiket, reboot, power, dan pilihan paket.
  * Caller: `conversation-state-handler.js`.
  * Deps: `conversation-handler`, `ticket-workflow`, `lib/wifi`, dan `lib/template-service`.
- * MainFuncs: `handleConfirmCancelTicket`, `handleConfirmReboot`, `handleAskPowerLevel`, `handleConfirmGantiPower`, `handleSelectSodChoice`, `handleConfirmSodChoice`, `handleAskPackageChoice`, `handleConfirmPackageChoice`.
+ * MainFuncs: `handleConfirmCancelTicket`, `handleConfirmReboot`, `handleSelectSodChoice`, `handleConfirmSodChoice`, `handleAskPackageChoice`, `handleConfirmPackageChoice`.
  * SideEffects: Mengirim reply berbasis responseTemplates, memanggil operasi tiket/WiFi, dan membersihkan state.
  */
 
 const { deleteUserState } = require("../conversation-handler");
 const { cancelTicket } = require("../../../lib/ticket-workflow");
-const { rebootRouter, setTransmitPower } = require("../../../lib/wifi");
+const { rebootRouter } = require("../../../lib/wifi");
 const { renderCategoryTemplate } = require("../../../lib/template-service");
 
 function renderResponseTemplate(key, data = {}) {
@@ -102,44 +102,6 @@ async function handleConfirmReboot(userState, userReply, reply, sender, _global)
     }
 }
 
-async function handleAskPowerLevel(userState, chats, reply) {
-    const newPowerLevel = chats.trim();
-
-    if (!["100", "80", "60", "40", "20"].includes(newPowerLevel)) {
-        return reply(renderResponseTemplate("other_power_level_invalid"));
-    }
-
-    userState.step = "CONFIRM_GANTI_POWER";
-    userState.level_daya = newPowerLevel;
-    return reply(renderResponseTemplate("other_power_confirm", { powerLevel: newPowerLevel }));
-}
-
-async function handleConfirmGantiPower(userState, userReply, reply, sender, _global) {
-    if (["ya", "ok", "lanjut", "iya", "y"].includes(userReply)) {
-        const { targetUser, level_daya } = userState;
-        reply(renderResponseTemplate("other_power_processing", { customerName: targetUser.name }));
-
-        try {
-            const result = await setTransmitPower(targetUser.device_id, "1", level_daya, {
-                operation: "wa.confirmGantiPower",
-                verifyApplied: false
-            });
-            if (!result.ok) {
-                throw new Error(result.message || "Task perubahan power gagal dikirim");
-            }
-
-            reply(renderResponseTemplate("other_power_success", { powerLevel: level_daya }));
-        } catch (error) {
-            console.error("[GANTIPOWER_ERROR]", error);
-            reply(renderResponseTemplate("other_power_failed"));
-        }
-
-        deleteUserState(sender);
-    } else {
-        reply(renderResponseTemplate("other_power_confirm_invalid"));
-    }
-}
-
 async function handleSelectSodChoice(userState, userReply, reply, convertRupiah) {
     const chosenIndex = parseInt(userReply, 10);
     const selectedOption = userState.options.find((opt) => opt.index === chosenIndex);
@@ -219,8 +181,6 @@ async function handleConfirmPackageChoice(userState, userReply, reply, sender, _
 module.exports = {
     handleConfirmCancelTicket,
     handleConfirmReboot,
-    handleAskPowerLevel,
-    handleConfirmGantiPower,
     handleSelectSodChoice,
     handleConfirmSodChoice,
     handleAskPackageChoice,

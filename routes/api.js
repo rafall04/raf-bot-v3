@@ -81,7 +81,7 @@ const psbService = require('../lib/services/api-psb-service');
 
 const router = express.Router();
 router.use(createApiNetworkRouter({
-    ensureAuthenticated,
+    ensureAuthenticatedStaff,
     ensureAdmin,
     updatePPPoEProfile,
     assertMikrotikResult,

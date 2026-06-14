@@ -76,7 +76,8 @@ describe('Wave F4 — WA hardcoded message migration (access + states + steps + 
     test('steps/general-steps.js renderResponseTemplate helper support fallback pattern', () => {
         const content = readHandler('steps/general-steps.js');
         expect(content).toMatch(/fallback !== null/);
-        expect(content).toMatch(/general_step_applying_power/);
+        // Catatan: assertion `general_step_applying_power` dihapus karena case dead-code
+        // CONFIRM_GANTI_POWER (satu-satunya pemakai key tsb) sudah dibuang dari general-steps.
     });
 
     test('access-management tidak lagi pakai hardcoded throw/reply literal utama', () => {

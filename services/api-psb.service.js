@@ -525,6 +525,7 @@ function createApiPsbService(overrides = {}) {
                     deps.logger.warn?.(`[PSB_PHASE3] Could not fetch old SSID info from GenieACS: ${ssidInfoError.message}`);
                 }
 
+                let genieacsError = null;
                 try {
                     const updateResponse = await deps.updatePsbDeviceConfig?.(device_id, {
                         pppUsername: pppoe_username,
@@ -543,6 +544,9 @@ function createApiPsbService(overrides = {}) {
                         throw new Error(updateResponse.message || "Task GenieACS tidak diterima");
                     }
                 } catch (genieError) {
+                    // JANGAN telan diam-diam: PPPoE & user tetap dibuat, tapi modem mungkin
+                    // belum terkonfigurasi. Simpan pesan agar di-surface ke teknisi (lihat return).
+                    genieacsError = genieError.message;
                     deps.logger.warn?.("[PSB_PHASE3] GenieACS update failed, but continuing:", genieError.message);
                 }
 
@@ -684,11 +688,19 @@ function createApiPsbService(overrides = {}) {
                     deps.logger.error?.("[PSB_PHASE3] Notification error:", notifErr);
                 }
 
+                // Transport tetap 200 (frontend butuh ini untuk menampilkan kredensial), tapi
+                // pesan + flag warning mencerminkan kegagalan parsial GenieACS agar device tidak
+                // terlanjur dianggap "beres" saat modem belum dikonfigurasi.
+                const genieacsOk = transaction.deviceUpdated === true;
                 return {
                     status: 200,
                     body: {
                         status: 200,
-                        message: "PSB Phase 3 (Setup Awal Pelanggan) berhasil diselesaikan",
+                        message: genieacsOk
+                            ? "PSB Phase 3 (Setup Awal Pelanggan) berhasil diselesaikan"
+                            : "PSB Phase 3 selesai SEBAGIAN: PPPoE & data pelanggan dibuat, TAPI konfigurasi modem (GenieACS) GAGAL dikirim. Silakan konfigurasi WiFi/PPPoE di modem secara manual.",
+                        warning: genieacsOk ? null : "genieacs_update_failed",
+                        genieacsError: genieacsOk ? null : genieacsError,
                         data: {
                             psbCustomerId: customerId,
                             finalUserId: newUserId,

@@ -2,14 +2,13 @@
 
 /**
  * Header Doc
- * Purpose: Menangani langkah percakapan umum seperti reboot, perubahan power, dan workflow tiket legacy umum.
+ * Purpose: Menangani langkah percakapan umum (konfirmasi proses tiket, resolusi/foto tiket, komplain, tanya) untuk workflow tiket legacy.
  * Caller: Router state conversation bot.
- * Deps: `../../../lib/wifi`, `../../../lib/whatsapp-delivery-service`, `../../../lib/whatsapp-gateway`, dan `../../../lib/template-service`.
+ * Deps: `../../../lib/whatsapp-delivery-service`, `../../../lib/whatsapp-gateway`, dan `../../../lib/template-service`.
  * MainFuncs: `handleGeneralSteps`.
  * SideEffects: Mengubah state percakapan, memicu aksi device, dan mengirim update tiket ke pelanggan.
  */
 
-const { rebootRouter } = require("../../../lib/wifi");
 const { sendMessage } = require("../../../lib/whatsapp-delivery-service");
 const { isReady } = require("../../../lib/whatsapp-gateway");
 const { renderCategoryTemplate } = require("../../../lib/template-service");
@@ -38,122 +37,10 @@ function renderResponseTemplate(key, fallbackOrData, maybeData) {
 /**
  * Handle general conversation steps
  */
-async function handleGeneralSteps({ userState, sender, chats, pushname, reply, setUserState, deleteUserState }) {
+async function handleGeneralSteps({ userState, sender, chats, pushname, setUserState, deleteUserState }) {
     const userReply = chats.toLowerCase().trim();
     
     switch (userState.step) {
-        // Router Reboot Confirmation
-        case 'CONFIRM_REBOOT': {
-            if (['ya', 'ok', 'lanjut', 'iya', 'y'].includes(userReply)) {
-                const { targetUser } = userState;
-                
-                await reply(renderResponseTemplate("other_reboot_processing", { customerName: targetUser.name }));
-                
-                try {
-                    const result = await rebootRouter(targetUser.device_id);
-                    
-                    deleteUserState(sender);
-                    
-                    if (result.success) {
-                        console.log(`[REBOOT_SUCCESS] User: ${targetUser.name} (${targetUser.id}), Rebooted by: ${pushname}`);
-                        return {
-                            success: true,
-                            message: renderResponseTemplate("general_reboot_success")
-                        };
-                    } else {
-                        console.error(`[REBOOT_FAILED] User: ${targetUser.name} (${targetUser.id}), Error: ${result.message}`);
-                        return {
-                            success: false,
-                            message: renderResponseTemplate("general_reboot_failed", { reason: result.message })
-                        };
-                    }
-                } catch (error) {
-                    console.error('[REBOOT_ERROR]', error);
-                    deleteUserState(sender);
-                    return {
-                        success: false,
-                        message: renderResponseTemplate("general_reboot_error", { errorMessage: error.message })
-                    };
-                }
-            } else if (['tidak', 'no', 'n', 'gak'].includes(userReply)) {
-                deleteUserState(sender);
-                return {
-                    success: true,
-                    message: renderResponseTemplate("general_reboot_cancelled")
-                };
-            } else {
-                return {
-                    success: false,
-                    message: renderResponseTemplate("general_reboot_confirm_invalid")
-                };
-            }
-        }
-        
-        // WiFi Power Level Change
-        case 'ASK_POWER_LEVEL': {
-            const newPowerLevel = chats.trim();
-            
-            if (!['100', '80', '60', '40', '20'].includes(newPowerLevel)) {
-                return {
-                    success: false,
-                    message: `⚠️ Level daya tidak valid. Mohon pilih salah satu dari: *100, 80, 60, 40, 20*.\n\nAtau ketik *batal* untuk membatalkan.`
-                };
-            }
-            
-            userState.level_daya = newPowerLevel;
-            userState.step = 'CONFIRM_GANTI_POWER';
-            setUserState(sender, userState);
-            
-            return {
-                success: true,
-                message: `📡 *Konfirmasi Perubahan Kekuatan Sinyal*\n\nKekuatan sinyal WiFi akan diubah ke level *${newPowerLevel}%*.\n\n⚠️ *Perhatian:*\n• Level 100%: Jangkauan maksimal, konsumsi daya tinggi\n• Level 80%: Jangkauan luas, konsumsi normal\n• Level 60%: Jangkauan sedang, hemat daya\n• Level 40%: Jangkauan terbatas\n• Level 20%: Jangkauan minimal, sangat hemat daya\n\nApakah sudah benar?\n\nBalas *'ya'* untuk melanjutkan atau *'tidak'* untuk membatalkan.`
-            };
-        }
-        
-        case 'CONFIRM_GANTI_POWER': {
-            if (['ya', 'ok', 'lanjut', 'iya', 'y'].includes(userReply)) {
-                const { targetUser, level_daya } = userState;
-                
-                await reply(renderResponseTemplate(
-                    'general_step_applying_power',
-                    `⏳ Sedang mengatur kekuatan sinyal WiFi untuk *${targetUser.name}* ke level ${level_daya}%...`,
-                    { nama_pelanggan: targetUser.name, level_daya }
-                ));
-                
-                // Note: You need to implement setPowerLevel function in lib/wifi.js
-                // For now, we'll simulate it
-                try {
-                    // Simulate API call
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    
-                    deleteUserState(sender);
-                    
-                    return {
-                        success: true,
-                        message: `✅ *Berhasil!*\n\nKekuatan sinyal WiFi untuk *${targetUser.name}* telah diubah ke level *${level_daya}%*.\n\n📡 Perubahan akan terasa dalam 1-2 menit.\n\n💡 *Tips:*\n• Jika sinyal terlalu lemah, naikkan level daya\n• Jika ada interferensi dengan tetangga, turunkan level daya\n• Level 60-80% biasanya optimal untuk rumah tangga`
-                    };
-                } catch (error) {
-                    console.error('[POWER_CHANGE_ERROR]', error);
-                    deleteUserState(sender);
-                    return {
-                        success: false,
-                        message: `❌ Gagal mengubah kekuatan sinyal: ${error.message}\n\nSilakan coba lagi atau hubungi admin.`
-                    };
-                }
-            } else if (['tidak', 'no', 'n', 'gak'].includes(userReply)) {
-                deleteUserState(sender);
-                return {
-                    success: true,
-                    message: '❌ Perubahan kekuatan sinyal dibatalkan.'
-                };
-            } else {
-                return {
-                    success: false,
-                    message: "Mohon balas dengan *'ya'* untuk melanjutkan atau *'tidak'* untuk membatalkan."
-                };
-            }
-        }
-        
         // Payment Confirmation Steps
         case 'PAYMENT_CONFIRMATION': {
             // Handle payment confirmation with image

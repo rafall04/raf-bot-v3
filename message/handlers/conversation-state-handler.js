@@ -34,8 +34,6 @@ const {
 const {
     handleConfirmCancelTicket,
     handleConfirmReboot,
-    handleAskPowerLevel,
-    handleConfirmGantiPower: _handleConfirmGantiPower,
     handleSelectSodChoice,
     handleConfirmSodChoice,
     handleAskPackageChoice,
@@ -152,12 +150,6 @@ async function handleConversationState(params) {
         case 'CONFIRM_REBOOT': {
             return handleConfirmReboot(userState, userReply, reply, sender, global, axios);
         }
-
-        case 'ASK_POWER_LEVEL': {
-            return handleAskPowerLevel(userState, chats, reply);
-        }
-
-        // CONFIRM_GANTI_POWER removed - power changes execute directly
 
         case 'SELECT_SOD_CHOICE': {
             return handleSelectSodChoice(userState, userReply, reply, convertRupiah);

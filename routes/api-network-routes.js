@@ -13,7 +13,7 @@ const { createApiNetworkRepository } = require('../repositories/api-network.repo
 const { createApiNetworkService } = require('../services/api-network.service');
 
 function createApiNetworkRouter({
-    ensureAuthenticated,
+    ensureAuthenticatedStaff,
     ensureAdmin,
     updatePPPoEProfile,
     assertMikrotikResult,
@@ -49,7 +49,7 @@ function createApiNetworkRouter({
         logger: console
     });
 
-    router.post('/action', ensureAuthenticated, async (req, res) => {
+    router.post('/action', ensureAdmin, async (req, res) => {
         try {
             const result = await apiNetworkService.handleNetworkAction(req.body);
             return res.status(result.status).json(result.body);
@@ -62,7 +62,7 @@ function createApiNetworkRouter({
         }
     });
 
-    router.get('/send/:id/:text', async (req, res) => {
+    router.get('/send/:id/:text', ensureAuthenticatedStaff, async (req, res) => {
         try {
             const result = await apiNetworkService.sendManualMessage({
                 id: req.params.id,
