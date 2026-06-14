@@ -34,6 +34,7 @@ const {
 const {
     handleConfirmCancelTicket,
     handleConfirmReboot,
+    handleAwaitingComplaint,
     handleSelectSodChoice,
     handleConfirmSodChoice,
     handleAskPackageChoice,
@@ -149,6 +150,10 @@ async function handleConversationState(params) {
 
         case 'CONFIRM_REBOOT': {
             return handleConfirmReboot(userState, userReply, reply, sender, global, axios);
+        }
+
+        case 'AWAITING_COMPLAINT': {
+            return handleAwaitingComplaint(userState, chats, reply, sender, pushname);
         }
 
         case 'SELECT_SOD_CHOICE': {

@@ -102,6 +102,32 @@ async function handleConfirmReboot(userState, userReply, reply, sender, _global)
     }
 }
 
+async function handleAwaitingComplaint(userState, chats, reply, sender, pushname) {
+    const complaint = (chats || "").trim();
+    if (!complaint) {
+        return reply(renderResponseTemplate("general_complaint_empty"));
+    }
+
+    const complaintData = {
+        id: Date.now().toString(),
+        userId: userState.user?.id,
+        userName: userState.user?.name,
+        userPhone: userState.user?.phone_number,
+        complaint,
+        createdAt: new Date().toISOString(),
+        status: "new"
+    };
+    console.log("[NEW_COMPLAINT]", complaintData);
+
+    deleteUserState(sender);
+    return reply(renderResponseTemplate("general_complaint_received", {
+        pushname,
+        complaintId: complaintData.id,
+        complaint,
+        receivedAt: new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+    }));
+}
+
 async function handleSelectSodChoice(userState, userReply, reply, convertRupiah) {
     const chosenIndex = parseInt(userReply, 10);
     const selectedOption = userState.options.find((opt) => opt.index === chosenIndex);
@@ -181,6 +207,7 @@ async function handleConfirmPackageChoice(userState, userReply, reply, sender, _
 module.exports = {
     handleConfirmCancelTicket,
     handleConfirmReboot,
+    handleAwaitingComplaint,
     handleSelectSodChoice,
     handleConfirmSodChoice,
     handleAskPackageChoice,

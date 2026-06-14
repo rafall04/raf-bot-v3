@@ -190,7 +190,7 @@ function handlePaymentConfirmation({ sender, user, pushname, paymentMethod, amou
  * @param {Object} params - Parameters
  * @returns {Object} Response object
  */
-function handleComplaint({ sender, user, pushname, complaint }) {
+function handleComplaint({ sender, stateSender, user, pushname, complaint }) {
     try {
         if (!user) {
             return {
@@ -200,8 +200,10 @@ function handleComplaint({ sender, user, pushname, complaint }) {
         }
 
         if (!complaint || complaint.trim() === '') {
-            // Ask for complaint details
-            setUserState(sender, {
+            // Ask for complaint details.
+            // State di-key dengan JID kanonik (stateSender) agar router menemukan state ini
+            // saat pelanggan mengirim isi keluhan (anti-mati untuk pengirim @lid).
+            setUserState(stateSender || sender, {
                 step: 'AWAITING_COMPLAINT',
                 flow: 'customer',
                 user: user,

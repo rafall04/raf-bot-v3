@@ -155,9 +155,11 @@ Pelanggan: ${report.pelangganName}
 /**
  * Handle lokasi dari teknisi
  */
-async function handleTeknisiShareLocation(sender, location, _reply) {
+async function handleTeknisiShareLocation(sender, location, _reply, stateSender = sender) {
+    // stateKey = JID kanonik untuk key state percakapan; sender mentah tetap untuk atribusi tiket.
+    const stateKey = stateSender || sender;
     try {
-        const state = getUserState(sender);
+        const state = getUserState(stateKey);
         
         // Check if teknisi is in valid state for location sharing
         const validStates = [
@@ -190,7 +192,7 @@ async function handleTeknisiShareLocation(sender, location, _reply) {
         
         // Update state instead of deleting - preserve OTP data
         if (state.otp) {
-            setUserState(sender, {
+            setUserState(stateKey, {
                 ...state,
                 step: 'TICKET_PROCESSING_WITH_LOCATION',
                 locationShared: true,
@@ -198,7 +200,7 @@ async function handleTeknisiShareLocation(sender, location, _reply) {
             });
         } else {
             // Only delete if no OTP data to preserve
-            deleteUserState(sender);
+            deleteUserState(stateKey);
         }
         
         return result;

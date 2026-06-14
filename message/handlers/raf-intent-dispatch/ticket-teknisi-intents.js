@@ -164,7 +164,8 @@ async function handleOtwTiketIntent(context) {
         matchedKeywordLength,
         format,
         handleOTW,
-        sender
+        sender,
+        stateSender
     } = context;
 
     if (!isTeknisi && !isOwner) return reply(mess.teknisiOrOwnerOnly);
@@ -175,7 +176,9 @@ async function handleOtwTiketIntent(context) {
         return reply(format('error_format_otw'));
     }
 
-    const result = await handleOTW(sender, ticketId, null, reply);
+    // stateSender (JID kanonik) diteruskan agar state AWAITING_LOCATION_FOR_JOURNEY ditemukan
+    // router saat teknisi @lid share lokasi.
+    const result = await handleOTW(sender, ticketId, null, reply, stateSender);
     return reply(result.message);
 }
 
@@ -214,7 +217,8 @@ async function handleVerifikasiOtpIntent(context) {
         matchedKeywordLength,
         format,
         handleVerifikasiOTP,
-        sender
+        sender,
+        stateSender
     } = context;
 
     if (!isTeknisi && !isOwner) return reply(mess.teknisiOrOwnerOnly);
@@ -227,7 +231,9 @@ async function handleVerifikasiOtpIntent(context) {
         return reply(format('error_format_verifikasi'));
     }
 
-    const result = await handleVerifikasiOTP(sender, ticketId, otp, reply);
+    // stateSender (JID kanonik) diteruskan agar state AWAITING_PHOTO_CATEGORY_1 ditemukan
+    // router saat teknisi @lid mengirim foto dokumentasi.
+    const result = await handleVerifikasiOTP(sender, ticketId, otp, reply, stateSender);
     return reply(result.message);
 }
 
@@ -311,7 +317,8 @@ async function handleSelesaiTiketIntent(context) {
         chats,
         format,
         handleSelesaiTicket,
-        sender
+        sender,
+        stateSender
     } = context;
 
     if (!isTeknisi && !isOwner) return reply(mess.teknisiOrOwnerOnly);
@@ -321,7 +328,8 @@ async function handleSelesaiTiketIntent(context) {
         return reply(format('error_format_selesai'));
     }
 
-    const result = await handleSelesaiTicket(sender, ticketId, reply);
+    // stateSender (JID kanonik) diteruskan agar state teknisi (foto/catatan) ditemukan saat @lid.
+    const result = await handleSelesaiTicket(sender, ticketId, reply, stateSender);
     return reply(result.message);
 }
 

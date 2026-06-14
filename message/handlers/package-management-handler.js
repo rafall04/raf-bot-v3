@@ -16,8 +16,11 @@ const { resolveCustomerBySender } = require('../../lib/jid-utils');
 /**
  * Handle package change request
  */
-async function handleUbahPaket({ sender, plainSenderNumber: _plainSenderNumber, pushname, reply, mess, global, msg, raf }) {
+async function handleUbahPaket({ sender, stateSender, plainSenderNumber: _plainSenderNumber, pushname, reply, mess, global, msg, raf }) {
     try {
+        // stateKey = JID kanonik untuk key state (router membaca state via stateSender);
+        // sender mentah tetap dipakai untuk resolusi pelanggan @lid.
+        const stateKey = stateSender || sender;
         // Resolusi pelanggan terpadu (LID-aware: remoteJidAlt → getPNForLID → stored-mapping → pre-warm USync).
         const { user } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
 
@@ -102,7 +105,7 @@ async function handleUbahPaket({ sender, plainSenderNumber: _plainSenderNumber, 
             "\nSilakan balas dengan *nomor* paket yang Anda inginkan (contoh: `1`). Atau ketik *batal* untuk membatalkan."
         );
 
-        setUserState(sender, {
+        setUserState(stateKey, {
             step: 'ASK_PACKAGE_CHOICE',
             user: user,
             options: availablePackages // The options are already ordered correctly
@@ -122,8 +125,11 @@ async function handleUbahPaket({ sender, plainSenderNumber: _plainSenderNumber, 
 /**
  * Handle speed boost request
  */
-async function handleRequestSpeedBoost({ sender, plainSenderNumber: _plainSenderNumber, pushname, reply, mess, global, temp: _temp, msg, raf }) {
+async function handleRequestSpeedBoost({ sender, stateSender, plainSenderNumber: _plainSenderNumber, pushname, reply, mess, global, temp: _temp, msg, raf }) {
     try {
+        // stateKey = JID kanonik untuk key state (router membaca state via stateSender);
+        // sender mentah tetap dipakai untuk resolusi pelanggan @lid.
+        const stateKey = stateSender || sender;
         // Resolusi pelanggan terpadu (LID-aware: remoteJidAlt → getPNForLID → stored-mapping → pre-warm USync).
         const { user } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
 
@@ -210,7 +216,7 @@ async function handleRequestSpeedBoost({ sender, plainSenderNumber: _plainSender
             "\nSilakan balas dengan *nomor* paket yang Anda inginkan (contoh: `1`). Atau ketik *batal* untuk membatalkan."
         );
 
-        setUserState(sender, {
+        setUserState(stateKey, {
             step: 'SELECT_SOD_CHOICE',
             user: user,
             options: sodPackages

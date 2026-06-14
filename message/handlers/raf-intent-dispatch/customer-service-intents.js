@@ -42,10 +42,10 @@ async function handleCekPaketIntent(context) {
 }
 
 async function handleKeluhanSaranIntent(context) {
-    const { findUserWithLidSupport, global, msg, plainSenderNumber, chats, handleComplaint, pushname, reply, raf, sender } = context;
+    const { findUserWithLidSupport, global, msg, plainSenderNumber, chats, handleComplaint, pushname, reply, raf, sender, stateSender } = context;
     const user = await findUserWithLidSupport(global.users, msg, plainSenderNumber, raf);
     const keluhanText = chats.replace(/^(keluhan|saran|kritik|komplain)\s*/i, '').trim();
-    const result = handleComplaint({ sender, user, pushname, complaint: keluhanText });
+    const result = handleComplaint({ sender, stateSender, user, pushname, complaint: keluhanText });
     await reply(result.message);
 }
 
@@ -56,9 +56,10 @@ async function handleInfoLayananIntent(context) {
 }
 
 async function handleUbahPaketIntent(context) {
-    const { handleUbahPaket, sender, plainSenderNumber, pushname, reply, mess, global, temp, msg, raf } = context;
+    const { handleUbahPaket, sender, stateSender, plainSenderNumber, pushname, reply, mess, global, temp, msg, raf } = context;
     await handleUbahPaket({
         sender,
+        stateSender,
         plainSenderNumber,
         pushname,
         reply,
@@ -71,9 +72,10 @@ async function handleUbahPaketIntent(context) {
 }
 
 async function handleRequestSpeedBoostIntent(context) {
-    const { handleRequestSpeedBoost, sender, plainSenderNumber, pushname, reply, mess, global, temp, msg, raf } = context;
+    const { handleRequestSpeedBoost, sender, stateSender, plainSenderNumber, pushname, reply, mess, global, temp, msg, raf } = context;
     await handleRequestSpeedBoost({
         sender,
+        stateSender,
         plainSenderNumber,
         pushname,
         reply,

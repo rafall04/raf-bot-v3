@@ -70,7 +70,8 @@ async function handleTeknisiConversationState(context) {
                 degreesLongitude: locationData.degreesLongitude,
                 accuracyInMeters: locationData.accuracyInMeters
             },
-            reply
+            reply,
+            stateSender
         );
         if (locationResult?.message) {
             await reply(locationResult.message);
@@ -105,7 +106,7 @@ async function handleTeknisiConversationState(context) {
 
             fs.writeFileSync(photoPath, buffer);
 
-            const result = await handleTeknisiPhotoUpload(sender, fileName);
+            const result = await handleTeknisiPhotoUpload(sender, fileName, stateSender);
             if (result.message) {
                 await reply(result.message);
             }

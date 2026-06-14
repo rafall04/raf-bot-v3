@@ -178,7 +178,10 @@ Langkah berikutnya: ketik *otw ${ticketId}*.`, {
 /**
  * Handle "otw" command - teknisi on the way
  */
-async function handleOTW(sender, ticketId, locationUrl, _reply) {
+async function handleOTW(sender, ticketId, locationUrl, _reply, stateSender = sender) {
+    // stateKey = JID kanonik untuk key state percakapan (router membaca via stateSender);
+    // sender mentah tetap dipakai untuk atribusi/identitas teknisi pada tiket.
+    const stateKey = stateSender || sender;
     try {
         // Find ticket
         const ticket = global.reports.find(r => r.ticketId === ticketId.toUpperCase());
@@ -209,10 +212,10 @@ async function handleOTW(sender, ticketId, locationUrl, _reply) {
         }
         
         // Get existing state to preserve OTP data
-        const existingState = getUserState(sender);
-        
+        const existingState = getUserState(stateKey);
+
         // Set state untuk menunggu lokasi while preserving OTP data (SAMA DENGAN mulai perjalanan)
-        setUserState(sender, {
+        setUserState(stateKey, {
             step: 'AWAITING_LOCATION_FOR_JOURNEY',
             ticketId: ticketId.toUpperCase(),
             reportData: ticket,
@@ -449,7 +452,9 @@ function getNextPhotoStep(state) {
 /**
  * Handle OTP verification
  */
-async function handleVerifikasiOTP(sender, ticketId, otp, _reply) {
+async function handleVerifikasiOTP(sender, ticketId, otp, _reply, stateSender = sender) {
+    // stateKey = JID kanonik untuk key state percakapan (lihat catatan di handleOTW).
+    const stateKey = stateSender || sender;
     try {
         // Find ticket
         const ticket = global.reports.find(r => r.ticketId === ticketId.toUpperCase());
@@ -505,7 +510,7 @@ Anda akan diinformasikan saat selesai.`, {
         await sendCustomerNotification(ticket, customerMessage);
         
         // Set state for guided photo upload with categorization
-        setUserState(sender, {
+        setUserState(stateKey, {
             step: 'AWAITING_PHOTO_CATEGORY_1',
             ticketId: ticketId,
             currentPhotoCategory: 'problem',     // Current category being uploaded
@@ -549,10 +554,12 @@ Kirim foto pertama sekarang.`, { ticketId })
 /**
  * Handle completion with photos
  */
-async function handleSelesaiTicket(sender, ticketId, _reply) {
+async function handleSelesaiTicket(sender, ticketId, _reply, stateSender = sender) {
+    // stateKey = JID kanonik untuk key state percakapan (lihat catatan di handleOTW).
+    const stateKey = stateSender || sender;
     try {
         // Check teknisi state
-        const state = getUserState(sender);
+        const state = getUserState(stateKey);
         
         if (!state || state.ticketId !== ticketId) {
             return {
@@ -610,8 +617,8 @@ Silakan kirim foto dulu.`, {
         Object.assign(ticket, completedTicket);
         
         // Clear teknisi state and photo queue
-        deleteUserState(sender);
-        
+        deleteUserState(stateKey);
+
         // Clear photo upload queue
         const { clearUploadQueue } = require('./teknisi-photo-handler-v3');
         clearUploadQueue(sender);
@@ -658,10 +665,12 @@ Pelanggan telah diinformasikan.`, {
 /**
  * Handle teknisi photo upload with categorization
  */
-async function handleTeknisiPhotoUpload(sender, photoPath) {
+async function handleTeknisiPhotoUpload(sender, photoPath, stateSender = sender) {
+    // stateKey = JID kanonik untuk key state percakapan (lihat catatan di handleOTW).
+    const stateKey = stateSender || sender;
     try {
         // Get teknisi state
-        const state = getUserState(sender);
+        const state = getUserState(stateKey);
         
         if (!state) {
             return {
@@ -725,7 +734,7 @@ async function handleTeknisiPhotoUpload(sender, photoPath) {
             
             if (nextStep) {
                 // Update state for next photo
-                setUserState(sender, {
+                setUserState(stateKey, {
                     ...state,
                     step: nextStep.step,
                     currentPhotoCategory: nextStep.category
@@ -737,7 +746,7 @@ async function handleTeknisiPhotoUpload(sender, photoPath) {
                 };
             } else {
                 // All photos done, ready to complete
-                setUserState(sender, {
+                setUserState(stateKey, {
                     ...state,
                     step: 'AWAITING_COMPLETION_CONFIRMATION'
                 });
@@ -793,7 +802,7 @@ Ketik *done*, *lanjut*, atau *next* untuk input catatan.`, {
                     order: uploadedPhotos.length
                 }
             });
-            setUserState(sender, {
+            setUserState(stateKey, {
                 ...state,
                 uploadedPhotos
             });
