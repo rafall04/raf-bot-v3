@@ -376,9 +376,11 @@ async function handleAgentConfirmation(msg, sender, reply, args) {
             return;
         }
 
-        // Process saldo addition (khusus transaksi topup)
-        const saldoResult = saldoManager.processAgentConfirmation(transactionId);
-        
+        // Process saldo addition (khusus transaksi topup).
+        // WAJIB await: processAgentConfirmation async — tanpa await, saldoResult adalah Promise
+        // sehingga `.success` undefined dan handler SELALU masuk cabang "gagal" walau saldo sukses.
+        const saldoResult = await saldoManager.processAgentConfirmation(transactionId);
+
         if (!saldoResult.success) {
             logger.error('Failed to process saldo after agent confirmation', {
                 transactionId: transactionId,
