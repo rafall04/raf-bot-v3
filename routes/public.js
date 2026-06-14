@@ -20,7 +20,7 @@ const pay = require("../lib/ipaymu");
 // Diberi nama lain karena `pay` di-shadow oleh record pembayaran di dalam handler callback.
 const verifyIpaymuTransaction = require("../lib/ipaymu").checkTransaction;
 const { getvoucher } = require("../lib/mikrotik");
-const { addKoinUser, addATM, checkATMuser } = require('../lib/saldo');
+const { addKoinUser, checkATMuser } = require('../lib/saldo');
 const { updateStatusPayment, checkStatusPayment, delPayment: _delPayment, addPayBuy: _addPayBuy, addPayment, updateKetPayment } = require('../lib/payment');
 const { checkprofvc, checkdurasivc, checkhargavc } = require('../lib/voucher');
 const { saveReports: _saveReports, saveSpeedRequests, savePackageChangeRequests: _savePackageChangeRequests, loadJSON: _loadJSON } = require('../lib/database');
@@ -821,9 +821,17 @@ router.post('/callback/payment', async (req, res) => {
                     } else throw !1;
                 });
             } else if (pay.tag == 'topup') {
-                const checkATM = checkATMuser(pay.sender);
-                if (checkATM == undefined) addATM(pay.sender);
-                await addKoinUser(pay.sender, pay.amount);
+                // Kredit saldo DULU; HANYA tandai paid bila kredit sukses. Bila gagal (mis. JID
+                // @lid tak ter-resolve / DB error), JANGAN tandai paid agar topup tidak hilang —
+                // throw !1 → HTTP 500 → iPaymu retry callback, dan admin bisa intervensi.
+                // (addKoinUser kini fail-closed: return false bila JID tak bisa di-resolve.)
+                const credited = await addKoinUser(pay.sender, pay.amount);
+                if (!credited) {
+                    console.error('[IPAYMU_TOPUP] Kredit saldo GAGAL — payment TIDAK ditandai paid', {
+                        reference_id, sender: pay.sender, amount: pay.amount
+                    });
+                    throw !1;
+                }
                 updateStatusPayment(reference_id, true);
                 // PENTING: Cek connection state dan gunakan error handling sesuai rules
                 const currentSaldo = await checkATMuser(pay.sender);
