@@ -1,9 +1,10 @@
 <?php
 /**
  * Header Doc
- * Purpose: Halaman admin Monitor CCTV — 3 tab: Daftar CCTV (CRUD + KPI), Ditemukan di Netwatch
- *          (discovery read-only), dan Pengaturan (toggle aktif + window + notif + template pesan
- *          default). Konsisten dgn halaman lain (card/nav-tabs sb-admin) & aman light/dark via token.
+ * Purpose: Halaman admin Monitor CCTV — 4 tab: Daftar CCTV (CRUD + KPI + status/since + tombol Tes +
+ *          badge "tidak di netwatch"), Ditemukan di Netwatch (discovery read-only + adopsi massal),
+ *          Pengaturan (toggle/window/notif + template WA & Telegram + guard gangguan massal), dan
+ *          Riwayat insiden. Konsisten dgn halaman lain (card/nav-tabs sb-admin) & aman light/dark.
  * Caller: `routes/pages.js` pada path `/cctv-monitor`.
  * Deps: `_navbar.php`, `topbar.php`, API `/api/cctv/*`, admin-theme.css (+tokens.css) untuk dark mode.
  * MainFuncs: render tabel CCTV + modal tambah/edit + tabel discovery + form pengaturan/template.
@@ -97,6 +98,11 @@
               <i class="fas fa-sliders-h"></i> Pengaturan
             </a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link" id="tab-incidents-link" data-toggle="tab" href="#tab-incidents" role="tab">
+              <i class="fas fa-history"></i> Riwayat
+            </a>
+          </li>
         </ul>
 
         <div class="tab-content">
@@ -137,10 +143,14 @@
               <div class="card-body">
                 <p class="text-muted small mb-2">CCTV yang sudah ada di MikroTik netwatch tapi belum diadopsi ke monitor. Klik <strong>Adopsi</strong> — IP, nama, dan area terisi otomatis, kamu cukup isi nomor WA pelanggan.</p>
                 <div id="discoveryStatus" class="small text-muted mb-2">-</div>
+                <div class="form-inline mb-2" id="bulkAdoptBar" style="display:none;">
+                  <input type="text" class="form-control form-control-sm mr-2" id="bulkAdoptPhone" placeholder="Nomor WA utk semua yang dicentang (mis. RT/komunitas)" style="min-width:240px;">
+                  <button class="btn btn-sm btn-primary" id="bulkAdoptBtn"><i class="fas fa-layer-group"></i> Adopsi terpilih (<span id="bulkAdoptCount">0</span>)</button>
+                </div>
                 <div class="table-responsive">
                   <table class="table table-bordered table-hover" id="discoveryTable" width="100%">
                     <thead class="thead-light">
-                      <tr><th>Nama (dari script)</th><th>Area</th><th>IP</th><th>Status</th><th>Format Script</th><th>Aksi</th></tr>
+                      <tr><th style="width:32px;"><input type="checkbox" id="discCheckAll" title="Pilih semua"></th><th>Nama (dari script)</th><th>Area</th><th>IP</th><th>Status</th><th>Format Script</th><th>Aksi</th></tr>
                     </thead>
                     <tbody></tbody>
                   </table>
@@ -230,7 +240,50 @@
               </div>
             </div>
 
+            <div class="card shadow mb-4">
+              <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-exclamation-triangle"></i> Guard Gangguan Massal</h6></div>
+              <div class="card-body">
+                <p class="text-muted small">Saat <strong>banyak CCTV mati bersamaan</strong> (mis. PLN/uplink padam), broadcast ke pelanggan otomatis <strong>ditahan</strong> dan diganti 1 ringkasan ke admin — mencegah spam ke banyak orang.</p>
+                <div class="form-row align-items-end">
+                  <div class="form-group col-6 col-md-3">
+                    <label class="small mb-0">Ambang (jumlah CCTV)</label>
+                    <input type="number" min="0" max="1000" class="form-control form-control-sm" id="mo_threshold" placeholder="0 = nonaktif">
+                  </div>
+                  <div class="form-group col-6 col-md-6">
+                    <label class="small mb-0">WA admin penerima ringkasan</label>
+                    <input class="form-control form-control-sm" id="mo_phone" placeholder="628xxx (pisah | untuk multi)">
+                  </div>
+                </div>
+                <div class="form-group mb-1">
+                  <label class="small mb-0">Template ringkasan ke admin</label>
+                  <textarea class="form-control cctv-tpl" id="mo_msg" rows="3"></textarea>
+                </div>
+                <small class="text-muted">Variabel: <code>{count}</code> (jumlah CCTV mati) <code>{time_local}</code>. Ambang <strong>0 = nonaktif</strong> (broadcast per-CCTV seperti biasa).</small>
+              </div>
+            </div>
+
             <button class="btn btn-primary" type="button" id="saveSettingsBtn"><i class="fas fa-save"></i> Simpan Pengaturan</button>
+          </div>
+
+          <!-- TAB: Riwayat insiden -->
+          <div class="tab-pane fade" id="tab-incidents" role="tabpanel">
+            <div class="card shadow mb-4">
+              <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-history"></i> Riwayat Insiden</h6>
+                <button class="btn btn-sm btn-outline-primary" id="reloadIncidentsBtn"><i class="fas fa-sync"></i> Muat ulang</button>
+              </div>
+              <div class="card-body">
+                <p class="text-muted small mb-2">Catatan otomatis tiap CCTV mati/pulih: kapan terdeteksi, status broadcast, durasi. Terbaru di atas.</p>
+                <div class="table-responsive">
+                  <table class="table table-bordered table-hover table-sm" id="incidentsTable" width="100%">
+                    <thead class="thead-light">
+                      <tr><th>Waktu deteksi</th><th>CCTV</th><th>Status</th><th>Broadcast</th><th>Pulih</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -331,6 +384,12 @@
     $(document).on('click', '.btn-edit-cctv', function () { openEdit($(this).data('id')); });
     $(document).on('click', '.btn-del-cctv', function () { confirmDelete($(this).data('id'), $(this).data('name')); });
     $(document).on('click', '.btn-adopt-cctv', function () { adopt($(this).data('host')); });
+    $(document).on('click', '.btn-test-cctv', function () { testBroadcast($(this).data('id'), $(this).data('name')); });
+    $('#reloadIncidentsBtn').on('click', loadIncidents);
+    $('#tab-incidents-link').on('shown.bs.tab', loadIncidents);
+    $(document).on('change', '#discCheckAll', function () { $('.disc-check').prop('checked', this.checked); updateBulkCount(); });
+    $(document).on('change', '.disc-check', updateBulkCount);
+    $('#bulkAdoptBtn').on('click', bulkAdopt);
   });
 
   async function loadAll() {
@@ -366,8 +425,11 @@
     const adopted = discoveryCache.length - notAdopted.length;
     $('#tabCountDiscovery').text(notAdopted.length);
     $('#discoveryStatus').text(`${discoveryCache.length} CCTV terdeteksi di netwatch · ${adopted} sudah diadopsi · ${notAdopted.length} belum.`);
+    $('#discCheckAll').prop('checked', false);
+    $('#bulkAdoptBar').toggle(notAdopted.length > 0);
+    updateBulkCount();
     if (notAdopted.length === 0) {
-      tb.append('<tr><td colspan="6" class="text-center text-muted">Semua CCTV di netwatch sudah diadopsi. 🎉</td></tr>');
+      tb.append('<tr><td colspan="7" class="text-center text-muted">Semua CCTV di netwatch sudah diadopsi. 🎉</td></tr>');
       return;
     }
     notAdopted.forEach(c => {
@@ -378,6 +440,7 @@
         : '<span class="badge badge-warning">belum standar</span>';
       const offBadge = c.disabled ? ' <span class="badge badge-secondary">netwatch off</span>' : '';
       tb.append(`<tr>
+        <td><input type="checkbox" class="disc-check" data-host="${escapeHtml(c.host)}"></td>
         <td><strong>${escapeHtml(c.name)}</strong>${offBadge}</td>
         <td>${c.area ? escapeHtml(c.area) : '<span class="text-muted">—</span>'}</td>
         <td><span class="cctv-host">${escapeHtml(c.host)}</span></td>
@@ -415,6 +478,9 @@
         $('#nw_bot').val(nw.botToken || ''); $('#nw_chat').val(nw.chatId || '');
         $('#nw_interval').val(nw.interval || '5s'); $('#nw_timeout').val(nw.timeout || '1s');
         $('#nw_msg_up').val(nw.msgUp || ''); $('#nw_msg_down').val(nw.msgDown || '');
+        $('#mo_threshold').val(r.data.massOutageThreshold || 0);
+        $('#mo_phone').val(r.data.massOutageAdminPhone || '');
+        $('#mo_msg').val(r.data.messageMassOutage || '');
         if (r.data.confirmationMinutes) $('#windowLabel').text(r.data.confirmationMinutes);
       }
     } catch (_) {}
@@ -431,6 +497,9 @@
         interval: $('#nw_interval').val(), timeout: $('#nw_timeout').val(),
         msgUp: $('#nw_msg_up').val(), msgDown: $('#nw_msg_down').val(),
       },
+      massOutageThreshold: $('#mo_threshold').val(),
+      massOutageAdminPhone: $('#mo_phone').val(),
+      messageMassOutage: $('#mo_msg').val(),
     };
     try {
       const r = await fetch('/api/cctv/config', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(r => r.json());
@@ -528,6 +597,89 @@
     } catch (e) { Swal.fire({ icon: 'warning', title: 'CCTV tersimpan, netwatch gagal', text: e.message }); }
   }
 
+  function fmtSince(ms) {
+    const diff = Date.now() - ms;
+    if (!isFinite(diff) || diff < 0) return '';
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return 'baru saja';
+    if (m < 60) return m + ' menit';
+    const h = Math.floor(m / 60);
+    if (h < 24) return h + ' jam' + (m % 60 ? ' ' + (m % 60) + 'm' : '');
+    return Math.floor(h / 24) + ' hari';
+  }
+
+  function testBroadcast(id, name) {
+    Swal.fire({
+      icon: 'question', title: 'Kirim pesan tes?',
+      html: 'Kirim WA percobaan ke nomor pelanggan <strong>' + escapeHtml(name || '') + '</strong>.',
+      showCancelButton: true, confirmButtonText: 'Kirim', cancelButtonText: 'Batal',
+    }).then(async (r) => {
+      if (!r.isConfirmed) return;
+      try {
+        const res = await fetch('/api/cctv/test-broadcast', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }).then(r => r.json());
+        if (res.status === 200) Swal.fire({ icon: 'success', title: 'Terkirim', text: 'Berhasil ke ' + (res.data ? res.data.delivered : 0) + '/' + (res.data ? res.data.recipients : 0) + ' nomor.', timer: 2200, showConfirmButton: false });
+        else Swal.fire('Gagal', res.message || 'Error', 'error');
+      } catch (e) { Swal.fire('Gagal', e.message, 'error'); }
+    });
+  }
+
+  async function loadIncidents() {
+    const tb = $('#incidentsTable tbody').empty();
+    tb.append('<tr><td colspan="5" class="text-center text-muted">Memuat…</td></tr>');
+    try {
+      const r = await fetch('/api/cctv/incidents?limit=200', { credentials: 'include' }).then(r => r.json());
+      renderIncidents(r.status === 200 ? (r.data || []) : []);
+    } catch (_) { renderIncidents([]); }
+  }
+  function incidentBadge(st) {
+    const map = {
+      broadcasted: 'badge-danger', recovered: 'badge-success', pending: 'badge-warning',
+      cooldown_skipped: 'badge-secondary', cancelled: 'badge-secondary',
+      recovered_before_broadcast: 'badge-info', mass_suppressed: 'badge-dark',
+    };
+    return '<span class="badge ' + (map[st] || 'badge-light') + '">' + escapeHtml(st || '-') + '</span>';
+  }
+  function renderIncidents(list) {
+    const tb = $('#incidentsTable tbody').empty();
+    if (!list.length) { tb.append('<tr><td colspan="5" class="text-center text-muted">Belum ada insiden tercatat.</td></tr>'); return; }
+    list.forEach(i => {
+      const det = i.detectedAt ? new Date(i.detectedAt).toLocaleString('id-ID') : '-';
+      const bc = (i.notify_down_delivered != null)
+        ? (i.notify_down_delivered + '/' + (i.notify_down_recipients || 0))
+        : (i.status === 'mass_suppressed' ? 'ditahan (massal)' : '—');
+      const rec = i.recoveredAt ? new Date(i.recoveredAt).toLocaleTimeString('id-ID') : '—';
+      tb.append(`<tr>
+        <td><small>${escapeHtml(det)}</small></td>
+        <td>${escapeHtml(i.cctv_name || '')}<br><span class="cctv-host">${escapeHtml(i.host || '')}</span></td>
+        <td>${incidentBadge(i.status)}</td>
+        <td><small>${escapeHtml(String(bc))}</small></td>
+        <td><small>${escapeHtml(rec)}</small></td>
+      </tr>`);
+    });
+  }
+
+  function updateBulkCount() { $('#bulkAdoptCount').text($('.disc-check:checked').length); }
+  async function bulkAdopt() {
+    const hosts = $('.disc-check:checked').map(function () { return $(this).data('host'); }).get();
+    if (hosts.length === 0) { Swal.fire('Pilih dulu', 'Centang minimal satu CCTV.', 'warning'); return; }
+    const phone = $('#bulkAdoptPhone').val().trim();
+    if (!phone) { Swal.fire('Lengkapi', 'Isi nomor WA untuk CCTV yang dicentang.', 'warning'); return; }
+    const r = await Swal.fire({ icon: 'question', title: 'Adopsi ' + hosts.length + ' CCTV?', html: 'Semua diberi nomor WA <strong>' + escapeHtml(phone) + '</strong>. Bisa diubah per-CCTV nanti.', showCancelButton: true, confirmButtonText: 'Adopsi', cancelButtonText: 'Batal' });
+    if (!r.isConfirmed) return;
+    let ok = 0, fail = 0;
+    for (const host of hosts) {
+      const c = discoveryCache.find(x => x.host === host); if (!c) { fail++; continue; }
+      try {
+        const res = await fetch('/api/cctv/devices', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: c.name, host: c.host, area: c.area || '', phone }) }).then(r => r.json());
+        if (res.status === 200) ok++; else fail++;
+      } catch (_) { fail++; }
+    }
+    Swal.fire({ icon: ok ? 'success' : 'error', title: 'Adopsi selesai', text: ok + ' berhasil' + (fail ? ', ' + fail + ' gagal' : '') + '.', timer: 2400, showConfirmButton: false });
+    $('#bulkAdoptPhone').val('');
+    await loadAll();
+    loadDiscovery();
+  }
+
   function statusOf(host) {
     if (!statusCache || !Array.isArray(statusCache.devices)) return null;
     return statusCache.devices.find(d => d.host === (host || '').toLowerCase());
@@ -553,13 +705,17 @@
       const win = d.confirmationMinutes ? (d.confirmationMinutes + ' menit') : '<span class="text-muted">default</span>';
       const enabled = d.enabled !== false;
       const enabledBadge = enabled ? '' : ' <span class="badge badge-secondary">nonaktif</span>';
+      const sinceTxt = (s && s.since) ? ' <small class="text-muted">· ' + fmtSince(s.since) + '</small>' : '';
+      const nwWarn = (statusCache && statusCache.running && s && s.inNetwatch === false)
+        ? ' <span class="badge badge-warning" title="Host ini tidak ditemukan di netwatch MikroTik — monitor tak bisa memantau">⚠ tidak di netwatch</span>' : '';
       tb.append(`<tr>
         <td><strong>${escapeHtml(d.name)}</strong>${enabledBadge}${d.area ? '<br><small class="text-muted">' + escapeHtml(d.area) + '</small>' : ''}</td>
         <td><span class="cctv-host">${escapeHtml(d.host)}</span></td>
         <td>${d.customerName ? escapeHtml(d.customerName) + '<br>' : ''}<small class="text-muted">${escapeHtml(d.phone || '')}</small></td>
-        <td><span class="status-dot ${dot}"></span>${stLabel}</td>
+        <td><span class="status-dot ${dot}"></span>${stLabel}${sinceTxt}${nwWarn}</td>
         <td>${win}</td>
-        <td>
+        <td class="text-nowrap">
+          <button class="btn btn-sm btn-outline-success btn-test-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}" title="Kirim pesan tes ke nomor pelanggan"><i class="fas fa-paper-plane"></i></button>
           <button class="btn btn-sm btn-outline-primary btn-edit-cctv" data-id="${d.id}"><i class="fas fa-edit"></i></button>
           <button class="btn btn-sm btn-outline-danger btn-del-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}"><i class="fas fa-trash"></i></button>
         </td>

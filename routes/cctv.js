@@ -3,7 +3,8 @@
  * Purpose: API CRUD daftar CCTV publik + status monitor (start/stop/getStatus) + discovery
  *          (scan netwatch MikroTik untuk kandidat CCTV yang belum diadopsi) + pengaturan monitor
  *          (enabled/window/notifyRecovery + template + config netwatch/Telegram, persist config.json
- *          + hot start/stop) + provisioning netwatch (buat entri + script on-up/on-down CCTV baru).
+ *          + hot start/stop) + provisioning netwatch (buat entri + script on-up/on-down CCTV baru)
+ *          + riwayat insiden (GET /incidents) + kirim pesan tes per-CCTV (POST /test-broadcast).
  * Caller: lib/routes-registry.js mounts at /api/cctv.
  * Deps: ../lib/cctv-registry, ../lib/cctv-monitor, ../lib/cctv-monitor-config, ../lib/cctv-netwatch-script, ../lib/mikrotik, ../lib/cctv-netwatch-discovery, fs/path.
  */
@@ -17,6 +18,7 @@ const cctvConfig = require('../lib/cctv-monitor-config');
 const mikrotik = require('../lib/mikrotik');
 const discovery = require('../lib/cctv-netwatch-discovery');
 const netscript = require('../lib/cctv-netwatch-script');
+const { sendCritical } = require('../lib/whatsapp-critical-delivery');
 
 const MAIN_CONFIG_PATH = path.join(__dirname, '..', 'config.json');
 
@@ -152,6 +154,39 @@ router.post('/provision-netwatch', async (req, res) => {
     } catch (e) {
         res.status(500).json({ status: 500, message: e.message });
     }
+});
+
+// Riwayat insiden (down/broadcast/recover/mass_suppressed) — data dari database/cctv-incidents.json.
+router.get('/incidents', (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
+    res.json({ status: 200, data: monitor.getCctvIncidents(limit) });
+});
+
+// Kirim pesan TES ke nomor pelanggan satu CCTV — verifikasi nomor/template/koneksi WA tanpa nunggu mati.
+router.post('/test-broadcast', async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    const d = registry.get((req.body || {}).id);
+    if (!d) return res.status(404).json({ status: 404, message: 'CCTV tidak ditemukan.' });
+    const phones = String(d.phone || '').split(/[|,]/).map((p) => p.trim()).filter(Boolean);
+    if (phones.length === 0) return res.status(400).json({ status: 400, message: 'Nomor WA pelanggan kosong.' });
+    const cfg = (global.config && global.config.cctvMonitor) || {};
+    const tpl = d.customMessage || cfg.messageDown || monitor.DEFAULTS.messageDown;
+    const nowLocal = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+    const vars = {
+        customer_name: d.customerName || 'Pelanggan', cctv_name: d.name, cctv_host: d.host,
+        since_local: nowLocal, up_local: nowLocal, minutes_down: '0 menit',
+    };
+    const body = String(tpl).replace(/\{(\w+)\}/g, (_, k) => (vars[k] !== undefined ? vars[k] : '{' + k + '}'));
+    const text = '🧪 *PESAN TES — abaikan*\n\n' + body;
+    let delivered = 0;
+    for (const ph of phones) {
+        try {
+            const r = await sendCritical(ph, { text }, { label: 'cctv_test', waitForReadyMs: 8000 });
+            if (r && r.delivered) delivered++;
+        } catch (_e) { /* lanjut ke nomor berikutnya */ }
+    }
+    res.json({ status: 200, message: 'OK', data: { delivered, recipients: phones.length } });
 });
 
 module.exports = router;
