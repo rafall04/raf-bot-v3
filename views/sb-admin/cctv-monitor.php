@@ -1,11 +1,12 @@
 <?php
 /**
  * Header Doc
- * Purpose: Halaman admin CRUD daftar CCTV publik + status monitor + discovery (scan netwatch
- *          untuk kandidat CCTV yang belum diadopsi) + log insiden auto-broadcast.
+ * Purpose: Halaman admin Monitor CCTV — 3 tab: Daftar CCTV (CRUD + KPI), Ditemukan di Netwatch
+ *          (discovery read-only), dan Pengaturan (toggle aktif + window + notif + template pesan
+ *          default). Konsisten dgn halaman lain (card/nav-tabs sb-admin) & aman light/dark via token.
  * Caller: `routes/pages.js` pada path `/cctv-monitor`.
- * Deps: `_navbar.php`, `topbar.php`, API `/api/cctv/*`, admin-theme.css (auto dark mode).
- * MainFuncs: render tabel CCTV + modal tambah/edit + tabel insiden + kartu status.
+ * Deps: `_navbar.php`, `topbar.php`, API `/api/cctv/*`, admin-theme.css (+tokens.css) untuk dark mode.
+ * MainFuncs: render tabel CCTV + modal tambah/edit + tabel discovery + form pengaturan/template.
  */
 ?>
 <!DOCTYPE html>
@@ -18,20 +19,29 @@
     ?>
 
   <style>
+    /* KPI & elemen kustom — pakai design token agar selaras light/dark (lihat tokens.css). */
     .cctv-kpi { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1rem; }
     @media (max-width: 575.98px) { .cctv-kpi { grid-template-columns: repeat(2, 1fr); } }
-    .cctv-kpi .stat { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 0.85rem 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-    .cctv-kpi .stat .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 600; }
+    .cctv-kpi .stat { background: var(--white); border: 1px solid var(--slate-200); border-radius: var(--radius-sm); padding: 0.85rem 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .cctv-kpi .stat .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--slate-600); font-weight: 600; }
     .cctv-kpi .stat .value { font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
-    .cctv-kpi .stat .value.up { color: #16a34a; } .cctv-kpi .stat .value.down { color: #dc2626; }
-    .cctv-kpi .stat .value.pending { color: #d97706; } .cctv-kpi .stat .value.total { color: #4f46e5; }
+    .cctv-kpi .stat .value.up { color: var(--color-success); }
+    .cctv-kpi .stat .value.down { color: var(--color-danger); }
+    .cctv-kpi .stat .value.pending { color: var(--color-warning); }
+    .cctv-kpi .stat .value.total { color: var(--indigo-600); }
     .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
-    .status-dot.up { background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.18); }
-    .status-dot.down { background: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.18); }
-    .status-dot.unknown { background: #9ca3af; }
-    .cctv-host { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 0.85rem; color: #4b5563; }
+    .status-dot.up { background: var(--color-success); box-shadow: 0 0 0 3px rgba(16,185,129,0.18); }
+    .status-dot.down { background: var(--color-danger); box-shadow: 0 0 0 3px rgba(239,68,68,0.18); }
+    .status-dot.unknown { background: var(--slate-400); }
+    .cctv-host { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 0.85rem; color: var(--slate-600); }
+    .cctv-tpl { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 0.85rem; line-height: 1.5; }
+    /* Dark mode — surface & teks via alias --d-* (admin-theme.css), aksen via shade terang token. */
     body.tk-dark .cctv-kpi .stat { background: var(--d-surface); border-color: var(--d-line); }
     body.tk-dark .cctv-kpi .stat .label { color: var(--d-ink-soft); }
+    body.tk-dark .cctv-kpi .stat .value.up { color: var(--emerald-400); }
+    body.tk-dark .cctv-kpi .stat .value.down { color: var(--red-400); }
+    body.tk-dark .cctv-kpi .stat .value.pending { color: var(--amber-400); }
+    body.tk-dark .cctv-kpi .stat .value.total { color: var(--indigo-300); }
     body.tk-dark .cctv-host { color: var(--d-ink-soft); }
   </style>
 </head>
@@ -48,81 +58,131 @@
               <h1>Monitor CCTV Publik</h1>
               <p>Auto-broadcast WhatsApp ke pelanggan ketika CCTV mati > <span id="windowLabel">window</span> menit.</p>
             </div>
-            <button class="btn btn-primary-custom" id="addCctvBtn"><i class="fas fa-plus"></i> Tambah CCTV</button>
-          </div>
-        </div>
-
-        <div class="card shadow mb-4">
-          <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-sliders-h"></i> Pengaturan Monitor</h6></div>
-          <div class="card-body">
-            <div class="form-row align-items-end">
-              <div class="col-auto mb-2">
-                <div class="custom-control custom-switch">
-                  <input type="checkbox" class="custom-control-input" id="set_enabled">
-                  <label class="custom-control-label" for="set_enabled">Aktifkan monitor</label>
-                </div>
-              </div>
-              <div class="col-auto mb-2">
-                <label class="small mb-0 d-block">Window konfirmasi (menit)</label>
-                <input type="number" min="1" max="1440" class="form-control form-control-sm" id="set_window" style="width:140px;">
-              </div>
-              <div class="col-auto mb-2">
-                <div class="custom-control custom-switch">
-                  <input type="checkbox" class="custom-control-input" id="set_notify_recovery">
-                  <label class="custom-control-label" for="set_notify_recovery">Notifikasi pulih</label>
-                </div>
-              </div>
-              <div class="col-auto mb-2">
-                <button class="btn btn-primary btn-sm" id="saveSettingsBtn"><i class="fas fa-save"></i> Simpan</button>
-              </div>
+            <div class="text-right">
+              <span id="monitorPill" class="badge badge-secondary">monitor: ?</span>
+              <div><small class="text-muted">Update: <span id="lastUpdate">-</span></small></div>
             </div>
-            <small class="text-muted">Saat dimatikan, broadcast WA berhenti; saat dinyalakan langsung jalan tanpa perlu restart aplikasi. Window berlaku sebagai default global (bisa di-override per-CCTV).</small>
           </div>
         </div>
 
         <div id="alertBox" class="alert alert-info" style="display:none;"></div>
 
-        <div class="cctv-kpi">
-          <div class="stat"><div class="label">Terdaftar</div><div class="value total" id="kpiTotal">-</div></div>
-          <div class="stat"><div class="label">Online</div><div class="value up" id="kpiUp">-</div></div>
-          <div class="stat"><div class="label">Mati</div><div class="value down" id="kpiDown">-</div></div>
-          <div class="stat"><div class="label">Menunggu Konfirmasi</div><div class="value pending" id="kpiPending">-</div></div>
-        </div>
+        <ul class="nav nav-tabs mb-3" id="cctvTabs" role="tablist">
+          <li class="nav-item">
+            <a class="nav-link active" id="tab-list-link" data-toggle="tab" href="#tab-list" role="tab">
+              <i class="fas fa-video"></i> Daftar CCTV <span class="badge badge-primary" id="tabCountList">0</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="tab-discovery-link" data-toggle="tab" href="#tab-discovery" role="tab">
+              <i class="fas fa-search-location"></i> Ditemukan di Netwatch <span class="badge badge-primary" id="tabCountDiscovery">0</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="tab-settings-link" data-toggle="tab" href="#tab-settings" role="tab">
+              <i class="fas fa-sliders-h"></i> Pengaturan
+            </a>
+          </li>
+        </ul>
 
-        <div class="card shadow mb-4">
-          <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-video"></i> Daftar CCTV</h6>
-            <small class="text-muted"><span id="monitorPill" class="badge badge-secondary">monitor:?</span> Update: <span id="lastUpdate">-</span></small>
-          </div>
-          <div class="card-body">
-            <div class="table-responsive">
-              <table class="table table-bordered table-hover" id="cctvTable" width="100%">
-                <thead class="thead-light">
-                  <tr><th>Nama</th><th>IP</th><th>Pelanggan</th><th>Status</th><th>Window</th><th>Aksi</th></tr>
-                </thead>
-                <tbody></tbody>
-              </table>
+        <div class="tab-content">
+          <!-- TAB: Daftar CCTV -->
+          <div class="tab-pane fade show active" id="tab-list" role="tabpanel">
+            <div class="cctv-kpi">
+              <div class="stat"><div class="label">Terdaftar</div><div class="value total" id="kpiTotal">-</div></div>
+              <div class="stat"><div class="label">Online</div><div class="value up" id="kpiUp">-</div></div>
+              <div class="stat"><div class="label">Mati</div><div class="value down" id="kpiDown">-</div></div>
+              <div class="stat"><div class="label">Menunggu Konfirmasi</div><div class="value pending" id="kpiPending">-</div></div>
+            </div>
+
+            <div class="card shadow mb-4">
+              <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-video"></i> Daftar CCTV</h6>
+                <button class="btn btn-primary-custom btn-sm" id="addCctvBtn"><i class="fas fa-plus"></i> Tambah CCTV</button>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-bordered table-hover" id="cctvTable" width="100%">
+                    <thead class="thead-light">
+                      <tr><th>Nama</th><th>IP</th><th>Pelanggan</th><th>Status</th><th>Window</th><th>Aksi</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Ditemukan di Netwatch — discovery READ-ONLY (tidak pernah menulis ke router) -->
-        <div class="card shadow mb-4" id="discoveryCard">
-          <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-search-location"></i> Ditemukan di Netwatch</h6>
-            <button class="btn btn-sm btn-outline-primary" id="rescanBtn"><i class="fas fa-sync"></i> Scan ulang</button>
-          </div>
-          <div class="card-body">
-            <p class="text-muted small mb-2">CCTV yang sudah ada di MikroTik netwatch tapi belum diadopsi ke monitor. Klik <strong>Adopsi</strong> — IP, nama, dan area terisi otomatis, kamu cukup isi nomor WA pelanggan.</p>
-            <div id="discoveryStatus" class="small text-muted mb-2">-</div>
-            <div class="table-responsive">
-              <table class="table table-bordered table-hover" id="discoveryTable" width="100%">
-                <thead class="thead-light">
-                  <tr><th>Nama (dari script)</th><th>Area</th><th>IP</th><th>Status</th><th>Format Script</th><th>Aksi</th></tr>
-                </thead>
-                <tbody></tbody>
-              </table>
+          <!-- TAB: Ditemukan di Netwatch — discovery READ-ONLY (tidak pernah menulis ke router) -->
+          <div class="tab-pane fade" id="tab-discovery" role="tabpanel">
+            <div class="card shadow mb-4">
+              <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-search-location"></i> Ditemukan di Netwatch</h6>
+                <button class="btn btn-sm btn-outline-primary" id="rescanBtn"><i class="fas fa-sync"></i> Scan ulang</button>
+              </div>
+              <div class="card-body">
+                <p class="text-muted small mb-2">CCTV yang sudah ada di MikroTik netwatch tapi belum diadopsi ke monitor. Klik <strong>Adopsi</strong> — IP, nama, dan area terisi otomatis, kamu cukup isi nomor WA pelanggan.</p>
+                <div id="discoveryStatus" class="small text-muted mb-2">-</div>
+                <div class="table-responsive">
+                  <table class="table table-bordered table-hover" id="discoveryTable" width="100%">
+                    <thead class="thead-light">
+                      <tr><th>Nama (dari script)</th><th>Area</th><th>IP</th><th>Status</th><th>Format Script</th><th>Aksi</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
             </div>
+          </div>
+
+          <!-- TAB: Pengaturan -->
+          <div class="tab-pane fade" id="tab-settings" role="tabpanel">
+            <div class="card shadow mb-4">
+              <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-toggle-on"></i> Monitor</h6></div>
+              <div class="card-body">
+                <div class="form-row align-items-end">
+                  <div class="col-auto mb-2">
+                    <div class="custom-control custom-switch">
+                      <input type="checkbox" class="custom-control-input" id="set_enabled">
+                      <label class="custom-control-label" for="set_enabled">Aktifkan monitor</label>
+                    </div>
+                  </div>
+                  <div class="col-auto mb-2">
+                    <label class="small mb-0 d-block">Window konfirmasi (menit)</label>
+                    <input type="number" min="1" max="1440" class="form-control form-control-sm" id="set_window" style="width:140px;">
+                  </div>
+                  <div class="col-auto mb-2">
+                    <div class="custom-control custom-switch">
+                      <input type="checkbox" class="custom-control-input" id="set_notify_recovery">
+                      <label class="custom-control-label" for="set_notify_recovery">Notifikasi pulih</label>
+                    </div>
+                  </div>
+                </div>
+                <small class="text-muted">Saat dimatikan, broadcast WA berhenti; saat dinyalakan langsung jalan tanpa perlu restart aplikasi. Window berlaku sebagai default global (bisa di-override per-CCTV).</small>
+              </div>
+            </div>
+
+            <div class="card shadow mb-4">
+              <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-comment-dots"></i> Template Pesan Default</h6></div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label class="font-weight-bold">Pesan saat CCTV <span class="text-danger">MATI</span> (DOWN)</label>
+                  <textarea class="form-control cctv-tpl" id="set_msg_down" rows="7"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="font-weight-bold">Pesan saat CCTV <span class="text-success">PULIH</span> (UP)</label>
+                  <textarea class="form-control cctv-tpl" id="set_msg_up" rows="4"></textarea>
+                </div>
+                <small class="text-muted">
+                  Variabel:
+                  <code>{customer_name}</code> <code>{cctv_name}</code> <code>{cctv_host}</code>
+                  <code>{since_local}</code> <code>{up_local}</code> <code>{minutes_down}</code>.
+                  Kosongkan untuk pakai template default bawaan. Pesan khusus per-CCTV tetap bisa diatur di form Tambah/Edit.
+                </small>
+              </div>
+            </div>
+
+            <button class="btn btn-primary" type="button" id="saveSettingsBtn"><i class="fas fa-save"></i> Simpan Pengaturan</button>
           </div>
         </div>
       </div>
@@ -240,6 +300,7 @@
     const tb = $('#discoveryTable tbody').empty();
     const notAdopted = discoveryCache.filter(c => !c.alreadyRegistered);
     const adopted = discoveryCache.length - notAdopted.length;
+    $('#tabCountDiscovery').text(notAdopted.length);
     $('#discoveryStatus').text(`${discoveryCache.length} CCTV terdeteksi di netwatch · ${adopted} sudah diadopsi · ${notAdopted.length} belum.`);
     if (notAdopted.length === 0) {
       tb.append('<tr><td colspan="6" class="text-center text-muted">Semua CCTV di netwatch sudah diadopsi. 🎉</td></tr>');
@@ -281,6 +342,9 @@
         $('#set_enabled').prop('checked', r.data.enabled === true);
         $('#set_window').val(r.data.confirmationMinutes);
         $('#set_notify_recovery').prop('checked', r.data.notifyRecovery !== false);
+        $('#set_msg_down').val(r.data.messageDown || '');
+        $('#set_msg_up').val(r.data.messageUp || '');
+        if (r.data.confirmationMinutes) $('#windowLabel').text(r.data.confirmationMinutes);
       }
     } catch (_) {}
   }
@@ -289,11 +353,14 @@
       enabled: $('#set_enabled').is(':checked'),
       confirmationMinutes: $('#set_window').val(),
       notifyRecovery: $('#set_notify_recovery').is(':checked'),
+      messageDown: $('#set_msg_down').val(),
+      messageUp: $('#set_msg_up').val(),
     };
     try {
       const r = await fetch('/api/cctv/config', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(r => r.json());
       if (r.status === 200) {
         Swal.fire({ icon: 'success', title: r.data && r.data.enabled ? 'Monitor aktif' : 'Monitor dimatikan', timer: 1300, showConfirmButton: false });
+        if (r.data && r.data.confirmationMinutes) $('#windowLabel').text(r.data.confirmationMinutes);
         loadStatusOnly();
       } else {
         Swal.fire('Gagal', r.message || 'Error', 'error');
@@ -308,6 +375,7 @@
 
   function render() {
     const tb = $('#cctvTable tbody').empty();
+    $('#tabCountList').text(devicesCache.length);
     if (devicesCache.length === 0) {
       tb.append('<tr><td colspan="6" class="text-center text-muted">Belum ada CCTV terdaftar.</td></tr>');
       $('#kpiTotal').text(0); $('#kpiUp').text(0); $('#kpiDown').text(0); $('#kpiPending').text(0);
