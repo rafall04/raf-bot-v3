@@ -747,6 +747,24 @@
     "category": "agent_transaction",
     "template": "❌ *Gagal memproses saldo.*\n\nTransaction sudah dikonfirmasi tapi saldo belum bertambah.\nHubungi admin segera."
   },
+  "agent_transaction_voucher_sale_no_confirm": {
+    "name": "Agent Transaction: Penjualan Voucher Tidak Perlu Konfirmasi",
+    "category": "agent_transaction",
+    "template": "ℹ️ *Penjualan voucher tidak perlu dikonfirmasi.*\n\n🆔 Transaction: ${transactionId}\n💰 Jumlah: Rp ${amount}\n\nVoucher sudah otomatis terjual & tercatat saat transaksi dibuat.\nKetik *riwayat penjualan* untuk melihat detailnya.",
+    "placeholders": [
+      "transactionId",
+      "amount"
+    ]
+  },
+  "agent_transaction_confirmed_generic": {
+    "name": "Agent Transaction: Konfirmasi Berhasil (Generik)",
+    "category": "agent_transaction",
+    "template": "✅ *KONFIRMASI BERHASIL*\n\n🆔 Transaction: ${transactionId}\n💰 Jumlah: Rp ${amount}\n✅ Status: Confirmed",
+    "placeholders": [
+      "transactionId",
+      "amount"
+    ]
+  },
   "agent_transaction_confirm_error": {
     "name": "Agent Transaction: Error Konfirmasi",
     "category": "agent_transaction",

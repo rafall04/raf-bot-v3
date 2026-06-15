@@ -331,7 +331,29 @@ async function handleAgentConfirmation(msg, sender, reply, args) {
                 }
             ));
         }
-        
+
+        // Penjualan voucher (voucher_sale) sudah FINAL saat agent menjual ke pelanggan:
+        // sellVoucherToCustomer() langsung set sale 'completed', menandai kode voucher 'sold',
+        // dan mengurangi stok. Record transaksi agent hanya artefak ledger ber-status 'pending';
+        // tidak ada saldo yang ditambah (tanpa topupRequestId) maupun stok yang perlu diaktifkan.
+        // Jadi JANGAN jalankan confirmTransaction (flip status + minta PIN tanpa guna) apalagi
+        // processAgentConfirmation (topup-only → "Topup request not found" → pesan menyesatkan
+        // "Gagal memproses saldo"). Cukup beri tahu agent bahwa penjualan tak perlu dikonfirmasi.
+        if (transaction.transactionType === 'voucher_sale') {
+            return await reply(renderResponseTemplate(
+                'agent_transaction_voucher_sale_no_confirm',
+                `ℹ️ *Penjualan voucher tidak perlu dikonfirmasi.*\n\n` +
+                `🆔 Transaction: ${transactionId}\n` +
+                `💰 Jumlah: Rp ${Number(transaction.amount || 0).toLocaleString('id-ID')}\n\n` +
+                `Voucher sudah otomatis terjual & tercatat saat transaksi dibuat.\n` +
+                `Ketik *riwayat penjualan* untuk melihat detailnya.`,
+                {
+                    transactionId,
+                    amount: Number(transaction.amount || 0).toLocaleString('id-ID')
+                }
+            ));
+        }
+
         // Confirm transaction (this will verify PIN internally)
         const result = await agentTransactionManager.confirmTransaction(
             transactionId,
@@ -374,6 +396,26 @@ async function handleAgentConfirmation(msg, sender, reply, args) {
             voucherMsg += `Terima kasih! 🙏`;
             await reply(voucherMsg);
             return;
+        }
+
+        // processAgentConfirmation HANYA untuk transaksi topup (butuh topupRequestId; tipe lain
+        // → "Topup request not found"). Tipe non-topup yang lolos sampai sini — mis. 'payment'/
+        // 'voucher' yang tercantum di komentar agent-transaction-manager tetapi belum dipakai,
+        // atau tipe baru di masa depan — statusnya sudah dikonfirmasi di atas; balas konfirmasi
+        // generik tanpa menyentuh jalur saldo topup agar tidak memunculkan "Gagal memproses saldo".
+        if (transaction.transactionType !== 'topup') {
+            logger.info(`[AGENT_CONFIRM] Transaction ${transactionId} bertipe '${transaction.transactionType}' (non-topup) — lewati processAgentConfirmation`);
+            return await reply(renderResponseTemplate(
+                'agent_transaction_confirmed_generic',
+                `✅ *KONFIRMASI BERHASIL*\n\n` +
+                `🆔 Transaction: ${transactionId}\n` +
+                `💰 Jumlah: Rp ${Number(transaction.amount || 0).toLocaleString('id-ID')}\n` +
+                `✅ Status: Confirmed`,
+                {
+                    transactionId,
+                    amount: Number(transaction.amount || 0).toLocaleString('id-ID')
+                }
+            ));
         }
 
         // Process saldo addition (khusus transaksi topup).
