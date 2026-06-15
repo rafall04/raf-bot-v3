@@ -1,16 +1,22 @@
 /**
  * Header Doc
  * Purpose: API CRUD daftar CCTV publik + status monitor (start/stop/getStatus) + discovery
- *          (scan netwatch MikroTik untuk kandidat CCTV yang belum diadopsi) untuk dashboard.
+ *          (scan netwatch MikroTik untuk kandidat CCTV yang belum diadopsi) + pengaturan monitor
+ *          (enabled/window/notifyRecovery, persist config.json + hot start/stop) untuk dashboard.
  * Caller: lib/routes-registry.js mounts at /api/cctv.
- * Deps: ../lib/cctv-registry, ../lib/cctv-monitor, ../lib/mikrotik, ../lib/cctv-netwatch-discovery.
+ * Deps: ../lib/cctv-registry, ../lib/cctv-monitor, ../lib/cctv-monitor-config, ../lib/mikrotik, ../lib/cctv-netwatch-discovery, fs/path.
  */
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const router = express.Router();
 const registry = require('../lib/cctv-registry');
 const monitor = require('../lib/cctv-monitor');
+const cctvConfig = require('../lib/cctv-monitor-config');
 const mikrotik = require('../lib/mikrotik');
 const discovery = require('../lib/cctv-netwatch-discovery');
+
+const MAIN_CONFIG_PATH = path.join(__dirname, '..', 'config.json');
 
 function ensureAdmin(req, res) {
     if (!req.user || !['admin', 'owner', 'superadmin'].includes(req.user.role)) {
@@ -79,6 +85,37 @@ router.get('/discovery', async (req, res) => {
         const cctv = classified.filter((c) => c.klass === 'cctv');
         const registeredHosts = registry.list().map((d) => d.host);
         res.json({ status: 200, data: discovery.markRegistered(cctv, registeredHosts) });
+    } catch (e) {
+        res.status(500).json({ status: 500, message: e.message });
+    }
+});
+
+// Pengaturan monitor esensial (enabled/window/notifyRecovery).
+router.get('/config', (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    const cur = (global.config && global.config.cctvMonitor) || {};
+    res.json({ status: 200, data: { ...cctvConfig.toPublicView(cur), running: monitor.getCctvMonitorStatus().running } });
+});
+
+// Update pengaturan: persist ke config.json + update runtime live + hot start/stop monitor.
+router.post('/config', (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    let next;
+    try {
+        next = cctvConfig.buildCctvConfigPatch((global.config && global.config.cctvMonitor) || {}, req.body || {});
+    } catch (e) {
+        return res.status(400).json({ status: 400, message: e.message });
+    }
+    try {
+        const fileCfg = JSON.parse(fs.readFileSync(MAIN_CONFIG_PATH, 'utf8'));
+        fileCfg.cctvMonitor = { ...(fileCfg.cctvMonitor || {}), ...next };
+        fs.writeFileSync(MAIN_CONFIG_PATH, JSON.stringify(fileCfg, null, 4) + '\n', 'utf8');
+        if (!global.config) global.config = {};
+        global.config.cctvMonitor = next;
+        // Hot-apply tanpa restart: monitor baca global.config.cctvMonitor live tiap poll.
+        if (next.enabled === true) monitor.startCctvMonitor();
+        else monitor.stopCctvMonitor();
+        res.json({ status: 200, message: 'OK', data: { ...cctvConfig.toPublicView(next), running: monitor.getCctvMonitorStatus().running } });
     } catch (e) {
         res.status(500).json({ status: 500, message: e.message });
     }

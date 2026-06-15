@@ -52,6 +52,34 @@
           </div>
         </div>
 
+        <div class="card shadow mb-4">
+          <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-sliders-h"></i> Pengaturan Monitor</h6></div>
+          <div class="card-body">
+            <div class="form-row align-items-end">
+              <div class="col-auto mb-2">
+                <div class="custom-control custom-switch">
+                  <input type="checkbox" class="custom-control-input" id="set_enabled">
+                  <label class="custom-control-label" for="set_enabled">Aktifkan monitor</label>
+                </div>
+              </div>
+              <div class="col-auto mb-2">
+                <label class="small mb-0 d-block">Window konfirmasi (menit)</label>
+                <input type="number" min="1" max="1440" class="form-control form-control-sm" id="set_window" style="width:140px;">
+              </div>
+              <div class="col-auto mb-2">
+                <div class="custom-control custom-switch">
+                  <input type="checkbox" class="custom-control-input" id="set_notify_recovery">
+                  <label class="custom-control-label" for="set_notify_recovery">Notifikasi pulih</label>
+                </div>
+              </div>
+              <div class="col-auto mb-2">
+                <button class="btn btn-primary btn-sm" id="saveSettingsBtn"><i class="fas fa-save"></i> Simpan</button>
+              </div>
+            </div>
+            <small class="text-muted">Saat dimatikan, broadcast WA berhenti; saat dinyalakan langsung jalan tanpa perlu restart aplikasi. Window berlaku sebagai default global (bisa di-override per-CCTV).</small>
+          </div>
+        </div>
+
         <div id="alertBox" class="alert alert-info" style="display:none;"></div>
 
         <div class="cctv-kpi">
@@ -170,10 +198,12 @@
   $(document).ready(() => {
     loadAll();
     loadDiscovery();
+    loadSettings();
     refreshTimer = setInterval(loadStatusOnly, 30000);
     $('#addCctvBtn').on('click', openAdd);
     $('#cctvSaveBtn').on('click', save);
     $('#rescanBtn').on('click', loadDiscovery);
+    $('#saveSettingsBtn').on('click', saveSettings);
     $(document).on('click', '.btn-edit-cctv', function () { openEdit($(this).data('id')); });
     $(document).on('click', '.btn-del-cctv', function () { confirmDelete($(this).data('id'), $(this).data('name')); });
     $(document).on('click', '.btn-adopt-cctv', function () { adopt($(this).data('host')); });
@@ -242,6 +272,33 @@
     $('#cctv_host').val(c.host);
     $('#cctv_area').val(c.area || '');
     setTimeout(() => $('#cctv_phone').focus(), 300);
+  }
+
+  async function loadSettings() {
+    try {
+      const r = await fetch('/api/cctv/config', { credentials: 'include' }).then(r => r.json());
+      if (r.status === 200 && r.data) {
+        $('#set_enabled').prop('checked', r.data.enabled === true);
+        $('#set_window').val(r.data.confirmationMinutes);
+        $('#set_notify_recovery').prop('checked', r.data.notifyRecovery !== false);
+      }
+    } catch (_) {}
+  }
+  async function saveSettings() {
+    const payload = {
+      enabled: $('#set_enabled').is(':checked'),
+      confirmationMinutes: $('#set_window').val(),
+      notifyRecovery: $('#set_notify_recovery').is(':checked'),
+    };
+    try {
+      const r = await fetch('/api/cctv/config', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(r => r.json());
+      if (r.status === 200) {
+        Swal.fire({ icon: 'success', title: r.data && r.data.enabled ? 'Monitor aktif' : 'Monitor dimatikan', timer: 1300, showConfirmButton: false });
+        loadStatusOnly();
+      } else {
+        Swal.fire('Gagal', r.message || 'Error', 'error');
+      }
+    } catch (e) { Swal.fire('Gagal', e.message, 'error'); }
   }
 
   function statusOf(host) {
