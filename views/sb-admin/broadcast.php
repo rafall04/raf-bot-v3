@@ -80,11 +80,16 @@
                 </div>
 
                 <div id="manual-target-section" class="mb-3" style="display: none;">
-                  <label for="manual-target" class="form-label">Pilih penerima manual</label>
-                  <select class="fstdropdown-select" id="manual-target">
-                    <option selected disabled>Tambah penerima</option>
-                  </select>
-                  <div id="selected-target" class="d-flex flex-wrap mt-2"></div>
+                  <label class="form-label">Pilih penerima manual</label>
+                  <div class="d-flex align-items-center mb-2" style="gap: 0.5rem;">
+                    <input type="text" id="manual-search" class="form-control form-control-sm" placeholder="Cari nama / nomor / ODP / paket..." style="flex: 1;"/>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="manual-check-all">Pilih hasil filter</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="manual-clear">Hapus semua</button>
+                  </div>
+                  <div id="manual-user-list" class="border rounded" style="max-height: 280px; overflow-y: auto; background: var(--white, #fff);"></div>
+                  <small class="form-text text-muted mt-1">
+                    <span id="manual-selected-count">0</span> pelanggan dipilih dari <span id="manual-total-count">0</span>.
+                  </small>
                 </div>
 
                 <div class="mb-3">

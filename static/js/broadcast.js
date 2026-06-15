@@ -29,11 +29,15 @@
     function getFilterRow() { return document.getElementById("filter-row"); }
     function getFilterEl() { return document.getElementById("target-filter"); }
     function getManualSection() { return document.getElementById("manual-target-section"); }
-    function getSelectedTargetEl() { return document.getElementById("selected-target"); }
-    function getManualSelectEl() { return document.getElementById("manual-target"); }
+    function getManualListEl() { return document.getElementById("manual-user-list"); }
+    function getManualSearchEl() { return document.getElementById("manual-search"); }
+    function getManualCountEl() { return document.getElementById("manual-selected-count"); }
+    function getManualTotalEl() { return document.getElementById("manual-total-count"); }
     function getTextEl() { return document.getElementById("text"); }
     function getTemplatePresetEl() { return document.getElementById("template-preset"); }
     function getForceEl() { return document.getElementById("force-include-opt-out"); }
+
+    const selectedManualIds = new Set();
 
     function renderFilterOptions(mode) {
         const select = getFilterEl();
@@ -67,35 +71,86 @@
         filterRow.style.display = needsFilter ? "" : "none";
         manualSection.style.display = mode === "manual" ? "" : "none";
         if (needsFilter) renderFilterOptions(mode);
+        if (mode === "manual") renderManualList();
     }
 
-    function onManualTargetChange() {
-        const select = getManualSelectEl();
-        const id = select.value;
-        if (!id) return;
-        const user = allUsers.find((u) => String(u.id) === String(id));
-        if (!user) return;
-        // Skip duplicate.
-        if (getSelectedTargetEl().querySelector(`input[value="${id}"]`)) {
-            select.value = "";
+    function filterUsers(query) {
+        const q = String(query || "").trim().toLowerCase();
+        if (!q) return allUsers;
+        return allUsers.filter((u) => {
+            const haystack = [
+                u.name, u.phone_number, u.address, u.subscription, u.package,
+                u.connected_odp_id, u.odp, u.odc, u.pppoe_username
+            ].filter(Boolean).join(" ").toLowerCase();
+            return haystack.includes(q);
+        });
+    }
+
+    function updateManualCount() {
+        const countEl = getManualCountEl();
+        if (countEl) countEl.textContent = String(selectedManualIds.size);
+    }
+
+    function renderManualList() {
+        const list = getManualListEl();
+        if (!list) return;
+        const query = getManualSearchEl() ? getManualSearchEl().value : "";
+        const filtered = filterUsers(query);
+        const totalEl = getManualTotalEl();
+        if (totalEl) totalEl.textContent = String(filtered.length);
+
+        if (filtered.length === 0) {
+            list.innerHTML = '<div class="p-3 text-center text-muted">Tidak ada pelanggan cocok.</div>';
             return;
         }
-        const chip = document.createElement("div");
-        chip.className = "d-flex align-items-center badge bg-primary text-white";
-        chip.style.cssText = "margin-right: 0.25rem; margin-bottom: 0.25rem; padding: 0.4rem 0.6rem;";
-        chip.innerHTML = `
-            <span>${escapeHtml(user.name || user.id)}</span>
-            <input type="hidden" name="users[]" value="${escapeHtml(id)}">
-            <button type="button" class="btn btn-none text-white btn-xs ml-2" style="padding: 0; line-height: 1;">×</button>
-        `;
-        chip.querySelector("button").addEventListener("click", () => chip.remove());
-        getSelectedTargetEl().appendChild(chip);
-        select.value = "";
+        // Render baris ringan — checkbox + nama + meta. Maks ~500 baris ringan untuk DOM.
+        const visible = filtered.slice(0, 500);
+        list.innerHTML = visible.map((u) => {
+            const id = String(u.id);
+            const checked = selectedManualIds.has(id) ? "checked" : "";
+            const meta = [u.phone_number, u.connected_odp_id || u.odp, u.subscription]
+                .filter(Boolean).map(escapeHtml).join(" · ");
+            return `
+                <label class="d-flex align-items-center px-2 py-1 manual-user-row" style="border-bottom: 1px solid var(--border-color, #e5e7eb); cursor: pointer; margin: 0;">
+                    <input type="checkbox" class="manual-user-check mr-2" value="${escapeHtml(id)}" ${checked}>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 500;">${escapeHtml(u.name || u.id)}</div>
+                        ${meta ? `<div class="small text-muted" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${meta}</div>` : ""}
+                    </div>
+                </label>
+            `;
+        }).join("") + (filtered.length > visible.length
+            ? `<div class="p-2 text-center small text-muted">Menampilkan ${visible.length} dari ${filtered.length} hasil. Persempit pencarian untuk lihat sisanya.</div>`
+            : "");
+    }
+
+    function onManualListClick(event) {
+        const target = event.target;
+        if (!target || target.tagName !== "INPUT" || !target.classList.contains("manual-user-check")) return;
+        if (target.checked) selectedManualIds.add(target.value);
+        else selectedManualIds.delete(target.value);
+        updateManualCount();
+    }
+
+    function onManualSearch() {
+        renderManualList();
+    }
+
+    function onManualCheckAll() {
+        const query = getManualSearchEl() ? getManualSearchEl().value : "";
+        filterUsers(query).forEach((u) => selectedManualIds.add(String(u.id)));
+        updateManualCount();
+        renderManualList();
+    }
+
+    function onManualClear() {
+        selectedManualIds.clear();
+        updateManualCount();
+        renderManualList();
     }
 
     function getSelectedManualUserIds() {
-        return Array.from(getSelectedTargetEl().querySelectorAll('input[name="users[]"]'))
-            .map((el) => el.value);
+        return Array.from(selectedManualIds);
     }
 
     function collectPayload() {
@@ -133,13 +188,9 @@
             return;
         }
         allUsers = data.data;
-        // Populasi dropdown manual.
-        const select = getManualSelectEl();
-        select.innerHTML = '<option selected disabled>Tambah penerima</option>' +
-            allUsers.map((u) => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name || u.id)}</option>`).join("");
-        if (select.fstdropdown && typeof select.fstdropdown.rebind === "function") {
-            select.fstdropdown.rebind();
-        }
+        // Sort by name untuk daftar manual.
+        allUsers.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+        updateManualCount();
         onModeChange();
     }
 
@@ -299,10 +350,19 @@
 
     document.addEventListener("DOMContentLoaded", async () => {
         getModeEl().addEventListener("change", onModeChange);
-        getManualSelectEl().addEventListener("change", onManualTargetChange);
         getTemplatePresetEl().addEventListener("change", applyTemplatePreset);
         document.getElementById("preview-btn").addEventListener("click", doPreview);
         document.getElementById("send-btn").addEventListener("click", doSend);
+
+        // Manual mode: search + checkbox list controls
+        const searchEl = getManualSearchEl();
+        if (searchEl) searchEl.addEventListener("input", onManualSearch);
+        const listEl = getManualListEl();
+        if (listEl) listEl.addEventListener("change", onManualListClick);
+        const checkAllBtn = document.getElementById("manual-check-all");
+        if (checkAllBtn) checkAllBtn.addEventListener("click", onManualCheckAll);
+        const clearBtn = document.getElementById("manual-clear");
+        if (clearBtn) clearBtn.addEventListener("click", onManualClear);
 
         await Promise.all([fetchUsers(), fetchTemplates()]);
         loadHistory();
