@@ -538,6 +538,31 @@ body.tk-dark .type-btn { background: var(--d-surface) !important; color: var(--d
 body.tk-dark .qty-btn:hover,
 body.tk-dark .type-btn:hover { background: rgba(99,102,241,.18) !important; }
 
+/* Voucher-send: tambal warna hardcoded yang nyaris tak terbaca di dark mode.
+   voucher-send.css set color: var(--dark) (#1f2937) dan #6b7280 secara hardcoded di banyak
+   tempat — di latar gelap jadi hampir invisible. Override semua dengan token dark. */
+body.tk-dark .voucher-card .name,
+body.tk-dark .stat-card .value,
+body.tk-dark .form-section-title { color: var(--d-ink); }
+body.tk-dark .voucher-card .duration,
+body.tk-dark .stat-card .label { color: var(--d-ink-soft); }
+/* Sub-deskripsi pada tombol use-case/tipe (.text-muted bootstrap = #6c757d): kontras < 4.5 */
+body.tk-dark .type-btn .text-muted,
+body.tk-dark .type-btn small { color: var(--d-ink-soft) !important; }
+/* Preview pesan: gradient hijau pucat + border lime hardcoded → di dark text putih tak terlihat */
+body.tk-dark .preview-box {
+    background: var(--d-raise) !important;
+    border-color: var(--d-line) !important;
+    color: var(--d-ink) !important;
+}
+/* Active state tombol type-btn & voucher-card.selected: gradient pucat tak terbaca di dark */
+body.tk-dark .type-btn.active,
+body.tk-dark .voucher-card.selected {
+    background: rgba(99,102,241,.22) !important;
+    border-color: var(--primary, var(--indigo-500)) !important;
+    color: var(--d-ink) !important;
+}
+
 /* filter pill tabs (admin-kasbon and similar) — inactive state dark */
 body.tk-dark .filter-tab { background: var(--d-surface) !important; color: var(--d-ink-soft) !important; border-color: var(--d-line) !important; }
 body.tk-dark .filter-tab:hover { background: rgba(99,102,241,.18) !important; color: var(--d-ink) !important; }

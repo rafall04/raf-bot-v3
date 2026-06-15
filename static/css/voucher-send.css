@@ -102,7 +102,13 @@
             -webkit-user-select: none;
             user-select: none;
         }
-        .voucher-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+        .voucher-card:hover { border-color: var(--primary); }
+        /* Hover lift (transform translateY) HANYA pada device dengan true-hover.
+           Tanpa guard ini, di mobile (touch) tap men-sticky-kan :hover → kartu terangkat 2px,
+           tap berikutnya meleset ke kartu di atas (gejala "klik bawah, atas yang ke-klik"). */
+        @media (hover: hover) and (pointer: fine) {
+            .voucher-card:hover { transform: translateY(-2px); }
+        }
         .voucher-card.selected {
             border-color: var(--primary);
             background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
@@ -172,7 +178,10 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        .btn-action:hover { transform: translateY(-2px); }
+        /* Hover lift HANYA pada true-hover device (lihat catatan di .voucher-card:hover). */
+        @media (hover: hover) and (pointer: fine) {
+            .btn-action:hover { transform: translateY(-2px); }
+        }
         .btn-send { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; }
         .btn-generate { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; }
 
