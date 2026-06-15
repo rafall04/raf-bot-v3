@@ -43,6 +43,20 @@
     body.tk-dark .cctv-kpi .stat .value.pending { color: var(--amber-400); }
     body.tk-dark .cctv-kpi .stat .value.total { color: var(--indigo-300); }
     body.tk-dark .cctv-host { color: var(--d-ink-soft); }
+    /* Picker pelanggan: cari + daftar (ganti <select> panjang) — nyaman light/dark & mobile. */
+    .cctv-cust-list { display: none; max-height: 210px; overflow-y: auto; background: var(--white); margin-top: 4px; }
+    .cctv-cust-list.show { display: block; }
+    .cctv-cust-item { padding: 0.4rem 0.6rem; cursor: pointer; border-bottom: 1px solid var(--slate-100); }
+    .cctv-cust-item:last-child { border-bottom: 0; }
+    .cctv-cust-item.active, .cctv-cust-item:hover { background: var(--indigo-50); }
+    .cctv-cust-item .nm { font-weight: 600; font-size: 0.85rem; }
+    .cctv-cust-item .meta { font-size: 0.78rem; color: var(--slate-600); }
+    .cctv-cust-empty { padding: 0.5rem 0.6rem; font-size: 0.83rem; color: var(--slate-400); }
+    body.tk-dark .cctv-cust-list { background: var(--d-surface); }
+    body.tk-dark .cctv-cust-item { border-bottom-color: var(--d-line); }
+    body.tk-dark .cctv-cust-item.active, body.tk-dark .cctv-cust-item:hover { background: var(--d-surface-2); }
+    body.tk-dark .cctv-cust-item .meta { color: var(--d-ink-soft); }
+    body.tk-dark .cctv-cust-empty { color: var(--d-muted); }
   </style>
 </head>
 <body id="page-top">
@@ -247,10 +261,12 @@
           <div class="form-group">
             <label>Nomor WA Pelanggan <span class="text-danger">*</span></label>
             <input class="form-control" id="cctv_phone" required placeholder="6281234567890 (pisah | untuk multi)">
-            <select class="form-control form-control-sm mt-1" id="cctv_customer_picker">
-              <option value="">— atau pilih dari pelanggan terdaftar —</option>
-            </select>
-            <small class="form-text text-muted">Boleh nomor bebas (non-pelanggan), atau pilih pelanggan agar nama &amp; nomor terisi otomatis.</small>
+            <div class="cctv-cust-picker mt-1" id="cctv_cust_picker">
+              <input type="text" class="form-control form-control-sm" id="cctv_cust_search" autocomplete="off" placeholder="🔍 Cari pelanggan: nama / nomor / alamat / paket…">
+              <div class="cctv-cust-list border rounded" id="cctv_cust_list"></div>
+            </div>
+            <div class="small text-success mt-1" id="cctv_cust_chosen" style="display:none;"></div>
+            <small class="form-text text-muted">Ketik nomor bebas (non-pelanggan) di kolom atas, atau cari &amp; pilih pelanggan agar nama &amp; nomor terisi otomatis.</small>
           </div>
           <div class="form-group">
             <label>Nama Pelanggan (opsional)</label>
@@ -308,7 +324,10 @@
     $('#cctvSaveBtn').on('click', save);
     $('#rescanBtn').on('click', loadDiscovery);
     $('#saveSettingsBtn').on('click', saveSettings);
-    $('#cctv_customer_picker').on('change', onPickCustomer);
+    $('#cctv_cust_search').on('focus input', function () { renderCustList(this.value); });
+    $('#cctv_cust_search').on('keydown', onCustKeydown);
+    $(document).on('click', '#cctv_cust_list .cctv-cust-item', function () { pickCustomer($(this).data('idx')); });
+    $(document).on('click', function (e) { if (!$(e.target).closest('#cctv_cust_picker').length) $('#cctv_cust_list').removeClass('show'); });
     $(document).on('click', '.btn-edit-cctv', function () { openEdit($(this).data('id')); });
     $(document).on('click', '.btn-del-cctv', function () { confirmDelete($(this).data('id'), $(this).data('name')); });
     $(document).on('click', '.btn-adopt-cctv', function () { adopt($(this).data('host')); });
@@ -423,28 +442,76 @@
   }
 
   let customersCache = [];
+  let custFiltered = [];
+  let custActiveIdx = -1;
+  const CUST_MAX_SHOW = 60;
+
   function custPhone(u) { return u.phone || u.phone_number || u.nomor || u.no_hp || u.whatsapp || u.wa || ''; }
+  function custName(u) { return u.name || u.nama || u.username || '(tanpa nama)'; }
+  function custMeta(u) {
+    return [custPhone(u), u.address || u.alamat, u.subscription || u.paket].filter(Boolean).join(' · ');
+  }
   async function loadCustomers() {
     try {
       const r = await fetch('/api/users', { credentials: 'include' }).then(r => r.json());
       const list = Array.isArray(r) ? r : (r.data || r.users || []);
-      customersCache = Array.isArray(list) ? list : [];
-      const sel = $('#cctv_customer_picker');
-      sel.find('option:gt(0)').remove();
-      customersCache.forEach((u, i) => {
-        const phone = custPhone(u);
-        if (!phone) return;
-        const nm = u.name || u.nama || u.username || '(tanpa nama)';
-        sel.append(`<option value="${i}">${escapeHtml(nm)} — ${escapeHtml(phone)}</option>`);
-      });
-    } catch (_) {}
+      customersCache = (Array.isArray(list) ? list : []).filter((u) => custPhone(u));
+    } catch (_) { customersCache = []; }
   }
-  function onPickCustomer() {
-    const i = $('#cctv_customer_picker').val(); if (i === '') return;
-    const u = customersCache[i]; if (!u) return;
-    const phone = custPhone(u); const nm = u.name || u.nama || '';
-    if (phone) $('#cctv_phone').val(phone);
-    if (nm) $('#cctv_customer').val(nm);
+  function filterCustomers(q) {
+    const s = String(q || '').trim().toLowerCase();
+    if (!s) return customersCache;
+    return customersCache.filter((u) => {
+      const hay = [u.name, u.nama, custPhone(u), u.address, u.alamat, u.subscription, u.paket, u.pppoe_username]
+        .filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(s);
+    });
+  }
+  function renderCustList(q) {
+    const box = $('#cctv_cust_list');
+    custFiltered = filterCustomers(q);
+    custActiveIdx = -1;
+    if (customersCache.length === 0) { box.html('<div class="cctv-cust-empty">Daftar pelanggan tak tersedia.</div>').addClass('show'); return; }
+    if (custFiltered.length === 0) { box.html('<div class="cctv-cust-empty">Tidak ada pelanggan cocok.</div>').addClass('show'); return; }
+    const shown = custFiltered.slice(0, CUST_MAX_SHOW);
+    let html = shown.map((u, i) =>
+      `<div class="cctv-cust-item" data-idx="${i}"><div class="nm">${escapeHtml(custName(u))}</div><div class="meta">${escapeHtml(custMeta(u))}</div></div>`
+    ).join('');
+    if (custFiltered.length > CUST_MAX_SHOW) html += `<div class="cctv-cust-empty">…dan ${custFiltered.length - CUST_MAX_SHOW} lagi — persempit pencarian.</div>`;
+    box.html(html).addClass('show');
+  }
+  function pickCustomer(i) {
+    const u = custFiltered[i]; if (!u) return;
+    const phone = custPhone(u); const nm = custName(u);
+    $('#cctv_phone').val(phone);
+    if (nm && nm !== '(tanpa nama)') $('#cctv_customer').val(nm);
+    $('#cctv_cust_search').val('');
+    $('#cctv_cust_list').removeClass('show').empty();
+    $('#cctv_cust_chosen').html('✓ Dipilih: <strong>' + escapeHtml(nm) + '</strong> — ' + escapeHtml(phone)).show();
+  }
+  function resetCustPicker() {
+    $('#cctv_cust_search').val('');
+    $('#cctv_cust_list').removeClass('show').empty();
+    $('#cctv_cust_chosen').hide().text('');
+    custActiveIdx = -1;
+  }
+  function setCustActive(idx) {
+    const items = $('#cctv_cust_list .cctv-cust-item');
+    if (!items.length) return;
+    custActiveIdx = Math.max(0, Math.min(idx, items.length - 1));
+    items.removeClass('active');
+    const el = items.eq(custActiveIdx).addClass('active');
+    const box = document.getElementById('cctv_cust_list'); const node = el.get(0);
+    if (node && box) {
+      if (node.offsetTop < box.scrollTop) box.scrollTop = node.offsetTop;
+      else if (node.offsetTop + node.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = node.offsetTop + node.offsetHeight - box.clientHeight;
+    }
+  }
+  function onCustKeydown(e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); if (!$('#cctv_cust_list').hasClass('show')) renderCustList(e.target.value); setCustActive(custActiveIdx + 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setCustActive(custActiveIdx - 1); }
+    else if (e.key === 'Enter') { const n = $('#cctv_cust_list .cctv-cust-item').length; if (custActiveIdx >= 0 && n) { e.preventDefault(); pickCustomer(custActiveIdx); } }
+    else if (e.key === 'Escape') { $('#cctv_cust_list').removeClass('show'); }
   }
   async function provisionNetwatch(dev) {
     try {
@@ -513,7 +580,7 @@
     $('#cctv_id').val(''); $('#cctv_enabled').prop('checked', true);
     $('#cctv_provision').prop('checked', true);
     $('#provisionRow').show();
-    $('#cctv_customer_picker').val('');
+    resetCustPicker();
     $('#cctvModal').modal('show');
   }
   function openEdit(id) {
@@ -525,6 +592,7 @@
     $('#cctv_window').val(d.confirmationMinutes || ''); $('#cctv_message').val(d.customMessage || '');
     $('#cctv_enabled').prop('checked', d.enabled !== false);
     $('#provisionRow').hide(); // provisioning hanya untuk CCTV baru
+    resetCustPicker();
     $('#cctvModal').modal('show');
   }
   async function save() {
