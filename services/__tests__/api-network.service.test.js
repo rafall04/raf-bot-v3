@@ -11,42 +11,6 @@
 const { createApiNetworkService } = require("../api-network.service");
 
 describe("api-network service", () => {
-    test("handleNetworkAction delegates update pppoe profile with sync policy", async () => {
-        const service = createApiNetworkService({
-            repository: {
-                getConfigSnapshot: jest.fn(() => ({ site_url_bot: "http://localhost" }))
-            },
-            updatePPPoEProfile: jest.fn().mockResolvedValue({ ok: true }),
-            assertMikrotikResult: jest.fn(),
-            isMikrotikSyncEnabled: jest.fn(() => true),
-            buildMikrotikSyncResult: jest.fn((status, message) => ({ status, message })),
-            logger: { log: jest.fn(), warn: jest.fn(), error: jest.fn() }
-        });
-
-        const result = await service.handleNetworkAction({
-            action: "update-pppoe-profile",
-            username: "cust-1",
-            newProfile: "PROFILE-A"
-        });
-
-        expect(service.deps.updatePPPoEProfile).toHaveBeenCalledWith(
-            "cust-1",
-            "PROFILE-A",
-            { caller: "api.action" }
-        );
-        expect(result).toEqual({
-            status: 200,
-            body: {
-                message: "PPPoE profile updated for cust-1 to PROFILE-A",
-                result: { ok: true },
-                sync_policy: "enabled",
-                sync_status: "applied",
-                sync_message: "PPPoE profile updated for cust-1 to PROFILE-A",
-                mikrotik_sync: { status: "applied", message: "PPPoE profile updated for cust-1 to PROFILE-A" }
-            }
-        });
-    });
-
     test("sendManualMessage validates whatsapp target and delegates send through owner service", async () => {
         const service = createApiNetworkService({
             getSocket: jest.fn(() => ({

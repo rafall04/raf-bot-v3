@@ -1,10 +1,10 @@
 /**
  * Header Doc
- * Purpose: Menjadi owner orchestration domain API network untuk update profile jaringan, read-model import/source export MikroTik, dan handoff notifikasi route `api-network-routes`.
+ * Purpose: Menjadi owner orchestration domain API network untuk read-model import/source export MikroTik dan handoff notifikasi route `api-network-routes`.
  * Caller: `routes/api-network-routes.js`.
  * Deps: `repositories/api-network.repository.js`, adapter MikroTik/network, gateway/runtime WA, dan delivery service terpusat.
- * MainFuncs: `createApiNetworkService`, `handleNetworkAction`, `sendManualMessage`, `listUnregisteredPppoeSecrets`, `listDevicesForImport`, `listMikrotikExportSources`.
- * SideEffects: Membaca snapshot users/packages/config, memanggil adapter MikroTik/network untuk action/read-model/import aktif, dan mengirim pesan WhatsApp manual via delivery boundary.
+ * MainFuncs: `createApiNetworkService`, `sendManualMessage`, `listUnregisteredPppoeSecrets`, `listDevicesForImport`, `listMikrotikExportSources`.
+ * SideEffects: Membaca snapshot users/packages/config, memanggil adapter MikroTik/network untuk read-model/import aktif, dan mengirim pesan WhatsApp manual via delivery boundary.
  */
 "use strict";
 
@@ -13,10 +13,7 @@ const { listMikrotikExportSources } = require("./api-network/list-mikrotik-expor
 function defaultDeps() {
     return {
         repository: null,
-        updatePPPoEProfile: null,
         assertMikrotikResult: null,
-        isMikrotikSyncEnabled: null,
-        buildMikrotikSyncResult: null,
         getAllPPPoESecrets: null,
         getPPPProfiles: null,
         getHotspotProfiles: null,
@@ -36,81 +33,6 @@ function createApiNetworkService(overrides = {}) {
 
     return {
         deps,
-
-        async handleNetworkAction({ action, username, newProfile } = {}) {
-            switch (action) {
-                case "update-pppoe-profile": {
-                    if (!username || !newProfile) {
-                        return {
-                            status: 400,
-                            body: { message: "Username and new profile are required." }
-                        };
-                    }
-
-                    const syncEnabled = deps.isMikrotikSyncEnabled(deps.repository.getConfigSnapshot());
-                    if (!syncEnabled) {
-                        const mikrotikSync = deps.buildMikrotikSyncResult(
-                            "applied_locally_sync_disabled",
-                            "Sinkronisasi MikroTik sedang dinonaktifkan. Aksi manual tidak diterapkan ke RouterOS."
-                        );
-                        return {
-                            status: 200,
-                            body: {
-                                message: mikrotikSync.message,
-                                sync_policy: "disabled",
-                                sync_status: mikrotikSync.status,
-                                sync_message: mikrotikSync.message,
-                                mikrotik_sync: mikrotikSync
-                            }
-                        };
-                    }
-
-                    try {
-                        const result = await deps.updatePPPoEProfile(username, newProfile, { caller: "api.action" });
-                        deps.assertMikrotikResult(result);
-                        deps.logger.log?.(`Updated PPPoE profile for user ${username} to ${newProfile}`);
-                        const mikrotikSync = deps.buildMikrotikSyncResult(
-                            "applied",
-                            `PPPoE profile updated for ${username} to ${newProfile}`
-                        );
-
-                        return {
-                            status: 200,
-                            body: {
-                                message: mikrotikSync.message,
-                                result,
-                                sync_policy: "enabled",
-                                sync_status: mikrotikSync.status,
-                                sync_message: mikrotikSync.message,
-                                mikrotik_sync: mikrotikSync
-                            }
-                        };
-                    } catch (error) {
-                        deps.logger.error?.("Failed to update PPPoE profile:", error);
-                        const mikrotikSync = deps.buildMikrotikSyncResult(
-                            "failed_sync",
-                            error.message || "Failed to update PPPoE profile"
-                        );
-
-                        return {
-                            status: 500,
-                            body: {
-                                message: "Failed to update PPPoE profile",
-                                sync_policy: "enabled",
-                                sync_status: mikrotikSync.status,
-                                sync_message: mikrotikSync.message,
-                                mikrotik_sync: mikrotikSync
-                            }
-                        };
-                    }
-                }
-                default:
-                    return {
-                        status: 400,
-                        body: { message: "Invalid action specified." }
-                    };
-            }
-        },
 
         async sendManualMessage({ id, text } = {}) {
             const socket = deps.getSocket();

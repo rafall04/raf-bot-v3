@@ -1,10 +1,10 @@
 /**
  * Header Doc
- * Purpose: Menyediakan endpoint admin/API untuk aksi jaringan, read-model source export MikroTik, dan utilitas notifikasi manual.
+ * Purpose: Menyediakan endpoint admin/API untuk read-model/source export MikroTik, devices-for-import GenieACS, dan utilitas notifikasi WhatsApp manual.
  * Caller: Registry route API internal/admin.
  * Deps: `express`, dependency injection router, `../lib/whatsapp-delivery-service`, dan `../lib/whatsapp-gateway`.
  * MainFuncs: `createApiNetworkRouter`.
- * SideEffects: Memanggil aksi MikroTik/network dan mengirim pesan WhatsApp manual untuk kebutuhan operasional.
+ * SideEffects: Membaca read-model MikroTik/GenieACS dan mengirim pesan WhatsApp manual untuk kebutuhan operasional.
  */
 const express = require('express');
 const { sendMessage } = require('../lib/whatsapp-delivery-service');
@@ -15,10 +15,7 @@ const { createApiNetworkService } = require('../services/api-network.service');
 function createApiNetworkRouter({
     ensureAuthenticatedStaff,
     ensureAdmin,
-    updatePPPoEProfile,
     assertMikrotikResult,
-    isMikrotikSyncEnabled,
-    buildMikrotikSyncResult,
     getAllPPPoESecrets,
     getPPPProfiles,
     getHotspotProfiles,
@@ -35,9 +32,6 @@ function createApiNetworkRouter({
     });
     const apiNetworkService = createApiNetworkService({
         repository: apiNetworkRepository,
-        updatePPPoEProfile,
-        isMikrotikSyncEnabled,
-        buildMikrotikSyncResult,
         getAllPPPoESecrets,
         getPPPProfiles,
         getHotspotProfiles,
@@ -47,19 +41,6 @@ function createApiNetworkRouter({
         getSocket,
         isReady,
         logger: console
-    });
-
-    router.post('/action', ensureAdmin, async (req, res) => {
-        try {
-            const result = await apiNetworkService.handleNetworkAction(req.body);
-            return res.status(result.status).json(result.body);
-        } catch (error) {
-            console.error('[NETWORK_ACTION_ERROR]', error);
-            return res.status(500).json({
-                message: 'Failed to process network action',
-                error: error.message
-            });
-        }
     });
 
     router.get('/send/:id/:text', ensureAuthenticatedStaff, async (req, res) => {

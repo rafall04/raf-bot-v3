@@ -21,7 +21,6 @@ describe("api-network route boundary", () => {
 
         expect(source).toContain("const { createApiNetworkRepository } = require('../repositories/api-network.repository')");
         expect(source).toContain("const { createApiNetworkService } = require('../services/api-network.service')");
-        expect(source).toContain("apiNetworkService.handleNetworkAction(req.body)");
         expect(source).toContain("apiNetworkService.sendManualMessage");
         expect(source).toContain("apiNetworkService.listUnregisteredPppoeSecrets()");
         expect(source).toContain("apiNetworkService.listDevicesForImport()");

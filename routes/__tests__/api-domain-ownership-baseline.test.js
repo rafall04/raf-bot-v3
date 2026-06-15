@@ -81,7 +81,6 @@ describe("api domain ownership baseline", () => {
 
         expect(source).toContain("createApiNetworkRepository");
         expect(source).toContain("createApiNetworkService");
-        expect(source).toContain("apiNetworkService.handleNetworkAction(req.body)");
         expect(source).toContain("apiNetworkService.sendManualMessage");
         expect(source).toContain("apiNetworkService.listUnregisteredPppoeSecrets()");
         expect(source).toContain("apiNetworkService.listDevicesForImport()");

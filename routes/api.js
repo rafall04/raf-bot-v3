@@ -83,10 +83,7 @@ const router = express.Router();
 router.use(createApiNetworkRouter({
     ensureAuthenticatedStaff,
     ensureAdmin,
-    updatePPPoEProfile,
     assertMikrotikResult,
-    isMikrotikSyncEnabled,
-    buildMikrotikSyncResult,
     getAllPPPoESecrets,
     getPPPProfiles,
     getHotspotProfiles,
