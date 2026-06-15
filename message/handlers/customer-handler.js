@@ -137,55 +137,6 @@ function handleCheckPackage({ user, pushname }) {
 }
 
 /**
- * Handle payment confirmation
- * @param {Object} params - Parameters
- * @returns {Object} Response object
- */
-function handlePaymentConfirmation({ sender, user, pushname, paymentMethod, amount }) {
-    try {
-        if (!user) {
-            return {
-                success: false,
-                message: mess.userNotRegister
-            };
-        }
-
-        // Set conversation state for payment confirmation
-        setUserState(sender, {
-            step: 'PAYMENT_CONFIRMATION',
-            flow: 'customer',
-            user: user,
-            paymentMethod: paymentMethod,
-            amount: amount,
-            context: {
-                userId: user.id
-            }
-        });
-
-        let message = `💳 *Konfirmasi Pembayaran*\n\n`;
-        message += `Halo *${pushname}*,\n\n`;
-        message += `Terima kasih telah melakukan pembayaran. Untuk mempercepat proses verifikasi, mohon kirimkan bukti pembayaran Anda.\n\n`;
-        message += `📸 *Cara mengirim bukti:*\n`;
-        message += `1. Screenshot atau foto bukti transfer\n`;
-        message += `2. Kirim gambar ke chat ini\n`;
-        message += `3. Tunggu konfirmasi dari admin\n\n`;
-        message += `⏰ Proses verifikasi maksimal 1x24 jam pada hari kerja.\n\n`;
-        message += `Atau ketik *batal* untuk membatalkan.`;
-
-        return {
-            success: true,
-            message: message
-        };
-    } catch (error) {
-        console.error('[PAYMENT_CONFIRMATION_ERROR]', error);
-        return {
-            success: false,
-            message: '❌ Gagal memproses konfirmasi pembayaran. Silakan coba lagi atau hubungi admin.'
-        };
-    }
-}
-
-/**
  * Handle complaint/feedback
  * @param {Object} params - Parameters
  * @returns {Object} Response object
@@ -309,7 +260,6 @@ function handleServiceInfo() {
 module.exports = {
     handleCheckBill,
     handleCheckPackage,
-    handlePaymentConfirmation,
     handleComplaint,
     handleServiceInfo
 };

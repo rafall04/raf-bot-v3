@@ -3,16 +3,15 @@
  * Purpose: Menangani flow lokasi teknisi sederhana dan notifikasi posisi/update pelanggan.
  * Caller: Dispatcher bot untuk command lokasi, tiket saya, dan status perjalanan teknisi.
  * Deps: State conversation, event bridge, workflow tiket, `./teknisi-workflow-handler`, dan `../../lib/whatsapp-gateway`.
- * MainFuncs: `handleMulaiPerjalanan`, `handleTeknisiShareLocation`, `handleActiveTicketLocationUpdate`, `handleCekLokasiTeknisi`, `handleTiketSaya`.
+ * MainFuncs: `handleTeknisiShareLocation`, `handleActiveTicketLocationUpdate`, `handleCekLokasiTeknisi`, `handleTiketSaya`.
  * SideEffects: Memperbarui state tiket/lokasi dan mengirim notifikasi pelanggan via delivery/runtime WA.
  */
 
 const { setUserState, getUserState, deleteUserState } = require('./conversation-handler');
 const { sendCustomerNotification } = require('./teknisi-workflow-handler');
-const { ensureTicketShape, markTicketOtw, normalizeStatus } = require('../../lib/ticket-workflow');
-const { DOMAIN_EVENTS, emitAsync } = require('../../lib/domain-events');
+const { ensureTicketShape, normalizeStatus } = require('../../lib/ticket-workflow');
 const { initializeDomainNotificationListeners } = require('../../lib/domain-notification-listeners');
-const { isReady, hasAuthenticatedSession } = require('../../lib/whatsapp-gateway');
+const { hasAuthenticatedSession } = require('../../lib/whatsapp-gateway');
 const fs = require('fs');
 const path = require('path');
 
@@ -20,137 +19,6 @@ initializeDomainNotificationListeners();
 
 // Simple in-memory storage untuk lokasi teknisi
 const teknisiLocations = new Map();
-
-/**
- * Teknisi mulai perjalanan dan share lokasi
- */
-async function handleMulaiPerjalanan(sender, ticketId, teknisiInfo, _reply) {
-    try {
-        // Validate ticket exists
-        const report = global.reports.find(r => r.ticketId === ticketId.toUpperCase());
-        
-        if (!report) {
-            return {
-                success: false,
-                message: `❌ Tiket *${ticketId}* tidak ditemukan.`
-            };
-        }
-        
-        // Check if ticket is being processed by this teknisi (check all possible field names)
-        const assignedTeknisi = report.teknisiId || report.processedByTeknisiId || report.processedByTeknisi;
-        if (assignedTeknisi && assignedTeknisi !== sender) {
-            return {
-                success: false,
-                message: `❌ Tiket ini bukan ditangani oleh Anda.`
-            };
-        }
-        
-        const existingState = getUserState(sender);
-        const { ticket: updatedTicket } = markTicketOtw({
-            ticketId: ticketId.toUpperCase(),
-            actor: {
-                sender,
-                id: teknisiInfo?.id || sender,
-                username: teknisiInfo?.username || teknisiInfo?.name || sender,
-                name: teknisiInfo?.name || teknisiInfo?.username || 'Teknisi',
-                phoneNumber: teknisiInfo?.phone_number || teknisiInfo?.phone || ''
-            }
-        });
-        
-        // Set state untuk menunggu lokasi while preserving OTP data
-        setUserState(sender, {
-            step: 'TECH_WAIT_LOCATION',
-            ticketId: ticketId.toUpperCase(),
-            reportData: updatedTicket,
-            // Preserve OTP data if exists
-            otp: existingState?.otp || updatedTicket.otp,
-            otpCreatedAt: existingState?.otpCreatedAt,
-            isProcessing: true // Mark that this ticket is being processed
-        });
-        
-        // Notify customer that teknisi is on the way
-        // PENTING: Cek connection state dan gunakan error handling sesuai rules
-        if (updatedTicket.pelangganId && isReady()) {
-            const customerNotif = `🚗 *TEKNISI BERANGKAT*
-
-Teknisi sedang menuju lokasi Anda.
-
-Tiket: *${ticketId.toUpperCase()}*
-Teknisi: ${updatedTicket.processedByTeknisiName || updatedTicket.teknisiName}
-
-Anda dapat cek posisi teknisi dengan mengetik:
-*lokasi ${ticketId.toUpperCase()}*
-
-Estimasi tiba: 30-60 menit
-_Waktu dapat berubah tergantung kondisi lalu lintas_`;
-            
-            const recipients = [updatedTicket.pelangganId];
-            if (updatedTicket.pelangganPhone) {
-                const phones = updatedTicket.pelangganPhone.split('|').map(p => p.trim()).filter(p => p);
-                for (const phone of phones) {
-                    let phoneJid = phone;
-                    if (!phoneJid.endsWith('@s.whatsapp.net')) {
-                        if (phoneJid.startsWith('0')) {
-                            phoneJid = `62${phoneJid.substring(1)}@s.whatsapp.net`;
-                        } else if (phoneJid.startsWith('62')) {
-                            phoneJid = `${phoneJid}@s.whatsapp.net`;
-                        } else {
-                            phoneJid = `62${phoneJid}@s.whatsapp.net`;
-                        }
-                    }
-                    if (phoneJid !== updatedTicket.pelangganId) {
-                        recipients.push(phoneJid);
-                    }
-                }
-            }
-
-            try {
-                await emitAsync(DOMAIN_EVENTS.TICKET_CUSTOMER_UPDATE_REQUESTED, {
-                    recipients: [...new Set(recipients)],
-                    payloads: [{ text: customerNotif }]
-                });
-            } catch (err) {
-                console.error('[SEND_MESSAGE_ERROR]', {
-                    pelangganId: updatedTicket.pelangganId,
-                    error: err.message
-                });
-                console.error('[JOURNEY_NOTIF] Failed to notify customer:', err);
-            }
-        } else {
-            console.warn('[SEND_MESSAGE_SKIP] WhatsApp not connected, skipping send to', updatedTicket.pelangganId);
-        }
-        
-        return {
-            success: true,
-            message: `🚗 *MULAI PERJALANAN*
-            
-Tiket: *${ticketId.toUpperCase()}*
-Pelanggan: ${report.pelangganName}
-
-✅ Pelanggan telah diberitahu Anda berangkat.
-
-📍 *WAJIB SHARE LOKASI:*
-
-1️⃣ Klik icon 📎 (Attachment)
-2️⃣ Pilih 📍 *Location*
-3️⃣ Pilih *Share Live Location*
-4️⃣ Pilih durasi *1 jam*
-5️⃣ Kirim
-
-💡 *PENTING:*
-• Pelanggan dapat tracking posisi Anda
-• Update otomatis setiap beberapa menit
-• Saat tiba, ketik: *sampai ${ticketId.toUpperCase()}*`
-        };
-        
-    } catch (error) {
-        console.error('[MULAI_PERJALANAN_ERROR]', error);
-        return {
-            success: false,
-            message: '❌ Terjadi kesalahan. Silakan coba lagi.'
-        };
-    }
-}
 
 /**
  * Handle lokasi dari teknisi
@@ -540,7 +408,6 @@ Untuk membuat laporan baru, ketik:
 }
 
 module.exports = {
-    handleMulaiPerjalanan,
     handleTeknisiShareLocation,
     handleActiveTicketLocationUpdate,
     handleCekLokasiTeknisi,

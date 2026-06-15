@@ -70,7 +70,6 @@ const {
     handleBeliVoucher
 } = require('../handlers/payment-processor-handler');
 const {
-    handlePaymentConfirmation,
     handleComplaint
 } = require('../handlers/customer-handler');
 const saldoManager = require('../../lib/saldo-manager');
@@ -186,27 +185,13 @@ describe('WhatsApp bot hardening regressions', () => {
         }));
     });
 
-    test('customer payment and complaint state use sender key instead of stored phone field', () => {
+    test('customer complaint state uses sender key instead of stored phone field', () => {
         const sender = '628123456789@s.whatsapp.net';
         const user = {
             id: 77,
             name: 'Pelanggan',
             phone_number: '08123456789'
         };
-
-        handlePaymentConfirmation({
-            sender,
-            user,
-            pushname: 'Tester',
-            paymentMethod: 'transfer',
-            amount: 10000
-        });
-
-        expect(getUserState(sender)).toEqual(expect.objectContaining({
-            step: 'PAYMENT_CONFIRMATION'
-        }));
-
-        clearAllStates();
 
         const complaintResult = handleComplaint({
             sender,

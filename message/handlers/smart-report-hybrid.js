@@ -1,189 +1,12 @@
 /**
  * Smart Report Hybrid Handler
- * Handles both direct reporting and menu-based reporting
- * Best of both worlds - flexible untuk semua tipe user
+ * Continuation flow laporan langsung: konfirmasi MATI (device online) dan troubleshoot LEMOT.
+ * Catatan: setter direct-report (handleDirectMatiReport/handleDirectLemotReport) sudah dihapus —
+ * entry flow laporan kini dimiliki smart-report-text-menu.js (key state kanonik via stateSender).
  */
 
-const { isDeviceOnline, getDeviceOfflineMessage: _getDeviceOfflineMessage } = require('../../lib/device-status');
-const { setUserState, getUserState, deleteUserState } = require('./conversation-handler');
-const { getResponseTimeMessage: _getResponseTimeMessage, isWithinWorkingHours: _isWithinWorkingHours } = require('../../lib/working-hours-helper');
+const { getUserState, deleteUserState } = require('./conversation-handler');
 const { createCustomerReportTicket } = require('../../lib/report-orchestration-service');
-const { notifyNewReport } = require('../../lib/report-notification-service');
-const { sendMessage } = require('../../lib/whatsapp-delivery-service');
-const { resolveCustomerBySender } = require('../../lib/jid-utils');
-
-// Generate ticket ID
-
-/**
- * Handle Direct Internet Mati Report
- * Langsung proses tanpa menu
- */
-async function handleDirectMatiReport({ sender, pushname: _pushname, reply: _reply, msg, raf }) {
-    try {
-        // Resolusi pelanggan terpadu (LID-aware: remoteJidAlt → getPNForLID → stored-mapping → pre-warm USync).
-        const { user } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
-
-        // Handle @lid users - no manual verification needed
-        if (!user && sender.endsWith('@lid')) {
-            return {
-                success: false,
-                message: `❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`
-            };
-        }
-
-        if (!user) {
-            return {
-                success: false,
-                message: '❌ Nomor Anda belum terdaftar.\n\nSilakan hubungi admin untuk mendaftar.'
-            };
-        }
-
-        // Check existing active report
-        const activeReport = global.reports.find(r =>
-            r.pelangganUserId === user.id &&
-            r.status !== 'selesai' &&
-            r.status !== 'cancelled' &&
-            r.status !== 'pending'
-        );
-
-        if (activeReport) {
-            return {
-                success: false,
-                message: `⚠️ Anda sudah punya laporan aktif:\nID: *${activeReport.ticketId}*\n\nKetik *cektiket ${activeReport.ticketId}* untuk status.`
-            };
-        }
-
-        // Check device status
-        const deviceStatus = await isDeviceOnline(user.user_id || user.id);
-
-        let confirmMessage = `🔴 *KONFIRMASI LAPORAN - INTERNET MATI*\n\n`;
-
-        if (deviceStatus.online === false) {
-            confirmMessage += `✅ Device terdeteksi *OFFLINE*\n`;
-            confirmMessage += `⏰ Terakhir online: ${deviceStatus.lastSeen || 'Tidak diketahui'}\n\n`;
-            confirmMessage += `Laporan akan segera dibuat.\n\n`;
-            confirmMessage += `Tunggu sebentar...`;
-
-            // Auto create ticket
-            const ticketId = await createDirectTicket({
-                user,
-                issueType: 'MATI',
-                priority: 'HIGH',
-                deviceStatus,
-                description: 'Internet mati total - Lapor langsung',
-                sender
-            });
-
-            return {
-                success: true,
-                message: `✅ *LAPORAN BERHASIL DIBUAT*\n\n` +
-                    `📋 ID Tiket: *${ticketId}*\n` +
-                    `⚡ Prioritas: 🔴 URGENT\n` +
-                    `⏱️ Estimasi: 30-60 menit\n\n` +
-                    `Tim teknisi akan segera menangani.\n` +
-                    `Cek status: *cektiket ${ticketId}*`
-            };
-        } else {
-            // Device online, need confirmation
-            confirmMessage += `⚠️ Device terdeteksi masih *ONLINE*\n\n`;
-            confirmMessage += `Kemungkinan:\n`;
-            confirmMessage += `• Masalah di perangkat/WiFi lokal\n`;
-            confirmMessage += `• Router perlu restart\n\n`;
-            confirmMessage += `Apakah tetap buat laporan?\n`;
-            confirmMessage += `Balas *YA* atau *TIDAK*`;
-
-            setUserState(sender, {
-                step: 'CONFIRM_DIRECT_MATI',
-                userData: user,
-                deviceStatus
-            });
-
-            return {
-                success: true,
-                message: confirmMessage
-            };
-        }
-
-    } catch (error) {
-        console.error('[DIRECT_MATI_ERROR]', error);
-        return {
-            success: false,
-            message: '❌ Gagal membuat laporan. Silakan coba lagi.'
-        };
-    }
-}
-
-/**
- * Handle Direct Internet Lemot Report
- * Langsung masuk troubleshooting
- */
-async function handleDirectLemotReport({ sender, pushname: _pushname, reply: _reply, msg, raf }) {
-    try {
-        // Resolusi pelanggan terpadu (LID-aware: remoteJidAlt → getPNForLID → stored-mapping → pre-warm USync).
-        const { user } = await resolveCustomerBySender({ users: global.users, sender, msg, raf });
-
-        // Handle @lid users - no manual verification needed
-        if (!user && sender.endsWith('@lid')) {
-            return {
-                success: false,
-                message: `❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`
-            };
-        }
-
-        if (!user) {
-            return {
-                success: false,
-                message: '❌ Nomor Anda belum terdaftar.\n\nSilakan hubungi admin untuk mendaftar.'
-            };
-        }
-
-        // Check existing active report
-        const activeReport = global.reports.find(r =>
-            r.pelangganUserId === user.id &&
-            r.status !== 'selesai' &&
-            r.status !== 'cancelled' &&
-            r.status !== 'pending'
-        );
-
-        if (activeReport) {
-            return {
-                success: false,
-                message: `⚠️ Anda sudah punya laporan aktif:\nID: *${activeReport.ticketId}*\n\nKetik *cektiket ${activeReport.ticketId}* untuk status.`
-            };
-        }
-
-        // Direct to troubleshooting
-        setUserState(sender, {
-            step: 'DIRECT_LEMOT_TROUBLESHOOT',
-            userData: user,
-            issueType: 'LEMOT'
-        });
-
-        return {
-            success: true,
-            message: `🔍 *TROUBLESHOOTING CEPAT*\n\n` +
-                `Sebelum membuat laporan, coba:\n\n` +
-                `1️⃣ *RESTART ROUTER*\n` +
-                `   Cabut power 10 detik\n\n` +
-                `2️⃣ *CEK DEVICE LAIN*\n` +
-                `   Apakah semua device lemot?\n\n` +
-                `3️⃣ *KURANGI BEBAN*\n` +
-                `   Matikan download/streaming\n\n` +
-                `━━━━━━━━━━━━━━━━\n` +
-                `Apakah sudah membaik?\n\n` +
-                `Balas:\n` +
-                `• *SUDAH* - Problem solved ✅\n` +
-                `• *BELUM* - Buat laporan 📝`
-        };
-
-    } catch (error) {
-        console.error('[DIRECT_LEMOT_ERROR]', error);
-        return {
-            success: false,
-            message: '❌ Gagal memproses. Silakan coba lagi.'
-        };
-    }
-}
 
 /**
  * Create ticket directly without menu
@@ -305,13 +128,7 @@ async function handleDirectLemotResponse({ sender, response, reply: _reply }) {
     }
 }
 
-/**
- * Notify technicians
- */
-
 module.exports = {
-    handleDirectMatiReport,
-    handleDirectLemotReport,
     handleDirectConfirmation,
     handleDirectLemotResponse,
     createDirectTicket

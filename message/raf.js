@@ -28,8 +28,6 @@ const { INTENT_OWNER_MAP } = require("./handlers/intent-owner-map");
 const domainHandlers = require('./handlers/domain-handlers');
 const domainServices = require('./handlers/domain-services');
 const {
-    handleGangguanMati: _handleGangguanMati,
-    handleGangguanLemot: _handleGangguanLemot,
     handleGangguanMatiOfflineResponse,
     handleGangguanMatiOnlineResponse,
     handleLemotPhotoUpload,
@@ -48,7 +46,6 @@ const { routeConversationState } = require('./handlers/conversation-state-router
 const { handleLegacyTeknisiStateTransitions } = require('./handlers/legacy-teknisi-state-handler');
 const { sendReply, sendContactCard } = require('./handlers/reply-runtime');
 const {
-    handleMulaiPerjalanan: _handleMulaiPerjalanan,
     handleTeknisiShareLocation,
     handleActiveTicketLocationUpdate,
     handleCekLokasiTeknisi,
