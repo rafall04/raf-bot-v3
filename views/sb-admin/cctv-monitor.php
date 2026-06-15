@@ -396,6 +396,9 @@
     $('#cctv_name').val(c.name);
     $('#cctv_host').val(c.host);
     $('#cctv_area').val(c.area || '');
+    // Adopsi = host sudah pasti ada di netwatch → provisioning tak relevan.
+    $('#cctv_provision').prop('checked', false);
+    $('#provisionRow').hide();
     setTimeout(() => $('#cctv_phone').focus(), 300);
   }
 
