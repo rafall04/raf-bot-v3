@@ -4430,5 +4430,25 @@
     "name": "Auto Outage: Online Kembali",
     "category": "auto_outage",
     "template": "Koneksi terpantau sudah online kembali. Jika masih ada kendala, silakan balas pesan ini."
+  },
+  "broadcast_gamas_kabel_putus": {
+    "name": "Broadcast GAMAS - Kabel Fiber Putus",
+    "category": "broadcast",
+    "template": "Halo Kak ${nama},\n\nMohon maaf atas ketidaknyamanannya. Saat ini sedang terjadi gangguan kabel fiber di area Anda (ODP ${odp}). Tim teknisi sudah ditugaskan ke lokasi.\n\nEstimasi pemulihan: secepat mungkin. Mohon kesabarannya.\n\nTerima kasih atas pengertiannya."
+  },
+  "broadcast_gamas_maintenance": {
+    "name": "Broadcast GAMAS - Maintenance Terjadwal",
+    "category": "broadcast",
+    "template": "Halo Kak ${nama},\n\nKami informasikan akan ada *maintenance jaringan terjadwal* yang dapat menyebabkan koneksi terputus sementara.\n\nMohon kesabarannya selama proses berlangsung. Layanan akan kembali normal setelah maintenance selesai.\n\nTerima kasih atas pengertiannya."
+  },
+  "broadcast_gamas_listrik": {
+    "name": "Broadcast GAMAS - Gangguan Listrik",
+    "category": "broadcast",
+    "template": "Halo Kak ${nama},\n\nMohon maaf, saat ini koneksi internet mungkin terganggu karena adanya pemadaman listrik di area kami. Tim sudah memantau dan koneksi akan kembali normal segera setelah listrik kembali nyala.\n\nTerima kasih atas pengertiannya."
+  },
+  "broadcast_gamas_umum": {
+    "name": "Broadcast GAMAS - Pesan Umum",
+    "category": "broadcast",
+    "template": "Halo Kak ${nama},\n\nMohon maaf atas ketidaknyamanannya. Saat ini sedang ada gangguan layanan internet. Tim teknisi sedang menangani.\n\nMohon kesabarannya. Terima kasih atas pengertiannya."
   }
 }

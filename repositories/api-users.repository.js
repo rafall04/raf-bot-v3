@@ -170,8 +170,8 @@ function createApiUsersRepository(overrides = {}) {
                     pppoe_username, pppoe_password, connected_odp_id,
                     send_invoice, is_corporate, corporate_name,
                     corporate_address, corporate_npwp, corporate_pic_name,
-                    corporate_pic_phone, corporate_pic_email, bulk
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    corporate_pic_phone, corporate_pic_email, bulk, notify_outage
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
 
             await new Promise((resolve, reject) => {
@@ -193,7 +193,8 @@ function createApiUsersRepository(overrides = {}) {
                     newUser.corporate_pic_name || null,
                     newUser.corporate_pic_phone || null,
                     newUser.corporate_pic_email || null,
-                    JSON.stringify(newUser.bulk || ["1"])
+                    JSON.stringify(newUser.bulk || ["1"]),
+                    newUser.notify_outage === false ? 0 : 1
                 ], function onInsertUser(err) {
                     if (err) {
                         reject(err);
@@ -216,7 +217,7 @@ function createApiUsersRepository(overrides = {}) {
                 "bulk", "connected_odp_id", "latitude", "longitude", "pppoe_password",
                 "send_invoice", "is_corporate", "corporate_name", "corporate_address",
                 "corporate_npwp", "corporate_pic_name", "corporate_pic_phone",
-                "corporate_pic_email"
+                "corporate_pic_email", "notify_outage"
             ];
             const updateFields = [];
             const updateValues = [];

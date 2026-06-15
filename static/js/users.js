@@ -1314,6 +1314,8 @@
             $('#editModal #edit_subscription').val($(this).data('subscription')).trigger('change');
             $('#editModal #edit_paid').prop("checked", initialPaidStatusForEdit);
             $('#editModal #edit_send_invoice').prop("checked", $(this).data('send_invoice') || false);
+            // notify_outage default TRUE bila atribut tidak ada / kosong; eksplisit 'false' => unchecked.
+            $('#editModal #edit_notify_outage').prop("checked", String($(this).data('notify_outage')) !== 'false');
             $('#editModal #edit_pppoe_username').val($(this).data('pppoe_username'));
             $('#editModal #edit_pppoe_password').val($(this).data('pppoe_password'));
             $('#editModal #edit_payment_method').val('');
@@ -1881,7 +1883,7 @@
                             // MODIFIED: All action buttons within a single flex container for horizontal layout
                             let actionButtonsHtml = `
                                 <div class="device-action-group">
-                                    <button class="btn btn-info btn-sm btn-edit" data-id="${row.id}" data-name="${row.name || ''}" data-phone_number="${row.phone_number || ''}" data-device_id="${deviceIdForActions}" data-address="${row.address || ''}" data-subscription="${row.subscription || ''}" data-paid="${row.paid || false}" data-send_invoice="${row.send_invoice || false}" data-pppoe_username="${row.pppoe_username || ''}" data-pppoe_password="${row.pppoe_password || ''}" data-latitude="${row.latitude || ''}" data-longitude="${row.longitude || ''}" data-connected_odp_id="${row.connected_odp_id || ''}" data-bulk='${JSON.stringify(Array.isArray(row.bulk) ? row.bulk : (typeof row.bulk === 'string' ? JSON.parse(row.bulk) : []))}' data-toggle="modal" data-target="#editModal" title="Edit User"><i class="fas fa-edit"></i></button>
+                                    <button class="btn btn-info btn-sm btn-edit" data-id="${row.id}" data-name="${row.name || ''}" data-phone_number="${row.phone_number || ''}" data-device_id="${deviceIdForActions}" data-address="${row.address || ''}" data-subscription="${row.subscription || ''}" data-paid="${row.paid || false}" data-send_invoice="${row.send_invoice || false}" data-notify_outage="${row.notify_outage !== false && row.notify_outage !== 0 ? 'true' : 'false'}" data-pppoe_username="${row.pppoe_username || ''}" data-pppoe_password="${row.pppoe_password || ''}" data-latitude="${row.latitude || ''}" data-longitude="${row.longitude || ''}" data-connected_odp_id="${row.connected_odp_id || ''}" data-bulk='${JSON.stringify(Array.isArray(row.bulk) ? row.bulk : (typeof row.bulk === 'string' ? JSON.parse(row.bulk) : []))}' data-toggle="modal" data-target="#editModal" title="Edit User"><i class="fas fa-edit"></i></button>
                                     <button class="btn btn-dark btn-sm btn-manage-credentials" data-id="${row.id}" data-username="${row.username || ''}" data-toggle="modal" data-target="#credentialsModal" title="Kelola Kredensial"><i class="fas fa-key"></i></button>`;
                             
                             // Add send invoice button if user has send_invoice enabled and is paid
@@ -2615,6 +2617,8 @@
                     data[key] = $(form).find('[name="paid"]').is(':checked');
                 } else if (key === 'send_invoice'){
                     data[key] = $(form).find('[name="send_invoice"]').is(':checked');
+                } else if (key === 'notify_outage'){
+                    data[key] = $(form).find('[name="notify_outage"]').is(':checked');
                 } else if (key === 'latitude' || key === 'longitude') {
                     data[key] = value.trim() === '' ? null : parseFloat(value);
                 } else {
@@ -2695,6 +2699,11 @@
             // Ensure send_invoice is always sent, even if unchecked
             if (!data.hasOwnProperty('send_invoice')) {
                 data.send_invoice = false;
+            }
+
+            // Ensure notify_outage is always sent (unchecked checkbox absen dari FormData).
+            if (!data.hasOwnProperty('notify_outage')) {
+                data.notify_outage = $(form).find('[name="notify_outage"]').is(':checked');
             }
 
             if (paymentMethod) {

@@ -93,6 +93,12 @@ const USER_EXCEL_COLUMNS = [
         example: "TRUE"
     },
     {
+        key: "notify_outage",
+        requiredOnCreate: false,
+        description: "Terima broadcast info gangguan/GAMAS. TRUE/FALSE (default TRUE bila kosong).",
+        example: "TRUE"
+    },
+    {
         key: "bulk",
         requiredOnCreate: false,
         description: "SSID target untuk sinkron bulk. Pisahkan dengan |, contoh 1|5.",
@@ -318,6 +324,7 @@ function buildSampleImportRow() {
         paid: "FALSE",
         payment_method: "",
         send_invoice: "TRUE",
+        notify_outage: "TRUE",
         bulk: "1|5",
         is_corporate: "FALSE",
         corporate_name: "",
@@ -412,6 +419,7 @@ function normalizeImportRow(rawRow) {
     const paidResult = normalizeBooleanCell(rawRow?.paid, "paid");
     const sendInvoiceResult = normalizeBooleanCell(rawRow?.send_invoice, "send_invoice");
     const corporateResult = normalizeBooleanCell(rawRow?.is_corporate, "is_corporate");
+    const notifyOutageResult = normalizeBooleanCell(rawRow?.notify_outage, "notify_outage");
     const paymentMethodResult = normalizePaymentMethodCell(rawRow?.payment_method);
 
     [
@@ -420,6 +428,7 @@ function normalizeImportRow(rawRow) {
         paidResult.error,
         sendInvoiceResult.error,
         corporateResult.error,
+        notifyOutageResult.error,
         paymentMethodResult.error
     ].filter(Boolean).forEach((message) => errors.push(message));
 
@@ -437,6 +446,7 @@ function normalizeImportRow(rawRow) {
         paid: paidResult.value,
         payment_method: paymentMethodResult.value,
         send_invoice: sendInvoiceResult.value,
+        notify_outage: notifyOutageResult.value,
         bulk: explicitFields.bulk ? normalizeBulkValue(rawRow?.bulk) : [],
         is_corporate: corporateResult.value,
         corporate_name: normalizeNullableString(rawRow?.corporate_name),
@@ -473,6 +483,7 @@ function mapUserToExportRow(user) {
         paid: formatBooleanForExcel(Boolean(user?.paid)),
         payment_method: user?.payment_method || "",
         send_invoice: formatBooleanForExcel(Boolean(user?.send_invoice)),
+        notify_outage: formatBooleanForExcel(user?.notify_outage !== false && user?.notify_outage !== 0),
         bulk: normalizeBulkValue(user?.bulk).join("|"),
         is_corporate: formatBooleanForExcel(Boolean(user?.is_corporate)),
         corporate_name: user?.corporate_name || "",

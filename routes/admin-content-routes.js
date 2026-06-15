@@ -363,24 +363,60 @@ function registerAdminContentRoutes(router, deps) {
         return res.status(result.status).json(result);
     }));
 
-    router.post("/api/broadcast", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+    function loadUsers() {
+        return usersRepo && typeof usersRepo.getAll === "function" ? usersRepo.getAll() : [];
+    }
+
+    function buildBroadcastPayload(req) {
+        const allUsers = loadUsers();
         const selectedIds = Array.isArray(req.body?.users) ? req.body.users : [];
-        const allUsers = usersRepo && typeof usersRepo.getAll === "function"
-            ? usersRepo.getAll()
-            : [];
         const selectedUsers = selectedIds
             .map((id) => allUsers.find((user) => String(user.id) === String(id)))
             .filter(Boolean);
-
-        const result = await adminBroadcastService.queueBroadcast({
+        // Kompatibel dengan UI legacy (`all=on`) — diabaikan bila mode eksplisit dikirim.
+        const sendToAll = req.body?.all === "on" || req.body?.all === true;
+        return {
             text: req.body?.text,
-            sendToAll: req.body?.all === "on",
+            templateKey: req.body?.template_key || req.body?.templateKey || null,
+            templateFallback: req.body?.template_fallback || req.body?.templateFallback || "",
+            mode: req.body?.mode || null,
+            filter: req.body?.filter || null,
+            forceIncludeOptOut: req.body?.force_include_opt_out === true
+                || req.body?.force_include_opt_out === "true"
+                || req.body?.forceIncludeOptOut === true,
+            sendToAll,
             allUsers,
-            selectedUsers
+            selectedUsers,
+            operator: req.user?.username || "system"
+        };
+    }
+
+    router.post("/api/broadcast/preview", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const payload = buildBroadcastPayload(req);
+        const result = adminBroadcastService.previewBroadcast(payload);
+        return res.status(result.status).json(result);
+    }));
+
+    router.get("/api/broadcast/history", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const repo = require("../repositories/broadcast.repository").createBroadcastRepository();
+        const limit = Number(req.query?.limit) || 50;
+        const offset = Number(req.query?.offset) || 0;
+        const data = await repo.listHistory({ limit, offset });
+        return res.status(200).json({
+            status: 200,
+            message: "Riwayat broadcast dimuat.",
+            data
         });
+    }));
+
+    router.post("/api/broadcast", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const payload = buildBroadcastPayload(req);
+        payload.dryRun = req.body?.dry_run === true || req.body?.dryRun === true;
+        const result = await adminBroadcastService.queueBroadcast(payload);
         return res.status(result.status).json({
             status: result.status,
-            message: result.message
+            message: result.message,
+            data: result.data || null
         });
     }));
 }

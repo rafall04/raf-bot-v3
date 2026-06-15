@@ -456,6 +456,7 @@ Header Doc
                             </div>
                             <div class="mb-3"><div class="form-check"><input type="checkbox" class="form-check-input" name="paid" id="create_paid"><label for="create_paid" class="form-check-label">Sudah membayar</label></div></div>
                             <div class="mb-3"><div class="form-check"><input type="checkbox" class="form-check-input" name="send_invoice" id="create_send_invoice"><label for="create_send_invoice" class="form-check-label">Kirim Invoice PDF</label></div></div>
+                            <div class="mb-3"><div class="form-check"><input type="checkbox" class="form-check-input" name="notify_outage" id="create_notify_outage" checked><label for="create_notify_outage" class="form-check-label">Terima info gangguan (GAMAS)</label></div></div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3"><label for="create_address" class="form-label">Alamat</label><textarea class="form-control form-control-sm" id="create_address" name="address" rows="2"></textarea></div>
@@ -582,6 +583,7 @@ Header Doc
                             </div>
                             <div class="mb-3"><div class="form-check"><input type="checkbox" class="form-check-input" name="paid" id="edit_paid"><label for="edit_paid" class="form-check-label">Sudah membayar</label></div></div>
                             <div class="mb-3"><div class="form-check"><input type="checkbox" class="form-check-input" name="send_invoice" id="edit_send_invoice"><label for="edit_send_invoice" class="form-check-label">Kirim Invoice PDF</label></div></div>
+                            <div class="mb-3"><div class="form-check"><input type="checkbox" class="form-check-input" name="notify_outage" id="edit_notify_outage"><label for="edit_notify_outage" class="form-check-label">Terima info gangguan (GAMAS)</label></div></div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3"><label for="edit_address" class="form-label">Alamat</label><textarea class="form-control form-control-sm" id="edit_address" name="address" rows="2"></textarea></div>

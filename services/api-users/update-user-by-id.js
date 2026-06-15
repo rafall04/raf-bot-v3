@@ -83,7 +83,7 @@ async function updateUserById(deps, { id, userData, actor, requestMeta }) {
             return;
         }
 
-        if (key === "paid" || key === "send_invoice" || key === "is_corporate") {
+        if (key === "paid" || key === "send_invoice" || key === "is_corporate" || key === "notify_outage") {
             draftUser[key] = userData[key] === true || userData[key] === "true" || userData[key] === 1;
             return;
         }

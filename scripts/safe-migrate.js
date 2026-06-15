@@ -325,7 +325,8 @@ async function runMigration() {
             { name: 'compensation_minutes', type: 'INTEGER', default: '0' },
             { name: 'email', type: 'TEXT', default: 'NULL' },
             { name: 'alternative_phone', type: 'TEXT', default: 'NULL' },
-            { name: 'notes', type: 'TEXT', default: 'NULL' }
+            { name: 'notes', type: 'TEXT', default: 'NULL' },
+            { name: 'notify_outage', type: 'INTEGER', default: '1' }
         ];
         
         // Find missing columns

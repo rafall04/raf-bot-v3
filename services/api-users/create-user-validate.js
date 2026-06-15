@@ -103,6 +103,7 @@ async function prepareNewUser(deps, { userData }) {
         paid: userData.paid || false,
         send_invoice: userData.send_invoice || false,
         is_corporate: userData.is_corporate || false,
+        notify_outage: userData.notify_outage === false ? false : true,
         bulk: bulkData,
         username: finalUsername,
         password: finalPassword,
