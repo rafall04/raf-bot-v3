@@ -1,7 +1,8 @@
 <?php
 /**
  * Header Doc
- * Purpose: Halaman admin CRUD daftar CCTV publik + status monitor + log insiden auto-broadcast.
+ * Purpose: Halaman admin CRUD daftar CCTV publik + status monitor + discovery (scan netwatch
+ *          untuk kandidat CCTV yang belum diadopsi) + log insiden auto-broadcast.
  * Caller: `routes/pages.js` pada path `/cctv-monitor`.
  * Deps: `_navbar.php`, `topbar.php`, API `/api/cctv/*`, admin-theme.css (auto dark mode).
  * MainFuncs: render tabel CCTV + modal tambah/edit + tabel insiden + kartu status.
@@ -76,6 +77,26 @@
             </div>
           </div>
         </div>
+
+        <!-- Ditemukan di Netwatch — discovery READ-ONLY (tidak pernah menulis ke router) -->
+        <div class="card shadow mb-4" id="discoveryCard">
+          <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-search-location"></i> Ditemukan di Netwatch</h6>
+            <button class="btn btn-sm btn-outline-primary" id="rescanBtn"><i class="fas fa-sync"></i> Scan ulang</button>
+          </div>
+          <div class="card-body">
+            <p class="text-muted small mb-2">CCTV yang sudah ada di MikroTik netwatch tapi belum diadopsi ke monitor. Klik <strong>Adopsi</strong> — IP, nama, dan area terisi otomatis, kamu cukup isi nomor WA pelanggan.</p>
+            <div id="discoveryStatus" class="small text-muted mb-2">-</div>
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover" id="discoveryTable" width="100%">
+                <thead class="thead-light">
+                  <tr><th>Nama (dari script)</th><th>Area</th><th>IP</th><th>Status</th><th>Format Script</th><th>Aksi</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -111,6 +132,11 @@
             <small class="form-text text-muted">Dipakai di pesan ({customer_name}).</small>
           </div>
           <div class="form-group">
+            <label>Area / Lokasi (opsional)</label>
+            <input class="form-control" id="cctv_area" placeholder="mis. DANDER / TANJUNGHARJO">
+            <small class="form-text text-muted">Terisi otomatis saat adopsi dari netwatch.</small>
+          </div>
+          <div class="form-group">
             <label>Window Konfirmasi (menit, opsional)</label>
             <input type="number" class="form-control" id="cctv_window" placeholder="kosong = pakai default global">
             <small class="form-text text-muted">Setelah X menit terus mati baru broadcast. Anti-flap PLN-blink.</small>
@@ -139,15 +165,18 @@
 <script src="/js/sb-admin-2.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-  let devicesCache = []; let statusCache = null; let refreshTimer = null;
+  let devicesCache = []; let statusCache = null; let refreshTimer = null; let discoveryCache = [];
 
   $(document).ready(() => {
     loadAll();
+    loadDiscovery();
     refreshTimer = setInterval(loadStatusOnly, 30000);
     $('#addCctvBtn').on('click', openAdd);
     $('#cctvSaveBtn').on('click', save);
+    $('#rescanBtn').on('click', loadDiscovery);
     $(document).on('click', '.btn-edit-cctv', function () { openEdit($(this).data('id')); });
     $(document).on('click', '.btn-del-cctv', function () { confirmDelete($(this).data('id'), $(this).data('name')); });
+    $(document).on('click', '.btn-adopt-cctv', function () { adopt($(this).data('host')); });
   });
 
   async function loadAll() {
@@ -165,6 +194,54 @@
       const r = await fetch('/api/cctv/devices', { credentials: 'include' }).then(r => r.json());
       if (r.status === 200) devicesCache = r.data || [];
     } catch (_) { devicesCache = []; }
+  }
+
+  async function loadDiscovery() {
+    $('#discoveryStatus').text('Memindai netwatch MikroTik…');
+    $('#discoveryTable tbody').empty();
+    try {
+      const r = await fetch('/api/cctv/discovery', { credentials: 'include' }).then(r => r.json());
+      if (r.status === 200) { discoveryCache = r.data || []; renderDiscovery(); }
+      else { $('#discoveryStatus').html('<span class="text-danger">' + escapeHtml(r.message || 'Gagal memindai netwatch.') + '</span>'); }
+    } catch (e) { $('#discoveryStatus').html('<span class="text-danger">Gagal memindai: ' + escapeHtml(e.message) + '</span>'); }
+  }
+
+  function renderDiscovery() {
+    const tb = $('#discoveryTable tbody').empty();
+    const notAdopted = discoveryCache.filter(c => !c.alreadyRegistered);
+    const adopted = discoveryCache.length - notAdopted.length;
+    $('#discoveryStatus').text(`${discoveryCache.length} CCTV terdeteksi di netwatch · ${adopted} sudah diadopsi · ${notAdopted.length} belum.`);
+    if (notAdopted.length === 0) {
+      tb.append('<tr><td colspan="6" class="text-center text-muted">Semua CCTV di netwatch sudah diadopsi. 🎉</td></tr>');
+      return;
+    }
+    notAdopted.forEach(c => {
+      const dot = c.status === 'up' ? 'up' : c.status === 'down' ? 'down' : 'unknown';
+      const stLabel = c.status === 'up' ? 'Online' : c.status === 'down' ? 'Mati' : (c.status || '—');
+      const fmt = c.conformant
+        ? '<span class="badge badge-success">sesuai</span>'
+        : '<span class="badge badge-warning">belum standar</span>';
+      const offBadge = c.disabled ? ' <span class="badge badge-secondary">netwatch off</span>' : '';
+      tb.append(`<tr>
+        <td><strong>${escapeHtml(c.name)}</strong>${offBadge}</td>
+        <td>${c.area ? escapeHtml(c.area) : '<span class="text-muted">—</span>'}</td>
+        <td><span class="cctv-host">${escapeHtml(c.host)}</span></td>
+        <td><span class="status-dot ${dot}"></span>${stLabel}</td>
+        <td>${fmt}</td>
+        <td><button class="btn btn-sm btn-primary btn-adopt-cctv" data-host="${escapeHtml(c.host)}"><i class="fas fa-plus"></i> Adopsi</button></td>
+      </tr>`);
+    });
+  }
+
+  function adopt(host) {
+    const c = discoveryCache.find(x => x.host === host);
+    if (!c) return;
+    openAdd();
+    $('#cctvModalTitle').text('Adopsi CCTV dari Netwatch');
+    $('#cctv_name').val(c.name);
+    $('#cctv_host').val(c.host);
+    $('#cctv_area').val(c.area || '');
+    setTimeout(() => $('#cctv_phone').focus(), 300);
   }
 
   function statusOf(host) {
@@ -192,7 +269,7 @@
       const enabled = d.enabled !== false;
       const enabledBadge = enabled ? '' : ' <span class="badge badge-secondary">nonaktif</span>';
       tb.append(`<tr>
-        <td><strong>${escapeHtml(d.name)}</strong>${enabledBadge}</td>
+        <td><strong>${escapeHtml(d.name)}</strong>${enabledBadge}${d.area ? '<br><small class="text-muted">' + escapeHtml(d.area) + '</small>' : ''}</td>
         <td><span class="cctv-host">${escapeHtml(d.host)}</span></td>
         <td>${d.customerName ? escapeHtml(d.customerName) + '<br>' : ''}<small class="text-muted">${escapeHtml(d.phone || '')}</small></td>
         <td><span class="status-dot ${dot}"></span>${stLabel}</td>
@@ -226,6 +303,7 @@
     $('#cctvModalTitle').text('Edit CCTV');
     $('#cctv_id').val(d.id); $('#cctv_name').val(d.name); $('#cctv_host').val(d.host);
     $('#cctv_phone').val(d.phone); $('#cctv_customer').val(d.customerName || '');
+    $('#cctv_area').val(d.area || '');
     $('#cctv_window').val(d.confirmationMinutes || ''); $('#cctv_message').val(d.customMessage || '');
     $('#cctv_enabled').prop('checked', d.enabled !== false);
     $('#cctvModal').modal('show');
@@ -236,6 +314,7 @@
       host: $('#cctv_host').val().trim(),
       phone: $('#cctv_phone').val().trim(),
       customerName: $('#cctv_customer').val().trim(),
+      area: $('#cctv_area').val().trim(),
       confirmationMinutes: $('#cctv_window').val() ? Number($('#cctv_window').val()) : null,
       customMessage: $('#cctv_message').val().trim(),
       enabled: $('#cctv_enabled').is(':checked'),
@@ -252,6 +331,7 @@
         $('#cctvModal').modal('hide');
         Swal.fire({ icon: 'success', title: 'Tersimpan', timer: 1200, showConfirmButton: false });
         await loadAll();
+        loadDiscovery();
       } else {
         Swal.fire('Gagal', r.message || 'Error', 'error');
       }
@@ -263,7 +343,7 @@
         if (!r.isConfirmed) return;
         try {
           const res = await fetch(`/api/cctv/devices/${id}`, { method: 'DELETE', credentials: 'include' }).then(r => r.json());
-          if (res.status === 200) { Swal.fire({ icon: 'success', title: 'Terhapus', timer: 1000, showConfirmButton: false }); loadAll(); }
+          if (res.status === 200) { Swal.fire({ icon: 'success', title: 'Terhapus', timer: 1000, showConfirmButton: false }); loadAll(); loadDiscovery(); }
           else Swal.fire('Gagal', res.message || 'Error', 'error');
         } catch (e) { Swal.fire('Gagal', e.message, 'error'); }
       });

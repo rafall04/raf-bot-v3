@@ -1,13 +1,16 @@
 /**
  * Header Doc
- * Purpose: API CRUD daftar CCTV publik + status monitor (start/stop/getStatus) untuk dashboard.
+ * Purpose: API CRUD daftar CCTV publik + status monitor (start/stop/getStatus) + discovery
+ *          (scan netwatch MikroTik untuk kandidat CCTV yang belum diadopsi) untuk dashboard.
  * Caller: lib/routes-registry.js mounts at /api/cctv.
- * Deps: ../lib/cctv-registry, ../lib/cctv-monitor.
+ * Deps: ../lib/cctv-registry, ../lib/cctv-monitor, ../lib/mikrotik, ../lib/cctv-netwatch-discovery.
  */
 const express = require('express');
 const router = express.Router();
 const registry = require('../lib/cctv-registry');
 const monitor = require('../lib/cctv-monitor');
+const mikrotik = require('../lib/mikrotik');
+const discovery = require('../lib/cctv-netwatch-discovery');
 
 function ensureAdmin(req, res) {
     if (!req.user || !['admin', 'owner', 'superadmin'].includes(req.user.role)) {
@@ -60,6 +63,25 @@ router.delete('/devices/:id', (req, res) => {
 router.get('/status', (req, res) => {
     if (!ensureAdmin(req, res)) return;
     res.json({ status: 200, data: monitor.getCctvMonitorStatus() });
+});
+
+// Discovery READ-ONLY: scan netwatch MikroTik, klasifikasi entri → kandidat CCTV,
+// cross-check registry agar yang sudah diadopsi tidak ditawarkan lagi. Tidak menulis
+// ke router. Hanya mengembalikan kandidat klass 'cctv' (infra & noise disaring).
+router.get('/discovery', async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    try {
+        const r = await mikrotik.getNetwatchFull({ caller: 'cctv.discovery' });
+        if (!r || !r.ok) {
+            return res.status(502).json({ status: 502, message: (r && r.message) || 'Gagal mengambil netwatch dari MikroTik.' });
+        }
+        const classified = discovery.classifyNetwatchEntries(Array.isArray(r.data) ? r.data : []);
+        const cctv = classified.filter((c) => c.klass === 'cctv');
+        const registeredHosts = registry.list().map((d) => d.host);
+        res.json({ status: 200, data: discovery.markRegistered(cctv, registeredHosts) });
+    } catch (e) {
+        res.status(500).json({ status: 500, message: e.message });
+    }
 });
 
 module.exports = router;
