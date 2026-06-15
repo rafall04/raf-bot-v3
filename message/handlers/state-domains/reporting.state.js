@@ -192,7 +192,7 @@ async function handleReportingConversationState(context) {
                 fs.writeFileSync(photoPath, buffer);
 
                 const result = await handleLemotPhotoUpload({
-                    sender,
+                    sender: stateSender,
                     response: null,
                     photoPath: fileName,
                     photoBuffer: buffer,
@@ -209,7 +209,7 @@ async function handleReportingConversationState(context) {
         }
 
         const result = await handleLemotPhotoUpload({
-            sender,
+            sender: stateSender,
             response: chats,
             photoPath: null,
             reply
@@ -222,7 +222,7 @@ async function handleReportingConversationState(context) {
 
     if (stateStep === "CONFIRM_DIRECT_MATI") {
         const result = await handleDirectConfirmation({
-            sender,
+            sender: stateSender,
             response: chats,
             reply
         });
@@ -234,7 +234,7 @@ async function handleReportingConversationState(context) {
 
     if (stateStep === "DIRECT_LEMOT_TROUBLESHOOT") {
         const result = await handleDirectLemotResponse({
-            sender,
+            sender: stateSender,
             response: chats,
             reply
         });
@@ -299,7 +299,7 @@ async function handleReportingConversationState(context) {
         }
 
         const result = await handleCustomerPhotoUpload({
-            sender,
+            sender: stateSender,
             state: smartReportState,
             chats,
             reply
@@ -330,7 +330,7 @@ async function handleReportingConversationState(context) {
                 const ticketId = smartReportState.ticketIdToResolve || smartReportState.ticketId;
                 const teknisiName = isTeknisi?.username || pushname || "teknisi";
                 const result = await addPhotoToQueue({
-                    sender,
+                    sender: stateSender,
                     buffer,
                     state: smartReportState,
                     teknisiName,
@@ -349,7 +349,7 @@ async function handleReportingConversationState(context) {
 
         const result = await handleGeneralSteps({
             userState: smartReportState,
-            sender,
+            sender: stateSender,
             chats,
             pushname,
             reply,
@@ -364,7 +364,7 @@ async function handleReportingConversationState(context) {
 
     if (stateStep === "GANGGUAN_MATI_DEVICE_OFFLINE") {
         const result = await handleGangguanMatiOfflineResponse({
-            sender,
+            sender: stateSender,
             body: chats,
             reply,
             findUserByPhone: null,
@@ -379,7 +379,7 @@ async function handleReportingConversationState(context) {
 
     if (stateStep === "GANGGUAN_MATI_DEVICE_ONLINE") {
         const result = await handleGangguanMatiOnlineResponse({
-            sender,
+            sender: stateSender,
             body: chats,
             reply,
             msg,
@@ -392,7 +392,7 @@ async function handleReportingConversationState(context) {
     }
 
     const result = await handleGangguanLemotResponse({
-        sender,
+        sender: stateSender,
         body: chats,
         reply,
         msg,
