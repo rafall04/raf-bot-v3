@@ -2,9 +2,10 @@
  * Header Doc
  * Purpose: API CRUD daftar CCTV publik + status monitor (start/stop/getStatus) + discovery
  *          (scan netwatch MikroTik untuk kandidat CCTV yang belum diadopsi) + pengaturan monitor
- *          (enabled/window/notifyRecovery, persist config.json + hot start/stop) untuk dashboard.
+ *          (enabled/window/notifyRecovery + template + config netwatch/Telegram, persist config.json
+ *          + hot start/stop) + provisioning netwatch (buat entri + script on-up/on-down CCTV baru).
  * Caller: lib/routes-registry.js mounts at /api/cctv.
- * Deps: ../lib/cctv-registry, ../lib/cctv-monitor, ../lib/cctv-monitor-config, ../lib/mikrotik, ../lib/cctv-netwatch-discovery, fs/path.
+ * Deps: ../lib/cctv-registry, ../lib/cctv-monitor, ../lib/cctv-monitor-config, ../lib/cctv-netwatch-script, ../lib/mikrotik, ../lib/cctv-netwatch-discovery, fs/path.
  */
 const express = require('express');
 const fs = require('fs');
@@ -15,6 +16,7 @@ const monitor = require('../lib/cctv-monitor');
 const cctvConfig = require('../lib/cctv-monitor-config');
 const mikrotik = require('../lib/mikrotik');
 const discovery = require('../lib/cctv-netwatch-discovery');
+const netscript = require('../lib/cctv-netwatch-script');
 
 const MAIN_CONFIG_PATH = path.join(__dirname, '..', 'config.json');
 
@@ -116,6 +118,37 @@ router.post('/config', (req, res) => {
         if (next.enabled === true) monitor.startCctvMonitor();
         else monitor.stopCctvMonitor();
         res.json({ status: 200, message: 'OK', data: { ...cctvConfig.toPublicView(next), running: monitor.getCctvMonitorStatus().running } });
+    } catch (e) {
+        res.status(500).json({ status: 500, message: e.message });
+    }
+});
+
+// Provisioning netwatch untuk CCTV BARU: rakit script on-up/on-down dari config Telegram +
+// nama/area CCTV (sanitasi anti-injeksi, satu baris), lalu tulis ke MikroTik. Host yang sudah
+// ada di netwatch di-skip (tak ditimpa) oleh add_netwatch.php.
+router.post('/provision-netwatch', async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    const body = req.body || {};
+    const host = String(body.host || '').trim();
+    const name = String(body.name || '').trim();
+    const area = String(body.area || '').trim();
+    if (!host || !name) {
+        return res.status(400).json({ status: 400, message: 'Host & nama wajib diisi.' });
+    }
+    const nwCfg = (global.config && global.config.cctvMonitor && global.config.cctvMonitor.netwatch) || {};
+    if (!netscript.isValidNetwatchConfig(nwCfg)) {
+        return res.status(400).json({ status: 400, message: 'Bot token & chat ID Telegram belum diisi di tab Pengaturan.' });
+    }
+    try {
+        const { upScript, downScript } = netscript.buildNetwatchScripts(nwCfg, { name, area, host });
+        const r = await mikrotik.addNetwatch(
+            { host, comment: name, interval: nwCfg.interval, timeout: nwCfg.timeout, upScript, downScript, disabled: false },
+            { caller: 'cctv.provision-netwatch' }
+        );
+        if (!r || !r.ok) {
+            return res.status(502).json({ status: 502, message: (r && r.message) || 'Gagal menulis netwatch ke MikroTik.' });
+        }
+        res.json({ status: 200, message: 'OK', data: r.data });
     } catch (e) {
         res.status(500).json({ status: 500, message: e.message });
     }

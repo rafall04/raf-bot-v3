@@ -182,6 +182,40 @@
               </div>
             </div>
 
+            <div class="card shadow mb-4">
+              <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-paper-plane"></i> Netwatch &amp; Telegram (notifikasi teknisi)</h6></div>
+              <div class="card-body">
+                <p class="text-muted small">Dipakai saat menambah CCTV baru: app otomatis membuat entri netwatch + script on-up/on-down yang mengirim notifikasi <strong>realtime ke Telegram</strong> (untuk teknisi &amp; admin). Cukup isi sekali di sini.</p>
+                <div class="form-row">
+                  <div class="form-group col-md-7">
+                    <label class="small mb-0">Bot Token Telegram</label>
+                    <input class="form-control form-control-sm cctv-tpl" id="nw_bot" placeholder="123456789:AAE...">
+                  </div>
+                  <div class="form-group col-md-5">
+                    <label class="small mb-0">Chat ID (grup teknisi)</label>
+                    <input class="form-control form-control-sm cctv-tpl" id="nw_chat" placeholder="-4707718346">
+                  </div>
+                  <div class="form-group col-6 col-md-3">
+                    <label class="small mb-0">Interval cek</label>
+                    <input class="form-control form-control-sm" id="nw_interval" placeholder="5s">
+                  </div>
+                  <div class="form-group col-6 col-md-3">
+                    <label class="small mb-0">Timeout</label>
+                    <input class="form-control form-control-sm" id="nw_timeout" placeholder="1s">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="small mb-0">Template Telegram — CCTV ONLINE (UP)</label>
+                  <textarea class="form-control cctv-tpl" id="nw_msg_up" rows="2"></textarea>
+                </div>
+                <div class="form-group mb-1">
+                  <label class="small mb-0">Template Telegram — CCTV OFFLINE (DOWN)</label>
+                  <textarea class="form-control cctv-tpl" id="nw_msg_down" rows="2"></textarea>
+                </div>
+                <small class="text-muted">Variabel RouterOS: <code>$area</code> <code>$cctv</code> (nama, auto-isi) <code>$time</code> <code>$date</code>. Backslash = escape emoji (mis. <code>\E2\9C\85</code> = ✅).</small>
+              </div>
+            </div>
+
             <button class="btn btn-primary" type="button" id="saveSettingsBtn"><i class="fas fa-save"></i> Simpan Pengaturan</button>
           </div>
         </div>
@@ -213,6 +247,10 @@
           <div class="form-group">
             <label>Nomor WA Pelanggan <span class="text-danger">*</span></label>
             <input class="form-control" id="cctv_phone" required placeholder="6281234567890 (pisah | untuk multi)">
+            <select class="form-control form-control-sm mt-1" id="cctv_customer_picker">
+              <option value="">— atau pilih dari pelanggan terdaftar —</option>
+            </select>
+            <small class="form-text text-muted">Boleh nomor bebas (non-pelanggan), atau pilih pelanggan agar nama &amp; nomor terisi otomatis.</small>
           </div>
           <div class="form-group">
             <label>Nama Pelanggan (opsional)</label>
@@ -237,6 +275,11 @@
             <input class="form-check-input" type="checkbox" id="cctv_enabled" checked>
             <label class="form-check-label" for="cctv_enabled">Aktif (dipantau)</label>
           </div>
+          <div class="form-check mt-2" id="provisionRow">
+            <input class="form-check-input" type="checkbox" id="cctv_provision" checked>
+            <label class="form-check-label" for="cctv_provision">Sekalian buat entri netwatch + notifikasi Telegram di MikroTik</label>
+            <small class="form-text text-muted">Hanya untuk CCTV baru yang IP-nya belum ada di netwatch. Perlu Bot Token &amp; Chat ID terisi di tab Pengaturan.</small>
+          </div>
         </form>
       </div>
       <div class="modal-footer">
@@ -259,11 +302,13 @@
     loadAll();
     loadDiscovery();
     loadSettings();
+    loadCustomers();
     refreshTimer = setInterval(loadStatusOnly, 30000);
     $('#addCctvBtn').on('click', openAdd);
     $('#cctvSaveBtn').on('click', save);
     $('#rescanBtn').on('click', loadDiscovery);
     $('#saveSettingsBtn').on('click', saveSettings);
+    $('#cctv_customer_picker').on('change', onPickCustomer);
     $(document).on('click', '.btn-edit-cctv', function () { openEdit($(this).data('id')); });
     $(document).on('click', '.btn-del-cctv', function () { confirmDelete($(this).data('id'), $(this).data('name')); });
     $(document).on('click', '.btn-adopt-cctv', function () { adopt($(this).data('host')); });
@@ -344,6 +389,10 @@
         $('#set_notify_recovery').prop('checked', r.data.notifyRecovery !== false);
         $('#set_msg_down').val(r.data.messageDown || '');
         $('#set_msg_up').val(r.data.messageUp || '');
+        const nw = r.data.netwatch || {};
+        $('#nw_bot').val(nw.botToken || ''); $('#nw_chat').val(nw.chatId || '');
+        $('#nw_interval').val(nw.interval || '5s'); $('#nw_timeout').val(nw.timeout || '1s');
+        $('#nw_msg_up').val(nw.msgUp || ''); $('#nw_msg_down').val(nw.msgDown || '');
         if (r.data.confirmationMinutes) $('#windowLabel').text(r.data.confirmationMinutes);
       }
     } catch (_) {}
@@ -355,6 +404,11 @@
       notifyRecovery: $('#set_notify_recovery').is(':checked'),
       messageDown: $('#set_msg_down').val(),
       messageUp: $('#set_msg_up').val(),
+      netwatch: {
+        botToken: $('#nw_bot').val(), chatId: $('#nw_chat').val(),
+        interval: $('#nw_interval').val(), timeout: $('#nw_timeout').val(),
+        msgUp: $('#nw_msg_up').val(), msgDown: $('#nw_msg_down').val(),
+      },
     };
     try {
       const r = await fetch('/api/cctv/config', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(r => r.json());
@@ -366,6 +420,42 @@
         Swal.fire('Gagal', r.message || 'Error', 'error');
       }
     } catch (e) { Swal.fire('Gagal', e.message, 'error'); }
+  }
+
+  let customersCache = [];
+  function custPhone(u) { return u.phone || u.phone_number || u.nomor || u.no_hp || u.whatsapp || u.wa || ''; }
+  async function loadCustomers() {
+    try {
+      const r = await fetch('/api/users', { credentials: 'include' }).then(r => r.json());
+      const list = Array.isArray(r) ? r : (r.data || r.users || []);
+      customersCache = Array.isArray(list) ? list : [];
+      const sel = $('#cctv_customer_picker');
+      sel.find('option:gt(0)').remove();
+      customersCache.forEach((u, i) => {
+        const phone = custPhone(u);
+        if (!phone) return;
+        const nm = u.name || u.nama || u.username || '(tanpa nama)';
+        sel.append(`<option value="${i}">${escapeHtml(nm)} — ${escapeHtml(phone)}</option>`);
+      });
+    } catch (_) {}
+  }
+  function onPickCustomer() {
+    const i = $('#cctv_customer_picker').val(); if (i === '') return;
+    const u = customersCache[i]; if (!u) return;
+    const phone = custPhone(u); const nm = u.name || u.nama || '';
+    if (phone) $('#cctv_phone').val(phone);
+    if (nm) $('#cctv_customer').val(nm);
+  }
+  async function provisionNetwatch(dev) {
+    try {
+      const r = await fetch('/api/cctv/provision-netwatch', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ host: dev.host, name: dev.name, area: dev.area }) }).then(r => r.json());
+      if (r.status === 200) {
+        const exists = r.data && r.data.exists;
+        Swal.fire({ icon: 'success', title: 'Tersimpan', html: exists ? 'CCTV tersimpan. Entri netwatch sudah ada sebelumnya (tidak ditimpa).' : 'CCTV tersimpan + entri netwatch &amp; notifikasi Telegram dibuat di MikroTik.', timer: 2400, showConfirmButton: false });
+      } else {
+        Swal.fire({ icon: 'warning', title: 'CCTV tersimpan, netwatch gagal', text: r.message || 'Cek Bot Token/Chat ID di tab Pengaturan.' });
+      }
+    } catch (e) { Swal.fire({ icon: 'warning', title: 'CCTV tersimpan, netwatch gagal', text: e.message }); }
   }
 
   function statusOf(host) {
@@ -421,6 +511,9 @@
   function openAdd() {
     $('#cctvModalTitle').text('Tambah CCTV'); $('#cctvForm')[0].reset();
     $('#cctv_id').val(''); $('#cctv_enabled').prop('checked', true);
+    $('#cctv_provision').prop('checked', true);
+    $('#provisionRow').show();
+    $('#cctv_customer_picker').val('');
     $('#cctvModal').modal('show');
   }
   function openEdit(id) {
@@ -431,6 +524,7 @@
     $('#cctv_area').val(d.area || '');
     $('#cctv_window').val(d.confirmationMinutes || ''); $('#cctv_message').val(d.customMessage || '');
     $('#cctv_enabled').prop('checked', d.enabled !== false);
+    $('#provisionRow').hide(); // provisioning hanya untuk CCTV baru
     $('#cctvModal').modal('show');
   }
   async function save() {
@@ -454,7 +548,11 @@
       const r = await fetch(url, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(r => r.json());
       if (r.status === 200) {
         $('#cctvModal').modal('hide');
-        Swal.fire({ icon: 'success', title: 'Tersimpan', timer: 1200, showConfirmButton: false });
+        if (!id && $('#cctv_provision').is(':checked')) {
+          await provisionNetwatch(payload);
+        } else {
+          Swal.fire({ icon: 'success', title: 'Tersimpan', timer: 1200, showConfirmButton: false });
+        }
         await loadAll();
         loadDiscovery();
       } else {
