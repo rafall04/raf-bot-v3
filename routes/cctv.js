@@ -20,7 +20,6 @@ const discovery = require('../lib/cctv-netwatch-discovery');
 const netscript = require('../lib/cctv-netwatch-script');
 const uptime = require('../lib/cctv-uptime');
 const areaRegistry = require('../lib/cctv-area-registry');
-const { sendCritical } = require('../lib/whatsapp-critical-delivery');
 const gateway = require('../lib/whatsapp-gateway');
 
 const MAIN_CONFIG_PATH = path.join(__dirname, '..', 'config.json');
@@ -186,30 +185,18 @@ router.get('/uptime', (req, res) => {
     res.json({ status: 200, data: uptime.summarize(incidents, hosts, Date.now()) });
 });
 
-// Kirim pesan TES ke nomor pelanggan satu CCTV — verifikasi nomor/template/koneksi WA tanpa nunggu mati.
+// Kirim pesan TES ke SEMUA penerima CCTV ini (pelanggan + koordinator + grup) sesuai pengaturan —
+// verifikasi nomor/grup/template/koneksi WA tanpa nunggu mati. Routing identik dengan broadcast nyata
+// (recipientsFor): jadi admin benar-benar tahu siapa yang akan menerima saat CCTV mati.
 router.post('/test-broadcast', async (req, res) => {
     if (!ensureAdmin(req, res)) return;
     const d = registry.get((req.body || {}).id);
     if (!d) return res.status(404).json({ status: 404, message: 'CCTV tidak ditemukan.' });
-    const phones = String(d.phone || '').split(/[|,]/).map((p) => p.trim()).filter(Boolean);
-    if (phones.length === 0) return res.status(400).json({ status: 400, message: 'Nomor WA pelanggan kosong.' });
-    const cfg = (global.config && global.config.cctvMonitor) || {};
-    const tpl = d.customMessage || cfg.messageDown || monitor.DEFAULTS.messageDown;
-    const nowLocal = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
-    const vars = {
-        customer_name: d.customerName || 'Pelanggan', cctv_name: d.name, cctv_host: d.host,
-        since_local: nowLocal, up_local: nowLocal, minutes_down: '0 menit',
-    };
-    const body = String(tpl).replace(/\{(\w+)\}/g, (_, k) => (vars[k] !== undefined ? vars[k] : '{' + k + '}'));
-    const text = '🧪 *PESAN TES — abaikan*\n\n' + body;
-    let delivered = 0;
-    for (const ph of phones) {
-        try {
-            const r = await sendCritical(ph, { text }, { label: 'cctv_test', waitForReadyMs: 8000 });
-            if (r && r.delivered) delivered++;
-        } catch (_e) { /* lanjut ke nomor berikutnya */ }
+    const r = await monitor.runCctvTestBroadcast(d);
+    if (r.total === 0) {
+        return res.status(400).json({ status: 400, message: 'Tak ada penerima: isi nomor WA pelanggan, atau tetapkan koordinator/grup aktif untuk areanya.' });
     }
-    res.json({ status: 200, message: 'OK', data: { delivered, recipients: phones.length } });
+    res.json({ status: 200, message: 'OK', data: r });
 });
 
 // CRUD Area + Koordinator RT (dicocokkan ke field `area` tiap CCTV).
@@ -233,6 +220,20 @@ router.delete('/areas/:id', (req, res) => {
     if (!ensureAdmin(req, res)) return;
     areaRegistry.remove(req.params.id);
     res.json({ status: 200, message: 'OK' });
+});
+
+// Kirim pesan TES langsung ke koordinator/grup sebuah area (tanpa perlu CCTV) — verifikasi nomor & grup RT.
+router.post('/areas/:id/test', async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    const a = areaRegistry.get(req.params.id);
+    if (!a) return res.status(404).json({ status: 404, message: 'Area tidak ditemukan.' });
+    // Device sintetis: area cocok by-name + tanpa pelanggan → recipientsFor hasilkan koordinator + grup area ini.
+    const device = { id: 'area-test', name: 'Tes Notifikasi', host: a.name, area: a.name, notifyCustomer: false };
+    const r = await monitor.runCctvTestBroadcast(device);
+    if (r.total === 0) {
+        return res.status(400).json({ status: 400, message: 'Area belum punya nomor/grup koordinator aktif (atau area nonaktif).' });
+    }
+    res.json({ status: 200, message: 'OK', data: r });
 });
 
 // Daftar grup WA yang bot-nya jadi anggota — untuk picker "Grup WA RT" pada koordinator area.

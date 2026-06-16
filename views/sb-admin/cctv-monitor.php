@@ -526,6 +526,7 @@
     $('#area_group').on('change', onAreaGroupChange);
     // Modal area dibuka menggantikan modal CCTV (bukan ditumpuk); saat ditutup, kembalikan modal CCTV bila perlu.
     $('#areaModal').on('hidden.bs.modal', function () { if (reopenCctvAfterArea) { reopenCctvAfterArea = false; $('#cctvModal').modal('show'); } });
+    $(document).on('click', '.btn-test-area', function () { testArea($(this).data('id'), $(this).data('name')); });
     $(document).on('click', '.btn-edit-area', function () { openEditArea($(this).data('id')); });
     $(document).on('click', '.btn-del-area', function () { confirmDeleteArea($(this).data('id'), $(this).data('name')); });
   });
@@ -767,16 +768,42 @@
     return Math.floor(h / 24) + ' hari';
   }
 
+  function roleLabel(role) { return role === 'coordinator' ? 'Koordinator' : (role === 'group' ? 'Grup WA' : 'Pelanggan'); }
+  function maskRecipient(p) {
+    p = String(p || '');
+    if (p.indexOf('@g.us') >= 0) return 'grup';
+    const d = p.replace(/[^0-9]/g, '');
+    return d.length <= 6 ? (d || p) : (d.slice(0, 4) + '***' + d.slice(-2));
+  }
+  function testResultHtml(data) {
+    if (!data) return 'Selesai.';
+    const lines = (data.recipients || []).map(r => (r.delivered ? '✅' : '❌') + ' ' + roleLabel(r.role) + ' <span class="text-muted">(' + maskRecipient(r.phone) + ')</span>').join('<br>');
+    return '<div class="text-left">Terkirim <strong>' + (data.delivered || 0) + '/' + (data.total || 0) + '</strong>:<br>' + (lines || '—') + '</div>';
+  }
   function testBroadcast(id, name) {
     Swal.fire({
       icon: 'question', title: 'Kirim pesan tes?',
-      html: 'Kirim WA percobaan ke nomor pelanggan <strong>' + escapeHtml(name || '') + '</strong>.',
+      html: 'Kirim WA percobaan untuk <strong>' + escapeHtml(name || '') + '</strong> ke <strong>semua penerima</strong> (pelanggan / koordinator / grup) sesuai pengaturan.',
       showCancelButton: true, confirmButtonText: 'Kirim', cancelButtonText: 'Batal',
     }).then(async (r) => {
       if (!r.isConfirmed) return;
       try {
         const res = await fetch('/api/cctv/test-broadcast', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }).then(r => r.json());
-        if (res.status === 200) Swal.fire({ icon: 'success', title: 'Terkirim', text: 'Berhasil ke ' + (res.data ? res.data.delivered : 0) + '/' + (res.data ? res.data.recipients : 0) + ' nomor.', timer: 2200, showConfirmButton: false });
+        if (res.status === 200) Swal.fire({ icon: 'success', title: 'Terkirim', html: testResultHtml(res.data), timer: 3500, showConfirmButton: false });
+        else Swal.fire('Gagal', res.message || 'Error', 'error');
+      } catch (e) { Swal.fire('Gagal', e.message, 'error'); }
+    });
+  }
+  function testArea(id, name) {
+    Swal.fire({
+      icon: 'question', title: 'Kirim pesan tes?',
+      html: 'Kirim WA percobaan ke <strong>koordinator/grup</strong> area <strong>' + escapeHtml(name || '') + '</strong>.',
+      showCancelButton: true, confirmButtonText: 'Kirim', cancelButtonText: 'Batal',
+    }).then(async (r) => {
+      if (!r.isConfirmed) return;
+      try {
+        const res = await fetch('/api/cctv/areas/' + id + '/test', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then(r => r.json());
+        if (res.status === 200) Swal.fire({ icon: 'success', title: 'Terkirim', html: testResultHtml(res.data), timer: 3500, showConfirmButton: false });
         else Swal.fire('Gagal', res.message || 'Error', 'error');
       } catch (e) { Swal.fire('Gagal', e.message, 'error'); }
     });
@@ -880,7 +907,7 @@
         <td>${upCell}</td>
         <td>${win}</td>
         <td class="text-nowrap">
-          <button class="btn btn-sm btn-outline-success btn-test-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}" title="Kirim pesan tes ke nomor pelanggan"><i class="fas fa-paper-plane"></i></button>
+          <button class="btn btn-sm btn-outline-success btn-test-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}" title="Kirim pesan tes ke semua penerima (pelanggan/koordinator/grup)"><i class="fas fa-paper-plane"></i></button>
           <button class="btn btn-sm btn-outline-primary btn-edit-cctv" data-id="${d.id}"><i class="fas fa-edit"></i></button>
           <button class="btn btn-sm btn-outline-danger btn-del-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}"><i class="fas fa-trash"></i></button>
         </td>
@@ -1083,7 +1110,8 @@
           ${a.coordinatorGroupId ? '<div><span class="badge badge-info"><i class="fas fa-users"></i> Grup: ' + escapeHtml(a.coordinatorGroupName || a.coordinatorGroupId) + '</span>' + (a.customersInGroup ? ' <span class="badge badge-light" title="Pelanggan tak dijapri, cukup lewat grup">warga di grup</span>' : '') + '</div>' : ''}
           ${(!a.coordinatorPhone && !a.coordinatorGroupId) ? '<span class="text-muted">—</span>' : ''}
         </td>
-        <td>
+        <td class="text-nowrap">
+          <button class="btn btn-sm btn-outline-success btn-test-area" data-id="${a.id}" data-name="${escapeHtml(a.name)}" title="Kirim pesan tes ke koordinator/grup area ini"><i class="fas fa-paper-plane"></i></button>
           <button class="btn btn-sm btn-outline-primary btn-edit-area" data-id="${a.id}"><i class="fas fa-edit"></i></button>
           <button class="btn btn-sm btn-outline-danger btn-del-area" data-id="${a.id}" data-name="${escapeHtml(a.name)}"><i class="fas fa-trash"></i></button>
         </td>
