@@ -2,12 +2,13 @@
  * Header Doc
  * Purpose: API provisioning & backup OLT ZTE (SSH) — scan ONU uncfg, okupansi ONU ID,
  *          preview + eksekusi registrasi ONU per tipe modem, hapus ONU (rollback),
- *          status/optik ONU, CRUD profil tipe modem, dan konfigurasi/eksekusi backup OLT.
+ *          status/optik ONU, CRUD profil tipe modem, konfigurasi/eksekusi backup OLT, dan
+ *          retrofit ACS/TR069 (setting per-OLT, apply/remove per ONU, status silang GenieACS).
  * Caller: lib/routes-registry.js (mount di /api/olt, berdampingan dengan routes/olt.js),
  *         UI views/sb-admin/admin-olt-provision.php (static/js/admin-olt-provision.js).
  * Deps: lib/olt-manager (devices), lib/olt-zte-provision (operasi SSH), lib/olt-provision-store
  *       (profil tipe modem), lib/olt-backup (backup), lib/cron/jobs/olt-backup (restart jadwal),
- *       lib/activity-logger (audit), lib/error-handler (asyncHandler).
+ *       lib/genieacs (status inform ACS), lib/activity-logger (audit), lib/error-handler (asyncHandler).
  * MainFuncs: registerOltProvisioningRoutes (DI, dipakai test), module.exports.router (wired).
  * SideEffects: eksekusi perintah konfigurasi di OLT via SSH, tulis file backup, tulis
  *              config.json (setting backup), tulis activity log.
@@ -20,6 +21,8 @@
 'use strict';
 
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const { asyncHandler } = require('../lib/error-handler');
 
 const STAFF_ROLES = ['admin', 'owner', 'superadmin', 'teknisi'];
@@ -39,6 +42,8 @@ function registerOltProvisioningRoutes(router, deps) {
         backup,                 // lib/olt-backup
         restartOltBackupTask,   // () => void
         logActivity,            // async (data) => void
+        genieacs,               // lib/genieacs (status inform ACS)
+        saveDeviceAcs,          // (id, acs) => persist ke config.json
     } = deps;
 
     const requireRole = (roles) => (req, res, next) => {
@@ -364,6 +369,195 @@ function registerOltProvisioningRoutes(router, deps) {
         res.json({ status: 200, data: status });
     }));
 
+    // ── ACS / TR069 ───────────────────────────────────────────────────────────
+    // Strategi: ZTE asli (oltPushable) → OLT-push; clone/Huawei → set di modem (in-band).
+    // Kebenaran final = inform di GenieACS, BUKAN "command OK" (ZTE ex-ISP terkunci bisa
+    // terima perintah tapi tak pernah phone-home). Lihat lib/olt-zte-provision.classifyVendorTier.
+
+    // Setting ACS per-OLT (URL CWMP + kredensial + VLAN manajemen). Password tak pernah
+    // dikembalikan mentah; kirim password kosong saat update = pertahankan yang lama.
+    router.get('/provision/devices/:id/acs-settings', requireAdmin, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device) return;
+        const acs = device.acs || {};
+        res.json({ status: 200, data: { url: acs.url || '', user: acs.user || '', mgmtVlan: acs.mgmtVlan || 100, passwordSet: !!acs.pass } });
+    }));
+
+    router.post('/provision/devices/:id/acs-settings', requireAdmin, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device) return;
+        const body = req.body || {};
+        const existing = device.acs || {};
+        const pass = (body.pass !== undefined && body.pass !== '') ? String(body.pass) : (existing.pass || '');
+        const candidate = {
+            url: String(body.url || '').trim(),
+            user: String(body.user || '').trim(),
+            pass,
+            mgmtVlan: parseInt(body.mgmtVlan, 10) || 100,
+        };
+        const v = provision.validateVars({ acsUrl: candidate.url, acsUsername: candidate.user, acsPassword: candidate.pass, mgmtVlan: candidate.mgmtVlan });
+        if (!v.ok) return res.status(400).json({ status: 400, message: 'Setting ACS tidak valid', errors: v.errors });
+        saveDeviceAcs(device.id, candidate);
+        await audit(req, {
+            actionType: 'UPDATE', resourceType: 'olt-acs', resourceId: device.id, resourceName: device.name,
+            description: `Update setting ACS OLT ${device.name} (url ${candidate.url}, vlan ${candidate.mgmtVlan})`,
+        });
+        res.json({ status: 200, message: 'Setting ACS tersimpan', data: { url: candidate.url, user: candidate.user, mgmtVlan: candidate.mgmtVlan, passwordSet: !!candidate.pass } });
+    }));
+
+    /** Map SN→lastInform dari GenieACS (key uppercase). Gagal → map kosong (tak melempar). */
+    async function getInformedSerials() {
+        const map = new Map();
+        try {
+            const r = await genieacs.queryDevices({ projection: ['_deviceId._SerialNumber', '_lastInform'], operation: 'tr069-status' });
+            if (r && r.ok && Array.isArray(r.data)) {
+                for (const d of r.data) {
+                    const sn = d && d._deviceId && d._deviceId._SerialNumber;
+                    if (sn) map.set(String(sn).toUpperCase(), d._lastInform || null);
+                }
+            }
+        } catch (e) {
+            console.warn('[OLT-PROVISION] GenieACS query gagal:', e.message);
+        }
+        return map;
+    }
+
+    // Cache inventaris ONU per device (enumerasi SSH ~belasan detik); ?force=true refresh.
+    const onuInvCache = new Map();
+    const ONU_INV_TTL_MS = 5 * 60 * 1000;
+    async function getAllOnusCached(device, force) {
+        const c = onuInvCache.get(device.id);
+        if (!force && c && Date.now() - c.ts < ONU_INV_TTL_MS) return c.data;
+        const data = await provision.listAllOnus(device);
+        onuInvCache.set(device.id, { data, ts: Date.now() });
+        return data;
+    }
+
+    // Status ACS semua ONU: inventaris OLT × inform GenieACS × tier vendor → aksi adaptif.
+    router.get('/provision/devices/:id/tr069/status', requireStaff, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        const [onus, informed] = await Promise.all([
+            getAllOnusCached(device, req.query.force === 'true'),
+            getInformedSerials(),
+        ]);
+        const rows = onus.map((o) => {
+            const tier = provision.classifyVendorTier(o.sn);
+            const lastInform = informed.get(String(o.sn).toUpperCase()) || null;
+            const isInformed = !!lastInform;
+            const action = isInformed ? 'ok' : (tier.oltPushable ? 'olt-push' : 'modem');
+            return { id: o.id, ponPort: o.ponPort, onuId: o.onuId, sn: o.sn, vendor: tier.vendor, tier: tier.tier, oltPushable: tier.oltPushable, informed: isInformed, lastInform, action };
+        });
+        const summary = {
+            total: rows.length,
+            informed: rows.filter((r) => r.informed).length,
+            oltPush: rows.filter((r) => r.action === 'olt-push').length,
+            modem: rows.filter((r) => r.action === 'modem').length,
+            acsConfigured: !!(device.acs && device.acs.url),
+        };
+        res.json({ status: 200, data: { summary, onus: rows } });
+    }));
+
+    // Aktifkan ACS (OLT-push) ke 1 ONU — GUARD: hanya ONU ZTE asli (oltPushable).
+    router.post('/provision/devices/:id/tr069/apply', requireStaff, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        if (!device.acs || !device.acs.url) {
+            return res.status(400).json({ status: 400, message: `Setting ACS OLT "${device.name}" belum diisi. Atur dulu di panel ACS.` });
+        }
+        const body = req.body || {};
+        const ponPort = String(body.ponPort || '');
+        const onuId = body.onuId;
+        const sn = String(body.sn || '');
+        const tier = provision.classifyVendorTier(sn);
+        if (!tier.oltPushable) {
+            return res.status(409).json({
+                status: 409,
+                message: `ONU ${sn || ''} (${tier.vendor}) tidak bisa via OLT-push — TR069 harus diset di modemnya (in-band).`,
+                data: { tier },
+            });
+        }
+        let result;
+        try {
+            result = await provision.applyTr069Addon(device, ponPort, onuId, device.acs, {
+                saveConfig: body.saveConfig === true,
+                tr069SpIdx: body.tr069SpIdx,
+            });
+        } catch (e) {
+            if (e.validationErrors || e.missingVars) {
+                return res.status(400).json({ status: 400, message: e.message, errors: e.validationErrors || e.missingVars });
+            }
+            throw e;
+        }
+        await audit(req, {
+            actionType: 'UPDATE', resourceType: 'olt-acs', resourceId: `${device.id}:${ponPort}:${onuId}`, resourceName: sn,
+            description: `Aktifkan ACS (OLT-push) gpon-onu_${ponPort}:${onuId} (${sn}) di ${device.name}: ${result.ok ? 'OK' : 'GAGAL'}`,
+            newValue: { ponPort, onuId, sn, ok: result.ok },
+        });
+        res.status(result.ok ? 200 : 502).json({
+            status: result.ok ? 200 : 502,
+            message: result.ok
+                ? 'ACS diaktifkan via OLT. Tunggu 1-5 menit lalu cek status inform.'
+                : `Gagal di perintah ke-${(result.failedIndex || 0) + 1}`,
+            data: result,
+        });
+    }));
+
+    // Aktifkan ACS massal (OLT-push) — SATU sesi SSH. Tanpa body.targets → otomatis semua
+    // ZTEG yang belum inform. Selalu disaring ke ONU ZTE asli (clone tak akan inform).
+    router.post('/provision/devices/:id/tr069/apply-bulk', requireStaff, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        if (!device.acs || !device.acs.url) {
+            return res.status(400).json({ status: 400, message: `Setting ACS OLT "${device.name}" belum diisi. Atur dulu di panel ACS.` });
+        }
+        const body = req.body || {};
+        let targets;
+        if (Array.isArray(body.targets) && body.targets.length) {
+            targets = body.targets.filter((t) => provision.classifyVendorTier(t.sn).oltPushable);
+        } else {
+            const [onus, informed] = await Promise.all([getAllOnusCached(device, false), getInformedSerials()]);
+            targets = onus
+                .filter((o) => provision.classifyVendorTier(o.sn).oltPushable && !informed.has(String(o.sn).toUpperCase()))
+                .map((o) => ({ ponPort: o.ponPort, onuId: o.onuId, sn: o.sn }));
+        }
+        if (!targets.length) {
+            return res.json({ status: 200, message: 'Tidak ada ONU ZTE asli yang perlu di-push.', data: { okCount: 0, failCount: 0, results: [] } });
+        }
+        const result = await provision.applyTr069AddonBulk(device, targets, device.acs, { saveConfig: body.saveConfig === true });
+        await audit(req, {
+            actionType: 'UPDATE', resourceType: 'olt-acs', resourceId: `${device.id}:bulk`, resourceName: device.name,
+            description: `Aktifkan ACS massal (OLT-push) ${result.okCount}/${targets.length} ONU di ${device.name}`,
+            newValue: { okCount: result.okCount, failCount: result.failCount },
+        });
+        res.json({
+            status: 200,
+            message: `ACS di-push ke ${result.okCount}/${targets.length} ONU ZTE. Tunggu beberapa menit lalu muat ulang status untuk verifikasi inform.`,
+            data: result,
+        });
+    }));
+
+    // Lepas ACS (rollback) dari 1 ONU.
+    router.post('/provision/devices/:id/tr069/remove', requireStaff, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        const body = req.body || {};
+        const ponPort = String(body.ponPort || '');
+        const result = await provision.removeTr069Addon(device, ponPort, body.onuId, {
+            saveConfig: body.saveConfig === true,
+            tr069SpIdx: body.tr069SpIdx,
+        });
+        await audit(req, {
+            actionType: 'UPDATE', resourceType: 'olt-acs', resourceId: `${device.id}:${ponPort}:${body.onuId}`, resourceName: `gpon-onu_${ponPort}:${body.onuId}`,
+            description: `Lepas ACS gpon-onu_${ponPort}:${body.onuId} di ${device.name}: ${result.ok ? 'OK' : 'sebagian gagal'}`,
+        });
+        res.status(result.ok ? 200 : 502).json({
+            status: result.ok ? 200 : 502,
+            message: result.ok ? 'ACS dilepas dari ONU' : 'Sebagian perintah gagal (lihat detail)',
+            data: result,
+        });
+    }));
+
     // ── Profil tipe modem ────────────────────────────────────────────────────
 
     router.get('/provision/onu-types', requireStaff, asyncHandler(async (_req, res) => {
@@ -485,8 +679,21 @@ const oltManager = require('../lib/olt-manager');
 const provision = require('../lib/olt-zte-provision');
 const store = require('../lib/olt-provision-store');
 const backup = require('../lib/olt-backup');
+const genieacs = require('../lib/genieacs');
 const { restartOltBackupTask } = require('../lib/cron/jobs/olt-backup');
 const { logActivity } = require('../lib/activity-logger');
+
+/** Persist setting ACS ke config.olt.devices[].acs (path konsisten dgn olt-manager). */
+function saveDeviceAcs(id, acs) {
+    const configPath = path.join(__dirname, '..', 'config.json');
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const devices = (config.olt && config.olt.devices) || [];
+    const dev = devices.find((d) => d.id === id);
+    if (!dev) throw new Error('OLT tidak ditemukan di config');
+    dev.acs = { url: acs.url, user: acs.user, pass: acs.pass, mgmtVlan: acs.mgmtVlan };
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 4), 'utf8');
+    return dev.acs;
+}
 
 const router = express.Router();
 registerOltProvisioningRoutes(router, {
@@ -497,6 +704,8 @@ registerOltProvisioningRoutes(router, {
     backup,
     restartOltBackupTask,
     logActivity,
+    genieacs,
+    saveDeviceAcs,
 });
 
 module.exports = router;

@@ -46,6 +46,7 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                         <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#tab-register" role="tab"><i class="fas fa-plug"></i> Registrasi ONU</a></li>
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-types" role="tab"><i class="fas fa-microchip"></i> Tipe Modem</a></li>
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-backup" role="tab"><i class="fas fa-database"></i> Backup OLT</a></li>
+                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-acs" role="tab"><i class="fas fa-globe"></i> ACS / TR069</a></li>
                     </ul>
 
                     <div class="tab-content">
@@ -273,6 +274,82 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ════════ TAB 4: ACS / TR069 ════════ -->
+                        <div class="tab-pane fade" id="tab-acs" role="tabpanel">
+                            <div class="row">
+                                <div class="col-lg-5 mb-4">
+                                    <div class="card shadow h-100">
+                                        <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-server"></i> Setting ACS (per-OLT)</h6></div>
+                                        <div class="card-body">
+                                            <div class="form-group">
+                                                <label for="acsUrl">URL ACS (CWMP)</label>
+                                                <input type="text" class="form-control" id="acsUrl" placeholder="http://172.17.11.2:7547" autocomplete="off">
+                                                <small class="form-text text-muted">Endpoint CWMP GenieACS (port 7547) yang dihubungi ONU.</small>
+                                            </div>
+                                            <div class="form-row">
+                                                <div class="form-group col-md-6">
+                                                    <label for="acsUser">Username ACS</label>
+                                                    <input type="text" class="form-control" id="acsUser" autocomplete="off">
+                                                </div>
+                                                <div class="form-group col-md-6">
+                                                    <label for="acsPass">Password ACS</label>
+                                                    <input type="text" class="form-control" id="acsPass" placeholder="(kosong = tak diubah)" autocomplete="off">
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="acsMgmtVlan">VLAN Manajemen ACS</label>
+                                                <input type="number" class="form-control" id="acsMgmtVlan" min="1" max="4094" placeholder="100">
+                                                <small class="form-text text-muted">VLAN khusus TR069 — wajib sudah dibuat di OLT &amp; di-trunk ke uplink.</small>
+                                            </div>
+                                            <button class="btn btn-primary btn-block" id="saveAcsBtn"><i class="fas fa-save"></i> Simpan Setting ACS</button>
+                                            <small class="d-block mt-2" id="acsSettingsInfo"></small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-7 mb-4">
+                                    <div class="card shadow h-100">
+                                        <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-info-circle"></i> Cara kerja &amp; ringkasan</h6></div>
+                                        <div class="card-body small">
+                                            <p class="mb-2"><b>Hanya ONU ZTE asli</b> (SN <code>ZTEG…</code>) yang bisa diaktifkan dari OLT (<code>tr069-mgmt</code>). ONU clone/OEM (RTEG/ZICG/ZXIC/CIOT) &amp; Huawei <b>harus diset TR069 di modemnya</b> (in-band) — di luar jangkauan OLT.</p>
+                                            <p class="mb-2">Status dibaca dari <b>GenieACS</b> (kebenaran final = inform): <span class="badge badge-success">hijau</span> sudah inform (apa pun vendornya), <span class="badge badge-info">biru</span> ZTE siap di-push, <span class="badge badge-secondary">abu</span> harus diurus di modem.</p>
+                                            <div class="row text-center mt-3">
+                                                <div class="col border-right"><div class="h4 mb-0" id="acsSumTotal">–</div><div class="text-muted">Total ONU</div></div>
+                                                <div class="col border-right"><div class="h4 mb-0 text-success" id="acsSumInformed">–</div><div class="text-muted">ACS aktif</div></div>
+                                                <div class="col border-right"><div class="h4 mb-0 text-info" id="acsSumPush">–</div><div class="text-muted">Siap OLT-push</div></div>
+                                                <div class="col"><div class="h4 mb-0 text-secondary" id="acsSumModem">–</div><div class="text-muted">Harus modem</div></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card shadow mb-4">
+                                <div class="card-header py-3 d-flex justify-content-between align-items-center flex-wrap">
+                                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-globe"></i> Status ACS per ONU</h6>
+                                    <div class="form-inline" style="gap:.4rem">
+                                        <select id="acsFilter" class="form-control form-control-sm">
+                                            <option value="olt-push">Perlu OLT-push (ZTE belum inform)</option>
+                                            <option value="ok">Sudah ACS aktif</option>
+                                            <option value="modem">Harus di modem</option>
+                                            <option value="all">Semua</option>
+                                        </select>
+                                        <input type="text" id="acsSearch" class="form-control form-control-sm" placeholder="cari SN / port…">
+                                        <button class="btn btn-success btn-sm" id="acsBulkBtn" title="Aktifkan ACS untuk semua ONU ZTE yang belum inform (1 sesi SSH)"><i class="fas fa-bolt"></i> Aktifkan Semua ZTE</button>
+                                        <button class="btn btn-outline-secondary btn-sm" id="acsLoadBtn"><i class="fas fa-sync-alt"></i> Muat Status</button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered" id="acsTable">
+                                            <thead class="thead-light"><tr><th>ONU</th><th>SN</th><th>Vendor</th><th>Status ACS</th><th style="width:160px">Aksi</th></tr></thead>
+                                            <tbody><tr><td colspan="5" class="text-center text-muted">Pilih OLT lalu klik "Muat Status" untuk membaca inventaris OLT &amp; status GenieACS.</td></tr></tbody>
+                                        </table>
+                                    </div>
+                                    <small class="text-muted" id="acsTableNote"></small>
                                 </div>
                             </div>
                         </div>

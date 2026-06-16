@@ -81,6 +81,17 @@ $(document).ready(function () {
     $('#saveBackupCfgBtn').on('click', saveBackupCfg);
     $('#backupAllBtn').on('click', runBackupAll);
     $('#refreshBackupsBtn').on('click', loadBackups);
+
+    // ── Tab 4: ACS / TR069 ──────────────────────────────────────────────
+    $('a[href="#tab-acs"]').on('shown.bs.tab', function () { loadAcsSettings(); });
+    $('#provOltSelect').on('change', function () { if ($('#tab-acs').hasClass('active')) loadAcsSettings(); });
+    $('#saveAcsBtn').on('click', saveAcsSettings);
+    $('#acsLoadBtn').on('click', function () { loadTr069Status(true); });
+    $('#acsBulkBtn').on('click', bulkApplyTr069);
+    $('#acsFilter').on('change', renderAcsTable);
+    $('#acsSearch').on('input', renderAcsTable);
+    $('#acsTable').on('click', '.btn-acs-apply', function () { applyTr069($(this).data('pon'), $(this).data('onu'), $(this).data('sn')); });
+    $('#acsTable').on('click', '.btn-acs-remove', function () { removeTr069($(this).data('pon'), $(this).data('onu')); });
 });
 
 // ════════ Util ════════
@@ -878,5 +889,164 @@ async function loadBackups() {
             </tr>`).join(''));
     } catch (e) {
         $tb.html(`<tr><td colspan="5" class="text-center text-danger">${escapeHtml(e.message)}</td></tr>`);
+    }
+}
+
+// ════════ Tab 4: ACS / TR069 ════════
+
+let acsRows = [];
+
+async function loadAcsSettings() {
+    const dev = currentDevice();
+    $('#acsSettingsInfo').empty();
+    if (!dev) { ['#acsUrl', '#acsUser', '#acsPass', '#acsMgmtVlan'].forEach((s) => $(s).val('')); return; }
+    try {
+        const json = await api('GET', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/acs-settings`);
+        if (json.status === 403) {
+            $('#acsSettingsInfo').html('<span class="text-muted"><i class="fas fa-lock"></i> Hanya admin yang bisa mengubah setting ACS.</span>');
+            $('#saveAcsBtn').prop('disabled', true);
+            return;
+        }
+        if (json.status !== 200) { $('#acsSettingsInfo').html('<span class="text-danger">' + escapeHtml(json.message || 'Gagal memuat setting') + '</span>'); return; }
+        const d = json.data || {};
+        $('#acsUrl').val(d.url || '');
+        $('#acsUser').val(d.user || '');
+        $('#acsPass').val('');
+        $('#acsMgmtVlan').val(d.mgmtVlan || 100);
+        $('#saveAcsBtn').prop('disabled', false);
+        $('#acsSettingsInfo').html(d.passwordSet
+            ? '<span class="text-success"><i class="fas fa-check"></i> Password ACS tersimpan (kosongkan untuk pertahankan).</span>'
+            : '<span class="text-warning"><i class="fas fa-exclamation-triangle"></i> Password ACS belum diisi.</span>');
+    } catch (e) {
+        $('#acsSettingsInfo').html('<span class="text-danger">Gagal: ' + escapeHtml(e.message) + '</span>');
+    }
+}
+
+async function saveAcsSettings() {
+    const dev = currentDevice();
+    if (!dev) { showAlert('warning', 'Pilih OLT dulu.'); return; }
+    const body = {
+        url: $('#acsUrl').val().trim(),
+        user: $('#acsUser').val().trim(),
+        pass: $('#acsPass').val(),
+        mgmtVlan: parseInt($('#acsMgmtVlan').val(), 10) || 100,
+    };
+    if (!body.url || !body.user) { showAlert('warning', 'URL dan username ACS wajib diisi.'); return; }
+    setBusy('#saveAcsBtn', true, 'Menyimpan…');
+    try {
+        const json = await api('POST', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/acs-settings`, body);
+        if (json.status === 200) { showAlert('success', 'Setting ACS tersimpan.'); loadAcsSettings(); }
+        else showAlert('danger', escapeHtml(json.message || 'Gagal menyimpan') + (json.errors ? '<br>• ' + json.errors.map(escapeHtml).join('<br>• ') : ''), true);
+    } finally {
+        setBusy('#saveAcsBtn', false);
+    }
+}
+
+async function loadTr069Status(force) {
+    const dev = requireDevice();
+    if (!dev) return;
+    setBusy('#acsLoadBtn', true, 'Membaca…');
+    $('#acsTable tbody').html('<tr><td colspan="5" class="text-center text-muted"><i class="fas fa-spinner fa-spin"></i> Membaca inventaris OLT (belasan detik) &amp; status GenieACS…</td></tr>');
+    try {
+        const json = await api('GET', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/tr069/status${force ? '?force=true' : ''}`);
+        if (json.status !== 200) {
+            $('#acsTable tbody').html('<tr><td colspan="5" class="text-center text-danger">' + escapeHtml(json.message || 'Gagal') + '</td></tr>');
+            return;
+        }
+        const d = json.data || {};
+        acsRows = d.onus || [];
+        const s = d.summary || {};
+        $('#acsSumTotal').text(s.total != null ? s.total : '–');
+        $('#acsSumInformed').text(s.informed != null ? s.informed : '–');
+        $('#acsSumPush').text(s.oltPush != null ? s.oltPush : '–');
+        $('#acsSumModem').text(s.modem != null ? s.modem : '–');
+        if (!s.acsConfigured) showAlert('warning', 'Setting ACS OLT ini belum diisi — tombol "Aktifkan" akan ditolak sampai URL ACS diisi.', true);
+        renderAcsTable();
+    } catch (e) {
+        $('#acsTable tbody').html('<tr><td colspan="5" class="text-center text-danger">' + escapeHtml(e.message) + '</td></tr>');
+    } finally {
+        setBusy('#acsLoadBtn', false);
+    }
+}
+
+function acsStatusBadge(row) {
+    if (row.informed) return '<span class="badge badge-success">ACS aktif</span>';
+    if (row.action === 'olt-push') return '<span class="badge badge-info">siap OLT-push</span>';
+    return '<span class="badge badge-secondary">set di modem</span>';
+}
+
+function renderAcsTable() {
+    const filter = $('#acsFilter').val();
+    const q = $('#acsSearch').val().trim().toUpperCase();
+    const $tb = $('#acsTable tbody');
+    if (!acsRows.length) { $tb.html('<tr><td colspan="5" class="text-center text-muted">Belum dimuat.</td></tr>'); $('#acsTableNote').text(''); return; }
+    let rows = acsRows;
+    if (filter !== 'all') rows = rows.filter((r) => r.action === filter);
+    if (q) rows = rows.filter((r) => (r.sn || '').toUpperCase().includes(q) || (r.id || '').includes(q));
+    if (!rows.length) { $tb.html('<tr><td colspan="5" class="text-center text-muted">Tidak ada ONU pada filter ini.</td></tr>'); $('#acsTableNote').text(''); return; }
+    const CAP = 400;
+    const shown = rows.slice(0, CAP);
+    $tb.html(shown.map((r) => {
+        let aksi;
+        if (r.informed) {
+            aksi = `<button class="btn btn-outline-danger btn-sm btn-acs-remove" data-pon="${escapeHtml(r.ponPort)}" data-onu="${escapeHtml(r.onuId)}" title="Lepas TR069"><i class="fas fa-unlink"></i></button>`;
+        } else if (r.oltPushable) {
+            aksi = `<button class="btn btn-success btn-sm btn-acs-apply" data-pon="${escapeHtml(r.ponPort)}" data-onu="${escapeHtml(r.onuId)}" data-sn="${escapeHtml(r.sn)}"><i class="fas fa-bolt"></i> Aktifkan</button>`;
+        } else {
+            aksi = '<span class="small text-muted">set di modem</span>';
+        }
+        return `<tr>
+            <td class="mono">${escapeHtml(r.id)}</td>
+            <td class="mono">${escapeHtml(r.sn)}</td>
+            <td class="small">${escapeHtml(r.vendor)}</td>
+            <td>${acsStatusBadge(r)}${r.lastInform ? '<br><small class="text-muted">' + escapeHtml(new Date(r.lastInform).toLocaleString('id-ID')) + '</small>' : ''}</td>
+            <td>${aksi}</td>
+        </tr>`;
+    }).join(''));
+    $('#acsTableNote').text(rows.length > CAP
+        ? `Menampilkan ${CAP} dari ${rows.length} — perketat filter/pencarian untuk melihat sisanya.`
+        : `${rows.length} ONU.`);
+}
+
+async function applyTr069(ponPort, onuId, sn) {
+    const dev = requireDevice();
+    if (!dev) return;
+    const json = await api('POST', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/tr069/apply`,
+        { ponPort, onuId, sn, saveConfig: true });
+    if (json.status === 200) {
+        showAlert('success', `ACS diaktifkan ke gpon-onu_${escapeHtml(String(ponPort))}:${escapeHtml(String(onuId))}. Tunggu 1-5 menit, lalu Muat Status.`);
+    } else {
+        showAlert(json.status === 409 ? 'warning' : 'danger', escapeHtml(json.message || 'Gagal'), true);
+    }
+}
+
+async function removeTr069(ponPort, onuId) {
+    const dev = requireDevice();
+    if (!dev) return;
+    if (!confirm(`Lepas TR069 dari gpon-onu_${ponPort}:${onuId}? (ACS berhenti mengelola ONU ini)`)) return;
+    const json = await api('POST', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/tr069/remove`,
+        { ponPort, onuId, saveConfig: true });
+    showAlert(json.status === 200 ? 'success' : 'danger', escapeHtml(json.message || ''), json.status !== 200);
+}
+
+async function bulkApplyTr069() {
+    const dev = requireDevice();
+    if (!dev) return;
+    const pending = acsRows.filter((r) => r.action === 'olt-push').length;
+    if (!pending) { showAlert('info', 'Muat status dulu, atau tidak ada ONU ZTE yang perlu di-push.'); return; }
+    if (!confirm(`Aktifkan ACS untuk ${pending} ONU ZTE yang belum inform?\n\nDikerjakan dalam 1 sesi SSH (aman dari spam koneksi), bisa makan beberapa menit. Lanjutkan?`)) return;
+    setBusy('#acsBulkBtn', true, 'Push massal…');
+    try {
+        const json = await api('POST', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/tr069/apply-bulk`, { saveConfig: true });
+        if (json.status === 200) {
+            const d = json.data || {};
+            showAlert(d.failCount > 0 ? 'warning' : 'success', escapeHtml(json.message), true);
+        } else {
+            showAlert('danger', escapeHtml(json.message || 'Gagal'), true);
+        }
+    } catch (e) {
+        showAlert('danger', 'Gagal: ' + escapeHtml(e.message), true);
+    } finally {
+        setBusy('#acsBulkBtn', false);
     }
 }

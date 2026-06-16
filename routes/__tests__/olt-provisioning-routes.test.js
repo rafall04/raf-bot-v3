@@ -74,6 +74,16 @@ function buildApp(overrides = {}) {
             // Fakta mock berisi port & tipe ONU yang dipakai test (1/3/16, ALL) agar guard lolos.
             getOltFacts: jest.fn().mockResolvedValue({ cards: [], ponPorts: ['1/2/1', '1/3/16'], onuTypes: [{ name: 'ALL', description: '' }], tcontProfiles: ['1G', 'UP1G'], trafficProfiles: ['1G', 'DOWN1G'], vlans: ['300', '3010'] }),
             getOnuFullConfig: jest.fn().mockResolvedValue({ interfaceConfig: 'interface gpon-onu_1/2/1:1', onuMngConfig: 'pon-onu-mng gpon-onu_1/2/1:1' }),
+            // ACS/TR069 — classifyVendorTier asli (uji guard & aksi adaptif = perilaku produksi).
+            classifyVendorTier: realProvision.classifyVendorTier,
+            applyTr069Addon: jest.fn().mockResolvedValue({ ok: true, script: 's', commands: ['c'], results: [{ command: 'c', ok: true }], failedIndex: null, persist: null }),
+            applyTr069AddonBulk: jest.fn().mockResolvedValue({ results: [{ id: '1/2/1:2', ok: true }], okCount: 1, failCount: 0, persist: null }),
+            removeTr069Addon: jest.fn().mockResolvedValue({ ok: true, results: [], persist: null }),
+            listAllOnus: jest.fn().mockResolvedValue([
+                { id: '1/2/1:1', ponPort: '1/2/1', onuId: 1, type: 'F609', sn: 'ZTEGAAA00001' },
+                { id: '1/2/1:2', ponPort: '1/2/1', onuId: 2, type: 'F609', sn: 'ZTEGAAA00002' },
+                { id: '1/2/1:3', ponPort: '1/2/1', onuId: 3, type: 'ALL', sn: 'RTEGBBB00003' },
+            ]),
             ...(overrides.provision || {}),
         },
         store: {
@@ -96,6 +106,13 @@ function buildApp(overrides = {}) {
         },
         restartOltBackupTask: overrides.restartOltBackupTask || jest.fn(),
         logActivity: overrides.logActivity || jest.fn().mockResolvedValue(undefined),
+        genieacs: overrides.genieacs || {
+            queryDevices: jest.fn().mockResolvedValue({
+                ok: true,
+                data: [{ _deviceId: { _SerialNumber: 'ZTEGAAA00001' }, _lastInform: '2026-06-16T07:00:00.000Z' }],
+            }),
+        },
+        saveDeviceAcs: overrides.saveDeviceAcs || jest.fn((id, acs) => acs),
     };
 
     const router = express.Router();
@@ -368,5 +385,81 @@ describe('olt-provisioning routes — tipe modem & backup', () => {
         const { app } = buildApp();
         const res = await request(app, 'GET', '/api/olt/provision/backups/download?deviceId=olt1&file=..%2F..%2Fconfig.json');
         expect(res.status).toBe(400);
+    });
+});
+
+describe('olt-provisioning routes — ACS / TR069', () => {
+    // Device dengan setting ACS terisi (dibutuhkan endpoint apply/bulk).
+    const withAcs = (over = {}) => buildApp({
+        getOltDevice: () => ({ ...DEVICE, acs: { url: 'http://172.17.11.2:7547', user: 'acs', pass: 'acs123', mgmtVlan: 100 } }),
+        ...over,
+    });
+
+    test('POST acs-settings menyimpan (admin) & tidak membocorkan password', async () => {
+        const { app, deps } = buildApp();
+        const res = await request(app, 'POST', '/api/olt/provision/devices/olt1/acs-settings',
+            { url: 'http://172.17.11.2:7547', user: 'acs', pass: 'acs123', mgmtVlan: 100 });
+        expect(res.status).toBe(200);
+        expect(deps.saveDeviceAcs).toHaveBeenCalled();
+        expect(res.body.data.passwordSet).toBe(true);
+        expect(res.body.data.pass).toBeUndefined();
+    });
+
+    test('POST acs-settings ditolak untuk teknisi (khusus admin)', async () => {
+        const { app } = buildApp({ user: { id: 2, username: 'tek', role: 'teknisi' } });
+        const res = await request(app, 'POST', '/api/olt/provision/devices/olt1/acs-settings', { url: 'http://x:7547', user: 'a' });
+        expect(res.status).toBe(403);
+    });
+
+    test('POST acs-settings menolak URL tidak valid → 400', async () => {
+        const { app } = buildApp();
+        const res = await request(app, 'POST', '/api/olt/provision/devices/olt1/acs-settings', { url: 'bukan url', user: 'acs', pass: 'p' });
+        expect(res.status).toBe(400);
+    });
+
+    test('tr069/apply ke ONU ZTE asli → applyTr069Addon dipanggil', async () => {
+        const { app, deps } = withAcs();
+        const res = await request(app, 'POST', '/api/olt/provision/devices/olt1/tr069/apply',
+            { ponPort: '1/2/1', onuId: 1, sn: 'ZTEGAAA00001' });
+        expect(res.status).toBe(200);
+        expect(deps.provision.applyTr069Addon).toHaveBeenCalled();
+    });
+
+    test('tr069/apply ke ONU clone (RTEG) → 409 & TIDAK menyentuh OLT', async () => {
+        const { app, deps } = withAcs();
+        const res = await request(app, 'POST', '/api/olt/provision/devices/olt1/tr069/apply',
+            { ponPort: '1/2/1', onuId: 3, sn: 'RTEGBBB00003' });
+        expect(res.status).toBe(409);
+        expect(deps.provision.applyTr069Addon).not.toHaveBeenCalled();
+    });
+
+    test('tr069/apply tanpa setting ACS OLT → 400', async () => {
+        const { app } = buildApp(); // DEVICE default tanpa .acs
+        const res = await request(app, 'POST', '/api/olt/provision/devices/olt1/tr069/apply',
+            { ponPort: '1/2/1', onuId: 1, sn: 'ZTEGAAA00001' });
+        expect(res.status).toBe(400);
+        expect(res.body.message).toMatch(/ACS/);
+    });
+
+    test('tr069/status merakit aksi adaptif (informed→ok, ZTE→olt-push, clone→modem)', async () => {
+        const { app } = withAcs();
+        const res = await request(app, 'GET', '/api/olt/provision/devices/olt1/tr069/status');
+        expect(res.status).toBe(200);
+        const { summary, onus } = res.body.data;
+        expect(summary).toMatchObject({ total: 3, informed: 1, oltPush: 1, modem: 1, acsConfigured: true });
+        const byId = Object.fromEntries(onus.map((o) => [o.id, o]));
+        expect(byId['1/2/1:1'].action).toBe('ok');        // ZTEG sudah inform
+        expect(byId['1/2/1:2'].action).toBe('olt-push');  // ZTEG belum inform
+        expect(byId['1/2/1:3'].action).toBe('modem');     // RTEG clone
+    });
+
+    test('tr069/apply-bulk otomatis pilih ZTEG belum inform & saring clone', async () => {
+        const { app, deps } = withAcs();
+        const res = await request(app, 'POST', '/api/olt/provision/devices/olt1/tr069/apply-bulk', { saveConfig: false });
+        expect(res.status).toBe(200);
+        expect(deps.provision.applyTr069AddonBulk).toHaveBeenCalled();
+        const targets = deps.provision.applyTr069AddonBulk.mock.calls[0][1];
+        expect(targets).toHaveLength(1);            // hanya 1/2/1:2 (ZTEG belum inform)
+        expect(targets[0].sn).toBe('ZTEGAAA00002');
     });
 });
