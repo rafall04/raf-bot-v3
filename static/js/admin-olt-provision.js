@@ -1029,23 +1029,40 @@ async function removeTr069(ponPort, onuId) {
     showAlert(json.status === 200 ? 'success' : 'danger', escapeHtml(json.message || ''), json.status !== 200);
 }
 
+// Rollout massal di-PECAH per batch ~50 ONU (verif live: ~2,9 dtk/ONU → 476 ≈ 23 mnt
+// dalam 1 sesi = terlalu lama/berisiko). Tiap batch = 1 request/sesi SSH + write tersendiri
+// (persist inkremental; bila putus di tengah, batch yang sudah jadi tetap aman). Sisa yang
+// tak inform setelah rollout = kemungkinan ONU ex-ISP/terkunci → tangani di modem.
+const ACS_BULK_BATCH = 50;
+
 async function bulkApplyTr069() {
     const dev = requireDevice();
     if (!dev) return;
-    const pending = acsRows.filter((r) => r.action === 'olt-push').length;
-    if (!pending) { showAlert('info', 'Muat status dulu, atau tidak ada ONU ZTE yang perlu di-push.'); return; }
-    if (!confirm(`Aktifkan ACS untuk ${pending} ONU ZTE yang belum inform?\n\nDikerjakan dalam 1 sesi SSH (aman dari spam koneksi), bisa makan beberapa menit. Lanjutkan?`)) return;
-    setBusy('#acsBulkBtn', true, 'Push massal…');
+    const pending = acsRows.filter((r) => r.action === 'olt-push')
+        .map((r) => ({ ponPort: r.ponPort, onuId: r.onuId, sn: r.sn }));
+    if (!pending.length) { showAlert('info', 'Muat status dulu, atau tidak ada ONU ZTE yang perlu di-push.'); return; }
+    const batches = Math.ceil(pending.length / ACS_BULK_BATCH);
+    if (!confirm(`Aktifkan ACS untuk ${pending.length} ONU ZTE belum-inform?\n\nDikerjakan ${batches} batch × ≤${ACS_BULK_BATCH} ONU (tiap batch 1 sesi SSH + write). Bisa belasan menit — JANGAN tutup halaman. Lanjutkan?`)) return;
+    setBusy('#acsBulkBtn', true, 'Batch…');
+    let ok = 0, fail = 0;
     try {
-        const json = await api('POST', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/tr069/apply-bulk`, { saveConfig: true });
-        if (json.status === 200) {
-            const d = json.data || {};
-            showAlert(d.failCount > 0 ? 'warning' : 'success', escapeHtml(json.message), true);
-        } else {
-            showAlert('danger', escapeHtml(json.message || 'Gagal'), true);
+        for (let i = 0; i < pending.length; i += ACS_BULK_BATCH) {
+            const chunk = pending.slice(i, i + ACS_BULK_BATCH);
+            const n = Math.floor(i / ACS_BULK_BATCH) + 1;
+            $('#acsBulkBtn').html(`<i class="fas fa-spinner fa-spin"></i> Batch ${n}/${batches}…`);
+            showAlert('info', `Batch ${n}/${batches}: push ${chunk.length} ONU via SSH… (sejauh ini ok ${ok} / gagal ${fail})`, true);
+            try {
+                const json = await api('POST', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/tr069/apply-bulk`,
+                    { targets: chunk, saveConfig: true });
+                if (json.status === 200 && json.data) { ok += json.data.okCount || 0; fail += json.data.failCount || 0; }
+                else { fail += chunk.length; showAlert('danger', `Batch ${n} gagal: ${escapeHtml(json.message || '')}`, true); }
+            } catch (e) {
+                fail += chunk.length;
+                showAlert('danger', `Batch ${n} error: ${escapeHtml(e.message)} — lanjut batch berikutnya.`, true);
+            }
         }
-    } catch (e) {
-        showAlert('danger', 'Gagal: ' + escapeHtml(e.message), true);
+        showAlert(fail > 0 ? 'warning' : 'success',
+            `Rollout selesai: ${ok} OK, ${fail} gagal dari ${pending.length} ONU. Tunggu 2-5 menit lalu klik "Muat Status" — yang masih "belum inform" padahal ZTE = kemungkinan ex-ISP/terkunci, tangani di modem.`, true);
     } finally {
         setBusy('#acsBulkBtn', false);
     }
