@@ -176,6 +176,10 @@
                     <input type="number" min="1" max="1440" class="form-control form-control-sm" id="set_window" style="width:140px;">
                   </div>
                   <div class="col-auto mb-2">
+                    <label class="small mb-0 d-block">Gabung notif (detik)</label>
+                    <input type="number" min="0" max="600" class="form-control form-control-sm" id="set_aggregate_sec" style="width:140px;" title="Gabung beberapa CCTV ke nomor sama jadi 1 pesan. 0 = kirim segera.">
+                  </div>
+                  <div class="col-auto mb-2">
                     <div class="custom-control custom-switch">
                       <input type="checkbox" class="custom-control-input" id="set_notify_recovery">
                       <label class="custom-control-label" for="set_notify_recovery">Notifikasi pulih</label>
@@ -214,6 +218,11 @@
                 <div class="form-group">
                   <label class="font-weight-bold">Pesan saat CCTV <span class="text-success">PULIH</span> (UP)</label>
                   <textarea class="form-control cctv-tpl" id="set_msg_up" rows="4"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="font-weight-bold">Pesan saat <span class="text-danger">BANYAK CCTV</span> mati (gabungan ke 1 nomor)</label>
+                  <textarea class="form-control cctv-tpl" id="set_msg_down_multi" rows="5"></textarea>
+                  <small class="form-text text-muted">Variabel khusus gabungan: <code>{customer_name}</code> <code>{count}</code> <code>{list}</code> (daftar CCTV).</small>
                 </div>
                 <small class="text-muted">
                   Variabel:
@@ -500,6 +509,8 @@
         $('#set_quiet_end').val(r.data.quietEnd || '06:00');
         $('#set_msg_down').val(r.data.messageDown || '');
         $('#set_msg_up').val(r.data.messageUp || '');
+        $('#set_msg_down_multi').val(r.data.messageDownMulti || '');
+        $('#set_aggregate_sec').val(Math.round((r.data.aggregateWindowMs != null ? r.data.aggregateWindowMs : 90000) / 1000));
         const nw = r.data.netwatch || {};
         $('#nw_bot').val(nw.botToken || ''); $('#nw_chat').val(nw.chatId || '');
         $('#nw_interval').val(nw.interval || '5s'); $('#nw_timeout').val(nw.timeout || '1s');
@@ -521,6 +532,8 @@
       quietEnd: $('#set_quiet_end').val(),
       messageDown: $('#set_msg_down').val(),
       messageUp: $('#set_msg_up').val(),
+      messageDownMulti: $('#set_msg_down_multi').val(),
+      aggregateWindowMs: (parseInt($('#set_aggregate_sec').val(), 10) || 0) * 1000,
       netwatch: {
         botToken: $('#nw_bot').val(), chatId: $('#nw_chat').val(),
         interval: $('#nw_interval').val(), timeout: $('#nw_timeout').val(),
