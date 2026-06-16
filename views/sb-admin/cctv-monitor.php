@@ -250,6 +250,11 @@
                   <textarea class="form-control cctv-tpl" id="set_msg_down_multi" rows="5"></textarea>
                   <small class="form-text text-muted">Variabel khusus gabungan: <code>{customer_name}</code> <code>{count}</code> <code>{list}</code> (daftar CCTV).</small>
                 </div>
+                <div class="form-group">
+                  <label class="font-weight-bold">Pesan ke <span class="text-info">KOORDINATOR</span> area (saat CCTV di areanya mati)</label>
+                  <textarea class="form-control cctv-tpl" id="set_msg_coord" rows="5"></textarea>
+                  <small class="form-text text-muted">Variabel: <code>{coordinator_name}</code> <code>{area}</code> <code>{count}</code> <code>{list}</code>.</small>
+                </div>
                 <small class="text-muted">
                   Variabel:
                   <code>{customer_name}</code> <code>{cctv_name}</code> <code>{cctv_host}</code>
@@ -588,6 +593,7 @@
         $('#set_msg_down').val(r.data.messageDown || '');
         $('#set_msg_up').val(r.data.messageUp || '');
         $('#set_msg_down_multi').val(r.data.messageDownMulti || '');
+        $('#set_msg_coord').val(r.data.messageCoordDown || '');
         $('#set_aggregate_sec').val(Math.round((r.data.aggregateWindowMs != null ? r.data.aggregateWindowMs : 90000) / 1000));
         const nw = r.data.netwatch || {};
         $('#nw_bot').val(nw.botToken || ''); $('#nw_chat').val(nw.chatId || '');
@@ -611,6 +617,7 @@
       messageDown: $('#set_msg_down').val(),
       messageUp: $('#set_msg_up').val(),
       messageDownMulti: $('#set_msg_down_multi').val(),
+      messageCoordDown: $('#set_msg_coord').val(),
       aggregateWindowMs: (parseInt($('#set_aggregate_sec').val(), 10) || 0) * 1000,
       netwatch: {
         botToken: $('#nw_bot').val(), chatId: $('#nw_chat').val(),
@@ -894,8 +901,12 @@
       enabled: $('#cctv_enabled').is(':checked'),
       notifyCustomer: $('#cctv_notify_customer').is(':checked'),
     };
-    if (!payload.name || !payload.host || !payload.phone) {
-      Swal.fire('Lengkapi', 'Nama, IP, dan Nomor WA wajib diisi.', 'warning'); return;
+    if (!payload.name || !payload.host) {
+      Swal.fire('Lengkapi', 'Nama & IP wajib diisi.', 'warning'); return;
+    }
+    if (!payload.phone) {
+      const hasCoord = areasCache.some(a => a.enabled !== false && a.coordinatorPhone && (a.name || '').toLowerCase() === (payload.area || '').toLowerCase());
+      if (!hasCoord) { Swal.fire('Lengkapi', 'Nomor WA wajib diisi, atau tetapkan koordinator untuk areanya (tab Koordinator).', 'warning'); return; }
     }
     const id = $('#cctv_id').val();
     const url = id ? `/api/cctv/devices/${id}` : '/api/cctv/devices';

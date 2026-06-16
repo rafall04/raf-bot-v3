@@ -32,6 +32,14 @@ function ensureAdmin(req, res) {
     return true;
 }
 
+// CCTV butuh minimal 1 penerima: nomor WA pelanggan, ATAU koordinator aktif utk areanya.
+function requireRecipient(body) {
+    if (String((body || {}).phone || '').trim()) return;
+    const coord = areaRegistry.getByName((body || {}).area);
+    if (coord && coord.enabled !== false && String(coord.coordinatorPhone || '').trim()) return;
+    throw new Error('Nomor WA pelanggan wajib diisi (atau tetapkan koordinator aktif untuk areanya).');
+}
+
 router.get('/devices', (req, res) => {
     if (!ensureAdmin(req, res)) return;
     res.json({ status: 200, data: registry.list() });
@@ -40,6 +48,7 @@ router.get('/devices', (req, res) => {
 router.post('/devices', (req, res) => {
     if (!ensureAdmin(req, res)) return;
     try {
+        requireRecipient(req.body || {});
         const saved = registry.upsert(req.body || {});
         // Tak perlu restart monitor: poll membaca daftar device fresh tiap siklus
         // (devByHost→getDevices) → device baru otomatis terpantau ≤1 poll. Restart
@@ -56,6 +65,7 @@ router.put('/devices/:id', (req, res) => {
     const existing = registry.get(req.params.id);
     if (!existing) return res.status(404).json({ status: 404, message: 'CCTV tidak ditemukan' });
     try {
+        requireRecipient({ ...existing, ...req.body });
         const saved = registry.upsert({ ...existing, ...req.body, id: req.params.id });
         // Tak perlu restart: poll hot-read device tiap siklus (lihat catatan di POST).
         res.json({ status: 200, message: 'OK', data: saved });
