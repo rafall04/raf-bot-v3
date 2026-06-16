@@ -152,9 +152,9 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                     <div class="card shadow">
                                         <div class="card-header py-3 d-flex justify-content-between align-items-center flex-wrap">
                                             <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-tools"></i> ONU Terdaftar per Port — cek / konfig / hapus</h6>
-                                            <div class="form-inline" style="gap:.5rem">
+                                            <div class="d-flex flex-wrap align-items-center olt-header-controls">
                                                 <input type="text" class="form-control form-control-sm" id="browsePort" list="ponPortList" placeholder="Port PON (mis. 1/2/1)" autocomplete="off">
-                                                <div class="custom-control custom-checkbox mr-2">
+                                                <div class="custom-control custom-checkbox">
                                                     <input type="checkbox" class="custom-control-input" id="browseNames" checked>
                                                     <label class="custom-control-label small" for="browseNames">baca Nama/PPPoE</label>
                                                 </div>
@@ -321,10 +321,10 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                             <p class="mb-2"><b>Hanya ONU ZTE asli</b> (SN <code>ZTEG…</code>) yang bisa diaktifkan dari OLT (<code>tr069-mgmt</code>). ONU clone/OEM (RTEG/ZICG/ZXIC/CIOT) &amp; Huawei <b>harus diset TR069 di modemnya</b> (in-band) — di luar jangkauan OLT.</p>
                                             <p class="mb-2">Status dibaca dari <b>GenieACS</b> (kebenaran final = inform): <span class="badge badge-success">hijau</span> sudah inform (apa pun vendornya), <span class="badge badge-info">biru</span> ZTE siap di-push, <span class="badge badge-secondary">abu</span> harus diurus di modem.</p>
                                             <div class="row text-center mt-3">
-                                                <div class="col border-right"><div class="h4 mb-0" id="acsSumTotal">–</div><div class="text-muted">Total ONU</div></div>
-                                                <div class="col border-right"><div class="h4 mb-0 text-success" id="acsSumInformed">–</div><div class="text-muted">ACS aktif</div></div>
-                                                <div class="col border-right"><div class="h4 mb-0 text-info" id="acsSumPush">–</div><div class="text-muted">Siap OLT-push</div></div>
-                                                <div class="col"><div class="h4 mb-0 text-secondary" id="acsSumModem">–</div><div class="text-muted">Harus modem</div></div>
+                                                <div class="col-6 col-sm-3 mb-2 mb-sm-0"><div class="h4 mb-0" id="acsSumTotal">–</div><div class="text-muted small">Total ONU</div></div>
+                                                <div class="col-6 col-sm-3 mb-2 mb-sm-0"><div class="h4 mb-0 text-success" id="acsSumInformed">–</div><div class="text-muted small">ACS aktif</div></div>
+                                                <div class="col-6 col-sm-3"><div class="h4 mb-0 text-info" id="acsSumPush">–</div><div class="text-muted small">Siap OLT-push</div></div>
+                                                <div class="col-6 col-sm-3"><div class="h4 mb-0 text-secondary" id="acsSumModem">–</div><div class="text-muted small">Harus modem</div></div>
                                             </div>
                                         </div>
                                     </div>
@@ -334,7 +334,7 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                             <div class="card shadow mb-4">
                                 <div class="card-header py-3 d-flex justify-content-between align-items-center flex-wrap">
                                     <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-globe"></i> Status ACS per ONU</h6>
-                                    <div class="form-inline" style="gap:.4rem">
+                                    <div class="d-flex flex-wrap align-items-center olt-header-controls">
                                         <select id="acsFilter" class="form-control form-control-sm">
                                             <option value="olt-push">Perlu OLT-push (ZTE belum inform)</option>
                                             <option value="ok">Sudah ACS aktif</option>

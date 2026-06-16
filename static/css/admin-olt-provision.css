@@ -90,8 +90,15 @@
 #advancedVarsBody label { font-weight: 600; opacity: 0.85; }
 .adv-var { font-size: 0.85rem; }
 
-/* Baris tool "ONU terdaftar — cek/konfig/hapus": tombol ikon mengisi rata, tak crowding. */
-#toolStatusBtn, #toolConfigBtn, #toolDeleteBtn { flex: 1 1 0; }
+/* Kontrol di header kartu (browser ONU per port & status ACS): inline rapi di >=sm
+   (lebar auto seperti form-inline), tumpuk full-width di HP (<576px) supaya tak mampat. */
+.olt-header-controls { gap: 0.5rem; }
+.olt-header-controls .form-control { width: auto; }
+@media (max-width: 575.98px) {
+    .olt-header-controls { width: 100%; margin-top: 0.5rem; }
+    .olt-header-controls > * { flex: 1 1 100%; }
+    .olt-header-controls .form-control { width: 100%; }
+}
 
 /* Semua tabel dalam kartu: scroll horizontal mulus bila sempit, tak meluber keluar kartu. */
 .card .table-responsive { margin-bottom: 0; }
