@@ -183,6 +183,24 @@
                   </div>
                 </div>
                 <small class="text-muted">Saat dimatikan, broadcast WA berhenti; saat dinyalakan langsung jalan tanpa perlu restart aplikasi. Window berlaku sebagai default global (bisa di-override per-CCTV).</small>
+                <hr class="my-2">
+                <div class="form-row align-items-end">
+                  <div class="col-auto mb-2">
+                    <div class="custom-control custom-switch">
+                      <input type="checkbox" class="custom-control-input" id="set_quiet_enabled">
+                      <label class="custom-control-label" for="set_quiet_enabled">Jam tenang (tunda WA pelanggan)</label>
+                    </div>
+                  </div>
+                  <div class="col-auto mb-2">
+                    <label class="small mb-0 d-block">Mulai</label>
+                    <input type="time" class="form-control form-control-sm" id="set_quiet_start" style="width:130px;">
+                  </div>
+                  <div class="col-auto mb-2">
+                    <label class="small mb-0 d-block">Selesai</label>
+                    <input type="time" class="form-control form-control-sm" id="set_quiet_end" style="width:130px;">
+                  </div>
+                </div>
+                <small class="text-muted">Di jam tenang, WA ke pelanggan <strong>ditahan</strong>; bila masih mati saat jam tenang berakhir, baru dikirim. Notifikasi Telegram teknisi tetap instan.</small>
               </div>
             </div>
 
@@ -477,6 +495,9 @@
         $('#set_enabled').prop('checked', r.data.enabled === true);
         $('#set_window').val(r.data.confirmationMinutes);
         $('#set_notify_recovery').prop('checked', r.data.notifyRecovery !== false);
+        $('#set_quiet_enabled').prop('checked', r.data.quietHoursEnabled === true);
+        $('#set_quiet_start').val(r.data.quietStart || '22:00');
+        $('#set_quiet_end').val(r.data.quietEnd || '06:00');
         $('#set_msg_down').val(r.data.messageDown || '');
         $('#set_msg_up').val(r.data.messageUp || '');
         const nw = r.data.netwatch || {};
@@ -495,6 +516,9 @@
       enabled: $('#set_enabled').is(':checked'),
       confirmationMinutes: $('#set_window').val(),
       notifyRecovery: $('#set_notify_recovery').is(':checked'),
+      quietHoursEnabled: $('#set_quiet_enabled').is(':checked'),
+      quietStart: $('#set_quiet_start').val(),
+      quietEnd: $('#set_quiet_end').val(),
       messageDown: $('#set_msg_down').val(),
       messageUp: $('#set_msg_up').val(),
       netwatch: {
