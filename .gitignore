@@ -86,6 +86,11 @@ database/failed_critical_deliveries.json
 database/voucher_orphans.json
 database/los-incidents.json
 
+# Monitor CCTV — data runtime (registry berisi nomor WA pelanggan/koordinator + log insiden)
+database/cctv-devices.json
+database/cctv-areas.json
+database/cctv-incidents.json
+
 # Announcements & news (user-generated)
 database/announcements.json
 database/news.json
