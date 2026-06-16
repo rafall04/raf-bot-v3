@@ -255,6 +255,11 @@
                   <textarea class="form-control cctv-tpl" id="set_msg_coord" rows="5"></textarea>
                   <small class="form-text text-muted">Variabel: <code>{coordinator_name}</code> <code>{area}</code> <code>{count}</code> <code>{list}</code>.</small>
                 </div>
+                <div class="form-group">
+                  <label class="font-weight-bold">Pesan ke <span class="text-info">GRUP WA RT</span> (saat CCTV di areanya mati)</label>
+                  <textarea class="form-control cctv-tpl" id="set_msg_group" rows="5"></textarea>
+                  <small class="form-text text-muted">Variabel: <code>{area}</code> <code>{count}</code> <code>{list}</code> (menyapa warga, tanpa nama koordinator).</small>
+                </div>
                 <small class="text-muted">
                   Variabel:
                   <code>{customer_name}</code> <code>{cctv_name}</code> <code>{cctv_host}</code>
@@ -464,6 +469,10 @@
             <input type="hidden" id="area_group_name">
             <small class="form-text text-muted" id="area_group_hint">Klik <strong>Muat</strong> untuk ambil daftar grup yang bot ikuti — bot harus jadi anggota grup RT lebih dulu. Pesan "CCTV mati" akan dikirim ke grup ini (koordinasi RT + warga).</small>
           </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="area_customers_in_group">
+            <label class="form-check-label" for="area_customers_in_group">Warga area ini sudah tergabung di grup — cukup kirim ke grup (jangan japri pelanggan). <span class="text-muted">Centang hanya bila yakin semua warga ada di grup.</span></label>
+          </div>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" id="area_enabled" checked>
             <label class="form-check-label" for="area_enabled">Aktif (kirim notifikasi koordinator)</label>
@@ -615,6 +624,7 @@
         $('#set_msg_up').val(r.data.messageUp || '');
         $('#set_msg_down_multi').val(r.data.messageDownMulti || '');
         $('#set_msg_coord').val(r.data.messageCoordDown || '');
+        $('#set_msg_group').val(r.data.messageGroupDown || '');
         $('#set_aggregate_sec').val(Math.round((r.data.aggregateWindowMs != null ? r.data.aggregateWindowMs : 90000) / 1000));
         const nw = r.data.netwatch || {};
         $('#nw_bot').val(nw.botToken || ''); $('#nw_chat').val(nw.chatId || '');
@@ -639,6 +649,7 @@
       messageUp: $('#set_msg_up').val(),
       messageDownMulti: $('#set_msg_down_multi').val(),
       messageCoordDown: $('#set_msg_coord').val(),
+      messageGroupDown: $('#set_msg_group').val(),
       aggregateWindowMs: (parseInt($('#set_aggregate_sec').val(), 10) || 0) * 1000,
       netwatch: {
         botToken: $('#nw_bot').val(), chatId: $('#nw_chat').val(),
@@ -1069,7 +1080,7 @@
         <td>${escapeHtml(a.coordinatorName || '—')}</td>
         <td>
           ${a.coordinatorPhone ? '<div><span class="cctv-host">' + escapeHtml(a.coordinatorPhone) + '</span></div>' : ''}
-          ${a.coordinatorGroupId ? '<div><span class="badge badge-info"><i class="fas fa-users"></i> Grup: ' + escapeHtml(a.coordinatorGroupName || a.coordinatorGroupId) + '</span></div>' : ''}
+          ${a.coordinatorGroupId ? '<div><span class="badge badge-info"><i class="fas fa-users"></i> Grup: ' + escapeHtml(a.coordinatorGroupName || a.coordinatorGroupId) + '</span>' + (a.customersInGroup ? ' <span class="badge badge-light" title="Pelanggan tak dijapri, cukup lewat grup">warga di grup</span>' : '') + '</div>' : ''}
           ${(!a.coordinatorPhone && !a.coordinatorGroupId) ? '<span class="text-muted">—</span>' : ''}
         </td>
         <td>
@@ -1082,7 +1093,7 @@
   function openAddArea() {
     $('#areaModalTitle').text('Tambah Area'); $('#areaForm')[0].reset();
     $('#area_id').val(''); $('#area_enabled').prop('checked', true);
-    $('#area_group').val(''); $('#area_group_name').val(''); resetGroupHint();
+    $('#area_group').val(''); $('#area_group_name').val(''); $('#area_customers_in_group').prop('checked', false); resetGroupHint();
     $('#areaModal').modal('show');
   }
   function openEditArea(id) {
@@ -1091,6 +1102,7 @@
     $('#area_id').val(a.id); $('#area_name').val(a.name);
     $('#area_coord_name').val(a.coordinatorName || ''); $('#area_coord_phone').val(a.coordinatorPhone || '');
     setAreaGroupValue(a.coordinatorGroupId || '', a.coordinatorGroupName || ''); resetGroupHint();
+    $('#area_customers_in_group').prop('checked', a.customersInGroup === true);
     $('#area_enabled').prop('checked', a.enabled !== false);
     $('#areaModal').modal('show');
   }
@@ -1101,6 +1113,7 @@
       coordinatorPhone: $('#area_coord_phone').val().trim(),
       coordinatorGroupId: $('#area_group').val().trim(),
       coordinatorGroupName: $('#area_group_name').val().trim(),
+      customersInGroup: $('#area_customers_in_group').is(':checked'),
       enabled: $('#area_enabled').is(':checked'),
     };
     if (!payload.name) { Swal.fire('Lengkapi', 'Nama area wajib diisi.', 'warning'); return; }
