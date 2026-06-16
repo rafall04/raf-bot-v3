@@ -107,3 +107,20 @@
 /* Meta ringkas di modal konfirmasi push. */
 #previewMeta { margin-bottom: 0.5rem; }
 #previewMeta .mono { font-size: 0.85rem; }
+
+/* Tab provisioning di HP (<576px): dari wrap 2-baris → SATU baris yang bisa di-scroll
+   horizontal (label penuh tetap terbaca; tab berikutnya "mengintip" sebagai isyarat geser).
+   Hanya berlaku di layar kecil — desktop (>=576px) tak tersentuh. */
+@media (max-width: 575.98px) {
+    #provTabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch; /* inersia geser di iOS */
+        scrollbar-width: thin;             /* Firefox */
+    }
+    #provTabs .nav-item { flex: 0 0 auto; }
+    #provTabs .nav-link { white-space: nowrap; padding-left: 0.6rem; padding-right: 0.6rem; }
+    #provTabs::-webkit-scrollbar { height: 4px; }
+    #provTabs::-webkit-scrollbar-thumb { background: rgba(128, 128, 128, 0.4); border-radius: 4px; }
+}
