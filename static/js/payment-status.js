@@ -241,17 +241,15 @@ async function loadUsers() {
         
         if (data && data.status === 200 && data.data) {
             allUsers = data.data || [];
-            filteredUsers = [...allUsers];
-            
-            // Populate subscription filter
+
+            // Populate subscription filter (mempertahankan pilihan paket aktif)
             populateSubscriptionFilter();
-            
-            // Update statistics
-            updateStatistics();
-            
-            // Render table
-            renderTable();
-            
+
+            // Terapkan kembali filter aktif (status/paket/cari) agar tabel tetap konsisten
+            // dengan kontrol filter di UI — jangan reset ke semua pelanggan setelah reload.
+            // applyFilters() sudah memanggil updateStatistics() dan renderTable() di dalamnya.
+            applyFilters();
+
         } else {
             const errorMessage = data && data.message ? data.message : 'Format data tidak valid';
             console.error('Invalid data format:', data);
@@ -276,12 +274,19 @@ async function loadUsers() {
 function populateSubscriptionFilter() {
     const subscriptions = [...new Set(allUsers.map(u => u.subscription).filter(s => s))];
     const select = $('#subscriptionFilter');
-    
+    // Simpan pilihan paket aktif agar tidak hilang saat opsi dibangun ulang (mis. setelah loadUsers)
+    const previousValue = select.val();
+
     select.empty().append('<option value="">Semua Paket</option>');
     subscriptions.sort().forEach(sub => {
         select.append(`<option value="${sub}">${sub}</option>`);
     });
-    
+
+    // Pulihkan pilihan paket sebelumnya bila masih tersedia di data terbaru
+    if (previousValue && subscriptions.includes(previousValue)) {
+        select.val(previousValue);
+    }
+
     select.trigger('change.select2');
 }
 
