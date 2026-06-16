@@ -344,6 +344,11 @@
             <input class="form-check-input" type="checkbox" id="cctv_enabled" checked>
             <label class="form-check-label" for="cctv_enabled">Aktif (dipantau)</label>
           </div>
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" id="cctv_notify_customer" checked>
+            <label class="form-check-label" for="cctv_notify_customer">Kirim notifikasi WA ke pelanggan</label>
+            <small class="form-text text-muted">Matikan untuk <em>pantau saja</em> — admin/Telegram tetap dapat notif, pelanggan tidak.</small>
+          </div>
           <div class="form-check mt-2" id="provisionRow">
             <input class="form-check-input" type="checkbox" id="cctv_provision" checked>
             <label class="form-check-label" for="cctv_provision">Sekalian buat entri netwatch + notifikasi Telegram di MikroTik</label>
@@ -705,11 +710,12 @@
       const win = d.confirmationMinutes ? (d.confirmationMinutes + ' menit') : '<span class="text-muted">default</span>';
       const enabled = d.enabled !== false;
       const enabledBadge = enabled ? '' : ' <span class="badge badge-secondary">nonaktif</span>';
+      const optoutBadge = d.notifyCustomer === false ? ' <span class="badge badge-info" title="Pantau saja — pelanggan tidak di-WA">pantau saja</span>' : '';
       const sinceTxt = (s && s.since) ? ' <small class="text-muted">· ' + fmtSince(s.since) + '</small>' : '';
       const nwWarn = (statusCache && statusCache.running && s && s.inNetwatch === false)
         ? ' <span class="badge badge-warning" title="Host ini tidak ditemukan di netwatch MikroTik — monitor tak bisa memantau">⚠ tidak di netwatch</span>' : '';
       tb.append(`<tr>
-        <td><strong>${escapeHtml(d.name)}</strong>${enabledBadge}${d.area ? '<br><small class="text-muted">' + escapeHtml(d.area) + '</small>' : ''}</td>
+        <td><strong>${escapeHtml(d.name)}</strong>${enabledBadge}${optoutBadge}${d.area ? '<br><small class="text-muted">' + escapeHtml(d.area) + '</small>' : ''}</td>
         <td><span class="cctv-host">${escapeHtml(d.host)}</span></td>
         <td>${d.customerName ? escapeHtml(d.customerName) + '<br>' : ''}<small class="text-muted">${escapeHtml(d.phone || '')}</small></td>
         <td><span class="status-dot ${dot}"></span>${stLabel}${sinceTxt}${nwWarn}</td>
@@ -737,6 +743,7 @@
   function openAdd() {
     $('#cctvModalTitle').text('Tambah CCTV'); $('#cctvForm')[0].reset();
     $('#cctv_id').val(''); $('#cctv_enabled').prop('checked', true);
+    $('#cctv_notify_customer').prop('checked', true);
     $('#cctv_provision').prop('checked', true);
     $('#provisionRow').show();
     resetCustPicker();
@@ -750,6 +757,7 @@
     $('#cctv_area').val(d.area || '');
     $('#cctv_window').val(d.confirmationMinutes || ''); $('#cctv_message').val(d.customMessage || '');
     $('#cctv_enabled').prop('checked', d.enabled !== false);
+    $('#cctv_notify_customer').prop('checked', d.notifyCustomer !== false);
     $('#provisionRow').hide(); // provisioning hanya untuk CCTV baru
     resetCustPicker();
     $('#cctvModal').modal('show');
@@ -764,6 +772,7 @@
       confirmationMinutes: $('#cctv_window').val() ? Number($('#cctv_window').val()) : null,
       customMessage: $('#cctv_message').val().trim(),
       enabled: $('#cctv_enabled').is(':checked'),
+      notifyCustomer: $('#cctv_notify_customer').is(':checked'),
     };
     if (!payload.name || !payload.host || !payload.phone) {
       Swal.fire('Lengkapi', 'Nama, IP, dan Nomor WA wajib diisi.', 'warning'); return;
