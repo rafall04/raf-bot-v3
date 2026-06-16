@@ -276,7 +276,11 @@ async function checkOccupancy(silent) {
     if (!dev) return;
     const ponPort = $('#regPonPort').val().trim();
     if (!/^\d{1,2}\/\d{1,2}\/\d{1,2}$/.test(ponPort)) {
-        if (!silent) showAlert('warning', 'Isi Port PON dengan format slot/kartu/port, contoh 1/3/16.');
+        if (!silent) {
+            // Beri umpan balik DI TEMPAT (dekat tombol), bukan cuma alert di atas yang gampang terlewat.
+            $('#occupancyInfo').show().html('<span class="text-warning"><i class="fas fa-exclamation-triangle"></i> Isi <b>Port PON</b> dulu (mis. <code>1/2/1</code>). "cek slot" membaca ONU ID yang sudah terpakai di port itu lalu mengisi <b>ONU ID</b> kosong otomatis.</span>');
+            $('#regPonPort').focus();
+        }
         return;
     }
     $('#occupancyInfo').show().html('<i class="fas fa-spinner fa-spin"></i> Mengecek slot ONU terpakai…');
