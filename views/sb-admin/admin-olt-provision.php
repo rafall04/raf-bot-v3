@@ -78,19 +78,6 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                                     <tbody><tr><td colspan="4" class="text-center text-muted">Belum di-scan</td></tr></tbody>
                                                 </table>
                                             </div>
-
-                                            <hr>
-                                            <h6 class="font-weight-bold text-primary"><i class="fas fa-tools"></i> ONU Terdaftar — cek / konfig / hapus</h6>
-                                            <div class="form-row">
-                                                <div class="col-5"><input type="text" class="form-control form-control-sm" id="toolPonPort" list="ponPortList" placeholder="Port PON (1/2/1)"></div>
-                                                <div class="col-3"><input type="number" class="form-control form-control-sm" id="toolOnuId" min="1" max="128" placeholder="ONU ID"></div>
-                                                <div class="col-4 btn-group">
-                                                    <button class="btn btn-outline-primary btn-sm" id="toolStatusBtn" title="Cek status & redaman"><i class="fas fa-heartbeat"></i></button>
-                                                    <button class="btn btn-outline-secondary btn-sm" id="toolConfigBtn" title="Lihat konfigurasi ONU"><i class="fas fa-file-alt"></i></button>
-                                                    <button class="btn btn-outline-danger btn-sm" id="toolDeleteBtn" title="Hapus ONU dari OLT"><i class="fas fa-trash"></i></button>
-                                                </div>
-                                            </div>
-                                            <div class="small mt-2" id="toolsResult"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -154,6 +141,35 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                                 <button class="btn btn-success" id="previewBtn" type="button"><i class="fas fa-rocket"></i> Daftar &amp; Push ke OLT</button>
                                             </div>
                                             <small class="form-text text-muted text-right mt-1">Sistem memvalidasi ke OLT (port/profil/VLAN/slot) lalu push otomatis via SSH — ada satu konfirmasi sebelum eksekusi.</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Browser ONU terdaftar per port (full width) -->
+                            <div class="row">
+                                <div class="col-12 mb-4">
+                                    <div class="card shadow">
+                                        <div class="card-header py-3 d-flex justify-content-between align-items-center flex-wrap">
+                                            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-tools"></i> ONU Terdaftar per Port — cek / konfig / hapus</h6>
+                                            <div class="form-inline" style="gap:.5rem">
+                                                <input type="text" class="form-control form-control-sm" id="browsePort" list="ponPortList" placeholder="Port PON (mis. 1/2/1)" autocomplete="off">
+                                                <div class="custom-control custom-checkbox mr-2">
+                                                    <input type="checkbox" class="custom-control-input" id="browseNames" checked>
+                                                    <label class="custom-control-label small" for="browseNames">baca Nama/PPPoE</label>
+                                                </div>
+                                                <button class="btn btn-primary btn-sm" id="browseLoadBtn"><i class="fas fa-list-ul"></i> Muat ONU</button>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <input type="text" class="form-control form-control-sm mb-2" id="browseSearch" placeholder="cari SN / nama / pelanggan…" style="display:none;" autocomplete="off">
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-bordered table-hover" id="browseTable">
+                                                    <thead class="thead-light"><tr><th style="width:64px">ONU</th><th>Serial Number</th><th style="width:120px">Vendor</th><th>Nama / PPPoE</th><th>Pelanggan</th><th style="width:140px">Aksi</th></tr></thead>
+                                                    <tbody><tr><td colspan="6" class="text-center text-muted">Pilih Port PON lalu klik "Muat ONU" untuk melihat semua ONU terdaftar di port itu.</td></tr></tbody>
+                                                </table>
+                                            </div>
+                                            <small class="text-muted" id="browseNote"></small>
                                         </div>
                                     </div>
                                 </div>

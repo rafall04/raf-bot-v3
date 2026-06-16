@@ -85,6 +85,10 @@ function buildApp(overrides = {}) {
                 { id: '1/2/1:2', ponPort: '1/2/1', onuId: 2, type: 'F609', sn: 'ZTEGAAA00002' },
                 { id: '1/2/1:3', ponPort: '1/2/1', onuId: 3, type: 'ALL', sn: 'RTEGBBB00003' },
             ]),
+            listPortOnus: jest.fn().mockResolvedValue([
+                { onuId: 1, type: 'F609', sn: 'ZTEGAAA00001', name: 'home@vans' },
+                { onuId: 3, type: 'ALL', sn: 'RTEGBBB00003', name: 'budi@vans' },
+            ]),
             ...(overrides.provision || {}),
         },
         store: {
@@ -325,6 +329,17 @@ describe('olt-provisioning routes — preview & register', () => {
         const r3 = await request(app, 'GET', '/api/olt/provision/devices/olt1/facts?force=true');
         expect(r3.body.cached).toBe(false);
         expect(deps.provision.getOltFacts).toHaveBeenCalledTimes(2);
+    });
+
+    test('port-onus: daftar ONU per port + klasifikasi vendor per baris', async () => {
+        const { app, deps } = buildApp();
+        const res = await request(app, 'GET', '/api/olt/provision/devices/olt1/port-onus?ponPort=1/2/1&names=1');
+        expect(res.status).toBe(200);
+        expect(res.body.data.count).toBe(2);
+        expect(deps.provision.listPortOnus).toHaveBeenCalledWith(expect.objectContaining({ id: 'olt1' }), '1/2/1', { withNames: true });
+        const byId = Object.fromEntries(res.body.data.onus.map((o) => [o.onuId, o]));
+        expect(byId[1]).toMatchObject({ sn: 'ZTEGAAA00001', name: 'home@vans', tier: 'zte' });
+        expect(byId[3]).toMatchObject({ sn: 'RTEGBBB00003', tier: 'clone' });
     });
 
     test('onu-config mengembalikan interface + pon-onu-mng', async () => {

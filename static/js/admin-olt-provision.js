@@ -6,8 +6,9 @@
  *          konfigurasi/eksekusi backup OLT.
  * Caller: views/sb-admin/admin-olt-provision.php.
  * Deps: jQuery, Bootstrap 4 (modal/tab/collapse), API /api/olt/provision/*, /api/users.
- * MainFuncs: scanUncfg, checkOccupancy, buildAdvancedVars, doPreview, doExecute, verifyOnu,
- *            loadOnuTypes, saveType, loadBackupCfg, runBackupAll.
+ * MainFuncs: scanUncfg, checkOccupancy, classifySn/onSnInput (auto-pilih profil), buildAdvancedVars,
+ *            doPreview, doExecute, verifyOnu, loadPortOnus (browser ONU per port), loadOnuTypes,
+ *            saveType, loadBackupCfg, runBackupAll.
  * SideEffects: Memicu eksekusi konfigurasi OLT & penulisan backup via backend.
  */
 
@@ -37,9 +38,12 @@ $(document).ready(function () {
     $('#scanUncfgBtn').on('click', scanUncfg);
     $('#testSshBtn').on('click', testSsh);
     $('#provOltSelect').on('change', function () { loadOltFacts(false); });
-    $('#toolStatusBtn').on('click', toolCheckStatus);
-    $('#toolConfigBtn').on('click', toolShowConfig);
-    $('#toolDeleteBtn').on('click', toolDeleteOnu);
+    $('#browseLoadBtn').on('click', loadPortOnus);
+    $('#browsePort').on('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); loadPortOnus(); } });
+    $('#browseSearch').on('input', renderBrowseTable);
+    $('#browseTable').on('click', '.btn-row-status', function () { rowStatus($(this).data('pon'), $(this).data('onu')); });
+    $('#browseTable').on('click', '.btn-row-config', function () { rowConfig($(this).data('pon'), $(this).data('onu')); });
+    $('#browseTable').on('click', '.btn-row-delete', function () { rowDelete($(this).data('pon'), $(this).data('onu'), $(this).data('sn')); });
     $('#checkOccupancyBtn').on('click', function (e) { e.preventDefault(); checkOccupancy(); });
     $('#regPonPort').on('change', function () { if (this.value) checkOccupancy(true); });
     $('#regOnuType').on('change', onTypeChange);
@@ -657,88 +661,132 @@ async function doRollback() {
     }
 }
 
-// ── Tools: ONU terdaftar (cek status / lihat konfig / hapus) ─────────────
+// ── Browser ONU terdaftar per Port (cek status / lihat konfig / hapus) ────
 
-function toolTarget() {
-    const ponPort = $('#toolPonPort').val().trim();
-    const onuId = $('#toolOnuId').val().trim();
-    if (!/^\d{1,2}\/\d{1,2}\/\d{1,2}$/.test(ponPort) || !onuId) {
-        $('#toolsResult').html('<span class="text-warning">Isi Port PON (mis. 1/2/1) dan ONU ID dulu.</span>');
-        return null;
+let browseRows = [];     // baris ONU pada port terpilih
+let browsePortCur = '';  // port yang sedang ditampilkan
+
+async function loadPortOnus() {
+    const dev = requireDevice();
+    if (!dev) return;
+    const ponPort = $('#browsePort').val().trim();
+    if (!/^\d{1,2}\/\d{1,2}\/\d{1,2}$/.test(ponPort)) { showAlert('warning', 'Isi Port PON (mis. 1/2/1) untuk memuat ONU.'); return; }
+    const names = $('#browseNames').is(':checked');
+    setBusy('#browseLoadBtn', true, 'Memuat…');
+    $('#browseTable tbody').html(`<tr><td colspan="6" class="text-center text-muted"><i class="fas fa-spinner fa-spin"></i> Membaca ONU di port ${escapeHtml(ponPort)}${names ? ' + nama tiap ONU (bisa beberapa detik utk port padat)' : ''}…</td></tr>`);
+    $('#browseNote').text('');
+    try {
+        const json = await api('GET', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/port-onus?ponPort=${encodeURIComponent(ponPort)}${names ? '&names=1' : ''}`);
+        if (json.status !== 200) { $('#browseTable tbody').html(`<tr><td colspan="6" class="text-center text-danger">${escapeHtml(json.message || 'Gagal memuat')}</td></tr>`); return; }
+        browseRows = (json.data && json.data.onus) || [];
+        browsePortCur = ponPort;
+        $('#browseSearch').toggle(browseRows.length > 0).val('');
+        renderBrowseTable();
+    } catch (e) {
+        $('#browseTable tbody').html(`<tr><td colspan="6" class="text-center text-danger">${escapeHtml(e.message)}</td></tr>`);
+    } finally {
+        setBusy('#browseLoadBtn', false);
     }
-    return { ponPort, onuId };
 }
 
-async function toolCheckStatus() {
+/** Cari pelanggan dari nama ONU (= username PPPoE) di data /api/users. */
+function customerForName(name) {
+    if (!name) return null;
+    const lc = String(name).toLowerCase();
+    return usersData.find((u) => (u.pppoe_username || '').toLowerCase() === lc) || null;
+}
+
+function vendorBadgeSmall(tier) {
+    const m = { zte: ['success', 'ZTE'], clone: ['warning', 'Clone'], huawei: ['secondary', 'Huawei'], unknown: ['light', '?'] };
+    const v = m[tier] || m.unknown;
+    return `<span class="badge badge-${v[0]}">${v[1]}</span>`;
+}
+
+function renderBrowseTable() {
+    const q = $('#browseSearch').val().trim().toLowerCase();
+    const $tb = $('#browseTable tbody');
+    if (!browseRows.length) { $tb.html('<tr><td colspan="6" class="text-center text-muted">Tak ada ONU terdaftar di port ini.</td></tr>'); $('#browseNote').text(''); return; }
+    let rows = browseRows;
+    if (q) rows = rows.filter((r) => {
+        const cust = customerForName(r.name);
+        return (r.sn || '').toLowerCase().includes(q) || (r.name || '').toLowerCase().includes(q) || (cust && (cust.name || '').toLowerCase().includes(q));
+    });
+    if (!rows.length) { $tb.html('<tr><td colspan="6" class="text-center text-muted">Tak ada yang cocok dengan pencarian.</td></tr>'); $('#browseNote').text(''); return; }
+    $tb.html(rows.map((r) => {
+        const cust = customerForName(r.name);
+        const onu = String(r.onuId);
+        return `<tr>
+            <td class="mono">${escapeHtml(onu)}</td>
+            <td class="mono">${escapeHtml(r.sn)}</td>
+            <td>${vendorBadgeSmall(r.tier)} <small class="text-muted">${escapeHtml(r.type || '')}</small></td>
+            <td class="mono">${escapeHtml(r.name || '—')}</td>
+            <td>${cust ? escapeHtml(cust.name) : '<span class="text-muted">—</span>'}</td>
+            <td>
+                <button class="btn btn-outline-primary btn-sm btn-row-status" data-pon="${escapeHtml(browsePortCur)}" data-onu="${escapeHtml(onu)}" title="Status & redaman"><i class="fas fa-heartbeat"></i></button>
+                <button class="btn btn-outline-secondary btn-sm btn-row-config" data-pon="${escapeHtml(browsePortCur)}" data-onu="${escapeHtml(onu)}" title="Lihat konfigurasi"><i class="fas fa-file-alt"></i></button>
+                <button class="btn btn-outline-danger btn-sm btn-row-delete" data-pon="${escapeHtml(browsePortCur)}" data-onu="${escapeHtml(onu)}" data-sn="${escapeHtml(r.sn)}" title="Hapus ONU"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>`;
+    }).join(''));
+    $('#browseNote').text(`${rows.length}${q ? ' dari ' + browseRows.length : ''} ONU di port ${browsePortCur}.`);
+}
+
+async function rowStatus(ponPort, onuId) {
     const dev = requireDevice();
-    const t = dev && toolTarget();
-    if (!t) return;
-    setBusy('#toolStatusBtn', true, '');
-    $('#toolsResult').html('<i class="fas fa-spinner fa-spin"></i> Mengambil status…');
+    if (!dev) return;
+    $('#browseNote').html('<i class="fas fa-spinner fa-spin"></i> Mengambil status ONU…');
     try {
-        const q = `ponPort=${encodeURIComponent(t.ponPort)}&onuId=${encodeURIComponent(t.onuId)}`;
+        const q = `ponPort=${encodeURIComponent(ponPort)}&onuId=${encodeURIComponent(onuId)}`;
         const json = await api('GET', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/onu-status?${q}`);
-        if (json.status !== 200) { $('#toolsResult').html('<span class="text-danger">' + escapeHtml(json.message) + '</span>'); return; }
+        if (json.status !== 200) { $('#browseNote').html('<span class="text-danger">' + escapeHtml(json.message) + '</span>'); return; }
         const det = (json.data && json.data.detail) || {};
         const power = (json.data && json.data.power) || {};
         const onuRx = power.down && power.down.onuRx != null ? power.down.onuRx.toFixed(2) + ' dBm' : '-';
         const phase = (det.phaseState || '').toLowerCase() === 'working'
             ? '<span class="badge badge-success">working</span>'
             : `<span class="badge badge-warning">${escapeHtml(det.phaseState || 'tidak terdeteksi')}</span>`;
-        $('#toolsResult').html(
-            `<b>gpon-onu_${escapeHtml(t.ponPort)}:${escapeHtml(t.onuId)}</b> ${phase} ` +
-            `• ${escapeHtml(det.name || '-')} • ${escapeHtml(det.type || '-')} • SN ${escapeHtml(det.serial || '-')} ` +
+        $('#browseNote').html(
+            `<b>gpon-onu_${escapeHtml(ponPort)}:${escapeHtml(String(onuId))}</b> ${phase} ` +
+            `• ${escapeHtml(det.name || '-')} • SN ${escapeHtml(det.serial || '-')} ` +
             `• Rx <b>${escapeHtml(onuRx)}</b> • online ${escapeHtml(det.onlineDuration || '-')}`);
     } catch (e) {
-        $('#toolsResult').html('<span class="text-danger">Gagal: ' + escapeHtml(e.message) + '</span>');
-    } finally {
-        setBusy('#toolStatusBtn', false);
+        $('#browseNote').html('<span class="text-danger">Gagal: ' + escapeHtml(e.message) + '</span>');
     }
 }
 
-async function toolShowConfig() {
+async function rowConfig(ponPort, onuId) {
     const dev = requireDevice();
-    const t = dev && toolTarget();
-    if (!t) return;
-    setBusy('#toolConfigBtn', true, '');
+    if (!dev) return;
     try {
-        const q = `ponPort=${encodeURIComponent(t.ponPort)}&onuId=${encodeURIComponent(t.onuId)}`;
+        const q = `ponPort=${encodeURIComponent(ponPort)}&onuId=${encodeURIComponent(onuId)}`;
         const json = await api('GET', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/onu-config?${q}`);
-        if (json.status !== 200) { $('#toolsResult').html('<span class="text-danger">' + escapeHtml(json.message) + '</span>'); return; }
-        $('#onuConfigTarget').text(`gpon-onu_${t.ponPort}:${t.onuId} (${dev.name})`);
+        if (json.status !== 200) { showAlert('danger', escapeHtml(json.message), true); return; }
+        $('#onuConfigTarget').text(`gpon-onu_${ponPort}:${onuId} (${dev.name})`);
         $('#onuConfigInterface').text(json.data.interfaceConfig || '(kosong)');
         $('#onuConfigMng').text(json.data.onuMngConfig || '(kosong)');
         $('#onuConfigModal').modal('show');
     } catch (e) {
-        $('#toolsResult').html('<span class="text-danger">Gagal: ' + escapeHtml(e.message) + '</span>');
-    } finally {
-        setBusy('#toolConfigBtn', false);
+        showAlert('danger', escapeHtml(e.message), true);
     }
 }
 
-async function toolDeleteOnu() {
+async function rowDelete(ponPort, onuId, sn) {
     const dev = requireDevice();
-    const t = dev && toolTarget();
-    if (!t) return;
-    if (!confirm(`HAPUS ONU gpon-onu_${t.ponPort}:${t.onuId} dari ${dev.name}?\n\nKonfigurasi ONU tersebut dihapus permanen dari OLT (pelanggan putus). Lanjutkan?`)) return;
+    if (!dev) return;
+    if (!confirm(`HAPUS ONU gpon-onu_${ponPort}:${onuId} (SN ${sn}) dari ${dev.name}?\n\nKonfigurasi ONU dihapus permanen dari OLT (pelanggan putus). Lanjutkan?`)) return;
     let saveConfig = true;
     try { saveConfig = localStorage.getItem('oltProvSaveConfig') !== '0'; } catch (_e) { /* abaikan */ }
-    setBusy('#toolDeleteBtn', true, '');
-    $('#toolsResult').html('<i class="fas fa-spinner fa-spin"></i> Menghapus ONU…');
+    $('#browseNote').html('<i class="fas fa-spinner fa-spin"></i> Menghapus ONU…');
     try {
-        const json = await api('POST', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/delete-onu`,
-            { ponPort: t.ponPort, onuId: t.onuId, saveConfig });
+        const json = await api('POST', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/delete-onu`, { ponPort, onuId, saveConfig });
         if (json.status === 200) {
-            const persisted = json.data && json.data.persist && json.data.persist.saved;
-            $('#toolsResult').html('<span class="text-success"><i class="fas fa-check"></i> ONU dihapus.' +
-                (persisted ? ' Tersimpan permanen (write OK).' : ' <b>Belum write</b> — simpan permanen bila perlu.') + '</span>');
+            showAlert('success', `ONU gpon-onu_${ponPort}:${onuId} dihapus dari OLT.`);
+            loadPortOnus(); // muat ulang daftar port supaya baris hilang
         } else {
-            $('#toolsResult').html('<span class="text-danger">Gagal hapus: ' + escapeHtml(json.message) + '</span>');
+            $('#browseNote').html('<span class="text-danger">Gagal hapus: ' + escapeHtml(json.message) + '</span>');
         }
     } catch (e) {
-        $('#toolsResult').html('<span class="text-danger">Gagal: ' + escapeHtml(e.message) + '</span>');
-    } finally {
-        setBusy('#toolDeleteBtn', false);
+        $('#browseNote').html('<span class="text-danger">Gagal: ' + escapeHtml(e.message) + '</span>');
     }
 }
 

@@ -138,6 +138,21 @@ function registerOltProvisioningRoutes(router, deps) {
         });
     }));
 
+    // Browser "ONU terdaftar per slot": daftar semua ONU di satu port PON (1 sesi SSH).
+    // ?names=1 → perkaya nama ONU/PPPoE per unit (lebih lambat). Klasifikasi vendor per baris.
+    router.get('/provision/devices/:id/port-onus', requireStaff, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        const ponPort = String(req.query.ponPort || '');
+        const withNames = req.query.names === '1' || req.query.names === 'true';
+        const onus = await provision.listPortOnus(device, ponPort, { withNames });
+        const rows = onus.map((o) => {
+            const tier = provision.classifyVendorTier(o.sn);
+            return { onuId: o.onuId, type: o.type, sn: o.sn, name: o.name, vendor: tier.vendor, tier: tier.tier };
+        });
+        res.json({ status: 200, message: `${rows.length} ONU di port ${ponPort}`, data: { ponPort, count: rows.length, onus: rows } });
+    }));
+
     // Fakta OLT (port PON, tipe ONU, profil tcont/traffic, VLAN) untuk dropdown form
     // + validasi pra-eksekusi. Di-cache per device (TTL 10 menit); ?force=true refresh.
     const factsCache = new Map(); // deviceId → { data, ts }
