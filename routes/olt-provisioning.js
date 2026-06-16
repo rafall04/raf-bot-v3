@@ -561,7 +561,12 @@ function registerOltProvisioningRoutes(router, deps) {
     // ── Profil tipe modem ────────────────────────────────────────────────────
 
     router.get('/provision/onu-types', requireStaff, asyncHandler(async (_req, res) => {
-        res.json({ status: 200, data: store.listOnuTypes(), placeholders: store.PLACEHOLDER_DOC });
+        res.json({
+            status: 200,
+            data: store.listOnuTypes(),
+            placeholders: store.PLACEHOLDER_DOC,
+            vendorTiers: provision.vendorTierTable(),
+        });
     }));
 
     router.post('/provision/onu-types', requireAdmin, asyncHandler(async (req, res) => {
@@ -573,6 +578,7 @@ function registerOltProvisioningRoutes(router, deps) {
             id: body.id,
             name: body.name,
             brand: body.brand,
+            vendorMatch: body.vendorMatch,
             notes: body.notes,
             vars: body.vars,
             scriptTemplate: body.scriptTemplate,

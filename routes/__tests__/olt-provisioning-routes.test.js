@@ -76,6 +76,7 @@ function buildApp(overrides = {}) {
             getOnuFullConfig: jest.fn().mockResolvedValue({ interfaceConfig: 'interface gpon-onu_1/2/1:1', onuMngConfig: 'pon-onu-mng gpon-onu_1/2/1:1' }),
             // ACS/TR069 — classifyVendorTier asli (uji guard & aksi adaptif = perilaku produksi).
             classifyVendorTier: realProvision.classifyVendorTier,
+            vendorTierTable: realProvision.vendorTierTable,
             applyTr069Addon: jest.fn().mockResolvedValue({ ok: true, script: 's', commands: ['c'], results: [{ command: 'c', ok: true }], failedIndex: null, persist: null }),
             applyTr069AddonBulk: jest.fn().mockResolvedValue({ results: [{ id: '1/2/1:2', ok: true }], okCount: 1, failCount: 0, persist: null }),
             removeTr069Addon: jest.fn().mockResolvedValue({ ok: true, results: [], persist: null }),
@@ -358,6 +359,26 @@ describe('olt-provisioning routes — tipe modem & backup', () => {
         // GET daftar tetap boleh (dipakai form registrasi teknisi).
         const list = await request(app, 'GET', '/api/olt/provision/onu-types');
         expect(list.status).toBe(200);
+    });
+
+    test('GET onu-types menyertakan vendorTiers (auto-pilih profil dari prefix SN)', async () => {
+        const { app } = buildApp();
+        const res = await request(app, 'GET', '/api/olt/provision/onu-types');
+        expect(res.status).toBe(200);
+        expect(Array.isArray(res.body.vendorTiers)).toBe(true);
+        const byPrefix = Object.fromEntries(res.body.vendorTiers.map((v) => [v.prefix, v]));
+        expect(byPrefix.ZTEG).toMatchObject({ tier: 'zte', oltPushable: true });
+        expect(byPrefix.RTEG).toMatchObject({ tier: 'clone', oltPushable: false });
+        expect(byPrefix.HWTC).toMatchObject({ tier: 'huawei', oltPushable: false });
+    });
+
+    test('POST onu-types meneruskan vendorMatch ke store', async () => {
+        const { app, deps } = buildApp();
+        const res = await request(app, 'POST', '/api/olt/provision/onu-types', {
+            name: 'Profil Vendor', scriptTemplate: 'conf t\nend', vendorMatch: ['zte'],
+        });
+        expect(res.status).toBe(200);
+        expect(deps.store.saveOnuType).toHaveBeenCalledWith(expect.objectContaining({ vendorMatch: ['zte'] }));
     });
 
     test('simpan setting backup → restart cron terpanggil', async () => {

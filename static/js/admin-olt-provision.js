@@ -19,6 +19,7 @@ const CORE_FIELDS = ['ponPort', 'onuId', 'sn', 'name', 'description', 'pppoeUser
 let provDevices = [];      // daftar OLT dari API
 let onuTypes = [];         // profil tipe modem
 let placeholderDocs = [];  // cheatsheet placeholder dari API
+let vendorTiers = [];      // tabel prefix SN → tier vendor (auto-pilih profil)
 let usersData = [];        // pelanggan untuk autofill
 let lastExec = null;       // { deviceId, ponPort, onuId } konteks hasil eksekusi terakhir
 let verifyTimer = null;
@@ -41,6 +42,8 @@ $(document).ready(function () {
     $('#checkOccupancyBtn').on('click', function (e) { e.preventDefault(); checkOccupancy(); });
     $('#regPonPort').on('change', function () { if (this.value) checkOccupancy(true); });
     $('#regOnuType').on('change', onTypeChange);
+    $('#regSn').on('input', function () { onSnInput(false); });
+    $('#regSn').on('change', function () { onSnInput(true); });
     $('#regCustomer').on('change input', onCustomerPicked);
     $('#copyNameToPppoeBtn').on('click', function () {
         $('#regPppoeUser').val($('#regName').val());
@@ -59,6 +62,7 @@ $(document).ready(function () {
         $('#regSn').val($(this).data('sn'));
         $('#regPonPort').val($(this).data('pon'));
         $('a[href="#tab-register"]').tab('show');
+        onSnInput(true); // auto-pilih profil sesuai vendor SN
         checkOccupancy(true);
         $('#regName').focus();
     });
@@ -315,6 +319,7 @@ async function loadOnuTypes() {
         if (json.status !== 200) return;
         onuTypes = json.data || [];
         placeholderDocs = json.placeholders || [];
+        vendorTiers = json.vendorTiers || [];
         const opts = onuTypes.map((t) => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`);
         $('#regOnuType').html(opts.join(''));
         onTypeChange();
@@ -333,6 +338,47 @@ function onTypeChange() {
     const t = selectedType();
     $('#regOnuTypeNotes').text(t ? (t.notes || '') : '');
     buildAdvancedVars(t);
+}
+
+// ════════ Klasifikasi SN → auto-pilih profil (anti salah-klik teknisi) ════════
+
+/** Klasifikasi vendor dari prefix SN memakai tabel dari server (sumber kebenaran tunggal). */
+function classifySn(sn) {
+    const prefix = String(sn || '').toUpperCase().slice(0, 4);
+    const hit = vendorTiers.find((v) => v.prefix === prefix);
+    return hit ? { ...hit, prefix } : { prefix, vendor: 'Tidak dikenal', tier: 'unknown', oltPushable: false };
+}
+
+/** Profil yang vendorMatch-nya memuat tier ini (profil rekomendasi). */
+function recommendedTypeFor(tier) {
+    return onuTypes.find((t) => Array.isArray(t.vendorMatch) && t.vendorMatch.includes(tier)) || null;
+}
+
+const VENDOR_BADGE = {
+    zte: { cls: 'success', note: 'ZTE asli — ACS via OLT otomatis (tr069-mgmt).' },
+    clone: { cls: 'warning', note: 'Clone/OEM — ACS harus diset DI MODEM (in-band).' },
+    huawei: { cls: 'secondary', note: 'Huawei — pakai mode Bridge, WAN diurus di modem.' },
+    unknown: { cls: 'light', note: 'Prefix SN tak dikenal — pilih tipe modem manual.' },
+};
+
+/**
+ * Klasifikasi SN saat ini → badge vendor + auto-pilih profil yang cocok.
+ * @param {boolean} autoSelect true: ganti dropdown tipe modem ke profil rekomendasi
+ */
+function onSnInput(autoSelect) {
+    const sn = $('#regSn').val().trim().toUpperCase();
+    const $info = $('#snVendorInfo');
+    if (sn.length < 4) { $info.empty(); return; }
+    const c = classifySn(sn);
+    const b = VENDOR_BADGE[c.tier] || VENDOR_BADGE.unknown;
+    const rec = recommendedTypeFor(c.tier);
+    let html = `<span class="badge badge-${b.cls}">${escapeHtml(c.vendor)}</span> <span class="text-muted">${escapeHtml(b.note)}</span>`;
+    if (rec) html += ` &rarr; profil: <b>${escapeHtml(rec.name)}</b>`;
+    $info.html(html);
+    if (autoSelect && rec && $('#regOnuType').val() !== rec.id) {
+        $('#regOnuType').val(rec.id);
+        onTypeChange();
+    }
 }
 
 /** Placeholder yang dipakai template (urutan kemunculan, tanpa duplikat). */
@@ -441,6 +487,15 @@ async function doPreview() {
     const vars = collectVars();
     const errs = validateFormQuick(vars, type);
     if (errs.length) { showAlert('warning', errs.join('<br>'), true); return; }
+
+    // Anti salah-klik: profil terpilih harus cocok dengan vendor SN (kalau profil ber-vendorMatch).
+    if (type && Array.isArray(type.vendorMatch) && type.vendorMatch.length) {
+        const c = classifySn(vars.sn);
+        if (!type.vendorMatch.includes(c.tier)) {
+            const ok = confirm(`Perhatian: SN ${vars.sn} terdeteksi "${c.vendor}" (${c.tier}), tapi profil "${type.name}" ditujukan untuk ${type.vendorMatch.join('/')}.\n\nLanjut tetap?`);
+            if (!ok) return;
+        }
+    }
 
     setBusy('#previewBtn', true, 'Merender…');
     try {

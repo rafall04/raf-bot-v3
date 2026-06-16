@@ -102,7 +102,8 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                             <div class="form-row">
                                                 <div class="form-group col-md-6">
                                                     <label for="regSn">Serial Number (SN)</label>
-                                                    <input type="text" class="form-control text-uppercase" id="regSn" placeholder="ZTEGCCA16805" autocomplete="off">
+                                                    <input type="text" class="form-control text-uppercase" id="regSn" placeholder="ZTEGD0337233" autocomplete="off">
+                                                    <div id="snVendorInfo" class="small mt-1"></div>
                                                 </div>
                                                 <div class="form-group col-md-3">
                                                     <label for="regPonPort">Port PON</label>
