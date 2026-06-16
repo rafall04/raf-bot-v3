@@ -390,6 +390,7 @@
             <input class="form-control" id="cctv_area" list="cctvAreaList" autocomplete="off" placeholder="mis. DANDER / TANJUNGHARJO">
             <datalist id="cctvAreaList"></datalist>
             <small class="form-text text-muted">Pilih area terkelola (agar koordinatornya ikut dinotif) atau ketik baru. Terisi otomatis saat adopsi.</small>
+            <div id="cctv_area_coord" class="small mt-1"></div>
           </div>
           <div class="form-group">
             <label>Window Konfirmasi (menit, opsional)</label>
@@ -478,6 +479,7 @@
     refreshTimer = setInterval(loadStatusOnly, 30000);
     $('#addCctvBtn').on('click', openAdd);
     $('#cctvSaveBtn').on('click', save);
+    $('#cctv_area').on('input', updateAreaCoordHint);
     $('#rescanBtn').on('click', loadDiscovery);
     $('#saveSettingsBtn').on('click', saveSettings);
     $('#cctv_cust_search').on('focus input', function () { renderCustList(this.value); });
@@ -573,7 +575,7 @@
     $('#cctvModalTitle').text('Adopsi CCTV dari Netwatch');
     $('#cctv_name').val(c.name);
     $('#cctv_host').val(c.host);
-    $('#cctv_area').val(c.area || '');
+    $('#cctv_area').val(c.area || ''); updateAreaCoordHint();
     // Adopsi = host sudah pasti ada di netwatch → provisioning tak relevan.
     $('#cctv_provision').prop('checked', false);
     $('#provisionRow').hide();
@@ -874,6 +876,7 @@
     $('#cctv_provision').prop('checked', true);
     $('#provisionRow').show();
     resetCustPicker();
+    updateAreaCoordHint();
     $('#cctvModal').modal('show');
   }
   function openEdit(id) {
@@ -881,7 +884,7 @@
     $('#cctvModalTitle').text('Edit CCTV');
     $('#cctv_id').val(d.id); $('#cctv_name').val(d.name); $('#cctv_host').val(d.host);
     $('#cctv_phone').val(d.phone); $('#cctv_customer').val(d.customerName || '');
-    $('#cctv_area').val(d.area || '');
+    $('#cctv_area').val(d.area || ''); updateAreaCoordHint();
     $('#cctv_window').val(d.confirmationMinutes || ''); $('#cctv_message').val(d.customMessage || '');
     $('#cctv_enabled').prop('checked', d.enabled !== false);
     $('#cctv_notify_customer').prop('checked', d.notifyCustomer !== false);
@@ -947,6 +950,20 @@
   function populateAreaDatalist() {
     const dl = $('#cctvAreaList').empty();
     areasCache.forEach(a => dl.append(`<option value="${escapeHtml(a.name)}">`));
+  }
+  // Tampilkan koordinator yang ter-link dgn area yang dipilih (koordinator dicocokkan via nama area).
+  function updateAreaCoordHint() {
+    const area = ($('#cctv_area').val() || '').trim().toLowerCase();
+    const box = $('#cctv_area_coord');
+    if (!area) { box.empty(); return; }
+    const a = areasCache.find(x => (x.name || '').toLowerCase() === area);
+    if (a && a.enabled !== false && a.coordinatorPhone) {
+      box.html('📣 <span class="text-success">Koordinator <strong>' + escapeHtml(a.coordinatorName || a.name) + '</strong> (' + escapeHtml(a.coordinatorPhone) + ') akan ikut dinotif untuk area ini.</span>');
+    } else if (a && a.enabled === false) {
+      box.html('<span class="text-muted">Koordinator area ini sedang nonaktif.</span>');
+    } else {
+      box.html('<span class="text-muted">Area ini belum punya koordinator — tambahkan di tab <em>Koordinator</em> bila perlu.</span>');
+    }
   }
   function renderAreas() {
     const tb = $('#areasTable tbody').empty();
