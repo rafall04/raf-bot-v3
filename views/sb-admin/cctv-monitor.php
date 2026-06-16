@@ -124,7 +124,7 @@
                 <div class="table-responsive">
                   <table class="table table-bordered table-hover" id="cctvTable" width="100%">
                     <thead class="thead-light">
-                      <tr><th>Nama</th><th>IP</th><th>Pelanggan</th><th>Status</th><th>Window</th><th>Aksi</th></tr>
+                      <tr><th>Nama</th><th>IP</th><th>Pelanggan</th><th>Status</th><th>Uptime 7h</th><th>Window</th><th>Aksi</th></tr>
                     </thead>
                     <tbody></tbody>
                   </table>
@@ -227,7 +227,8 @@
                 <small class="text-muted">
                   Variabel:
                   <code>{customer_name}</code> <code>{cctv_name}</code> <code>{cctv_host}</code>
-                  <code>{since_local}</code> <code>{up_local}</code> <code>{minutes_down}</code>.
+                  <code>{since_local}</code> <code>{up_local}</code> <code>{minutes_down}</code>
+                  <code>{uptime_24h}</code> <code>{uptime_7d}</code> <code>{uptime_30d}</code>.
                   Kosongkan untuk pakai template default bawaan. Pesan khusus per-CCTV tetap bisa diatur di form Tambah/Edit.
                 </small>
               </div>
@@ -397,7 +398,7 @@
 <script src="/js/sb-admin-2.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-  let devicesCache = []; let statusCache = null; let refreshTimer = null; let discoveryCache = [];
+  let devicesCache = []; let statusCache = null; let refreshTimer = null; let discoveryCache = []; let uptimeCache = {};
 
   $(document).ready(() => {
     loadAll();
@@ -427,6 +428,13 @@
   async function loadAll() {
     await Promise.all([loadDevices(), loadStatusOnly()]);
     render();
+    loadUptime();
+  }
+  async function loadUptime() {
+    try {
+      const r = await fetch('/api/cctv/uptime', { credentials: 'include' }).then(r => r.json());
+      if (r.status === 200) { uptimeCache = r.data || {}; render(); }
+    } catch (_) {}
   }
   async function loadStatusOnly() {
     try {
@@ -731,7 +739,7 @@
     const tb = $('#cctvTable tbody').empty();
     $('#tabCountList').text(devicesCache.length);
     if (devicesCache.length === 0) {
-      tb.append('<tr><td colspan="6" class="text-center text-muted">Belum ada CCTV terdaftar.</td></tr>');
+      tb.append('<tr><td colspan="7" class="text-center text-muted">Belum ada CCTV terdaftar.</td></tr>');
       $('#kpiTotal').text(0); $('#kpiUp').text(0); $('#kpiDown').text(0); $('#kpiPending').text(0);
       return;
     }
@@ -751,11 +759,16 @@
       const sinceTxt = (s && s.since) ? ' <small class="text-muted">· ' + fmtSince(s.since) + '</small>' : '';
       const nwWarn = (statusCache && statusCache.running && s && s.inNetwatch === false)
         ? ' <span class="badge badge-warning" title="Host ini tidak ditemukan di netwatch MikroTik — monitor tak bisa memantau">⚠ tidak di netwatch</span>' : '';
+      const u = uptimeCache[(d.host || '').toLowerCase()];
+      const up7 = u ? u.uptime7d : null;
+      const upCls = up7 == null ? 'text-muted' : up7 >= 99 ? 'text-success' : up7 >= 95 ? 'text-warning' : 'text-danger';
+      const upCell = u ? `<span class="${upCls}" title="24 jam: ${u.uptime24h}% · 30 hari: ${u.uptime30d}%">${up7}%</span>` : '<span class="text-muted">—</span>';
       tb.append(`<tr>
         <td><strong>${escapeHtml(d.name)}</strong>${enabledBadge}${optoutBadge}${d.area ? '<br><small class="text-muted">' + escapeHtml(d.area) + '</small>' : ''}</td>
         <td><span class="cctv-host">${escapeHtml(d.host)}</span></td>
         <td>${d.customerName ? escapeHtml(d.customerName) + '<br>' : ''}<small class="text-muted">${escapeHtml(d.phone || '')}</small></td>
         <td><span class="status-dot ${dot}"></span>${stLabel}${sinceTxt}${nwWarn}</td>
+        <td>${upCell}</td>
         <td>${win}</td>
         <td class="text-nowrap">
           <button class="btn btn-sm btn-outline-success btn-test-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}" title="Kirim pesan tes ke nomor pelanggan"><i class="fas fa-paper-plane"></i></button>

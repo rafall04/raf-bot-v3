@@ -18,6 +18,7 @@ const cctvConfig = require('../lib/cctv-monitor-config');
 const mikrotik = require('../lib/mikrotik');
 const discovery = require('../lib/cctv-netwatch-discovery');
 const netscript = require('../lib/cctv-netwatch-script');
+const uptime = require('../lib/cctv-uptime');
 const { sendCritical } = require('../lib/whatsapp-critical-delivery');
 
 const MAIN_CONFIG_PATH = path.join(__dirname, '..', 'config.json');
@@ -161,6 +162,14 @@ router.get('/incidents', (req, res) => {
     if (!ensureAdmin(req, res)) return;
     const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
     res.json({ status: 200, data: monitor.getCctvIncidents(limit) });
+});
+
+// Uptime/SLA per-CCTV (24h/7d/30d) dari riwayat insiden.
+router.get('/uptime', (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    const incidents = monitor.getCctvIncidents(3000);
+    const hosts = registry.list().map((d) => d.host);
+    res.json({ status: 200, data: uptime.summarize(incidents, hosts, Date.now()) });
 });
 
 // Kirim pesan TES ke nomor pelanggan satu CCTV — verifikasi nomor/template/koneksi WA tanpa nunggu mati.
