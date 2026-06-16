@@ -89,6 +89,21 @@ router.get('/status', (req, res) => {
     res.json({ status: 200, data: monitor.getCctvMonitorStatus() });
 });
 
+// Snooze/maintenance: bisukan alert satu CCTV sementara (auto-aktif lagi saat kedaluwarsa).
+// minutes>0 → snooze sekian menit; minutes=0 → batalkan snooze. Tak perlu restart (poll baca device fresh).
+router.post('/devices/:id/snooze', (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    const d = registry.get(req.params.id);
+    if (!d) return res.status(404).json({ status: 404, message: 'CCTV tidak ditemukan.' });
+    const minutes = parseInt((req.body || {}).minutes, 10);
+    if (!Number.isFinite(minutes) || minutes < 0 || minutes > 7 * 24 * 60) {
+        return res.status(400).json({ status: 400, message: 'Durasi snooze harus 0–10080 menit (0 = batalkan).' });
+    }
+    const snoozeUntil = minutes > 0 ? Date.now() + minutes * 60000 : null;
+    const saved = registry.upsert({ ...d, snoozeUntil, id: d.id });
+    res.json({ status: 200, message: 'OK', data: { snoozeUntil: saved.snoozeUntil } });
+});
+
 // Discovery READ-ONLY: scan netwatch MikroTik, klasifikasi entri → kandidat CCTV,
 // cross-check registry agar yang sudah diadopsi tidak ditawarkan lagi. Tidak menulis
 // ke router. Hanya mengembalikan kandidat klass 'cctv' (infra & noise disaring).

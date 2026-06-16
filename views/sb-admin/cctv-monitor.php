@@ -523,6 +523,7 @@
     $(document).on('click', '.btn-del-cctv', function () { confirmDelete($(this).data('id'), $(this).data('name')); });
     $(document).on('click', '.btn-adopt-cctv', function () { adopt($(this).data('host')); });
     $(document).on('click', '.btn-test-cctv', function () { testBroadcast($(this).data('id'), $(this).data('name')); });
+    $(document).on('click', '.btn-snooze-cctv', function () { snoozeCctv($(this).data('id'), $(this).data('name')); });
     $('#reloadIncidentsBtn').on('click', loadIncidents);
     $('#tab-incidents-link').on('shown.bs.tab', loadIncidents);
     $(document).on('change', '#discCheckAll', function () { $('.disc-check').prop('checked', this.checked); updateBulkCount(); });
@@ -791,6 +792,24 @@
     const lines = (data.recipients || []).map(r => (r.delivered ? '✅' : '❌') + ' ' + roleLabel(r.role) + ' <span class="text-muted">(' + maskRecipient(r.phone) + ')</span>').join('<br>');
     return '<div class="text-left">Terkirim <strong>' + (data.delivered || 0) + '/' + (data.total || 0) + '</strong>:<br>' + (lines || '—') + '</div>';
   }
+  function snoozeCctv(id, name) {
+    Swal.fire({
+      title: 'Snooze / Maintenance',
+      html: 'Bisukan alert <strong>' + escapeHtml(name || '') + '</strong> sementara — otomatis aktif lagi saat kedaluwarsa.',
+      input: 'select',
+      inputOptions: { '60': '1 jam', '240': '4 jam', '1440': '1 hari', '4320': '3 hari', '0': 'Aktifkan lagi (batalkan snooze)' },
+      inputValue: '60',
+      showCancelButton: true, confirmButtonText: 'Terapkan', cancelButtonText: 'Batal',
+    }).then(async (r) => {
+      if (!r.isConfirmed) return;
+      const minutes = parseInt(r.value, 10) || 0;
+      try {
+        const res = await fetch('/api/cctv/devices/' + id + '/snooze', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ minutes }) }).then(x => x.json());
+        if (res.status === 200) { Swal.fire({ icon: 'success', title: minutes > 0 ? 'Di-snooze' : 'Snooze dibatalkan', timer: 1500, showConfirmButton: false }); loadAll(); }
+        else Swal.fire('Gagal', res.message || 'Error', 'error');
+      } catch (e) { Swal.fire('Gagal', e.message, 'error'); }
+    });
+  }
   function testBroadcast(id, name) {
     Swal.fire({
       icon: 'question', title: 'Kirim pesan tes?',
@@ -903,6 +922,8 @@
       const enabled = d.enabled !== false;
       const enabledBadge = enabled ? '' : ' <span class="badge badge-secondary">nonaktif</span>';
       const optoutBadge = d.notifyCustomer === false ? ' <span class="badge badge-info" title="Pantau saja — pelanggan tidak di-WA">pantau saja</span>' : '';
+      const snoozeActive = d.snoozeUntil && Date.now() < d.snoozeUntil;
+      const snoozeBadge = snoozeActive ? ' <span class="badge badge-dark" title="Alert dibisukan (maintenance) sampai ' + new Date(d.snoozeUntil).toLocaleString('id-ID') + '"><i class="fas fa-bell-slash"></i> snooze s/d ' + new Date(d.snoozeUntil).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + '</span>' : '';
       const sinceTxt = (s && s.since) ? ' <small class="text-muted">· ' + fmtSince(s.since) + '</small>' : '';
       const nwWarn = (statusCache && statusCache.running && s && s.inNetwatch === false)
         ? ' <span class="badge badge-warning" title="Host ini tidak ditemukan di netwatch MikroTik — monitor tak bisa memantau">⚠ tidak di netwatch</span>' : '';
@@ -911,7 +932,7 @@
       const upCls = up7 == null ? 'text-muted' : up7 >= 99 ? 'text-success' : up7 >= 95 ? 'text-warning' : 'text-danger';
       const upCell = u ? `<span class="${upCls}" title="24 jam: ${u.uptime24h}% · 30 hari: ${u.uptime30d}%">${up7}%</span>` : '<span class="text-muted">—</span>';
       tb.append(`<tr>
-        <td><strong>${escapeHtml(d.name)}</strong>${enabledBadge}${optoutBadge}${d.area ? '<br><small class="text-muted">' + escapeHtml(d.area) + '</small>' : ''}</td>
+        <td><strong>${escapeHtml(d.name)}</strong>${enabledBadge}${optoutBadge}${snoozeBadge}${d.area ? '<br><small class="text-muted">' + escapeHtml(d.area) + '</small>' : ''}</td>
         <td><span class="cctv-host">${escapeHtml(d.host)}</span></td>
         <td>${d.customerName ? escapeHtml(d.customerName) + '<br>' : ''}<small class="text-muted">${escapeHtml(d.phone || '')}</small></td>
         <td><span class="status-dot ${dot}"></span>${stLabel}${sinceTxt}${nwWarn}</td>
@@ -919,6 +940,7 @@
         <td>${win}</td>
         <td class="text-nowrap">
           <button class="btn btn-sm btn-outline-success btn-test-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}" title="Kirim pesan tes ke semua penerima (pelanggan/koordinator/grup)"><i class="fas fa-paper-plane"></i></button>
+          <button class="btn btn-sm ${snoozeActive ? 'btn-secondary' : 'btn-outline-secondary'} btn-snooze-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}" title="Snooze / mode maintenance — bisukan alert sementara"><i class="fas fa-bell-slash"></i></button>
           <button class="btn btn-sm btn-outline-primary btn-edit-cctv" data-id="${d.id}"><i class="fas fa-edit"></i></button>
           <button class="btn btn-sm btn-outline-danger btn-del-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}"><i class="fas fa-trash"></i></button>
         </td>
