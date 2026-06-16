@@ -387,9 +387,10 @@
           </div>
           <div class="form-group">
             <label>Area / Lokasi (opsional)</label>
-            <input class="form-control" id="cctv_area" list="cctvAreaList" autocomplete="off" placeholder="mis. DANDER / TANJUNGHARJO">
-            <datalist id="cctvAreaList"></datalist>
-            <small class="form-text text-muted">Pilih area terkelola (agar koordinatornya ikut dinotif) atau ketik baru. Terisi otomatis saat adopsi.</small>
+            <select class="form-control" id="cctv_area">
+              <option value="">— tanpa area —</option>
+            </select>
+            <small class="form-text text-muted">Pilih area terkelola (koordinatornya ikut dinotif). Daftar area dikelola di tab <em>Koordinator</em>.</small>
             <div id="cctv_area_coord" class="small mt-1"></div>
           </div>
           <div class="form-group">
@@ -469,7 +470,7 @@
 <script src="/js/sb-admin-2.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-  let devicesCache = []; let statusCache = null; let refreshTimer = null; let discoveryCache = []; let uptimeCache = {}; let areasCache = [];
+  let devicesCache = []; let statusCache = null; let refreshTimer = null; let discoveryCache = []; let uptimeCache = {}; let areasCache = []; let selectAreaAfterSave = false; let reopenCctvAfterArea = false;
 
   $(document).ready(() => {
     loadAll();
@@ -479,7 +480,7 @@
     refreshTimer = setInterval(loadStatusOnly, 30000);
     $('#addCctvBtn').on('click', openAdd);
     $('#cctvSaveBtn').on('click', save);
-    $('#cctv_area').on('input', updateAreaCoordHint);
+    $('#cctv_area').on('change', onAreaChange);
     $('#rescanBtn').on('click', loadDiscovery);
     $('#saveSettingsBtn').on('click', saveSettings);
     $('#cctv_cust_search').on('focus input', function () { renderCustList(this.value); });
@@ -498,6 +499,8 @@
     loadAreas();
     $('#addAreaBtn').on('click', openAddArea);
     $('#areaSaveBtn').on('click', saveArea);
+    // Modal area dibuka menggantikan modal CCTV (bukan ditumpuk); saat ditutup, kembalikan modal CCTV bila perlu.
+    $('#areaModal').on('hidden.bs.modal', function () { if (reopenCctvAfterArea) { reopenCctvAfterArea = false; $('#cctvModal').modal('show'); } });
     $(document).on('click', '.btn-edit-area', function () { openEditArea($(this).data('id')); });
     $(document).on('click', '.btn-del-area', function () { confirmDeleteArea($(this).data('id'), $(this).data('name')); });
   });
@@ -575,7 +578,7 @@
     $('#cctvModalTitle').text('Adopsi CCTV dari Netwatch');
     $('#cctv_name').val(c.name);
     $('#cctv_host').val(c.host);
-    $('#cctv_area').val(c.area || ''); updateAreaCoordHint();
+    setAreaValue(c.area);
     // Adopsi = host sudah pasti ada di netwatch → provisioning tak relevan.
     $('#cctv_provision').prop('checked', false);
     $('#provisionRow').hide();
@@ -876,7 +879,8 @@
     $('#cctv_provision').prop('checked', true);
     $('#provisionRow').show();
     resetCustPicker();
-    updateAreaCoordHint();
+    selectAreaAfterSave = false;
+    setAreaValue('');
     $('#cctvModal').modal('show');
   }
   function openEdit(id) {
@@ -884,7 +888,7 @@
     $('#cctvModalTitle').text('Edit CCTV');
     $('#cctv_id').val(d.id); $('#cctv_name').val(d.name); $('#cctv_host').val(d.host);
     $('#cctv_phone').val(d.phone); $('#cctv_customer').val(d.customerName || '');
-    $('#cctv_area').val(d.area || ''); updateAreaCoordHint();
+    setAreaValue(d.area);
     $('#cctv_window').val(d.confirmationMinutes || ''); $('#cctv_message').val(d.customMessage || '');
     $('#cctv_enabled').prop('checked', d.enabled !== false);
     $('#cctv_notify_customer').prop('checked', d.notifyCustomer !== false);
@@ -944,12 +948,48 @@
   async function loadAreas() {
     try {
       const r = await fetch('/api/cctv/areas', { credentials: 'include' }).then(r => r.json());
-      if (r.status === 200) { areasCache = r.data || []; renderAreas(); populateAreaDatalist(); }
+      if (r.status === 200) { areasCache = r.data || []; renderAreas(); populateAreaSelect(); }
     } catch (_) {}
   }
-  function populateAreaDatalist() {
-    const dl = $('#cctvAreaList').empty();
-    areasCache.forEach(a => dl.append(`<option value="${escapeHtml(a.name)}">`));
+  function populateAreaSelect() {
+    const cur = $('#cctv_area').val();
+    const sel = $('#cctv_area').empty();
+    sel.append('<option value="">— tanpa area —</option>');
+    areasCache.forEach(a => {
+      const off = a.enabled === false ? ' (nonaktif)' : '';
+      sel.append(`<option value="${escapeHtml(a.name)}">${escapeHtml(a.name)}${off}</option>`);
+    });
+    sel.append('<option value="__new__">➕ Tambah area baru…</option>');
+    if (cur && cur !== '__new__') setAreaValue(cur);
+  }
+  // Pilih area di dropdown; bila area belum terkelola (mis. hasil adopsi), suntik opsi sementara agar nilainya tetap tersimpan saat Simpan.
+  function setAreaValue(area) {
+    const sel = $('#cctv_area');
+    sel.find('option.cctv-area-temp').remove();
+    area = (area || '').trim();
+    if (!area) { sel.val(''); updateAreaCoordHint(); return; }
+    const match = areasCache.find(a => (a.name || '').toLowerCase() === area.toLowerCase());
+    if (match) {
+      sel.val(match.name);
+    } else {
+      $('<option class="cctv-area-temp"></option>').val(area).text(area + ' (belum terkelola)')
+        .insertBefore(sel.find('option[value="__new__"]'));
+      sel.val(area);
+    }
+    updateAreaCoordHint();
+  }
+  // Opsi "➕ Tambah area baru…" → buka modal area; setelah tersimpan, area baru otomatis terpilih di form CCTV.
+  function onAreaChange() {
+    if ($('#cctv_area').val() === '__new__') {
+      selectAreaAfterSave = true;
+      reopenCctvAfterArea = true;
+      $('#cctv_area').val('');
+      // Tutup modal CCTV dulu lalu buka modal area (hindari modal bertumpuk yg bermasalah di Bootstrap 4).
+      $('#cctvModal').one('hidden.bs.modal', openAddArea);
+      $('#cctvModal').modal('hide');
+      return;
+    }
+    updateAreaCoordHint();
   }
   // Tampilkan koordinator yang ter-link dgn area yang dipilih (koordinator dicocokkan via nama area).
   function updateAreaCoordHint() {
@@ -1011,8 +1051,12 @@
     const method = id ? 'PUT' : 'POST';
     try {
       const r = await fetch(url, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(r => r.json());
-      if (r.status === 200) { $('#areaModal').modal('hide'); Swal.fire({ icon: 'success', title: 'Tersimpan', timer: 1100, showConfirmButton: false }); loadAreas(); }
-      else Swal.fire('Gagal', r.message || 'Error', 'error');
+      if (r.status === 200) {
+        $('#areaModal').modal('hide');
+        Swal.fire({ icon: 'success', title: 'Tersimpan', timer: 1100, showConfirmButton: false });
+        await loadAreas();
+        if (selectAreaAfterSave) { selectAreaAfterSave = false; setAreaValue(payload.name); }
+      } else Swal.fire('Gagal', r.message || 'Error', 'error');
     } catch (e) { Swal.fire('Gagal', e.message, 'error'); }
   }
   function confirmDeleteArea(id, name) {
