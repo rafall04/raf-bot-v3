@@ -77,3 +77,26 @@
 #backupsTable td, #backupsTable th {
     vertical-align: middle;
 }
+
+/* ── Kerapian form registrasi & tabel ── */
+
+/* Badge vendor di bawah input SN: sembunyikan saat kosong, sejajarkan rapi. */
+#snVendorInfo:empty { display: none; }
+#snVendorInfo { line-height: 1.5; }
+#snVendorInfo .badge { vertical-align: baseline; }
+
+/* Panel "parameter lanjutan": grid rapat & seragam, tak berdesakan. */
+#advancedVarsBody .form-group { margin-bottom: 0.5rem; }
+#advancedVarsBody label { font-weight: 600; opacity: 0.85; }
+.adv-var { font-size: 0.85rem; }
+
+/* Baris tool "ONU terdaftar — cek/konfig/hapus": tombol ikon mengisi rata, tak crowding. */
+#toolStatusBtn, #toolConfigBtn, #toolDeleteBtn { flex: 1 1 0; }
+
+/* Semua tabel dalam kartu: scroll horizontal mulus bila sempit, tak meluber keluar kartu. */
+.card .table-responsive { margin-bottom: 0; }
+.card .table-responsive > .table { margin-bottom: 0.25rem; }
+
+/* Meta ringkas di modal konfirmasi push. */
+#previewMeta { margin-bottom: 0.5rem; }
+#previewMeta .mono { font-size: 0.85rem; }

@@ -107,7 +107,7 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                                 </div>
                                                 <div class="form-group col-md-3">
                                                     <label for="regPonPort">Port PON</label>
-                                                    <input type="text" class="form-control" id="regPonPort" list="ponPortList" placeholder="1/3/16" autocomplete="off">
+                                                    <input type="text" class="form-control" id="regPonPort" list="ponPortList" placeholder="1/2/1" autocomplete="off">
                                                     <datalist id="ponPortList"></datalist>
                                                 </div>
                                                 <div class="form-group col-md-3">
@@ -124,34 +124,20 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                             </div>
 
                                             <div class="form-group">
-                                                <label for="regCustomer">Pelanggan (opsional — isi otomatis nama &amp; PPPoE)</label>
+                                                <label for="regCustomer">Pelanggan <small class="text-muted">(opsional — isi otomatis username &amp; password PPPoE)</small></label>
                                                 <input type="text" class="form-control" id="regCustomer" list="customerList" placeholder="ketik nama pelanggan…" autocomplete="off">
                                                 <datalist id="customerList"></datalist>
                                             </div>
 
                                             <div class="form-row">
                                                 <div class="form-group col-md-6">
-                                                    <label for="regName">Nama ONU <small class="text-muted">(tanpa spasi)</small></label>
-                                                    <input type="text" class="form-control" id="regName" placeholder="NGJ-KAI-NGUJO-1/1" autocomplete="off">
-                                                </div>
-                                                <div class="form-group col-md-6">
-                                                    <label for="regDescription">Deskripsi / ODP <small class="text-muted">(tanpa spasi)</small></label>
-                                                    <input type="text" class="form-control" id="regDescription" placeholder="ODP-NGJ-1/1" autocomplete="off">
-                                                </div>
-                                            </div>
-                                            <div class="form-row">
-                                                <div class="form-group col-md-6">
                                                     <label for="regPppoeUser">Username PPPoE</label>
-                                                    <div class="input-group">
-                                                        <input type="text" class="form-control" id="regPppoeUser" autocomplete="off">
-                                                        <div class="input-group-append">
-                                                            <button class="btn btn-outline-secondary" id="copyNameToPppoeBtn" title="Samakan dengan Nama ONU" type="button"><i class="fas fa-equals"></i></button>
-                                                        </div>
-                                                    </div>
+                                                    <input type="text" class="form-control" id="regPppoeUser" placeholder="home@vans" autocomplete="off">
+                                                    <small class="form-text text-muted">Dipakai juga sebagai nama ONU di OLT (tanpa spasi).</small>
                                                 </div>
                                                 <div class="form-group col-md-6">
                                                     <label for="regPppoePassword">Password PPPoE</label>
-                                                    <input type="text" class="form-control" id="regPppoePassword" autocomplete="off">
+                                                    <input type="text" class="form-control" id="regPppoePassword" placeholder="password PPPoE" autocomplete="off">
                                                 </div>
                                             </div>
 
@@ -163,10 +149,11 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                             </div>
 
                                             <hr>
-                                            <div class="d-flex justify-content-end">
+                                            <div class="d-flex justify-content-end align-items-center">
                                                 <button class="btn btn-secondary mr-2" id="resetFormBtn" type="button"><i class="fas fa-undo"></i> Reset</button>
-                                                <button class="btn btn-primary" id="previewBtn" type="button"><i class="fas fa-file-code"></i> Preview Script</button>
+                                                <button class="btn btn-success" id="previewBtn" type="button"><i class="fas fa-rocket"></i> Daftar &amp; Push ke OLT</button>
                                             </div>
+                                            <small class="form-text text-muted text-right mt-1">Sistem memvalidasi ke OLT (port/profil/VLAN/slot) lalu push otomatis via SSH — ada satu konfirmasi sebelum eksekusi.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -390,35 +377,31 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="fas fa-file-code"></i> Preview Script Registrasi</h5>
+                    <h5 class="modal-title"><i class="fas fa-rocket"></i> Konfirmasi &amp; Push ke OLT</h5>
                     <button class="close" type="button" data-dismiss="modal"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <div class="modal-body">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="small text-muted" id="previewMeta"></span>
+                    <div id="previewMeta" class="alert alert-info py-2 small mb-2"></div>
+                    <div id="previewFactIssues" class="alert small" style="display:none;"></div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <a class="small" data-toggle="collapse" href="#previewScriptWrap"><i class="fas fa-code"></i> Lihat script CLI yang akan dikirim</a>
                         <button class="btn btn-outline-secondary btn-sm" id="copyScriptBtn"><i class="fas fa-copy"></i> Salin</button>
                     </div>
-                    <pre class="cli-script" id="previewScript"></pre>
-                    <div id="previewFactIssues" class="alert alert-danger small" style="display:none;"></div>
-                    <div class="alert alert-warning small mb-0">
-                        <i class="fas fa-exclamation-triangle"></i> Script dieksekusi <b>baris-per-baris</b> ke OLT dan berhenti di baris pertama yang error. Baris <code>!</code> dikirim sebagai <code>exit</code> (keluar konteks — wajib di ZXAN). Periksa VLAN/profil sebelum eksekusi.
+                    <div class="collapse" id="previewScriptWrap">
+                        <pre class="cli-script" id="previewScript"></pre>
                     </div>
                     <div class="custom-control custom-checkbox mt-2">
-                        <input type="checkbox" class="custom-control-input" id="confirmExecuteCheck">
-                        <label class="custom-control-label" for="confirmExecuteCheck">Saya sudah memeriksa script di atas</label>
-                    </div>
-                    <div class="custom-control custom-checkbox mt-1">
                         <input type="checkbox" class="custom-control-input" id="saveConfigCheck" checked>
-                        <label class="custom-control-label" for="saveConfigCheck">Simpan permanen (<code>write</code>) setelah sukses — tanpa ini registrasi hilang saat OLT reboot</label>
+                        <label class="custom-control-label" for="saveConfigCheck">Simpan permanen (<code>write</code>) — tanpa ini registrasi hilang saat OLT reboot</label>
                     </div>
                     <div class="custom-control custom-checkbox mt-1" id="forceWrap" style="display:none;">
                         <input type="checkbox" class="custom-control-input" id="forceExecuteCheck">
-                        <label class="custom-control-label text-danger" for="forceExecuteCheck">Abaikan peringatan kondisi OLT di atas (saya yakin fakta OLT basi) — eksekusi tetap</label>
+                        <label class="custom-control-label text-danger" for="forceExecuteCheck">Abaikan peringatan kondisi OLT di atas (saya yakin fakta OLT basi) — push tetap</label>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" data-dismiss="modal">Batal</button>
-                    <button class="btn btn-danger" id="executeBtn" disabled><i class="fas fa-bolt"></i> Eksekusi ke OLT</button>
+                    <button class="btn btn-success" id="executeBtn"><i class="fas fa-rocket"></i> Push ke OLT</button>
                 </div>
             </div>
         </div>

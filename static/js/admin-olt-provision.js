@@ -14,7 +14,8 @@
 /* eslint-disable no-unused-vars */
 
 // Field inti yang punya input tetap di form (BUKAN bagian panel "parameter lanjutan").
-const CORE_FIELDS = ['ponPort', 'onuId', 'sn', 'name', 'description', 'pppoeUser', 'pppoePassword'];
+// Nama ONU di VANS = username PPPoE (template pakai {{pppoeUser}}), jadi tak ada field nama/deskripsi terpisah.
+const CORE_FIELDS = ['ponPort', 'onuId', 'sn', 'pppoeUser', 'pppoePassword'];
 
 let provDevices = [];      // daftar OLT dari API
 let onuTypes = [];         // profil tipe modem
@@ -45,13 +46,8 @@ $(document).ready(function () {
     $('#regSn').on('input', function () { onSnInput(false); });
     $('#regSn').on('change', function () { onSnInput(true); });
     $('#regCustomer').on('change input', onCustomerPicked);
-    $('#copyNameToPppoeBtn').on('click', function () {
-        $('#regPppoeUser').val($('#regName').val());
-        if (!$('#regPppoePassword').val()) $('#regPppoePassword').val($('#regName').val());
-    });
     $('#resetFormBtn').on('click', resetRegisterForm);
     $('#previewBtn').on('click', doPreview);
-    $('#confirmExecuteCheck').on('change', function () { $('#executeBtn').prop('disabled', !this.checked); });
     $('#executeBtn').on('click', doExecute);
     $('#copyScriptBtn').on('click', function () {
         navigator.clipboard.writeText($('#previewScript').text()).then(() => flashBtn(this, 'Tersalin!'));
@@ -64,7 +60,7 @@ $(document).ready(function () {
         $('a[href="#tab-register"]').tab('show');
         onSnInput(true); // auto-pilih profil sesuai vendor SN
         checkOccupancy(true);
-        $('#regName').focus();
+        $('#regPppoeUser').focus();
     });
 
     // ── Tab 2: tipe modem ───────────────────────────────────────────────
@@ -436,11 +432,7 @@ function onCustomerPicked() {
     const pppoe = user.pppoe_username || '';
     if (pppoe) {
         $('#regPppoeUser').val(pppoe);
-        if (!$('#regPppoePassword').val()) $('#regPppoePassword').val(pppoe);
-        // Konvensi lapangan: nama ONU = username PPPoE (tanpa spasi, unik per pelanggan).
-        if (!$('#regName').val()) $('#regName').val(pppoe.replace(/\s+/g, '-'));
-    } else if (!$('#regName').val()) {
-        $('#regName').val(String(name).toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-+|-+$/g, ''));
+        if (!$('#regPppoePassword').val()) $('#regPppoePassword').val(user.pppoe_password || pppoe);
     }
 }
 
@@ -451,8 +443,6 @@ function collectVars() {
         ponPort: $('#regPonPort').val().trim(),
         onuId: $('#regOnuId').val().trim(),
         sn: $('#regSn').val().trim().toUpperCase(),
-        name: $('#regName').val().trim(),
-        description: $('#regDescription').val().trim(),
         pppoeUser: $('#regPppoeUser').val().trim(),
         pppoePassword: $('#regPppoePassword').val().trim(),
     };
@@ -469,12 +459,13 @@ function validateFormQuick(vars, type) {
     const errs = [];
     if (!type) errs.push('Pilih tipe modem.');
     if (!vars.sn) errs.push('Serial Number wajib diisi (scan atau ketik manual).');
-    if (!vars.ponPort) errs.push('Port PON wajib diisi (contoh 1/3/16).');
+    if (!vars.ponPort) errs.push('Port PON wajib diisi (contoh 1/2/1).');
     if (!vars.onuId) errs.push('ONU ID wajib diisi (klik "cek slot" untuk saran).');
     // Hanya wajibkan field yang memang dipakai template profil terpilih.
     const used = type ? templatePlaceholders(type.scriptTemplate) : [];
-    ['name', 'description', 'pppoeUser', 'pppoePassword'].forEach((k) => {
-        if (used.includes(k) && !vars[k]) errs.push(`Field "${k}" dipakai template ini — wajib diisi.`);
+    const labels = { pppoeUser: 'Username PPPoE', pppoePassword: 'Password PPPoE' };
+    ['pppoeUser', 'pppoePassword'].forEach((k) => {
+        if (used.includes(k) && !vars[k]) errs.push(`${labels[k]} dipakai template ini — wajib diisi.`);
     });
     return errs;
 }
@@ -505,11 +496,11 @@ async function doPreview() {
             showAlert('danger', escapeHtml(json.message) + (json.errors ? '<br>• ' + json.errors.map(escapeHtml).join('<br>• ') : ''), true);
             return;
         }
-        $('#previewMeta').text(`${type.name} → ${dev.name} • gpon-onu_${vars.ponPort}:${vars.onuId} • SN ${vars.sn}`);
+        $('#previewMeta').html(`<b>${escapeHtml(type.name)}</b> &rarr; ${escapeHtml(dev.name)} • <span class="mono">gpon-onu_${escapeHtml(vars.ponPort)}:${escapeHtml(vars.onuId)}</span> • SN ${escapeHtml(vars.sn)}`);
         $('#previewScript').text(json.data.script);
-        $('#confirmExecuteCheck').prop('checked', false);
+        $('#previewScriptWrap').removeClass('show');
         $('#forceExecuteCheck').prop('checked', false);
-        $('#executeBtn').prop('disabled', true);
+        $('#executeBtn').prop('disabled', false);
         // Preferensi write terakhir (default: aktif).
         try { $('#saveConfigCheck').prop('checked', localStorage.getItem('oltProvSaveConfig') !== '0'); } catch (_e) { /* abaikan */ }
 
@@ -575,8 +566,6 @@ async function doExecute() {
         showAlert('danger', 'Eksekusi gagal: ' + escapeHtml(e.message), true);
     } finally {
         setBusy('#executeBtn', false);
-        $('#confirmExecuteCheck').prop('checked', false);
-        $('#executeBtn').prop('disabled', true);
     }
 }
 
@@ -750,9 +739,10 @@ async function toolDeleteOnu() {
 }
 
 function resetRegisterForm() {
-    ['#regSn', '#regPonPort', '#regOnuId', '#regCustomer', '#regName', '#regDescription', '#regPppoeUser', '#regPppoePassword']
+    ['#regSn', '#regPonPort', '#regOnuId', '#regCustomer', '#regPppoeUser', '#regPppoePassword']
         .forEach((s) => $(s).val(''));
     $('#occupancyInfo').hide().empty();
+    $('#snVendorInfo').empty();
     onTypeChange(); // kembalikan parameter lanjutan ke default profil
 }
 
