@@ -6,7 +6,7 @@
  *          + hot start/stop) + provisioning netwatch (buat entri + script on-up/on-down CCTV baru)
  *          + riwayat insiden (GET /incidents) + kirim pesan tes per-CCTV (POST /test-broadcast).
  * Caller: lib/routes-registry.js mounts at /api/cctv.
- * Deps: ../lib/cctv-registry, ../lib/cctv-monitor, ../lib/cctv-monitor-config, ../lib/cctv-netwatch-script, ../lib/mikrotik, ../lib/cctv-netwatch-discovery, fs/path.
+ * Deps: ../lib/cctv-registry, ../lib/cctv-monitor, ../lib/cctv-monitor-config, ../lib/cctv-netwatch-script, ../lib/mikrotik, ../lib/cctv-netwatch-discovery, ../lib/cctv-area-registry, ../lib/whatsapp-gateway (daftar grup WA), fs/path.
  */
 const express = require('express');
 const fs = require('fs');
@@ -21,6 +21,7 @@ const netscript = require('../lib/cctv-netwatch-script');
 const uptime = require('../lib/cctv-uptime');
 const areaRegistry = require('../lib/cctv-area-registry');
 const { sendCritical } = require('../lib/whatsapp-critical-delivery');
+const gateway = require('../lib/whatsapp-gateway');
 
 const MAIN_CONFIG_PATH = path.join(__dirname, '..', 'config.json');
 
@@ -32,12 +33,14 @@ function ensureAdmin(req, res) {
     return true;
 }
 
-// CCTV butuh minimal 1 penerima: nomor WA pelanggan, ATAU koordinator aktif utk areanya.
+// CCTV butuh minimal 1 penerima: nomor WA pelanggan, ATAU koordinator aktif (nomor/grup) utk areanya.
 function requireRecipient(body) {
     if (String((body || {}).phone || '').trim()) return;
     const coord = areaRegistry.getByName((body || {}).area);
-    if (coord && coord.enabled !== false && String(coord.coordinatorPhone || '').trim()) return;
-    throw new Error('Nomor WA pelanggan wajib diisi (atau tetapkan koordinator aktif untuk areanya).');
+    const coordHasTarget = coord && coord.enabled !== false &&
+        (String(coord.coordinatorPhone || '').trim() || String(coord.coordinatorGroupId || '').trim());
+    if (coordHasTarget) return;
+    throw new Error('Nomor WA pelanggan wajib diisi (atau tetapkan koordinator/grup aktif untuk areanya).');
 }
 
 router.get('/devices', (req, res) => {
@@ -230,6 +233,25 @@ router.delete('/areas/:id', (req, res) => {
     if (!ensureAdmin(req, res)) return;
     areaRegistry.remove(req.params.id);
     res.json({ status: 200, message: 'OK' });
+});
+
+// Daftar grup WA yang bot-nya jadi anggota — untuk picker "Grup WA RT" pada koordinator area.
+// Bot HARUS anggota grup agar bisa kirim ke situ; itu pula sebabnya hanya grup terjoin yang muncul.
+router.get('/groups', async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    const socket = gateway.getSocket();
+    if (!socket || !gateway.isReady() || typeof socket.groupFetchAllParticipating !== 'function') {
+        return res.status(503).json({ status: 503, message: 'WhatsApp belum terhubung — pastikan bot online di dashboard, lalu coba lagi.' });
+    }
+    try {
+        const map = await socket.groupFetchAllParticipating();
+        const groups = Object.values(map || {})
+            .map((g) => ({ id: g.id, subject: g.subject || g.id, size: Array.isArray(g.participants) ? g.participants.length : undefined }))
+            .sort((a, b) => String(a.subject).localeCompare(String(b.subject)));
+        res.json({ status: 200, data: groups });
+    } catch (e) {
+        res.status(502).json({ status: 502, message: 'Gagal mengambil daftar grup: ' + e.message });
+    }
 });
 
 module.exports = router;

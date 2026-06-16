@@ -176,7 +176,7 @@
                 <div class="table-responsive">
                   <table class="table table-bordered table-hover" id="areasTable" width="100%">
                     <thead class="thead-light">
-                      <tr><th>Area</th><th>Koordinator</th><th>Nomor WA</th><th>Aksi</th></tr>
+                      <tr><th>Area</th><th>Koordinator</th><th>Tujuan Notifikasi</th><th>Aksi</th></tr>
                     </thead>
                     <tbody></tbody>
                   </table>
@@ -447,8 +447,22 @@
             <input class="form-control" id="area_coord_name" placeholder="mis. Pak RT 02">
           </div>
           <div class="form-group">
-            <label>Nomor WA Koordinator <span class="text-danger">*</span></label>
-            <input class="form-control" id="area_coord_phone" required placeholder="628xxx (pisah | untuk multi)">
+            <label>Nomor WA Koordinator</label>
+            <input class="form-control" id="area_coord_phone" placeholder="628xxx (pisah | untuk multi)">
+            <small class="form-text text-muted">Isi nomor, <em>atau</em> pilih Grup WA RT di bawah (boleh dua-duanya). Minimal salah satu.</small>
+          </div>
+          <div class="form-group">
+            <label>Grup WA RT (opsional)</label>
+            <div class="input-group">
+              <select class="form-control" id="area_group">
+                <option value="">— tanpa grup —</option>
+              </select>
+              <div class="input-group-append">
+                <button class="btn btn-outline-secondary" type="button" id="area_load_groups"><i class="fas fa-sync"></i> Muat</button>
+              </div>
+            </div>
+            <input type="hidden" id="area_group_name">
+            <small class="form-text text-muted" id="area_group_hint">Klik <strong>Muat</strong> untuk ambil daftar grup yang bot ikuti — bot harus jadi anggota grup RT lebih dulu. Pesan "CCTV mati" akan dikirim ke grup ini (koordinasi RT + warga).</small>
           </div>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" id="area_enabled" checked>
@@ -499,6 +513,8 @@
     loadAreas();
     $('#addAreaBtn').on('click', openAddArea);
     $('#areaSaveBtn').on('click', saveArea);
+    $('#area_load_groups').on('click', loadGroups);
+    $('#area_group').on('change', onAreaGroupChange);
     // Modal area dibuka menggantikan modal CCTV (bukan ditumpuk); saat ditutup, kembalikan modal CCTV bila perlu.
     $('#areaModal').on('hidden.bs.modal', function () { if (reopenCctvAfterArea) { reopenCctvAfterArea = false; $('#cctvModal').modal('show'); } });
     $(document).on('click', '.btn-edit-area', function () { openEditArea($(this).data('id')); });
@@ -1005,6 +1021,40 @@
       box.html('<span class="text-muted">Area ini belum punya koordinator — tambahkan di tab <em>Koordinator</em> bila perlu.</span>');
     }
   }
+  const GROUP_HINT_DEFAULT = 'Klik <strong>Muat</strong> untuk ambil daftar grup yang bot ikuti — bot harus jadi anggota grup RT lebih dulu.';
+  function resetGroupHint() { $('#area_group_hint').html(GROUP_HINT_DEFAULT); }
+  // Pastikan grup tersimpan tetap tampil di <select> walau daftar belum dimuat (suntik opsi bila perlu).
+  function setAreaGroupValue(id, name) {
+    const sel = $('#area_group');
+    if (id) {
+      let has = false;
+      sel.find('option').each(function () { if (this.value === id) has = true; });
+      if (!has) sel.append($('<option>').val(id).text(name || id));
+    }
+    sel.val(id || '');
+    $('#area_group_name').val(id ? (name || sel.find('option:selected').text() || '') : '');
+  }
+  function onAreaGroupChange() {
+    const o = this.options[this.selectedIndex];
+    $('#area_group_name').val(this.value ? (o ? o.text : '') : '');
+  }
+  // Muat daftar grup WA yang bot ikuti (butuh WA online). Pertahankan pilihan saat edit.
+  async function loadGroups() {
+    const btn = $('#area_load_groups'); const hint = $('#area_group_hint');
+    btn.prop('disabled', true); hint.text('Memuat daftar grup…');
+    try {
+      const r = await fetch('/api/cctv/groups', { credentials: 'include' }).then(x => x.json());
+      if (r.status !== 200) { hint.html('<span class="text-danger">' + escapeHtml(r.message || 'Gagal memuat grup') + '</span>'); return; }
+      const cur = $('#area_group').val(); const curName = $('#area_group_name').val();
+      const sel = $('#area_group').empty();
+      sel.append('<option value="">— tanpa grup —</option>');
+      (r.data || []).forEach(g => sel.append($('<option>').val(g.id).text(g.subject + (g.size ? ' (' + g.size + ' anggota)' : ''))));
+      setAreaGroupValue(cur, curName); // pulihkan pilihan sebelumnya
+      hint.html('<span class="text-success">' + ((r.data || []).length) + ' grup ditemukan. Pilih grup RT.</span>');
+    } catch (e) {
+      hint.html('<span class="text-danger">Gagal: ' + escapeHtml(e.message) + '</span>');
+    } finally { btn.prop('disabled', false); }
+  }
   function renderAreas() {
     const tb = $('#areasTable tbody').empty();
     $('#tabCountAreas').text(areasCache.length);
@@ -1017,7 +1067,11 @@
       tb.append(`<tr>
         <td><strong>${escapeHtml(a.name)}</strong>${off}</td>
         <td>${escapeHtml(a.coordinatorName || '—')}</td>
-        <td><span class="cctv-host">${escapeHtml(a.coordinatorPhone || '')}</span></td>
+        <td>
+          ${a.coordinatorPhone ? '<div><span class="cctv-host">' + escapeHtml(a.coordinatorPhone) + '</span></div>' : ''}
+          ${a.coordinatorGroupId ? '<div><span class="badge badge-info"><i class="fas fa-users"></i> Grup: ' + escapeHtml(a.coordinatorGroupName || a.coordinatorGroupId) + '</span></div>' : ''}
+          ${(!a.coordinatorPhone && !a.coordinatorGroupId) ? '<span class="text-muted">—</span>' : ''}
+        </td>
         <td>
           <button class="btn btn-sm btn-outline-primary btn-edit-area" data-id="${a.id}"><i class="fas fa-edit"></i></button>
           <button class="btn btn-sm btn-outline-danger btn-del-area" data-id="${a.id}" data-name="${escapeHtml(a.name)}"><i class="fas fa-trash"></i></button>
@@ -1028,6 +1082,7 @@
   function openAddArea() {
     $('#areaModalTitle').text('Tambah Area'); $('#areaForm')[0].reset();
     $('#area_id').val(''); $('#area_enabled').prop('checked', true);
+    $('#area_group').val(''); $('#area_group_name').val(''); resetGroupHint();
     $('#areaModal').modal('show');
   }
   function openEditArea(id) {
@@ -1035,6 +1090,7 @@
     $('#areaModalTitle').text('Edit Area');
     $('#area_id').val(a.id); $('#area_name').val(a.name);
     $('#area_coord_name').val(a.coordinatorName || ''); $('#area_coord_phone').val(a.coordinatorPhone || '');
+    setAreaGroupValue(a.coordinatorGroupId || '', a.coordinatorGroupName || ''); resetGroupHint();
     $('#area_enabled').prop('checked', a.enabled !== false);
     $('#areaModal').modal('show');
   }
@@ -1043,9 +1099,12 @@
       name: $('#area_name').val().trim(),
       coordinatorName: $('#area_coord_name').val().trim(),
       coordinatorPhone: $('#area_coord_phone').val().trim(),
+      coordinatorGroupId: $('#area_group').val().trim(),
+      coordinatorGroupName: $('#area_group_name').val().trim(),
       enabled: $('#area_enabled').is(':checked'),
     };
-    if (!payload.name || !payload.coordinatorPhone) { Swal.fire('Lengkapi', 'Nama area & nomor WA koordinator wajib diisi.', 'warning'); return; }
+    if (!payload.name) { Swal.fire('Lengkapi', 'Nama area wajib diisi.', 'warning'); return; }
+    if (!payload.coordinatorPhone && !payload.coordinatorGroupId) { Swal.fire('Lengkapi', 'Isi nomor WA koordinator ATAU pilih Grup WA RT.', 'warning'); return; }
     const id = $('#area_id').val();
     const url = id ? `/api/cctv/areas/${id}` : '/api/cctv/areas';
     const method = id ? 'PUT' : 'POST';
