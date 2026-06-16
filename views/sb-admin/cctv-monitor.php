@@ -94,6 +94,11 @@
             </a>
           </li>
           <li class="nav-item">
+            <a class="nav-link" id="tab-areas-link" data-toggle="tab" href="#tab-areas" role="tab">
+              <i class="fas fa-user-tie"></i> Koordinator <span class="badge badge-primary" id="tabCountAreas">0</span>
+            </a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link" id="tab-settings-link" data-toggle="tab" href="#tab-settings" role="tab">
               <i class="fas fa-sliders-h"></i> Pengaturan
             </a>
@@ -151,6 +156,27 @@
                   <table class="table table-bordered table-hover" id="discoveryTable" width="100%">
                     <thead class="thead-light">
                       <tr><th style="width:32px;"><input type="checkbox" id="discCheckAll" title="Pilih semua"></th><th>Nama (dari script)</th><th>Area</th><th>IP</th><th>Status</th><th>Format Script</th><th>Aksi</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB: Koordinator Area/RT -->
+          <div class="tab-pane fade" id="tab-areas" role="tabpanel">
+            <div class="card shadow mb-4">
+              <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-user-tie"></i> Koordinator Area / RT</h6>
+                <button class="btn btn-primary-custom btn-sm" id="addAreaBtn"><i class="fas fa-plus"></i> Tambah Area</button>
+              </div>
+              <div class="card-body">
+                <p class="text-muted small mb-2">Koordinator (mis. ketua RT) dapat notifikasi ringkas saat ada CCTV di areanya mati, agar bisa koordinasi dengan warga. Jam tenang &amp; aturan lain berlaku sama. Area dicocokkan ke field <em>Area</em> tiap CCTV (tak peduli huruf besar/kecil).</p>
+                <div class="table-responsive">
+                  <table class="table table-bordered table-hover" id="areasTable" width="100%">
+                    <thead class="thead-light">
+                      <tr><th>Area</th><th>Koordinator</th><th>Nomor WA</th><th>Aksi</th></tr>
                     </thead>
                     <tbody></tbody>
                   </table>
@@ -356,8 +382,9 @@
           </div>
           <div class="form-group">
             <label>Area / Lokasi (opsional)</label>
-            <input class="form-control" id="cctv_area" placeholder="mis. DANDER / TANJUNGHARJO">
-            <small class="form-text text-muted">Terisi otomatis saat adopsi dari netwatch.</small>
+            <input class="form-control" id="cctv_area" list="cctvAreaList" autocomplete="off" placeholder="mis. DANDER / TANJUNGHARJO">
+            <datalist id="cctvAreaList"></datalist>
+            <small class="form-text text-muted">Pilih area terkelola (agar koordinatornya ikut dinotif) atau ketik baru. Terisi otomatis saat adopsi.</small>
           </div>
           <div class="form-group">
             <label>Window Konfirmasi (menit, opsional)</label>
@@ -392,13 +419,51 @@
   </div>
 </div>
 
+<!-- Modal Area/Koordinator -->
+<div class="modal fade" id="areaModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="areaModalTitle">Tambah Area</h5>
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <form id="areaForm">
+          <input type="hidden" id="area_id">
+          <div class="form-group">
+            <label>Nama Area / RT <span class="text-danger">*</span></label>
+            <input class="form-control" id="area_name" required placeholder="mis. DANDER / RT 02">
+            <small class="form-text text-muted">Harus sama dengan nilai Area di CCTV (cocok otomatis, tak peduli huruf besar/kecil).</small>
+          </div>
+          <div class="form-group">
+            <label>Nama Koordinator (opsional)</label>
+            <input class="form-control" id="area_coord_name" placeholder="mis. Pak RT 02">
+          </div>
+          <div class="form-group">
+            <label>Nomor WA Koordinator <span class="text-danger">*</span></label>
+            <input class="form-control" id="area_coord_phone" required placeholder="628xxx (pisah | untuk multi)">
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="area_enabled" checked>
+            <label class="form-check-label" for="area_enabled">Aktif (kirim notifikasi koordinator)</label>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-dismiss="modal">Batal</button>
+        <button class="btn btn-primary" id="areaSaveBtn">Simpan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="/vendor/jquery/jquery.min.js"></script>
 <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script src="/vendor/jquery-easing/jquery.easing.min.js"></script>
 <script src="/js/sb-admin-2.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-  let devicesCache = []; let statusCache = null; let refreshTimer = null; let discoveryCache = []; let uptimeCache = {};
+  let devicesCache = []; let statusCache = null; let refreshTimer = null; let discoveryCache = []; let uptimeCache = {}; let areasCache = [];
 
   $(document).ready(() => {
     loadAll();
@@ -423,6 +488,11 @@
     $(document).on('change', '#discCheckAll', function () { $('.disc-check').prop('checked', this.checked); updateBulkCount(); });
     $(document).on('change', '.disc-check', updateBulkCount);
     $('#bulkAdoptBtn').on('click', bulkAdopt);
+    loadAreas();
+    $('#addAreaBtn').on('click', openAddArea);
+    $('#areaSaveBtn').on('click', saveArea);
+    $(document).on('click', '.btn-edit-area', function () { openEditArea($(this).data('id')); });
+    $(document).on('click', '.btn-del-area', function () { confirmDeleteArea($(this).data('id'), $(this).data('name')); });
   });
 
   async function loadAll() {
@@ -853,6 +923,77 @@
         try {
           const res = await fetch(`/api/cctv/devices/${id}`, { method: 'DELETE', credentials: 'include' }).then(r => r.json());
           if (res.status === 200) { Swal.fire({ icon: 'success', title: 'Terhapus', timer: 1000, showConfirmButton: false }); loadAll(); loadDiscovery(); }
+          else Swal.fire('Gagal', res.message || 'Error', 'error');
+        } catch (e) { Swal.fire('Gagal', e.message, 'error'); }
+      });
+  }
+  async function loadAreas() {
+    try {
+      const r = await fetch('/api/cctv/areas', { credentials: 'include' }).then(r => r.json());
+      if (r.status === 200) { areasCache = r.data || []; renderAreas(); populateAreaDatalist(); }
+    } catch (_) {}
+  }
+  function populateAreaDatalist() {
+    const dl = $('#cctvAreaList').empty();
+    areasCache.forEach(a => dl.append(`<option value="${escapeHtml(a.name)}">`));
+  }
+  function renderAreas() {
+    const tb = $('#areasTable tbody').empty();
+    $('#tabCountAreas').text(areasCache.length);
+    if (areasCache.length === 0) {
+      tb.append('<tr><td colspan="4" class="text-center text-muted">Belum ada koordinator area. Klik "Tambah Area".</td></tr>');
+      return;
+    }
+    areasCache.forEach(a => {
+      const off = a.enabled === false ? ' <span class="badge badge-secondary">nonaktif</span>' : '';
+      tb.append(`<tr>
+        <td><strong>${escapeHtml(a.name)}</strong>${off}</td>
+        <td>${escapeHtml(a.coordinatorName || '—')}</td>
+        <td><span class="cctv-host">${escapeHtml(a.coordinatorPhone || '')}</span></td>
+        <td>
+          <button class="btn btn-sm btn-outline-primary btn-edit-area" data-id="${a.id}"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger btn-del-area" data-id="${a.id}" data-name="${escapeHtml(a.name)}"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`);
+    });
+  }
+  function openAddArea() {
+    $('#areaModalTitle').text('Tambah Area'); $('#areaForm')[0].reset();
+    $('#area_id').val(''); $('#area_enabled').prop('checked', true);
+    $('#areaModal').modal('show');
+  }
+  function openEditArea(id) {
+    const a = areasCache.find(x => x.id === id); if (!a) return;
+    $('#areaModalTitle').text('Edit Area');
+    $('#area_id').val(a.id); $('#area_name').val(a.name);
+    $('#area_coord_name').val(a.coordinatorName || ''); $('#area_coord_phone').val(a.coordinatorPhone || '');
+    $('#area_enabled').prop('checked', a.enabled !== false);
+    $('#areaModal').modal('show');
+  }
+  async function saveArea() {
+    const payload = {
+      name: $('#area_name').val().trim(),
+      coordinatorName: $('#area_coord_name').val().trim(),
+      coordinatorPhone: $('#area_coord_phone').val().trim(),
+      enabled: $('#area_enabled').is(':checked'),
+    };
+    if (!payload.name || !payload.coordinatorPhone) { Swal.fire('Lengkapi', 'Nama area & nomor WA koordinator wajib diisi.', 'warning'); return; }
+    const id = $('#area_id').val();
+    const url = id ? `/api/cctv/areas/${id}` : '/api/cctv/areas';
+    const method = id ? 'PUT' : 'POST';
+    try {
+      const r = await fetch(url, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(r => r.json());
+      if (r.status === 200) { $('#areaModal').modal('hide'); Swal.fire({ icon: 'success', title: 'Tersimpan', timer: 1100, showConfirmButton: false }); loadAreas(); }
+      else Swal.fire('Gagal', r.message || 'Error', 'error');
+    } catch (e) { Swal.fire('Gagal', e.message, 'error'); }
+  }
+  function confirmDeleteArea(id, name) {
+    Swal.fire({ icon: 'warning', title: 'Hapus area?', text: name, showCancelButton: true, confirmButtonText: 'Hapus', cancelButtonText: 'Batal', confirmButtonColor: '#dc3545' })
+      .then(async (r) => {
+        if (!r.isConfirmed) return;
+        try {
+          const res = await fetch(`/api/cctv/areas/${id}`, { method: 'DELETE', credentials: 'include' }).then(r => r.json());
+          if (res.status === 200) { Swal.fire({ icon: 'success', title: 'Terhapus', timer: 1000, showConfirmButton: false }); loadAreas(); }
           else Swal.fire('Gagal', res.message || 'Error', 'error');
         } catch (e) { Swal.fire('Gagal', e.message, 'error'); }
       });

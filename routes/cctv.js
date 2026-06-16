@@ -19,6 +19,7 @@ const mikrotik = require('../lib/mikrotik');
 const discovery = require('../lib/cctv-netwatch-discovery');
 const netscript = require('../lib/cctv-netwatch-script');
 const uptime = require('../lib/cctv-uptime');
+const areaRegistry = require('../lib/cctv-area-registry');
 const { sendCritical } = require('../lib/whatsapp-critical-delivery');
 
 const MAIN_CONFIG_PATH = path.join(__dirname, '..', 'config.json');
@@ -196,6 +197,29 @@ router.post('/test-broadcast', async (req, res) => {
         } catch (_e) { /* lanjut ke nomor berikutnya */ }
     }
     res.json({ status: 200, message: 'OK', data: { delivered, recipients: phones.length } });
+});
+
+// CRUD Area + Koordinator RT (dicocokkan ke field `area` tiap CCTV).
+router.get('/areas', (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    res.json({ status: 200, data: areaRegistry.list() });
+});
+router.post('/areas', (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    try { res.json({ status: 200, message: 'OK', data: areaRegistry.upsert(req.body || {}) }); }
+    catch (e) { res.status(400).json({ status: 400, message: e.message }); }
+});
+router.put('/areas/:id', (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    const ex = areaRegistry.get(req.params.id);
+    if (!ex) return res.status(404).json({ status: 404, message: 'Area tidak ditemukan' });
+    try { res.json({ status: 200, message: 'OK', data: areaRegistry.upsert({ ...ex, ...req.body, id: req.params.id }) }); }
+    catch (e) { res.status(400).json({ status: 400, message: e.message }); }
+});
+router.delete('/areas/:id', (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    areaRegistry.remove(req.params.id);
+    res.json({ status: 200, message: 'OK' });
 });
 
 module.exports = router;
