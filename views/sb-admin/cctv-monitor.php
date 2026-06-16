@@ -230,7 +230,19 @@
                     <input type="time" class="form-control form-control-sm" id="set_quiet_end" style="width:130px;">
                   </div>
                 </div>
-                <small class="text-muted">Di jam tenang, WA ke pelanggan <strong>ditahan</strong>; bila masih mati saat jam tenang berakhir, baru dikirim. Notifikasi Telegram teknisi tetap instan.</small>
+                <div class="form-row align-items-center">
+                  <div class="col-auto"><span class="small text-muted">Berlaku untuk:</span></div>
+                  <div class="col-auto mb-1"><div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="set_quiet_customer"><label class="custom-control-label" for="set_quiet_customer">Pelanggan</label>
+                  </div></div>
+                  <div class="col-auto mb-1"><div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="set_quiet_coordinator"><label class="custom-control-label" for="set_quiet_coordinator">Koordinator</label>
+                  </div></div>
+                  <div class="col-auto mb-1"><div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="set_quiet_group"><label class="custom-control-label" for="set_quiet_group">Grup</label>
+                  </div></div>
+                </div>
+                <small class="text-muted">Di jam tenang, WA ke jenis yang <strong>dicentang</strong> ditahan sampai jam tenang berakhir (lalu dikirim bila masih mati); jenis yang tak dicentang tetap dikirim langsung. Mis. matikan <em>Koordinator</em> agar petugas on-call selalu dapat alert. Notifikasi Telegram teknisi tetap instan.</small>
               </div>
             </div>
 
@@ -631,6 +643,9 @@
         $('#set_quiet_enabled').prop('checked', r.data.quietHoursEnabled === true);
         $('#set_quiet_start').val(r.data.quietStart || '22:00');
         $('#set_quiet_end').val(r.data.quietEnd || '06:00');
+        $('#set_quiet_customer').prop('checked', r.data.quietApplyCustomer !== false);
+        $('#set_quiet_coordinator').prop('checked', r.data.quietApplyCoordinator !== false);
+        $('#set_quiet_group').prop('checked', r.data.quietApplyGroup !== false);
         $('#set_msg_down').val(r.data.messageDown || '');
         $('#set_msg_up').val(r.data.messageUp || '');
         $('#set_msg_down_multi').val(r.data.messageDownMulti || '');
@@ -657,6 +672,9 @@
       quietHoursEnabled: $('#set_quiet_enabled').is(':checked'),
       quietStart: $('#set_quiet_start').val(),
       quietEnd: $('#set_quiet_end').val(),
+      quietApplyCustomer: $('#set_quiet_customer').is(':checked'),
+      quietApplyCoordinator: $('#set_quiet_coordinator').is(':checked'),
+      quietApplyGroup: $('#set_quiet_group').is(':checked'),
       messageDown: $('#set_msg_down').val(),
       messageUp: $('#set_msg_up').val(),
       messageDownMulti: $('#set_msg_down_multi').val(),
