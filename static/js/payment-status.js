@@ -10,6 +10,9 @@
 let allUsers = [];
 let filteredUsers = [];
 let selectedUsers = new Set();
+// Pelanggan yang baru saja diubah statusnya — tetap ditampilkan di tempat (mis. jadi hijau)
+// meski filter status mengecualikannya, sampai user ganti filter/periode atau reload halaman.
+let pinnedVisibleUserIds = new Set();
 let currentPage = 1;
 const itemsPerPage = 20;
 let allPackages = [];
@@ -312,6 +315,10 @@ function renderTable() {
     
     // Calculate pagination
     const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+    // Jaga agar currentPage tak melebihi total halaman (mis. saat data menyusut setelah reload)
+    if (currentPage > totalPages) {
+        currentPage = totalPages > 0 ? totalPages : 1;
+    }
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = Math.min(startIndex + itemsPerPage, filteredUsers.length);
     const pageUsers = filteredUsers.slice(startIndex, endIndex);
@@ -546,6 +553,8 @@ async function togglePaymentStatus(userId, newStatus, selectedPaymentMethod = nu
             const failedReasons = formatFailedPaymentReasons(result?.results?.failed);
             
             if (response.ok && successCount > 0) {
+                // Tetap tampilkan baris ini di tempat (mis. jadi hijau) walau filter status mengecualikannya
+                pinnedVisibleUserIds.add(userId);
                 await loadUsers();
                 showToast(`Status pembayaran ${user.name} berhasil diubah untuk ${formatSelectedPeriod()}`, 'success');
                 
@@ -730,6 +739,8 @@ async function bulkUpdatePaymentStatus(newStatus, selectedPaymentMethod = null) 
             const failedReasons = formatFailedPaymentReasons(result?.results?.failed);
             
             if (response.ok && successCount > 0) {
+                // Tetap tampilkan baris yang baru diubah di tempat sampai user ganti filter/reload
+                payload.userIds.forEach(id => pinnedVisibleUserIds.add(id));
                 selectedUsers.clear();
                 $('#selectAllCheckbox, #selectAllHeader').prop('checked', false);
                 await loadUsers();
@@ -816,13 +827,15 @@ async function bulkSendInvoices() {
 function setupEventListeners() {
     // Filter listeners
     $('#periodMonthFilter, #periodYearFilter').on('change', function onPeriodChange() {
+        pinnedVisibleUserIds.clear();
+        currentPage = 1;
         updatePeriodContextText();
         loadUsers();
     });
-    $('#statusFilter').on('change', applyFilters);
-    $('#subscriptionFilter').on('change', applyFilters);
-    $('#searchInput').on('keyup', debounce(applyFilters, 300));
-    $('#searchBtn').on('click', applyFilters);
+    $('#statusFilter').on('change', applyFiltersFromUserInput);
+    $('#subscriptionFilter').on('change', applyFiltersFromUserInput);
+    $('#searchInput').on('keyup', debounce(applyFiltersFromUserInput, 300));
+    $('#searchBtn').on('click', applyFiltersFromUserInput);
     $('#clearFilters').on('click', clearFilters);
     $('#defaultAdminPaymentMethod').on('change', function onDefaultPaymentMethodChange() {
         const selectedMethod = normalizePaymentMethod($(this).val());
@@ -922,11 +935,11 @@ function applyFilters() {
     const searchTerm = $('#searchInput').val().toLowerCase();
     
     filteredUsers = allUsers.filter(user => {
-        // Status filter
-        if (status) {
+        // Status filter — kecualikan baris yang baru diubah (pinned) agar tetap tampil di tempat
+        if (status && !pinnedVisibleUserIds.has(user.id)) {
             const isPaid = user.paid === true || user.paid === 1;
             const isWhitelisted = whitelistedPackages.includes(user.subscription);
-            
+
             if (status === 'paid' && !isPaid) return false;
             // Exclude whitelist users from unpaid filter (they are free users)
             if (status === 'unpaid' && (isPaid || isWhitelisted)) return false;
@@ -955,13 +968,21 @@ function applyFilters() {
         return true;
     });
     
-    currentPage = 1;
     updateStatistics();
     renderTable();
 }
 
+// Filter yang dipicu interaksi user — reset ke halaman 1 & buang daftar pinned agar penyaringan kembali ketat.
+// (applyFilters sendiri tidak mereset halaman, supaya reload data biasa mempertahankan posisi halaman.)
+function applyFiltersFromUserInput() {
+    pinnedVisibleUserIds.clear();
+    currentPage = 1;
+    applyFilters();
+}
+
 // Clear filters
 function clearFilters() {
+    pinnedVisibleUserIds.clear();
     $('#statusFilter').val('');
     $('#subscriptionFilter').val('').trigger('change.select2');
     $('#searchInput').val('');
@@ -1326,8 +1347,9 @@ async function submitPartialPayment(userId, maxAmount) {
             
             showToast(msg, 'success');
             
-            // Reload data if fully paid
+            // Reload data if fully paid — tetap tampilkan baris ini di tempat (hijau) setelah lunas
             if (result.data.will_be_fully_paid) {
+                pinnedVisibleUserIds.add(userId);
                 setTimeout(() => loadUsers(), 500);
             }
         } else {
