@@ -494,6 +494,25 @@
             <input class="form-check-input" type="checkbox" id="area_coord_in_group">
             <label class="form-check-label" for="area_coord_in_group">Koordinator juga ada di grup — jangan japri nomornya, cukup grup. <span class="text-muted">Notifikasi terpusat ke grup (hanya berlaku bila grup diisi).</span></label>
           </div>
+          <div class="form-group">
+            <label>Jam tenang area</label>
+            <select class="form-control" id="area_quiet_mode">
+              <option value="inherit">Ikuti pengaturan global (default)</option>
+              <option value="custom">Atur jendela sendiri</option>
+              <option value="off">Tanpa jam tenang (alert kapan saja)</option>
+            </select>
+            <div class="form-row mt-2" id="area_quiet_window" style="display:none;">
+              <div class="col-auto">
+                <label class="small mb-0 d-block">Mulai</label>
+                <input type="time" class="form-control form-control-sm" id="area_quiet_start" style="width:130px;">
+              </div>
+              <div class="col-auto">
+                <label class="small mb-0 d-block">Selesai</label>
+                <input type="time" class="form-control form-control-sm" id="area_quiet_end" style="width:130px;">
+              </div>
+            </div>
+            <small class="form-text text-muted">Override jam tenang khusus area ini (mis. pasar 00:00–05:00, pos jaga "tanpa jam tenang"). Jenis penerima yang kena (pelanggan/koordinator/grup) tetap mengikuti pengaturan global.</small>
+          </div>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" id="area_enabled" checked>
             <label class="form-check-label" for="area_enabled">Aktif (kirim notifikasi koordinator)</label>
@@ -546,6 +565,7 @@
     $('#areaSaveBtn').on('click', saveArea);
     $('#area_load_groups').on('click', loadGroups);
     $('#area_group').on('change', onAreaGroupChange);
+    $('#area_quiet_mode').on('change', toggleAreaQuietWindow);
     // Modal area dibuka menggantikan modal CCTV (bukan ditumpuk); saat ditutup, kembalikan modal CCTV bila perlu.
     $('#areaModal').on('hidden.bs.modal', function () { if (reopenCctvAfterArea) { reopenCctvAfterArea = false; $('#cctvModal').modal('show'); } });
     $(document).on('click', '.btn-test-area', function () { testArea($(this).data('id'), $(this).data('name')); });
@@ -1144,6 +1164,7 @@
       hint.html('<span class="text-danger">Gagal: ' + escapeHtml(e.message) + '</span>');
     } finally { btn.prop('disabled', false); }
   }
+  function toggleAreaQuietWindow() { $('#area_quiet_window').toggle($('#area_quiet_mode').val() === 'custom'); }
   function renderAreas() {
     const tb = $('#areasTable tbody').empty();
     $('#tabCountAreas').text(areasCache.length);
@@ -1153,8 +1174,9 @@
     }
     areasCache.forEach(a => {
       const off = a.enabled === false ? ' <span class="badge badge-secondary">nonaktif</span>' : '';
+      const qz = a.quietMode === 'off' ? 'tanpa jam tenang' : a.quietMode === 'custom' ? ('jam tenang ' + (a.quietStart || '?') + '–' + (a.quietEnd || '?')) : '';
       tb.append(`<tr>
-        <td><strong>${escapeHtml(a.name)}</strong>${off}</td>
+        <td><strong>${escapeHtml(a.name)}</strong>${off}${qz ? '<br><small class="text-muted"><i class="fas fa-moon"></i> ' + escapeHtml(qz) + '</small>' : ''}</td>
         <td>${escapeHtml(a.coordinatorName || '—')}</td>
         <td>
           ${a.coordinatorPhone ? '<div><span class="cctv-host">' + escapeHtml(a.coordinatorPhone) + '</span>' + (a.coordinatorInGroup && a.coordinatorGroupId ? ' <span class="badge badge-light" title="Nomor koordinator tak dijapri, cukup lewat grup">via grup</span>' : '') + '</div>' : ''}
@@ -1173,6 +1195,7 @@
     $('#areaModalTitle').text('Tambah Area'); $('#areaForm')[0].reset();
     $('#area_id').val(''); $('#area_enabled').prop('checked', true);
     $('#area_group').val(''); $('#area_group_name').val(''); $('#area_customers_in_group').prop('checked', false); $('#area_coord_in_group').prop('checked', false); resetGroupHint();
+    $('#area_quiet_mode').val('inherit'); $('#area_quiet_start').val(''); $('#area_quiet_end').val(''); toggleAreaQuietWindow();
     $('#areaModal').modal('show');
   }
   function openEditArea(id) {
@@ -1183,6 +1206,7 @@
     setAreaGroupValue(a.coordinatorGroupId || '', a.coordinatorGroupName || ''); resetGroupHint();
     $('#area_customers_in_group').prop('checked', a.customersInGroup === true);
     $('#area_coord_in_group').prop('checked', a.coordinatorInGroup === true);
+    $('#area_quiet_mode').val(a.quietMode || 'inherit'); $('#area_quiet_start').val(a.quietStart || ''); $('#area_quiet_end').val(a.quietEnd || ''); toggleAreaQuietWindow();
     $('#area_enabled').prop('checked', a.enabled !== false);
     $('#areaModal').modal('show');
   }
@@ -1195,10 +1219,14 @@
       coordinatorGroupName: $('#area_group_name').val().trim(),
       customersInGroup: $('#area_customers_in_group').is(':checked'),
       coordinatorInGroup: $('#area_coord_in_group').is(':checked'),
+      quietMode: $('#area_quiet_mode').val(),
+      quietStart: $('#area_quiet_start').val(),
+      quietEnd: $('#area_quiet_end').val(),
       enabled: $('#area_enabled').is(':checked'),
     };
     if (!payload.name) { Swal.fire('Lengkapi', 'Nama area wajib diisi.', 'warning'); return; }
     if (!payload.coordinatorPhone && !payload.coordinatorGroupId) { Swal.fire('Lengkapi', 'Isi nomor WA koordinator ATAU pilih Grup WA RT.', 'warning'); return; }
+    if (payload.quietMode === 'custom' && (!payload.quietStart || !payload.quietEnd)) { Swal.fire('Lengkapi', 'Jam tenang "Atur sendiri": isi jam mulai & selesai.', 'warning'); return; }
     const id = $('#area_id').val();
     const url = id ? `/api/cctv/areas/${id}` : '/api/cctv/areas';
     const method = id ? 'PUT' : 'POST';
