@@ -59,7 +59,7 @@ Aplikasi monolit Node.js untuk operasional ISP/RTRW-Net yang menggabungkan bot W
 - Telegram backup untuk arsip database.
 - Socket.IO untuk status realtime portal.
 - `php-express` untuk bridge halaman/endpoint PHP legacy.
-- Cloudflare Tunnel disebut sebagai terminasi HTTPS reverse proxy; enforcement HTTPS lokal dimatikan.
+- Cloudflare Tunnel disebut sebagai terminasi HTTPS reverse proxy; enforcement HTTPS lokal dimatikan. Express `trust proxy` disetel di `lib/http-app.js` (default `loopback`, override via `config.trustProxy`) agar `req.ip` & `express-rate-limit` membaca IP klien asli dari X-Forwarded-For — bukan alamat tunnel.
 
 ## Direktori Inti
 - `message/`: router bot dan handler percakapan WhatsApp.

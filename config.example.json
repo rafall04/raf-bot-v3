@@ -27,6 +27,7 @@
   "ipaymuProduction": true,
   "genieacsRefreshDelay": 2000,
   "listPelangganPerPage": 50,
+  "trustProxy": "loopback",
   "invoice": {
     "taxRate": 11,
     "prefix": "INV",
