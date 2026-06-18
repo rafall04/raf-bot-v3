@@ -226,6 +226,11 @@ router.get('/sync-device-id', checkRole(['admin', 'owner', 'superadmin']), (req,
     res.render('sb-admin/sync-device-id.php');
 });
 
+// Penyesuaian Bulk SSID page - ADMIN ONLY
+router.get('/penyesuaian-bulk', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/bulk-ssid-diff.php');
+});
+
 // Working Hours page
 router.get('/teknisi-working-hours', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/teknisi-working-hours.php');

@@ -756,12 +756,12 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
 
     <hr class="sidebar-divider">
 
-    <li class="nav-item <?php echo isParentActive(['/users', '/packages', '/package-requests', '/import-mikrotik', '/buka-isolir', '/custom-isolir', '/sync-device-id', '/rubah-paket'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePelanggan" aria-expanded="<?php echo isParentActive(['/users', '/packages', '/package-requests', '/import-mikrotik', '/buka-isolir', '/custom-isolir', '/sync-device-id', '/rubah-paket'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePelanggan">
+    <li class="nav-item <?php echo isParentActive(['/users', '/packages', '/package-requests', '/import-mikrotik', '/buka-isolir', '/custom-isolir', '/sync-device-id', '/penyesuaian-bulk', '/rubah-paket'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePelanggan" aria-expanded="<?php echo isParentActive(['/users', '/packages', '/package-requests', '/import-mikrotik', '/buka-isolir', '/custom-isolir', '/sync-device-id', '/penyesuaian-bulk', '/rubah-paket'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePelanggan">
             <i class="fas fa-fw fa-users"></i>
             <span>Pelanggan</span>
         </a>
-        <div id="collapsePelanggan" class="collapse <?php echo isParentActive(['/users', '/packages', '/package-requests', '/import-mikrotik', '/buka-isolir', '/custom-isolir', '/sync-device-id', '/rubah-paket'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPelanggan" data-parent="#accordionSidebar">
+        <div id="collapsePelanggan" class="collapse <?php echo isParentActive(['/users', '/packages', '/package-requests', '/import-mikrotik', '/buka-isolir', '/custom-isolir', '/sync-device-id', '/penyesuaian-bulk', '/rubah-paket'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPelanggan" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/users', $current_page) ? 'active' : ''; ?>" href="/users">
                     <i class="fas fa-fw fa-user mr-2"></i>
@@ -786,6 +786,10 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/sync-device-id', $current_page) ? 'active' : ''; ?>" href="/sync-device-id">
                     <i class="fas fa-fw fa-sync mr-2"></i>
                     <span>Sync Device ID</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/penyesuaian-bulk', $current_page) ? 'active' : ''; ?>" href="/penyesuaian-bulk">
+                    <i class="fas fa-fw fa-wifi mr-2"></i>
+                    <span>Penyesuaian Bulk SSID</span>
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/packages', $current_page) ? 'active' : ''; ?>" href="/packages">
                     <i class="fas fa-fw fa-box-open mr-2"></i>

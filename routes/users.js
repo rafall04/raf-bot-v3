@@ -16,6 +16,7 @@ const {
     extractDeviceModel,
 } = require('../lib/genieacs');
 const IsolirService = require('../lib/services/isolir-service');
+const { scanBulkDiff, fetchDeviceCapability, bulkMatchesExpected, normalizeBulk } = require('../lib/wifi-bulk-reconcile');
 
 const router = express.Router();
 
@@ -922,12 +923,34 @@ router.post('/sync-device-ids', ensureAdmin, async (req, res) => {
                 // Update in memory
                 user.device_id = newDeviceId;
                 user.updated_at = new Date().toISOString();
+
+                // Auto-heal kolom bulk: kalau device baru dual-band tapi bulk pelanggan belum
+                // memuat SSID 5 (mis. modem lama single-band → HG8145V5), sesuaikan ke kapabilitas
+                // band perangkat. Best-effort — kegagalan GenieACS tidak menggagalkan update device_id.
+                let bulkAdjusted = null;
+                try {
+                    const cap = await fetchDeviceCapability(newDeviceId, { operation: 'users.syncDeviceIds.capability' });
+                    if (cap.found && !bulkMatchesExpected(user.bulk, cap.expectedBulk)) {
+                        const oldBulk = normalizeBulk(user.bulk);
+                        await new Promise((resolve, reject) => {
+                            global.db.run('UPDATE users SET bulk = ? WHERE id = ?', [JSON.stringify(cap.expectedBulk), user.id], function (err) {
+                                if (err) reject(err); else resolve();
+                            });
+                        });
+                        user.bulk = cap.expectedBulk;
+                        bulkAdjusted = { from: oldBulk, to: cap.expectedBulk };
+                        console.log(`[SYNC_DEVICE_ID] Bulk #${user.id} disesuaikan: [${oldBulk.join(',')}] -> [${cap.expectedBulk.join(',')}] (model ${cap.model || '-'})`);
+                    }
+                } catch (capErr) {
+                    console.warn(`[SYNC_DEVICE_ID] Lewati penyesuaian bulk untuk #${user.id}: ${capErr.message}`);
+                }
                 
                 results.success.push({
                     userId: userId,
                     name: user.name,
                     oldDeviceId: oldDeviceId,
-                    newDeviceId: newDeviceId
+                    newDeviceId: newDeviceId,
+                    bulkAdjusted: bulkAdjusted
                 });
                 
                 console.log(`[SYNC_DEVICE_ID] Updated ${user.name}: ${oldDeviceId} -> ${newDeviceId}`);
@@ -982,6 +1005,127 @@ router.post('/sync-device-ids', ensureAdmin, async (req, res) => {
             status: 500,
             message: 'Gagal melakukan sinkronisasi Device ID',
             error: error.message
+        });
+    }
+});
+
+// GET /api/users/bulk-diff - Scan ketidaksesuaian kolom bulk vs kapabilitas band modem
+router.get('/bulk-diff', ensureAdmin, async (req, res) => {
+    try {
+        const result = await scanBulkDiff(global.users);
+        return res.json({
+            status: 200,
+            message: `Ditemukan ${result.different.length} pelanggan dengan bulk SSID tidak sesuai`,
+            data: result.different,
+            stats: result.stats,
+        });
+    } catch (error) {
+        console.error('[BULK_DIFF_ERROR]', error);
+        return res.status(500).json({
+            status: 500,
+            message: 'Gagal scan bulk SSID: ' + error.message,
+        });
+    }
+});
+
+// POST /api/users/sync-bulk - Terapkan koreksi kolom bulk untuk pelanggan terpilih
+router.post('/sync-bulk', ensureAdmin, async (req, res) => {
+    try {
+        const { items } = req.body;
+
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({
+                status: 400,
+                message: 'Tidak ada data untuk disinkronkan',
+            });
+        }
+
+        const results = { success: [], failed: [] };
+
+        for (const item of items) {
+            const userId = item?.userId;
+            const targetBulk = normalizeBulk(item?.bulk);
+
+            const user = global.users.find((u) => String(u.id) === String(userId));
+            if (!user) {
+                results.failed.push({ userId, reason: 'Pelanggan tidak ditemukan' });
+                continue;
+            }
+
+            // Validasi: setiap nilai harus index SSID 1-8 (batas WLANConfiguration yang didukung).
+            const invalid = targetBulk.filter((idx) => !/^[1-8]$/.test(idx));
+            if (targetBulk.length === 0 || invalid.length > 0) {
+                results.failed.push({
+                    userId,
+                    name: user.name,
+                    reason: `Nilai bulk tidak valid: [${(Array.isArray(item?.bulk) ? item.bulk : []).join(',')}]`,
+                });
+                continue;
+            }
+
+            const oldBulk = normalizeBulk(user.bulk);
+            try {
+                await new Promise((resolve, reject) => {
+                    global.db.run(
+                        'UPDATE users SET bulk = ?, updated_at = ? WHERE id = ?',
+                        [JSON.stringify(targetBulk), new Date().toISOString(), user.id],
+                        function (err) {
+                            if (err) reject(err);
+                            else resolve();
+                        }
+                    );
+                });
+
+                // Sinkron in-memory sebagai array (sesuai ekspektasi handler WiFi).
+                user.bulk = targetBulk;
+                user.updated_at = new Date().toISOString();
+
+                results.success.push({ id: user.id, name: user.name, oldBulk, newBulk: targetBulk });
+                console.log(`[SYNC_BULK] ${user.name} (#${user.id}): [${oldBulk.join(',')}] -> [${targetBulk.join(',')}]`);
+            } catch (err) {
+                console.error(`[SYNC_BULK] Gagal untuk #${userId}:`, err.message);
+                results.failed.push({ userId, name: user.name, reason: err.message });
+            }
+        }
+
+        try {
+            await logActivity({
+                userId: req.user.id,
+                username: req.user.username,
+                role: req.user.role,
+                actionType: 'UPDATE',
+                resourceType: 'user',
+                resourceId: 'sync-bulk',
+                resourceName: 'Sync Bulk SSID',
+                description: `Sinkronisasi bulk SSID ${results.success.length} pelanggan (${results.failed.length} gagal)`,
+                oldValue: null,
+                newValue: {
+                    successCount: results.success.length,
+                    failedCount: results.failed.length,
+                    users: results.success.map((u) => `${u.name}: [${u.oldBulk.join(',')}] -> [${u.newBulk.join(',')}]`),
+                },
+                ipAddress: req.ip || req.connection?.remoteAddress || req.headers['x-forwarded-for'],
+                userAgent: req.headers['user-agent'],
+            });
+        } catch (logErr) {
+            console.error('[SYNC_BULK] Activity log error:', logErr);
+        }
+
+        const message = results.success.length > 0
+            ? `Berhasil update ${results.success.length} bulk SSID${results.failed.length > 0 ? `, ${results.failed.length} gagal` : ''}`
+            : 'Gagal update semua bulk SSID';
+
+        return res.json({
+            status: results.success.length > 0 ? 200 : 500,
+            message,
+            results,
+        });
+    } catch (error) {
+        console.error('[SYNC_BULK_ERROR]', error);
+        return res.status(500).json({
+            status: 500,
+            message: 'Gagal sinkronisasi bulk SSID',
+            error: error.message,
         });
     }
 });
