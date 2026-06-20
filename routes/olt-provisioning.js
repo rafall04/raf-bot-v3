@@ -45,6 +45,7 @@ function registerOltProvisioningRoutes(router, deps) {
         genieacs,               // lib/genieacs (status inform ACS)
         saveDeviceAcs,          // (id, acs) => persist ke config.json
         health,                 // lib/olt-health-service (snapshot kesehatan OLT, read-only)
+        showConsole,            // lib/olt-show-console (konsol `show` read-only ter-guard)
     } = deps;
 
     const requireRole = (roles) => (req, res, next) => {
@@ -396,6 +397,23 @@ function registerOltProvisioningRoutes(router, deps) {
         res.json({ status: snapshot.ok ? 200 : 502, data: snapshot });
     }));
 
+    // ── Konsol `show` (read-only ter-guard) ───────────────────────────────────
+    // Jalankan SATU perintah `show ...` via SSH (host-lock). Tulis/konfig/reboot/rangkai
+    // perintah & output masif (running-config) DITOLAK di lib/olt-show-console.
+    router.post('/provision/devices/:id/show', requireStaff, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        const result = await showConsole.runShowCommand(device, req.body && req.body.command);
+        await audit(req, {
+            action: 'olt_show_console',
+            resource: 'olt',
+            resourceId: device.id,
+            description: `konsol show: ${(req.body && req.body.command) || ''}`,
+            success: result.ok,
+        });
+        res.status(result.ok ? 200 : 400).json({ status: result.ok ? 200 : 400, data: result });
+    }));
+
     // ── ACS / TR069 ───────────────────────────────────────────────────────────
     // Strategi: ZTE asli (oltPushable) → OLT-push; clone/Huawei → set di modem (in-band).
     // Kebenaran final = inform di GenieACS, BUKAN "command OK" (ZTE ex-ISP terkunci bisa
@@ -714,6 +732,7 @@ const store = require('../lib/olt-provision-store');
 const backup = require('../lib/olt-backup');
 const genieacs = require('../lib/genieacs');
 const health = require('../lib/olt-health-service');
+const showConsole = require('../lib/olt-show-console');
 const { restartOltBackupTask } = require('../lib/cron/jobs/olt-backup');
 const { logActivity } = require('../lib/activity-logger');
 
@@ -741,6 +760,7 @@ registerOltProvisioningRoutes(router, {
     genieacs,
     saveDeviceAcs,
     health,
+    showConsole,
 });
 
 module.exports = router;

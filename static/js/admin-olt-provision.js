@@ -102,6 +102,11 @@ $(document).ready(function () {
     $('a[href="#tab-health"]').on('shown.bs.tab', function () { if (!healthLoaded) loadHealth(); });
     $('#healthRefreshBtn').on('click', function () { loadHealth(true); });
     $('#provOltSelect').on('change', function () { healthLoaded = false; if ($('#tab-health').hasClass('active')) loadHealth(); });
+
+    // ── Tab 6: Konsol show (read-only) ──────────────────────────────────
+    $('#consoleRunBtn').on('click', runShowConsole);
+    $('#consoleCmd').on('keydown', function (e) { if (e.key === 'Enter') runShowConsole(); });
+    $('#consoleQuick').on('click', 'button[data-cmd]', function () { $('#consoleCmd').val($(this).data('cmd')); runShowConsole(); });
 });
 
 // ════════ Util ════════
@@ -196,7 +201,9 @@ function renderHealth(h) {
         $('#healthBody').html('<div class="alert alert-danger"><i class="fas fa-times-circle"></i> OLT tak terjangkau: ' + escapeHtml(h.error || 'tidak diketahui') + '</div>');
         return;
     }
-    $('#healthUpdated').text('Diperbarui: ' + new Date(h.fetchedAt).toLocaleString('id-ID') + (h.cached ? ' (cache)' : ''));
+    $('#healthUpdated').text(
+        'Diperbarui: ' + new Date(h.fetchedAt).toLocaleString('id-ID') + (h.cached ? ' (cache)' : '') + (h.source ? ' · ' + h.source : '')
+    );
 
     const alerts = h.alerts || [];
     $('#healthAlerts').html(alerts.length
@@ -212,6 +219,15 @@ function renderHealth(h) {
 
     const id = h.identity || {};
     const v = h.vlans || {};
+    const pe = h.powerEnv || {};
+    const peActive = (pe.activeAlarms || []).length;
+    const peHtml = pe.catalog
+        ? '<hr class="my-2"><small class="text-muted">Power/Env (EMU): ' +
+          (peActive
+              ? '<span class="badge badge-danger">' + peActive + ' alarm aktif</span>'
+              : '<span class="badge badge-success">normal</span>') +
+          ' <small class="text-muted">(' + (pe.mappedCount || 0) + '/' + (pe.channels || []).length + ' input dikabeli)</small></small>'
+        : '';
     const procRows = (h.processors || []).map((p) =>
         '<tr><td>' + p.slot + '</td><td>' + dash(p.cpu5s) + '% / ' + dash(p.cpu1m) + '% / ' + dash(p.cpu5m) + '%</td><td>' + dash(p.memPct) + '% <small class="text-muted">(' + dash(p.phyMemMb) + 'MB)</small></td></tr>').join('');
     const cardRows = (h.cards || []).map((c) =>
@@ -241,7 +257,8 @@ function renderHealth(h) {
             '<div class="text-xs font-weight-bold text-primary text-uppercase mb-1">VLAN &amp; Penyimpanan</div>' +
             '<div class="h5 mb-0">' + dash(v.count) + ' VLAN</div>' +
             '<small class="text-muted d-block">' + escapeHtml((v.list || []).join(', ')) + '</small>' +
-            '<hr class="my-2"><small class="text-muted">Penyimpanan/flash: <span class="badge badge-secondary">N/A</span> <span title="Firmware ZXAN ini tak mengekspos flash via CLI; rencana via SNMP.">(belum tersedia)</span></small>' +
+            '<hr class="my-2"><small class="text-muted">Penyimpanan/flash &amp; voltase PSU: <span class="badge badge-secondary">N/A</span> <span title="Firmware ZXAN C320 ini tak mengekspos flash-usage / voltase PSU internal via CLI maupun SNMP.">(tak diekspos firmware)</span></small>' +
+            peHtml +
           '</div></div></div>' +
         '</div>' +
         '<div class="row">' +
@@ -253,6 +270,33 @@ function renderHealth(h) {
           '<div class="col-lg-5 mb-4"><div class="card shadow h-100"><div class="card-header py-2"><h6 class="m-0 font-weight-bold text-primary">Interface L3</h6></div><div class="card-body p-2"><div class="table-responsive"><table class="table table-sm table-bordered mb-0"><thead class="thead-light"><tr><th>Interface</th><th>IP</th><th>Proto</th></tr></thead><tbody>' + (l3Rows || '<tr><td colspan="3" class="text-center text-muted">–</td></tr>') + '</tbody></table></div></div></div></div>' +
         '</div>'
     );
+}
+
+// ════════ Konsol show (read-only) ════════
+
+async function runShowConsole() {
+    const dev = requireDevice();
+    if (!dev) return;
+    const cmd = ($('#consoleCmd').val() || '').trim();
+    if (!cmd) {
+        showAlert('warning', 'Ketik perintah show dulu.');
+        return;
+    }
+    $('#consoleOut').text('⏳ Menjalankan: ' + cmd);
+    setBusy('#consoleRunBtn', true, 'Menjalankan…');
+    try {
+        const json = await api('POST', '/api/olt/provision/devices/' + encodeURIComponent(dev.id) + '/show', { command: cmd });
+        const d = json && json.data;
+        if (d && d.ok) {
+            $('#consoleOut').text('$ ' + d.command + '\n\n' + (d.output || '(output kosong)'));
+        } else {
+            $('#consoleOut').text('✖ ' + ((d && d.error) || (json && json.message) || 'Gagal menjalankan perintah'));
+        }
+    } catch (e) {
+        $('#consoleOut').text('✖ Error: ' + e.message);
+    } finally {
+        setBusy('#consoleRunBtn', false);
+    }
 }
 
 // ════════ Devices ════════

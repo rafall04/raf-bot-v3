@@ -48,6 +48,7 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-backup" role="tab"><i class="fas fa-database"></i> Backup OLT</a></li>
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-acs" role="tab"><i class="fas fa-globe"></i> ACS / TR069</a></li>
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-health" role="tab"><i class="fas fa-heartbeat"></i> Kesehatan</a></li>
+                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-console" role="tab"><i class="fas fa-terminal"></i> Konsol</a></li>
                     </ul>
 
                     <div class="tab-content">
@@ -368,6 +369,26 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                             <div id="healthBody">
                                 <div class="text-center text-muted py-4">Pilih OLT lalu klik "Muat / Refresh" untuk melihat kesehatan perangkat.</div>
                             </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="tab-console" role="tabpanel">
+                            <div class="card shadow mb-3"><div class="card-body">
+                                <p class="small text-muted mb-2"><i class="fas fa-shield-alt"></i> Konsol <b>read-only</b>: hanya perintah <code>show ...</code>. Perintah tulis/konfig/reboot, rangkai perintah, &amp; output masif (running-config) ditolak otomatis.</p>
+                                <div class="input-group mb-2">
+                                    <input type="text" class="form-control" id="consoleCmd" placeholder="show card" autocomplete="off">
+                                    <div class="input-group-append"><button class="btn btn-primary" id="consoleRunBtn"><i class="fas fa-play"></i> Jalankan</button></div>
+                                </div>
+                                <div class="mb-2" id="consoleQuick">
+                                    <small class="text-muted mr-1">Cepat:</small>
+                                    <button class="btn btn-outline-secondary btn-sm mb-1" data-cmd="show card">show card</button>
+                                    <button class="btn btn-outline-secondary btn-sm mb-1" data-cmd="show fan">show fan</button>
+                                    <button class="btn btn-outline-secondary btn-sm mb-1" data-cmd="show processor">show processor</button>
+                                    <button class="btn btn-outline-secondary btn-sm mb-1" data-cmd="show vlan summary">show vlan summary</button>
+                                    <button class="btn btn-outline-secondary btn-sm mb-1" data-cmd="show ip interface brief">show ip interface brief</button>
+                                    <button class="btn btn-outline-secondary btn-sm mb-1" data-cmd="show gpon onu state">show gpon onu state</button>
+                                </div>
+                                <pre id="consoleOut" class="bg-dark text-light p-3 rounded" style="min-height:160px;max-height:480px;overflow:auto;white-space:pre-wrap;">Output akan tampil di sini…</pre>
+                            </div></div>
                         </div>
 
                     </div><!-- /.tab-content -->
