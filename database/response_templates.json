@@ -2844,6 +2844,41 @@
     "category": "wifi",
     "template": "⏳ Sedang mengambil informasi WiFi dan modem Anda, mohon tunggu sebentar..."
   },
+  "conncheck_loading": {
+    "name": "Cek Koneksi: Sedang Mengecek",
+    "category": "koneksi",
+    "template": "⏳ Sebentar ya Kak, saya sedang mengecek status koneksi Anda..."
+  },
+  "conncheck_not_registered": {
+    "name": "Cek Koneksi: Belum Terdaftar",
+    "category": "koneksi",
+    "template": "Maaf, nomor Anda belum terdaftar sebagai pelanggan. Silakan hubungi admin untuk bantuan."
+  },
+  "conncheck_online": {
+    "name": "Cek Koneksi: Jalur Aktif",
+    "category": "koneksi",
+    "template": "🔎 *STATUS KONEKSI — ${nama_layanan}*\n\nHalo Kak ${nama}! 👋\n\n🟢 *Jalur internet: AKTIF*\nKoneksi Anda ke jaringan kami normal.${modem}\n\n✅ Kalau internet terasa lambat:\n• Dekatkan perangkat ke modem / kurangi penghalang\n• Ketik *cek wifi* untuk lihat perangkat yang terhubung\n• Masih bermasalah? ketik *lapor wifi lemot*\n\nTerima kasih 🙏"
+  },
+  "conncheck_offline_area": {
+    "name": "Cek Koneksi: Terputus (Gangguan Area)",
+    "category": "koneksi",
+    "template": "🔎 *STATUS KONEKSI — ${nama_layanan}*\n\nHalo Kak ${nama}!\n\n🔴 *Jalur internet: TERPUTUS*\n⚠️ Terdeteksi *gangguan area* — sekitar ${jumlah} pelanggan ikut terdampak. Tim teknisi kami sedang menanganinya.\n\nAnda *tidak perlu* membuat laporan; kami akan kabari begitu koneksi pulih. Mohon ditunggu ya 🙏"
+  },
+  "conncheck_offline_single": {
+    "name": "Cek Koneksi: Terputus (Hanya Anda)",
+    "category": "koneksi",
+    "template": "🔎 *STATUS KONEKSI — ${nama_layanan}*\n\nHalo Kak ${nama}!\n\n🔴 *Jalur internet: TERPUTUS*\nYang terpantau putus hanya koneksi Anda.${terakhir_online}\n\n🛠️ Coba langkah cepat ini:\n1) Cek kabel & adaptor modem/ONU (apakah lampu *LOS* menyala merah?)\n2) Restart modem: cabut listrik ±30 detik, lalu colok kembali\n3) Tunggu 2-3 menit hingga lampu kembali normal\n\nMasih mati setelah dicoba? Ketik *lapor* untuk membuat laporan ke teknisi. 🙏"
+  },
+  "conncheck_unknown": {
+    "name": "Cek Koneksi: Belum Bisa Dicek",
+    "category": "koneksi",
+    "template": "🔎 *STATUS KONEKSI — ${nama_layanan}*\n\nHalo Kak ${nama}!\n\n⚪ Status jalur internet Anda belum bisa kami cek otomatis saat ini.${modem}\n\nUntuk pengecekan lanjutan ketik *cek wifi*, atau ketik *lapor* bila ada kendala. 🙏"
+  },
+  "conncheck_modem_line": {
+    "name": "Cek Koneksi: Baris Info Modem",
+    "category": "koneksi",
+    "template": "\n📡 Modem: aktif (uptime ${uptime}), ${jumlah_perangkat} perangkat terhubung."
+  },
   "wifi_confirm_name_success": {
     "name": "WiFi Confirm: Nama Berhasil Diubah",
     "category": "wifi",

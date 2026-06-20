@@ -116,6 +116,37 @@
   },
   {
     "keywords": [
+      "cek status internet",
+      "status internet saya",
+      "status internet",
+      "cek internet saya",
+      "cek internet",
+      "cek koneksi internet",
+      "cek koneksi saya",
+      "internet saya mati",
+      "internet saya kenapa",
+      "kenapa internet saya",
+      "internet saya lemot",
+      "kenapa internet lemot",
+      "internet mati",
+      "internet lemot",
+      "internet lambat",
+      "internet putus",
+      "tidak ada internet",
+      "ga ada internet",
+      "gak ada internet",
+      "koneksi terputus",
+      "koneksi saya mati",
+      "cek jaringan",
+      "kenapa internet"
+    ],
+    "intent": "CEK_KONEKSI",
+    "category": "support",
+    "description": "Cek status koneksi internet pelanggan (jalur PPPoE, gangguan area, modem)",
+    "icon": "🔎"
+  },
+  {
+    "keywords": [
       "cekwifi",
       "cek wifi",
       "cek wifi saya",
