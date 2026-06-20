@@ -44,6 +44,7 @@ function registerOltProvisioningRoutes(router, deps) {
         logActivity,            // async (data) => void
         genieacs,               // lib/genieacs (status inform ACS)
         saveDeviceAcs,          // (id, acs) => persist ke config.json
+        health,                 // lib/olt-health-service (snapshot kesehatan OLT, read-only)
     } = deps;
 
     const requireRole = (roles) => (req, res, next) => {
@@ -384,6 +385,17 @@ function registerOltProvisioningRoutes(router, deps) {
         res.json({ status: 200, data: status });
     }));
 
+    // ── Kesehatan OLT (read-only) ─────────────────────────────────────────────
+    // Snapshot suhu/kipas, CPU/memori, kartu, uplink, VLAN, identitas + alert turunan.
+    // Service melakukan cache 60s + serial per host (firmware ZXAN mengunci SSH bila
+    // ditembak beruntun); ?refresh=1 memaksa ambil ulang.
+    router.get('/provision/devices/:id/health', requireStaff, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        const snapshot = await health.getHealthSnapshot(device, { force: req.query.refresh === '1' });
+        res.json({ status: snapshot.ok ? 200 : 502, data: snapshot });
+    }));
+
     // ── ACS / TR069 ───────────────────────────────────────────────────────────
     // Strategi: ZTE asli (oltPushable) → OLT-push; clone/Huawei → set di modem (in-band).
     // Kebenaran final = inform di GenieACS, BUKAN "command OK" (ZTE ex-ISP terkunci bisa
@@ -701,6 +713,7 @@ const provision = require('../lib/olt-zte-provision');
 const store = require('../lib/olt-provision-store');
 const backup = require('../lib/olt-backup');
 const genieacs = require('../lib/genieacs');
+const health = require('../lib/olt-health-service');
 const { restartOltBackupTask } = require('../lib/cron/jobs/olt-backup');
 const { logActivity } = require('../lib/activity-logger');
 
@@ -727,6 +740,7 @@ registerOltProvisioningRoutes(router, {
     logActivity,
     genieacs,
     saveDeviceAcs,
+    health,
 });
 
 module.exports = router;

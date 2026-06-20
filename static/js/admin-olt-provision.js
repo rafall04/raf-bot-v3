@@ -24,6 +24,7 @@ let placeholderDocs = [];  // cheatsheet placeholder dari API
 let vendorTiers = [];      // tabel prefix SN → tier vendor (auto-pilih profil)
 let usersData = [];        // pelanggan untuk autofill
 let lastExec = null;       // { deviceId, ponPort, onuId } konteks hasil eksekusi terakhir
+let healthLoaded = false;  // tab kesehatan: sudah dimuat untuk device terpilih?
 let verifyTimer = null;
 let oltFacts = null;       // fakta OLT terpilih (port PON, tipe ONU, profil, VLAN)
 
@@ -96,6 +97,11 @@ $(document).ready(function () {
     $('#acsSearch').on('input', renderAcsTable);
     $('#acsTable').on('click', '.btn-acs-apply', function () { applyTr069($(this).data('pon'), $(this).data('onu'), $(this).data('sn')); });
     $('#acsTable').on('click', '.btn-acs-remove', function () { removeTr069($(this).data('pon'), $(this).data('onu')); });
+
+    // ── Tab 5: Kesehatan OLT ────────────────────────────────────────────
+    $('a[href="#tab-health"]').on('shown.bs.tab', function () { if (!healthLoaded) loadHealth(); });
+    $('#healthRefreshBtn').on('click', function () { loadHealth(true); });
+    $('#provOltSelect').on('change', function () { healthLoaded = false; if ($('#tab-health').hasClass('active')) loadHealth(); });
 });
 
 // ════════ Util ════════
@@ -152,6 +158,101 @@ function requireDevice() {
         return null;
     }
     return dev;
+}
+
+// ════════ Kesehatan OLT ════════
+
+function healthLevelBadge(level) {
+    return level === 'critical' ? 'danger' : (level === 'warn' ? 'warning' : 'secondary');
+}
+
+async function loadHealth(force) {
+    const dev = requireDevice();
+    if (!dev) return;
+    $('#healthBody').html('<div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin"></i> Mengambil data kesehatan dari OLT…</div>');
+    $('#healthAlerts').empty();
+    if (force) setBusy('#healthRefreshBtn', true, 'Memuat…');
+    try {
+        const json = await api('GET', '/api/olt/provision/devices/' + encodeURIComponent(dev.id) + '/health' + (force ? '?refresh=1' : ''));
+        if (!json || !json.data) {
+            showAlert('danger', (json && json.message) || 'Gagal memuat kesehatan OLT');
+            $('#healthBody').html('<div class="alert alert-danger">Gagal memuat data.</div>');
+            return;
+        }
+        renderHealth(json.data);
+        healthLoaded = true;
+    } catch (e) {
+        showAlert('danger', 'Error: ' + e.message);
+    } finally {
+        if (force) setBusy('#healthRefreshBtn', false);
+    }
+}
+
+function renderHealth(h) {
+    const dash = (v) => (v == null ? '–' : v);
+    if (!h.ok) {
+        $('#healthUpdated').text('');
+        $('#healthAlerts').empty();
+        $('#healthBody').html('<div class="alert alert-danger"><i class="fas fa-times-circle"></i> OLT tak terjangkau: ' + escapeHtml(h.error || 'tidak diketahui') + '</div>');
+        return;
+    }
+    $('#healthUpdated').text('Diperbarui: ' + new Date(h.fetchedAt).toLocaleString('id-ID') + (h.cached ? ' (cache)' : ''));
+
+    const alerts = h.alerts || [];
+    $('#healthAlerts').html(alerts.length
+        ? alerts.map((a) => '<div class="alert alert-' + healthLevelBadge(a.level) + ' py-2 mb-2"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(a.message) + '</div>').join('')
+        : '<div class="alert alert-success py-2 mb-2"><i class="fas fa-check-circle"></i> Semua metrik dalam batas normal.</div>');
+
+    const t = h.temperature || {};
+    let tempLevel = 'success';
+    if (t.envTempC != null && t.criticalTempC != null && t.envTempC >= t.criticalTempC) tempLevel = 'danger';
+    else if (t.envTempC != null && t.highTempC != null && t.envTempC >= t.highTempC) tempLevel = 'danger';
+    else if (t.envTempC != null && t.highTempC != null && t.envTempC >= t.highTempC - 10) tempLevel = 'warning';
+    const fansHtml = (t.fans || []).map((f) => 'Kipas ' + f.id + ': ' + f.rpm + ' RPM (lvl ' + f.speedLevel + ')').join('<br>') || '–';
+
+    const id = h.identity || {};
+    const v = h.vlans || {};
+    const procRows = (h.processors || []).map((p) =>
+        '<tr><td>' + p.slot + '</td><td>' + dash(p.cpu5s) + '% / ' + dash(p.cpu1m) + '% / ' + dash(p.cpu5m) + '%</td><td>' + dash(p.memPct) + '% <small class="text-muted">(' + dash(p.phyMemMb) + 'MB)</small></td></tr>').join('');
+    const cardRows = (h.cards || []).map((c) =>
+        '<tr class="' + (c.ok ? '' : 'table-danger') + '"><td>' + c.slot + '</td><td>' + escapeHtml((c.cfgType || '') + '/' + (c.realType || '-')) + '</td><td>' + dash(c.port) + '</td><td><span class="badge badge-' + (c.ok ? 'success' : 'danger') + '">' + escapeHtml(c.status) + '</span></td></tr>').join('');
+    const upRows = (h.uplinks || []).map((u) => {
+        const ok = u.up && u.protoUp;
+        return '<tr class="' + (ok ? '' : 'table-danger') + '"><td>' + escapeHtml(u.name) + '</td><td><span class="badge badge-' + (ok ? 'success' : 'danger') + '">' + (ok ? 'UP' : 'DOWN') + '</span> <small>' + escapeHtml(u.media || '') + '</small></td><td>in ' + dash(u.utilIn) + '% / out ' + dash(u.utilOut) + '%</td><td>CRC ' + dash(u.crcError) + ' / drop ' + dash(u.drops) + '</td></tr>';
+    }).join('');
+    const l3Rows = (h.l3 || []).map((x) =>
+        '<tr><td>' + escapeHtml(x.interface) + '</td><td>' + escapeHtml(x.ip) + '</td><td><span class="badge badge-' + (x.prot === 'up' ? 'success' : 'secondary') + '">' + escapeHtml(x.prot) + '</span></td></tr>').join('');
+
+    $('#healthBody').html(
+        '<div class="row">' +
+          '<div class="col-md-4 mb-4"><div class="card shadow h-100 border-left-' + tempLevel + '"><div class="card-body">' +
+            '<div class="text-xs font-weight-bold text-' + tempLevel + ' text-uppercase mb-1">Suhu Lingkungan</div>' +
+            '<div class="h2 mb-0 font-weight-bold">' + dash(t.envTempC) + '°C</div>' +
+            '<small class="text-muted">Ambang tinggi ' + dash(t.highTempC) + '°C · kritis ' + dash(t.criticalTempC) + '°C · ' + escapeHtml(t.powerMode || '') + '</small>' +
+            '<hr class="my-2"><small>' + fansHtml + '</small>' +
+          '</div></div></div>' +
+          '<div class="col-md-4 mb-4"><div class="card shadow h-100"><div class="card-body">' +
+            '<div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Perangkat</div>' +
+            '<div class="h5 mb-0">' + escapeHtml(id.name || '-') + ' <small class="text-muted">' + escapeHtml(id.version || '') + '</small></div>' +
+            '<small class="text-muted d-block mt-1">Uptime: ' + escapeHtml(id.uptime || '-') + '</small>' +
+            '<small class="text-muted d-block">' + escapeHtml(id.location || '') + '</small>' +
+          '</div></div></div>' +
+          '<div class="col-md-4 mb-4"><div class="card shadow h-100"><div class="card-body">' +
+            '<div class="text-xs font-weight-bold text-primary text-uppercase mb-1">VLAN &amp; Penyimpanan</div>' +
+            '<div class="h5 mb-0">' + dash(v.count) + ' VLAN</div>' +
+            '<small class="text-muted d-block">' + escapeHtml((v.list || []).join(', ')) + '</small>' +
+            '<hr class="my-2"><small class="text-muted">Penyimpanan/flash: <span class="badge badge-secondary">N/A</span> <span title="Firmware ZXAN ini tak mengekspos flash via CLI; rencana via SNMP.">(belum tersedia)</span></small>' +
+          '</div></div></div>' +
+        '</div>' +
+        '<div class="row">' +
+          '<div class="col-lg-6 mb-4"><div class="card shadow h-100"><div class="card-header py-2"><h6 class="m-0 font-weight-bold text-primary">CPU &amp; Memori per Slot</h6></div><div class="card-body p-2"><div class="table-responsive"><table class="table table-sm table-bordered mb-0"><thead class="thead-light"><tr><th>Slot</th><th>CPU 5s/1m/5m</th><th>Memori</th></tr></thead><tbody>' + (procRows || '<tr><td colspan="3" class="text-center text-muted">–</td></tr>') + '</tbody></table></div></div></div></div>' +
+          '<div class="col-lg-6 mb-4"><div class="card shadow h-100"><div class="card-header py-2"><h6 class="m-0 font-weight-bold text-primary">Kartu / Slot</h6></div><div class="card-body p-2"><div class="table-responsive"><table class="table table-sm table-bordered mb-0"><thead class="thead-light"><tr><th>Slot</th><th>Tipe</th><th>Port</th><th>Status</th></tr></thead><tbody>' + (cardRows || '<tr><td colspan="4" class="text-center text-muted">–</td></tr>') + '</tbody></table></div></div></div></div>' +
+        '</div>' +
+        '<div class="row">' +
+          '<div class="col-lg-7 mb-4"><div class="card shadow h-100"><div class="card-header py-2"><h6 class="m-0 font-weight-bold text-primary">Uplink (port fisik)</h6></div><div class="card-body p-2"><div class="table-responsive"><table class="table table-sm table-bordered mb-0"><thead class="thead-light"><tr><th>Port</th><th>Status</th><th>Utilisasi</th><th>Error</th></tr></thead><tbody>' + (upRows || '<tr><td colspan="4" class="text-center text-muted">–</td></tr>') + '</tbody></table></div></div></div></div>' +
+          '<div class="col-lg-5 mb-4"><div class="card shadow h-100"><div class="card-header py-2"><h6 class="m-0 font-weight-bold text-primary">Interface L3</h6></div><div class="card-body p-2"><div class="table-responsive"><table class="table table-sm table-bordered mb-0"><thead class="thead-light"><tr><th>Interface</th><th>IP</th><th>Proto</th></tr></thead><tbody>' + (l3Rows || '<tr><td colspan="3" class="text-center text-muted">–</td></tr>') + '</tbody></table></div></div></div></div>' +
+        '</div>'
+    );
 }
 
 // ════════ Devices ════════

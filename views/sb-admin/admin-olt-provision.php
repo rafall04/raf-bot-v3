@@ -47,6 +47,7 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-types" role="tab"><i class="fas fa-microchip"></i> Tipe Modem</a></li>
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-backup" role="tab"><i class="fas fa-database"></i> Backup OLT</a></li>
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-acs" role="tab"><i class="fas fa-globe"></i> ACS / TR069</a></li>
+                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-health" role="tab"><i class="fas fa-heartbeat"></i> Kesehatan</a></li>
                     </ul>
 
                     <div class="tab-content">
@@ -355,6 +356,17 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                     </div>
                                     <small class="text-muted" id="acsTableNote"></small>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="tab-health" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+                                <small class="text-muted">Snapshot read-only dari OLT (cache 60 dtk). <span id="healthUpdated"></span></small>
+                                <button class="btn btn-outline-primary btn-sm" id="healthRefreshBtn"><i class="fas fa-sync-alt"></i> Muat / Refresh</button>
+                            </div>
+                            <div id="healthAlerts"></div>
+                            <div id="healthBody">
+                                <div class="text-center text-muted py-4">Pilih OLT lalu klik "Muat / Refresh" untuk melihat kesehatan perangkat.</div>
                             </div>
                         </div>
 
