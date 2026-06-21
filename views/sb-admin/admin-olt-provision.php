@@ -50,6 +50,7 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-health" role="tab"><i class="fas fa-heartbeat"></i> Kesehatan</a></li>
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-console" role="tab"><i class="fas fa-terminal"></i> Konsol</a></li>
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-vlan" role="tab"><i class="fas fa-project-diagram"></i> VLAN</a></li>
+                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-bandwidth" role="tab"><i class="fas fa-tachometer-alt"></i> Bandwidth</a></li>
                     </ul>
 
                     <div class="tab-content">
@@ -437,6 +438,17 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                     <small class="text-muted"><i class="fas fa-exclamation-triangle"></i> Hapus service-port lewat tombol di tabel. Mengubah service-port pelanggan AKTIF bisa memutus layanannya — preview &amp; konfirmasi wajib.</small>
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="tab-bandwidth" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+                                <small class="text-muted">Rate &amp; utilisasi real-time per PON &amp; uplink (read-only). <span id="bwUpdated"></span></small>
+                                <div>
+                                    <label class="small mr-3 mb-0"><input type="checkbox" id="bwAuto"> auto-refresh 60s</label>
+                                    <button class="btn btn-outline-primary btn-sm" id="bwRefreshBtn"><i class="fas fa-sync-alt"></i> Muat</button>
+                                </div>
+                            </div>
+                            <div id="bwBody"><div class="text-center text-muted py-4">Pilih OLT lalu klik "Muat".</div></div>
                         </div>
 
                     </div><!-- /.tab-content -->

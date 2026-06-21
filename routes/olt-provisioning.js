@@ -48,6 +48,7 @@ function registerOltProvisioningRoutes(router, deps) {
         showConsole,            // lib/olt-show-console (konsol `show` read-only ter-guard)
         vlanManager,            // lib/olt-vlan-manager (VLAN/trunk config-write ter-guard)
         serviceportManager,     // lib/olt-serviceport-manager (service-port per-ONU ter-guard)
+        bandwidthService,       // lib/olt-bandwidth-service (monitoring bandwidth per-PON/uplink, read-only)
     } = deps;
 
     const requireRole = (roles) => (req, res, next) => {
@@ -517,6 +518,20 @@ function registerOltProvisioningRoutes(router, deps) {
         res.status(result.ok ? 200 : 502).json({ status: result.ok ? 200 : 502, message: built.summary, data: result });
     }));
 
+    // ── Monitoring bandwidth per-PON & uplink (READ-ONLY) ─────────────────────
+    router.get('/provision/devices/:id/bandwidth', requireStaff, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        const data = await bandwidthService.getBandwidthSnapshot(device, { force: req.query.refresh === '1' });
+        res.status(data.ok === false ? 502 : 200).json({ status: data.ok === false ? 502 : 200, data });
+    }));
+
+    router.get('/provision/devices/:id/bandwidth/history', requireStaff, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        res.json({ status: 200, data: bandwidthService.getBandwidthHistory(device) });
+    }));
+
     // ── ACS / TR069 ───────────────────────────────────────────────────────────
     // Strategi: ZTE asli (oltPushable) → OLT-push; clone/Huawei → set di modem (in-band).
     // Kebenaran final = inform di GenieACS, BUKAN "command OK" (ZTE ex-ISP terkunci bisa
@@ -838,6 +853,7 @@ const health = require('../lib/olt-health-service');
 const showConsole = require('../lib/olt-show-console');
 const vlanManager = require('../lib/olt-vlan-manager');
 const serviceportManager = require('../lib/olt-serviceport-manager');
+const bandwidthService = require('../lib/olt-bandwidth-service');
 const { restartOltBackupTask } = require('../lib/cron/jobs/olt-backup');
 const { logActivity } = require('../lib/activity-logger');
 
@@ -868,6 +884,7 @@ registerOltProvisioningRoutes(router, {
     showConsole,
     vlanManager,
     serviceportManager,
+    bandwidthService,
 });
 
 module.exports = router;

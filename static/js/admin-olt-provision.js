@@ -25,6 +25,7 @@ let vendorTiers = [];      // tabel prefix SN → tier vendor (auto-pilih profil
 let usersData = [];        // pelanggan untuk autofill
 let lastExec = null;       // { deviceId, ponPort, onuId } konteks hasil eksekusi terakhir
 let healthLoaded = false;  // tab kesehatan: sudah dimuat untuk device terpilih?
+let bwTimer = null;        // interval auto-refresh tab bandwidth
 let verifyTimer = null;
 let oltFacts = null;       // fakta OLT terpilih (port PON, tipe ONU, profil, VLAN)
 
@@ -115,6 +116,14 @@ $(document).ready(function () {
     $('#spLoadBtn').on('click', loadServicePorts);
     $('#tab-vlan').on('click', 'button[data-sp-action]', function () { servicePortAction($(this).data('sp-action')); });
     $('#tab-vlan').on('click', 'button[data-sp-del]', function () { servicePortAction('delete', $(this).data('sp-del')); });
+
+    // ── Tab 8: Bandwidth (monitoring read-only) ─────────────────────────
+    $('a[href="#tab-bandwidth"]').on('shown.bs.tab', loadBandwidth);
+    $('#bwRefreshBtn').on('click', loadBandwidth);
+    $('#bwAuto').on('change', function () {
+        if (bwTimer) { clearInterval(bwTimer); bwTimer = null; }
+        if (this.checked) bwTimer = setInterval(function () { if ($('#tab-bandwidth').hasClass('active')) loadBandwidth(); }, 60000);
+    });
 });
 
 // ════════ Util ════════
@@ -439,6 +448,77 @@ async function servicePortAction(action, delIndex) {
     } catch (e) {
         showAlert('danger', 'Error: ' + e.message);
     }
+}
+
+// ════════ Bandwidth (monitoring read-only) ════════
+
+function fmtMbps(bps) {
+    if (bps == null) return '–';
+    const mbps = (bps * 8) / 1e6;
+    return mbps >= 1 ? mbps.toFixed(1) + ' Mbps' : ((bps * 8) / 1e3).toFixed(0) + ' Kbps';
+}
+
+function bwSpark(arr, field) {
+    if (!arr || arr.length < 2) return '';
+    const vals = arr.map((p) => (p[field] == null ? 0 : p[field]));
+    const max = Math.max.apply(null, vals.concat([1]));
+    const W = 110;
+    const H = 22;
+    const n = vals.length;
+    const pts = vals.map((v, i) => ((i / (n - 1)) * W).toFixed(1) + ',' + (H - (v / max) * H).toFixed(1)).join(' ');
+    return '<svg width="' + W + '" height="' + H + '"><polyline fill="none" stroke="currentColor" stroke-width="1.5" points="' + pts + '"></polyline></svg>';
+}
+
+async function loadBandwidth() {
+    const dev = requireDevice();
+    if (!dev) return;
+    $('#bwBody').html('<div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin"></i> Mengambil rate dari OLT…</div>');
+    try {
+        const json = await api('GET', '/api/olt/provision/devices/' + encodeURIComponent(dev.id) + '/bandwidth');
+        const d = json && json.data;
+        if (!d || d.ok === false) {
+            $('#bwBody').html('<div class="alert alert-danger">' + escapeHtml((d && d.error) || (json && json.message) || 'Gagal memuat bandwidth.') + '</div>');
+            return;
+        }
+        let hist = {};
+        try {
+            const h = await api('GET', '/api/olt/provision/devices/' + encodeURIComponent(dev.id) + '/bandwidth/history');
+            hist = (h && h.data) || {};
+        } catch (_e) {
+            hist = {};
+        }
+        renderBandwidth(d, hist);
+    } catch (e) {
+        $('#bwBody').html('<div class="alert alert-danger">Error: ' + escapeHtml(e.message) + '</div>');
+    }
+}
+
+function renderBandwidth(d, hist) {
+    $('#bwUpdated').text('Diperbarui: ' + new Date(d.fetchedAt).toLocaleTimeString('id-ID') + (d.cached ? ' (cache)' : ''));
+    const utilStr = (a, b) => (a != null ? a.toFixed(1) : '–') + '% / ' + (b != null ? b.toFixed(1) : '–') + '%';
+    const upRows = (d.uplinks || [])
+        .map((u) =>
+            '<tr class="' + (u.up ? '' : 'table-danger') + '"><td>' + escapeHtml(u.name) + '</td><td>' + fmtMbps(u.inBps) + '</td><td>' + fmtMbps(u.outBps) +
+                '</td><td>' + utilStr(u.utilIn, u.utilOut) + '</td><td class="text-primary">' + bwSpark(hist[u.name], 'outBps') + '</td></tr>'
+        )
+        .join('');
+    const ponRows = (d.pons || [])
+        .map((p) => {
+            const busy = (p.utilOut || 0) >= 70 || (p.utilIn || 0) >= 70;
+            return '<tr class="' + (busy ? 'table-warning' : '') + '"><td>' + escapeHtml(p.name) + '</td><td>' +
+                (p.onuRegistered != null ? p.onuRegistered : '–') + '/' + (p.onuCapacity != null ? p.onuCapacity : '–') + '</td><td>' +
+                fmtMbps(p.inBps) + '</td><td>' + fmtMbps(p.outBps) + '</td><td>' + utilStr(p.utilIn, p.utilOut) +
+                '</td><td class="text-success">' + bwSpark(hist[p.name], 'outBps') + '</td></tr>';
+        })
+        .join('');
+    $('#bwBody').html(
+        '<div class="card shadow mb-3"><div class="card-header py-2"><h6 class="m-0 font-weight-bold text-primary">Uplink</h6></div><div class="card-body p-2"><div class="table-responsive"><table class="table table-sm table-bordered mb-0"><thead class="thead-light"><tr><th>Port</th><th>&darr; In</th><th>&uarr; Out</th><th>Util in/out</th><th>Tren out</th></tr></thead><tbody>' +
+            (upRows || '<tr><td colspan="5" class="text-center text-muted">–</td></tr>') +
+            '</tbody></table></div></div></div>' +
+            '<div class="card shadow"><div class="card-header py-2"><h6 class="m-0 font-weight-bold text-primary">Per PON</h6></div><div class="card-body p-2"><div class="table-responsive"><table class="table table-sm table-bordered mb-0"><thead class="thead-light"><tr><th>PON</th><th>ONU</th><th>&darr; In</th><th>&uarr; Out</th><th>Util in/out</th><th>Tren out</th></tr></thead><tbody>' +
+            (ponRows || '<tr><td colspan="6" class="text-center text-muted">–</td></tr>') +
+            '</tbody></table></div></div></div>'
+    );
 }
 
 // ════════ Devices ════════
