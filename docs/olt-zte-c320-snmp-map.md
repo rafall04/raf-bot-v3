@@ -34,33 +34,41 @@ ONU di-key oleh `<ponIfIndex>.<onuId>`:
 | col | OID | Isi | Distribusi (608 ONU) |
 |----|-----|-----|----------------------|
 | **3** | `...3.28.2.1.3` | **Phase state (online)** | `6×495, 0×113` → **6=online, 0=offline** |
-| 4 | `...3.28.2.1.4` | Config state | `3×495` (3=working), 6/4/1 utk offline |
-| 5 | `...3.28.2.1.5` | Waktu online terakhir | `"2004-06-09 09:50:54"` (jam OLT) |
-| 6 | `...3.28.2.1.6` | Waktu offline terakhir | `"2004-06-09 09:48:53"` |
-| **7** | `...3.28.2.1.7` | **Penyebab offline terakhir** | `9×455, 3×84, 1×67, 2×1, 5×1` |
+| **4** | `...3.28.2.1.4` | **Phase-state LIVE (status saat ini)** | **3=working, 1=LOS, 4=DyingGasp, 6=OffLine** |
+| 5 | `...3.28.2.1.5` | Waktu authpass/online terakhir | `"2004-06-26 22:54:10"` (⚠️ jam OLT = 2004) |
+| 6 | `...3.28.2.1.6` | Waktu offline terakhir | `"2004-06-26 22:50:01"` (⚠️ jam OLT) |
+| **7** | `...3.28.2.1.7` | **Penyebab offline TERAKHIR (persist)** | **1=none, 2=LOS, 3=LOSi, 5=SFi, 9=DyingGasp** |
 
-> col7 = enum penyebab offline ZTE (`zxGponOnuLastOfflineCause`-ish). 9 ≈ normal/online.
-> 1/2/3/5 = penyebab offline → **inilah pembeda LOS vs Dying Gasp** (ZTE bisa via SNMP, beda dari HIOSO).
-> ⚠️ Mapping persis tiap kode BELUM dipastikan — perlu verifikasi (lihat bawah).
+> ✅ **DIVERIFIKASI live vs CLI `show gpon onu detail-info` (2026-06-22):** status SAAT INI diambil
+> dari **col4** (baris "Phase state": working/LOS/DyingGasp/OffLine), BUKAN col7. **col7** = penyebab
+> offline terakhir (cocok kolom "Cause" histori CLI), persist walau ONU sudah online lagi. ZTE
+> membedakan LOS vs Dying Gasp NATIVE via SNMP (beda HIOSO yang butuh syslog). Driver `classifyStatus`
+> memakai col4→status, col7→lastDownCause(label). ⚠️ Jam OLT = 2004 (belum NTP) → timestamp col5/col6
+> absolut tak andal; pakai "Online Duration" dari detail-info bila perlu durasi.
 
 ## Optik / DDM — `1.3.6.1.4.1.3902.1012.3.50.12.1.1.<col>.<pon>.<onu>.1`
 
-Kolom `.10` = nilai bervariasi per-ONU, **n=528 (hanya online)** → **kandidat RX power**.
-Contoh raw: `2593, 1276, 2841`.
-Dugaan encoding: **dBm = −(raw / 100)** → −25.93 / −12.76 / −28.41 dBm (pas rentang GPON).
-⚠️ Skala BELUM diverifikasi.
+Kolom `.10` = ONU RX power (downstream), `.14` = ONU TX (upstream); sub-index `.1`.
+✅ **DIVERIFIKASI vs CLI `show pon power onu-rx` (2026-06-22): `dBm = signed16(raw)/500 − 30`**
+(mis. 1/2/1:1 SNMP −24.81 vs CLI −24.814, selisih ≤0.01 dB). raw 65535 = no-signal. Encoding lama
+`−raw/100` SALAH. Atenuasi downstream ≈ launch 6.7 − rx. **Optik diambil via GET batch KONKUREN
+(bukan walk DDM ~28s) hanya ONU online — lihat `fetchOpticsConcurrent` di `lib/olt-drivers/zte.js`.**
 
 Tabel hardware ONU (bukan power): `...3.50.11.2.1.1`=vendor `ZTEG`, `...3.50.11.2.1.2`=versi `V9.0`.
 
-## ⚠️ Yang WAJIB diverifikasi sebelum/saber integrasi (butuh akses CLI OLT)
+## ✅ Verifikasi SELESAI (live SNMP + SSH, 2026-06-22)
 
-1. **Skala RX power** kolom `.50.12.1.1.10`: ambil 1–2 ONU, bandingkan dengan
-   `show gpon onu detail-info gpon-onu_1/x/x:y` (atau `show pon power onu-rx`) di OLT.
-   Konfirmasi rumus `dBm = −(raw/100)` (atau cari faktor/offset sebenarnya, mungkin ada kolom TX juga).
-2. **Enum `offlineReason` `.28.2.1.7`**: kode mana = LOS, mana = Dying Gasp (LCDG/power-off),
-   mana = admin-down. Cross-check dgn `show gpon onu ... | offline-cause` atau MIB ZXAN.
-3. **Konfirmasi kolom 2 (`.28.1.1.2`) memang = username PPPoE** untuk sample pelanggan nyata
-   (cocokkan dengan `users.pppoe_username` di DB).
+1. ✅ **Skala RX power** `.50.12.1.1.10`: `dBm = signed16(raw)/500 − 30` (vs `show pon power onu-rx`,
+   selisih ≤0.01 dB). Bukan `−raw/100`. Kolom `.14` = ONU TX.
+2. ✅ **Status & penyebab**: status LIVE dari **col4** `.28.2.1.4` (3=working,1=LOS,4=DyingGasp,6=OffLine);
+   **col7** `.28.2.1.7` = penyebab terakhir (1=none,2=LOS,3=LOSi,5=SFi,9=DyingGasp), cocok CLI detail-info.
+   `classifyStatus` memetakan keduanya. Reboot/PowerOff tampil di CLI tapi kode SNMP-nya belum teramati
+   live (tambahkan ke `ZTE_LAST_CAUSE` saat ketemu).
+3. ✅ **Kolom 2 (`.28.1.1.2`) = username PPPoE** dikonfirmasi (`caper@suwito`, `kendung@ishaq`, dst).
+
+> Dampak: poller `lib/olt-snmp-los-poller.js` (yang broadcast WA fiber-putus ke pelanggan) bergantung
+> pada `status==='LOS'` dari driver. Sebelum fix ini driver TAK PERNAH mengembalikan 'LOS' (enum di
+> kolom salah) → notifikasi LOS dorман. Sekarang aktif & akurat (DyingGasp/Offline sengaja tak di-broadcast).
 
 ## ✅ Hasil smoke test driver (live, 2026-06-05)
 
