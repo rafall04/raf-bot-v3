@@ -107,6 +107,11 @@ $(document).ready(function () {
     $('#consoleRunBtn').on('click', runShowConsole);
     $('#consoleCmd').on('keydown', function (e) { if (e.key === 'Enter') runShowConsole(); });
     $('#consoleQuick').on('click', 'button[data-cmd]', function () { $('#consoleCmd').val($(this).data('cmd')); runShowConsole(); });
+
+    // ── Tab 7: VLAN (config-write, preview wajib) ───────────────────────
+    $('a[href="#tab-vlan"]').on('shown.bs.tab', loadVlans);
+    $('#vlanRefreshBtn').on('click', loadVlans);
+    $('#tab-vlan').on('click', 'button[data-vlan-action]', function () { vlanAction($(this).data('vlan-action')); });
 });
 
 // ════════ Util ════════
@@ -296,6 +301,69 @@ async function runShowConsole() {
         $('#consoleOut').text('✖ Error: ' + e.message);
     } finally {
         setBusy('#consoleRunBtn', false);
+    }
+}
+
+// ════════ VLAN (config-write, preview wajib) ════════
+
+async function loadVlans() {
+    const dev = requireDevice();
+    if (!dev) return;
+    $('#vlanList').html('<i class="fas fa-spinner fa-spin"></i> Memuat…');
+    try {
+        const json = await api('GET', '/api/olt/provision/devices/' + encodeURIComponent(dev.id) + '/vlans');
+        const v = json && json.data;
+        if (v) {
+            $('#vlanList').html(
+                '<b>' + (v.count != null ? v.count : '?') + ' VLAN aktif:</b><br>' +
+                    (v.list || []).map((x) => '<span class="badge badge-info mr-1 mb-1">' + escapeHtml(x) + '</span>').join('')
+            );
+        } else {
+            $('#vlanList').text('Gagal memuat daftar VLAN.');
+        }
+    } catch (e) {
+        $('#vlanList').text('Error: ' + e.message);
+    }
+}
+
+function vlanActionBody(action) {
+    const isTrunk = action.indexOf('trunk') === 0;
+    const body = { action, id: isTrunk ? $('#vlanTrunkId').val() : $('#vlanId').val() };
+    if (action === 'create') {
+        body.name = $('#vlanName').val();
+        body.description = $('#vlanDesc').val();
+    }
+    if (isTrunk) body.port = $('#vlanTrunkPort').val();
+    return body;
+}
+
+async function vlanAction(action) {
+    const dev = requireDevice();
+    if (!dev) return;
+    const body = vlanActionBody(action);
+    try {
+        // 1) Preview (generate + guard) — tanpa eksekusi.
+        const pv = await api('POST', '/api/olt/provision/devices/' + encodeURIComponent(dev.id) + '/vlan/preview', body);
+        if (!pv || pv.status !== 200 || !pv.data) {
+            showAlert('danger', (pv && pv.message) || 'Preview gagal.');
+            return;
+        }
+        // 2) Konfirmasi eksplisit dengan ringkasan + script.
+        const ok = window.confirm(
+            'KONFIRMASI KONFIG OLT\n\n' + pv.data.summary + '\n\nPerintah yang dijalankan:\n' + pv.data.commands.join('\n') + '\n\nJalankan ke OLT sekarang (write/persist)?'
+        );
+        if (!ok) return;
+        // 3) Apply (eksekusi + audit).
+        const ap = await api('POST', '/api/olt/provision/devices/' + encodeURIComponent(dev.id) + '/vlan/apply', body);
+        if (ap && ap.status === 200) {
+            showAlert('success', '✅ ' + (ap.message || 'Berhasil dijalankan.'));
+            loadVlans();
+        } else {
+            const errs = ap && ap.data && ap.data.results ? ap.data.results.filter((r) => r.error).map((r) => r.command + ': ' + r.error).join('; ') : '';
+            showAlert('danger', '✖ ' + ((ap && ap.message) || 'Gagal') + (errs ? ' — ' + errs : ''), true);
+        }
+    } catch (e) {
+        showAlert('danger', 'Error: ' + e.message);
     }
 }
 

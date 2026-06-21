@@ -49,6 +49,7 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-acs" role="tab"><i class="fas fa-globe"></i> ACS / TR069</a></li>
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-health" role="tab"><i class="fas fa-heartbeat"></i> Kesehatan</a></li>
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-console" role="tab"><i class="fas fa-terminal"></i> Konsol</a></li>
+                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-vlan" role="tab"><i class="fas fa-project-diagram"></i> VLAN</a></li>
                     </ul>
 
                     <div class="tab-content">
@@ -389,6 +390,35 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                 </div>
                                 <pre id="consoleOut" class="bg-dark text-light p-3 rounded" style="min-height:160px;max-height:480px;overflow:auto;white-space:pre-wrap;">Output akan tampil di sini…</pre>
                             </div></div>
+                        </div>
+
+                        <div class="tab-pane fade" id="tab-vlan" role="tabpanel">
+                            <div class="alert alert-warning py-2 small mb-3"><i class="fas fa-exclamation-triangle"></i> Mengubah konfig <b>backbone OLT</b>. Tiap aksi <b>wajib preview + konfirmasi</b>, dijalankan dengan <code>write</code> (persist) + audit. Service-port per-pelanggan belum tersedia di sini (butuh maintenance).</div>
+                            <div class="row">
+                                <div class="col-lg-4 mb-3"><div class="card shadow h-100">
+                                    <div class="card-header py-2 d-flex justify-content-between align-items-center"><h6 class="m-0 font-weight-bold text-primary">Daftar VLAN</h6><button class="btn btn-outline-secondary btn-sm" id="vlanRefreshBtn"><i class="fas fa-sync-alt"></i></button></div>
+                                    <div class="card-body p-3"><div id="vlanList" class="small text-muted">Pilih OLT lalu Muat.</div></div>
+                                </div></div>
+                                <div class="col-lg-4 mb-3"><div class="card shadow h-100">
+                                    <div class="card-header py-2"><h6 class="m-0 font-weight-bold text-primary">Buat / Hapus VLAN</h6></div>
+                                    <div class="card-body">
+                                        <div class="form-group mb-2"><label class="small mb-1">VLAN ID (2–4094)</label><input type="number" class="form-control form-control-sm" id="vlanId" min="2" max="4094" placeholder="500"></div>
+                                        <div class="form-group mb-2"><label class="small mb-1">Nama (opsional)</label><input type="text" class="form-control form-control-sm" id="vlanName" placeholder="HOTSPOT" autocomplete="off"></div>
+                                        <div class="form-group mb-2"><label class="small mb-1">Deskripsi (opsional)</label><input type="text" class="form-control form-control-sm" id="vlanDesc" placeholder="vlan-hotspot" autocomplete="off"></div>
+                                        <button class="btn btn-primary btn-sm btn-block" data-vlan-action="create"><i class="fas fa-plus"></i> Buat VLAN</button>
+                                        <button class="btn btn-outline-danger btn-sm btn-block" data-vlan-action="delete"><i class="fas fa-trash"></i> Hapus VLAN (id di atas)</button>
+                                    </div>
+                                </div></div>
+                                <div class="col-lg-4 mb-3"><div class="card shadow h-100">
+                                    <div class="card-header py-2"><h6 class="m-0 font-weight-bold text-primary">Trunk Uplink</h6></div>
+                                    <div class="card-body">
+                                        <div class="form-group mb-2"><label class="small mb-1">VLAN ID</label><input type="number" class="form-control form-control-sm" id="vlanTrunkId" min="2" max="4094" placeholder="500"></div>
+                                        <div class="form-group mb-2"><label class="small mb-1">Port uplink</label><input type="text" class="form-control form-control-sm" id="vlanTrunkPort" placeholder="gei_1/3/1" autocomplete="off"></div>
+                                        <button class="btn btn-success btn-sm btn-block" data-vlan-action="trunk-add"><i class="fas fa-link"></i> Tambah ke trunk</button>
+                                        <button class="btn btn-outline-secondary btn-sm btn-block" data-vlan-action="trunk-remove"><i class="fas fa-unlink"></i> Lepas dari trunk</button>
+                                    </div>
+                                </div></div>
+                            </div>
                         </div>
 
                     </div><!-- /.tab-content -->

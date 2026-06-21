@@ -46,6 +46,7 @@ function registerOltProvisioningRoutes(router, deps) {
         saveDeviceAcs,          // (id, acs) => persist ke config.json
         health,                 // lib/olt-health-service (snapshot kesehatan OLT, read-only)
         showConsole,            // lib/olt-show-console (konsol `show` read-only ter-guard)
+        vlanManager,            // lib/olt-vlan-manager (VLAN/trunk config-write ter-guard)
     } = deps;
 
     const requireRole = (roles) => (req, res, next) => {
@@ -414,6 +415,56 @@ function registerOltProvisioningRoutes(router, deps) {
         res.status(result.ok ? 200 : 400).json({ status: result.ok ? 200 : 400, data: result });
     }));
 
+    // ── VLAN (config-write ter-guard) ─────────────────────────────────────────
+    // Generator + guard di lib/olt-vlan-manager (sintaks ZXAN diverifikasi live). Write =
+    // admin-only, WAJIB preview dulu, di-audit. Service-port per-ONU BELUM (perlu maintenance).
+    function buildVlanCmd(body) {
+        const b = body || {};
+        switch (b.action) {
+            case 'create':
+                return vlanManager.buildCreateVlan({ id: b.id, name: b.name, description: b.description });
+            case 'delete':
+                return vlanManager.buildDeleteVlan({ id: b.id });
+            case 'trunk-add':
+                return vlanManager.buildTrunk({ port: b.port, id: b.id, action: 'add' });
+            case 'trunk-remove':
+                return vlanManager.buildTrunk({ port: b.port, id: b.id, action: 'remove' });
+            default:
+                return { ok: false, reason: 'Aksi VLAN tak dikenal.' };
+        }
+    }
+
+    router.get('/provision/devices/:id/vlans', requireStaff, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        const data = await vlanManager.listVlans(device);
+        res.json({ status: 200, data });
+    }));
+
+    router.post('/provision/devices/:id/vlan/preview', requireStaff, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        const built = buildVlanCmd(req.body);
+        if (!built.ok) return res.status(400).json({ status: 400, message: built.reason });
+        res.json({ status: 200, data: { summary: built.summary, commands: built.commands } });
+    }));
+
+    router.post('/provision/devices/:id/vlan/apply', requireAdmin, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        const built = buildVlanCmd(req.body);
+        if (!built.ok) return res.status(400).json({ status: 400, message: built.reason });
+        const result = await vlanManager.executeVlanScript(device, built.commands, { save: true });
+        await audit(req, {
+            action: 'olt_vlan_' + built.action,
+            resource: 'olt',
+            resourceId: device.id,
+            description: built.summary,
+            success: result.ok,
+        });
+        res.status(result.ok ? 200 : 502).json({ status: result.ok ? 200 : 502, message: built.summary, data: result });
+    }));
+
     // ── ACS / TR069 ───────────────────────────────────────────────────────────
     // Strategi: ZTE asli (oltPushable) → OLT-push; clone/Huawei → set di modem (in-band).
     // Kebenaran final = inform di GenieACS, BUKAN "command OK" (ZTE ex-ISP terkunci bisa
@@ -733,6 +784,7 @@ const backup = require('../lib/olt-backup');
 const genieacs = require('../lib/genieacs');
 const health = require('../lib/olt-health-service');
 const showConsole = require('../lib/olt-show-console');
+const vlanManager = require('../lib/olt-vlan-manager');
 const { restartOltBackupTask } = require('../lib/cron/jobs/olt-backup');
 const { logActivity } = require('../lib/activity-logger');
 
@@ -761,6 +813,7 @@ registerOltProvisioningRoutes(router, {
     saveDeviceAcs,
     health,
     showConsole,
+    vlanManager,
 });
 
 module.exports = router;
