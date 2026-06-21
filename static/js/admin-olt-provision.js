@@ -112,6 +112,9 @@ $(document).ready(function () {
     $('a[href="#tab-vlan"]').on('shown.bs.tab', loadVlans);
     $('#vlanRefreshBtn').on('click', loadVlans);
     $('#tab-vlan').on('click', 'button[data-vlan-action]', function () { vlanAction($(this).data('vlan-action')); });
+    $('#spLoadBtn').on('click', loadServicePorts);
+    $('#tab-vlan').on('click', 'button[data-sp-action]', function () { servicePortAction($(this).data('sp-action')); });
+    $('#tab-vlan').on('click', 'button[data-sp-del]', function () { servicePortAction('delete', $(this).data('sp-del')); });
 });
 
 // ════════ Util ════════
@@ -358,6 +361,77 @@ async function vlanAction(action) {
         if (ap && ap.status === 200) {
             showAlert('success', '✅ ' + (ap.message || 'Berhasil dijalankan.'));
             loadVlans();
+        } else {
+            const errs = ap && ap.data && ap.data.results ? ap.data.results.filter((r) => r.error).map((r) => r.command + ': ' + r.error).join('; ') : '';
+            showAlert('danger', '✖ ' + ((ap && ap.message) || 'Gagal') + (errs ? ' — ' + errs : ''), true);
+        }
+    } catch (e) {
+        showAlert('danger', 'Error: ' + e.message);
+    }
+}
+
+// ════════ Service-port per ONU (config-write per-pelanggan) ════════
+
+async function loadServicePorts() {
+    const dev = requireDevice();
+    if (!dev) return;
+    const onu = ($('#spOnu').val() || '').trim();
+    if (!onu) {
+        showAlert('warning', 'Isi interface ONU dulu (mis. gpon-onu_1/2/2:33).');
+        return;
+    }
+    $('#spList').html('<i class="fas fa-spinner fa-spin"></i> Memuat…');
+    try {
+        const json = await api('GET', '/api/olt/provision/devices/' + encodeURIComponent(dev.id) + '/onu-serviceports?onu=' + encodeURIComponent(onu));
+        if (!json || !json.data) {
+            $('#spList').text((json && json.message) || 'Gagal memuat (format ONU salah?).');
+            return;
+        }
+        const d = json.data;
+        const rows = (d.servicePorts || [])
+            .map((s) =>
+                '<tr><td>' + s.index + '</td><td>' + s.vport + '</td><td>' + s.userVlan + '</td><td>' + s.svlan +
+                    '</td><td><button class="btn btn-outline-danger btn-sm py-0" data-sp-del="' + s.index + '"><i class="fas fa-trash"></i></button></td></tr>'
+            )
+            .join('');
+        $('#spList').html(
+            '<b>' + escapeHtml(d.name || onu) + '</b>' +
+                '<div class="table-responsive mt-1"><table class="table table-sm table-bordered mb-0"><thead class="thead-light"><tr><th>idx</th><th>vport</th><th>user-vlan</th><th>svlan</th><th>aksi</th></tr></thead><tbody>' +
+                (rows || '<tr><td colspan="5" class="text-center text-muted">tak ada service-port</td></tr>') +
+                '</tbody></table></div>'
+        );
+    } catch (e) {
+        $('#spList').text('Error: ' + e.message);
+    }
+}
+
+async function servicePortAction(action, delIndex) {
+    const dev = requireDevice();
+    if (!dev) return;
+    const onu = ($('#spOnu').val() || '').trim();
+    const body = { action, onu };
+    if (action === 'add') {
+        body.index = $('#spIndex').val();
+        body.vport = $('#spVport').val();
+        body.userVlan = $('#spUserVlan').val();
+        body.svlan = $('#spSvlan').val();
+    } else {
+        body.index = delIndex;
+    }
+    try {
+        const pv = await api('POST', '/api/olt/provision/devices/' + encodeURIComponent(dev.id) + '/serviceport/preview', body);
+        if (!pv || pv.status !== 200 || !pv.data) {
+            showAlert('danger', (pv && pv.message) || 'Preview gagal.');
+            return;
+        }
+        const ok = window.confirm(
+            'KONFIRMASI SERVICE-PORT (per pelanggan!)\n\n' + pv.data.summary + '\n\nPerintah:\n' + pv.data.commands.join('\n') + '\n\nMengubah service-port pelanggan aktif bisa memutus layanannya. Jalankan (write/persist)?'
+        );
+        if (!ok) return;
+        const ap = await api('POST', '/api/olt/provision/devices/' + encodeURIComponent(dev.id) + '/serviceport/apply', body);
+        if (ap && ap.status === 200) {
+            showAlert('success', '✅ ' + (ap.message || 'Berhasil dijalankan.'));
+            loadServicePorts();
         } else {
             const errs = ap && ap.data && ap.data.results ? ap.data.results.filter((r) => r.error).map((r) => r.command + ': ' + r.error).join('; ') : '';
             showAlert('danger', '✖ ' + ((ap && ap.message) || 'Gagal') + (errs ? ' — ' + errs : ''), true);

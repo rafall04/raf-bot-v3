@@ -419,6 +419,24 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                     </div>
                                 </div></div>
                             </div>
+                            <div class="card shadow mt-2">
+                                <div class="card-header py-2"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-user-cog"></i> Service-port per ONU (per pelanggan)</h6></div>
+                                <div class="card-body">
+                                    <div class="form-row align-items-end">
+                                        <div class="form-group col-md-5 mb-2"><label class="small mb-1">Interface ONU</label><input type="text" class="form-control form-control-sm" id="spOnu" placeholder="gpon-onu_1/2/2:33" autocomplete="off"></div>
+                                        <div class="form-group col-md-2 mb-2"><button class="btn btn-outline-secondary btn-sm btn-block" id="spLoadBtn"><i class="fas fa-search"></i> Muat</button></div>
+                                    </div>
+                                    <div id="spList" class="small text-muted mb-3">Masukkan interface ONU lalu Muat.</div>
+                                    <div class="form-row align-items-end">
+                                        <div class="form-group col-md-2 mb-2"><label class="small mb-1">Index</label><input type="number" class="form-control form-control-sm" id="spIndex" min="1" max="32" placeholder="4"></div>
+                                        <div class="form-group col-md-2 mb-2"><label class="small mb-1">vport</label><input type="number" class="form-control form-control-sm" id="spVport" min="1" max="8" value="1"></div>
+                                        <div class="form-group col-md-3 mb-2"><label class="small mb-1">user-vlan</label><input type="number" class="form-control form-control-sm" id="spUserVlan" min="1" max="4094" placeholder="320"></div>
+                                        <div class="form-group col-md-3 mb-2"><label class="small mb-1">vlan (svlan)</label><input type="number" class="form-control form-control-sm" id="spSvlan" min="1" max="4094" placeholder="320"></div>
+                                        <div class="form-group col-md-2 mb-2"><button class="btn btn-primary btn-sm btn-block" data-sp-action="add"><i class="fas fa-plus"></i> Tambah</button></div>
+                                    </div>
+                                    <small class="text-muted"><i class="fas fa-exclamation-triangle"></i> Hapus service-port lewat tombol di tabel. Mengubah service-port pelanggan AKTIF bisa memutus layanannya — preview &amp; konfirmasi wajib.</small>
+                                </div>
+                            </div>
                         </div>
 
                     </div><!-- /.tab-content -->

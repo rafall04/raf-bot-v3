@@ -47,6 +47,7 @@ function registerOltProvisioningRoutes(router, deps) {
         health,                 // lib/olt-health-service (snapshot kesehatan OLT, read-only)
         showConsole,            // lib/olt-show-console (konsol `show` read-only ter-guard)
         vlanManager,            // lib/olt-vlan-manager (VLAN/trunk config-write ter-guard)
+        serviceportManager,     // lib/olt-serviceport-manager (service-port per-ONU ter-guard)
     } = deps;
 
     const requireRole = (roles) => (req, res, next) => {
@@ -465,6 +466,57 @@ function registerOltProvisioningRoutes(router, deps) {
         res.status(result.ok ? 200 : 502).json({ status: result.ok ? 200 : 502, message: built.summary, data: result });
     }));
 
+    // ── Service-port per ONU (config-write PER-PELANGGAN ter-guard) ────────────
+    function buildServicePortCmd(body) {
+        const b = body || {};
+        switch (b.action) {
+            case 'add':
+                return serviceportManager.buildAddServicePort({
+                    onu: b.onu,
+                    index: b.index,
+                    vport: b.vport,
+                    userVlan: b.userVlan,
+                    svlan: b.svlan,
+                });
+            case 'delete':
+                return serviceportManager.buildDeleteServicePort({ onu: b.onu, index: b.index });
+            default:
+                return { ok: false, reason: 'Aksi service-port tak dikenal.' };
+        }
+    }
+
+    router.get('/provision/devices/:id/onu-serviceports', requireStaff, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        const result = await serviceportManager.listServicePorts(device, String(req.query.onu || ''));
+        if (!result.ok) return res.status(400).json({ status: 400, message: result.reason });
+        res.json({ status: 200, data: result });
+    }));
+
+    router.post('/provision/devices/:id/serviceport/preview', requireStaff, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        const built = buildServicePortCmd(req.body);
+        if (!built.ok) return res.status(400).json({ status: 400, message: built.reason });
+        res.json({ status: 200, data: { summary: built.summary, commands: built.commands } });
+    }));
+
+    router.post('/provision/devices/:id/serviceport/apply', requireAdmin, asyncHandler(async (req, res) => {
+        const device = deviceOr404(req, res);
+        if (!device || !requireSsh(device, res)) return;
+        const built = buildServicePortCmd(req.body);
+        if (!built.ok) return res.status(400).json({ status: 400, message: built.reason });
+        const result = await serviceportManager.executeServicePortScript(device, built.commands, { save: true });
+        await audit(req, {
+            action: 'olt_' + built.action.replace(/-/g, '_'),
+            resource: 'olt',
+            resourceId: device.id,
+            description: built.summary,
+            success: result.ok,
+        });
+        res.status(result.ok ? 200 : 502).json({ status: result.ok ? 200 : 502, message: built.summary, data: result });
+    }));
+
     // ── ACS / TR069 ───────────────────────────────────────────────────────────
     // Strategi: ZTE asli (oltPushable) → OLT-push; clone/Huawei → set di modem (in-band).
     // Kebenaran final = inform di GenieACS, BUKAN "command OK" (ZTE ex-ISP terkunci bisa
@@ -785,6 +837,7 @@ const genieacs = require('../lib/genieacs');
 const health = require('../lib/olt-health-service');
 const showConsole = require('../lib/olt-show-console');
 const vlanManager = require('../lib/olt-vlan-manager');
+const serviceportManager = require('../lib/olt-serviceport-manager');
 const { restartOltBackupTask } = require('../lib/cron/jobs/olt-backup');
 const { logActivity } = require('../lib/activity-logger');
 
@@ -814,6 +867,7 @@ registerOltProvisioningRoutes(router, {
     health,
     showConsole,
     vlanManager,
+    serviceportManager,
 });
 
 module.exports = router;
