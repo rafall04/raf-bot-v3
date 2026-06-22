@@ -71,3 +71,43 @@ describe("voucher-print.service", () => {
         expect(repo.getSettings().price_colors["1000"]).toBe("#FF1493");
     });
 });
+
+describe("voucher-print.service generateBatch", () => {
+    const config = { nama: "VANS 45NET" };
+
+    test("forwards format params and returns vouchers", async () => {
+        let captured = null;
+        const batchFn = async (params) => {
+            captured = params;
+            return { ok: true, data: { vouchers: [{ username: "vcrAB12", password: "vcrAB12", profile: "Paket-1Hari" }], created: 1, failed: 0, requested: 1 } };
+        };
+        const service = createVoucherPrintService({ repository: tmpRepo(), getConfig: () => config, addHotspotUsersBatch: batchFn });
+        const out = await service.generateBatch({ profile: "Paket-1Hari", count: 1, length: 6, chartype: "lower_num", prefix: "vcr-" });
+        expect(out.ok).toBe(true);
+        expect(out.created).toBe(1);
+        expect(out.vouchers[0].username).toBe("vcrAB12");
+        expect(captured.profile).toBe("Paket-1Hari");
+        expect(captured.chartype).toBe("lower_num");
+        expect(captured.prefix).toBe("vcr-");
+    });
+
+    test("uses settings defaults when format omitted", async () => {
+        let captured = null;
+        const repo = tmpRepo();
+        repo.saveSettings({ code_length: 8, code_chartype: "num", code_prefix: "WIFI-" });
+        const batchFn = async (params) => { captured = params; return { ok: true, data: { vouchers: [], created: 0, failed: 0 } }; };
+        const service = createVoucherPrintService({ repository: repo, getConfig: () => config, addHotspotUsersBatch: batchFn });
+        await service.generateBatch({ profile: "P", count: 5 });
+        expect(captured.length).toBe(8);
+        expect(captured.chartype).toBe("num");
+        expect(captured.prefix).toBe("WIFI-");
+    });
+
+    test("rejects without profile and surfaces bridge failure", async () => {
+        const service = createVoucherPrintService({ repository: tmpRepo(), getConfig: () => config, addHotspotUsersBatch: async () => ({ ok: false, message: "router down" }) });
+        expect((await service.generateBatch({ count: 5 })).ok).toBe(false);
+        const r = await service.generateBatch({ profile: "P", count: 5 });
+        expect(r.ok).toBe(false);
+        expect(r.message).toBe("router down");
+    });
+});

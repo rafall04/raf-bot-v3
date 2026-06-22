@@ -12,7 +12,7 @@ const { renderSheet } = require("./voucher-print/render");
 const { convertMikhmonTemplate } = require("./voucher-print/mikhmon-import");
 
 function defaultDeps() {
-    return { repository: null, getConfig: () => global.config || {}, qrcode: null, logger: console };
+    return { repository: null, getConfig: () => global.config || {}, qrcode: null, addHotspotUsersBatch: null, logger: console };
 }
 
 function digitsOnly(value) {
@@ -77,6 +77,35 @@ function createVoucherPrintService(overrides = {}) {
                 title: title || `Cetak Voucher - ${settings.wifi_name}`
             });
             return { html, layoutId: layout.id, count: Array.isArray(vouchers) ? vouchers.length : 0 };
+        },
+
+        async generateBatch({ profile, count, length, chartype, prefix } = {}) {
+            if (!profile) return { ok: false, message: "Profil voucher wajib dipilih" };
+            const n = parseInt(count, 10) || 0;
+            if (n < 1) return { ok: false, message: "Jumlah voucher minimal 1" };
+            if (typeof deps.addHotspotUsersBatch !== "function") {
+                return { ok: false, message: "Bridge MikroTik batch tidak tersedia" };
+            }
+            const stored = deps.repository.getSettings();
+            const result = await deps.addHotspotUsersBatch({
+                profile,
+                count: n,
+                comment: "VoucherPrint",
+                length: parseInt(length, 10) || stored.code_length || 6,
+                chartype: chartype || stored.code_chartype || "safe",
+                prefix: (prefix !== null && typeof prefix !== "undefined") ? prefix : (stored.code_prefix || "")
+            }, { caller: "voucher-print.generateBatch" });
+            if (!result || result.ok !== true) {
+                return { ok: false, message: (result && result.message) || "Gagal generate batch dari MikroTik" };
+            }
+            const data = result.data || {};
+            return {
+                ok: true,
+                vouchers: data.vouchers || [],
+                created: data.created || 0,
+                failed: data.failed || 0,
+                requested: data.requested || n
+            };
         },
 
         previewMikhmonImport({ php } = {}) {

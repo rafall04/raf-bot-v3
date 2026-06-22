@@ -99,16 +99,19 @@
         if (!prof) { toast("warning", "Pilih paket dulu"); return; }
         var qty = parseInt($("vpQty").value, 10) || 1;
         $("vpBtnGenerate").disabled = true;
-        api("POST", "/api/voucher/generate-send", {
-            profile: prof, quantity: qty, voucherType: "random",
-            sendWhatsApp: false, transaction_context: "direct_customer_sale", phones: []
+        $("vpReady").textContent = "Sedang membuat " + qty + " voucher di MikroTik...";
+        api("POST", "/api/voucher/print/generate", {
+            profile: prof, count: qty,
+            length: parseInt($("vpLen").value, 10) || 6,
+            chartype: $("vpChartype").value,
+            prefix: $("vpPrefix").value.trim()
         }).then(function (res) {
             $("vpBtnGenerate").disabled = false;
-            if (res.status !== 200 || !res.vouchers) { toast("error", res.message || "Gagal generate"); return; }
-            vouchers = attachProfileData(res.vouchers);
+            if (res.status !== 200 || !res.data) { updatePrintState(); toast("error", res.message || "Gagal generate"); return; }
+            vouchers = attachProfileData(res.data.vouchers || []);
             updatePrintState();
-            toast("success", "Generate " + vouchers.length + " voucher");
-        }).catch(function (e) { $("vpBtnGenerate").disabled = false; toast("error", e.message); });
+            toast("success", "Generate " + vouchers.length + " voucher" + (res.data.failed ? " (" + res.data.failed + " gagal)" : ""));
+        }).catch(function (e) { $("vpBtnGenerate").disabled = false; updatePrintState(); toast("error", e.message); });
     }
 
     function doManual() {
@@ -211,6 +214,9 @@
             $("setDefaultColor").value = settings.default_color || "";
             $("setAutologin").value = settings.autologin_url_template || "";
             $("setColors").value = JSON.stringify(settings.price_colors || {}, null, 2);
+            if ($("vpLen")) $("vpLen").value = settings.code_length || 6;
+            if ($("vpChartype")) $("vpChartype").value = settings.code_chartype || "safe";
+            if ($("vpPrefix")) $("vpPrefix").value = settings.code_prefix || "";
             if (!selectedLayoutId) selectedLayoutId = settings.default_layout || null;
             renderGallery();
         });

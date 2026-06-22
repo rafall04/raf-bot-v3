@@ -47,11 +47,35 @@
                                     </ul>
                                     <div class="tab-content">
                                         <div class="tab-pane fade show active" id="vpTabGen">
-                                            <div class="form-group">
-                                                <label class="small font-weight-bold">Jumlah (1-50)</label>
-                                                <input type="number" class="form-control form-control-sm" id="vpQty" value="10" min="1" max="50">
-                                                <small class="text-muted">Membuat kode acak di MikroTik (tidak kirim WA).</small>
+                                            <div class="form-row">
+                                                <div class="form-group col-6">
+                                                    <label class="small font-weight-bold">Jumlah</label>
+                                                    <input type="number" class="form-control form-control-sm" id="vpQty" value="40" min="1" max="1000">
+                                                </div>
+                                                <div class="form-group col-6">
+                                                    <label class="small font-weight-bold">Panjang kode</label>
+                                                    <input type="number" class="form-control form-control-sm" id="vpLen" value="6" min="3" max="16">
+                                                </div>
                                             </div>
+                                            <div class="form-row">
+                                                <div class="form-group col-6">
+                                                    <label class="small font-weight-bold">Jenis karakter</label>
+                                                    <select class="form-control form-control-sm" id="vpChartype">
+                                                        <option value="safe">Aman (tanpa 0/O/1/l)</option>
+                                                        <option value="num">Angka saja</option>
+                                                        <option value="lower">Huruf kecil</option>
+                                                        <option value="upper">Huruf besar</option>
+                                                        <option value="lower_num">Kecil + angka</option>
+                                                        <option value="upper_num">Besar + angka</option>
+                                                        <option value="mix">Campur semua</option>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group col-6">
+                                                    <label class="small font-weight-bold">Prefix (opsional)</label>
+                                                    <input type="text" class="form-control form-control-sm" id="vpPrefix" placeholder="mis. vcr-">
+                                                </div>
+                                            </div>
+                                            <small class="text-muted d-block mb-2">Dibuat di MikroTik dalam 1 koneksi (efisien utk ratusan), tanpa kirim WA.</small>
                                             <button class="btn btn-success btn-sm btn-block" id="vpBtnGenerate"><i class="fas fa-ticket-alt mr-1"></i>Generate</button>
                                         </div>
                                         <div class="tab-pane fade" id="vpTabManual">

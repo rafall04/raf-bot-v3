@@ -29,7 +29,10 @@ const DEFAULT_SETTINGS = {
     autologin_url_template: "",
     default_price: 0,
     default_color: "#BA68C8",
-    price_colors: DEFAULT_PRICE_COLORS
+    price_colors: DEFAULT_PRICE_COLORS,
+    code_length: 6,
+    code_chartype: "safe",
+    code_prefix: ""
 };
 
 function defaultDeps() {

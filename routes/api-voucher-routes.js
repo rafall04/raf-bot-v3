@@ -12,6 +12,7 @@ const { createApiVoucherRepository } = require('../repositories/api-voucher.repo
 const { createApiVoucherService } = require('../services/api-voucher.service');
 const { createVoucherPrintRepository } = require('../repositories/voucher-print.repository');
 const { createVoucherPrintService } = require('../services/voucher-print.service');
+const { addHotspotUsersBatch } = require('../lib/mikrotik');
 
 function createApiVoucherRouter({
     fs,
@@ -102,6 +103,7 @@ function createApiVoucherRouter({
     const voucherPrintService = createVoucherPrintService({
         repository: createVoucherPrintRepository(),
         getConfig,
+        addHotspotUsersBatch,
         logger: console
     });
 
@@ -275,6 +277,29 @@ function createApiVoucherRouter({
         } catch (error) {
             console.error('[VOUCHER_PRINT_MIKHMON_IMPORT_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal impor template', error: error.message });
+        }
+    });
+
+    router.post('/voucher/print/generate', requireStaff, async (req, res) => {
+        try {
+            const result = await voucherPrintService.generateBatch({
+                profile: req.body ? req.body.profile : undefined,
+                count: req.body ? req.body.count : undefined,
+                length: req.body ? req.body.length : undefined,
+                chartype: req.body ? req.body.chartype : undefined,
+                prefix: req.body ? req.body.prefix : undefined
+            });
+            if (!result.ok) {
+                return res.status(400).json({ status: 400, message: result.message });
+            }
+            return res.json({
+                status: 200,
+                message: `Berhasil generate ${result.created} voucher${result.failed ? `, ${result.failed} gagal` : ''}`,
+                data: result
+            });
+        } catch (error) {
+            console.error('[VOUCHER_PRINT_GENERATE_ERROR]', error);
+            return res.status(500).json({ status: 500, message: 'Gagal generate voucher batch', error: error.message });
         }
     });
 
