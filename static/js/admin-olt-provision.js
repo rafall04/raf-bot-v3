@@ -88,6 +88,12 @@ $(document).ready(function () {
     $('#backupAllBtn').on('click', runBackupAll);
     $('#refreshBackupsBtn').on('click', loadBackups);
 
+    // Sorot tombol "Lanjutan" saat salah satu tab di dalam dropdown-nya aktif.
+    $('#provTabs a[data-toggle="tab"]').on('shown.bs.tab', function () {
+        const advanced = ['#tab-types', '#tab-vlan', '#tab-bandwidth', '#tab-console', '#tab-backup'];
+        $('#provTabs .dropdown-toggle').toggleClass('active', advanced.indexOf($(this).attr('href')) !== -1);
+    });
+
     // ── Tab 4: ACS / TR069 ──────────────────────────────────────────────
     $('a[href="#tab-acs"]').on('shown.bs.tab', function () { loadAcsSettings(); });
     $('#provOltSelect').on('change', function () { if ($('#tab-acs').hasClass('active')) loadAcsSettings(); });

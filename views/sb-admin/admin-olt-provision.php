@@ -44,13 +44,18 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
 
                     <ul class="nav nav-tabs mb-3" id="provTabs" role="tablist">
                         <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#tab-register" role="tab"><i class="fas fa-plug"></i> Registrasi ONU</a></li>
-                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-types" role="tab"><i class="fas fa-microchip"></i> Tipe Modem</a></li>
-                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-backup" role="tab"><i class="fas fa-database"></i> Backup OLT</a></li>
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-acs" role="tab"><i class="fas fa-globe"></i> ACS / TR069</a></li>
                         <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-health" role="tab"><i class="fas fa-heartbeat"></i> Kesehatan</a></li>
-                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-console" role="tab"><i class="fas fa-terminal"></i> Konsol</a></li>
-                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-vlan" role="tab"><i class="fas fa-project-diagram"></i> VLAN</a></li>
-                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-bandwidth" role="tab"><i class="fas fa-tachometer-alt"></i> Bandwidth</a></li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false"><i class="fas fa-sliders-h"></i> Lanjutan</a>
+                            <div class="dropdown-menu">
+                                <a class="dropdown-item" data-toggle="tab" href="#tab-types" role="tab"><i class="fas fa-microchip fa-fw"></i> Tipe Modem</a>
+                                <a class="dropdown-item" data-toggle="tab" href="#tab-vlan" role="tab"><i class="fas fa-project-diagram fa-fw"></i> VLAN</a>
+                                <a class="dropdown-item" data-toggle="tab" href="#tab-bandwidth" role="tab"><i class="fas fa-tachometer-alt fa-fw"></i> Bandwidth</a>
+                                <a class="dropdown-item" data-toggle="tab" href="#tab-console" role="tab"><i class="fas fa-terminal fa-fw"></i> Konsol</a>
+                                <a class="dropdown-item" data-toggle="tab" href="#tab-backup" role="tab"><i class="fas fa-database fa-fw"></i> Backup OLT</a>
+                            </div>
+                        </li>
                     </ul>
 
                     <div class="tab-content">
