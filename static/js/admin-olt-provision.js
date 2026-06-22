@@ -45,9 +45,12 @@ $(document).ready(function () {
         $(this).removeClass('btn-outline-primary').addClass('btn-primary');
         $('#wsPsb').toggle(job === 'psb' || job === 'ganti');
         $('#wsKelola').toggle(job === 'kelola');
-        $('#gantiBanner').toggle(job === 'ganti');
+        if (job === 'ganti') renderGantiBanner(); else $('#gantiBanner').hide();
     });
-    $('#gantiGoKelola').on('click', function (e) { e.preventDefault(); $('#provJobPicker button[data-job="kelola"]').trigger('click'); });
+    // Aksi di dalam banner Ganti (konten dinamis → pakai event delegation).
+    $('#gantiBanner').on('click', '#gantiGoKelola', function (e) { e.preventDefault(); $('#provJobPicker button[data-job="kelola"]').trigger('click'); });
+    $('#gantiBanner').on('click', '#gantiDeleteOldBtn', gantiDeleteOld);
+    $('#gantiBanner').on('click', '#gantiCancelBtn', function () { gantiOld = null; renderGantiBanner(); });
     $('#testSshBtn').on('click', testSsh);
     $('#provOltSelect').on('change', function () { loadOltFacts(false); });
     $('#browseLoadBtn').on('click', loadPortOnus);
@@ -56,6 +59,7 @@ $(document).ready(function () {
     $('#browseTable').on('click', '.btn-row-status', function () { rowStatus($(this).data('pon'), $(this).data('onu'), this); });
     $('#browseTable').on('click', '.btn-row-config', function () { rowConfig($(this).data('pon'), $(this).data('onu'), this); });
     $('#browseTable').on('click', '.btn-row-delete', function () { rowDelete($(this).data('pon'), $(this).data('onu'), $(this).data('sn'), this); });
+    $('#browseTable').on('click', '.btn-row-ganti', function () { rowGanti($(this).data('pon'), $(this).data('onu'), $(this).data('sn'), $(this).data('name'), this); });
     $('#checkOccupancyBtn').on('click', function (e) { e.preventDefault(); checkOccupancy(); });
     $('#regPonPort').on('change', function () { if (this.value) checkOccupancy(true); });
     $('#regOnuType').on('change', onTypeChange);
@@ -1059,6 +1063,7 @@ let browsePortCur = '';  // port yang sedang ditampilkan
 // Anti-spam tab Kelola: hanya 1 perintah SSH OLT berjalan sekaligus (ZXAN bisa kunci
 // SSH bila koneksi di-spam). Tombol yang diklik dapat spinner + nonaktif selama proses.
 let browseBusy = false;
+let gantiOld = null; // {ponPort,onuId,sn,name} ONU lama yang sedang diganti (Fase 2.2)
 function oltBrowseBegin(btn, busyText) {
     if (browseBusy) { showAlert('warning', 'Sabar — masih ada perintah ke OLT yang berjalan.'); return false; }
     browseBusy = true;
@@ -1128,6 +1133,7 @@ function renderBrowseTable() {
             <td>
                 <button class="btn btn-outline-primary btn-sm btn-row-status" data-pon="${escapeHtml(browsePortCur)}" data-onu="${escapeHtml(onu)}" title="Status & redaman"><i class="fas fa-heartbeat"></i></button>
                 <button class="btn btn-outline-secondary btn-sm btn-row-config" data-pon="${escapeHtml(browsePortCur)}" data-onu="${escapeHtml(onu)}" title="Lihat konfigurasi"><i class="fas fa-file-alt"></i></button>
+                <button class="btn btn-outline-warning btn-sm btn-row-ganti" data-pon="${escapeHtml(browsePortCur)}" data-onu="${escapeHtml(onu)}" data-sn="${escapeHtml(r.sn)}" data-name="${escapeHtml(r.name || '')}" title="Ganti modem (pasang SN baru di pelanggan ini)"><i class="fas fa-exchange-alt"></i></button>
                 <button class="btn btn-outline-danger btn-sm btn-row-delete" data-pon="${escapeHtml(browsePortCur)}" data-onu="${escapeHtml(onu)}" data-sn="${escapeHtml(r.sn)}" title="Hapus ONU"><i class="fas fa-trash"></i></button>
             </td>
         </tr>`;
@@ -1200,6 +1206,80 @@ async function rowDelete(ponPort, onuId, sn, btn) {
     } catch (e) {
         oltBrowseEnd(btn);
         $('#browseNote').html('<span class="text-danger">Gagal: ' + escapeHtml(e.message) + '</span>');
+    }
+}
+
+// ════════ Ganti Modem (Fase 2.2) — reuse alur register + hapus yang sudah teruji ════════
+// Dari baris Kelola: baca PPPoE ONU lama → pindah ke mode Ganti + prefill form (port & PPPoE).
+// Teknisi scan SN baru → Daftar (alur normal) → klik "Hapus modem lama" (eksplisit, ter-konfirmasi).
+async function rowGanti(ponPort, onuId, sn, name, btn) {
+    const dev = requireDevice();
+    if (!dev) return;
+    if (!oltBrowseBegin(btn)) return;
+    let pppoeUser = name || '';
+    let pppoePass = '';
+    try {
+        const q = `ponPort=${encodeURIComponent(ponPort)}&onuId=${encodeURIComponent(onuId)}`;
+        const json = await api('GET', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/onu-config?${q}`);
+        oltBrowseEnd(btn);
+        if (json.status !== 200) { showAlert('danger', 'Gagal baca config ONU lama: ' + escapeHtml(json.message), true); return; }
+        const cfg = (json.data && json.data.onuMngConfig) || '';
+        const m = cfg.match(/wan-ip\s+\d+\s+mode\s+pppoe\s+username\s+(\S+)\s+password\s+(\S+)/i);
+        if (m) { pppoeUser = m[1]; pppoePass = m[2]; }
+    } catch (e) {
+        oltBrowseEnd(btn);
+        showAlert('danger', 'Gagal baca config ONU lama: ' + escapeHtml(e.message), true);
+        return;
+    }
+    gantiOld = { ponPort, onuId: String(onuId), sn, name: pppoeUser };
+    $('#provJobPicker button[data-job="ganti"]').trigger('click'); // pindah ke mode Ganti + render banner
+    $('#regPonPort').val(ponPort);
+    $('#regOnuId').val('');           // auto: backend pilih ID baru (ID lama masih kepakai sampai dihapus)
+    $('#regSn').val('');
+    $('#regPppoeUser').val(pppoeUser);
+    $('#regPppoePassword').val(pppoePass);
+    showAlert('info', `Mode Ganti untuk <b>${escapeHtml(pppoeUser || sn)}</b>: scan SN modem baru, lalu Daftar &amp; Push.`, true);
+    $('#regSn').focus();
+    try { $('html, body').animate({ scrollTop: Math.max(0, $('#regSn').offset().top - 140) }, 300); } catch (_e) { /* abaikan */ }
+}
+
+function renderGantiBanner() {
+    if (gantiOld) {
+        $('#gantiBanner').html(
+            '<i class="fas fa-exchange-alt"></i> <strong>Ganti modem untuk ' + escapeHtml(gantiOld.name || gantiOld.sn) + '.</strong> ' +
+            'Modem lama: <span class="mono">' + escapeHtml(gantiOld.sn) + '</span> @ <span class="mono">gpon-onu_' + escapeHtml(gantiOld.ponPort) + ':' + escapeHtml(gantiOld.onuId) + '</span>.' +
+            '<div class="mt-2">&#9312; Scan SN modem baru di form bawah lalu <b>Daftar &amp; Push</b>. &nbsp; &#9313; Setelah modem baru online, hapus yang lama:' +
+            ' <button class="btn btn-danger btn-sm ml-2" id="gantiDeleteOldBtn"><i class="fas fa-trash"></i> Hapus modem lama</button>' +
+            ' <button class="btn btn-outline-secondary btn-sm" id="gantiCancelBtn">Batal ganti</button></div>'
+        ).show();
+    } else {
+        $('#gantiBanner').html(
+            '<i class="fas fa-exchange-alt"></i> <strong>Mode Ganti Modem.</strong> Buka <a href="#" id="gantiGoKelola">Kelola ONU</a>, cari modem lama pelanggan, lalu klik tombol Ganti (<i class="fas fa-exchange-alt"></i>) pada barisnya &mdash; Port &amp; PPPoE terisi otomatis.'
+        ).show();
+    }
+}
+
+async function gantiDeleteOld() {
+    if (!gantiOld) return;
+    const dev = requireDevice();
+    if (!dev) return;
+    if (!confirm(`Pastikan modem BARU sudah terdaftar & online lebih dulu.\n\nHapus modem lama gpon-onu_${gantiOld.ponPort}:${gantiOld.onuId} (SN ${gantiOld.sn}) dari OLT? Permanen.`)) return;
+    let saveConfig = true;
+    try { saveConfig = localStorage.getItem('oltProvSaveConfig') !== '0'; } catch (_e) { /* abaikan */ }
+    setBusy('#gantiDeleteOldBtn', true, 'Menghapus…');
+    try {
+        const json = await api('POST', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/delete-onu`, { ponPort: gantiOld.ponPort, onuId: gantiOld.onuId, saveConfig });
+        if (json.status === 200) {
+            showAlert('success', `Modem lama (SN ${escapeHtml(gantiOld.sn)}) dihapus. Ganti modem selesai &mdash; jangan lupa set WiFi via GenieACS.`, true);
+            gantiOld = null;
+            renderGantiBanner();
+        } else {
+            setBusy('#gantiDeleteOldBtn', false);
+            showAlert('danger', 'Gagal hapus modem lama: ' + escapeHtml(json.message), true);
+        }
+    } catch (e) {
+        setBusy('#gantiDeleteOldBtn', false);
+        showAlert('danger', 'Gagal hapus modem lama: ' + escapeHtml(e.message), true);
     }
 }
 
