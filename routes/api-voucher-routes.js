@@ -2,14 +2,16 @@
  * Header Doc
  * Purpose: Factory router API voucher untuk generate, kirim, dan lacak kredensial/voucher pelanggan.
  * Caller: `routes/api.js` sebagai agregator sub-router voucher.
- * Deps: `express`, templating voucher, history pengiriman voucher, dan delivery service WhatsApp.
+ * Deps: `express`, templating voucher, history pengiriman voucher, delivery service WhatsApp, serta `voucher-print` service/repository (layout + cetak + impor template Mikhmon).
  * MainFuncs: `createApiVoucherRouter`.
- * SideEffects: Membaca/menulis histori pengiriman voucher dan mengirim pesan WhatsApp ke pelanggan.
+ * SideEffects: Membaca/menulis histori pengiriman voucher, mengirim pesan WhatsApp ke pelanggan, render lembar cetak voucher (HTML/QR), dan menyimpan settings/layout cetak.
  */
 const express = require('express');
 const { sendMessageToMany, ensureJid } = require('../lib/whatsapp-delivery-service');
 const { createApiVoucherRepository } = require('../repositories/api-voucher.repository');
 const { createApiVoucherService } = require('../services/api-voucher.service');
+const { createVoucherPrintRepository } = require('../repositories/voucher-print.repository');
+const { createVoucherPrintService } = require('../services/voucher-print.service');
 
 function createApiVoucherRouter({
     fs,
@@ -94,6 +96,12 @@ function createApiVoucherRouter({
         ensureJid,
         resolveVoucherDeliveryStatus,
         buildVoucherSentHistoryEntries,
+        logger: console
+    });
+
+    const voucherPrintService = createVoucherPrintService({
+        repository: createVoucherPrintRepository(),
+        getConfig,
         logger: console
     });
 
@@ -190,6 +198,99 @@ function createApiVoucherRouter({
                 message: 'Terjadi kesalahan',
                 error: error.message
             });
+        }
+    });
+
+    // ===== Cetak Voucher (layout + QR, lepas Mikhmon untuk generate+cetak) =====
+    router.get('/voucher/print/layouts', requireStaff, (req, res) => {
+        try {
+            return res.json({ status: 200, data: voucherPrintService.listLayouts() });
+        } catch (error) {
+            console.error('[VOUCHER_PRINT_LAYOUTS_ERROR]', error);
+            return res.status(500).json({ status: 500, message: 'Gagal memuat layout', error: error.message });
+        }
+    });
+
+    router.get('/voucher/print/settings', requireStaff, (req, res) => {
+        try {
+            return res.json({ status: 200, data: voucherPrintService.getSettings() });
+        } catch (error) {
+            console.error('[VOUCHER_PRINT_SETTINGS_GET_ERROR]', error);
+            return res.status(500).json({ status: 500, message: 'Gagal memuat pengaturan', error: error.message });
+        }
+    });
+
+    router.post('/voucher/print/settings', requireStaff, (req, res) => {
+        try {
+            const saved = voucherPrintService.saveSettings(req.body || {});
+            return res.json({ status: 200, message: 'Pengaturan tersimpan', data: saved });
+        } catch (error) {
+            console.error('[VOUCHER_PRINT_SETTINGS_SAVE_ERROR]', error);
+            return res.status(500).json({ status: 500, message: 'Gagal menyimpan pengaturan', error: error.message });
+        }
+    });
+
+    router.post('/voucher/print/layout', requireStaff, (req, res) => {
+        try {
+            if (!req.body || !req.body.id || !req.body.template) {
+                return res.status(400).json({ status: 400, message: 'id dan template wajib diisi' });
+            }
+            const saved = voucherPrintService.saveLayout(req.body);
+            return res.json({ status: 200, message: 'Layout tersimpan', data: saved });
+        } catch (error) {
+            console.error('[VOUCHER_PRINT_LAYOUT_SAVE_ERROR]', error);
+            return res.status(500).json({ status: 500, message: 'Gagal menyimpan layout', error: error.message });
+        }
+    });
+
+    router.delete('/voucher/print/layout/:id', requireStaff, (req, res) => {
+        try {
+            const result = voucherPrintService.deleteLayout(req.params.id);
+            return res.json({ status: 200, message: 'Layout dihapus', data: result });
+        } catch (error) {
+            console.error('[VOUCHER_PRINT_LAYOUT_DELETE_ERROR]', error);
+            return res.status(500).json({ status: 500, message: 'Gagal menghapus layout', error: error.message });
+        }
+    });
+
+    router.post('/voucher/print/preview-mikhmon', requireStaff, (req, res) => {
+        try {
+            const result = voucherPrintService.previewMikhmonImport({ php: req.body ? req.body.php : '' });
+            return res.json({ status: 200, data: result });
+        } catch (error) {
+            console.error('[VOUCHER_PRINT_MIKHMON_PREVIEW_ERROR]', error);
+            return res.status(500).json({ status: 500, message: 'Gagal konversi template', error: error.message });
+        }
+    });
+
+    router.post('/voucher/print/import-mikhmon', requireStaff, (req, res) => {
+        try {
+            const result = voucherPrintService.importMikhmonLayout({
+                id: req.body ? req.body.id : undefined,
+                name: req.body ? req.body.name : undefined,
+                php: req.body ? req.body.php : '',
+                mergeColors: !req.body || req.body.mergeColors !== false
+            });
+            return res.json({ status: 200, message: 'Template Mikhmon diimpor', data: result });
+        } catch (error) {
+            console.error('[VOUCHER_PRINT_MIKHMON_IMPORT_ERROR]', error);
+            return res.status(500).json({ status: 500, message: 'Gagal impor template', error: error.message });
+        }
+    });
+
+    router.post('/voucher/print/render', requireStaff, async (req, res) => {
+        try {
+            const result = await voucherPrintService.renderPrint({
+                layoutId: req.body ? req.body.layoutId : undefined,
+                vouchers: (req.body && req.body.vouchers) || [],
+                thermal: Boolean(req.body && req.body.thermal),
+                title: req.body ? req.body.title : undefined
+            });
+            res.set('Content-Type', 'text/html; charset=utf-8');
+            return res.send(result.html);
+        } catch (error) {
+            console.error('[VOUCHER_PRINT_RENDER_ERROR]', error);
+            return res.status(500).json({ status: 500, message: 'Gagal render cetak', error: error.message });
         }
     });
 
