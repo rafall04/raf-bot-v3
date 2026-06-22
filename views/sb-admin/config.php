@@ -600,9 +600,11 @@
                         <th>Nama</th>
                         <th>IP Address</th>
                         <th>Merk</th>
-                        <th>SNMP Port</th>
+                        <th>SNMP</th>
+                        <th>SSH</th>
+                        <th>ACS</th>
                         <th>Status</th>
-                        <th>Aksi</th>
+                        <th class="text-center">Aksi</th>
                       </tr>
                     </thead>
                     <tbody>

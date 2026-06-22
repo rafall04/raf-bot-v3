@@ -768,7 +768,7 @@ a.n ${account.name || '[Nama]'}</small>
             
             if (devices.length === 0) {
               const row = oltDevicesTable.insertRow();
-              row.innerHTML = '<td colspan="6" class="text-center text-muted">Belum ada perangkat OLT. Klik "Tambah OLT" untuk menambahkan.</td>';
+              row.innerHTML = '<td colspan="8" class="text-center text-muted">Belum ada perangkat OLT. Klik "Tambah OLT" untuk menambahkan.</td>';
               console.log('[OLT] No devices found');
             } else {
               devices.forEach(device => {
@@ -776,26 +776,30 @@ a.n ${account.name || '[Nama]'}</small>
                 const row = oltDevicesTable.insertRow();
                 const brandLabels = { auto: 'Auto', hioso: 'HIOSO EPON', zte: 'ZTE GPON' };
                 const brandKey = device.brand || 'auto';
+                // Indikator ringkas kelengkapan config: SSH (utk provisioning) & ACS (utk OLT-push TR069).
+                const sshBadge = device.sshUsername
+                  ? `<span class="badge badge-success" title="SSH siap (user ${device.sshUsername}, port ${device.sshPort || 22})"><i class="fas fa-check"></i></span>`
+                  : '<span class="badge badge-light" title="SSH belum diatur">&ndash;</span>';
+                const acsBadge = (device.acs && device.acs.url)
+                  ? `<span class="badge badge-success" title="ACS ${device.acs.url}">VLAN ${device.acs.mgmtVlan || 100}</span>`
+                  : '<span class="badge badge-light" title="ACS belum diatur">&ndash;</span>';
+                const statusBadge = device.enabled !== false
+                  ? '<span class="badge badge-success">Aktif</span>'
+                  : '<span class="badge badge-secondary">Nonaktif</span>';
                 row.innerHTML = `
-                  <td>${device.name}</td>
-                  <td>${device.host}</td>
-                  <td><span class="badge badge-info">${brandLabels[brandKey] || brandKey}</span></td>
-                  <td>${device.snmpPort || 161}</td>
-                  <td>
-                    ${device.enabled !== false ?
-                      '<span class="badge badge-success">Aktif</span>' : 
-                      '<span class="badge badge-secondary">Nonaktif</span>'}
-                  </td>
-                  <td>
-                    <button type="button" class="btn btn-sm btn-info test-olt-device" data-id="${device.id}">
-                      <i class="fas fa-plug"></i> Test
-                    </button>
-                    <button type="button" class="btn btn-sm btn-warning edit-olt-device" data-id="${device.id}">
-                      <i class="fas fa-edit"></i> Edit
-                    </button>
-                    <button type="button" class="btn btn-sm btn-danger delete-olt-device" data-id="${device.id}">
-                      <i class="fas fa-trash"></i> Hapus
-                    </button>
+                  <td class="align-middle">${device.name}</td>
+                  <td class="align-middle">${device.host}</td>
+                  <td class="align-middle"><span class="badge badge-info">${brandLabels[brandKey] || brandKey}</span></td>
+                  <td class="align-middle">${device.snmpPort || 161}</td>
+                  <td class="align-middle">${sshBadge}</td>
+                  <td class="align-middle">${acsBadge}</td>
+                  <td class="align-middle">${statusBadge}</td>
+                  <td class="text-center text-nowrap">
+                    <div class="btn-group btn-group-sm" role="group">
+                      <button type="button" class="btn btn-info test-olt-device" data-id="${device.id}" title="Test Koneksi"><i class="fas fa-plug"></i></button>
+                      <button type="button" class="btn btn-warning edit-olt-device" data-id="${device.id}" title="Edit"><i class="fas fa-edit"></i></button>
+                      <button type="button" class="btn btn-danger delete-olt-device" data-id="${device.id}" title="Hapus"><i class="fas fa-trash"></i></button>
+                    </div>
                   </td>
                 `;
               });
