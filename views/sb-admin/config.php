@@ -65,7 +65,7 @@
             <li><a class="nav-link" data-pane="pane-billing">Penagihan &amp; Isolir</a></li>
             <li><a class="nav-link" data-pane="pane-technical">Teknis</a></li>
             <li><a class="nav-link" data-pane="pane-backup">Backup Telegram</a></li>
-            <li><a class="nav-link" data-pane="pane-olt">OLT HIOSO</a></li>
+            <li><a class="nav-link" data-pane="pane-olt">OLT</a></li>
           </ul>
 
           <div id="configForm">
@@ -499,8 +499,8 @@
           </div><!-- /#pane-backup -->
 
           <div class="config-pane" id="pane-olt">
-            <!-- OLT HIOSO Configuration -->
-            <h4 class="dashboard-section-title">Konfigurasi OLT HIOSO</h4>
+            <!-- OLT Configuration -->
+            <h4 class="dashboard-section-title">Konfigurasi OLT</h4>
             
             <!-- Global OLT Settings -->
             <div class="card table-card mb-4">
@@ -510,8 +510,8 @@
               <div class="card-body">
                 <div class="alert alert-info">
                   <i class="fas fa-info-circle"></i> 
-                  <strong>Informasi OLT HIOSO:</strong>
-                  <p class="mb-0 mt-2">Konfigurasi ini digunakan untuk mengambil data redaman (RX Power), status ONT, Dying Gasp, dan LOS dari OLT HIOSO via SNMP. Data akan ditampilkan di halaman Pelanggan Teknisi.</p>
+                  <strong>Informasi OLT:</strong>
+                  <p class="mb-0 mt-2">Konfigurasi ini digunakan untuk mengambil data redaman (RX Power), status ONT, Dying Gasp, dan LOS dari OLT via SNMP. Data akan ditampilkan di halaman Pelanggan Teknisi.</p>
                 </div>
                 
                 <div class="mb-3">
@@ -520,7 +520,7 @@
                     <option value="true">Aktif</option>
                     <option value="false">Nonaktif</option>
                   </select>
-                  <small class="form-text text-muted">Aktifkan untuk mengambil data dari OLT HIOSO</small>
+                  <small class="form-text text-muted">Aktifkan untuk mengambil data dari OLT</small>
                 </div>
                 
                 <hr class="my-4">

@@ -597,29 +597,34 @@ function registerOltProvisioningRoutes(router, deps) {
         return data;
     }
 
-    // Map SN→PPPoE: deskripsi ONU dari SNMP (lengkap utk ONU online & offline, sumber
-    // sama dgn monitor /onus). Dipakai panel ACS supaya teknisi lihat identitas pelanggan,
-    // bukan cuma SN. Cache 60 dtk; SNMP absen/gagal → map kosong (degrade, tak ganggu ACS).
-    const snPppoeCache = new Map();
-    const SN_PPPOE_TTL_MS = 60 * 1000;
-    async function getSnPppoeMap(device, force) {
+    // Map SN→info OLT (PPPoE dari deskripsi + status online/LOS/DG) via SNMP, lengkap utk ONU
+    // online & offline (sumber sama dgn monitor /onus). Dipakai panel ACS supaya teknisi lihat
+    // identitas pelanggan + apakah modem online di OLT, bukan cuma SN. Cache 60 dtk; SNMP
+    // absen/gagal → map kosong (degrade, tak ganggu data ACS).
+    const snOltInfoCache = new Map();
+    const SN_OLT_INFO_TTL_MS = 60 * 1000;
+    async function getSnOltInfoMap(device, force) {
         if (typeof getOltSnmpData !== 'function') return new Map();
-        const c = snPppoeCache.get(device.id);
-        if (!force && c && Date.now() - c.ts < SN_PPPOE_TTL_MS) return c.map;
+        const c = snOltInfoCache.get(device.id);
+        if (!force && c && Date.now() - c.ts < SN_OLT_INFO_TTL_MS) return c.map;
         const map = new Map();
         try {
             const r = await getOltSnmpData([device]);
             if (r && r.status === 'success' && Array.isArray(r.onus)) {
                 for (const o of r.onus) {
-                    if (o && o.serial && o.description) {
-                        map.set(String(o.serial).toUpperCase(), String(o.description).trim());
-                    }
+                    if (!o || !o.serial) continue;
+                    map.set(String(o.serial).toUpperCase(), {
+                        pppoe: o.description ? String(o.description).trim() : null,
+                        status: o.status || null, // 'Online' | 'Offline' | 'LOS' | 'Dying Gasp'
+                        isLos: !!o.isLos,
+                        isDyingGasp: !!o.isDyingGasp,
+                    });
                 }
             }
         } catch (e) {
-            console.warn(`[OLT-ACS] gagal map SN→PPPoE (SNMP) ${device.id}: ${e.message}`);
+            console.warn(`[OLT-ACS] gagal map SN→info OLT (SNMP) ${device.id}: ${e.message}`);
         }
-        snPppoeCache.set(device.id, { map, ts: Date.now() });
+        snOltInfoCache.set(device.id, { map, ts: Date.now() });
         return map;
     }
 
@@ -628,10 +633,10 @@ function registerOltProvisioningRoutes(router, deps) {
         const device = deviceOr404(req, res);
         if (!device || !requireSsh(device, res)) return;
         const force = req.query.force === 'true';
-        const [onus, informed, pppoeMap] = await Promise.all([
+        const [onus, informed, infoMap] = await Promise.all([
             getAllOnusCached(device, force),
             getInformedSerials(),
-            getSnPppoeMap(device, force),
+            getSnOltInfoMap(device, force),
         ]);
         // Index pelanggan terdaftar by PPPoE (kalau sudah di-import) → tampilkan nama asli.
         const usersByPppoe = new Map();
@@ -643,9 +648,11 @@ function registerOltProvisioningRoutes(router, deps) {
             const lastInform = informed.get(String(o.sn).toUpperCase()) || null;
             const isInformed = !!lastInform;
             const action = isInformed ? 'ok' : (tier.oltPushable ? 'olt-push' : 'modem');
-            const pppoe = pppoeMap.get(String(o.sn).toUpperCase()) || null;
+            const info = infoMap.get(String(o.sn).toUpperCase()) || null;
+            const pppoe = info ? info.pppoe : null;
+            const oltStatus = info ? info.status : null; // status fisik di OLT (online/offline/LOS/DG)
             const customer = pppoe ? usersByPppoe.get(pppoe.toLowerCase()) : null;
-            return { id: o.id, ponPort: o.ponPort, onuId: o.onuId, sn: o.sn, pppoe, customerName: customer ? customer.name : null, vendor: tier.vendor, tier: tier.tier, oltPushable: tier.oltPushable, informed: isInformed, lastInform, action };
+            return { id: o.id, ponPort: o.ponPort, onuId: o.onuId, sn: o.sn, pppoe, oltStatus, customerName: customer ? customer.name : null, vendor: tier.vendor, tier: tier.tier, oltPushable: tier.oltPushable, informed: isInformed, lastInform, action };
         });
         const summary = {
             total: rows.length,
