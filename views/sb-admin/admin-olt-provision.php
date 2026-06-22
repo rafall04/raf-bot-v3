@@ -111,18 +111,19 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                                 </div>
                                                 <div class="form-group col-md-3">
                                                     <label for="regPonPort">Port PON</label>
-                                                    <input type="text" class="form-control" id="regPonPort" list="ponPortList" placeholder="1/2/1" autocomplete="off">
+                                                    <input type="text" class="form-control" id="regPonPort" list="ponPortList" placeholder="dari scan" autocomplete="off" readonly>
                                                     <datalist id="ponPortList"></datalist>
                                                 </div>
                                                 <div class="form-group col-md-3">
                                                     <label for="regOnuId">ONU ID <a href="#" id="checkOccupancyBtn" class="small" title="Cek slot terpakai & saran ID">cek slot</a></label>
-                                                    <input type="number" class="form-control" id="regOnuId" min="1" max="128" placeholder="auto">
+                                                    <input type="number" class="form-control" id="regOnuId" min="1" max="128" placeholder="auto" readonly>
                                                 </div>
                                             </div>
+                                            <div class="small text-muted mb-2" id="lokasiHint"><i class="fas fa-magic"></i> Port &amp; ONU ID terisi otomatis dari hasil scan. <a href="#" id="unlockLokasi">ubah manual</a></div>
                                             <div class="small text-muted mb-2" id="occupancyInfo" style="display:none;"></div>
 
                                             <div class="form-group">
-                                                <label for="regOnuType">Tipe Modem / Profil Registrasi</label>
+                                                <label for="regOnuType">Tipe Modem <span class="text-muted small">(otomatis sesuai SN)</span></label>
                                                 <select id="regOnuType" class="form-control"></select>
                                                 <small class="form-text text-muted" id="regOnuTypeNotes"></small>
                                             </div>
