@@ -4,7 +4,7 @@
  * Caller: `index.js` pada event `messages.upsert`.
  * Deps: Handler domain di `message/handlers/*`, helper context/pipeline bot, dan service `lib/*`.
  * MainFuncs: Build context pesan, jalankan guard/cancel/state, lalu dispatch intent ke handler domain.
- * SideEffects: Membaca/menulis state percakapan, mengirim pesan WhatsApp, dan memanggil service domain existing.
+ * SideEffects: Membaca/menulis state percakapan, mengirim pesan WhatsApp, mencatat pesan masuk ke message_logs (read-only/fire-and-forget), dan memanggil service domain existing.
  */
 "use strict";
 
@@ -144,6 +144,7 @@ const { normalizeJid: _normalizeJid, normalizeJidForSaldo: _normalizeJidForSaldo
 const agentTransactionManager = require('../lib/agent-transaction-manager');
 const agentManager = require('../lib/agent-manager');
 const { getReportsUploadsPath, getTeknisiUploadsPathByTicket } = require('../lib/path-helper');
+const { logInboundMessageSafe } = require('../repositories/message-log.repository');
 const { resolveRuntimeBindings, getRuntimeCollection } = require('../lib/runtime-repositories');
 let ownerNumber, nama, namabot, parentbinding, telfon;
 
@@ -237,6 +238,26 @@ module.exports = async (raf, msg, m, options = {}) => {
         plainSenderNumber,
         accounts
     });
+
+    // [LOGGER PESAN MASUK] read-only, fire-and-forget — TIDAK boleh throw/blokir jalur pesan.
+    // Tujuan: kumpulkan korpus bahasa pelanggan untuk evaluasi fitur AI. Pakai konteks sender
+    // yang SUDAH di-resolve (canonicalContext) — jangan re-resolve agar tak meracuni lid-mappings.
+    // Grup sudah di-skip di atas; pesan fromMe (keluaran bot) dilewati.
+    if (!msg.key?.fromMe) {
+        logInboundMessageSafe({
+            received_at: new Date().toISOString(),
+            raw_sender: sender,
+            is_lid: typeof sender === 'string' && sender.endsWith('@lid'),
+            canonical_jid: canonicalContext.canonicalId || null,
+            phone_number: canonicalContext.phoneNumber || (typeof plainSenderNumber === 'string' ? plainSenderNumber : null),
+            pushname: pushname || null,
+            role: isOwner ? 'owner' : (isTeknisi ? 'teknisi' : (canonicalContext.user ? 'customer' : 'unknown')),
+            is_customer: Boolean(canonicalContext.user),
+            message_type: type || null,
+            body: typeof chats === 'string' ? chats : null,
+            resolution_source: canonicalContext.resolutionSource || null
+        });
+    }
 
     if (sender.endsWith('@lid')) {
         console.log(`[AUTH_DEBUG] PrimaryID: ${primarySenderId}, OpsionalJID: ${optionalJid}, isSaldo: ${isSaldo !== false && isSaldo !== null}, isOwner: ${isOwner}, isTeknisi: ${!!isTeknisi}`);
