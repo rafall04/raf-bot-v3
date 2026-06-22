@@ -17,14 +17,21 @@ try {
     $length   = (int) mikrotik_read_input('length', 4, false, 6);
     $chartype = mikrotik_read_input('chartype', 5, false, 'safe');
     $prefix   = mikrotik_read_input('prefix', 6, false, '');
+    $usernamesRaw = mikrotik_read_input('usernames', 7, false, '');
 } catch (InvalidArgumentException $e) {
     mikrotik_fail($operation, $e->getMessage(), 'INVALID_ARGUMENT', $startedAt, 400);
 }
 
-if ($count < 1) {
+// Mode CUSTOM: bila daftar usernames diberikan, pakai persis itu (bukan acak).
+$customNames = ($usernamesRaw !== '' && $usernamesRaw !== null)
+    ? array_values(array_unique(array_filter(array_map('trim', explode(',', $usernamesRaw)))))
+    : [];
+
+if (count($customNames) === 0 && $count < 1) {
     mikrotik_fail($operation, 'Jumlah voucher minimal 1.', 'INVALID_ARGUMENT', $startedAt, 400);
 }
 if ($count > 1000) { $count = 1000; }
+if (count($customNames) > 1000) { $customNames = array_slice($customNames, 0, 1000); }
 if ($length < 3) { $length = 3; }
 if ($length > 16) { $length = 16; }
 
@@ -64,38 +71,54 @@ if (!$profileExists) {
 define('VP_COMMENT_PREFIX', 'vc-BotWa | ');
 $full_comment = VP_COMMENT_PREFIX . $komen . ' | ' . $profil . ' | ' . date('d-m-Y H:i:s');
 
+function vp_add_user($API, $username, $full_comment, $profil) {
+    $API->write('/ip/hotspot/user/add', false);
+    $API->write('=name=' . $username, false);
+    $API->write('=password=' . $username, false);
+    $API->write('=server=all', false);
+    $API->write('=comment=' . $full_comment, false);
+    $API->write('=profile=' . $profil);
+    $resp = $API->read(false);
+    if (!empty($resp) && is_array($resp)) {
+        foreach ($resp as $item) {
+            if (isset($item['!trap']) || isset($item['!fatal'])) { return false; }
+        }
+    }
+    return true;
+}
+
 $created = [];
 $failed = 0;
-$seen = [];
-$maxRetry = 6;
 
-for ($i = 0; $i < $count; $i++) {
-    $ok = false;
-    for ($r = 0; $r < $maxRetry && !$ok; $r++) {
-        $username = vp_gen_code($chars, $charsLen, $length, $prefix);
-        if (isset($seen[$username])) { continue; }
-        $seen[$username] = true;
-
-        $API->write('/ip/hotspot/user/add', false);
-        $API->write('=name=' . $username, false);
-        $API->write('=password=' . $username, false);
-        $API->write('=server=all', false);
-        $API->write('=comment=' . $full_comment, false);
-        $API->write('=profile=' . $profil);
-        $resp = $API->read(false);
-
-        $trap = false;
-        if (!empty($resp) && is_array($resp)) {
-            foreach ($resp as $item) {
-                if (isset($item['!trap']) || isset($item['!fatal'])) { $trap = true; break; }
+if (count($customNames) > 0) {
+    // Mode custom: tambah username persis (anti-acak); trap (mis. sudah ada) = gagal.
+    foreach ($customNames as $username) {
+        if (vp_add_user($API, $username, $full_comment, $profil)) {
+            $created[] = ['username' => $username, 'password' => $username, 'profile' => $profil];
+        } else {
+            $failed++;
+        }
+    }
+    $count = count($customNames);
+} else {
+    // Mode acak: generate kode unik; trap = regenerate (terbatas).
+    $seen = [];
+    $maxRetry = 6;
+    for ($i = 0; $i < $count; $i++) {
+        $ok = false;
+        for ($r = 0; $r < $maxRetry && !$ok; $r++) {
+            $username = vp_gen_code($chars, $charsLen, $length, $prefix);
+            if (isset($seen[$username])) { continue; }
+            $seen[$username] = true;
+            if (vp_add_user($API, $username, $full_comment, $profil)) {
+                $created[] = ['username' => $username, 'password' => $username, 'profile' => $profil];
+                $ok = true;
+            } else {
+                unset($seen[$username]);
             }
         }
-        if ($trap) { unset($seen[$username]); continue; }
-
-        $created[] = ['username' => $username, 'password' => $username, 'profile' => $profil];
-        $ok = true;
+        if (!$ok) { $failed++; }
     }
-    if (!$ok) { $failed++; }
 }
 
 mikrotik_success($operation, 'Batch voucher selesai: ' . count($created) . ' dibuat, ' . $failed . ' gagal.', [

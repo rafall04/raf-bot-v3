@@ -83,6 +83,10 @@
                                                 <label class="small font-weight-bold">Kode (1 baris 1 kode, opsi <code>kode,sandi</code>)</label>
                                                 <textarea class="form-control form-control-sm" id="vpManual" rows="4" placeholder="abc123&#10;def456,pass456"></textarea>
                                             </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="vpManualCreate">
+                                                <label class="form-check-label small" for="vpManualCreate">Buat juga di MikroTik (kode custom)</label>
+                                            </div>
                                             <button class="btn btn-secondary btn-sm btn-block" id="vpBtnManual">Pakai daftar ini</button>
                                         </div>
                                     </div>

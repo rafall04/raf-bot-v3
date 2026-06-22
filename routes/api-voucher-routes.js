@@ -287,7 +287,8 @@ function createApiVoucherRouter({
                 count: req.body ? req.body.count : undefined,
                 length: req.body ? req.body.length : undefined,
                 chartype: req.body ? req.body.chartype : undefined,
-                prefix: req.body ? req.body.prefix : undefined
+                prefix: req.body ? req.body.prefix : undefined,
+                usernames: req.body ? req.body.usernames : undefined
             });
             if (!result.ok) {
                 return res.status(400).json({ status: 400, message: result.message });

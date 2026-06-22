@@ -79,10 +79,11 @@ function createVoucherPrintService(overrides = {}) {
             return { html, layoutId: layout.id, count: Array.isArray(vouchers) ? vouchers.length : 0 };
         },
 
-        async generateBatch({ profile, count, length, chartype, prefix } = {}) {
+        async generateBatch({ profile, count, length, chartype, prefix, usernames } = {}) {
             if (!profile) return { ok: false, message: "Profil voucher wajib dipilih" };
+            const custom = Array.isArray(usernames) ? usernames.map((u) => String(u).trim()).filter(Boolean) : [];
             const n = parseInt(count, 10) || 0;
-            if (n < 1) return { ok: false, message: "Jumlah voucher minimal 1" };
+            if (custom.length === 0 && n < 1) return { ok: false, message: "Jumlah voucher minimal 1" };
             if (typeof deps.addHotspotUsersBatch !== "function") {
                 return { ok: false, message: "Bridge MikroTik batch tidak tersedia" };
             }
@@ -93,7 +94,8 @@ function createVoucherPrintService(overrides = {}) {
                 comment: "VoucherPrint",
                 length: parseInt(length, 10) || stored.code_length || 6,
                 chartype: chartype || stored.code_chartype || "safe",
-                prefix: (prefix !== null && typeof prefix !== "undefined") ? prefix : (stored.code_prefix || "")
+                prefix: (prefix !== null && typeof prefix !== "undefined") ? prefix : (stored.code_prefix || ""),
+                usernames: custom
             }, { caller: "voucher-print.generateBatch" });
             if (!result || result.ok !== true) {
                 return { ok: false, message: (result && result.message) || "Gagal generate batch dari MikroTik" };

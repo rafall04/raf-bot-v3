@@ -66,6 +66,75 @@ const BUILTIN_LAYOUTS = [
 <div style="background:{{warna}};color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 6px;min-width:54px;"><span style="font-size:8px;">HARGA</span><span style="font-weight:bold;font-size:13px;">{{harga}}</span></div>
 <div style="flex:1;padding:8px 10px;"><div style="font-size:10px;color:{{warna}};font-weight:bold;">{{wifi}}</div><div style="font-family:monospace;font-size:17px;font-weight:bold;">{{kode}}</div><div style="font-size:10px;color:#555;">sandi: {{sandi}} · {{masa_aktif}}</div></div>
 <div style="display:flex;align-items:center;padding-right:8px;"><div style="width:46px;height:46px;">{{qr}}</div></div></div>`
+    },
+    {
+        id: "borderTop",
+        name: "Border atas",
+        width: 200,
+        template: `<div class="vp-card" style="width:200px;border:1px solid #ddd;border-top:5px solid {{warna}};border-radius:0 0 7px 7px;overflow:hidden;background:#fff;color:#222;font-family:Arial,sans-serif;padding:8px 10px;">
+<div style="font-size:11px;font-weight:bold;color:{{warna}};">{{wifi}}</div>
+<div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-family:monospace;font-size:17px;font-weight:bold;">{{kode}}</div><div style="font-size:10px;color:#555;">sandi: {{sandi}} · {{masa_aktif}} · {{harga}}</div></div><div style="width:46px;height:46px;flex:none;">{{qr}}</div></div></div>`
+    },
+    {
+        id: "corner",
+        name: "Sudut harga",
+        width: 200,
+        template: `<div class="vp-card" style="width:200px;position:relative;border:1px solid #ddd;border-radius:7px;overflow:hidden;background:#fff;color:#222;font-family:Arial,sans-serif;padding:9px 10px;">
+<div style="position:absolute;top:0;right:0;background:{{warna}};color:#fff;font-size:10px;font-weight:bold;padding:2px 8px;">{{harga}}</div>
+<div style="font-size:10px;font-weight:bold;color:{{warna}};">{{wifi}}</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><div><div style="font-family:monospace;font-size:17px;font-weight:bold;">{{kode}}</div><div style="font-size:10px;color:#555;">sandi: {{sandi}} · {{masa_aktif}}</div></div><div style="width:46px;height:46px;flex:none;">{{qr}}</div></div></div>`
+    },
+    {
+        id: "outline",
+        name: "Outline warna",
+        width: 200,
+        template: `<div class="vp-card" style="width:200px;border:2px solid {{warna}};border-radius:7px;overflow:hidden;background:#fff;color:#222;font-family:Arial,sans-serif;padding:9px 11px;">
+<div style="display:flex;justify-content:space-between;"><span style="font-size:11px;font-weight:bold;color:{{warna}};">{{wifi}}</span><span style="font-weight:bold;color:{{warna}};">{{harga}}</span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><div><div style="font-family:monospace;font-size:19px;font-weight:bold;color:{{warna}};">{{kode}}</div><div style="font-size:10px;color:#555;">sandi: {{sandi}} · {{masa_aktif}}</div></div><div style="width:46px;height:46px;flex:none;">{{qr}}</div></div></div>`
+    },
+    {
+        id: "dark",
+        name: "Gelap neon",
+        width: 200,
+        template: `<div class="vp-card" style="width:200px;border:1px solid #000;border-radius:7px;overflow:hidden;background:#1f1f1f;color:#fff;font-family:Arial,sans-serif;padding:9px 11px;">
+<div style="display:flex;justify-content:space-between;"><span style="font-size:11px;font-weight:bold;color:{{warna}};">{{wifi}}</span><span style="font-weight:bold;color:{{warna}};">{{harga}}</span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><div><div style="font-family:monospace;font-size:19px;font-weight:bold;color:#fff;">{{kode}}</div><div style="font-size:10px;color:#aaa;">sandi: {{sandi}} · {{masa_aktif}}</div></div><div style="width:48px;height:48px;flex:none;background:#fff;padding:2px;border-radius:3px;">{{qr}}</div></div></div>`
+    },
+    {
+        id: "ribbon",
+        name: "Ribbon hemat",
+        width: 200,
+        template: `<div class="vp-card" style="width:200px;position:relative;border:1px solid #ddd;border-radius:7px;overflow:hidden;background:#fff;color:#222;font-family:Arial,sans-serif;padding:9px 10px;">
+<div style="position:absolute;top:9px;right:-26px;background:{{warna}};color:#fff;font-size:9px;font-weight:bold;padding:2px 28px;transform:rotate(45deg);">HEMAT</div>
+<div style="font-size:10px;font-weight:bold;color:{{warna}};">{{wifi}}</div>
+<div style="font-family:monospace;font-size:18px;font-weight:bold;margin-top:4px;">{{kode}}</div>
+<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:10px;color:#555;">{{masa_aktif}} · {{harga}}</span><div style="width:42px;height:42px;">{{qr}}</div></div></div>`
+    },
+    {
+        id: "minimal",
+        name: "Minimalis",
+        width: 190,
+        template: `<div class="vp-card" style="width:190px;border:1px solid #e0e0e0;border-radius:7px;overflow:hidden;background:#fff;color:#222;font-family:Arial,sans-serif;padding:10px 12px;">
+<div style="display:flex;align-items:center;gap:6px;"><span style="width:9px;height:9px;border-radius:50%;background:{{warna}};display:inline-block;"></span><span style="font-size:11px;color:#666;">{{wifi}}</span></div>
+<div style="font-family:monospace;font-size:20px;font-weight:bold;margin:5px 0;">{{kode}}</div>
+<div style="font-size:11px;color:#666;">{{masa_aktif}} · <span style="color:{{warna}};font-weight:bold;">{{harga}}</span></div></div>`
+    },
+    {
+        id: "stamp",
+        name: "Stempel tiket",
+        width: 200,
+        template: `<div class="vp-card" style="width:200px;border:1px solid #eee;border-radius:7px;overflow:hidden;background:#fff;color:#222;font-family:Arial,sans-serif;padding:4px;">
+<div style="border:2px dashed {{warna}};border-radius:5px;padding:7px;text-align:center;">
+<div style="font-size:10px;font-weight:bold;color:{{warna}};">{{wifi}}</div>
+<div style="display:flex;gap:6px;align-items:center;justify-content:center;margin-top:3px;"><div style="width:46px;height:46px;flex:none;">{{qr}}</div><div><div style="font-family:monospace;font-size:15px;font-weight:bold;">{{kode}}</div><div style="font-size:9px;color:#555;">{{masa_aktif}}</div><div style="font-size:10px;color:{{warna}};font-weight:bold;">{{harga}}</div></div></div></div></div>`
+    },
+    {
+        id: "pill",
+        name: "Pill header",
+        width: 200,
+        template: `<div class="vp-card" style="width:200px;border:1px solid #ddd;border-radius:7px;overflow:hidden;background:#fff;color:#222;font-family:Arial,sans-serif;padding:9px;">
+<div style="background:{{warna}};color:#fff;border-radius:20px;padding:3px 10px;display:inline-block;font-size:10px;font-weight:bold;">{{wifi}}</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;"><div><div style="font-family:monospace;font-size:17px;font-weight:bold;">{{kode}}</div><div style="font-size:10px;color:#555;">sandi: {{sandi}} · {{masa_aktif}} · {{harga}}</div></div><div style="width:44px;height:44px;flex:none;">{{qr}}</div></div></div>`
     }
 ];
 

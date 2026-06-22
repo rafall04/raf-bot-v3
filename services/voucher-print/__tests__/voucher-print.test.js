@@ -53,6 +53,16 @@ describe("voucher-print/render", () => {
         expect(html).not.toMatch(/\{\{\w+\}\}/);
     });
 
+    test("all 14 builtin layouts render with no leftover placeholders", async () => {
+        const layouts = getBuiltinLayouts();
+        expect(layouts.length).toBe(14);
+        for (const layout of layouts) {
+            const html = await renderCard(layout, VOUCHER, SETTINGS, fakeQr);
+            expect(html).toContain("7ChD66");
+            expect(html).not.toMatch(/\{\{\w+\}\}/);
+        }
+    });
+
     test("renderSheet produces a printable document", async () => {
         const band = getBuiltinLayouts().find((l) => l.id === "band");
         const html = await renderSheet(band, [VOUCHER, { ...VOUCHER, username: "P22TSJ" }], SETTINGS, fakeQr, { title: "Test" });

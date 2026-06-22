@@ -123,9 +123,23 @@
             var parts = line.split(",");
             return { username: parts[0].trim(), password: (parts[1] || parts[0]).trim() };
         });
-        vouchers = attachProfileData(parsed);
-        updatePrintState();
-        toast("success", vouchers.length + " voucher siap");
+        var create = $("vpManualCreate") && $("vpManualCreate").checked;
+        if (!create) {
+            vouchers = attachProfileData(parsed);
+            updatePrintState();
+            toast("success", vouchers.length + " voucher siap (cetak saja)");
+            return;
+        }
+        $("vpBtnManual").disabled = true;
+        $("vpReady").textContent = "Membuat " + parsed.length + " kode custom di MikroTik...";
+        api("POST", "/api/voucher/print/generate", { profile: prof, usernames: parsed.map(function (p) { return p.username; }) })
+            .then(function (res) {
+                $("vpBtnManual").disabled = false;
+                if (res.status !== 200 || !res.data) { updatePrintState(); toast("error", res.message || "Gagal buat custom"); return; }
+                vouchers = attachProfileData(res.data.vouchers || []);
+                updatePrintState();
+                toast("success", "Dibuat " + vouchers.length + " kode custom" + (res.data.failed ? " (" + res.data.failed + " gagal/duplikat)" : ""));
+            }).catch(function (e) { $("vpBtnManual").disabled = false; updatePrintState(); toast("error", e.message); });
     }
 
     function doPreview() {
