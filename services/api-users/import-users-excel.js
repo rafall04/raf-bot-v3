@@ -60,7 +60,8 @@ function buildCreatePayload(data, explicitFields) {
         "corporate_npwp",
         "corporate_pic_name",
         "corporate_pic_phone",
-        "corporate_pic_email"
+        "corporate_pic_email",
+        "account_type"
     ].forEach((field) => {
         if (!explicitFields[field]) {
             return;
@@ -101,7 +102,8 @@ function buildUpdatePayload(data, explicitFields) {
         "corporate_npwp",
         "corporate_pic_name",
         "corporate_pic_phone",
-        "corporate_pic_email"
+        "corporate_pic_email",
+        "account_type"
     ].forEach((field) => {
         if (!explicitFields[field]) {
             return;

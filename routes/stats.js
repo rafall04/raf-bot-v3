@@ -16,6 +16,7 @@ const { getGenieAcsDiagnostics, getWifiInfo } = require('../lib/genieacs');
 const { getPppStats, getHotspotStats, getMikrotikDiagnostics } = require('../lib/mikrotik');
 const { getStatusSnapshot, canReconnect, closeActiveSocket } = require('../lib/whatsapp-gateway');
 const { triggerWhatsAppReconnect } = require('../lib/whatsapp-bootstrap');
+const { isInfrastructure } = require('../lib/account-classification');
 
 const router = express.Router();
 const execPromise = util.promisify(exec);
@@ -186,8 +187,9 @@ router.get('/:type/:id?', async (req, res) => {
                         .filter(pkg => pkg.whitelist === true)
                         .map(pkg => pkg.name);
                     
-                    // Exclude whitelist users from total count for payment statistics
-                    const payableUsers = global.users.filter(user => !whitelistedPackages.includes(user.subscription));
+                    // Exclude whitelist users from total count for payment statistics.
+                    // Kecualikan juga akun infrastruktur (mis. modem CCTV/monitoring) agar tak terhitung sebagai pelanggan.
+                    const payableUsers = global.users.filter(user => !whitelistedPackages.includes(user.subscription) && !isInfrastructure(user));
                     const totalUsers = payableUsers.length;
                     const paidUsersCount = payableUsers.filter(user => user.paid === true || user.paid === 1).length;
                     const unpaidUsers = totalUsers - paidUsersCount;

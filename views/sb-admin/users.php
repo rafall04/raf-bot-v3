@@ -102,6 +102,14 @@ Header Doc
                     <h4 class="dashboard-section-title">Daftar Pelanggan</h4>
                     <div class="dashboard-card" style="height: auto;">
                         <div class="card-body">
+                            <div class="d-flex align-items-center mb-3 flex-wrap" id="accountTypeViewToggle" role="group">
+                                <span class="mr-2 text-muted small">Tampilkan:</span>
+                                <div class="btn-group btn-group-sm" role="group" aria-label="Filter jenis akun">
+                                    <button type="button" class="btn btn-outline-primary active" data-view="pelanggan">Pelanggan</button>
+                                    <button type="button" class="btn btn-outline-primary" data-view="infrastruktur">Infrastruktur/CCTV</button>
+                                    <button type="button" class="btn btn-outline-primary" data-view="all">Semua</button>
+                                </div>
+                            </div>
                             <div class="table-responsive">
                                 <table class="table table-bordered table-sm" id="dataTable" width="100%" cellspacing="0">
                                     <thead>
@@ -457,6 +465,7 @@ Header Doc
                             <div class="mb-3"><div class="form-check"><input type="checkbox" class="form-check-input" name="paid" id="create_paid"><label for="create_paid" class="form-check-label">Sudah membayar</label></div></div>
                             <div class="mb-3"><div class="form-check"><input type="checkbox" class="form-check-input" name="send_invoice" id="create_send_invoice"><label for="create_send_invoice" class="form-check-label">Kirim Invoice PDF</label></div></div>
                             <div class="mb-3"><div class="form-check"><input type="checkbox" class="form-check-input" name="notify_outage" id="create_notify_outage" checked><label for="create_notify_outage" class="form-check-label">Terima info gangguan (GAMAS)</label></div></div>
+                            <div class="mb-3"><label for="create_account_type" class="form-label">Jenis Akun</label><select class="form-control form-control-sm" name="account_type" id="create_account_type"><option value="pelanggan" selected>Pelanggan</option><option value="infrastruktur">Infrastruktur (CCTV/Monitoring)</option></select><small class="form-text text-muted">Akun infrastruktur disembunyikan dari data pelanggan &amp; kebal isolir/tagihan, tetapi tetap terbaca di monitor OLT.</small></div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3"><label for="create_address" class="form-label">Alamat</label><textarea class="form-control form-control-sm" id="create_address" name="address" rows="2"></textarea></div>
@@ -584,6 +593,7 @@ Header Doc
                             <div class="mb-3"><div class="form-check"><input type="checkbox" class="form-check-input" name="paid" id="edit_paid"><label for="edit_paid" class="form-check-label">Sudah membayar</label></div></div>
                             <div class="mb-3"><div class="form-check"><input type="checkbox" class="form-check-input" name="send_invoice" id="edit_send_invoice"><label for="edit_send_invoice" class="form-check-label">Kirim Invoice PDF</label></div></div>
                             <div class="mb-3"><div class="form-check"><input type="checkbox" class="form-check-input" name="notify_outage" id="edit_notify_outage"><label for="edit_notify_outage" class="form-check-label">Terima info gangguan (GAMAS)</label></div></div>
+                            <div class="mb-3"><label for="edit_account_type" class="form-label">Jenis Akun</label><select class="form-control form-control-sm" name="account_type" id="edit_account_type"><option value="pelanggan">Pelanggan</option><option value="infrastruktur">Infrastruktur (CCTV/Monitoring)</option></select><small class="form-text text-muted">Akun infrastruktur disembunyikan dari data pelanggan &amp; kebal isolir/tagihan, tetapi tetap terbaca di monitor OLT.</small></div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3"><label for="edit_address" class="form-label">Alamat</label><textarea class="form-control form-control-sm" id="edit_address" name="address" rows="2"></textarea></div>

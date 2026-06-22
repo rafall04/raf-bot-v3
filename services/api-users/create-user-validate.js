@@ -104,6 +104,8 @@ async function prepareNewUser(deps, { userData }) {
         send_invoice: userData.send_invoice || false,
         is_corporate: userData.is_corporate || false,
         notify_outage: userData.notify_outage === false ? false : true,
+        // account_type: 'pelanggan' (default) | 'infrastruktur' (mis. modem CCTV/monitoring).
+        account_type: String(userData.account_type || "").trim().toLowerCase() === "infrastruktur" ? "infrastruktur" : "pelanggan",
         bulk: bulkData,
         username: finalUsername,
         password: finalPassword,

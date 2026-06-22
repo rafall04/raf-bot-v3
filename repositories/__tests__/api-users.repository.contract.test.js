@@ -171,7 +171,7 @@ describe("api-users repository contract", () => {
 
         expect(run).toHaveBeenCalledWith(
             expect.stringContaining("INSERT INTO users"),
-            [7, "User 7", "081", "Basic", "dev-1", 0, "ppp-7", "secret", "odp-1", 1, 0, null, null, null, null, null, null, JSON.stringify(["1"]), 1],
+            [7, "User 7", "081", "Basic", "dev-1", 0, "ppp-7", "secret", "odp-1", 1, 0, null, null, null, null, null, null, JSON.stringify(["1"]), 1, "pelanggan"],
             expect.any(Function)
         );
     });

@@ -99,6 +99,12 @@ const USER_EXCEL_COLUMNS = [
         example: "TRUE"
     },
     {
+        key: "account_type",
+        requiredOnCreate: false,
+        description: "Jenis akun: 'pelanggan' (default) atau 'infrastruktur' (mis. modem CCTV/monitoring). Akun infrastruktur disembunyikan dari data pelanggan & kebal isolir/tagihan, tetapi tetap terbaca di monitor OLT.",
+        example: "pelanggan"
+    },
+    {
         key: "bulk",
         requiredOnCreate: false,
         description: "SSID target untuk sinkron bulk. Pisahkan dengan |, contoh 1|5.",
@@ -325,6 +331,7 @@ function buildSampleImportRow() {
         payment_method: "",
         send_invoice: "TRUE",
         notify_outage: "TRUE",
+        account_type: "pelanggan",
         bulk: "1|5",
         is_corporate: "FALSE",
         corporate_name: "",
@@ -447,6 +454,9 @@ function normalizeImportRow(rawRow) {
         payment_method: paymentMethodResult.value,
         send_invoice: sendInvoiceResult.value,
         notify_outage: notifyOutageResult.value,
+        account_type: explicitFields.account_type
+            ? (String(rawRow?.account_type || "").trim().toLowerCase() === "infrastruktur" ? "infrastruktur" : "pelanggan")
+            : null,
         bulk: explicitFields.bulk ? normalizeBulkValue(rawRow?.bulk) : [],
         is_corporate: corporateResult.value,
         corporate_name: normalizeNullableString(rawRow?.corporate_name),
@@ -484,6 +494,7 @@ function mapUserToExportRow(user) {
         payment_method: user?.payment_method || "",
         send_invoice: formatBooleanForExcel(Boolean(user?.send_invoice)),
         notify_outage: formatBooleanForExcel(user?.notify_outage !== false && user?.notify_outage !== 0),
+        account_type: String(user?.account_type || "").trim().toLowerCase() === "infrastruktur" ? "infrastruktur" : "pelanggan",
         bulk: normalizeBulkValue(user?.bulk).join("|"),
         is_corporate: formatBooleanForExcel(Boolean(user?.is_corporate)),
         corporate_name: user?.corporate_name || "",

@@ -44,7 +44,8 @@ describe("arrears repository contract", () => {
             subscription TEXT,
             subscription_price INTEGER,
             status TEXT,
-            area TEXT
+            area TEXT,
+            account_type TEXT DEFAULT 'pelanggan'
         )`);
         await run(`CREATE TABLE payment_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -170,8 +170,9 @@ function createApiUsersRepository(overrides = {}) {
                     pppoe_username, pppoe_password, connected_odp_id,
                     send_invoice, is_corporate, corporate_name,
                     corporate_address, corporate_npwp, corporate_pic_name,
-                    corporate_pic_phone, corporate_pic_email, bulk, notify_outage
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    corporate_pic_phone, corporate_pic_email, bulk, notify_outage,
+                    account_type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
 
             await new Promise((resolve, reject) => {
@@ -194,7 +195,8 @@ function createApiUsersRepository(overrides = {}) {
                     newUser.corporate_pic_phone || null,
                     newUser.corporate_pic_email || null,
                     JSON.stringify(newUser.bulk || ["1"]),
-                    newUser.notify_outage === false ? 0 : 1
+                    newUser.notify_outage === false ? 0 : 1,
+                    String(newUser.account_type || "").trim().toLowerCase() === "infrastruktur" ? "infrastruktur" : "pelanggan"
                 ], function onInsertUser(err) {
                     if (err) {
                         reject(err);
@@ -217,7 +219,7 @@ function createApiUsersRepository(overrides = {}) {
                 "bulk", "connected_odp_id", "latitude", "longitude", "pppoe_password",
                 "send_invoice", "is_corporate", "corporate_name", "corporate_address",
                 "corporate_npwp", "corporate_pic_name", "corporate_pic_phone",
-                "corporate_pic_email", "notify_outage"
+                "corporate_pic_email", "notify_outage", "account_type"
             ];
             const updateFields = [];
             const updateValues = [];

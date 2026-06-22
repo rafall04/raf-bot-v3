@@ -10,6 +10,7 @@
 
 const { USER_EXCEL_CONTENT_TYPE, mapUserToExportRow } = require("./users-excel-schema");
 const { createUsersExcelWorkbook } = require("./users-excel-template");
+const { isInfrastructure } = require("../../lib/account-classification");
 
 let cachedXlsx = null;
 
@@ -35,7 +36,9 @@ function sortUsersForExport(users) {
 
 function exportUsersToExcel(deps) {
     const XLSX = getXlsx();
-    const users = deps.repository?.getUsersSnapshot?.() || [];
+    // Export "Data Pelanggan" hanya berisi pelanggan; akun infrastruktur (CCTV/monitoring)
+    // dikecualikan agar file pelanggan tetap bersih. Re-import tak menghapus apa pun (create/update saja).
+    const users = (deps.repository?.getUsersSnapshot?.() || []).filter((user) => !isInfrastructure(user));
     const rows = sortUsersForExport(users).map((user) => mapUserToExportRow(user));
     const workbook = createUsersExcelWorkbook(rows);
 

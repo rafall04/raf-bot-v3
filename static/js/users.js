@@ -37,6 +37,9 @@
         let lastPppoeUpdatedAt = null;
         let excelImportPreviewReady = false;
         let excelImportBusy = false;
+        // Filter tampilan tabel berdasarkan jenis akun: 'pelanggan' (default) | 'infrastruktur' | 'all'.
+        // Akun infrastruktur (mis. modem CCTV/monitoring) disembunyikan dari daftar pelanggan default.
+        let currentAccountTypeView = 'pelanggan';
 
         const LOADING_HTML = '<div class="spinner-border spinner-border-sm text-primary" role="status" style="width: 1rem; height: 1rem;"><span class="sr-only">Loading...</span></div>';
         const NOT_APPLICABLE = 'N/A';
@@ -1316,6 +1319,8 @@
             $('#editModal #edit_send_invoice').prop("checked", $(this).data('send_invoice') || false);
             // notify_outage default TRUE bila atribut tidak ada / kosong; eksplisit 'false' => unchecked.
             $('#editModal #edit_notify_outage').prop("checked", String($(this).data('notify_outage')) !== 'false');
+            // account_type: 'pelanggan' (default) | 'infrastruktur'.
+            $('#editModal #edit_account_type').val(String($(this).data('account_type')).toLowerCase() === 'infrastruktur' ? 'infrastruktur' : 'pelanggan');
             $('#editModal #edit_pppoe_username').val($(this).data('pppoe_username'));
             $('#editModal #edit_pppoe_password').val($(this).data('pppoe_password'));
             $('#editModal #edit_payment_method').val('');
@@ -1748,7 +1753,16 @@
                 },
                 columns: [
                     { data: 'id' },
-                    { data: 'name' },
+                    {
+                        data: 'name',
+                        render: function(data, type, row) {
+                            const name = data || '';
+                            if (type === 'display' && String(row.account_type || '').toLowerCase() === 'infrastruktur') {
+                                return `${name} <span class="badge badge-dark" title="Akun infrastruktur (mis. modem CCTV/monitoring)">INFRA</span>`;
+                            }
+                            return name;
+                        }
+                    },
                     { data: 'phone_number', render: (data) => data ? data.split("|").join(", ") : '' },
                     { data: 'device_id' },
                     { data: 'address' },
@@ -1883,7 +1897,7 @@
                             // MODIFIED: All action buttons within a single flex container for horizontal layout
                             let actionButtonsHtml = `
                                 <div class="device-action-group">
-                                    <button class="btn btn-info btn-sm btn-edit" data-id="${row.id}" data-name="${row.name || ''}" data-phone_number="${row.phone_number || ''}" data-device_id="${deviceIdForActions}" data-address="${row.address || ''}" data-subscription="${row.subscription || ''}" data-paid="${row.paid || false}" data-send_invoice="${row.send_invoice || false}" data-notify_outage="${row.notify_outage !== false && row.notify_outage !== 0 ? 'true' : 'false'}" data-pppoe_username="${row.pppoe_username || ''}" data-pppoe_password="${row.pppoe_password || ''}" data-latitude="${row.latitude || ''}" data-longitude="${row.longitude || ''}" data-connected_odp_id="${row.connected_odp_id || ''}" data-bulk='${JSON.stringify(Array.isArray(row.bulk) ? row.bulk : (typeof row.bulk === 'string' ? JSON.parse(row.bulk) : []))}' data-toggle="modal" data-target="#editModal" title="Edit User"><i class="fas fa-edit"></i></button>
+                                    <button class="btn btn-info btn-sm btn-edit" data-id="${row.id}" data-name="${row.name || ''}" data-phone_number="${row.phone_number || ''}" data-device_id="${deviceIdForActions}" data-address="${row.address || ''}" data-subscription="${row.subscription || ''}" data-paid="${row.paid || false}" data-send_invoice="${row.send_invoice || false}" data-notify_outage="${row.notify_outage !== false && row.notify_outage !== 0 ? 'true' : 'false'}" data-account_type="${String(row.account_type || 'pelanggan').toLowerCase() === 'infrastruktur' ? 'infrastruktur' : 'pelanggan'}" data-pppoe_username="${row.pppoe_username || ''}" data-pppoe_password="${row.pppoe_password || ''}" data-latitude="${row.latitude || ''}" data-longitude="${row.longitude || ''}" data-connected_odp_id="${row.connected_odp_id || ''}" data-bulk='${JSON.stringify(Array.isArray(row.bulk) ? row.bulk : (typeof row.bulk === 'string' ? JSON.parse(row.bulk) : []))}' data-toggle="modal" data-target="#editModal" title="Edit User"><i class="fas fa-edit"></i></button>
                                     <button class="btn btn-dark btn-sm btn-manage-credentials" data-id="${row.id}" data-username="${row.username || ''}" data-toggle="modal" data-target="#credentialsModal" title="Kelola Kredensial"><i class="fas fa-key"></i></button>`;
                             
                             // Add send invoice button if user has send_invoice enabled and is paid
@@ -2265,6 +2279,27 @@
                     return true;
                 }
             );
+
+            // Filter jenis akun: sembunyikan akun infrastruktur dari daftar pelanggan default.
+            $.fn.dataTable.ext.search.push(
+                function(settings, data, dataIndex) {
+                    if (settings.nTable.id !== 'dataTable') return true;
+                    const rowData = settings.aoData[dataIndex]._aData;
+                    const type = String(rowData && rowData.account_type ? rowData.account_type : 'pelanggan').toLowerCase();
+                    const isInfra = type === 'infrastruktur';
+                    if (currentAccountTypeView === 'infrastruktur') return isInfra;
+                    if (currentAccountTypeView === 'all') return true;
+                    return !isInfra; // default 'pelanggan'
+                }
+            );
+
+            // Toggle tampilan jenis akun (Pelanggan / Infrastruktur / Semua).
+            $('#accountTypeViewToggle .btn').on('click', function() {
+                $('#accountTypeViewToggle .btn').removeClass('active');
+                $(this).addClass('active');
+                currentAccountTypeView = $(this).data('view') || 'pelanggan';
+                if (dataTableInstance) dataTableInstance.draw();
+            });
 
             $('#create_connected_odc').on('change', function() {
                 const selectedOdcId = $(this).val();

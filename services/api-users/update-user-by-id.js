@@ -103,6 +103,14 @@ async function updateUserById(deps, { id, userData, actor, requestMeta }) {
             return;
         }
 
+        if (key === "account_type") {
+            // Normalisasi: hanya 'infrastruktur' yang diterima sebagai infra, selain itu 'pelanggan'.
+            draftUser.account_type = String(userData[key] || "").trim().toLowerCase() === "infrastruktur"
+                ? "infrastruktur"
+                : "pelanggan";
+            return;
+        }
+
         draftUser[key] = userData[key];
     });
 

@@ -48,6 +48,7 @@ function createArrearsRepository(overrides = {}) {
                     `SELECT id, name, phone_number, subscription, subscription_price, status, area
                        FROM users
                       WHERE status IN ('aktif', 'isolir')
+                        AND LOWER(COALESCE(account_type, 'pelanggan')) != 'infrastruktur'
                       ORDER BY id ASC`
                 );
             } finally {
