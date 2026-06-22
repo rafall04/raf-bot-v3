@@ -1410,11 +1410,11 @@ async function loadTr069Status(force) {
     const dev = requireDevice();
     if (!dev) return;
     setBusy('#acsLoadBtn', true, 'Membaca…');
-    $('#acsTable tbody').html('<tr><td colspan="5" class="text-center text-muted"><i class="fas fa-spinner fa-spin"></i> Membaca inventaris OLT (belasan detik) &amp; status GenieACS…</td></tr>');
+    $('#acsTable tbody').html('<tr><td colspan="6" class="text-center text-muted"><i class="fas fa-spinner fa-spin"></i> Membaca inventaris OLT (belasan detik) &amp; status GenieACS…</td></tr>');
     try {
         const json = await api('GET', `/api/olt/provision/devices/${encodeURIComponent(dev.id)}/tr069/status${force ? '?force=true' : ''}`);
         if (json.status !== 200) {
-            $('#acsTable tbody').html('<tr><td colspan="5" class="text-center text-danger">' + escapeHtml(json.message || 'Gagal') + '</td></tr>');
+            $('#acsTable tbody').html('<tr><td colspan="6" class="text-center text-danger">' + escapeHtml(json.message || 'Gagal') + '</td></tr>');
             return;
         }
         const d = json.data || {};
@@ -1427,7 +1427,7 @@ async function loadTr069Status(force) {
         if (!s.acsConfigured) showAlert('warning', 'Setting ACS OLT ini belum diisi — tombol "Aktifkan" akan ditolak sampai URL ACS diisi.', true);
         renderAcsTable();
     } catch (e) {
-        $('#acsTable tbody').html('<tr><td colspan="5" class="text-center text-danger">' + escapeHtml(e.message) + '</td></tr>');
+        $('#acsTable tbody').html('<tr><td colspan="6" class="text-center text-danger">' + escapeHtml(e.message) + '</td></tr>');
     } finally {
         setBusy('#acsLoadBtn', false);
     }
@@ -1443,11 +1443,11 @@ function renderAcsTable() {
     const filter = $('#acsFilter').val();
     const q = $('#acsSearch').val().trim().toUpperCase();
     const $tb = $('#acsTable tbody');
-    if (!acsRows.length) { $tb.html('<tr><td colspan="5" class="text-center text-muted">Belum dimuat.</td></tr>'); $('#acsTableNote').text(''); return; }
+    if (!acsRows.length) { $tb.html('<tr><td colspan="6" class="text-center text-muted">Belum dimuat.</td></tr>'); $('#acsTableNote').text(''); return; }
     let rows = acsRows;
     if (filter !== 'all') rows = rows.filter((r) => r.action === filter);
-    if (q) rows = rows.filter((r) => (r.sn || '').toUpperCase().includes(q) || (r.id || '').includes(q));
-    if (!rows.length) { $tb.html('<tr><td colspan="5" class="text-center text-muted">Tidak ada ONU pada filter ini.</td></tr>'); $('#acsTableNote').text(''); return; }
+    if (q) rows = rows.filter((r) => (r.sn || '').toUpperCase().includes(q) || (r.id || '').includes(q) || (r.pppoe || '').toUpperCase().includes(q) || (r.customerName || '').toUpperCase().includes(q));
+    if (!rows.length) { $tb.html('<tr><td colspan="6" class="text-center text-muted">Tidak ada ONU pada filter ini.</td></tr>'); $('#acsTableNote').text(''); return; }
     const CAP = 400;
     const shown = rows.slice(0, CAP);
     $tb.html(shown.map((r) => {
@@ -1459,9 +1459,13 @@ function renderAcsTable() {
         } else {
             aksi = '<span class="small text-muted">set di modem</span>';
         }
+        const ident = r.pppoe
+            ? '<span class="mono">' + escapeHtml(r.pppoe) + '</span>' + (r.customerName ? '<br><small class="text-muted">' + escapeHtml(r.customerName) + '</small>' : '')
+            : '<span class="text-muted">-</span>';
         return `<tr>
             <td class="mono">${escapeHtml(r.id)}</td>
             <td class="mono">${escapeHtml(r.sn)}</td>
+            <td>${ident}</td>
             <td class="small">${escapeHtml(r.vendor)}</td>
             <td>${acsStatusBadge(r)}${r.lastInform ? '<br><small class="text-muted">' + escapeHtml(new Date(r.lastInform).toLocaleString('id-ID')) + '</small>' : ''}</td>
             <td>${aksi}</td>

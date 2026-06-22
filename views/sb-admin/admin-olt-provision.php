@@ -353,8 +353,8 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                 <div class="card-body">
                                     <div class="table-responsive">
                                         <table class="table table-sm table-bordered" id="acsTable">
-                                            <thead class="thead-light"><tr><th>ONU</th><th>SN</th><th>Vendor</th><th>Status ACS</th><th style="width:160px">Aksi</th></tr></thead>
-                                            <tbody><tr><td colspan="5" class="text-center text-muted">Pilih OLT lalu klik "Muat Status" untuk membaca inventaris OLT &amp; status GenieACS.</td></tr></tbody>
+                                            <thead class="thead-light"><tr><th>ONU</th><th>SN</th><th>Nama / PPPoE</th><th>Vendor</th><th>Status ACS</th><th style="width:160px">Aksi</th></tr></thead>
+                                            <tbody><tr><td colspan="6" class="text-center text-muted">Pilih OLT lalu klik "Muat Status" untuk membaca inventaris OLT &amp; status GenieACS.</td></tr></tbody>
                                         </table>
                                     </div>
                                     <small class="text-muted" id="acsTableNote"></small>

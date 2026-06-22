@@ -49,6 +49,7 @@ function registerOltProvisioningRoutes(router, deps) {
         vlanManager,            // lib/olt-vlan-manager (VLAN/trunk config-write ter-guard)
         serviceportManager,     // lib/olt-serviceport-manager (service-port per-ONU ter-guard)
         bandwidthService,       // lib/olt-bandwidth-service (monitoring bandwidth per-PON/uplink, read-only)
+        getOltSnmpData,         // (devices[]) => {status, onus} SNMP multi-merk; map SN→deskripsi(PPPoE) utk panel ACS
     } = deps;
 
     const requireRole = (roles) => (req, res, next) => {
@@ -596,20 +597,55 @@ function registerOltProvisioningRoutes(router, deps) {
         return data;
     }
 
+    // Map SN→PPPoE: deskripsi ONU dari SNMP (lengkap utk ONU online & offline, sumber
+    // sama dgn monitor /onus). Dipakai panel ACS supaya teknisi lihat identitas pelanggan,
+    // bukan cuma SN. Cache 60 dtk; SNMP absen/gagal → map kosong (degrade, tak ganggu ACS).
+    const snPppoeCache = new Map();
+    const SN_PPPOE_TTL_MS = 60 * 1000;
+    async function getSnPppoeMap(device, force) {
+        if (typeof getOltSnmpData !== 'function') return new Map();
+        const c = snPppoeCache.get(device.id);
+        if (!force && c && Date.now() - c.ts < SN_PPPOE_TTL_MS) return c.map;
+        const map = new Map();
+        try {
+            const r = await getOltSnmpData([device]);
+            if (r && r.status === 'success' && Array.isArray(r.onus)) {
+                for (const o of r.onus) {
+                    if (o && o.serial && o.description) {
+                        map.set(String(o.serial).toUpperCase(), String(o.description).trim());
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn(`[OLT-ACS] gagal map SN→PPPoE (SNMP) ${device.id}: ${e.message}`);
+        }
+        snPppoeCache.set(device.id, { map, ts: Date.now() });
+        return map;
+    }
+
     // Status ACS semua ONU: inventaris OLT × inform GenieACS × tier vendor → aksi adaptif.
     router.get('/provision/devices/:id/tr069/status', requireStaff, asyncHandler(async (req, res) => {
         const device = deviceOr404(req, res);
         if (!device || !requireSsh(device, res)) return;
-        const [onus, informed] = await Promise.all([
-            getAllOnusCached(device, req.query.force === 'true'),
+        const force = req.query.force === 'true';
+        const [onus, informed, pppoeMap] = await Promise.all([
+            getAllOnusCached(device, force),
             getInformedSerials(),
+            getSnPppoeMap(device, force),
         ]);
+        // Index pelanggan terdaftar by PPPoE (kalau sudah di-import) → tampilkan nama asli.
+        const usersByPppoe = new Map();
+        for (const u of (global.users || [])) {
+            if (u && u.pppoe_username) usersByPppoe.set(String(u.pppoe_username).trim().toLowerCase(), u);
+        }
         const rows = onus.map((o) => {
             const tier = provision.classifyVendorTier(o.sn);
             const lastInform = informed.get(String(o.sn).toUpperCase()) || null;
             const isInformed = !!lastInform;
             const action = isInformed ? 'ok' : (tier.oltPushable ? 'olt-push' : 'modem');
-            return { id: o.id, ponPort: o.ponPort, onuId: o.onuId, sn: o.sn, vendor: tier.vendor, tier: tier.tier, oltPushable: tier.oltPushable, informed: isInformed, lastInform, action };
+            const pppoe = pppoeMap.get(String(o.sn).toUpperCase()) || null;
+            const customer = pppoe ? usersByPppoe.get(pppoe.toLowerCase()) : null;
+            return { id: o.id, ponPort: o.ponPort, onuId: o.onuId, sn: o.sn, pppoe, customerName: customer ? customer.name : null, vendor: tier.vendor, tier: tier.tier, oltPushable: tier.oltPushable, informed: isInformed, lastInform, action };
         });
         const summary = {
             total: rows.length,
@@ -854,6 +890,7 @@ const showConsole = require('../lib/olt-show-console');
 const vlanManager = require('../lib/olt-vlan-manager');
 const serviceportManager = require('../lib/olt-serviceport-manager');
 const bandwidthService = require('../lib/olt-bandwidth-service');
+const { getMultipleOltData } = require('../lib/olt-hioso'); // SNMP multi-merk → map SN→deskripsi(=PPPoE)
 const { restartOltBackupTask } = require('../lib/cron/jobs/olt-backup');
 const { logActivity } = require('../lib/activity-logger');
 
@@ -885,6 +922,7 @@ registerOltProvisioningRoutes(router, {
     vlanManager,
     serviceportManager,
     bandwidthService,
+    getOltSnmpData: (devices) => getMultipleOltData(devices),
 });
 
 module.exports = router;
