@@ -125,6 +125,10 @@
                         render: (data, type, row) => type === 'display' ? renderOltStatus(row) : data || ''
                     },
                     {
+                        data: 'last_down_cause', title: 'Penyebab',
+                        render: (data, type, row) => type === 'display' ? renderCause(row) : (data || '')
+                    },
+                    {
                         data: 'olt_name', title: 'OLT',
                         render: (data, type, row) => type === 'display' ? renderOltName(row) : (data || '')
                     },
@@ -420,7 +424,17 @@
 
             $('#modalLastCheck').text('Terakhir cek: ' + new Date().toLocaleTimeString('id-ID'));
             
+            // Penyebab dari data bulk (instan); waktu dimuat dari OLT di bawah (col5/col6).
+            $('#modalCause').html(renderCause(customer));
+            $('#modalUptime').text('…');
+            $('#modalLastDown').text('…');
             $('#customerDetailModal').modal('show');
+            if (customer.slot_id && customer.onu_id && customer.slot_id !== 'N/A') {
+                refreshCustomerOlt({ silent: true });
+            } else {
+                $('#modalUptime').text('-');
+                $('#modalLastDown').text('-');
+            }
         }
 
         function updateModalRxPower(rxPower, oltStatus, isDyingGasp, isLos) {
@@ -454,7 +468,7 @@
             $('#modalOltStatus').html(statusHtml);
         }
 
-        async function refreshCustomerOlt() {
+        async function refreshCustomerOlt(opts = {}) {
             if (!currentCustomerData) return;
             
             // Pastikan ada slot_id dan onu_id
@@ -482,11 +496,16 @@
                 if (result.status === 200) {
                     if (result.error) {
                         // Error dari SNMP
-                        alert(result.message || 'Gagal mengambil data dari OLT');
+                        if (!opts.silent) alert(result.message || 'Gagal mengambil data dari OLT');
+                        $('#modalUptime').text('-'); $('#modalLastDown').text('-');
                     } else if (result.data) {
                         // Data berhasil diambil (bisa Online atau Offline)
                         const data = result.data;
                         updateModalRxPower(data.rx_power, data.olt_status, data.is_dying_gasp, data.is_los);
+                        $('#modalCause').html(renderCause({ olt_status: data.olt_status, last_down_cause: data.last_down_cause }));
+                        const up = computeUptime(data.last_up_at);
+                        $('#modalUptime').text(data.olt_status === 'Online' ? (up || '—') : '-');
+                        $('#modalLastDown').text(data.last_down_at || '-');
                         $('#modalLastCheck').text('Terakhir cek: ' + new Date().toLocaleTimeString('id-ID'));
                         
                         // Update in matchedData array too
@@ -496,7 +515,8 @@
                             matchedData[idx].olt_status = data.olt_status;
                             matchedData[idx].is_dying_gasp = data.is_dying_gasp;
                             matchedData[idx].is_los = data.is_los;
-                            
+                            matchedData[idx].last_down_cause = data.last_down_cause;
+
                             // Update currentCustomerData juga
                             currentCustomerData.rx_power = data.rx_power;
                             currentCustomerData.olt_status = data.olt_status;
@@ -507,14 +527,17 @@
                         }
                     } else {
                         // Tidak ada data (seharusnya tidak terjadi dengan perbaikan backend)
-                        alert('Data ONT tidak ditemukan di OLT');
+                        if (!opts.silent) alert('Data ONT tidak ditemukan di OLT');
+                        $('#modalUptime').text('-'); $('#modalLastDown').text('-');
                     }
                 } else {
-                    alert(result.message || 'Gagal refresh data');
+                    if (!opts.silent) alert(result.message || 'Gagal refresh data');
+                    $('#modalUptime').text('-'); $('#modalLastDown').text('-');
                 }
             } catch (e) {
                 console.error('Refresh error:', e);
-                alert('Gagal refresh: ' + e.message);
+                if (!opts.silent) alert('Gagal refresh: ' + e.message);
+                $('#modalUptime').text('-'); $('#modalLastDown').text('-');
             } finally {
                 btn.prop('disabled', false).html('<i class="fas fa-sync-alt"></i> Refresh Redaman');
             }
@@ -537,6 +560,29 @@
             if (row.is_los) return '<span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> LOS</span>';
             if (row.olt_status === 'Online') return '<span class="badge badge-success"><i class="fas fa-check"></i></span>';
             return '<span class="badge badge-secondary"><i class="fas fa-times"></i></span>';
+        }
+
+        // Penyebab offline terakhir (ZTE native): LOS/LOSi/SFi/DyingGasp. Online → "-".
+        function renderCause(row) {
+            if (row.olt_status === 'Online') return '<span class="text-muted">-</span>';
+            const c = row.last_down_cause;
+            if (!c) return '<span class="text-muted">-</span>';
+            let cls = 'badge-secondary';
+            if (/dyinggasp/i.test(c)) cls = 'badge-danger';
+            else if (/los|sfi/i.test(c)) cls = 'badge-warning';
+            return `<span class="badge ${cls}">${$('<div>').text(c).html()}</span>`;
+        }
+
+        // Durasi online dari authpass terakhir (jam OLT WIB). Tahun <2025 = jam OLT belum di-set → null.
+        function computeUptime(lastUpAt) {
+            if (!lastUpAt || parseInt(String(lastUpAt).slice(0, 4), 10) < 2025) return null;
+            const t = Date.parse(String(lastUpAt).replace(' ', 'T') + '+07:00');
+            if (isNaN(t)) return null;
+            let ms = Date.now() - t;
+            if (ms < 0) ms = 0;
+            const mins = Math.floor(ms / 60000);
+            const d = Math.floor(mins / 1440), h = Math.floor((mins % 1440) / 60), m = mins % 60;
+            return (d > 0 ? d + 'h ' : '') + h + 'j ' + m + 'm';
         }
 
         function renderOltName(row) {

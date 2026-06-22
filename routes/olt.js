@@ -814,6 +814,7 @@ router.get('/matched', async (req, res) => {
                     olt_status: onu.status,
                     is_dying_gasp: onu.isDyingGasp,
                     is_los: onu.isLos,
+                    last_down_cause: onu.lastDownCause,
                     slot_id: onu.slotId,
                     onu_id: onu.id
                 };
@@ -1160,7 +1161,9 @@ router.post('/refresh-single', async (req, res) => {
                     olt_status: result.data.status,
                     is_dying_gasp: result.data.isDyingGasp,
                     is_los: result.data.isLos,
-                    last_down_cause: result.data.lastDownCause
+                    last_down_cause: result.data.lastDownCause,
+                    last_up_at: result.data.lastUpAt,
+                    last_down_at: result.data.lastDownAt
                 }
             });
         } else {

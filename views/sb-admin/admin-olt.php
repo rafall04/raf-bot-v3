@@ -160,6 +160,7 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
                                             <th title="Daya pancar ONU (upstream)">ONU Tx</th>
                                             <th title="Atenuasi downstream (≈ launch − redaman)">Atenuasi</th>
                                             <th>Status OLT</th>
+                                            <th title="Penyebab offline terakhir (ZTE): LOS/LOSi/SFi/DyingGasp">Penyebab</th>
                                             <th>OLT</th>
                                             <th>Slot/ONU</th>
                                             <th>Aksi</th>
@@ -229,6 +230,13 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
                         <div class="col-4"><small class="text-muted d-block">ONU Tx (upstream)</small><div class="font-weight-bold" id="modalOnuTx">-</div></div>
                         <div class="col-4"><small class="text-muted d-block">Atenuasi ≈ (down)</small><div class="font-weight-bold" id="modalAtten">-</div></div>
                         <div class="col-4"><small class="text-muted d-block">OLT Rx (upstream)</small><div class="text-muted"><small>hanya di CLI OLT</small></div></div>
+                    </div>
+                    <!-- Penyebab offline terakhir + waktu (ZTE native: col7/col5/col6). Durasi dihitung
+                         dari "online sejak" — akurat setelah jam OLT di-set (WIB). -->
+                    <div class="row text-center mb-3">
+                        <div class="col-4"><small class="text-muted d-block">Penyebab terakhir</small><div class="font-weight-bold" id="modalCause">-</div></div>
+                        <div class="col-4"><small class="text-muted d-block">Online sejak / durasi</small><div class="font-weight-bold" id="modalUptime">-</div></div>
+                        <div class="col-4"><small class="text-muted d-block">Terakhir down</small><div class="font-weight-bold" id="modalLastDown">-</div></div>
                     </div>
 
                     <div class="info-card status">
