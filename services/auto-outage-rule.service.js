@@ -2,11 +2,13 @@
  * Header Doc
  * Purpose: Validasi dan evaluasi rule auto outage untuk threshold offline, target filter, dan cooldown broadcast.
  * Caller: `services/auto-outage-detection.service.js`, `routes/admin-auto-outage-routes.js`.
- * Deps: Tidak ada side-effect default; menerima waktu dan payload via dependency injection.
+ * Deps: `lib/account-classification` (kecualikan akun infrastruktur dari target broadcast); selebihnya waktu/payload via dependency injection.
  * MainFuncs: `createAutoOutageRuleService`, `normalizeRuleInput`, `evaluateEligibility`, `matchRuleTarget`.
  * SideEffects: Tidak ada; fungsi murni untuk normalisasi dan evaluasi rule.
  */
 "use strict";
+
+const { isInfrastructure } = require("../lib/account-classification");
 
 const VALID_TARGET_SCOPES = new Set(["all", "area", "odp", "profile", "router", "custom"]);
 
@@ -71,6 +73,11 @@ function createAutoOutageRuleService(overrides = {}) {
     }
 
     function matchRuleTarget(rule = {}, user = {}, state = {}) {
+        // Akun infrastruktur (mis. modem CCTV/monitoring) bukan pelanggan bayar — jangan
+        // pernah dijadikan target broadcast gangguan ke pelanggan. Tetap dilacak online/offline
+        // oleh scan (runManualScan) untuk halaman Monitor Infrastruktur; hanya broadcast yang ditahan.
+        if (isInfrastructure(user)) return false;
+
         const scope = rule.target_scope || "all";
         const filter = normalizeJsonObject(rule.target_filter_json);
 

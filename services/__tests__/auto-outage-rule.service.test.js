@@ -44,6 +44,18 @@ describe("auto-outage-rule.service", () => {
         expect(service.matchRuleTarget({ target_scope: "area", target_filter_json: { area: "Selatan" } }, user, state)).toBe(false);
     });
 
+    test("excludes infrastructure accounts from broadcast targeting (semua scope)", () => {
+        const service = createAutoOutageRuleService();
+        const infraUser = { area: "Utara", connected_odp_id: "ODP-1", subscription: "20M", account_type: "infrastruktur" };
+        const state = { router_id: "router-a" };
+        // Walau cocok by area/odp/router/profile, akun infrastruktur TIDAK pernah ditarget broadcast.
+        expect(service.matchRuleTarget({ target_scope: "all" }, infraUser, state)).toBe(false);
+        expect(service.matchRuleTarget({ target_scope: "area", target_filter_json: { area: "Utara" } }, infraUser, state)).toBe(false);
+        expect(service.matchRuleTarget({ target_scope: "router", target_filter_json: { router_id: "router-a" } }, infraUser, state)).toBe(false);
+        // Pelanggan biasa (default) tetap tertarget.
+        expect(service.matchRuleTarget({ target_scope: "all" }, { ...infraUser, account_type: "pelanggan" }, state)).toBe(true);
+    });
+
     test("evaluates threshold and cooldown eligibility", () => {
         const service = createAutoOutageRuleService({ now: () => new Date("2026-05-03T05:00:00.000Z") });
         const rule = { offline_threshold_minutes: 180, broadcast_cooldown_minutes: 720, max_broadcast_per_incident: 1 };
