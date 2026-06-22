@@ -706,6 +706,7 @@ router.get('/matched', async (req, res) => {
                 matchedData.push({
                     user_id: user.id,
                     customer_name: user.name,
+                    account_type: user.account_type || 'pelanggan',
                     pppoe_username: user.pppoe_username,
                     mac_mikrotik: macInfo ? macInfo.mac : null,
                     mac_source: macInfo ? macInfo.source : 'olt', // 'active'/'cached'/'olt' (GPON match by pppoe)
@@ -758,6 +759,7 @@ router.get('/matched', async (req, res) => {
                 matchedData.push({
                     user_id: user.id,
                     customer_name: user.name,
+                    account_type: user.account_type || 'pelanggan',
                     pppoe_username: user.pppoe_username,
                     mac_mikrotik: macInfo.mac,
                     mac_source: macInfo.source,
@@ -950,6 +952,7 @@ router.get('/onus', async (req, res) => {
                 matched: !!u,
                 user_id: u ? u.id : null,
                 customer_name: u ? u.name : null,
+                account_type: u ? (u.account_type || 'pelanggan') : null,
                 pppoe_username: u ? u.pppoe_username : (onu.description || null),
                 customer_address: u ? (u.address || u.alamat || null) : null,
                 customer_phone: u ? (u.phone_number || null) : null,

@@ -881,12 +881,12 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/voucher', '/voucher-send'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseVoucher" aria-expanded="<?php echo isParentActive(['/voucher', '/voucher-send'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseVoucher">
+    <li class="nav-item <?php echo isParentActive(['/voucher', '/voucher-send', '/voucher-print'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseVoucher" aria-expanded="<?php echo isParentActive(['/voucher', '/voucher-send', '/voucher-print'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseVoucher">
             <i class="fas fa-fw fa-ticket-alt"></i>
             <span>Voucher Hotspot</span>
         </a>
-        <div id="collapseVoucher" class="collapse <?php echo isParentActive(['/voucher', '/voucher-send'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingVoucher" data-parent="#accordionSidebar">
+        <div id="collapseVoucher" class="collapse <?php echo isParentActive(['/voucher', '/voucher-send', '/voucher-print'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingVoucher" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/voucher', $current_page) ? 'active' : ''; ?>" href="/voucher">
                     <i class="fas fa-fw fa-list mr-2"></i>
@@ -895,6 +895,10 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/voucher-send', $current_page) ? 'active' : ''; ?>" href="/voucher-send">
                     <i class="fas fa-fw fa-paper-plane mr-2"></i>
                     <span>Kirim Voucher</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/voucher-print', $current_page) ? 'active' : ''; ?>" href="/voucher-print">
+                    <i class="fas fa-fw fa-print mr-2"></i>
+                    <span>Cetak Voucher</span>
                 </a>
             </div>
         </div>
@@ -935,12 +939,12 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
     </li>
     <?php endif; ?>
 
-    <li class="nav-item <?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/admin-olt-provision', '/cctv-monitor'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseJaringan" aria-expanded="<?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/admin-olt-provision', '/cctv-monitor'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseJaringan">
+    <li class="nav-item <?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/admin-olt-provision', '/cctv-monitor', '/infra-monitor'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseJaringan" aria-expanded="<?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/admin-olt-provision', '/cctv-monitor', '/infra-monitor'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseJaringan">
             <i class="fas fa-fw fa-network-wired"></i>
             <span>Jaringan</span>
         </a>
-        <div id="collapseJaringan" class="collapse <?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/admin-olt-provision'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingJaringan" data-parent="#accordionSidebar">
+        <div id="collapseJaringan" class="collapse <?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/admin-olt-provision', '/infra-monitor'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingJaringan" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/map-viewer', $current_page) ? 'active' : ''; ?>" href="/map-viewer">
                     <i class="fas fa-fw fa-map-marked-alt mr-2"></i>
@@ -965,6 +969,10 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/cctv-monitor', $current_page) ? 'active' : ''; ?>" href="/cctv-monitor">
                     <i class="fas fa-fw fa-video mr-2"></i>
                     <span>Monitor CCTV</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/infra-monitor', $current_page) ? 'active' : ''; ?>" href="/infra-monitor">
+                    <i class="fas fa-fw fa-server mr-2"></i>
+                    <span>Monitor Infrastruktur</span>
                 </a>
             </div>
         </div>

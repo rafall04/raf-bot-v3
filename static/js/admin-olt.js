@@ -53,6 +53,9 @@
                             if (type === 'display') {
                                 if (row.customer_name) {
                                     let html = `<strong>${row.customer_name}</strong>`;
+                                    if (String(row.account_type || '').toLowerCase() === 'infrastruktur') {
+                                        html += ` <span class="badge badge-dark" title="Akun infrastruktur (CCTV/monitoring)">INFRA</span>`;
+                                    }
                                     if (row.customer_address) {
                                         const addr = row.customer_address.length > 30 ? row.customer_address.substring(0, 30) + '...' : row.customer_address;
                                         html += `<br><small class="customer-info">${addr}</small>`;

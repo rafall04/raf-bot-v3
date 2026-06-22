@@ -104,6 +104,12 @@ router.get('/cctv-monitor', checkRole(['admin', 'owner', 'superadmin']), (req, r
     res.render('sb-admin/cctv-monitor.php');
 });
 
+// Monitor modem infrastruktur (account_type='infrastruktur', mis. modem CCTV/monitoring):
+// status OLT/redaman per modem, dipisah dari Data Pelanggan.
+router.get('/infra-monitor', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/infra-monitor.php');
+});
+
 router.get('/agent-management', (req, res) => {
     res.render('sb-admin/agent-management.php');
 });
@@ -208,6 +214,11 @@ router.get('/voucher-send', checkRole(['admin', 'owner', 'superadmin']), (req, r
 // page-level harus konsisten dengan /voucher-send).
 router.get('/voucher', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/voucher.php');
+});
+
+// Cetak Voucher (generate batch + layout + QR, lepas Mikhmon) - ADMIN ONLY
+router.get('/voucher-print', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/voucher-print.php');
 });
 
 // Stok Voucher Agent (dashboard reseller) page - ADMIN ONLY
