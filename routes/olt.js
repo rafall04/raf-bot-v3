@@ -22,6 +22,9 @@ const oltManager = require('../lib/olt-manager');
 const { resolveDriver, getDriver, listDrivers, detectBrand } = require('../lib/olt-drivers');
 // Inti matching pelanggan→ONU optik (1 sumber kebenaran, dipakai bersama bot Telegram teknisi).
 const { buildOnuIndex, matchOnu } = require('../lib/olt-optical-resolver');
+// Pemisahan akun infrastruktur (CCTV/monitoring) + penyusun baris status infra (PPPoE + OLT).
+const { isInfrastructure } = require('../lib/account-classification');
+const { buildInfraRow } = require('../lib/infra-status');
 
 // ============================================
 // CACHE SYSTEM untuk performa lebih baik
@@ -845,6 +848,91 @@ router.get('/matched', async (req, res) => {
  * berguna untuk laptop tes / OLT yang ONU-nya belum dipetakan ke pelanggan.
  * Matching ONU→pelanggan: deskripsi(PPPoE) → serial → MAC-prefix (via last-caller-id).
  */
+/**
+ * GET /api/olt/infra-status
+ * Status modem INFRASTRUKTUR (account_type='infrastruktur', mis. modem CCTV/monitoring).
+ * Berangkat dari SEMUA akun infra (tak pernah skip), pakai PPPoE active MikroTik sebagai sinyal
+ * utama online/offline, lalu enrichment redaman/LOS dari OLT (best-effort). Robust saat OLT off /
+ * MikroTik gagal — tiap modem infra tetap muncul dengan status PPPoE.
+ */
+router.get('/infra-status', async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ status: 401, message: 'Unauthorized' });
+        }
+
+        const infraUsers = (global.users || []).filter(isInfrastructure);
+        if (infraUsers.length === 0) {
+            return res.json({ status: 200, message: 'Belum ada akun infrastruktur', data: [], count: 0, oltEnabled: false });
+        }
+
+        // Sinyal UTAMA: PPPoE active dari MikroTik ("internet hidup/mati"). Best-effort.
+        let pppoeActive = [];
+        try {
+            pppoeActive = await getCachedPppoeData(req.query.force === 'true');
+        } catch (mikrotikError) {
+            console.warn('[OLT-INFRA] PPPoE active tidak tersedia:', mikrotikError.message);
+        }
+        const ipByPppoe = new Map();
+        for (const session of Array.isArray(pppoeActive) ? pppoeActive : []) {
+            if (session && session.name) ipByPppoe.set(String(session.name), session.address || null);
+        }
+
+        // Enrichment OLT (redaman/LOS) — opsional & TAK boleh memblok halaman. Cold-cache OLT
+        // bisa lama (mis. satu OLT timeout 60s). Pakai timeout race: kalau OLT belum siap dalam
+        // INFRA_OLT_ENRICH_TIMEOUT_MS, kembalikan baris berbasis PPPoE dulu; walk OLT tetap jalan di
+        // belakang & menghangatkan cache untuk refresh berikutnya. Tiap baris tetap muncul.
+        const INFRA_OLT_ENRICH_TIMEOUT_MS = 8000;
+        let onuIndex = null;
+        let oltEnabled = false;
+        try {
+            const globalConfig = oltManager.getOltGlobalConfig();
+            if (globalConfig && globalConfig.enabled) {
+                const oltDevices = oltManager.getOltDevices();
+                if (oltDevices.length > 0) {
+                    const oltResult = await Promise.race([
+                        getCachedMultipleOltData(oltDevices, req.query.force === 'true'),
+                        new Promise((resolve) => {
+                            const t = setTimeout(() => resolve(null), INFRA_OLT_ENRICH_TIMEOUT_MS);
+                            if (t && typeof t.unref === 'function') t.unref();
+                        })
+                    ]);
+                    if (oltResult && oltResult.status === 'success') {
+                        onuIndex = buildOnuIndex(oltResult.onus, { normalizeMAC });
+                        oltEnabled = true;
+                    }
+                }
+            }
+        } catch (oltError) {
+            console.warn('[OLT-INFRA] Enrichment OLT tidak tersedia:', oltError.message);
+        }
+
+        const data = infraUsers.map((user) => {
+            const pppoe = user.pppoe_username ? String(user.pppoe_username) : null;
+            const pppoeOnline = pppoe ? ipByPppoe.has(pppoe) : false;
+            const ip = pppoeOnline ? ipByPppoe.get(pppoe) : null;
+
+            let onu = null;
+            if (onuIndex && pppoe) {
+                try {
+                    const macInfo = getMacForUser(user.pppoe_username, pppoeActive);
+                    const matched = matchOnu(user, { index: onuIndex, macInfo }, { normalizeMAC });
+                    onu = matched && matched.onu ? matched.onu : null;
+                } catch (__matchErr) {
+                    onu = null; // enrichment best-effort
+                }
+            }
+
+            return buildInfraRow(user, { pppoeOnline, ip, onu });
+        });
+
+        return res.json({ status: 200, message: 'OK', data, count: data.length, oltEnabled });
+    } catch (error) {
+        console.error('[OLT-INFRA] Error:', error.message);
+        return res.status(500).json({ status: 500, message: error.message, data: [] });
+    }
+});
+
 router.get('/onus', async (req, res) => {
     try {
         if (!req.user) {

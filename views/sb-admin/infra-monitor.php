@@ -83,12 +83,22 @@ SideEffects: Polling backend OLT (read-only) untuk merefresh tampilan; tidak men
 
                     <div class="dashboard-card" style="height: auto;">
                         <div class="card-body">
+                            <div class="d-flex flex-wrap align-items-center mb-3" style="gap: .5rem;">
+                                <input type="text" id="infraSearch" class="form-control form-control-sm" style="max-width: 260px;" placeholder="Cari nama / PPPoE / IP / OLT...">
+                                <select id="infraStatusFilter" class="form-control form-control-sm" style="max-width: 220px;">
+                                    <option value="all">Semua status</option>
+                                    <option value="online">Online</option>
+                                    <option value="offline">Offline</option>
+                                    <option value="los">LOS (fiber putus)</option>
+                                    <option value="dying">Dying Gasp (mati listrik)</option>
+                                </select>
+                            </div>
                             <div class="table-responsive">
                                 <table class="table table-bordered table-sm" width="100%" cellspacing="0">
                                     <thead>
                                         <tr>
                                             <th>Nama / Lokasi</th>
-                                            <th>PPPoE</th>
+                                            <th>PPPoE / IP</th>
                                             <th>Status</th>
                                             <th>Redaman (Rx)</th>
                                             <th>PON</th>

@@ -1,19 +1,31 @@
 /**
  * Header Doc
- * Purpose: Logika halaman Monitor Infrastruktur — menampilkan status modem PPPoE yang
- *          ditandai account_type='infrastruktur' (mis. modem CCTV/monitoring) dengan
- *          memakai ulang endpoint OLT yang sudah ada (/api/olt/matched).
+ * Purpose: Logika halaman Monitor Infrastruktur — status modem PPPoE yang ditandai
+ *          account_type='infrastruktur' (mis. modem CCTV/monitoring). Sumber: endpoint
+ *          khusus GET /api/olt/infra-status yang menggabungkan status PPPoE online/offline
+ *          (MikroTik, sinyal utama) + enrichment redaman/LOS dari OLT. Tiap modem infra
+ *          dijamin muncul (termasuk yang sedang mati / tak ke-match OLT).
  * Caller: views/sb-admin/infra-monitor.php.
- * Deps: jQuery (sudah dimuat halaman), endpoint GET /api/olt/matched.
- * MainFuncs: loadInfraData, renderRows, renderSummary, statusBadge.
- * SideEffects: Polling backend OLT (read-only) untuk merefresh tampilan; tidak menulis DB.
+ * Deps: jQuery (sudah dimuat halaman), endpoint GET /api/olt/infra-status.
+ * MainFuncs: loadInfraData, render, renderSummary, applyFilters.
+ * SideEffects: Polling backend (read-only) untuk merefresh tampilan; tidak menulis DB.
  */
 /* global $ */
 (function () {
     "use strict";
 
     let autoRefreshTimer = null;
+    let allRows = [];                 // data terakhir dari server (semua akun infra)
+    let currentStatusFilter = "all";  // all | online | offline | los | dying
+    let currentSearch = "";
     const AUTO_REFRESH_MS = 60000; // 60 detik
+
+    const STATUS_META = {
+        online: { label: "Online", badge: "badge-success" },
+        los: { label: "LOS", badge: "badge-danger" },
+        dying: { label: "Dying Gasp", badge: "badge-warning" },
+        offline: { label: "Offline", badge: "badge-secondary" }
+    };
 
     function escapeHtml(value) {
         return String(value == null ? "" : value)
@@ -23,46 +35,45 @@
             .replace(/"/g, "&quot;");
     }
 
-    function isInfra(row) {
-        return String(row && row.account_type ? row.account_type : "").toLowerCase() === "infrastruktur";
+    function statusMeta(key) {
+        return STATUS_META[key] || STATUS_META.offline;
     }
 
-    // Status efektif: Dying Gasp > LOS > Online > Offline.
-    function classifyStatus(row) {
-        if (row.is_dying_gasp) return { key: "dying", label: "Dying Gasp", badge: "badge-danger" };
-        if (row.is_los) return { key: "los", label: "LOS", badge: "badge-warning" };
-        const s = String(row.olt_status || "").toLowerCase();
-        if (s === "online") return { key: "online", label: "Online", badge: "badge-success" };
-        return { key: "offline", label: row.olt_status || "Offline", badge: "badge-secondary" };
+    function rxNumeric(rx) {
+        if (rx == null || rx === "N/A" || rx === "") return NaN;
+        const m = String(rx).match(/-?\d+(\.\d+)?/);
+        return m ? parseFloat(m[0]) : NaN;
     }
 
-    function statusBadge(row) {
-        const c = classifyStatus(row);
-        return `<span class="badge ${c.badge}">${escapeHtml(c.label)}</span>`;
-    }
-
-    // Redaman buruk bila lebih negatif dari -27 dBm (ambang umum; sekadar penanda visual).
-    function renderRedaman(rxPower) {
-        if (rxPower == null || rxPower === "N/A" || rxPower === "") {
-            return '<span class="text-muted">N/A</span>';
+    // Redaman buruk bila lebih negatif dari -27 dBm (penanda visual).
+    function renderRedaman(rx) {
+        const num = rxNumeric(rx);
+        if (Number.isNaN(num)) return '<span class="text-muted">N/A</span>';
+        const text = escapeHtml(rx);
+        const withUnit = String(rx).includes("dBm") ? text : text + " dBm";
+        if (num <= -27) {
+            return `<span class="text-danger font-weight-bold" title="Redaman lemah">${withUnit}</span>`;
         }
-        const num = parseFloat(String(rxPower).match(/-?\d+(\.\d+)?/));
-        const text = escapeHtml(rxPower);
-        if (!Number.isNaN(num) && num <= -27) {
-            return `<span class="text-danger font-weight-bold" title="Redaman lemah">${text} dBm</span>`;
-        }
-        return `${text}${String(rxPower).includes("dBm") ? "" : " dBm"}`;
+        return withUnit;
+    }
+
+    function applyFilters(rows) {
+        const q = currentSearch.trim().toLowerCase();
+        return rows.filter((r) => {
+            if (currentStatusFilter !== "all" && r.status_key !== currentStatusFilter) return false;
+            if (!q) return true;
+            return [r.name, r.pppoe_username, r.ip, r.olt_name].map((v) => String(v || "").toLowerCase()).join(" ").includes(q);
+        });
     }
 
     function renderSummary(rows) {
         let online = 0;
         let down = 0;
         let badRx = 0;
-        rows.forEach((row) => {
-            const c = classifyStatus(row);
-            if (c.key === "online") online += 1;
+        rows.forEach((r) => {
+            if (r.status_key === "online") online += 1;
             else down += 1;
-            const num = parseFloat(String(row.rx_power).match(/-?\d+(\.\d+)?/));
+            const num = rxNumeric(r.rx_power);
             if (!Number.isNaN(num) && num <= -27) badRx += 1;
         });
         $("#infraTotal").text(rows.length);
@@ -71,9 +82,21 @@
         $("#infraBadRx").text(badRx);
     }
 
-    function renderRows(rows) {
+    function pppoeCell(r) {
+        const pppoe = escapeHtml(r.pppoe_username || "-");
+        const ip = r.pppoe_status === "online" && r.ip ? `<br><small class="text-muted">${escapeHtml(r.ip)}</small>` : "";
+        return `<code>${pppoe}</code>${ip}`;
+    }
+
+    function statusCell(r) {
+        const meta = statusMeta(r.status_key);
+        const nonOlt = r.in_olt ? "" : ' <small class="text-muted" title="Tidak ditemukan di OLT (status dari PPPoE saja)">·non-OLT</small>';
+        return `<span class="badge ${meta.badge}">${meta.label}</span>${nonOlt}`;
+    }
+
+    function renderTable() {
         const tbody = $("#infraTableBody");
-        if (!rows.length) {
+        if (!allRows.length) {
             tbody.html(
                 '<tr><td colspan="7" class="text-center text-muted py-4">' +
                 'Belum ada akun infrastruktur. Tandai modem (mis. CCTV) sebagai <strong>Infrastruktur</strong> ' +
@@ -83,31 +106,38 @@
             return;
         }
 
-        // Yang bermasalah (down/LOS/dying) didahulukan agar gampang di-troubleshoot.
-        const sorted = rows.slice().sort((a, b) => {
-            const rank = (r) => (classifyStatus(r).key === "online" ? 1 : 0);
+        const filtered = applyFilters(allRows);
+        if (!filtered.length) {
+            tbody.html('<tr><td colspan="7" class="text-center text-muted py-4">Tidak ada modem yang cocok dengan filter.</td></tr>');
+            return;
+        }
+
+        // Yang bermasalah (offline/LOS/dying) didahulukan agar gampang di-troubleshoot.
+        const sorted = filtered.slice().sort((a, b) => {
+            const rank = (r) => (r.status_key === "online" ? 1 : 0);
             return rank(a) - rank(b);
         });
 
-        const html = sorted.map((row) => {
-            const name = escapeHtml(row.customer_name || "(tanpa nama)");
-            const pppoe = escapeHtml(row.pppoe_username || "-");
-            const pon = escapeHtml(row.pon_name || "-");
-            const olt = escapeHtml(row.olt_name || "-");
-            const cause = escapeHtml(row.last_down_cause || row.log_event || "-");
+        const html = sorted.map((r) => {
+            const name = escapeHtml(r.name || "(tanpa nama)");
             return (
                 "<tr>" +
                 `<td>${name} <span class="badge badge-dark" title="Akun infrastruktur">INFRA</span></td>` +
-                `<td><code>${pppoe}</code></td>` +
-                `<td>${statusBadge(row)}</td>` +
-                `<td>${renderRedaman(row.rx_power)}</td>` +
-                `<td>${pon}</td>` +
-                `<td>${olt}</td>` +
-                `<td>${cause}</td>` +
+                `<td>${pppoeCell(r)}</td>` +
+                `<td>${statusCell(r)}</td>` +
+                `<td>${renderRedaman(r.rx_power)}</td>` +
+                `<td>${escapeHtml(r.pon_name || "-")}</td>` +
+                `<td>${escapeHtml(r.olt_name || "-")}</td>` +
+                `<td>${escapeHtml(r.last_down_cause || "-")}</td>` +
                 "</tr>"
             );
         }).join("");
         tbody.html(html);
+    }
+
+    function render() {
+        renderSummary(allRows); // ringkasan selalu atas SEMUA infra (bukan hasil filter)
+        renderTable();
     }
 
     function setStatus(message, type) {
@@ -120,25 +150,25 @@
     function loadInfraData() {
         const btn = $("#refreshInfraBtn");
         btn.prop("disabled", true).html('<i class="fas fa-sync-alt fa-spin"></i> Memuat...');
-        setStatus("Memuat status dari OLT...", "info");
+        setStatus("Memuat status dari MikroTik & OLT...", "info");
 
-        fetch(`/api/olt/matched?_=${new Date().getTime()}`, { credentials: "include" })
+        fetch(`/api/olt/infra-status?_=${new Date().getTime()}`, { credentials: "include" })
             .then((res) => res.json())
             .then((result) => {
-                const all = Array.isArray(result.data) ? result.data : [];
-                const rows = all.filter(isInfra);
-                renderSummary(rows);
-                renderRows(rows);
+                allRows = Array.isArray(result.data) ? result.data : [];
+                render();
                 $("#lastUpdateTime").text("Diperbarui " + new Date().toLocaleTimeString("id-ID"));
-                if (rows.length === 0) {
+                if (allRows.length === 0) {
                     setStatus("Belum ada akun yang ditandai infrastruktur.", "info");
+                } else if (result.oltEnabled === false) {
+                    setStatus("Status dari PPPoE MikroTik. (Enrichment OLT/redaman tidak tersedia saat ini.)", "info");
                 } else {
                     $("#infraStatusAlert").hide();
                 }
             })
             .catch((err) => {
                 console.error("[infra-monitor] gagal memuat:", err);
-                setStatus("Gagal memuat data OLT: " + err.message, "danger");
+                setStatus("Gagal memuat data: " + err.message, "danger");
             })
             .finally(() => {
                 btn.prop("disabled", false).html('<i class="fas fa-sync-alt"></i> Refresh');
@@ -160,6 +190,14 @@
         $("#refreshInfraBtn").on("click", loadInfraData);
         $("#autoRefreshToggle").on("change", function () {
             setAutoRefresh($(this).is(":checked"));
+        });
+        $("#infraSearch").on("input", function () {
+            currentSearch = $(this).val() || "";
+            renderTable();
+        });
+        $("#infraStatusFilter").on("change", function () {
+            currentStatusFilter = $(this).val() || "all";
+            renderTable();
         });
     });
 })();
