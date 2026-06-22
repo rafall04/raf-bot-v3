@@ -62,7 +62,15 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
 
                         <!-- ════════ TAB 1: REGISTRASI ONU ════════ -->
                         <div class="tab-pane fade show active" id="tab-register" role="tabpanel">
-                            <div class="row">
+                            <div class="btn-group mb-3" id="provJobPicker" role="group" aria-label="Pilih pekerjaan">
+                                <button type="button" class="btn btn-primary" data-job="psb"><i class="fas fa-plus-circle"></i> Pasang Baru</button>
+                                <button type="button" class="btn btn-outline-primary" data-job="ganti"><i class="fas fa-exchange-alt"></i> Ganti Modem</button>
+                                <button type="button" class="btn btn-outline-primary" data-job="kelola"><i class="fas fa-list-ul"></i> Kelola ONU</button>
+                            </div>
+                            <div class="alert alert-warning" id="gantiBanner" style="display:none;">
+                                <i class="fas fa-exchange-alt"></i> <strong>Mode Ganti Modem.</strong> Pilih pelanggan (username &amp; password PPPoE terisi otomatis), scan SN modem baru, lalu Daftar. <strong>Setelah berhasil</strong>, buka <a href="#" id="gantiGoKelola">Kelola ONU</a> untuk hapus ONU lama pelanggan tersebut. <span class="text-muted">(Alur otomatis hapus-lama menyusul.)</span>
+                            </div>
+                            <div class="row" id="wsPsb">
                                 <div class="col-lg-5 mb-4">
                                     <div class="card shadow h-100">
                                         <div class="card-header py-3 d-flex justify-content-between align-items-center">
@@ -155,8 +163,8 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
                                 </div>
                             </div>
 
-                            <!-- Browser ONU terdaftar per port (full width) -->
-                            <div class="row">
+                            <!-- Browser ONU terdaftar per port (Kelola ONU) -->
+                            <div class="row" id="wsKelola" style="display:none;">
                                 <div class="col-12 mb-4">
                                     <div class="card shadow">
                                         <div class="card-header py-3 d-flex justify-content-between align-items-center flex-wrap">

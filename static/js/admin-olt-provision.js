@@ -38,6 +38,16 @@ $(document).ready(function () {
 
     // ── Tab 1: registrasi ───────────────────────────────────────────────
     $('#scanUncfgBtn').on('click', scanUncfg);
+    // Job-picker Registrasi (Fase 2): Pasang Baru / Ganti Modem / Kelola ONU.
+    $('#provJobPicker button').on('click', function () {
+        const job = $(this).data('job');
+        $('#provJobPicker button').removeClass('btn-primary').addClass('btn-outline-primary');
+        $(this).removeClass('btn-outline-primary').addClass('btn-primary');
+        $('#wsPsb').toggle(job === 'psb' || job === 'ganti');
+        $('#wsKelola').toggle(job === 'kelola');
+        $('#gantiBanner').toggle(job === 'ganti');
+    });
+    $('#gantiGoKelola').on('click', function (e) { e.preventDefault(); $('#provJobPicker button[data-job="kelola"]').trigger('click'); });
     $('#testSshBtn').on('click', testSsh);
     $('#provOltSelect').on('change', function () { loadOltFacts(false); });
     $('#browseLoadBtn').on('click', loadPortOnus);
