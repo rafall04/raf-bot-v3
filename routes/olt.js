@@ -20,6 +20,8 @@ const oltManager = require('../lib/olt-manager');
 
 // Import driver registry (multi-merk OLT). Dispatch per device.brand.
 const { resolveDriver, getDriver, listDrivers, detectBrand } = require('../lib/olt-drivers');
+// Inti matching pelanggan→ONU optik (1 sumber kebenaran, dipakai bersama bot Telegram teknisi).
+const { buildOnuIndex, matchOnu } = require('../lib/olt-optical-resolver');
 
 // ============================================
 // CACHE SYSTEM untuk performa lebih baik
@@ -645,46 +647,24 @@ router.get('/matched', async (req, res) => {
         // Get users from global
         const users = global.users || [];
 
-        // Build matched data menggunakan last caller ID untuk offline users
+        // Build matched data menggunakan last caller ID untuk offline users.
+        // Indeks ONU + resolusi identitas brand-agnostik (PPPoE→serial→MAC) diekstrak
+        // ke lib/olt-optical-resolver sebagai satu sumber kebenaran (dipakai bersama
+        // bot Telegram teknisi). Perilaku identik dengan versi inline sebelumnya.
         const matchedData = [];
-        const oltByMac = {};      // EPON (HIOSO): prefix MAC → onu
-        const oltByPppoe = {};    // GPON (ZTE): description (=username PPPoE) → onu
-        const oltBySerial = {};   // GPON: serial number → onu
-
-        // Index OLT data untuk quick lookup. ONU EPON pakai MAC; ONU GPON (mac='N/A')
-        // pakai deskripsi(pppoe)/serial. Guard panjang MAC agar 'N/A'→'NA' tidak masuk.
-        oltResult.onus.forEach(onu => {
-            const normalizedMac = normalizeMAC(onu.macAddress);
-            if (normalizedMac && normalizedMac.length >= 10) {
-                oltByMac[normalizedMac.substring(0, 10)] = onu;
-            }
-            if (onu.description && String(onu.description).includes('@')) {
-                oltByPppoe[String(onu.description).trim().toLowerCase()] = onu;
-            }
-            if (onu.serial) {
-                oltBySerial[String(onu.serial).trim().toLowerCase()] = onu;
-            }
-        });
+        const onuIndex = buildOnuIndex(oltResult.onus, { normalizeMAC });
 
         // Match setiap user dengan OLT data
         // PENTING: Jika user punya MAC (dari cache) tapi ONT tidak ada di OLT,
         // itu berarti ONT dalam kondisi DYING GASP (adaptor mati)
         for (const user of users) {
             if (!user.pppoe_username) continue;
-            const pppoeKey = String(user.pppoe_username).trim().toLowerCase();
-
-            // Resolusi identitas brand-agnostik: PPPoE(deskripsi GPON) → serial → MAC(EPON).
-            let matchedOnu = oltByPppoe[pppoeKey] || null;
-            if (!matchedOnu && user.olt_serial) {
-                matchedOnu = oltBySerial[String(user.olt_serial).trim().toLowerCase()] || null;
-            }
 
             // MAC dari active session / last known (EPON). Bisa null untuk pelanggan GPON.
             const macInfo = getMacForUser(user.pppoe_username, pppoeActive);
-            if (!matchedOnu && macInfo) {
-                const userMacPrefix = normalizeMAC(macInfo.mac).substring(0, 10);
-                matchedOnu = oltByMac[userMacPrefix] || null;
-            }
+
+            // Resolusi identitas brand-agnostik: PPPoE(deskripsi GPON) → serial → MAC(EPON).
+            const { onu: matchedOnu } = matchOnu(user, { index: onuIndex, macInfo }, { normalizeMAC });
 
             // Tidak ada cara identifikasi sama sekali → lewati.
             if (!matchedOnu && !macInfo) continue;

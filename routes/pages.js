@@ -62,6 +62,10 @@ router.get('/wifi-logs', checkRole(['admin', 'owner', 'superadmin']), (req, res)
     res.render('sb-admin/wifi-logs.php');
 });
 
+router.get('/telegram-teknisi', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/telegram-teknisi.php');
+});
+
 router.get('/login-logs', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     console.log(`[ROUTE_HANDLER] /login-logs: Route handler called. User: ${req.user ? req.user.username : 'null'}, Role: ${req.user ? req.user.role : 'null'}`);
     res.render('sb-admin/login-logs.php');

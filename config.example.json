@@ -184,6 +184,11 @@
     "chatId": "ISI_CHATID",
     "enabled": true
   },
+  "telegramTeknisi": {
+    "enabled": false,
+    "botToken": "ISI_TELEGRAM_TEKNISI_BOT_TOKEN",
+    "pollTimeoutSec": 50
+  },
   "olt": {
     "enabled": true,
     "webEnabled": true,
@@ -248,5 +253,8 @@
     "notifyRecovery": true,
     "messageDown": "",
     "messageUp": ""
+  },
+  "messageLogging": {
+    "enabled": true
   }
 }

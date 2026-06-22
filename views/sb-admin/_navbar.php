@@ -1009,12 +1009,12 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/wifi-logs', '/login-logs', '/activity-logs'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseMonitoring" aria-expanded="<?php echo isParentActive(['/wifi-logs', '/login-logs', '/activity-logs'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseMonitoring">
+    <li class="nav-item <?php echo isParentActive(['/wifi-logs', '/login-logs', '/activity-logs', '/telegram-teknisi'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseMonitoring" aria-expanded="<?php echo isParentActive(['/wifi-logs', '/login-logs', '/activity-logs', '/telegram-teknisi'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseMonitoring">
             <i class="fas fa-fw fa-chart-line"></i>
             <span>Monitoring</span>
         </a>
-        <div id="collapseMonitoring" class="collapse <?php echo isParentActive(['/wifi-logs', '/login-logs', '/activity-logs'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingMonitoring" data-parent="#accordionSidebar">
+        <div id="collapseMonitoring" class="collapse <?php echo isParentActive(['/wifi-logs', '/login-logs', '/activity-logs', '/telegram-teknisi'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingMonitoring" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/wifi-logs', $current_page) ? 'active' : ''; ?>" href="/wifi-logs">
                     <i class="fas fa-fw fa-wifi mr-2"></i>
@@ -1027,6 +1027,10 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/activity-logs', $current_page) ? 'active' : ''; ?>" href="/activity-logs">
                     <i class="fas fa-fw fa-history mr-2"></i>
                     <span>Log Aktivitas</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/telegram-teknisi', $current_page) ? 'active' : ''; ?>" href="/telegram-teknisi">
+                    <i class="fab fa-fw fa-telegram-plane mr-2"></i>
+                    <span>Bot Teknisi (Telegram)</span>
                 </a>
             </div>
         </div>
