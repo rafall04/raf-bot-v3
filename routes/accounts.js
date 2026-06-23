@@ -67,10 +67,10 @@ router.post('/accounts', adminOnly, async (req, res) => {
         }
         
         // Validate role
-        if (!['admin', 'teknisi'].includes(role)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Role harus admin atau teknisi!' 
+        if (!['admin', 'teknisi', 'agen'].includes(role)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Role harus admin, teknisi, atau agen!'
             });
         }
         
@@ -158,10 +158,10 @@ router.post('/accounts/:id', adminOnly, async (req, res) => {
         }
         
         // Validate role if provided
-        if (role && !['admin', 'teknisi'].includes(role)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Role harus admin atau teknisi!' 
+        if (role && !['admin', 'teknisi', 'agen'].includes(role)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Role harus admin, teknisi, atau agen!'
             });
         }
         

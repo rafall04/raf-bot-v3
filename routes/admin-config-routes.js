@@ -314,6 +314,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     key === 'showPaymentStatus' ||
                     key === 'showDueDate' ||
                     key === 'teknisiCollectionCommissionEnabled' ||
+                    key === 'agenCollectionCommissionEnabled' ||
                     key === 'customerTrafficUsageEnabled' ||
                     key === 'customerTrafficLiveEnabled' ||
                     key === 'genieacsEnabled' ||
@@ -337,7 +338,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     continue;
                 }
 
-                if (key === 'teknisiCollectionCommissionAmount') {
+                if (key === 'teknisiCollectionCommissionAmount' || key === 'agenCollectionCommissionAmount') {
                     newMainConfig[key] = Math.max(0, parseInt(receivedConfig[key], 10) || 0);
                     continue;
                 }

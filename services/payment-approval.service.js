@@ -116,8 +116,12 @@ function createPaymentApprovalService(overrides = {}) {
                     const sendInvoiceValue = user.send_invoice ? 1 : 0;
 
                     if (request.newStatus === true) {
+                        // Kolektor: teknisi ATAU agen (tak pernah keduanya) → komisi ke ledger yang tepat.
+                        const isAgenRequest = approvedRequest.collector_role === "agen" || !!approvedRequest.requested_by_agen_id;
+                        const collectorId = isAgenRequest ? approvedRequest.requested_by_agen_id : approvedRequest.requested_by_teknisi_id;
+                        const collectorAccount = collectorId ? deps.accountRepository.getById(collectorId) : null;
                         let paymentMethod = deps.normalizeUserPaymentMethod(approvedRequest.payment_method);
-                        if (!paymentMethod && approvedRequest.requested_by_teknisi_id && approvedRequest.newStatus === true) {
+                        if (!paymentMethod && collectorId && approvedRequest.newStatus === true) {
                             paymentMethod = "CASH";
                         }
                         if (!paymentMethod) {
@@ -133,9 +137,7 @@ function createPaymentApprovalService(overrides = {}) {
                         const amountPaid = approvedRequest.amount_paid || deps.getEffectivePrice(user);
                         const amountDue = approvedRequest.amount_due || deps.getEffectivePrice(user);
                         const isPartial = approvedRequest.is_partial_payment || false;
-                        const createdBy = approvedRequest.requested_by_teknisi_id
-                            ? (deps.accountRepository.getById(approvedRequest.requested_by_teknisi_id)?.username || "teknisi")
-                            : (actor.username || "admin");
+                        const createdBy = collectorAccount?.username || (isAgenRequest ? "agen" : (approvedRequest.requested_by_teknisi_id ? "teknisi" : (actor.username || "admin")));
 
                         const financeResult = await deps.applyPaymentStatusChange({
                             user,
@@ -149,7 +151,9 @@ function createPaymentApprovalService(overrides = {}) {
                             notes: approvedRequest.notes || `Pembayaran via bulk approval request #${approvedRequest.id}`,
                             createdBy,
                             sourceRequestId: approvedRequest.id,
-                            teknisiId: approvedRequest.requested_by_teknisi_id ? String(approvedRequest.requested_by_teknisi_id) : null,
+                            teknisiId: (!isAgenRequest && approvedRequest.requested_by_teknisi_id) ? String(approvedRequest.requested_by_teknisi_id) : null,
+                            agenId: (isAgenRequest && approvedRequest.requested_by_agen_id) ? String(approvedRequest.requested_by_agen_id) : null,
+                            agenName: isAgenRequest ? (collectorAccount?.name || collectorAccount?.username || null) : null,
                             onFinalPaid: async () => {
                                 await deps.handlePaidStatusChange(user, {
                                     paidDate: new Date().toISOString(),

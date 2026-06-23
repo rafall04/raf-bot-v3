@@ -135,6 +135,11 @@ router.get('/teknisi-pembayaran', checkRole(['teknisi', 'admin', 'owner', 'super
     res.render('sb-admin/teknisi-pembayaran.php');
 });
 
+// Halaman Agen - penagihan pembayaran pelanggan yang ditugaskan (agen + admin)
+router.get('/agen-pembayaran', checkRole(['agen', 'admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/agen-pembayaran.php');
+});
+
 router.get('/teknisi-kasbon', checkRole(['teknisi', 'admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/teknisi-kasbon.php');
 });
@@ -191,6 +196,16 @@ router.get('/pengeluaran', checkRole(['admin', 'owner', 'superadmin']), (req, re
 // Gaji Teknisi page - ADMIN ONLY
 router.get('/gaji-teknisi', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/gaji-teknisi.php');
+});
+
+// Penugasan Agen page (assign pelanggan ke agen) - ADMIN ONLY
+router.get('/penugasan-agen', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/penugasan-agen.php');
+});
+
+// Laporan Komisi Agen page - ADMIN ONLY
+router.get('/laporan-agen', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/laporan-agen.php');
 });
 
 // Rubah Paket Pelanggan page - ADMIN ONLY

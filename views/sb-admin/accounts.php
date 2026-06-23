@@ -44,7 +44,7 @@
             <div class="d-flex align-items-center justify-content-between">
               <div>
                 <h1>Account Management</h1>
-                <p>Kelola akun admin dan teknisi sistem</p>
+                <p>Kelola akun admin, teknisi, dan agen sistem</p>
               </div>
               <button data-toggle="modal" data-target="#createModal" class="btn btn-primary-custom">
                 <i class="fas fa-user-plus"></i> Tambah Akun
@@ -164,6 +164,7 @@
               <option value="" disabled selected>Pilih Role</option>
               <option value="admin">Admin</option>
               <option value="teknisi">Teknisi</option>
+              <option value="agen">Agen</option>
             </select>
           </div>
         </div>
@@ -212,6 +213,7 @@
               <option value="" disabled selected>Pilih Role</option>
               <option value="admin">Admin</option>
               <option value="teknisi">Teknisi</option>
+              <option value="agen">Agen</option>
             </select>
           </div>
         </div>

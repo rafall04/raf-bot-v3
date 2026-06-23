@@ -19,7 +19,7 @@ function usage(msg) {
 Penggunaan:
   node scripts/create-admin.js <username> <password> [nama] [role]
 
-  role  : "admin" (default) atau "teknisi"
+  role  : "admin" (default), "teknisi", atau "agen"
   nama  : opsional, default = username
 
 Contoh:
@@ -39,8 +39,8 @@ async function main() {
     }
 
     const role = (roleArg || "admin").toLowerCase();
-    if (!["admin", "teknisi"].includes(role)) {
-        usage(`role harus "admin" atau "teknisi" (diberikan: "${roleArg}").`);
+    if (!["admin", "teknisi", "agen"].includes(role)) {
+        usage(`role harus "admin", "teknisi", atau "agen" (diberikan: "${roleArg}").`);
     }
 
     const accounts = loadJSON("accounts.json");

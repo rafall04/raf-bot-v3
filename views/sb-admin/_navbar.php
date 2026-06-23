@@ -803,12 +803,12 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/payment-status', '/rekap-tunggakan', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi', '/pengeluaran'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePembayaran" aria-expanded="<?php echo isParentActive(['/payment-status', '/rekap-tunggakan', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi', '/pengeluaran'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePembayaran">
+    <li class="nav-item <?php echo isParentActive(['/payment-status', '/rekap-tunggakan', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi', '/penugasan-agen', '/laporan-agen', '/pengeluaran'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePembayaran" aria-expanded="<?php echo isParentActive(['/payment-status', '/rekap-tunggakan', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi', '/penugasan-agen', '/laporan-agen', '/pengeluaran'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePembayaran">
             <i class="fas fa-fw fa-money-bill-wave"></i>
             <span>Pembayaran</span>
         </a>
-        <div id="collapsePembayaran" class="collapse <?php echo isParentActive(['/payment-status', '/rekap-tunggakan', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPembayaran" data-parent="#accordionSidebar">
+        <div id="collapsePembayaran" class="collapse <?php echo isParentActive(['/payment-status', '/rekap-tunggakan', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi', '/penugasan-agen', '/laporan-agen'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPembayaran" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/payment-status', $current_page) ? 'active' : ''; ?>" href="/payment-status">
                     <i class="fas fa-fw fa-money-check-alt mr-2"></i>
@@ -845,6 +845,14 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/gaji-teknisi', $current_page) ? 'active' : ''; ?>" href="/gaji-teknisi">
                     <i class="fas fa-fw fa-money-bill-wave mr-2"></i>
                     <span>Gaji Teknisi</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/penugasan-agen', $current_page) ? 'active' : ''; ?>" href="/penugasan-agen">
+                    <i class="fas fa-fw fa-user-tag mr-2"></i>
+                    <span>Penugasan Agen</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/laporan-agen', $current_page) ? 'active' : ''; ?>" href="/laporan-agen">
+                    <i class="fas fa-fw fa-hand-holding-usd mr-2"></i>
+                    <span>Laporan Komisi Agen</span>
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/admin-diskon', $current_page) ? 'active' : ''; ?>" href="/admin-diskon">
                     <i class="fas fa-fw fa-tags mr-2"></i>

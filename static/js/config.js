@@ -22,6 +22,8 @@
                 setValue('tanggal_batas_bayar', json.data.tanggal_batas_bayar, '10');
                 setValue('teknisiCollectionCommissionEnabled', json.data.teknisiCollectionCommissionEnabled === true ? "true" : "false");
                 setValue('teknisiCollectionCommissionAmount', json.data.teknisiCollectionCommissionAmount || '0');
+                setValue('agenCollectionCommissionEnabled', json.data.agenCollectionCommissionEnabled === true ? "true" : "false");
+                setValue('agenCollectionCommissionAmount', json.data.agenCollectionCommissionAmount || '0');
                 setValue('tanggal_isolir', json.data.tanggal_isolir, '11');
                 setValue('isolir_profile', json.data.isolir_profile);
                 setValue('isolirFeatureEnabled', json.data.isolirFeatureEnabled !== false ? "true" : "false");

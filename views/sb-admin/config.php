@@ -223,6 +223,19 @@
                     <small class="form-text text-muted">Nominal komisi collection yang didapat teknisi per pelanggan lunas. Contoh: 5000.</small>
                   </div>
                   <div class="mb-3">
+                    <label for="agenCollectionCommissionEnabled" class="form-label">Komisi Collection Agen</label>
+                    <select class="form-control" id="agenCollectionCommissionEnabled" name="agenCollectionCommissionEnabled">
+                      <option value="true">Aktif</option>
+                      <option value="false">Nonaktif</option>
+                    </select>
+                    <small class="form-text text-muted">Jika aktif, agen mendapat fee otomatis saat pelanggan yang ditagihnya benar-benar lunas. Terpisah dari komisi teknisi.</small>
+                  </div>
+                  <div class="mb-3">
+                    <label for="agenCollectionCommissionAmount" class="form-label">Nominal Fee Agen Per Pelanggan</label>
+                    <input type="number" class="form-control" id="agenCollectionCommissionAmount" name="agenCollectionCommissionAmount" min="0" step="500" />
+                    <small class="form-text text-muted">Nominal fee yang didapat agen per pelanggan lunas. Contoh: 5000.</small>
+                  </div>
+                  <div class="mb-3">
                     <label for="tanggal_isolir" class="form-label">Tanggal Isolir (1-28)</label>
                     <input type="number" class="form-control" id="tanggal_isolir" name="tanggal_isolir" min="1" max="28" />
                      <small class="form-text text-muted">Pelanggan yang belum bayar akan diisolir mulai tanggal ini.</small>

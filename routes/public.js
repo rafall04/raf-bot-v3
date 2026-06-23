@@ -369,6 +369,8 @@ router.post('/api/login', loginValidation, asyncHandler(async (req, res) => {
     // Redirect based on role
     if (account.role === 'teknisi') {
         return res.redirect('/pembayaran/teknisi');
+    } else if (account.role === 'agen') {
+        return res.redirect('/agen-pembayaran');
     } else {
         return res.redirect('/');
     }

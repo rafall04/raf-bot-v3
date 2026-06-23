@@ -115,6 +115,9 @@ router.get('/', async (req, res) => {
         if (req.user.role === 'teknisi') {
             // Teknisi hanya bisa lihat request yang dia buat
             filteredRequests = allRequests.filter(r => String(r.requested_by_teknisi_id) === String(req.user.id));
+        } else if (req.user.role === 'agen') {
+            // Agen hanya bisa lihat request yang dia buat
+            filteredRequests = allRequests.filter(r => String(r.requested_by_agen_id) === String(req.user.id));
         } else if (['admin', 'owner', 'superadmin'].includes(req.user.role)) {
             // Admin bisa lihat semua requests
             filteredRequests = allRequests;
@@ -125,7 +128,8 @@ router.get('/', async (req, res) => {
         // Enrich data dengan informasi package, requestor name, dan updated_by_name
         const enrichedRequests = filteredRequests.map(request => {
             const user = global.users.find(u => String(u.id) === String(request.userId));
-            const requestorAccount = global.accounts.find(a => String(a.id) === String(request.requested_by_teknisi_id));
+            const requestorId = request.requested_by_agen_id || request.requested_by_teknisi_id;
+            const requestorAccount = global.accounts.find(a => String(a.id) === String(requestorId));
             const updatedByAccount = request.updated_by ? 
                 (request.updated_by === 'system' ? null : global.accounts.find(a => String(a.id) === String(request.updated_by))) 
                 : null;
@@ -144,7 +148,7 @@ router.get('/', async (req, res) => {
             
             return {
                 ...request,
-                requestorName: requestorAccount ? (requestorAccount.name || requestorAccount.username) : `Teknisi ID ${request.requested_by_teknisi_id}`,
+                requestorName: requestorAccount ? (requestorAccount.name || requestorAccount.username) : `${request.collector_role === 'agen' ? 'Agen' : 'Teknisi'} ID ${requestorId}`,
                 packageName: user?.subscription || 'N/A',
                 packagePrice: packagePrice,
                 updated_by_name: request.updated_by === 'system' ? 'Sistem' : 
@@ -175,9 +179,10 @@ router.get('/', async (req, res) => {
 // POST /api/requests - with rate limiting and locking
 // Rate limit: 30 requests per minute (cukup untuk operasional tagihan bulanan)
 router.post('/', rateLimit('create-request', 30, 60000), async (req, res) => {
-    if (!req.user || req.user.role !== 'teknisi') {
-        return res.status(403).json({ status: 403, message: "Akses ditolak. Hanya teknisi yang dapat mengakses fitur ini." });
+    if (!req.user || !['teknisi', 'agen'].includes(req.user.role)) {
+        return res.status(403).json({ status: 403, message: "Akses ditolak. Hanya teknisi atau agen yang dapat mengakses fitur ini." });
     }
+    const isAgenRequestor = req.user.role === 'agen';
     let { userId, newStatus } = req.body;
     
     // Validate and sanitize inputs
@@ -198,7 +203,12 @@ router.post('/', rateLimit('create-request', 30, 60000), async (req, res) => {
             if (!user) {
                 return res.status(404).json({ status: 404, message: "User tidak ditemukan." });
             }
-            
+
+            // Agen hanya boleh menagih pelanggan yang ditugaskan kepadanya.
+            if (isAgenRequestor && String(user.assigned_agen_id || '') !== String(req.user.id)) {
+                return res.status(403).json({ status: 403, message: "Akses ditolak. Pelanggan ini tidak ditugaskan kepada Anda." });
+            }
+
             const { periodMonth, periodYear } = getPeriodParts({ date: new Date() });
             const scopedDraft = {
                 userId,
@@ -232,14 +242,14 @@ router.post('/', rateLimit('create-request', 30, 60000), async (req, res) => {
                         saveJSON('database/requests.json', allRequests);
                         console.log(`[REQUEST_AUTO_CANCEL] Request ID ${existingPendingRequest.id} auto-cancelled karena status sudah sesuai.`);
                     } else {
-                        const conflictingTechnicianId = existingPendingRequest.requested_by_teknisi_id;
-                        if (String(conflictingTechnicianId) === String(req.user.id)) {
+                        const conflictingOwnerId = existingPendingRequest.requested_by_agen_id || existingPendingRequest.requested_by_teknisi_id;
+                        if (String(conflictingOwnerId) === String(req.user.id)) {
                             return res.status(409).json({ status: 409, message: `Anda sudah memiliki pengajuan yang sedang menunggu untuk pelanggan ${user.name}. Harap batalkan atau tunggu hingga pengajuan tersebut diproses.` });
                         } else {
-                            const conflictingTechnician = global.accounts.find(acc => String(acc.id) === String(conflictingTechnicianId));
-                            const conflictingTechnicianName = conflictingTechnician ? conflictingTechnician.username : 'teknisi lain';
+                            const conflictingOwner = global.accounts.find(acc => String(acc.id) === String(conflictingOwnerId));
+                            const conflictingOwnerName = conflictingOwner ? conflictingOwner.username : 'petugas lain';
                             const requestDate = new Date(existingPendingRequest.created_at).toLocaleString('id-ID');
-                            return res.status(409).json({ status: 409, message: `Gagal: Pelanggan ${user.name} sudah memiliki pengajuan aktif yang dibuat oleh ${conflictingTechnicianName} pada ${requestDate}. Hubungi admin untuk memproses atau membatalkan pengajuan tersebut.` });
+                            return res.status(409).json({ status: 409, message: `Gagal: Pelanggan ${user.name} sudah memiliki pengajuan aktif yang dibuat oleh ${conflictingOwnerName} pada ${requestDate}. Hubungi admin untuk memproses atau membatalkan pengajuan tersebut.` });
                         }
                     }
                 }
@@ -254,16 +264,18 @@ router.post('/', rateLimit('create-request', 30, 60000), async (req, res) => {
                 request_type: 'payment_status_change',
                 period_month: periodMonth,
                 period_year: periodYear,
-                // Teknisi request = pembayaran CASH (diterima langsung oleh teknisi)
+                // Teknisi/agen request = pembayaran CASH (diterima langsung di lapangan)
                 payment_method: newStatus === true ? 'CASH' : null,
                 created_at: new Date().toISOString(),
                 updated_at: null,
                 updated_by: null,
-                requested_by_teknisi_id: req.user.id
+                collector_role: isAgenRequestor ? 'agen' : 'teknisi',
+                requested_by_teknisi_id: isAgenRequestor ? null : req.user.id,
+                requested_by_agen_id: isAgenRequestor ? req.user.id : null
             };
             allRequests.push(newRequest);
             saveJSON('database/requests.json', allRequests);
-            console.log(`[REQUEST_CREATE_LOG] Teknisi ID ${req.user.id} (${req.user.username}) membuat pengajuan baru untuk User ID ${userId} (${user.name}). Payment method: ${newRequest.payment_method || 'N/A'}`);
+            console.log(`[REQUEST_CREATE_LOG] ${isAgenRequestor ? 'Agen' : 'Teknisi'} ID ${req.user.id} (${req.user.username}) membuat pengajuan baru untuk User ID ${userId} (${user.name}). Payment method: ${newRequest.payment_method || 'N/A'}`);
             
             // Broadcast ke semua admin dan owner
             const teknisiName = req.user.name || req.user.username;
@@ -308,9 +320,10 @@ router.post('/', rateLimit('create-request', 30, 60000), async (req, res) => {
 // POST /api/request/cancel - with rate limiting
 // Rate limit: 30 requests per minute
 router.post('/cancel', rateLimit('cancel-request', 30, 60000), async (req, res) => {
-    if (!req.user || req.user.role !== 'teknisi') {
-        return res.status(403).json({ status: 403, message: "Akses ditolak. Hanya teknisi yang dapat mengakses fitur ini." });
+    if (!req.user || !['teknisi', 'agen'].includes(req.user.role)) {
+        return res.status(403).json({ status: 403, message: "Akses ditolak. Hanya teknisi atau agen yang dapat mengakses fitur ini." });
     }
+    const isAgenRequestor = req.user.role === 'agen';
     let { requestId } = req.body;
     const technicianId = req.user.id;
     
@@ -324,7 +337,8 @@ router.post('/cancel', rateLimit('cancel-request', 30, 60000), async (req, res) 
         });
     }
     let allRequests = loadJSON('database/requests.json').map(normalizePaymentRequestScope);
-    const requestIndex = allRequests.findIndex(r => String(r.id) === String(requestId) && String(r.requested_by_teknisi_id) === String(technicianId));
+    const ownerField = isAgenRequestor ? 'requested_by_agen_id' : 'requested_by_teknisi_id';
+    const requestIndex = allRequests.findIndex(r => String(r.id) === String(requestId) && String(r[ownerField]) === String(technicianId));
     if (requestIndex === -1) {
         return res.status(404).json({ status: 404, message: 'Pengajuan tidak ditemukan atau Anda tidak berhak membatalkannya.' });
     }
@@ -332,8 +346,8 @@ router.post('/cancel', rateLimit('cancel-request', 30, 60000), async (req, res) 
     if (requestToUpdate.status !== 'pending') {
         return res.status(400).json({ status: 400, message: `Pengajuan dengan ID ${requestId} tidak dapat dibatalkan karena statusnya bukan 'pending' (Status saat ini: ${requestToUpdate.status}).` });
     }
-    requestToUpdate.status = 'cancelled_by_technician';
-    requestToUpdate.notes = 'Dibatalkan oleh teknisi via panel.';
+    requestToUpdate.status = isAgenRequestor ? 'cancelled_by_agen' : 'cancelled_by_technician';
+    requestToUpdate.notes = isAgenRequestor ? 'Dibatalkan oleh agen via panel.' : 'Dibatalkan oleh teknisi via panel.';
     requestToUpdate.updated_at = new Date().toISOString();
     requestToUpdate.updated_by = technicianId;
     allRequests[requestIndex] = requestToUpdate;
@@ -445,7 +459,7 @@ router.post('/approve-paid-change', rateLimit('approve-request', 20, 60000), asy
                         }
                         if (!paymentMethod && nextRequestState.payment_method) {
                             paymentMethod = normalizeUserPaymentMethod(nextRequestState.payment_method);
-                        } else if (nextRequestState.requested_by_teknisi_id && nextRequestState.newStatus === true) {
+                        } else if ((nextRequestState.requested_by_teknisi_id || nextRequestState.requested_by_agen_id) && nextRequestState.newStatus === true) {
                             paymentMethod = 'CASH';
                         }
                         if (!paymentMethod) {
@@ -463,9 +477,12 @@ router.post('/approve-paid-change', rateLimit('approve-request', 20, 60000), asy
                         const amountPaid = nextRequestState.amount_paid || getEffectivePrice(userToUpdate);
                         const amountDue = nextRequestState.amount_due || getEffectivePrice(userToUpdate);
                         const isPartial = nextRequestState.is_partial_payment || false;
-                        const createdBy = nextRequestState.requested_by_teknisi_id
-                            ? (global.accounts.find(a => String(a.id) === String(nextRequestState.requested_by_teknisi_id))?.username || 'teknisi')
-                            : (req.user?.username || 'admin');
+                        // Tentukan kolektor: teknisi ATAU agen (tak pernah keduanya) agar komisi
+                        // dikreditkan ke ledger yang benar lewat applyPaymentStatusChange.
+                        const isAgenRequest = nextRequestState.collector_role === 'agen' || !!nextRequestState.requested_by_agen_id;
+                        const collectorId = isAgenRequest ? nextRequestState.requested_by_agen_id : nextRequestState.requested_by_teknisi_id;
+                        const collectorAccount = collectorId ? global.accounts.find(a => String(a.id) === String(collectorId)) : null;
+                        const createdBy = collectorAccount?.username || (isAgenRequest ? 'agen' : (nextRequestState.requested_by_teknisi_id ? 'teknisi' : (req.user?.username || 'admin')));
 
                         financeResult = await applyPaymentStatusChange({
                             user: userToUpdate,
@@ -479,7 +496,9 @@ router.post('/approve-paid-change', rateLimit('approve-request', 20, 60000), asy
                             notes: nextRequestState.notes || `Pembayaran via approval request #${nextRequestState.id}`,
                             createdBy,
                             sourceRequestId: nextRequestState.id,
-                            teknisiId: nextRequestState.requested_by_teknisi_id ? String(nextRequestState.requested_by_teknisi_id) : null,
+                            teknisiId: (!isAgenRequest && nextRequestState.requested_by_teknisi_id) ? String(nextRequestState.requested_by_teknisi_id) : null,
+                            agenId: (isAgenRequest && nextRequestState.requested_by_agen_id) ? String(nextRequestState.requested_by_agen_id) : null,
+                            agenName: isAgenRequest ? (collectorAccount?.name || collectorAccount?.username || null) : null,
                             onFinalPaid: async () => {
                                 await handlePaidStatusChange(userToUpdate, {
                                     paidDate: new Date().toISOString(),
