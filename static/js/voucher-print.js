@@ -200,6 +200,21 @@
         });
     }
 
+    function loadReport() {
+        api("GET", "/api/voucher/print/report").then(function (res) {
+            if (res.status !== 200) { toast("error", res.message || "Gagal memuat laporan"); return; }
+            var d = res.data || {};
+            $("repAktivasi").textContent = (d.aktivasi || 0).toLocaleString("id-ID");
+            $("repRevenue").textContent = "Rp " + (d.revenue || 0).toLocaleString("id-ID");
+            var rows = d.byProfile || [];
+            $("repBody").innerHTML = rows.length
+                ? rows.map(function (r) {
+                    return '<tr><td>' + (r.profile || "-") + '</td><td class="text-right">' + (r.aktivasi || 0).toLocaleString("id-ID") + '</td><td class="text-right">Rp ' + (r.revenue || 0).toLocaleString("id-ID") + '</td></tr>';
+                }).join("")
+                : '<tr><td colspan="3" class="text-muted text-center">Belum ada data.</td></tr>';
+        }).catch(function (e) { toast("error", e.message); });
+    }
+
     // ---- loaders ----
     function loadProfiles() {
         api("GET", "/api/voucher/profiles").then(function (res) {
@@ -258,5 +273,6 @@
         $("vpBtnSaveLayout").addEventListener("click", saveLayout);
         $("vpBtnDeleteLayout").addEventListener("click", deleteLayout);
         $("vpBtnImportMikhmon").addEventListener("click", importMikhmon);
+        $("vpBtnReport").addEventListener("click", loadReport);
     });
 })();

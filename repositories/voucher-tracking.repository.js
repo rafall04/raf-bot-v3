@@ -73,6 +73,8 @@ function createVoucherTrackingRepository(overrides = {}) {
     }
 
     async function ensureSchema(db) {
+        await run(db, "PRAGMA journal_mode=WAL");
+        await run(db, "PRAGMA busy_timeout=8000");
         await run(db, `CREATE TABLE IF NOT EXISTS voucher_activations (
             id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, profile TEXT, price INTEGER,
             validity TEXT, login_at TEXT, mac TEXT, ip TEXT, voucher_comment TEXT, raw TEXT, ingested_at TEXT,
@@ -111,16 +113,23 @@ function createVoucherTrackingRepository(overrides = {}) {
             let ingested = 0;
             let skipped = 0;
             const ts = nowIso();
-            for (const name of names) {
-                const row = parseMikhmonLogName(name);
-                if (!row || !row.login_at) { skipped += 1; continue; }
-                const res = await run(db,
-                    `INSERT OR IGNORE INTO voucher_activations
-                     (username, profile, price, validity, login_at, mac, ip, voucher_comment, raw, ingested_at)
-                     VALUES (?,?,?,?,?,?,?,?,?,?)`,
-                    [row.username, row.profile, row.price, row.validity, row.login_at, row.mac, row.ip, row.voucher_comment, row.raw, ts]
-                );
-                if (res.changes > 0) ingested += 1; else skipped += 1;
+            await run(db, "BEGIN");
+            try {
+                for (const name of names) {
+                    const row = parseMikhmonLogName(name);
+                    if (!row || !row.login_at) { skipped += 1; continue; }
+                    const res = await run(db,
+                        `INSERT OR IGNORE INTO voucher_activations
+                         (username, profile, price, validity, login_at, mac, ip, voucher_comment, raw, ingested_at)
+                         VALUES (?,?,?,?,?,?,?,?,?,?)`,
+                        [row.username, row.profile, row.price, row.validity, row.login_at, row.mac, row.ip, row.voucher_comment, row.raw, ts]
+                    );
+                    if (res.changes > 0) ingested += 1; else skipped += 1;
+                }
+                await run(db, "COMMIT");
+            } catch (error) {
+                await run(db, "ROLLBACK").catch(() => {});
+                throw error;
             }
             return { ingested, skipped, total: names.length };
         },

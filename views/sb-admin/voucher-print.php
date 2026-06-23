@@ -168,6 +168,30 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="row">
+                        <div class="col-12 mb-4">
+                            <div class="card shadow">
+                                <div class="card-header py-2 font-weight-bold d-flex justify-content-between align-items-center">
+                                    <span>Laporan Voucher (aktivasi terpakai)</span>
+                                    <button class="btn btn-outline-secondary btn-sm" id="vpBtnReport"><i class="fas fa-sync mr-1"></i>Muat</button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row mb-3">
+                                        <div class="col-md-3 col-6"><div class="small text-muted">Total aktivasi</div><div class="h4 mb-0" id="repAktivasi">-</div></div>
+                                        <div class="col-md-3 col-6"><div class="small text-muted">Revenue</div><div class="h4 mb-0" id="repRevenue">-</div></div>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead><tr><th>Profil</th><th class="text-right">Aktivasi</th><th class="text-right">Revenue</th></tr></thead>
+                                            <tbody id="repBody"><tr><td colspan="3" class="text-muted text-center">Klik Muat untuk menampilkan laporan.</td></tr></tbody>
+                                        </table>
+                                    </div>
+                                    <small class="text-muted">Data dari riwayat login voucher (ingest dari Mikhmon). Revenue = jumlah harga voucher yang aktif/terpakai.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <?php include __DIR__ . '/footer.php'; ?>

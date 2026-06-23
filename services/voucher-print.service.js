@@ -12,7 +12,7 @@ const { renderSheet } = require("./voucher-print/render");
 const { convertMikhmonTemplate } = require("./voucher-print/mikhmon-import");
 
 function defaultDeps() {
-    return { repository: null, getConfig: () => global.config || {}, qrcode: null, addHotspotUsersBatch: null, logger: console };
+    return { repository: null, trackingRepository: null, getConfig: () => global.config || {}, qrcode: null, addHotspotUsersBatch: null, logger: console };
 }
 
 function digitsOnly(value) {
@@ -108,6 +108,16 @@ function createVoucherPrintService(overrides = {}) {
                 failed: data.failed || 0,
                 requested: data.requested || n
             };
+        },
+
+        async getVoucherReport(filters = {}) {
+            if (!deps.trackingRepository) return { aktivasi: 0, revenue: 0, byProfile: [] };
+            return deps.trackingRepository.getReport(filters);
+        },
+
+        async listVoucherActivations(filters = {}) {
+            if (!deps.trackingRepository) return [];
+            return deps.trackingRepository.listActivations(filters);
         },
 
         previewMikhmonImport({ php } = {}) {

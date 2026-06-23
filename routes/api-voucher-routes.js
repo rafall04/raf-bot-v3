@@ -12,6 +12,7 @@ const { createApiVoucherRepository } = require('../repositories/api-voucher.repo
 const { createApiVoucherService } = require('../services/api-voucher.service');
 const { createVoucherPrintRepository } = require('../repositories/voucher-print.repository');
 const { createVoucherPrintService } = require('../services/voucher-print.service');
+const { createVoucherTrackingRepository } = require('../repositories/voucher-tracking.repository');
 const { addHotspotUsersBatch } = require('../lib/mikrotik');
 
 function createApiVoucherRouter({
@@ -102,6 +103,7 @@ function createApiVoucherRouter({
 
     const voucherPrintService = createVoucherPrintService({
         repository: createVoucherPrintRepository(),
+        trackingRepository: createVoucherTrackingRepository(),
         getConfig,
         addHotspotUsersBatch,
         logger: console
@@ -317,6 +319,33 @@ function createApiVoucherRouter({
         } catch (error) {
             console.error('[VOUCHER_PRINT_RENDER_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal render cetak', error: error.message });
+        }
+    });
+
+    router.get('/voucher/print/report', requireStaff, async (req, res) => {
+        try {
+            const data = await voucherPrintService.getVoucherReport({
+                from: req.query.from || null,
+                to: req.query.to || null,
+                profile: req.query.profile || null
+            });
+            return res.json({ status: 200, data });
+        } catch (error) {
+            console.error('[VOUCHER_PRINT_REPORT_ERROR]', error);
+            return res.status(500).json({ status: 500, message: 'Gagal memuat laporan', error: error.message });
+        }
+    });
+
+    router.get('/voucher/print/activations', requireStaff, async (req, res) => {
+        try {
+            const data = await voucherPrintService.listVoucherActivations({
+                limit: parseInt(req.query.limit, 10) || 50,
+                profile: req.query.profile || null
+            });
+            return res.json({ status: 200, data });
+        } catch (error) {
+            console.error('[VOUCHER_PRINT_ACTIVATIONS_ERROR]', error);
+            return res.status(500).json({ status: 500, message: 'Gagal memuat aktivasi', error: error.message });
         }
     });
 
