@@ -82,12 +82,19 @@ router.get("/api/bayar/:token/info", async (req, res) => {
             channelError = e.message;
         }
     }
-    const ownerNum = (global.config && global.config.ownerNumber && global.config.ownerNumber[0]) || (global.config && global.config.telfon) || "";
+    // Pilih nomor admin VALID untuk link verifikasi (lewati placeholder seperti 62xxxxxxxxxx).
+    const cfg = global.config || {};
+    const adminCandidates = [...(Array.isArray(cfg.ownerNumber) ? cfg.ownerNumber : [cfg.ownerNumber]), cfg.telfon, cfg.nomor_admin];
+    let adminWa = "";
+    for (const cand of adminCandidates) {
+        const digits = String(cand || "").replace(/\D/g, "");
+        if (digits.length >= 10) { adminWa = digits; break; }
+    }
     res.json({
         ok: true,
         status: paid ? "paid" : "unpaid",
-        provider: (global.config && global.config.nama) || "Pembayaran",
-        adminWa: String(ownerNum).replace(/\D/g, ""),
+        provider: cfg.nama || "Pembayaran",
+        adminWa,
         nama: ctx.user.name,
         paket: ctx.user.subscription,
         amount: ctx.amount,
