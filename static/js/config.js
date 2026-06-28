@@ -34,6 +34,7 @@
                 setValue('isolirManualDefaultReboot', json.data.isolirManualDefaultReboot === true ? "true" : "false");
                 setValue('isolirOpenDefaultReboot', json.data.isolirOpenDefaultReboot !== false ? "true" : "false");
                 setValue('site_url_bot', json.data.site_url_bot, 'http://127.0.0.1:3100');
+                setValue('public_url', json.data.public_url);
                 setValue('genieacsBaseUrl', json.data.genieacsBaseUrl);
                 setValue('genieacsEnabled', json.data.genieacsEnabled !== false ? "true" : "false");
                 setValue('genieacsCustomerRebootEnabled', json.data.genieacsCustomerRebootEnabled !== false ? "true" : "false");

@@ -56,7 +56,7 @@ describe("callback tagihan — fail-closed catat lunas + auto-reaktivasi", () =>
 
     test("verifikasi server-to-server tetap berlaku (verify sebelum semua cabang)", () => {
         // checkTransaction (verifyIpaymuTransaction) ada di handler & sebelum blok tagihan.
-        const idxVerify = source.indexOf("verifyIpaymuTransaction(pay.trxId)");
+        const idxVerify = source.indexOf("verifyIpaymuTransaction(pay.trxId");
         expect(idxVerify).toBeGreaterThan(-1);
         expect(idxVerify).toBeLessThan(idx);
     });

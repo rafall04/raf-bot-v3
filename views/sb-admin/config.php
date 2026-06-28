@@ -329,9 +329,14 @@
               </div>
               <div class="card-body">
                   <div class="mb-3">
-                    <label for="site_url_bot" class="form-label">Site URL Bot</label>
+                    <label for="site_url_bot" class="form-label">Site URL Bot (Internal)</label>
                     <input type="text" class="form-control" id="site_url_bot" name="site_url_bot" placeholder="http://127.0.0.1:3100" />
-                    <small class="form-text text-muted">URL untuk koneksi ke MikroTik melalui PHP. Contoh: http://127.0.0.1:3100 atau http://localhost:3100</small>
+                    <small class="form-text text-muted">Alamat INTERNAL untuk koneksi Node ke MikroTik via PHP. Biarkan localhost. Contoh: http://127.0.0.1:3100</small>
+                  </div>
+                  <div class="mb-3">
+                    <label for="public_url" class="form-label">URL Publik (Link Pembayaran Pelanggan)</label>
+                    <input type="text" class="form-control" id="public_url" name="public_url" placeholder="https://dander.rafnet.my.id" />
+                    <small class="form-text text-muted">Domain publik (Cloudflare/tunnel) untuk link bayar yang dikirim ke pelanggan. Beda dari Site URL Bot internal. Kosongkan = otomatis dari host Callback iPaymu.</small>
                   </div>
                   <div class="mb-3">
                     <label for="genieacsBaseUrl" class="form-label">Genieacs URL</label>
