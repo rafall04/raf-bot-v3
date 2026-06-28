@@ -10,6 +10,7 @@
 const { setSSIDName, updateWifiSettings } = require('../../../lib/wifi');
 const { logWifiChange } = require('../../../lib/wifi-logger');
 const { deleteUserState, format } = require('../conversation-handler');
+const { formatWifiSsidInfo } = require('../../../lib/wifi-ssid-summary');
 
 function renderResponseTemplate(key, fallback, data = {}) {
     const rendered = format(key, data);
@@ -180,6 +181,11 @@ async function handleAskNewName(userState, chats, reply, sender, global) {
             throw new Error('SSID target tidak ditemukan.');
         }
 
+        reply(renderResponseTemplate(
+            'wifi_apply_in_progress',
+            '⏳ Perubahan sedang saya terapkan ke modem, mohon tunggu sebentar ya...'
+        ));
+
         const payload = {};
         if (ssidsToChange.length === 1) {
             const result = await setSSIDName(userState.targetUser.device_id, ssidsToChange[0], newName);
@@ -215,7 +221,7 @@ async function handleAskNewName(userState, chats, reply, sender, global) {
         });
 
         deleteUserState(sender);
-        const ssidInfo = ssidsToChange.length > 1 ? `untuk *${ssidsToChange.length} SSID* ` : '';
+        const ssidInfo = formatWifiSsidInfo(ssidsToChange);
         return reply(renderResponseTemplate(
             'wifi_name_change_success',
             `✅ *Berhasil!*\n\nNama WiFi ${ssidInfo}telah diubah menjadi: *"${newName}"*\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi dengan nama lama akan terputus\n• Silakan cari WiFi dengan nama baru di perangkat Anda\n• Gunakan password yang sama untuk menyambung\n\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
@@ -293,10 +299,11 @@ async function handleConfirmGantiNamaBulk(userState, userReply, reply, sender, _
         });
 
         deleteUserState(sender);
+        const ssidInfo = formatWifiSsidInfo(ssidsToChange);
         return reply(renderResponseTemplate(
             'convo_ganti_nama_sukses',
-            `✨ Berhasil! Nama WiFi Anda sudah saya ubah menjadi *"${nama_wifi_baru}"*.\n\nSilakan cari nama WiFi baru tersebut di perangkat Anda dan sambungkan kembali menggunakan kata sandi yang sama ya. Jika ada kendala, jangan ragu hubungi saya lagi!`,
-            { nama_wifi_baru }
+            `✨ Berhasil! Nama WiFi ${ssidInfo}sudah saya ubah menjadi *"${nama_wifi_baru}"*.\n\nSilakan cari nama WiFi baru tersebut di perangkat Anda dan sambungkan kembali menggunakan kata sandi yang sama ya. Jika ada kendala, jangan ragu hubungi saya lagi!`,
+            { nama_wifi_baru, ssidInfo }
         ));
     } catch (error) {
         console.error('[GANTI_NAMA_BULK_ERROR]', error);

@@ -169,9 +169,14 @@
     "template": "Oke, ditunggu sebentar ya. Saya sedang proses perubahan nama WiFi untuk *${targetUserName}*... ⏳",
     "category": "wifi"
   },
+  "wifi_apply_in_progress": {
+    "name": "WiFi: Perubahan Sedang Diterapkan",
+    "template": "⏳ Perubahan sedang saya terapkan ke modem, mohon tunggu sebentar ya...",
+    "category": "wifi"
+  },
   "convo_ganti_nama_sukses": {
     "name": "Percakapan: Ganti Nama - Sukses",
-    "template": "✨ Berhasil! Nama WiFi Anda sudah saya ubah menjadi *\\\"${nama_wifi_baru}\\\"*.\n\nSilakan cari nama WiFi baru tersebut di perangkat Anda dan sambungkan kembali menggunakan kata sandi yang sama ya. Jika ada kendala, jangan ragu hubungi saya lagi! 😊",
+    "template": "✨ Berhasil! Nama WiFi ${ssidInfo}sudah saya ubah menjadi *\"${nama_wifi_baru}\"*.\n\nSilakan cari nama WiFi baru tersebut di perangkat Anda dan sambungkan kembali menggunakan kata sandi yang sama ya. Jika ada kendala, jangan ragu hubungi saya lagi! 😊",
     "category": "wifi"
   },
   "convo_ganti_nama_gagal": {

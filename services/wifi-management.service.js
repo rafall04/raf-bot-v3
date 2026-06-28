@@ -8,6 +8,7 @@
  */
 "use strict";
 
+const { formatWifiSsidInfo } = require("../lib/wifi-ssid-summary");
 
 function sanitizePhone(identifier = "") {
     return String(identifier || "")
@@ -290,7 +291,13 @@ function createWifiManagementService(overrides = {}) {
             }
             await logWifiNameChange(user, newName, buildWifiLogSender(rawSender, stateKey), "single", actor);
             deleteUserState(stateKey);
-            return reply(`✅ *Berhasil!*\n\nNama WiFi telah diubah menjadi: *"${newName}"*\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• Modem akan restart otomatis\n• Anda mungkin perlu menyambung ulang perangkat Anda\n\n💡 Jika ada masalah, hubungi admin untuk bantuan.`);
+            const ssidInfo = formatWifiSsidInfo([user.ssid_id || "1"]);
+            return reply(renderWithFallback(
+                renderResponseTemplate,
+                "wifi_name_change_success",
+                `✅ *Berhasil!*\n\nNama WiFi ${ssidInfo}telah diubah menjadi: *"${newName}"*\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• Modem akan restart otomatis\n• Anda mungkin perlu menyambung ulang perangkat Anda\n\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
+                { ssidInfo, newName }
+            ));
         } catch (error) {
             console.error("[SINGLE_NAME_CHANGE] Error:", error);
             deleteUserState(stateKey);
@@ -329,7 +336,13 @@ function createWifiManagementService(overrides = {}) {
 
             await logWifiNameChange(user, newName, buildWifiLogSender(rawSender, stateKey), "bulk_auto", actor);
             deleteUserState(stateKey);
-            return reply(`✅ *Berhasil!*\n\nNama WiFi untuk *semua SSID* telah diubah menjadi: *"${newName}"*\n\n📝 *Catatan:*\n• Perubahan akan aktif dalam 1-2 menit\n• Modem akan restart otomatis\n• Anda mungkin perlu menyambung ulang perangkat Anda`);
+            const ssidInfo = formatWifiSsidInfo(user.bulk);
+            return reply(renderWithFallback(
+                renderResponseTemplate,
+                "wifi_name_change_success",
+                `✅ *Berhasil!*\n\nNama WiFi ${ssidInfo}telah diubah menjadi: *"${newName}"*\n\n📝 *Catatan:*\n• Perubahan akan aktif dalam 1-2 menit\n• Modem akan restart otomatis\n• Anda mungkin perlu menyambung ulang perangkat Anda`,
+                { ssidInfo, newName }
+            ));
         } catch (error) {
             console.error("[BULK_AUTO_NAME_CHANGE] Error:", error);
             deleteUserState(stateKey);
@@ -370,7 +383,7 @@ function createWifiManagementService(overrides = {}) {
             }
             await logWifiPasswordChange(user, newPassword, buildWifiLogSender(rawSender, stateKey), "single", actor);
             deleteUserState(stateKey);
-            return replyWifiPasswordSuccess(reply, renderResponseTemplate, newPassword);
+            return replyWifiPasswordSuccess(reply, renderResponseTemplate, newPassword, formatWifiSsidInfo([user.ssid_id || "1"]));
         } catch (error) {
             console.error("[SINGLE_PASSWORD_CHANGE] Error:", error);
             deleteUserState(stateKey);
@@ -405,7 +418,7 @@ function createWifiManagementService(overrides = {}) {
 
             await logWifiPasswordChange(user, newPassword, buildWifiLogSender(rawSender, stateKey), "bulk_auto", actor);
             deleteUserState(stateKey);
-            return replyWifiPasswordSuccess(reply, renderResponseTemplate, newPassword, "untuk *semua SSID* ");
+            return replyWifiPasswordSuccess(reply, renderResponseTemplate, newPassword, formatWifiSsidInfo(user.bulk));
         } catch (error) {
             console.error("[BULK_AUTO_PASSWORD_CHANGE] Error:", error);
             deleteUserState(stateKey);

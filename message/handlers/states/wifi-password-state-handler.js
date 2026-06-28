@@ -10,6 +10,7 @@
 const { setPassword, updateWifiSettings } = require('../../../lib/wifi');
 const { logWifiChange } = require('../../../lib/wifi-logger');
 const { deleteUserState, format } = require('../conversation-handler');
+const { formatWifiSsidInfo } = require('../../../lib/wifi-ssid-summary');
 
 function renderResponseTemplate(key, fallback, data = {}) {
     const rendered = format(key, data);
@@ -170,6 +171,11 @@ async function handleAskNewPassword(userState, chats, reply, sender, global) {
         ));
     }
 
+    reply(renderResponseTemplate(
+        'wifi_apply_in_progress',
+        '⏳ Perubahan sedang saya terapkan ke modem, mohon tunggu sebentar ya...'
+    ));
+
     try {
         const result = await setPassword(userState.targetUser.device_id, userState.ssid_id || '1', newPassword);
         if (!result.success) {
@@ -198,8 +204,8 @@ async function handleAskNewPassword(userState, chats, reply, sender, global) {
         deleteUserState(sender);
         return reply(renderResponseTemplate(
             'wifi_password_change_success',
-            `✅ *Berhasil!*\n\nKata sandi WiFi telah diubah menjadi: \`${newPassword}\`\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password ini dengan baik!\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
-            { ssidInfo: '', newPassword }
+            `✅ *Berhasil!*\n\nKata sandi WiFi ${formatWifiSsidInfo([userState.ssid_id || '1'])}telah diubah menjadi: \`${newPassword}\`\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password ini dengan baik!\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
+            { ssidInfo: formatWifiSsidInfo([userState.ssid_id || '1']), newPassword }
         ));
     } catch (error) {
         console.error('[ASK_NEW_PASSWORD] Error:', error);
@@ -241,6 +247,11 @@ async function handleAskNewPasswordBulk(userState, chats, reply, sender, global)
         ));
     }
 
+    reply(renderResponseTemplate(
+        'wifi_apply_in_progress',
+        '⏳ Perubahan sedang saya terapkan ke modem, mohon tunggu sebentar ya...'
+    ));
+
     try {
         const bulkPayload = {};
         ssidsToChange.forEach((ssidId) => {
@@ -272,13 +283,11 @@ async function handleAskNewPasswordBulk(userState, chats, reply, sender, global)
         });
 
         deleteUserState(sender);
-        const ssidInfo = ssidsToChange.length > 1
-            ? `untuk *${ssidsToChange.length} SSID*`
-            : `untuk SSID ${ssidsToChange[0]}`;
+        const ssidInfo = formatWifiSsidInfo(ssidsToChange);
         return reply(renderResponseTemplate(
             'wifi_password_change_success',
-            `✅ *Berhasil!*\n\nKata sandi WiFi ${ssidInfo} telah diubah menjadi: \`${newPassword}\`\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password ini dengan baik!\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
-            { ssidInfo: `${ssidInfo} `, newPassword }
+            `✅ *Berhasil!*\n\nKata sandi WiFi ${ssidInfo}telah diubah menjadi: \`${newPassword}\`\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password ini dengan baik!\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
+            { ssidInfo, newPassword }
         ));
     } catch (error) {
         console.error('[ASK_NEW_PASSWORD_BULK] Error:', error);
@@ -337,8 +346,8 @@ async function handleConfirmGantiSandi(userState, userReply, reply, sender, _glo
         deleteUserState(sender);
         return reply(renderResponseTemplate(
             'wifi_password_change_success',
-            `✅ *Berhasil!*\n\nKata sandi WiFi untuk SSID ${ssid_id} telah diubah menjadi: \`${sandi_wifi_baru}\`\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password ini dengan baik!\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
-            { ssidInfo: `untuk SSID ${ssid_id} `, newPassword: sandi_wifi_baru }
+            `✅ *Berhasil!*\n\nKata sandi WiFi ${formatWifiSsidInfo([ssid_id])}telah diubah menjadi: \`${sandi_wifi_baru}\`\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password ini dengan baik!\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
+            { ssidInfo: formatWifiSsidInfo([ssid_id]), newPassword: sandi_wifi_baru }
         ));
     } catch (error) {
         console.error('[GANTI_SANDI_ERROR]', error);
@@ -399,8 +408,8 @@ async function handleConfirmGantiSandiBulk(userState, userReply, reply, sender, 
         deleteUserState(sender);
         return reply(renderResponseTemplate(
             'wifi_password_change_success',
-            `✅ *Berhasil!*\n\nKata sandi WiFi untuk *${bulkSsids.length} SSID* telah diubah menjadi: \`${sandi_wifi_baru}\`\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password ini dengan baik!\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
-            { ssidInfo: `untuk *${bulkSsids.length} SSID* `, newPassword: sandi_wifi_baru }
+            `✅ *Berhasil!*\n\nKata sandi WiFi ${formatWifiSsidInfo(bulkSsids)}telah diubah menjadi: \`${sandi_wifi_baru}\`\n\n📝 *Info Penting:*\n• Perubahan akan aktif dalam 1-2 menit\n• WiFi akan terputus dari semua perangkat\n• Silakan sambungkan kembali dengan password baru\n• Nama WiFi tetap sama, hanya password yang berubah\n\n⚠️ *PENTING:* Simpan password ini dengan baik!\n💡 Jika ada masalah, hubungi admin untuk bantuan.`,
+            { ssidInfo: formatWifiSsidInfo(bulkSsids), newPassword: sandi_wifi_baru }
         ));
     } catch (error) {
         console.error('[GANTI_SANDI_BULK_ERROR]', error);
