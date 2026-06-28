@@ -190,6 +190,14 @@ module.exports = async (raf, msg, m, options = {}) => {
     // fallback string supaya pesan tanpa msg.key.id tidak crash sebelum guard utama.
     const msgKeyId = msg.key?.id || '';
     if (((msgKeyId.startsWith("BAE5") && msgKeyId.length < 32) || (msgKeyId.startsWith("3EB0") && msgKeyId.length < 32)) && msg.key?.fromMe) return;
+
+    // Pesan `fromMe` (keluaran bot ATAU admin yang chat MANUAL dari nomor bot ke pelanggan)
+    // TIDAK boleh diproses. Tanpa ini, ketika admin balas pelanggan dari nomor bot (mis. ketik
+    // "siang kak"), bot ikut auto-balas sapaan → mengganggu percakapan admin↔pelanggan.
+    // Jalur outbound bot sendiri (sendMessage) tak lewat sini; event fromMe = ketikan device lain
+    // yang ter-link ke akun bot (HP admin). Skip semuanya supaya chat manual admin aman.
+    if (msg.key?.fromMe) return;
+
     const messageContext = extractMessageContext(msg);
     if (!messageContext) {
         console.log('[WARNING] chats is undefined, skipping message processing');
