@@ -47,6 +47,21 @@ const WifiService = require('../lib/services/wifi-service');
 const CustomerTrafficUsageService = require('../lib/customer-traffic-usage-service');
 const { PublicAuthService } = require('../lib/services/public-auth-service');
 const { sendMessage, sendMessageToMany } = require('../lib/whatsapp-delivery-service');
+// Pengiriman kritis (kode voucher) + alert admin valid + catatan orphan (paid-tanpa-voucher).
+const { sendCritical } = require('../lib/whatsapp-critical-delivery');
+const { getAdminJids } = require('../lib/admin-recipients');
+const { recordVoucherOrphan } = require('../lib/voucher-orphan');
+
+// Alert admin yang ANDAL: kirim ke tiap JID admin valid via sendCritical (retry + dead-letter).
+// Dipakai saat voucher gagal / reaktivasi tagihan gagal — wajib sampai ke operator.
+async function alertAdmins(text, tag) {
+    const jids = getAdminJids();
+    if (!jids.length) { console.error(`[ADMIN_ALERT] Tidak ada JID admin valid untuk: ${tag}`); return; }
+    for (const jid of jids) {
+        try { await sendCritical(jid, { text }, { label: tag || 'admin-alert' }); }
+        catch (e) { console.error(`[ADMIN_ALERT] Gagal kirim ke ${jid}:`, e.message); }
+    }
+}
 const {
     loginValidation,
     customerLoginValidation,
@@ -786,24 +801,34 @@ router.post('/callback/payment', async (req, res) => {
                     const result = voucherResult.data?.username || voucherResult.message;
                     updateKetPayment(reference_id, `Voucher: ${result}`);
                     updateStatusPayment(reference_id, true);
-                    // PENTING: Cek connection state dan gunakan error handling sesuai rules
+                    // Kode voucher = kritis → sendCritical (retry + dead-letter) supaya kode
+                    // sampai ke pelanggan yang sudah bayar, bukan best-effort sendMessage.
                     if (pay.sender != "buynow") {
                         const message = renderTemplate('voucher_purchase_success', {
                             nama_paket: durasivc,
                             harga: convertRupiah.convert(hargavc),
                             kode_voucher: result
                         });
-                        await sendMessage(pay.sender, { text: message });
+                        await sendCritical(pay.sender, { text: message }, { label: 'voucher-code' });
                     }
                     throw !0;
                 }).catch(async err => {
                     if (typeof err === "string" || err instanceof Error) {
                         const errorMessage = typeof err === "string" ? err : err.message;
-                        // PENTING: Cek connection state dan gunakan error handling sesuai rules untuk command response
+                        // Voucher GAGAL dibuat padahal SUDAH BAYAR. getvoucher non-idempotent &
+                        // tak di-retry → JANGAN throw !1 (retry → risiko voucher GANDA). Sebagai gantinya:
+                        // catat orphan + alert admin (fulfill manual) + pesan ringan ke pelanggan,
+                        // lalu tandai paid (stop retry) supaya kegagalan TERLIHAT & bisa ditindaklanjuti.
+                        recordVoucherOrphan({ type: 'buynow_callback', reference_id, sender: pay.sender, amount: pay.amount, profile: prof, error: errorMessage });
+                        await alertAdmins(renderTemplate('voucher_gagal_admin', {
+                            pelanggan: pay.sender, paket: durasivc || prof, harga: convertRupiah.convert(pay.amount), ref: reference_id, error: errorMessage
+                        }), 'voucher-gagal');
+                        updateKetPayment(reference_id, `GAGAL voucher: ${errorMessage}`);
                         if (pay.sender != "buynow") {
-                            updateStatusPayment(reference_id, true);
-                            await sendMessage(pay.sender, { text: errorMessage }, { skipDuplicateCheck: true });
+                            try { await sendMessage(pay.sender, { text: renderTemplate('voucher_pending_manual', {}) }, { skipDuplicateCheck: true }); }
+                            catch (notifyErr) { console.error('[BUYNOW_FAIL] gagal notif pelanggan:', notifyErr.message); }
                         }
+                        updateStatusPayment(reference_id, true);
                         throw !0;
                     } else throw !1;
                 });
@@ -820,7 +845,13 @@ router.post('/callback/payment', async (req, res) => {
                 }).catch(async err => {
                     if (typeof err === "string" || err instanceof Error) {
                         const errorMessage = typeof err === "string" ? err : err.message;
-                        updateKetPayment(reference_id, `${errorMessage}`);
+                        // Voucher web gagal padahal sudah bayar → orphan + alert admin (fulfill manual),
+                        // mark paid (stop retry; getvoucher non-idempotent). Pelanggan lihat status di halaman web.
+                        recordVoucherOrphan({ type: 'buynowweb_callback', reference_id, sender: pay.sender, amount: pay.amount, profile: prof, error: errorMessage });
+                        await alertAdmins(renderTemplate('voucher_gagal_admin', {
+                            pelanggan: pay.sender, paket: prof, harga: convertRupiah.convert(pay.amount), ref: reference_id, error: errorMessage
+                        }), 'voucher-gagal');
+                        updateKetPayment(reference_id, `GAGAL voucher: ${errorMessage}`);
                         updateStatusPayment(reference_id, true);
                         throw !0;
                     } else throw !1;
@@ -897,20 +928,11 @@ router.post('/callback/payment', async (req, res) => {
 
                 // Alert admin bila reaktivasi DIBUTUHKAN tapi GAGAL (pelanggan bayar tapi masih terisolir).
                 if (react.attempted && !react.ok) {
-                    try {
-                        const owners = (global.config && global.config.ownerNumber) || [];
-                        const adminMsg = renderTemplate('tagihan_reaktivasi_gagal_admin', {
-                            nama_pelanggan: user.name,
-                            pppoe: user.pppoe_username || '-',
-                            reference_id,
-                        });
-                        for (const num of owners) {
-                            const jid = String(num).replace(/\D/g, '') + '@s.whatsapp.net';
-                            await sendMessage(jid, { text: adminMsg });
-                        }
-                    } catch (adminErr) {
-                        console.error('[IPAYMU_TAGIHAN] Gagal alert admin:', adminErr.message);
-                    }
+                    await alertAdmins(renderTemplate('tagihan_reaktivasi_gagal_admin', {
+                        nama_pelanggan: user.name,
+                        pppoe: user.pppoe_username || '-',
+                        reference_id,
+                    }), 'tagihan-reaktivasi-gagal');
                 }
                 throw !0; // 200
             }

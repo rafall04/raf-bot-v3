@@ -20,35 +20,9 @@ function renderResponseTemplate(key, data = {}, fallback = "") {
     return result.found && result.text.trim() ? result.text : (fallback || key);
 }
 
-const VOUCHER_ORPHAN_FILE = path.join(__dirname, "..", "database", "voucher_orphans.json");
-
-/**
- * Catat voucher "orphan" — sudah dibuat di MikroTik tapi saldo GAGAL dipotong.
- * Skenario langka (DB error setelah balance pre-check), tapi tanpa pencatatan,
- * voucher bocor diam-diam (rugi ISP) dan admin tidak tahu harus void yang mana.
- * File ini jadi worklist rekonsiliasi admin. Best-effort: kegagalan tulis tidak
- * mengganggu alur (sudah ada log error terpisah).
- */
-function recordVoucherOrphan(entry) {
-    try {
-        let list = [];
-        if (fs.existsSync(VOUCHER_ORPHAN_FILE)) {
-            const raw = fs.readFileSync(VOUCHER_ORPHAN_FILE, "utf8");
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) list = parsed;
-        }
-        list.push({
-            id: `orphan_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            timestamp: new Date().toISOString(),
-            resolved: false,
-            ...entry
-        });
-        if (list.length > 500) list = list.slice(-500);
-        fs.writeFileSync(VOUCHER_ORPHAN_FILE, JSON.stringify(list, null, 2), "utf8");
-    } catch (err) {
-        console.error("[VOUCHER_ORPHAN] Gagal mencatat orphan:", err.message);
-    }
-}
+// Recorder voucher orphan dipindah ke modul bersama supaya jalur callback (routes/public.js)
+// dan jalur saldo (di sini) memakai pencatatan yang sama.
+const { recordVoucherOrphan } = require("../lib/voucher-orphan");
 
 function createNotImplemented(name) {
     return async function notImplemented() {

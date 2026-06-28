@@ -151,6 +151,14 @@
     "name": "Alert Admin: Reaktivasi Tagihan GAGAL",
     "template": "⚠️ *REAKTIVASI GAGAL*\n\nPelanggan *${nama_pelanggan}* (PPPoE: ${pppoe}) sudah BAYAR tagihan & ditandai lunas, TAPI auto-reaktivasi (buka isolir) GAGAL.\n\nRef: ${reference_id}\n\nMohon buka isolir manual dari panel admin agar layanan pelanggan aktif kembali."
   },
+  "voucher_gagal_admin": {
+    "name": "Alert Admin: Voucher GAGAL Dibuat (sudah bayar)",
+    "template": "⚠️ *VOUCHER GAGAL DIBUAT*\n\nPelanggan SUDAH BAYAR tapi voucher gagal di-generate. Mohon kirim voucher manual.\n\n• Pelanggan: ${pelanggan}\n• Paket: ${paket}\n• Nominal: ${harga}\n• Ref: ${ref}\n• Error: ${error}\n\n⚠️ Cek MikroTik dulu — mungkin voucher SUDAH terbuat tapi response hilang (jangan buat dobel)."
+  },
+  "voucher_pending_manual": {
+    "name": "Pelanggan: Voucher Diproses Manual (pembayaran berhasil)",
+    "template": "✅ Pembayaran kamu *BERHASIL* dan sudah tercatat. Voucher segera kami kirimkan ya. Jika dalam beberapa saat belum masuk, silakan hubungi admin. Terima kasih! 🙏"
+  },
   "sudah_bayar_notification": {
     "name": "Notifikasi 'Sudah Bayar' ke Pelanggan",
     "template": "✅ STATUS PEMBAYARAN TAGIHAN WIFI ANDA ✅\nHalo Kak ${nama_pelanggan},\n\nTerima kasih, pembayaran tagihan WiFi Anda telah kami terima.\n\nRincian Pembayaran:\n\nStatus: *LUNAS*\n\nPaket: *${nama_paket}*\n\nJumlah: *${harga_formatted}*\n\nMetode: *${metode_pembayaran}*\n\nSelamat menikmati layanan kami! 😊\n\nButuh bantuan? Ketik menuwifi untuk bantuan lebih lanjut.\n\nSalam Hangat,\n\nAdmin *${nama_wifi}*"
