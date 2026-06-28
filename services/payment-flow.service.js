@@ -91,7 +91,20 @@ function createPaymentFlowService(overrides = {}) {
         checkhargavc,
         addPayment
     }) {
-        if (!q) throw "contoh penggunaan: topup 10000";
+        // Pesan format MENGIKUTI command yang diketik — `buynow` (voucher instan QRIS) tidak
+        // sama dengan `topup` (isi saldo). Sebelumnya selalu menyuruh "topup 10000" walau user
+        // mengetik buynow → membingungkan.
+        if (!q) {
+            throw command === "buynow"
+                ? renderResponseTemplate(
+                    "buynow_usage", {},
+                    "🎟️ *Beli Voucher Instan (bayar QRIS)*\n\nFormat: *buynow [harga]*\nContoh: *buynow 1000*\n\n💡 Lihat daftar harga: ketik *voucher*"
+                )
+                : renderResponseTemplate(
+                    "topup_usage", {},
+                    "💳 *Topup Saldo*\n\nFormat: *topup [nominal]*\nContoh: *topup 10000*\nMinimal Rp 1.000."
+                );
+        }
 
         let number = parseInt(q, 10);
         if (command === "topup" && (Number.isNaN(number) || number < 1000 || number > 1_000_000)) {
@@ -111,16 +124,42 @@ function createPaymentFlowService(overrides = {}) {
         const paymentGateway = pay || deps.pay || createNotImplemented("paymentFlow.pay");
         const createPaymentRequest = addPayment || deps.paymentRepository.createPaymentRequest.bind(deps.paymentRepository);
 
-        const res = await paymentGateway({
-            amount: number,
-            reffId: reff,
-            comment: command === "topup"
-                ? `Topup dana saldo sebesar Rp. ${number}`
-                : `pembelian voucher ${profvc} sebesar Rp. ${number}`,
-            name: pushname,
-            phone: sender.split("@")[0],
-            email: sender
-        });
+        // Ack instan: pembuatan QR ke iPaymu bisa makan beberapa detik (apalagi bila koneksi
+        // pertama perlu retry), jadi beri tahu pelanggan agar tidak merasa pesannya "ngambang".
+        // Best-effort — kegagalan kirim ack TIDAK boleh menggagalkan pembelian.
+        try {
+            const ackText = renderResponseTemplate(
+                "payment_processing_ack", {},
+                "⏳ Sebentar ya, kami sedang menyiapkan pembayaran QRIS-mu..."
+            );
+            await deps.sendMessage(from, { text: ackText }, { quoted: msg, skipDuplicateCheck: true });
+        } catch (ackErr) {
+            deps.logger?.warn?.("[BUYNOW] Gagal kirim ack proses", { error: ackErr?.message });
+        }
+
+        let res;
+        try {
+            res = await paymentGateway({
+                amount: number,
+                reffId: reff,
+                comment: command === "topup"
+                    ? `Topup dana saldo sebesar Rp. ${number}`
+                    : `pembelian voucher ${profvc} sebesar Rp. ${number}`,
+                name: pushname,
+                phone: sender.split("@")[0],
+                email: sender
+            });
+        } catch (gwErr) {
+            const technical = (typeof gwErr === "string") ? gwErr : (gwErr?.message || String(gwErr));
+            deps.logger?.warn?.("[BUYNOW] Gateway pembayaran gagal", { command, number, error: technical });
+            // Pesan ramah ke pelanggan — bukan error teknis "timeout 12000ms". Retry koneksi
+            // sudah dilakukan di lib/ipaymu; bila tetap gagal, minta pelanggan ulangi sebentar lagi.
+            // Throw STRING (konvensi codebase: pesan string langsung di-reply ke user).
+            throw renderResponseTemplate(
+                "payment_gateway_busy", {},
+                "🙏 Maaf, sistem pembayaran sedang sibuk sesaat. Coba ketik ulang perintahmu beberapa saat lagi ya."
+            );
+        }
 
         const text = deps.renderTemplate("qris_payment_info", {
             sub_total: res.subTotal.toLocaleString("id-ID"),

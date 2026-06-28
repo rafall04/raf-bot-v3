@@ -229,6 +229,26 @@
     "template": "🎟️ *DAFTAR HARGA VOUCHER INTERNET ${nama_layanan}* 🎟️\n\nHalo Kak ${pushname}! Siap untuk internetan tanpa batas? 😉\nBerikut adalah pilihan voucher terbaik kami untuk Anda:\n===================================\n${voucherListString}\n===================================\n\n💡 *CARA BELI VOUCHER & TOPUP SALDO:*\n1.  Pastikan saldo Anda cukup! Cek saldo dengan ketik:\n    ➡️  _*ceksaldo*_\n2.  Jika saldo kurang, yuk topup dulu! Panduan lengkapnya ada di:\n    ➡️  _*tutorial*_\n3.  Saldo sudah oke? Langsung beli voucher dengan format:\n    ➡️  _*belivoucher [harga_voucher]*_\n    *Contoh:* `belivoucher ${contoh_harga_voucher}` (untuk membeli voucher seharga ${contoh_harga_rupiah})\n\n✨ *Tips Pro:* Simpan perintah di atas biar gampang kalau mau beli lagi!\n\n===================================\n📢 *INFO PENTING:*\n  - Harga voucher dapat berubah sewaktu-waktu tanpa pemberitahuan terlebih dahulu.\n  - Pastikan Anda mengetik *harga voucher dengan benar* (sesuai daftar di atas) saat melakukan pembelian dengan perintah `belivoucher`.\n\n💬 Butuh bantuan atau ada pertanyaan lain? Jangan ragu untuk menghubungi Admin kami:\n🔗 ${adminWaLink} (Klik untuk Chat Langsung)\n===================================\n\nTerima kasih telah memilih ${nama_layanan}! Selamat menikmati koneksi internetnya! 🚀",
     "category": "agent_voucher"
   },
+  "buynow_usage": {
+    "name": "Format Beli Voucher Instan (buynow)",
+    "template": "🎟️ *Beli Voucher Instan (bayar QRIS)*\n\nFormat: *buynow [harga]*\nContoh: _*buynow 1000*_\n\n💡 Lihat daftar harga: ketik *voucher*\n\nVoucher otomatis terkirim begitu pembayaran lunas — tidak perlu topup saldo dulu.",
+    "category": "payment"
+  },
+  "topup_usage": {
+    "name": "Format Topup Saldo",
+    "template": "💳 *Topup Saldo*\n\nFormat: *topup [nominal]*\nContoh: _*topup 10000*_\n\nMinimal Rp 1.000, maksimal Rp 1.000.000.",
+    "category": "payment"
+  },
+  "payment_processing_ack": {
+    "name": "Ack Sedang Memproses Pembayaran",
+    "template": "⏳ Sebentar ya, kami sedang menyiapkan pembayaran QRIS-mu...",
+    "category": "payment"
+  },
+  "payment_gateway_busy": {
+    "name": "Gateway Pembayaran Sibuk",
+    "template": "🙏 Maaf, sistem pembayaran sedang sibuk sesaat. Coba ketik ulang perintahmu beberapa saat lagi ya.",
+    "category": "payment"
+  },
   "list_profil_statik": {
     "name": "List Profil Statik (Owner)",
     "template": "「 *LIST-PROFIL-STATIK* 」\n\nJumlah : ${jumlah}\n\n${list}",
