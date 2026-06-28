@@ -71,7 +71,7 @@
   },
   "convo_ganti_sandi_ask_password_bulk": {
     "name": "Percakapan: Ganti Sandi - Tanya Password Banyak SSID",
-    "template": "Silakan ketik kata sandi WiFi baru yang Anda inginkan untuk SEMUA WiFi.\n\n🔐 *Ketentuan kata sandi WiFi:*\n• Minimal 8 karakter\n• Boleh menggunakan huruf, angka, dan simbol\n• Contoh: Password123, MyWiFi2024!\n\n💡 Ketik *batal* jika ingin membatalkan proses ini.",
+    "template": "Silakan ketik *password WiFi baru* (berlaku untuk semua WiFi Anda).\n\n🔐 Minimal 8 karakter. Contoh: *Rahasia123*\n\nKetik *batal* untuk membatalkan.",
     "category": "wifi"
   },
   "convo_ganti_sandi_confirm": {
@@ -126,7 +126,7 @@
   },
   "convo_ganti_nama_tanya_nama_semua": {
     "name": "Percakapan: Ganti Nama - Tanya Nama (Semua)",
-    "template": "Oke, Anda memilih untuk mengubah semua WiFi sekaligus. Silakan ketik nama WiFi baru yang Anda inginkan.",
+    "template": "Silakan ketik *nama WiFi baru* yang Anda inginkan (berlaku untuk semua WiFi Anda).\n\nContoh: *RumahKu*\n\nKetik *batal* untuk membatalkan.",
     "category": "wifi"
   },
   "convo_ganti_nama_pilihan_tidak_valid": {
@@ -1260,12 +1260,12 @@
   "wifi_management_usage_name": {
     "name": "WiFi Management: Panduan Ganti Nama",
     "category": "wifi",
-    "template": "Panduan: `ganti nama wifi [ID] [nama baru]`."
+    "template": "📡 *Ganti Nama WiFi*\n\n👤 *Pelanggan:* ketik `gantinama [nama baru]`\n   Contoh: `gantinama RumahKu`\n   _(berlaku untuk semua WiFi Anda)_\n\n🛠️ *Admin/Teknisi:* `gantinama [ID pelanggan] [nama baru]`\n   Contoh: `gantinama 12 RumahBudi`"
   },
   "wifi_management_usage_password": {
     "name": "WiFi Management: Panduan Ganti Sandi",
     "category": "wifi",
-    "template": "Panduan: `ganti password wifi [ID] [password baru]`."
+    "template": "🔑 *Ganti Password WiFi*\n\n👤 *Pelanggan:* ketik `gantisandi [password baru]`\n   Contoh: `gantisandi Rahasia123`\n   _(minimal 8 karakter, berlaku untuk semua WiFi Anda)_\n\n🛠️ *Admin/Teknisi:* `gantisandi [ID pelanggan] [password baru]`\n   Contoh: `gantisandi 12 Rahasia123`"
   },
   "wifi_management_user_not_registered": {
     "name": "WiFi Management: Nomor Tidak Terdaftar",

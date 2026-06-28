@@ -29,7 +29,13 @@ async function handleSapaanUmumIntent(context) {
 }
 
 async function handleMenuPelangganIntent(context) {
-    const { handleMenuPelanggan, global, reply, pushname, sender } = context;
+    const { handleMenuPelanggan, findUserWithLidSupport, global, msg, plainSenderNumber, raf, reply, pushname, sender, mess } = context;
+    // Menu PELANGGAN = khusus pelanggan TERDAFTAR. Non-pelanggan ditolak (konsisten dgn cektagihan) —
+    // jangan tampilkan menu fitur pelanggan ke nomor yang tak terdaftar.
+    const user = await findUserWithLidSupport(global.users, msg, plainSenderNumber, raf);
+    if (!user) {
+        return reply(mess.userNotRegister);
+    }
     handleMenuPelanggan(global.config, reply, pushname, sender);
 }
 
@@ -39,7 +45,11 @@ async function handleMenuUtamaIntent(context) {
 }
 
 async function handleMenuTeknisiIntent(context) {
-    const { handleMenuTeknisi, global, reply, pushname, sender } = context;
+    const { handleMenuTeknisi, global, isOwner, isTeknisi, reply, pushname, sender, mess } = context;
+    // Menu TEKNISI = khusus teknisi/owner. Non-staf ditolak — jangan ekspos tooling internal.
+    if (!isTeknisi && !isOwner) {
+        return reply(mess.teknisiOrOwnerOnly);
+    }
     handleMenuTeknisi(global.config, reply, pushname, sender);
 }
 
