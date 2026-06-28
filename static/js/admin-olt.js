@@ -479,10 +479,10 @@
                         const data = result.data;
                         updateModalRxPower(data.rx_power, data.olt_status, data.is_dying_gasp, data.is_los);
                         // Penyebab + waktu (online sejak/durasi, terakhir down) dari OLT (col5/col6/col7).
-                        $('#modalCause').html(renderCause({ olt_status: data.olt_status, last_down_cause: data.last_down_cause }));
+                        $('#modalCause').html(renderCause(data));
                         const up = computeUptime(data.last_up_at);
                         $('#modalUptime').text(data.olt_status === 'Online' ? (up || '—') : '-');
-                        $('#modalLastDown').text(data.last_down_at || '-');
+                        $('#modalLastDown').text(formatDownSince(data.last_down_at) || data.last_down_at || '-');
                         $('#modalLastCheck').text('Terakhir cek: ' + new Date().toLocaleTimeString('id-ID'));
 
                         const idx = matchedData.findIndex(m => m.user_id == currentCustomerData.user_id);
@@ -537,12 +537,33 @@
         // Penyebab offline terakhir (ZTE native): LOS/LOSi/SFi/DyingGasp. Online → "-".
         function renderCause(row) {
             if (row.olt_status === 'Online') return '<span class="text-muted">-</span>';
-            const c = row.last_down_cause;
-            if (!c) return '<span class="text-muted">-</span>';
-            let cls = 'badge-secondary';
-            if (/dyinggasp/i.test(c)) cls = 'badge-danger';
-            else if (/los|sfi/i.test(c)) cls = 'badge-warning';
-            return `<span class="badge ${cls}">${$('<div>').text(c).html()}</span>`;
+            // Penyebab HYBRID semua merk: klasifikasi LOG (Hioso & semua merk via is_los/
+            // is_dying_gasp) diutamakan; fallback last_down_cause granular (ZTE native).
+            let label = null, cls = 'badge-secondary';
+            if (row.is_dying_gasp) { label = 'Dying Gasp'; cls = 'badge-danger'; }
+            else if (row.is_los) { label = 'LOS'; cls = 'badge-warning'; }
+            else if (row.last_down_cause) {
+                label = row.last_down_cause;
+                if (/dyinggasp/i.test(label)) cls = 'badge-danger';
+                else if (/los|sfi/i.test(label)) cls = 'badge-warning';
+            } else {
+                label = 'Offline';
+            }
+            const badge = `<span class="badge ${cls}">${$('<div>').text(label).html()}</span>`;
+            const since = formatDownSince(row.down_since);
+            return since
+                ? `${badge}<br><small class="text-muted" title="Down sejak (waktu real, terkoreksi jam OLT): ${$('<div>').text(row.down_since).html()}">sejak ${since}</small>`
+                : badge;
+        }
+
+        // Format ISO waktu down → "DD/MM HH:MM" (lokal). null/invalid → null.
+        function formatDownSince(iso) {
+            if (!iso) return null;
+            const t = Date.parse(iso);
+            if (isNaN(t)) return null;
+            const d = new Date(t);
+            const p = (n) => String(n).padStart(2, '0');
+            return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
         }
 
         // Durasi online dari waktu authpass terakhir (jam OLT WIB). Tahun <2025 = jam OLT belum

@@ -1086,8 +1086,9 @@ router.get('/onus', async (req, res) => {
                 olt_status: disp.olt_status,
                 is_los: disp.is_los,
                 is_dying_gasp: disp.is_dying_gasp,
-                down_since: disp.down_since,         // waktu REAL (terkoreksi jam OLT) ONU mulai down
-                status_source: disp.status_source,   // 'log' | 'snmp' | 'log-unclassified'
+                down_since: disp.down_since,          // waktu REAL (terkoreksi jam OLT) ONU mulai down
+                status_source: disp.status_source,    // 'log' | 'snmp' | 'log-unclassified'
+                last_down_cause: onu.lastDownCause || null, // penyebab granular ZTE (HIOSO pakai is_los/is_dying_gasp)
                 // Anotasi pelanggan (null bila tak ke-match).
                 matched: !!u,
                 user_id: u ? u.id : null,
@@ -1273,6 +1274,35 @@ router.post('/refresh-single', async (req, res) => {
         }
 
         if (result.status === 'success' && result.data) {
+            // Klasifikasi HYBRID: SNMP Hioso tak bisa bedakan LOS vs DG → kalau ONU offline
+            // dan MAC ada di log OLT web-scrape, ambil verdict + waktu down dari LOG (terkoreksi
+            // jam OLT). Konsisten dengan halaman list /onus. Non-fatal.
+            let dispStatus = result.data.status;
+            let dispDg = result.data.isDyingGasp;
+            let dispLos = result.data.isLos;
+            let dispDownAt = result.data.lastDownAt;
+            if (mac && dispStatus !== 'Online') {
+                const normMac = normalizeMAC(mac);
+                for (const dev of oltDevices) {
+                    let needsLog = true;
+                    try {
+                        const drv = resolveDriver(dev);
+                        needsLog = !drv || !drv.capabilities || drv.capabilities.needsWebScrape !== false;
+                    } catch (_e) { needsLog = true; }
+                    if (!needsLog) continue; // ZTE GPON: LOS via SNMP
+                    try {
+                        const entry = await oltLogScraper.getOnuStatusMap(dev, { maxPages: 12 });
+                        const s = entry.map.get(normMac);
+                        if (s) {
+                            dispDg = s.event_type === 'dying-gasp';
+                            dispLos = !dispDg;
+                            dispStatus = dispDg ? 'Dying Gasp' : 'LOS';
+                            if (Number.isFinite(s.realTs)) dispDownAt = new Date(s.realTs).toISOString();
+                            break;
+                        }
+                    } catch (_e) { /* non-fatal: pertahankan status SNMP */ }
+                }
+            }
             // Selalu return data meskipun N/A (ONT offline)
             res.json({
                 status: 200,
@@ -1281,12 +1311,13 @@ router.post('/refresh-single', async (req, res) => {
                 enabled: true,
                 data: {
                     rx_power: result.data.rxPower,
-                    olt_status: result.data.status,
-                    is_dying_gasp: result.data.isDyingGasp,
-                    is_los: result.data.isLos,
+                    olt_status: dispStatus,
+                    is_dying_gasp: dispDg,
+                    is_los: dispLos,
                     last_down_cause: result.data.lastDownCause,
                     last_up_at: result.data.lastUpAt,
-                    last_down_at: result.data.lastDownAt
+                    last_down_at: dispDownAt,
+                    down_since: dispDownAt // alias konsisten dgn /onus (renderCause pakai down_since)
                 }
             });
         } else {
