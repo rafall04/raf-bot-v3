@@ -501,7 +501,7 @@
                     if (result.error) {
                         // Error dari SNMP
                         if (!opts.silent) alert(result.message || 'Gagal mengambil data dari OLT');
-                        $('#modalUptime').text('-'); $('#modalLastDown').text('-');
+                        $('#modalUptime').text('-'); $('#modalLastDown').text(formatDownSince(currentCustomerData && currentCustomerData.down_since) || '-');
                     } else if (result.data) {
                         // Data berhasil diambil (bisa Online atau Offline)
                         const data = result.data;
@@ -509,7 +509,7 @@
                         $('#modalCause').html(renderCause(data, false));
                         const up = computeUptime(data.last_up_at);
                         $('#modalUptime').text(data.olt_status === 'Online' ? (up || '—') : '-');
-                        $('#modalLastDown').text(formatDownSince(data.down_since || data.last_down_at) || '-');
+                        $('#modalLastDown').text(formatDownSince(data.down_since || data.last_down_at) || formatDownSince(currentCustomerData && currentCustomerData.down_since) || '-');
                         $('#modalLastCheck').text('Terakhir cek: ' + new Date().toLocaleTimeString('id-ID'));
                         
                         // Update in matchedData array too
@@ -532,16 +532,16 @@
                     } else {
                         // Tidak ada data (seharusnya tidak terjadi dengan perbaikan backend)
                         if (!opts.silent) alert('Data ONT tidak ditemukan di OLT');
-                        $('#modalUptime').text('-'); $('#modalLastDown').text('-');
+                        $('#modalUptime').text('-'); $('#modalLastDown').text(formatDownSince(currentCustomerData && currentCustomerData.down_since) || '-');
                     }
                 } else {
                     if (!opts.silent) alert(result.message || 'Gagal refresh data');
-                    $('#modalUptime').text('-'); $('#modalLastDown').text('-');
+                    $('#modalUptime').text('-'); $('#modalLastDown').text(formatDownSince(currentCustomerData && currentCustomerData.down_since) || '-');
                 }
             } catch (e) {
                 console.error('Refresh error:', e);
                 if (!opts.silent) alert('Gagal refresh: ' + e.message);
-                $('#modalUptime').text('-'); $('#modalLastDown').text('-');
+                $('#modalUptime').text('-'); $('#modalLastDown').text(formatDownSince(currentCustomerData && currentCustomerData.down_since) || '-');
             } finally {
                 btn.prop('disabled', false).html('<i class="fas fa-sync-alt"></i> Refresh Redaman');
             }
