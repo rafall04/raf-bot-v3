@@ -85,6 +85,7 @@ router.get("/api/bayar/:token/info", async (req, res) => {
     res.json({
         ok: true,
         status: paid ? "paid" : "unpaid",
+        provider: (global.config && global.config.nama) || "Pembayaran",
         nama: ctx.user.name,
         paket: ctx.user.subscription,
         amount: ctx.amount,

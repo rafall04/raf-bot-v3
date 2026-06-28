@@ -2,172 +2,277 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="robots" content="noindex,nofollow" />
+<meta name="theme-color" content="#4f46e5" />
 <title>Bayar Tagihan</title>
 <style>
-  :root { --bg:#f1f5f9; --card:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --brand:#4f46e5; --ok:#16a34a; }
-  * { box-sizing:border-box; }
-  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
-  .wrap { max-width:440px; margin:0 auto; padding:16px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:14px; }
-  .muted { color:var(--muted); font-size:13px; }
-  h1 { font-size:18px; margin:0 0 2px; }
-  .amount { font-size:30px; font-weight:800; letter-spacing:-.5px; }
-  .row { display:flex; justify-content:space-between; gap:8px; padding:6px 0; font-size:14px; }
-  .grp-title { font-size:12px; font-weight:700; text-transform:uppercase; color:var(--muted); margin:14px 0 6px; letter-spacing:.04em; }
-  .ch { width:100%; text-align:left; background:#fff; border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:8px;
-        font-size:14px; font-weight:600; color:var(--ink); cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
-  .ch:hover { border-color:var(--brand); }
-  .ch small { color:var(--muted); font-weight:500; }
-  .btn { display:inline-block; width:100%; text-align:center; background:var(--brand); color:#fff; border:0; border-radius:10px;
-         padding:13px; font-size:15px; font-weight:700; cursor:pointer; }
-  .btn.sec { background:#fff; color:var(--brand); border:1.5px solid var(--brand); }
-  .center { text-align:center; }
-  .qr { width:230px; height:230px; display:block; margin:10px auto; border-radius:12px; }
-  .paycode { font-family:ui-monospace,monospace; font-size:22px; font-weight:800; letter-spacing:1px; word-break:break-all;
-             background:#f8fafc; border:1px dashed var(--line); border-radius:10px; padding:12px; text-align:center; margin:8px 0; }
-  .note { font-size:13px; color:var(--muted); background:#f8fafc; border-radius:10px; padding:10px 12px; margin-top:8px; }
-  .badge { display:inline-block; background:#eef2ff; color:var(--brand); border-radius:999px; padding:3px 10px; font-size:12px; font-weight:700; }
-  .ok-ico { font-size:46px; }
-  .spin { width:26px; height:26px; border:3px solid var(--line); border-top-color:var(--brand); border-radius:50%; margin:18px auto; animation:s 1s linear infinite; }
-  @keyframes s { to { transform:rotate(360deg); } }
-  .hidden { display:none; }
-  .small { font-size:12px; }
+  :root{
+    --bg:#eef1f6; --card:#fff; --ink:#0f172a; --muted:#6b7280; --soft:#9aa3b2;
+    --line:#e6e9ef; --brand:#4f46e5; --brand-ink:#4338ca; --brand-soft:#eef2ff;
+    --ok:#16a34a; --ok-soft:#ecfdf5; --warn:#b45309; --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0b1020; --card:#141a2b; --ink:#e8ecf5; --muted:#9aa3b8; --soft:#6b7488;
+      --line:#26304a; --brand:#7c83ff; --brand-ink:#aab0ff; --brand-soft:#1c2340;
+      --ok:#34d399; --ok-soft:#0f2a22; --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35); }
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{ margin:0; background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:15px; line-height:1.5; padding-bottom:env(safe-area-inset-bottom); }
+  .wrap{ max-width:460px; margin:0 auto; padding:14px 14px 28px; }
+  .brand{ display:flex; align-items:center; gap:8px; justify-content:center; padding:8px 0 12px; color:var(--muted); font-weight:600; font-size:13px; letter-spacing:.02em; }
+  .brand .dot{ width:8px; height:8px; border-radius:50%; background:var(--brand); }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:18px; margin-bottom:14px; box-shadow:var(--shadow); }
+  .muted{ color:var(--muted); } .soft{ color:var(--soft); } .sm{ font-size:13px; } .xs{ font-size:11.5px; }
+  .center{ text-align:center; }
+  h1{ font-size:18px; margin:0 0 4px; font-weight:750; }
+  .billcap{ font-size:12.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; font-weight:700; }
+  .amount{ font-size:34px; font-weight:820; letter-spacing:-1px; margin-top:6px; }
+  .pill{ display:inline-flex; align-items:center; gap:5px; background:var(--brand-soft); color:var(--brand-ink); border-radius:999px; padding:4px 11px; font-size:12px; font-weight:700; }
+  .grp{ margin-top:16px; }
+  .grp:first-child{ margin-top:6px; }
+  .grp-h{ display:flex; align-items:center; gap:7px; width:100%; background:none; border:0; padding:2px 2px 8px; color:var(--muted);
+    font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; cursor:default; }
+  .grp-h.toggle{ cursor:pointer; justify-content:space-between; }
+  .grp-h .chev{ transition:transform .2s; font-size:12px; }
+  .grp.collapsed .grp-h .chev{ transform:rotate(-90deg); }
+  .grp.collapsed .grp-list{ display:none; }
+  .tercepat{ margin-left:auto; background:var(--ok-soft); color:var(--ok); border-radius:999px; padding:2px 9px; font-size:10.5px; font-weight:800; letter-spacing:0; text-transform:none; }
+  .ch{ display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:var(--card); border:1.5px solid var(--line);
+    border-radius:13px; padding:13px 14px; margin-bottom:9px; cursor:pointer; transition:border-color .15s, transform .05s, background .15s; }
+  .ch:active{ transform:scale(.985); }
+  .ch:hover{ border-color:var(--brand); }
+  .ch .logo{ width:34px; height:34px; border-radius:9px; object-fit:contain; background:#fff; border:1px solid var(--line); flex:0 0 34px; }
+  .ch .fallback{ width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-weight:800;
+    color:var(--brand-ink); background:var(--brand-soft); flex:0 0 34px; font-size:14px; }
+  .ch .nm{ font-weight:650; flex:1; }
+  .ch .fee{ color:var(--muted); font-size:13px; font-weight:600; white-space:nowrap; }
+  .ch .fee b{ color:var(--ink); font-weight:700; }
+  .btn{ display:flex; align-items:center; justify-content:center; gap:8px; width:100%; background:var(--brand); color:#fff; border:0;
+    border-radius:13px; padding:14px; font-size:15px; font-weight:750; cursor:pointer; transition:transform .05s, filter .15s; }
+  .btn:active{ transform:scale(.985); } .btn:hover{ filter:brightness(1.05); }
+  .btn.sec{ background:transparent; color:var(--brand); border:1.5px solid var(--brand); }
+  .btn.ghost{ background:transparent; color:var(--muted); border:1.5px solid var(--line); }
+  .row{ display:flex; justify-content:space-between; gap:10px; padding:7px 0; font-size:14px; }
+  .row.total{ border-top:1px dashed var(--line); margin-top:4px; padding-top:11px; font-weight:800; font-size:16px; }
+  .qr{ width:230px; max-width:78%; aspect-ratio:1; display:block; margin:14px auto 8px; border-radius:14px; border:1px solid var(--line); background:#fff; padding:6px; }
+  .code{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:25px; font-weight:800; letter-spacing:2px; word-break:break-all;
+    text-align:center; background:var(--bg); border:1px dashed var(--line); border-radius:12px; padding:14px 12px; margin:6px 0; }
+  .note{ font-size:13px; color:var(--muted); background:var(--bg); border-radius:12px; padding:12px 14px; margin-top:10px; }
+  .steps{ margin:8px 0 0; padding:0; list-style:none; counter-reset:s; }
+  .steps li{ position:relative; padding:6px 0 6px 30px; font-size:13.5px; color:var(--muted); counter-increment:s; }
+  .steps li::before{ content:counter(s); position:absolute; left:0; top:5px; width:20px; height:20px; border-radius:50%;
+    background:var(--brand-soft); color:var(--brand-ink); font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .spin{ width:30px; height:30px; border:3px solid var(--line); border-top-color:var(--brand); border-radius:50%; margin:18px auto; animation:sp 1s linear infinite; }
+  @keyframes sp{ to{ transform:rotate(360deg); } }
+  .waiting{ display:flex; align-items:center; justify-content:center; gap:10px; color:var(--muted); font-size:13.5px; margin:14px 0 4px; }
+  .pulse{ width:9px; height:9px; border-radius:50%; background:var(--ok); animation:pl 1.3s ease-in-out infinite; }
+  @keyframes pl{ 0%,100%{ opacity:.35; transform:scale(.85);} 50%{ opacity:1; transform:scale(1);} }
+  .ico{ font-size:44px; line-height:1; }
+  .okwrap{ width:78px; height:78px; border-radius:50%; background:var(--ok-soft); color:var(--ok); display:flex; align-items:center; justify-content:center; margin:4px auto 10px; }
+  .okwrap svg{ width:40px; height:40px; }
+  .foot{ text-align:center; color:var(--soft); font-size:12px; margin-top:2px; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .toast{ position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px); background:var(--ink); color:var(--card);
+    padding:10px 16px; border-radius:999px; font-size:13px; font-weight:600; opacity:0; pointer-events:none; transition:all .25s; z-index:9; }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .testbar{ background:var(--warn); color:#fff; text-align:center; font-size:12px; font-weight:700; padding:6px; border-radius:10px; margin-bottom:12px; }
+  .gap{ height:8px; }
+  a{ color:var(--brand); }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="brand"><span class="dot"></span><span id="brand">Pembayaran</span></div>
   <div id="app">
-    <div class="card center"><div class="spin"></div><div class="muted">Memuat tagihan…</div></div>
+    <div class="card center"><div class="spin"></div><div class="muted sm">Memuat tagihan…</div></div>
   </div>
-  <p class="center small muted">Pembayaran aman diproses oleh iPaymu.</p>
+  <div class="foot">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+    Pembayaran aman diproses oleh iPaymu
+  </div>
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
-const token = decodeURIComponent(location.pathname.split("/bayar/")[1] || "");
+const token = decodeURIComponent((location.pathname.split("/bayar/")[1]||"").split("?")[0]);
 const app = document.getElementById("app");
-const rp = (n) => "Rp " + (Number(n)||0).toLocaleString("id-ID");
-let info = null, pollTimer = null;
+const rp = (n)=> "Rp " + Math.round(Number(n)||0).toLocaleString("id-ID");
+let info=null, pollTimer=null, cdTimer=null;
 
-function el(html) { const d = document.createElement("div"); d.innerHTML = html.trim(); return d.firstChild; }
-function render(node) { app.innerHTML = ""; app.appendChild(node); }
-function card(inner, cls) { return el(`<div class="card ${cls||""}">${inner}</div>`); }
+const GROUP_ORDER=["qris","ewallet","va","cstore","paylater","cc","debitonline","cod"];
+const GROUP_META={
+  qris:{label:"QRIS",fast:true,hint:"Scan & bayar — paling murah"},
+  ewallet:{label:"E-Wallet"},
+  va:{label:"Transfer Bank (Virtual Account)",collapsible:true},
+  cstore:{label:"Bayar di Minimarket"},
+  paylater:{label:"PayLater"},
+  cc:{label:"Kartu Kredit"},
+  debitonline:{label:"Debit Online"},
+  cod:{label:"COD"}
+};
 
-async function api(pathPart, opts) {
-  const r = await fetch(`/api/bayar/${encodeURIComponent(token)}${pathPart}`, opts);
-  return r.json();
+function el(h){ const d=document.createElement("div"); d.innerHTML=h.trim(); return d.firstChild; }
+function render(node){ app.innerHTML=""; (Array.isArray(node)?node:[node]).forEach(n=>app.appendChild(n)); }
+function card(inner,cls){ return el(`<div class="card ${cls||""}">${inner}</div>`); }
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1600); }
+function feeText(c){ if(c.feeType==="FLAT") return c.fee?`+${rp(c.fee)}`:"Gratis"; if(c.feeType==="PERCENT") return `+${c.fee}%`; return ""; }
+function initial(s){ return (s||"?").trim()[0].toUpperCase(); }
+
+async function api(p,opts){ const r=await fetch(`/api/bayar/${encodeURIComponent(token)}${p}`,opts); return r.json(); }
+
+async function load(){
+  let d; try{ d=await api("/info"); }catch(e){ return showState("⚠️","Gagal memuat","Periksa koneksi internet Anda lalu muat ulang."); }
+  info=d;
+  if(d.provider) document.getElementById("brand").textContent=d.provider;
+  if(!d.ok){
+    if(d.status==="invalid") return showState("🔗","Link tidak berlaku","Link sudah kedaluwarsa atau salah. Minta link baru lewat WhatsApp bot.");
+    if(d.status==="not_postpaid") return showState("ℹ️","Bukan pelanggan bulanan","Akun ini memakai paket voucher.");
+    return showState("🔍","Tagihan tidak ditemukan","Silakan hubungi admin.");
+  }
+  if(d.status==="free") return showState("🎁","Paket Anda gratis","Tidak ada tagihan yang perlu dibayar.");
+  if(d.status==="paid") return showState("✅","Tagihan sudah lunas","Terima kasih, tidak ada yang perlu dibayar.");
+  showBill(d);
 }
 
-async function load() {
-  let data;
-  try { data = await api("/info"); } catch (e) { return showError("Gagal memuat. Periksa koneksi Anda."); }
-  info = data;
-  if (!data.ok) {
-    if (data.status === "invalid") return showError("Link tidak valid atau sudah kedaluwarsa. Minta link baru ke bot WhatsApp.");
-    if (data.status === "not_postpaid") return showError("Akun ini bukan pelanggan bulanan.");
-    return showError("Tagihan tidak ditemukan.");
-  }
-  if (data.status === "free") return showInfoCard("🎁 Paket Anda gratis", "Tidak ada tagihan yang perlu dibayar.");
-  if (data.status === "paid") return showInfoCard("✅ Tagihan sudah lunas", "Terima kasih, tidak ada yang perlu dibayar.");
-  showBill(data);
+function showState(ico,title,sub){
+  render(card(`<div class="center"><div class="ico">${ico}</div><h1 style="margin-top:10px">${title}</h1><p class="muted sm">${sub||""}</p></div>`));
 }
 
-function showError(msg) { render(card(`<div class="center"><div class="ok-ico">⚠️</div><p>${msg}</p></div>`)); }
-function showInfoCard(title, sub) { render(card(`<div class="center"><h1>${title}</h1><p class="muted">${sub}</p></div>`)); }
+function showBill(d){
+  const nodes=[];
+  if(d.sandbox) nodes.push(el(`<div class="testbar">MODE UJI (SANDBOX) — pembayaran tidak nyata</div>`));
+  nodes.push(card(
+    `<div class="billcap">Tagihan${d.nama?` • ${d.nama}`:""}</div>
+     <div class="sm muted" style="margin-top:2px">${d.paket||""}</div>
+     <div class="amount">${rp(d.amount)}</div>`));
 
-function showBill(d) {
-  const head = card(
-    `<div class="muted">Tagihan ${d.nama ? "• " + d.nama : ""}</div>
-     <div class="muted small">${d.paket || ""}</div>
-     <div class="amount" style="margin-top:6px">${d.formattedAmount || rp(d.amount)}</div>`);
-  render(head);
+  const pick=card(`<div class="muted sm" style="font-weight:600;margin-bottom:4px">Pilih metode pembayaran</div><div id="ch"></div>`);
+  nodes.push(pick);
+  render(nodes);
+  const box=pick.querySelector("#ch");
 
-  const pick = card(`<div class="muted" style="margin-bottom:2px">Pilih metode pembayaran</div><div id="channels"></div>`);
-  app.appendChild(pick);
-  const box = pick.querySelector("#channels");
-
-  if (d.channelError || !d.channels) {
-    box.appendChild(el(`<p class="note">Gagal memuat daftar metode. <a href="#" id="retry">Coba lagi</a></p>`));
-    box.querySelector("#retry").onclick = (e) => { e.preventDefault(); load(); };
-    return;
+  if(d.channelError||!d.channels){
+    box.appendChild(el(`<p class="note">Gagal memuat metode pembayaran. <a href="#" id="rt">Coba lagi</a></p>`));
+    box.querySelector("#rt").onclick=(e)=>{e.preventDefault(); load();}; return;
   }
-  if (!d.channels.length) { box.appendChild(el(`<p class="note">Belum ada metode pembayaran aktif. Hubungi admin.</p>`)); return; }
+  if(!d.channels.length){ box.appendChild(el(`<p class="note">Belum ada metode pembayaran aktif. Hubungi admin.</p>`)); return; }
 
-  const LABEL = { qris:"QRIS", va:"Transfer Virtual Account", cstore:"Bayar di Minimarket", ewallet:"E-Wallet" };
-  d.channels.forEach((g) => {
-    box.appendChild(el(`<div class="grp-title">${LABEL[g.method] || g.name}</div>`));
-    g.channels.forEach((c) => {
-      const feeTxt = c.feeType === "FLAT" ? `+${rp(c.fee)}` : (c.fee ? `+${c.fee}%` : "");
-      const btn = el(`<button class="ch">${c.name}<small>${feeTxt}</small></button>`);
-      btn.onclick = () => charge(g.method, c.channel, c.name);
-      box.appendChild(btn);
+  const groups=[...d.channels].sort((a,b)=>{
+    const ia=GROUP_ORDER.indexOf(a.method), ib=GROUP_ORDER.indexOf(b.method);
+    return (ia<0?99:ia)-(ib<0?99:ib);
+  });
+
+  groups.forEach(g=>{
+    const meta=GROUP_META[g.method]||{label:g.name};
+    const collapsible=meta.collapsible && g.channels.length>4;
+    const grp=el(`<div class="grp${collapsible?" collapsed":""}"></div>`);
+    const head=el(`<${collapsible?"button":"div"} class="grp-h${collapsible?" toggle":""}">
+        <span>${meta.label}${collapsible?` (${g.channels.length})`:""}</span>
+        ${meta.fast?`<span class="tercepat">⚡ Tercepat</span>`:""}
+        ${collapsible?`<span class="chev">▾</span>`:""}
+      </${collapsible?"button":"div"}>`);
+    if(collapsible) head.onclick=()=>grp.classList.toggle("collapsed");
+    grp.appendChild(head);
+    const listWrap=el(`<div class="grp-list"></div>`);
+    if(meta.hint) listWrap.appendChild(el(`<div class="xs muted" style="margin:-4px 2px 8px">${meta.hint}</div>`));
+    g.channels.forEach(c=>{
+      const row=el(`<button class="ch">
+          ${c.logo?`<img class="logo" loading="lazy" src="${c.logo}" alt="">`:`<span class="fallback">${initial(c.name)}</span>`}
+          <span class="nm">${c.name}</span>
+          <span class="fee">${feeText(c).replace(/Rp [\\d.]+/,m=>"<b>"+m+"</b>")}</span>
+        </button>`);
+      const img=row.querySelector("img");
+      if(img) img.onerror=()=>{ const f=el(`<span class="fallback">${initial(c.name)}</span>`); img.replaceWith(f); };
+      row.onclick=()=>charge(g.method,c.channel,c.name);
+      listWrap.appendChild(row);
     });
+    grp.appendChild(listWrap);
+    box.appendChild(grp);
   });
 }
 
-async function charge(method, channel, label) {
-  render(card(`<div class="center"><div class="spin"></div><div class="muted">Menyiapkan pembayaran ${label}…</div></div>`));
+async function charge(method,channel,label){
+  render(card(`<div class="center"><div class="spin"></div><div class="muted sm">Menyiapkan pembayaran ${label}…<br><span class="xs">biasanya beberapa detik</span></div></div>`));
   let r;
-  try { r = await api("/charge", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ method, channel }) }); }
-  catch (e) { return chargeFailed("Gagal menghubungi server.", method, channel, label); }
-  if (!r.ok) {
-    if (r.status === "already_paid") return showInfoCard("✅ Tagihan sudah lunas", "Terima kasih.");
-    return chargeFailed(r.message || "Gagal membuat pembayaran. Coba metode lain atau ulangi.", method, channel, label);
+  try{ r=await api("/charge",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({method,channel})}); }
+  catch(e){ return chargeFailed("Gagal menghubungi server.",method,channel,label); }
+  if(!r.ok){
+    if(r.status==="already_paid") return showState("✅","Tagihan sudah lunas","Terima kasih.");
+    return chargeFailed(r.message||"Gagal membuat pembayaran. Coba metode lain.",method,channel,label);
   }
-  showPayment(r, label);
-  startPolling(r.reffId);
+  showPayment(r,label); startPolling(r.reffId);
 }
 
-function chargeFailed(msg, method, channel, label) {
-  const c = card(`<div class="center"><div class="ok-ico">⚠️</div><p>${msg}</p></div>`);
-  const retry = el(`<button class="btn sec">Coba lagi</button>`); retry.onclick = () => charge(method, channel, label);
-  const back = el(`<button class="btn" style="margin-top:8px">Pilih metode lain</button>`); back.onclick = () => showBill(info);
-  c.appendChild(retry); c.appendChild(back); render(c);
+function chargeFailed(msg,method,channel,label){
+  const c=card(`<div class="center"><div class="ico">⚠️</div><p style="margin:10px 0 14px">${msg}</p></div>`);
+  const a=el(`<button class="btn sec">Coba lagi</button>`); a.onclick=()=>charge(method,channel,label);
+  const b=el(`<div class="gap"></div>`); const bk=el(`<button class="btn ghost">Pilih metode lain</button>`); bk.onclick=()=>showBill(info);
+  c.appendChild(a); c.appendChild(b); c.appendChild(bk); render(c);
 }
 
-function showPayment(r, label) {
-  let body = `<div class="center"><span class="badge">${label}</span><div class="row" style="justify-content:center;margin-top:8px"><b>Total: ${r.formattedTotal || rp(r.total)}</b></div></div>`;
-  if (r.qrImage) {
-    body += `<img class="qr" src="${r.qrImage}" alt="QRIS" /><p class="note center">Scan QR ini di aplikasi e-wallet / m-banking Anda, lalu bayar.</p>`;
-  } else if (r.paymentNo && r.via && /VA|Virtual/i.test(r.via)) {
-    body += `<p class="muted center" style="margin-bottom:0">Nomor Virtual Account ${r.channelLabel||""}</p>
-             <div class="paycode" id="pno">${r.paymentNo}</div>
-             <button class="btn sec" id="copy">Salin nomor</button>
-             <p class="note">Buka m-banking/ATM ${r.channelLabel||""}, pilih Transfer ke Virtual Account, masukkan nomor di atas, lalu bayar.</p>`;
-  } else if (r.paymentNo) {
-    body += `<p class="muted center" style="margin-bottom:0">Kode Pembayaran</p>
-             <div class="paycode" id="pno">${r.paymentNo}</div>
-             <button class="btn sec" id="copy">Salin kode</button>
-             ${r.note ? `<p class="note">${r.note}</p>` : ""}`;
+function showPayment(r,label){
+  const admin=Math.max(0,(Number(r.total)||0)-(Number(info.amount)||0));
+  let body=`<div class="center"><span class="pill">${label}</span></div>`;
+  if(r.qrImage){
+    body+=`<img class="qr" src="${r.qrImage}" alt="QRIS"/>
+      <p class="note center" style="margin-top:0">Buka aplikasi e-wallet / m-banking, pilih <b>Bayar / Scan QR</b>, arahkan ke kode di atas.</p>`;
+  } else if(r.paymentNo){
+    const isVA=/VA|Virtual/i.test(r.via||"");
+    body+=`<p class="center muted sm" style="margin:12px 0 2px">${isVA?`Nomor Virtual Account ${r.channelLabel||""}`:"Kode Pembayaran"}</p>
+      <div class="code" id="pno">${formatCode(r.paymentNo)}</div>
+      <button class="btn sec" id="copy">📋 Salin ${isVA?"nomor":"kode"}</button>`;
+    body+= isVA
+      ? `<ol class="steps"><li>Buka m-banking / ATM ${r.channelLabel||""}</li><li>Pilih <b>Transfer › Virtual Account</b></li><li>Masukkan nomor di atas, lalu bayar</li></ol>`
+      : (r.note?`<p class="note">${r.note}</p>`:"");
   }
-  if (r.expired) body += `<p class="center small muted">Berlaku sampai ${r.expired}</p>`;
-  body += `<div id="poll" class="center muted small" style="margin-top:10px"><div class="spin"></div>Menunggu pembayaran…</div>`;
-  body += `<button class="btn sec" id="back" style="margin-top:6px">Ganti metode</button>`;
-  const c = card(body); render(c);
-  const copy = c.querySelector("#copy");
-  if (copy) copy.onclick = () => { navigator.clipboard?.writeText(r.paymentNo); copy.textContent = "Tersalin ✓"; };
-  c.querySelector("#back").onclick = () => { stopPolling(); showBill(info); };
+  // rincian biaya
+  body+=`<div style="margin-top:14px">
+      <div class="row"><span class="muted">Tagihan</span><span>${rp(info.amount)}</span></div>
+      <div class="row"><span class="muted">Biaya admin</span><span>${admin>0?rp(admin):"—"}</span></div>
+      <div class="row total"><span>Total bayar</span><span>${rp(r.total||info.amount)}</span></div>
+    </div>`;
+  if(r.expired) body+=`<p class="center xs muted" id="cd" style="margin-top:8px"></p>`;
+  body+=`<div class="waiting"><span class="pulse"></span>Menunggu pembayaran Anda…</div>
+      <div class="gap"></div><button class="btn ghost" id="back">Ganti metode</button>`;
+  const c=card(body); render(c);
+  const cp=c.querySelector("#copy");
+  if(cp) cp.onclick=()=>{ navigator.clipboard?.writeText(r.paymentNo); toast("Tersalin ✓"); };
+  c.querySelector("#back").onclick=()=>{ stopPolling(); stopCd(); showBill(info); };
+  if(r.expired) startCountdown(r.expired);
 }
 
-function startPolling(reff) {
+function formatCode(s){ s=String(s); return s.length>=10 ? s.replace(/(.{4})/g,"$1 ").trim() : s; }
+
+function startCountdown(exp){
+  stopCd(); const end=new Date(String(exp).replace(" ","T")).getTime();
+  const node=document.getElementById("cd"); if(!node||isNaN(end)) return;
+  const tick=()=>{ const ms=end-Date.now();
+    if(ms<=0){ node.textContent="⏳ Kode kedaluwarsa — ganti metode untuk membuat ulang"; stopCd(); return; }
+    const h=Math.floor(ms/3.6e6), m=Math.floor(ms%3.6e6/6e4), s=Math.floor(ms%6e4/1e3);
+    node.textContent=`Berlaku ${h>0?h+"j ":""}${m}m ${String(s).padStart(2,"0")}s lagi`;
+  };
+  tick(); cdTimer=setInterval(tick,1000);
+}
+function stopCd(){ if(cdTimer){ clearInterval(cdTimer); cdTimer=null; } }
+
+function startPolling(reff){
   stopPolling();
-  pollTimer = setInterval(async () => {
-    try {
-      const s = await api(`/status?reff=${encodeURIComponent(reff)}`);
-      if (s.paid) { stopPolling(); showSuccess(); }
-    } catch (_e) { /* abaikan, coba lagi tick berikutnya */ }
-  }, 5000);
+  pollTimer=setInterval(async()=>{ try{ const s=await api(`/status?reff=${encodeURIComponent(reff)}`); if(s.paid){ stopPolling(); stopCd(); showSuccess(); } }catch(_e){} },4000);
 }
-function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+function stopPolling(){ if(pollTimer){ clearInterval(pollTimer); pollTimer=null; } }
 
-function showSuccess() {
-  render(card(`<div class="center"><div class="ok-ico">✅</div><h1>Pembayaran Berhasil</h1>
-    <p class="muted">Tagihan Anda sudah LUNAS. Jika layanan sempat terputus, internet akan aktif kembali otomatis dalam 1–2 menit.</p>
-    <p class="small muted">Struk juga dikirim ke WhatsApp Anda. Terima kasih 🙏</p></div>`, ""));
+function showSuccess(){
+  render(card(`<div class="center">
+    <div class="okwrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+    <h1>Pembayaran Berhasil 🎉</h1>
+    <p class="muted sm">Tagihan Anda sudah <b>LUNAS</b>. Jika layanan sempat terputus, internet aktif kembali otomatis dalam 1–2 menit.</p>
+    <div class="gap"></div><p class="sm" style="color:var(--ok);font-weight:700">🧾 Struk dikirim ke WhatsApp Anda</p>
+  </div>`));
 }
 
-if (!token) showError("Link tidak valid."); else load();
+if(!token) showState("🔗","Link tidak valid","Token tidak ditemukan."); else load();
 </script>
 </body>
 </html>
