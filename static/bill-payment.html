@@ -18,6 +18,8 @@
       --ok:#34d399; --ok-soft:#0f2a22; --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35); }
   }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  button{ font:inherit; color:inherit; cursor:pointer; }
+  a.btn{ text-decoration:none; }
   body{ margin:0; background:var(--bg); color:var(--ink);
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     font-size:15px; line-height:1.5; padding-bottom:env(safe-area-inset-bottom); }
@@ -77,6 +79,12 @@
   .toast{ position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px); background:var(--ink); color:var(--card);
     padding:10px 16px; border-radius:999px; font-size:13px; font-weight:600; opacity:0; pointer-events:none; transition:all .25s; z-index:9; }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .trust{ display:flex; align-items:center; gap:7px; margin-top:14px; padding-top:13px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; line-height:1.4; }
+  .trust b{ color:var(--ink); }
+  .trust svg{ flex:0 0 auto; color:var(--ok); }
+  .verify{ text-align:center; font-size:12px; color:var(--muted); margin-top:8px; }
+  .verify a{ font-weight:700; }
+  .dlqr{ margin-top:6px; }
   .testbar{ background:var(--warn); color:#fff; text-align:center; font-size:12px; font-weight:700; padding:6px; border-radius:10px; margin-bottom:12px; }
   .gap{ height:8px; }
   a{ color:var(--brand); }
@@ -92,6 +100,7 @@
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
     Pembayaran aman diproses oleh iPaymu
   </div>
+  <div class="verify" id="verify"></div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -126,6 +135,7 @@ async function load(){
   let d; try{ d=await api("/info"); }catch(e){ return showState("⚠️","Gagal memuat","Periksa koneksi internet Anda lalu muat ulang."); }
   info=d;
   if(d.provider) document.getElementById("brand").textContent=d.provider;
+  if(d.adminWa) document.getElementById("verify").innerHTML=`Ragu dengan link ini? <a href="https://wa.me/${d.adminWa}">Verifikasi ke admin</a>`;
   if(!d.ok){
     if(d.status==="invalid") return showState("🔗","Link tidak berlaku","Link sudah kedaluwarsa atau salah. Minta link baru lewat WhatsApp bot.");
     if(d.status==="not_postpaid") return showState("ℹ️","Bukan pelanggan bulanan","Akun ini memakai paket voucher.");
@@ -146,7 +156,11 @@ function showBill(d){
   nodes.push(card(
     `<div class="billcap">Tagihan${d.nama?` • ${d.nama}`:""}</div>
      <div class="sm muted" style="margin-top:2px">${d.paket||""}</div>
-     <div class="amount">${rp(d.amount)}</div>`));
+     <div class="amount">${rp(d.amount)}</div>
+     <div class="trust">
+       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+       <span>Tagihan resmi <b>${d.provider||""}</b> — pembayaran diproses <b>iPaymu</b> (gateway berlisensi BI).</span>
+     </div>`));
 
   const pick=card(`<div class="muted sm" style="font-weight:600;margin-bottom:4px">Pilih metode pembayaran</div><div id="ch"></div>`);
   nodes.push(pick);
@@ -217,7 +231,8 @@ function showPayment(r,label){
   let body=`<div class="center"><span class="pill">${label}</span></div>`;
   if(r.qrImage){
     body+=`<img class="qr" src="${r.qrImage}" alt="QRIS"/>
-      <p class="note center" style="margin-top:0">Buka aplikasi e-wallet / m-banking, pilih <b>Bayar / Scan QR</b>, arahkan ke kode di atas.</p>`;
+      <a class="btn sec dlqr" download="QRIS-${(info.provider||'tagihan').replace(/\W+/g,'')}.png" href="${r.qrImage}">⬇️ Simpan / Download QR</a>
+      <p class="note">Scan QR di aplikasi e-wallet / m-banking (pilih <b>Bayar / Scan QR</b>). Jika QR & aplikasi di HP yang sama, <b>simpan QR</b> lalu pilih <b>scan dari galeri</b>.</p>`;
   } else if(r.paymentNo){
     const isVA=/VA|Virtual/i.test(r.via||"");
     body+=`<p class="center muted sm" style="margin:12px 0 2px">${isVA?`Nomor Virtual Account ${r.channelLabel||""}`:"Kode Pembayaran"}</p>

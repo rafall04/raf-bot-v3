@@ -145,7 +145,7 @@
   },
   "tagihan_struk_lunas": {
     "name": "Struk Tagihan Lunas (otomatis dari pembayaran online)",
-    "template": "✅ *PEMBAYARAN BERHASIL*\n\nHalo Kak *${nama_pelanggan}*, tagihan Anda sudah *LUNAS*. Terima kasih! 🙏\n\n🧾 *Struk:*\n• Paket: *${nama_paket}*\n• Periode: ${periode}\n• Dibayar: *${harga}*\n• Metode: ${metode}\n\n${status_layanan}\n\nButuh bantuan? Ketik *menuwifi*."
+    "template": "✅ *PEMBAYARAN BERHASIL*\n\nHalo Kak *${nama_pelanggan}*, tagihan Anda sudah *LUNAS*. Terima kasih! 🙏\n\n🧾 *STRUK PEMBAYARAN*\n━━━━━━━━━━━━━━\n• Paket   : *${nama_paket}*\n• Periode : ${periode}\n• Dibayar : *${harga}*\n• Metode  : ${metode}\n• Waktu   : ${waktu}\n• No. Ref : ${no_ref}\n━━━━━━━━━━━━━━\n\n${status_layanan}\n\n_Simpan struk ini sebagai bukti pembayaran._ Butuh bantuan? Ketik *menuwifi*."
   },
   "tagihan_reaktivasi_gagal_admin": {
     "name": "Alert Admin: Reaktivasi Tagihan GAGAL",

@@ -886,6 +886,8 @@ router.post('/callback/payment', async (req, res) => {
                         harga: convertRupiah.convert(pay.amount),
                         metode: pay.method || 'QRIS',
                         periode,
+                        waktu: new Date().toLocaleString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB',
+                        no_ref: reference_id,
                         status_layanan: react.ok ? '⚡ Layanan Anda sudah aktif kembali.' : '',
                     });
                     if (pay.sender) await sendMessage(pay.sender, { text: struk });

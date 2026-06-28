@@ -82,10 +82,12 @@ router.get("/api/bayar/:token/info", async (req, res) => {
             channelError = e.message;
         }
     }
+    const ownerNum = (global.config && global.config.ownerNumber && global.config.ownerNumber[0]) || (global.config && global.config.telfon) || "";
     res.json({
         ok: true,
         status: paid ? "paid" : "unpaid",
         provider: (global.config && global.config.nama) || "Pembayaran",
+        adminWa: String(ownerNum).replace(/\D/g, ""),
         nama: ctx.user.name,
         paket: ctx.user.subscription,
         amount: ctx.amount,
@@ -127,9 +129,16 @@ router.post("/api/bayar/:token/charge", chargeLimiter, async (req, res) => {
         return res.status(502).json({ ok: false, status: "gateway_error", message: e.message });
     }
 
+    // Label metode yang RAMAH untuk struk WA (hindari kode mentah seperti "MPM").
+    const titleCase = (s) => String(s || "").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+    const methodLabel = method === "qris" ? "QRIS"
+        : method === "va" ? `Transfer VA ${result.channelLabel || channel}`.trim()
+        : method === "cstore" ? titleCase(result.channelLabel || channel)
+        : (result.channelLabel || channel);
+
     // Persist record (tag 'tagihan'). userId/periode dipakai callback untuk catat lunas + reaktivasi;
     // sandbox=true → callback verifikasi ke endpoint sandbox (uji, bukan produksi).
-    addPayment(reff, result.id, customerJid(ctx.user), "tagihan", ctx.amount, result.channelLabel || channel,
+    addPayment(reff, result.id, customerJid(ctx.user), "tagihan", ctx.amount, methodLabel,
         `Tagihan ${ctx.user.name}`, { userId: ctx.user.id, periodMonth, periodYear, sandbox: ctx.sandbox });
 
     let qrImage = null;
