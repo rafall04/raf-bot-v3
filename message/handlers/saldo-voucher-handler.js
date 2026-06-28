@@ -45,7 +45,7 @@ async function handleCekSaldo(sender, pushname, config, format, reply) {
  */
 function handleTanyaHargaVoucher(pushname, config, voucher, format, reply) {
     const namaLayanan = config.nama || "Layanan Kami";
-    const adminWaLink = `https://wa.me/${config.ownerNumber && config.ownerNumber[0] ? config.ownerNumber[0].replace(/\D/g, '') : '6285233047094'}`;
+    const adminWaLink = `https://wa.me/${String(config.adminPhone || config.telfon || '6289685645956').replace(/\D/g, '')}`;
 
     let voucherListString = "";
     if (voucher && voucher.length > 0) {
@@ -78,7 +78,7 @@ function handleVc123(config, voucher, reply) {
     for (let i of voucher){
         txtx += `${i.namavc} = Rp. ${i.hargavc}\n`;
     }
-    txtx += `\n==================================\nCara Pembelian Voucher Silahkan Ketik : \n*belivoucher [harga]*\ncontoh : _*belivoucher 1500*_\nCara Topup Saldo Silahkan Ketik : _*tutorial*_\n==================================\nNOTE :\nHarga Voucher Bisa Berubah Sewaktu-Waktu.\n_Jika ada pertanyaan, chat admin di bawah_\nWhatsapp : https://wa.me/6285233047094\n==================================\n\nTerima Kasih\n${config.namabot}`;
+    txtx += `\n==================================\nCara Pembelian Voucher Silahkan Ketik : \n*belivoucher [harga]*\ncontoh : _*belivoucher 1500*_\nCara Topup Saldo Silahkan Ketik : _*tutorial*_\n==================================\nNOTE :\nHarga Voucher Bisa Berubah Sewaktu-Waktu.\n_Jika ada pertanyaan, chat admin di bawah_\nWhatsapp : https://wa.me/6289685645956\n==================================\n\nTerima Kasih\n${config.namabot}`;
     reply(txtx);
 }
 

@@ -486,7 +486,7 @@ router.post('/preview-pdf-invoice', ensureAdmin, async (req, res) => {
             company: config.company || {
                 name: 'RAF NET Internet Service',
                 address: 'Jl. Contoh No. 123, Kota Contoh',
-                phone: '+6285233047094',
+                phone: '+6289685645956',
                 email: 'info@rafnet.my.id',
                 npwp: '12.345.678.9-012.000'
             },

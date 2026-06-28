@@ -71,7 +71,7 @@
   },
   "convo_ganti_sandi_ask_password_bulk": {
     "name": "Percakapan: Ganti Sandi - Tanya Password Banyak SSID",
-    "template": "Silakan ketik kata sandi WiFi baru yang Anda inginkan untuk SEMUA SSID.\n\n🔐 *Ketentuan kata sandi WiFi:*\n• Minimal 8 karakter\n• Boleh menggunakan huruf, angka, dan simbol\n• Contoh: Password123, MyWiFi2024!\n\n💡 Ketik *batal* jika ingin membatalkan proses ini.",
+    "template": "Silakan ketik kata sandi WiFi baru yang Anda inginkan untuk SEMUA WiFi.\n\n🔐 *Ketentuan kata sandi WiFi:*\n• Minimal 8 karakter\n• Boleh menggunakan huruf, angka, dan simbol\n• Contoh: Password123, MyWiFi2024!\n\n💡 Ketik *batal* jika ingin membatalkan proses ini.",
     "category": "wifi"
   },
   "convo_ganti_sandi_confirm": {
@@ -101,7 +101,7 @@
   },
   "convo_ganti_sandi_mode_invalid": {
     "name": "Percakapan: Ganti Sandi - Pilihan Mode Tidak Valid",
-    "template": "Pilihan tidak valid. Silakan pilih 1 untuk mengubah satu SSID atau 2 untuk mengubah semua SSID sekaligus.",
+    "template": "Pilihan tidak valid. Silakan pilih 1 untuk mengubah satu WiFi atau 2 untuk mengubah semua WiFi sekaligus.",
     "category": "wifi"
   },
   "convo_ganti_sandi_ssid_invalid": {
@@ -116,17 +116,17 @@
   },
   "convo_ganti_nama_pilih_satu": {
     "name": "Percakapan: Ganti Nama - Pilih Satu SSID",
-    "template": "Baik, Anda memilih untuk mengubah satu SSID.\n\nBerikut daftar SSID Anda:\n${ssidList}\n\nSilakan balas dengan *nomor* SSID yang ingin Anda ubah (misalnya: `1`).",
+    "template": "Baik, Anda memilih untuk mengubah satu WiFi.\n\nBerikut daftar WiFi Anda:\n${ssidList}\n\nSilakan balas dengan *nomor* WiFi yang ingin Anda ubah (misalnya: `1`).",
     "category": "wifi"
   },
   "convo_ganti_nama_konfirmasi_semua": {
     "name": "Percakapan: Ganti Nama - Konfirmasi Semua",
-    "template": "Siap! Nama untuk *semua SSID* akan diubah menjadi *\\\"${nama_wifi_baru}\\\"*.\n\nSudah benar? Balas *'ya'* untuk melanjutkan.",
+    "template": "Siap! Nama untuk *semua WiFi* akan diubah menjadi *\\\"${nama_wifi_baru}\\\"*.\n\nSudah benar? Balas *'ya'* untuk melanjutkan.",
     "category": "wifi"
   },
   "convo_ganti_nama_tanya_nama_semua": {
     "name": "Percakapan: Ganti Nama - Tanya Nama (Semua)",
-    "template": "Oke, Anda memilih untuk mengubah semua SSID sekaligus. Silakan ketik nama WiFi baru yang Anda inginkan.",
+    "template": "Oke, Anda memilih untuk mengubah semua WiFi sekaligus. Silakan ketik nama WiFi baru yang Anda inginkan.",
     "category": "wifi"
   },
   "convo_ganti_nama_pilihan_tidak_valid": {
@@ -136,17 +136,17 @@
   },
   "convo_ganti_nama_nomor_ssid_tidak_valid": {
     "name": "Percakapan: Ganti Nama - Nomor SSID Tidak Valid",
-    "template": "Nomor SSID tidak valid. Mohon balas dengan nomor yang sesuai dari daftar.",
+    "template": "Nomor WiFi tidak valid. Mohon balas dengan nomor yang sesuai dari daftar.",
     "category": "wifi"
   },
   "convo_ganti_nama_konfirmasi_satu": {
     "name": "Percakapan: Ganti Nama - Konfirmasi Satu",
-    "template": "Baik. Nama untuk *SSID ${selectedSsidId}* akan diubah menjadi *\\\"${nama_wifi_baru}\\\"*.\n\nSudah benar? Balas *'ya'* untuk melanjutkan.",
+    "template": "Baik. Nama untuk *WiFi ${selectedSsidId}* akan diubah menjadi *\\\"${nama_wifi_baru}\\\"*.\n\nSudah benar? Balas *'ya'* untuk melanjutkan.",
     "category": "wifi"
   },
   "convo_ganti_nama_tanya_nama_satu": {
     "name": "Percakapan: Ganti Nama - Tanya Nama (Satu)",
-    "template": "Oke. Sekarang, silakan ketik nama WiFi baru yang Anda inginkan untuk SSID tersebut.",
+    "template": "Oke. Sekarang, silakan ketik nama WiFi baru yang Anda inginkan untuk WiFi tersebut.",
     "category": "wifi"
   },
   "convo_ganti_nama_nama_kosong": {
@@ -191,7 +191,7 @@
   },
   "bantuan": {
     "name": "Teks Bantuan (Help)",
-    "template": "🆘 *PANDUAN BANTUAN ${nama_layanan}* 🆘\n\nHalo Kak ${pushname}! Saya ${nama_bot}, siap membantu Anda memahami cara menggunakan layanan kami melalui WhatsApp.\n\n-----------------------------------\n🌟 *MEMULAI DENGAN MUDAH*\n-----------------------------------\nUntuk melihat daftar lengkap semua perintah yang tersedia, kapan saja Anda bisa mengetik:\n➡️  _*menuwifi*_\n\nBerikut adalah beberapa kategori layanan utama dan perintah penting yang bisa Anda gunakan:\n\n-----------------------------------\n🔖 *INFORMASI UMUM & HARGA*\n-----------------------------------\n  • *voucher* : Lihat daftar harga dan jenis voucher internet.\n  • *pasang* : Informasi biaya pemasangan WiFi baru.\n  • *bulanan* : Lihat pilihan paket dan harga langganan WiFi bulanan.\n  • *admin* : Dapatkan nomor kontak Admin jika butuh bantuan personal.\n\n-----------------------------------\n⚙️ *LAYANAN KHUSUS PELANGGAN*\n(Fitur ini aktif jika nomor Anda terdaftar sebagai pelanggan)\n-----------------------------------\n  • *menupelanggan* : Akses semua fitur pengelolaan WiFi Anda, seperti:\n    ◦ _gantinama_ : Ubah nama/SSID WiFi.\n    ◦ _gantisandi_ : Ubah kata sandi WiFi.\n    ◦ _gantipower_ : Sesuaikan jangkauan sinyal modem.\n    ◦ _reboot_ : Restart modem Anda.\n    ◦ _cekwifi_ : Cek informasi detail modem Anda.\n\n-----------------------------------\n💰 *PEMBELIAN VOUCHER & SALDO*\n-----------------------------------\n  • *tutorial* : Panduan lengkap cara topup saldo untuk pembelian voucher.\n  • *ceksaldo* : Periksa sisa saldo voucher Anda.\n  • *belivoucher [harga]* : Beli voucher internet langsung (misal: `belivoucher 1000`). Pastikan saldo Anda cukup!\n  • *transfer [nomor62] [jumlah]* : Bagi saldo ke sesama pengguna (misal: `transfer 628xxxx 5000`).\n\n-----------------------------------\n📡 *LAPOR & KELOLA KENDALA TEKNIS*\n-----------------------------------\n  • *lapor [deskripsi keluhan]* : Jika Anda mengalami gangguan pada layanan, laporkan di sini.\n    *Contoh:* `lapor internet tidak bisa konek sejak pagi`\n    *(Fitur ini khusus untuk pelanggan yang nomor WhatsApp-nya sudah terdaftar).*\n    (Anda akan mendapatkan Nomor Tiket untuk pelacakan).\n  • *cektiket [ID_Tiket]* : Cek status perkembangan tiket laporan Anda.\n    *Contoh:* `cektiket ABC123X`\n  • *batalkantiket [ID_Tiket]* : Batalkan tiket laporan yang masih berstatus \"Baru\".\n    *Contoh:* `batalkantiket ABC123X`\n\n-----------------------------------\n💡 *TIPS PENGGUNAAN*\n-----------------------------------\n  • Perhatikan contoh penggunaan untuk setiap perintah.\n  • Beberapa perintah membutuhkan parameter tambahan (seperti harga, nomor telepon, atau deskripsi). Pastikan Anda mengisinya dengan benar.\n  • Jika lupa perintah spesifik, selalu mulai dengan _*menuwifi*_.\n\n-----------------------------------\nJika Anda masih memiliki pertanyaan atau membutuhkan bantuan yang tidak tercakup di sini, jangan ragu untuk menghubungi Admin melalui perintah _*admin*_.\n\nSemoga panduan ini bermanfaat!\nTim ${nama_bot}",
+    "template": "🆘 *PANDUAN BANTUAN ${nama_layanan}* 🆘\n\nHalo Kak ${pushname}! Saya ${nama_bot}, siap membantu Anda memahami cara menggunakan layanan kami melalui WhatsApp.\n\n-----------------------------------\n🌟 *MEMULAI DENGAN MUDAH*\n-----------------------------------\nUntuk melihat daftar lengkap semua perintah yang tersedia, kapan saja Anda bisa mengetik:\n➡️  _*menuwifi*_\n\nBerikut adalah beberapa kategori layanan utama dan perintah penting yang bisa Anda gunakan:\n\n-----------------------------------\n🔖 *INFORMASI UMUM & HARGA*\n-----------------------------------\n  • *voucher* : Lihat daftar harga dan jenis voucher internet.\n  • *pasang* : Informasi biaya pemasangan WiFi baru.\n  • *bulanan* : Lihat pilihan paket dan harga langganan WiFi bulanan.\n  • *admin* : Dapatkan nomor kontak Admin jika butuh bantuan personal.\n\n-----------------------------------\n⚙️ *LAYANAN KHUSUS PELANGGAN*\n(Fitur ini aktif jika nomor Anda terdaftar sebagai pelanggan)\n-----------------------------------\n  • *menupelanggan* : Akses semua fitur pengelolaan WiFi Anda, seperti:\n    ◦ _gantinama_ : Ubah nama/WiFi WiFi.\n    ◦ _gantisandi_ : Ubah kata sandi WiFi.\n    ◦ _gantipower_ : Sesuaikan jangkauan sinyal modem.\n    ◦ _reboot_ : Restart modem Anda.\n    ◦ _cekwifi_ : Cek informasi detail modem Anda.\n\n-----------------------------------\n💰 *PEMBELIAN VOUCHER & SALDO*\n-----------------------------------\n  • *tutorial* : Panduan lengkap cara topup saldo untuk pembelian voucher.\n  • *ceksaldo* : Periksa sisa saldo voucher Anda.\n  • *belivoucher [harga]* : Beli voucher internet langsung (misal: `belivoucher 1000`). Pastikan saldo Anda cukup!\n  • *transfer [nomor62] [jumlah]* : Bagi saldo ke sesama pengguna (misal: `transfer 628xxxx 5000`).\n\n-----------------------------------\n📡 *LAPOR & KELOLA KENDALA TEKNIS*\n-----------------------------------\n  • *lapor [deskripsi keluhan]* : Jika Anda mengalami gangguan pada layanan, laporkan di sini.\n    *Contoh:* `lapor internet tidak bisa konek sejak pagi`\n    *(Fitur ini khusus untuk pelanggan yang nomor WhatsApp-nya sudah terdaftar).*\n    (Anda akan mendapatkan Nomor Tiket untuk pelacakan).\n  • *cektiket [ID_Tiket]* : Cek status perkembangan tiket laporan Anda.\n    *Contoh:* `cektiket ABC123X`\n  • *batalkantiket [ID_Tiket]* : Batalkan tiket laporan yang masih berstatus \"Baru\".\n    *Contoh:* `batalkantiket ABC123X`\n\n-----------------------------------\n💡 *TIPS PENGGUNAAN*\n-----------------------------------\n  • Perhatikan contoh penggunaan untuk setiap perintah.\n  • Beberapa perintah membutuhkan parameter tambahan (seperti harga, nomor telepon, atau deskripsi). Pastikan Anda mengisinya dengan benar.\n  • Jika lupa perintah spesifik, selalu mulai dengan _*menuwifi*_.\n\n-----------------------------------\nJika Anda masih memiliki pertanyaan atau membutuhkan bantuan yang tidak tercakup di sini, jangan ragu untuk menghubungi Admin melalui perintah _*admin*_.\n\nSemoga panduan ini bermanfaat!\nTim ${nama_bot}",
     "category": "menu"
   },
   "sapaan_umum_1": {
@@ -391,7 +391,7 @@
   },
   "error_format_link": {
     "name": "Error: Format Link Salah",
-    "template": "❌ Format: *link [nomor_hp_terdaftar]*\n\nContoh: *link 6285233047094*",
+    "template": "❌ Format: *link [nomor_hp_terdaftar]*\n\nContoh: *link 6289685645956*",
     "category": "system"
   },
   "error_format_verifikasi_lid": {
@@ -443,7 +443,7 @@
     "name": "WiFi Password: Pilih SSID",
     "category": "wifi",
     "description": "Prompt memilih SSID yang akan diubah passwordnya.",
-    "template": "Pilih nomor SSID yang ingin diubah kata sandinya:\n\n${ssidOptions}\n\nBalas dengan angka pilihan Anda.",
+    "template": "Pilih nomor WiFi yang ingin diubah kata sandinya:\n\n${ssidOptions}\n\nBalas dengan angka pilihan Anda.",
     "placeholders": [
       "ssidOptions"
     ]
@@ -452,7 +452,7 @@
     "name": "WiFi Password: Konfirmasi Semua SSID",
     "category": "wifi",
     "description": "Konfirmasi perubahan password untuk semua SSID.",
-    "template": "Anda yakin ingin mengubah kata sandi SEMUA SSID menjadi: `${newPassword}` ?\n\nBalas *'ya'* untuk melanjutkan, atau *'batal'* untuk membatalkan.",
+    "template": "Anda yakin ingin mengubah kata sandi SEMUA WiFi menjadi: `${newPassword}` ?\n\nBalas *'ya'* untuk melanjutkan, atau *'batal'* untuk membatalkan.",
     "placeholders": [
       "newPassword"
     ]
@@ -472,7 +472,7 @@
     "name": "WiFi Password: Input Password Baru",
     "category": "wifi",
     "description": "Prompt input password baru untuk SSID tertentu.",
-    "template": "Silakan ketik kata sandi WiFi baru yang Anda inginkan untuk SSID ${ssidId}.\n\n🔐 *Ketentuan kata sandi WiFi:*\n• Minimal 8 karakter\n• Boleh menggunakan huruf, angka, dan simbol\n• Contoh: Password123, MyWiFi2024!\n\n💡 Ketik *batal* jika ingin membatalkan proses ini.",
+    "template": "Silakan ketik kata sandi WiFi baru yang Anda inginkan untuk WiFi ${ssidId}.\n\n🔐 *Ketentuan kata sandi WiFi:*\n• Minimal 8 karakter\n• Boleh menggunakan huruf, angka, dan simbol\n• Contoh: Password123, MyWiFi2024!\n\n💡 Ketik *batal* jika ingin membatalkan proses ini.",
     "placeholders": [
       "ssidId"
     ]
@@ -672,7 +672,7 @@
   "agent_voucher_customer_phone_prompt": {
     "name": "Agent Voucher: Prompt Nomor Customer",
     "category": "agent_voucher",
-    "template": "✅ *Jumlah: ${quantity} voucher*\n\nMasukkan nomor WhatsApp customer:\n(Contoh: 6285233047094 atau reply pesan customer)\n\nKetik *batal* untuk membatalkan",
+    "template": "✅ *Jumlah: ${quantity} voucher*\n\nMasukkan nomor WhatsApp customer:\n(Contoh: 6289685645956 atau reply pesan customer)\n\nKetik *batal* untuk membatalkan",
     "placeholders": [
       "quantity"
     ]
@@ -680,7 +680,7 @@
   "agent_voucher_invalid_phone": {
     "name": "Agent Voucher: Nomor Customer Tidak Valid",
     "category": "agent_voucher",
-    "template": "⚠️ *Format nomor tidak valid!*\n\nSilakan masukkan nomor WhatsApp yang valid\n(Contoh: 6285233047094 atau 085233047094)\nAtau ketik *batal* untuk membatalkan"
+    "template": "⚠️ *Format nomor tidak valid!*\n\nSilakan masukkan nomor WhatsApp yang valid\n(Contoh: 6289685645956 atau 085233047094)\nAtau ketik *batal* untuk membatalkan"
   },
   "agent_voucher_invalid_confirmation": {
     "name": "Agent Voucher: Konfirmasi Tidak Valid",
@@ -895,7 +895,7 @@
   "agent_profile_phone_format": {
     "name": "Agent Profile: Format Telepon",
     "category": "agent_profile",
-    "template": "⚠️ *Format salah!*\n\nFormat: `update phone [nomor]`\n\nContoh:\n`update phone 085233047094`\n`update phone 6285233047094`\n\nNomor minimal 10 digit"
+    "template": "⚠️ *Format salah!*\n\nFormat: `update phone [nomor]`\n\nContoh:\n`update phone 085233047094`\n`update phone 6289685645956`\n\nNomor minimal 10 digit"
   },
   "agent_profile_invalid_type": {
     "name": "Agent Profile: Tipe Tidak Valid",
@@ -1233,7 +1233,7 @@
   "wifi_management_name_mode_prompt": {
     "name": "WiFi Management: Mode Ganti Nama",
     "category": "wifi",
-    "template": "${ssidInfo}${newNameLine}Pilih mode perubahan nama WiFi:\n1. Ubah satu SSID saja\n2. Ubah semua SSID sekaligus\n\nBalas dengan angka pilihan Anda.",
+    "template": "${ssidInfo}${newNameLine}Pilih mode perubahan nama WiFi:\n1. Ubah satu WiFi saja\n2. Ubah semua WiFi sekaligus\n\nBalas dengan angka pilihan Anda.",
     "placeholders": [
       "ssidInfo",
       "newNameLine"
@@ -1242,7 +1242,7 @@
   "wifi_management_password_mode_prompt": {
     "name": "WiFi Management: Mode Ganti Sandi",
     "category": "wifi",
-    "template": "${ssidInfo}${newPasswordLine}Pilih mode perubahan kata sandi WiFi:\n1. Ubah satu SSID saja\n2. Ubah semua SSID sekaligus\n\nBalas dengan angka pilihan Anda.",
+    "template": "${ssidInfo}${newPasswordLine}Pilih mode perubahan kata sandi WiFi:\n1. Ubah satu WiFi saja\n2. Ubah semua WiFi sekaligus\n\nBalas dengan angka pilihan Anda.",
     "placeholders": [
       "ssidInfo",
       "newPasswordLine"
@@ -1782,7 +1782,7 @@
   "wifi_steps_select_ssid_name": {
     "name": "WiFi Steps: Pilih SSID Nama",
     "category": "wifi_steps",
-    "template": "*Pilih SSID yang Akan Diubah*\n\n${ssidList}\n\nBalas dengan nomor SSID yang ingin diubah (1-${totalSsids}).",
+    "template": "*Pilih WiFi yang Akan Diubah*\n\n${ssidList}\n\nBalas dengan nomor WiFi yang ingin diubah (1-${totalSsids}).",
     "placeholders": [
       "ssidList",
       "totalSsids"
@@ -1791,7 +1791,7 @@
   "wifi_steps_confirm_all_name": {
     "name": "WiFi Steps: Konfirmasi Nama Semua SSID",
     "category": "wifi_steps",
-    "template": "Siap. Saya konfirmasi ya, nama untuk *semua SSID* akan diubah menjadi *\"${newName}\"*. Sudah benar?\n\nBalas *'ya'* untuk melanjutkan.",
+    "template": "Siap. Saya konfirmasi ya, nama untuk *semua WiFi* akan diubah menjadi *\"${newName}\"*. Sudah benar?\n\nBalas *'ya'* untuk melanjutkan.",
     "placeholders": [
       "newName"
     ]
@@ -1799,7 +1799,7 @@
   "wifi_steps_ask_bulk_name": {
     "name": "WiFi Steps: Minta Nama Semua SSID",
     "category": "wifi_steps",
-    "template": "Silakan ketik nama WiFi baru yang akan digunakan untuk *semua SSID*.\n\n*Ketentuan:*\n- Maksimal 32 karakter\n- Boleh menggunakan huruf, angka, spasi\n\nKetik *batal* untuk membatalkan."
+    "template": "Silakan ketik nama WiFi baru yang akan digunakan untuk *semua WiFi*.\n\n*Ketentuan:*\n- Maksimal 32 karakter\n- Boleh menggunakan huruf, angka, spasi\n\nKetik *batal* untuk membatalkan."
   },
   "wifi_steps_invalid_mode": {
     "name": "WiFi Steps: Mode Tidak Valid",
@@ -1809,12 +1809,12 @@
   "wifi_steps_invalid_ssid": {
     "name": "WiFi Steps: SSID Tidak Valid",
     "category": "wifi_steps",
-    "template": "Nomor SSID tidak valid. Mohon balas dengan nomor yang sesuai dari daftar."
+    "template": "Nomor WiFi tidak valid. Mohon balas dengan nomor yang sesuai dari daftar."
   },
   "wifi_steps_confirm_single_name": {
     "name": "WiFi Steps: Konfirmasi Nama Single SSID",
     "category": "wifi_steps",
-    "template": "Siap. Saya konfirmasi ya, nama untuk *SSID ${ssidId}* akan diubah menjadi *\"${newName}\"*. Sudah benar?\n\nBalas *'ya'* untuk melanjutkan.",
+    "template": "Siap. Saya konfirmasi ya, nama untuk *WiFi ${ssidId}* akan diubah menjadi *\"${newName}\"*. Sudah benar?\n\nBalas *'ya'* untuk melanjutkan.",
     "placeholders": [
       "ssidId",
       "newName"
@@ -1823,7 +1823,7 @@
   "wifi_steps_ask_single_name": {
     "name": "WiFi Steps: Minta Nama Single SSID",
     "category": "wifi_steps",
-    "template": "Silakan ketik nama WiFi baru untuk SSID tersebut.\n\n*Ketentuan:*\n- Maksimal 32 karakter\n- Boleh menggunakan huruf, angka, spasi\n\nKetik *batal* untuk membatalkan."
+    "template": "Silakan ketik nama WiFi baru untuk WiFi tersebut.\n\n*Ketentuan:*\n- Maksimal 32 karakter\n- Boleh menggunakan huruf, angka, spasi\n\nKetik *batal* untuk membatalkan."
   },
   "wifi_steps_name_cancelled": {
     "name": "WiFi Steps: Nama Dibatalkan",
@@ -1869,7 +1869,7 @@
   "wifi_steps_name_partial_failed": {
     "name": "WiFi Steps: Nama Sebagian Gagal",
     "category": "wifi_steps",
-    "template": "Gagal mengubah nama WiFi untuk beberapa SSID:\n${failedList}",
+    "template": "Gagal mengubah nama WiFi untuk beberapa WiFi:\n${failedList}",
     "placeholders": [
       "failedList"
     ]
@@ -1885,7 +1885,7 @@
   "wifi_steps_select_ssid_password": {
     "name": "WiFi Steps: Pilih SSID Sandi",
     "category": "wifi_steps",
-    "template": "*Pilih SSID yang Akan Diubah Sandinya*\n\n${ssidList}\n\nBalas dengan nomor SSID yang ingin diubah sandinya (1-${totalSsids}).",
+    "template": "*Pilih WiFi yang Akan Diubah Sandinya*\n\n${ssidList}\n\nBalas dengan nomor WiFi yang ingin diubah sandinya (1-${totalSsids}).",
     "placeholders": [
       "ssidList",
       "totalSsids"
@@ -1894,7 +1894,7 @@
   "wifi_steps_confirm_all_password": {
     "name": "WiFi Steps: Konfirmasi Sandi Semua SSID",
     "category": "wifi_steps",
-    "template": "Siap. Saya konfirmasi ya, sandi untuk *semua SSID* akan diubah menjadi *\"${newPassword}\"*. Sudah benar?\n\nBalas *'ya'* untuk melanjutkan.",
+    "template": "Siap. Saya konfirmasi ya, sandi untuk *semua WiFi* akan diubah menjadi *\"${newPassword}\"*. Sudah benar?\n\nBalas *'ya'* untuk melanjutkan.",
     "placeholders": [
       "newPassword"
     ]
@@ -1902,12 +1902,12 @@
   "wifi_steps_ask_bulk_password": {
     "name": "WiFi Steps: Minta Sandi Semua SSID",
     "category": "wifi_steps",
-    "template": "Silakan ketik sandi WiFi baru yang akan digunakan untuk *semua SSID*.\n\n*Ketentuan:*\n- Minimal 8 karakter\n- Kombinasi huruf dan angka lebih aman\n\nKetik *batal* untuk membatalkan."
+    "template": "Silakan ketik sandi WiFi baru yang akan digunakan untuk *semua WiFi*.\n\n*Ketentuan:*\n- Minimal 8 karakter\n- Kombinasi huruf dan angka lebih aman\n\nKetik *batal* untuk membatalkan."
   },
   "wifi_steps_confirm_single_password": {
     "name": "WiFi Steps: Konfirmasi Sandi Single SSID",
     "category": "wifi_steps",
-    "template": "Siap. Saya konfirmasi ya, sandi untuk *SSID ${ssidId}* akan diubah menjadi *\"${newPassword}\"*. Sudah benar?\n\nBalas *'ya'* untuk melanjutkan.",
+    "template": "Siap. Saya konfirmasi ya, sandi untuk *WiFi ${ssidId}* akan diubah menjadi *\"${newPassword}\"*. Sudah benar?\n\nBalas *'ya'* untuk melanjutkan.",
     "placeholders": [
       "ssidId",
       "newPassword"
@@ -1916,7 +1916,7 @@
   "wifi_steps_ask_single_password": {
     "name": "WiFi Steps: Minta Sandi Single SSID",
     "category": "wifi_steps",
-    "template": "Silakan ketik sandi WiFi baru untuk SSID tersebut.\n\n*Ketentuan:*\n- Minimal 8 karakter\n- Kombinasi huruf dan angka lebih aman\n\nKetik *batal* untuk membatalkan."
+    "template": "Silakan ketik sandi WiFi baru untuk WiFi tersebut.\n\n*Ketentuan:*\n- Minimal 8 karakter\n- Kombinasi huruf dan angka lebih aman\n\nKetik *batal* untuk membatalkan."
   },
   "wifi_steps_password_cancelled": {
     "name": "WiFi Steps: Sandi Dibatalkan",
@@ -1956,7 +1956,7 @@
   "wifi_steps_password_partial_failed": {
     "name": "WiFi Steps: Sandi Sebagian Gagal",
     "category": "wifi_steps",
-    "template": "Gagal mengubah sandi WiFi untuk beberapa SSID:\n${failedList}",
+    "template": "Gagal mengubah sandi WiFi untuk beberapa WiFi:\n${failedList}",
     "placeholders": [
       "failedList"
     ]
@@ -1977,12 +1977,12 @@
   "wifi_bulk_password_all_processing": {
     "name": "WiFi Bulk: Proses Sandi Semua SSID",
     "category": "wifi_steps_bulk",
-    "template": "Sedang mengubah sandi WiFi untuk *semua SSID*..."
+    "template": "Sedang mengubah sandi WiFi untuk *semua WiFi*..."
   },
   "wifi_bulk_password_single_processing": {
     "name": "WiFi Bulk: Proses Sandi Single SSID",
     "category": "wifi_steps_bulk",
-    "template": "Sedang mengubah sandi WiFi untuk SSID ${ssidId}...",
+    "template": "Sedang mengubah sandi WiFi untuk WiFi ${ssidId}...",
     "placeholders": [
       "ssidId"
     ]
@@ -1990,7 +1990,7 @@
   "wifi_bulk_password_request_all": {
     "name": "WiFi Bulk: Request Sandi Semua SSID",
     "category": "wifi_steps_bulk",
-    "template": "*Permintaan Diterima*\n\nPerubahan sandi WiFi untuk semua SSID sedang diproses.\n\n*Perhatian:*\n- Modem akan restart otomatis (1-2 menit)\n- Semua perangkat akan terputus\n- Gunakan sandi baru: *${newPassword}*\n\n_Jika tidak berubah setelah 5 menit, silakan hubungi teknisi._",
+    "template": "*Permintaan Diterima*\n\nPerubahan sandi WiFi untuk semua WiFi sedang diproses.\n\n*Perhatian:*\n- Modem akan restart otomatis (1-2 menit)\n- Semua perangkat akan terputus\n- Gunakan sandi baru: *${newPassword}*\n\n_Jika tidak berubah setelah 5 menit, silakan hubungi teknisi._",
     "placeholders": [
       "newPassword"
     ]
@@ -1998,7 +1998,7 @@
   "wifi_bulk_password_request_single": {
     "name": "WiFi Bulk: Request Sandi Single SSID",
     "category": "wifi_steps_bulk",
-    "template": "*Permintaan Diterima*\n\nPerubahan sandi WiFi untuk SSID ${ssidId} sedang diproses.\n\n*Perhatian:*\n- Modem akan restart otomatis (1-2 menit)\n- Perangkat akan terputus sementara\n- Gunakan sandi baru: *${newPassword}*\n\n_Jika tidak berubah setelah 5 menit, silakan hubungi teknisi._",
+    "template": "*Permintaan Diterima*\n\nPerubahan sandi WiFi untuk WiFi ${ssidId} sedang diproses.\n\n*Perhatian:*\n- Modem akan restart otomatis (1-2 menit)\n- Perangkat akan terputus sementara\n- Gunakan sandi baru: *${newPassword}*\n\n_Jika tidak berubah setelah 5 menit, silakan hubungi teknisi._",
     "placeholders": [
       "ssidId",
       "newPassword"
@@ -2007,7 +2007,7 @@
   "wifi_bulk_password_success_single": {
     "name": "WiFi Bulk: Sandi Single Berhasil",
     "category": "wifi_steps_bulk",
-    "template": "*Berhasil!*\n\nSandi WiFi untuk *SSID ${ssidId}* telah diubah menjadi:\n*${newPassword}*",
+    "template": "*Berhasil!*\n\nSandi WiFi untuk *WiFi ${ssidId}* telah diubah menjadi:\n*${newPassword}*",
     "placeholders": [
       "ssidId",
       "newPassword"
@@ -2024,12 +2024,12 @@
   "wifi_bulk_name_all_processing": {
     "name": "WiFi Bulk: Proses Nama Semua SSID",
     "category": "wifi_steps_bulk",
-    "template": "Sedang mengubah nama WiFi untuk *semua SSID*..."
+    "template": "Sedang mengubah nama WiFi untuk *semua WiFi*..."
   },
   "wifi_bulk_name_single_processing": {
     "name": "WiFi Bulk: Proses Nama Single SSID",
     "category": "wifi_steps_bulk",
-    "template": "Sedang mengubah nama WiFi untuk SSID ${ssidId}...",
+    "template": "Sedang mengubah nama WiFi untuk WiFi ${ssidId}...",
     "placeholders": [
       "ssidId"
     ]
@@ -2037,7 +2037,7 @@
   "wifi_bulk_name_request_all": {
     "name": "WiFi Bulk: Request Nama Semua SSID",
     "category": "wifi_steps_bulk",
-    "template": "*Permintaan Diterima*\n\nPerubahan nama WiFi untuk semua SSID sedang diproses.\n\n*Perhatian:*\n- Modem akan restart otomatis (1-2 menit)\n- Semua perangkat akan terputus\n- Gunakan nama WiFi baru: *${newName}*\n\n_Jika tidak berubah setelah 5 menit, silakan hubungi teknisi._",
+    "template": "*Permintaan Diterima*\n\nPerubahan nama WiFi untuk semua WiFi sedang diproses.\n\n*Perhatian:*\n- Modem akan restart otomatis (1-2 menit)\n- Semua perangkat akan terputus\n- Gunakan nama WiFi baru: *${newName}*\n\n_Jika tidak berubah setelah 5 menit, silakan hubungi teknisi._",
     "placeholders": [
       "newName"
     ]
@@ -2045,7 +2045,7 @@
   "wifi_bulk_name_request_single": {
     "name": "WiFi Bulk: Request Nama Single SSID",
     "category": "wifi_steps_bulk",
-    "template": "*Permintaan Diterima*\n\nPerubahan nama WiFi untuk SSID ${ssidId} sedang diproses.\n\n*Perhatian:*\n- Modem akan restart otomatis (1-2 menit)\n- Perangkat akan terputus sementara\n- Gunakan nama WiFi baru: *${newName}*\n\n_Jika tidak berubah setelah 5 menit, silakan hubungi teknisi._",
+    "template": "*Permintaan Diterima*\n\nPerubahan nama WiFi untuk WiFi ${ssidId} sedang diproses.\n\n*Perhatian:*\n- Modem akan restart otomatis (1-2 menit)\n- Perangkat akan terputus sementara\n- Gunakan nama WiFi baru: *${newName}*\n\n_Jika tidak berubah setelah 5 menit, silakan hubungi teknisi._",
     "placeholders": [
       "ssidId",
       "newName"
@@ -3157,12 +3157,12 @@
   "wifi_password_applying_single": {
     "name": "WiFi Password: Sedang Mengubah Single SSID",
     "category": "wifi",
-    "template": "⏳ Sedang mengubah kata sandi WiFi SSID ${ssid_id}..."
+    "template": "⏳ Sedang mengubah kata sandi WiFi WiFi ${ssid_id}..."
   },
   "wifi_password_applying_bulk": {
     "name": "WiFi Password: Sedang Mengubah Bulk SSID",
     "category": "wifi",
-    "template": "⏳ Sedang mengubah kata sandi untuk ${jumlah_ssid} SSID..."
+    "template": "⏳ Sedang mengubah kata sandi untuk ${jumlah_ssid} WiFi..."
   },
   "wifi_name_change_error": {
     "name": "WiFi Name State: Error Ganti Nama",
@@ -3357,7 +3357,7 @@
   "wifi_name_bulk_target_missing": {
     "name": "WiFi Name State: Target SSID Tidak Ditemukan",
     "category": "wifi",
-    "template": "❌ Target SSID tidak ditemukan. Silakan mulai lagi dari awal."
+    "template": "❌ Target WiFi tidak ditemukan. Silakan mulai lagi dari awal."
   },
   "approval_teknisi_status_notification": {
     "name": "Approval: Notifikasi Status Pengajuan ke Teknisi",

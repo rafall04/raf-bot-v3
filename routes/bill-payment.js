@@ -19,7 +19,6 @@ const convertRupiah = require("rupiah-format");
 const rateLimit = require("express-rate-limit");
 
 const { verifyBillPayToken } = require("../lib/bill-pay-token");
-const { getFirstAdminNumber } = require("../lib/admin-recipients");
 const ipaymu = require("../lib/ipaymu");
 const { addPayment, checkStatusPayment } = require("../lib/payment");
 
@@ -83,9 +82,9 @@ router.get("/api/bayar/:token/info", async (req, res) => {
             channelError = e.message;
         }
     }
-    // Link "verifikasi ke admin" → admin ASLI dari accounts.json (bukan nomor bot / telfon).
+    // Link "verifikasi ke admin" yang dilihat PELANGGAN = nomor bot/bisnis (config.adminPhone).
     const cfg = global.config || {};
-    const adminWa = getFirstAdminNumber();
+    const adminWa = String(cfg.adminPhone || cfg.telfon || "").replace(/\D/g, "");
     res.json({
         ok: true,
         status: paid ? "paid" : "unpaid",
