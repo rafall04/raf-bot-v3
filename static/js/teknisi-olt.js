@@ -428,9 +428,9 @@
             $('#modalLastCheck').text('Terakhir cek: ' + new Date().toLocaleTimeString('id-ID'));
             
             // Penyebab dari data bulk (instan); waktu dimuat dari OLT di bawah (col5/col6).
-            $('#modalCause').html(renderCause(customer));
+            $('#modalCause').html(renderCause(customer, false));
             $('#modalUptime').text('…');
-            $('#modalLastDown').text('…');
+            $('#modalLastDown').text(formatDownSince(customer.down_since) || '…');
             $('#customerDetailModal').modal('show');
             if (customer.slot_id && customer.onu_id && customer.slot_id !== 'N/A') {
                 refreshCustomerOlt({ silent: true });
@@ -491,7 +491,8 @@
                     credentials: 'include',
                     body: JSON.stringify({
                         slotId: currentCustomerData.slot_id,
-                        onuId: currentCustomerData.onu_id
+                        onuId: currentCustomerData.onu_id,
+                        mac: currentCustomerData.mac_olt || currentCustomerData.mac_mikrotik || undefined
                     })
                 });
                 const result = await res.json();
@@ -505,10 +506,10 @@
                         // Data berhasil diambil (bisa Online atau Offline)
                         const data = result.data;
                         updateModalRxPower(data.rx_power, data.olt_status, data.is_dying_gasp, data.is_los);
-                        $('#modalCause').html(renderCause(data));
+                        $('#modalCause').html(renderCause(data, false));
                         const up = computeUptime(data.last_up_at);
                         $('#modalUptime').text(data.olt_status === 'Online' ? (up || '—') : '-');
-                        $('#modalLastDown').text(formatDownSince(data.last_down_at) || data.last_down_at || '-');
+                        $('#modalLastDown').text(formatDownSince(data.down_since || data.last_down_at) || '-');
                         $('#modalLastCheck').text('Terakhir cek: ' + new Date().toLocaleTimeString('id-ID'));
                         
                         // Update in matchedData array too
@@ -566,7 +567,7 @@
         }
 
         // Penyebab offline terakhir (ZTE native): LOS/LOSi/SFi/DyingGasp. Online → "-".
-        function renderCause(row) {
+        function renderCause(row, showSince = true) {
             if (row.olt_status === 'Online') return '<span class="text-muted">-</span>';
             // Penyebab HYBRID semua merk: klasifikasi LOG (Hioso & semua merk via is_los/
             // is_dying_gasp) diutamakan; fallback last_down_cause granular (ZTE native).
@@ -581,7 +582,9 @@
                 label = 'Offline';
             }
             const badge = `<span class="badge ${cls}">${$('<div>').text(label).html()}</span>`;
-            const since = formatDownSince(row.down_since);
+            // "sejak" hanya untuk TABEL (tak ada kolom Terakhir-down). Di modal showSince=false
+            // karena waktunya ditampilkan di field "Terakhir down" tersendiri (anti-redundan).
+            const since = showSince ? formatDownSince(row.down_since) : null;
             return since
                 ? `${badge}<br><small class="text-muted" title="Down sejak (waktu real, terkoreksi jam OLT): ${$('<div>').text(row.down_since).html()}">sejak ${since}</small>`
                 : badge;
