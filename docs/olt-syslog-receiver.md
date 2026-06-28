@@ -99,6 +99,34 @@ Edit `config.json` (atau via admin UI kalau sudah ada):
 - `host`: `0.0.0.0` listen di semua interface; ganti ke IP spesifik kalau perlu.
 - `correlationWindowMs`: window untuk match DG → Lost. Default 60 detik.
 - `lostGraceMs`: grace window untuk reorder-safety (lihat di bawah). Default 4 detik.
+- `recvBufferBytes`: ukuran UDP recv buffer (default 4 MB). Lihat **Hardening burst** di bawah.
+
+### Hardening burst (mass-outage) — WAJIB agar tidak ada paket DG yang drop
+
+Saat mati total area (PLN), ratusan ONU memuntahkan `dying-gasp`+`Lost` serempak dalam
+1–2 detik. Dua mekanisme menjaga agar paket tidak hilang (paket DG yang drop = salah vonis
+LOS → salah dispatch teknisi):
+
+1. **UDP recv buffer besar** — receiver memanggil `setRecvBufferSize(recvBufferBytes)` (default
+   4 MB) supaya burst diantri OS, bukan di-drop. **Kernel meng-cap ke `net.core.rmem_max`**
+   (default Linux ~208 KB), jadi WAJIB naikkan sysctl di host:
+   ```
+   sudo sysctl -w net.core.rmem_max=8388608
+   sudo sysctl -w net.core.rmem_default=1048576
+   sudo sysctl -w net.core.netdev_max_backlog=5000
+   # persist:
+   printf 'net.core.rmem_max=8388608\nnet.core.rmem_default=1048576\nnet.core.netdev_max_backlog=5000\n' | sudo tee /etc/sysctl.d/99-olt-syslog.conf
+   sudo sysctl --system
+   ```
+   Cek efektif: log boot `[OLT-Syslog] Listening on ... (recvbuf=<N>B)` harus mendekati 4 MB
+   (kernel sering melaporkan 2× nilai yang di-set). Monitor drop: `netstat -su | grep "receive buffer errors"`.
+
+2. **Persist batching** — dulu tiap event menulis `olt-events.json` (load+save JSON penuh) PER
+   PAKET → blok event loop → buffer penuh → drop. Sekarang event di-*stage* di memori dan
+   di-flush **ter-debounce** (`FLUSH_DEBOUNCE_MS` 250 ms, atau segera bila batch ≥ 200): jadi
+   ratusan paket = beberapa write, bukan ratusan. Kerja per-paket murni in-memory → socket cepat
+   terkuras. LOS broadcaster tetap dipanggil langsung per-event (latensi alert tak terpengaruh).
+   Stats di `getStatus()`: `flush_count`, `last_flush_size`, `pending_peak`, `recv_buffer_bytes`.
 
 ### Grace window — kenapa LOS ditahan ~4 detik
 
