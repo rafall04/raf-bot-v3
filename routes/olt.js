@@ -933,6 +933,35 @@ router.get('/infra-status', async (req, res) => {
     }
 });
 
+/**
+ * Tentukan status TAMPILAN ONU. SNMP Hioso TIDAK bisa membedakan LOS vs DG (semua
+ * phaseState=2 → "LOS" mentah), jadi untuk ONU offline pada OLT web-scrape (Hioso),
+ * klasifikasi diambil dari LOG (statusEntry, terkoreksi jam OLT). Tanpa sinyal log →
+ * "Offline" (jujur, BUKAN LOS palsu). OLT yang LOS-via-SNMP (ZTE GPON) pakai status SNMP.
+ */
+function resolveOnuDisplayStatus(onu, statusEntry, isWebScrape) {
+    if (onu.status === 'Online') {
+        return { olt_status: 'Online', is_los: false, is_dying_gasp: false, down_since: null, status_source: 'snmp' };
+    }
+    if (isWebScrape) {
+        const logStat = statusEntry && statusEntry.map.get(normalizeMAC(onu.macAddress));
+        if (logStat) {
+            const dg = logStat.event_type === 'dying-gasp';
+            return {
+                olt_status: dg ? 'Dying Gasp' : 'LOS',
+                is_los: !dg,
+                is_dying_gasp: dg,
+                down_since: Number.isFinite(logStat.realTs) ? new Date(logStat.realTs).toISOString() : null,
+                status_source: 'log',
+            };
+        }
+        // Offline per SNMP tapi tak ada sinyal log → jangan vonis LOS dari SNMP.
+        return { olt_status: 'Offline', is_los: false, is_dying_gasp: false, down_since: null, status_source: 'log-unclassified' };
+    }
+    // OLT non-web-scrape (ZTE GPON): status SNMP sahih (LOS-via-SNMP didukung).
+    return { olt_status: onu.status, is_los: onu.isLos, is_dying_gasp: onu.isDyingGasp, down_since: null, status_source: 'snmp' };
+}
+
 router.get('/onus', async (req, res) => {
     try {
         if (!req.user) {
@@ -1014,11 +1043,32 @@ router.get('/onus', async (req, res) => {
             return null;
         };
 
+        // === Klasifikasi LOS/DG dari LOG (SNMP Hioso tak bisa bedakan; lihat olt-log-scraper) ===
+        // Ambil peta status per-OLT web-scrape (cached 60s, fetch paralel antar-OLT berbeda).
+        // Non-fatal: kalau gagal, ONU offline tampil "Offline" (bukan LOS palsu dari SNMP).
+        const statusByOlt = new Map();
+        const webScrapeOltIds = new Set();
+        await Promise.all(targetDevices.map(async (dev) => {
+            let needsLog = true;
+            try {
+                const drv = resolveDriver(dev);
+                needsLog = !drv || !drv.capabilities || drv.capabilities.needsWebScrape !== false;
+            } catch (_e) { needsLog = true; }
+            if (!needsLog) return; // ZTE GPON dll: LOS via SNMP, tak perlu log
+            webScrapeOltIds.add(dev.id);
+            try {
+                statusByOlt.set(dev.id, await oltLogScraper.getOnuStatusMap(dev, { maxPages: 12 }));
+            } catch (e) {
+                console.warn(`[OLT-onus] klasifikasi log gagal utk ${dev.name}: ${e.message}`);
+            }
+        }));
+
         const rows = [];
         for (const onu of oltResult.onus) {
             // (oltResult sudah hanya berisi OLT terpilih bila wantOltId; cek ini jaring pengaman.)
             if (wantOltId && onu.olt_id !== wantOltId) continue;
             const u = findCustomer(onu);
+            const disp = resolveOnuDisplayStatus(onu, statusByOlt.get(onu.olt_id), webScrapeOltIds.has(onu.olt_id));
             rows.push({
                 olt_id: onu.olt_id || null,
                 olt_name: onu.olt_name || null,
@@ -1033,9 +1083,11 @@ router.get('/onus', async (req, res) => {
                 rx_power: onu.rxPower,
                 tx_power: onu.txPower || 'N/A',       // ONU Tx upstream (GPON ZTE; HIOSO N/A)
                 attenuation: onu.attenuation || 'N/A', // atenuasi downstream ≈ (GPON ZTE)
-                olt_status: onu.status,
-                is_los: onu.isLos,
-                is_dying_gasp: onu.isDyingGasp,
+                olt_status: disp.olt_status,
+                is_los: disp.is_los,
+                is_dying_gasp: disp.is_dying_gasp,
+                down_since: disp.down_since,         // waktu REAL (terkoreksi jam OLT) ONU mulai down
+                status_source: disp.status_source,   // 'log' | 'snmp' | 'log-unclassified'
                 // Anotasi pelanggan (null bila tak ke-match).
                 matched: !!u,
                 user_id: u ? u.id : null,
