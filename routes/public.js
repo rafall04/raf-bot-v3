@@ -19,6 +19,9 @@ const pay = require("../lib/ipaymu");
 // Verifikasi server-to-server status transaksi iPaymu (dipakai di callback).
 // Diberi nama lain karena `pay` di-shadow oleh record pembayaran di dalam handler callback.
 const verifyIpaymuTransaction = require("../lib/ipaymu").checkTransaction;
+// Settlement bayar tagihan bulanan (catat lunas + auto-reaktivasi). Dipakai cabang callback 'tagihan'.
+const { createBillPaymentSettlement } = require('../lib/services/bill-payment-settlement');
+const billSettlement = createBillPaymentSettlement();
 const { getvoucher } = require("../lib/mikrotik");
 const { addKoinUser, checkATMuser } = require('../lib/saldo');
 const { updateStatusPayment, checkStatusPayment, delPayment: _delPayment, addPayBuy: _addPayBuy, addPayment, updateKetPayment } = require('../lib/payment');
@@ -843,6 +846,71 @@ router.post('/callback/payment', async (req, res) => {
                 });
                 await sendMessage(pay.sender, { text: message });
                 throw !0;
+            } else if (pay.tag == 'tagihan') {
+                // Bayar tagihan bulanan: cari pelanggan dari userId yang KITA simpan saat charge.
+                const user = (global.users || []).find(u => String(u.id) === String(pay.userId));
+                if (!user) {
+                    console.error('[IPAYMU_TAGIHAN] User tidak ditemukan — payment TIDAK ditandai paid', { reference_id, userId: pay.userId });
+                    throw !1; // 500 → iPaymu retry
+                }
+
+                // Catat lunas (ledger) + reaktivasi bila terisolir. Catat-lunas WAJIB sukses;
+                // bila gagal → 500 supaya iPaymu retry & pembayaran tidak hilang (fail-closed).
+                let settleResult;
+                try {
+                    settleResult = await billSettlement.settleTagihanPayment({
+                        user,
+                        amountPaid: pay.amount,
+                        periodMonth: pay.periodMonth,
+                        periodYear: pay.periodYear,
+                        paymentMethod: pay.method || 'QRIS',
+                        reffId: reference_id,
+                    });
+                } catch (settleErr) {
+                    console.error('[IPAYMU_TAGIHAN] Catat lunas GAGAL — payment TIDAK ditandai paid', { reference_id, error: settleErr.message });
+                    throw !1; // 500 → iPaymu retry; jangan tandai paid.
+                }
+
+                updateStatusPayment(reference_id, true);
+                const react = settleResult.reactivation || {};
+                updateKetPayment(reference_id, `Tagihan lunas${react.attempted ? (react.ok ? ' + reaktivasi OK' : ' + reaktivasi GAGAL') : ''}`);
+
+                // Struk ke pelanggan (best-effort; kegagalan kirim TIDAK menggagalkan callback).
+                try {
+                    const periode = (pay.periodMonth && pay.periodYear)
+                        ? new Date(pay.periodYear, pay.periodMonth - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
+                        : new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+                    const struk = renderTemplate('tagihan_struk_lunas', {
+                        nama_pelanggan: user.name,
+                        nama_paket: user.subscription,
+                        harga: convertRupiah.convert(pay.amount),
+                        metode: pay.method || 'QRIS',
+                        periode,
+                        status_layanan: react.ok ? '⚡ Layanan Anda sudah aktif kembali.' : '',
+                    });
+                    if (pay.sender) await sendMessage(pay.sender, { text: struk });
+                } catch (notifyErr) {
+                    console.error('[IPAYMU_TAGIHAN] Gagal kirim struk:', notifyErr.message);
+                }
+
+                // Alert admin bila reaktivasi DIBUTUHKAN tapi GAGAL (pelanggan bayar tapi masih terisolir).
+                if (react.attempted && !react.ok) {
+                    try {
+                        const owners = (global.config && global.config.ownerNumber) || [];
+                        const adminMsg = renderTemplate('tagihan_reaktivasi_gagal_admin', {
+                            nama_pelanggan: user.name,
+                            pppoe: user.pppoe_username || '-',
+                            reference_id,
+                        });
+                        for (const num of owners) {
+                            const jid = String(num).replace(/\D/g, '') + '@s.whatsapp.net';
+                            await sendMessage(jid, { text: adminMsg });
+                        }
+                    } catch (adminErr) {
+                        console.error('[IPAYMU_TAGIHAN] Gagal alert admin:', adminErr.message);
+                    }
+                }
+                throw !0; // 200
             }
         }
     } catch(err) {

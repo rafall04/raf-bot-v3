@@ -55,7 +55,7 @@ Aplikasi monolit Node.js untuk operasional ISP/RTRW-Net yang menggabungkan bot W
 ## Integrasi Eksternal
 - WhatsApp Multi-Device via Baileys.
 - Mikrotik / PPPoE / voucher / WiFi device adapters di `lib/mikrotik*`, `lib/wifi.js`, dan route API jaringan.
-- iPaymu untuk pembayaran/topup.
+- iPaymu untuk pembayaran/topup/tagihan. Dua mode dipakai: QRIS-direct in-chat (voucher/topup) dan multi-channel via halaman portal sendiri `/bayar/:token` (tagihan bulanan: QRIS/VA/retail, channel dinamis dari `GET /payment-channels`). Semua callback masuk ke `POST /callback/payment` (verify server-to-server `checkTransaction` sebelum kredit). `lib/ipaymu.js` punya retry koneksi-fresh anti dual-WAN.
 - SNMP/OLT monitoring untuk perangkat jaringan/ONT.
 - GenieACS untuk provisioning/ACS pelanggan.
 - Telegram backup untuk arsip database.
@@ -73,6 +73,7 @@ Aplikasi monolit Node.js untuk operasional ISP/RTRW-Net yang menggabungkan bot W
 - `database/`: SQLite dan JSON operasional.
 
 ## Boundary Refactor Baru
+- `routes/bill-payment.js` + `lib/bill-pay-token.js` + `lib/services/bill-payment-settlement.js`: owner flow **bayar tagihan bulanan self-service**. Pelanggan pascabayar terima link `/bayar/:token` (token HMAC stateless tanpa login, dibuat `buildBillPayUrl` — disisipkan cron `reminder`/`isolir-notification` & handler `cektagihan`/`bayar` di `billing-management-handler.js`). Halaman (`static/bill-payment.html`) ambil channel aktif via `ipaymu.getPaymentChannels()` lalu `POST /api/bayar/:token/charge` → `ipaymu.payDirect()` (multi-channel) + `addPayment` tag `tagihan` (persist `payment.json`, simpan `userId`/`periodMonth`/`periodYear`). Callback `POST /callback/payment` cabang `tagihan` (`routes/public.js`) verify S2S lalu `bill-payment-settlement.settleTagihanPayment` → `applyPaymentStatusChange` (ledger, sumber kebenaran paid) + auto-reaktivasi `IsolirService.executeProfileAction` HANYA bila profil live MikroTik == `isolir_profile` (deteksi via `getPPPoEUserProfile`). Fail-closed: catat-lunas gagal → 500 (iPaymu retry); reaktivasi best-effort (gagal → lunas tetap + alert admin). Menggantikan reaktivasi manual `/buka-isolir`.
 - `repositories/message-log.repository.js` + hook di `message/raf.js`: logger pesan MASUK WA read-only (fire-and-forget, tak pernah throw/blokir jalur pesan) yang menulis ke `database/message_logs.sqlite` (tabel `inbound_messages`). Tujuan: kumpulkan korpus bahasa pelanggan untuk evaluasi fitur AI. Pakai konteks sender yang sudah di-resolve (`canonicalContext`) — tidak re-resolve agar tak meracuni `lid-mappings.json`; grup & pesan `fromMe` dilewati. Toggle `config.messageLogging.enabled` (default aktif). Review via `scripts/export-message-logs.js` (JSON+CSV, anotasi intent keyword best-effort).
 - `lib/app-runtime.js`: runtime context tunggal untuk state global, repository state, dan background services.
 - `lib/routes-registry.js`: registry mount router HTTP agar urutan route dapat diuji tanpa membaca `index.js` penuh.

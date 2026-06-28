@@ -12,6 +12,7 @@ const convertRupiah = require('rupiah-format');
 const { getUserState: _getUserState, setUserState, deleteUserState: _deleteUserState } = require('./conversation-handler');
 const { renderResponseTemplate } = require('./template-helpers');
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
+const { buildBillPayUrl } = require('../../lib/bill-pay-token');
 
 /**
  * Handle check billing
@@ -54,7 +55,15 @@ async function handleCekTagihan({ plainSenderNumber: _plainSenderNumber, pushnam
         if (user.paid) {
             responseMessage = renderTemplate('tagihan_lunas', templateData);
         } else {
-            responseMessage = renderTemplate('tagihan_belum_lunas', templateData);
+            // Link bayar mandiri (QRIS/VA/retail) — token bertanda-tangan, tanpa login.
+            const now = new Date();
+            let linkBayar = '';
+            try {
+                linkBayar = buildBillPayUrl(user, { periodMonth: now.getMonth() + 1, periodYear: now.getFullYear() });
+            } catch (linkErr) {
+                console.error('[CEK_TAGIHAN] Gagal buat link bayar:', linkErr.message);
+            }
+            responseMessage = renderTemplate('tagihan_belum_lunas', { ...templateData, link_bayar: linkBayar });
         }
 
         await reply(responseMessage);

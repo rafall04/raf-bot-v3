@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex,nofollow" />
+<title>Bayar Tagihan</title>
+<style>
+  :root { --bg:#f1f5f9; --card:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --brand:#4f46e5; --ok:#16a34a; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:440px; margin:0 auto; padding:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:14px; }
+  .muted { color:var(--muted); font-size:13px; }
+  h1 { font-size:18px; margin:0 0 2px; }
+  .amount { font-size:30px; font-weight:800; letter-spacing:-.5px; }
+  .row { display:flex; justify-content:space-between; gap:8px; padding:6px 0; font-size:14px; }
+  .grp-title { font-size:12px; font-weight:700; text-transform:uppercase; color:var(--muted); margin:14px 0 6px; letter-spacing:.04em; }
+  .ch { width:100%; text-align:left; background:#fff; border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:8px;
+        font-size:14px; font-weight:600; color:var(--ink); cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+  .ch:hover { border-color:var(--brand); }
+  .ch small { color:var(--muted); font-weight:500; }
+  .btn { display:inline-block; width:100%; text-align:center; background:var(--brand); color:#fff; border:0; border-radius:10px;
+         padding:13px; font-size:15px; font-weight:700; cursor:pointer; }
+  .btn.sec { background:#fff; color:var(--brand); border:1.5px solid var(--brand); }
+  .center { text-align:center; }
+  .qr { width:230px; height:230px; display:block; margin:10px auto; border-radius:12px; }
+  .paycode { font-family:ui-monospace,monospace; font-size:22px; font-weight:800; letter-spacing:1px; word-break:break-all;
+             background:#f8fafc; border:1px dashed var(--line); border-radius:10px; padding:12px; text-align:center; margin:8px 0; }
+  .note { font-size:13px; color:var(--muted); background:#f8fafc; border-radius:10px; padding:10px 12px; margin-top:8px; }
+  .badge { display:inline-block; background:#eef2ff; color:var(--brand); border-radius:999px; padding:3px 10px; font-size:12px; font-weight:700; }
+  .ok-ico { font-size:46px; }
+  .spin { width:26px; height:26px; border:3px solid var(--line); border-top-color:var(--brand); border-radius:50%; margin:18px auto; animation:s 1s linear infinite; }
+  @keyframes s { to { transform:rotate(360deg); } }
+  .hidden { display:none; }
+  .small { font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="app">
+    <div class="card center"><div class="spin"></div><div class="muted">Memuat tagihan…</div></div>
+  </div>
+  <p class="center small muted">Pembayaran aman diproses oleh iPaymu.</p>
+</div>
+
+<script>
+const token = decodeURIComponent(location.pathname.split("/bayar/")[1] || "");
+const app = document.getElementById("app");
+const rp = (n) => "Rp " + (Number(n)||0).toLocaleString("id-ID");
+let info = null, pollTimer = null;
+
+function el(html) { const d = document.createElement("div"); d.innerHTML = html.trim(); return d.firstChild; }
+function render(node) { app.innerHTML = ""; app.appendChild(node); }
+function card(inner, cls) { return el(`<div class="card ${cls||""}">${inner}</div>`); }
+
+async function api(pathPart, opts) {
+  const r = await fetch(`/api/bayar/${encodeURIComponent(token)}${pathPart}`, opts);
+  return r.json();
+}
+
+async function load() {
+  let data;
+  try { data = await api("/info"); } catch (e) { return showError("Gagal memuat. Periksa koneksi Anda."); }
+  info = data;
+  if (!data.ok) {
+    if (data.status === "invalid") return showError("Link tidak valid atau sudah kedaluwarsa. Minta link baru ke bot WhatsApp.");
+    if (data.status === "not_postpaid") return showError("Akun ini bukan pelanggan bulanan.");
+    return showError("Tagihan tidak ditemukan.");
+  }
+  if (data.status === "free") return showInfoCard("🎁 Paket Anda gratis", "Tidak ada tagihan yang perlu dibayar.");
+  if (data.status === "paid") return showInfoCard("✅ Tagihan sudah lunas", "Terima kasih, tidak ada yang perlu dibayar.");
+  showBill(data);
+}
+
+function showError(msg) { render(card(`<div class="center"><div class="ok-ico">⚠️</div><p>${msg}</p></div>`)); }
+function showInfoCard(title, sub) { render(card(`<div class="center"><h1>${title}</h1><p class="muted">${sub}</p></div>`)); }
+
+function showBill(d) {
+  const head = card(
+    `<div class="muted">Tagihan ${d.nama ? "• " + d.nama : ""}</div>
+     <div class="muted small">${d.paket || ""}</div>
+     <div class="amount" style="margin-top:6px">${d.formattedAmount || rp(d.amount)}</div>`);
+  render(head);
+
+  const pick = card(`<div class="muted" style="margin-bottom:2px">Pilih metode pembayaran</div><div id="channels"></div>`);
+  app.appendChild(pick);
+  const box = pick.querySelector("#channels");
+
+  if (d.channelError || !d.channels) {
+    box.appendChild(el(`<p class="note">Gagal memuat daftar metode. <a href="#" id="retry">Coba lagi</a></p>`));
+    box.querySelector("#retry").onclick = (e) => { e.preventDefault(); load(); };
+    return;
+  }
+  if (!d.channels.length) { box.appendChild(el(`<p class="note">Belum ada metode pembayaran aktif. Hubungi admin.</p>`)); return; }
+
+  const LABEL = { qris:"QRIS", va:"Transfer Virtual Account", cstore:"Bayar di Minimarket", ewallet:"E-Wallet" };
+  d.channels.forEach((g) => {
+    box.appendChild(el(`<div class="grp-title">${LABEL[g.method] || g.name}</div>`));
+    g.channels.forEach((c) => {
+      const feeTxt = c.feeType === "FLAT" ? `+${rp(c.fee)}` : (c.fee ? `+${c.fee}%` : "");
+      const btn = el(`<button class="ch">${c.name}<small>${feeTxt}</small></button>`);
+      btn.onclick = () => charge(g.method, c.channel, c.name);
+      box.appendChild(btn);
+    });
+  });
+}
+
+async function charge(method, channel, label) {
+  render(card(`<div class="center"><div class="spin"></div><div class="muted">Menyiapkan pembayaran ${label}…</div></div>`));
+  let r;
+  try { r = await api("/charge", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ method, channel }) }); }
+  catch (e) { return chargeFailed("Gagal menghubungi server.", method, channel, label); }
+  if (!r.ok) {
+    if (r.status === "already_paid") return showInfoCard("✅ Tagihan sudah lunas", "Terima kasih.");
+    return chargeFailed(r.message || "Gagal membuat pembayaran. Coba metode lain atau ulangi.", method, channel, label);
+  }
+  showPayment(r, label);
+  startPolling(r.reffId);
+}
+
+function chargeFailed(msg, method, channel, label) {
+  const c = card(`<div class="center"><div class="ok-ico">⚠️</div><p>${msg}</p></div>`);
+  const retry = el(`<button class="btn sec">Coba lagi</button>`); retry.onclick = () => charge(method, channel, label);
+  const back = el(`<button class="btn" style="margin-top:8px">Pilih metode lain</button>`); back.onclick = () => showBill(info);
+  c.appendChild(retry); c.appendChild(back); render(c);
+}
+
+function showPayment(r, label) {
+  let body = `<div class="center"><span class="badge">${label}</span><div class="row" style="justify-content:center;margin-top:8px"><b>Total: ${r.formattedTotal || rp(r.total)}</b></div></div>`;
+  if (r.qrImage) {
+    body += `<img class="qr" src="${r.qrImage}" alt="QRIS" /><p class="note center">Scan QR ini di aplikasi e-wallet / m-banking Anda, lalu bayar.</p>`;
+  } else if (r.paymentNo && r.via && /VA|Virtual/i.test(r.via)) {
+    body += `<p class="muted center" style="margin-bottom:0">Nomor Virtual Account ${r.channelLabel||""}</p>
+             <div class="paycode" id="pno">${r.paymentNo}</div>
+             <button class="btn sec" id="copy">Salin nomor</button>
+             <p class="note">Buka m-banking/ATM ${r.channelLabel||""}, pilih Transfer ke Virtual Account, masukkan nomor di atas, lalu bayar.</p>`;
+  } else if (r.paymentNo) {
+    body += `<p class="muted center" style="margin-bottom:0">Kode Pembayaran</p>
+             <div class="paycode" id="pno">${r.paymentNo}</div>
+             <button class="btn sec" id="copy">Salin kode</button>
+             ${r.note ? `<p class="note">${r.note}</p>` : ""}`;
+  }
+  if (r.expired) body += `<p class="center small muted">Berlaku sampai ${r.expired}</p>`;
+  body += `<div id="poll" class="center muted small" style="margin-top:10px"><div class="spin"></div>Menunggu pembayaran…</div>`;
+  body += `<button class="btn sec" id="back" style="margin-top:6px">Ganti metode</button>`;
+  const c = card(body); render(c);
+  const copy = c.querySelector("#copy");
+  if (copy) copy.onclick = () => { navigator.clipboard?.writeText(r.paymentNo); copy.textContent = "Tersalin ✓"; };
+  c.querySelector("#back").onclick = () => { stopPolling(); showBill(info); };
+}
+
+function startPolling(reff) {
+  stopPolling();
+  pollTimer = setInterval(async () => {
+    try {
+      const s = await api(`/status?reff=${encodeURIComponent(reff)}`);
+      if (s.paid) { stopPolling(); showSuccess(); }
+    } catch (_e) { /* abaikan, coba lagi tick berikutnya */ }
+  }, 5000);
+}
+function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+
+function showSuccess() {
+  render(card(`<div class="center"><div class="ok-ico">✅</div><h1>Pembayaran Berhasil</h1>
+    <p class="muted">Tagihan Anda sudah LUNAS. Jika layanan sempat terputus, internet akan aktif kembali otomatis dalam 1–2 menit.</p>
+    <p class="small muted">Struk juga dikirim ke WhatsApp Anda. Terima kasih 🙏</p></div>`, ""));
+}
+
+if (!token) showError("Link tidak valid."); else load();
+</script>
+</body>
+</html>
