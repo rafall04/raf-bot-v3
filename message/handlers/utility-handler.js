@@ -15,13 +15,21 @@ const { renderResponseTemplate } = require('./template-helpers');
  * Handle admin contact
  */
 function handleAdminContact(from, ownerNumber, config, msg, sendContact, reply) {
-    if (!ownerNumber || ownerNumber.length === 0 || !ownerNumber[0]) {
+    // Nomor kontak admin yang DILIHAT pelanggan = nomor bot/bisnis (config.adminPhone) — BUKAN
+    // ownerNumber yang di prod sering placeholder "62xxxxxxxxxx" → vCard rusak jadi "+62".
+    const candidates = [config && config.adminPhone, config && config.telfon, ownerNumber && ownerNumber[0]];
+    let adminNumber = '';
+    for (const cand of candidates) {
+        const digits = String(cand || '').replace(/\D/g, '');
+        if (digits.length >= 10) { adminNumber = digits; break; }
+    }
+    if (!adminNumber) {
         return reply(renderResponseTemplate(
             'utility_admin_contact_missing',
             '❌ Nomor admin tidak tersedia. Silakan hubungi support.'
         ));
     }
-    sendContact(from, `${ownerNumber[0]}`, `Admin ${config.nama || 'Admin'}`, msg);
+    sendContact(from, adminNumber, `Admin ${config.nama || 'Admin'}`, msg);
 }
 
 /**
