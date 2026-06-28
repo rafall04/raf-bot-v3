@@ -120,7 +120,10 @@ uploads/
 temp/
 *.tmp
 
-# Reconciliation/import analysis artifacts (data pelanggan + secret MikroTik — JANGAN commit)
+# Scratch/working area — JANGAN commit (skrip probe, dump data pelanggan, secret MikroTik).
+# Blanket-ignore seluruh tmp/ supaya git status bersih; file tetap ada di disk lokal.
+tmp/
+# (pola spesifik lama dipertahankan eksplisit untuk dokumentasi maksud)
 tmp/mikrotik_secrets.json
 tmp/reconciliation_report.xlsx
 tmp/staging_*
