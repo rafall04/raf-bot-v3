@@ -30,6 +30,7 @@ const {
 const CRON_SCHEDULE_FIELDS = [
     'unpaid_schedule',
     'schedule',
+    'schedule_masa_tenggang',
     'schedule_unpaid_action',
     'schedule_isolir_notification',
     'schedule_compensation_revert',
@@ -40,6 +41,7 @@ const CRON_SCHEDULE_FIELDS = [
 const CRON_BOOLEAN_FIELDS = [
     'status_unpaid_schedule',
     'status_schedule',
+    'status_masa_tenggang',
     'status_message_paid_notification',
     'status_schedule_unpaid_action',
     'status_message_isolir_notification',

@@ -92,6 +92,15 @@
                                 </div>
                                 <hr>
                                 <div class="mb-3">
+                                    <label for="schedule_masa_tenggang" class="form-label">Jadwal Masa Tenggang (sebelum isolir)</label>
+                                    <input type="text" class="form-control" id="schedule_masa_tenggang" name="schedule_masa_tenggang" placeholder="0 8 11 * * (Default: tgl 11 jam 08:00)" />
+                                </div>
+                                <div class="mb-3">
+                                    <input type="checkbox" name="status_masa_tenggang" id="status_masa_tenggang">
+                                    <label for="status_masa_tenggang" class="form-label">Enable / Disable Pesan Masa Tenggang</label>
+                                </div>
+                                <hr>
+                                <div class="mb-3">
                                     <label for="schedule_unpaid_action" class="form-label">Jadwal Isolir</label>
                                     <input type="text" class="form-control" id="schedule_unpaid_action" name="schedule_unpaid_action" />
                                 </div>
@@ -228,6 +237,8 @@
                     document.getElementById("schedule").value = result.data.schedule || "";
                     document.getElementById("status_schedule").checked = result.data.status_schedule || false;
                     document.getElementById("status_message_paid_notification").checked = result.data.status_message_paid_notification || false;
+                    document.getElementById("schedule_masa_tenggang").value = result.data.schedule_masa_tenggang || "0 8 11 * *";
+                    document.getElementById("status_masa_tenggang").checked = result.data.status_masa_tenggang !== false;
                     document.getElementById("schedule_unpaid_action").value = result.data.schedule_unpaid_action || "";
                     document.getElementById("status_schedule_unpaid_action").checked = result.data.status_schedule_unpaid_action || false;
                     document.getElementById("schedule_isolir_notification").value = result.data.schedule_isolir_notification || "";
@@ -271,6 +282,8 @@
                 schedule: document.getElementById("schedule").value.trim(),
                 status_schedule: document.getElementById("status_schedule").checked,
                 status_message_paid_notification: document.getElementById("status_message_paid_notification").checked,
+                schedule_masa_tenggang: document.getElementById("schedule_masa_tenggang").value.trim(),
+                status_masa_tenggang: document.getElementById("status_masa_tenggang").checked,
                 schedule_unpaid_action: document.getElementById("schedule_unpaid_action").value.trim(),
                 status_schedule_unpaid_action: document.getElementById("status_schedule_unpaid_action").checked,
                 schedule_isolir_notification: document.getElementById("schedule_isolir_notification").value.trim(),
