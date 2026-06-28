@@ -754,7 +754,7 @@ router.post('/callback/payment', async (req, res) => {
 
             // KEAMANAN: JANGAN percaya body callback mentah — bisa di-forge → free saldo/voucher.
             // Verifikasi langsung ke iPaymu pakai trxId yang KITA simpan saat membuat transaksi.
-            const verify = await verifyIpaymuTransaction(pay.trxId);
+            const verify = await verifyIpaymuTransaction(pay.trxId, { sandbox: pay.sandbox === true });
             if (!verify || !verify.ok || !verify.paid) {
                 console.warn('[PAYMENT_CALLBACK_REJECT] iPaymu belum konfirmasi LUNAS — kredit ditolak.', {
                     reference_id, trxId: pay.trxId, ipaymu_status: verify?.status, ipaymu_error: verify?.error

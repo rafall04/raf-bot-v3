@@ -40,6 +40,10 @@ function resolveBillContext(token) {
         pkg,
         whitelist: pkg.whitelist === true,
         amount: parseInt(pkg.price, 10) || 0,
+        // Flag uji di PAKET (packages.json): user pada paket ber-`sandbox:true` memakai sandbox
+        // iPaymu (demo, nol rupiah); paket pelanggan asli tak ber-flag → tetap produksi. Isolasi
+        // per-paket, bukan toggle global → pelanggan lain tak terpengaruh.
+        sandbox: pkg.sandbox === true,
     };
 }
 
@@ -73,7 +77,7 @@ router.get("/api/bayar/:token/info", async (req, res) => {
     let channelError = null;
     if (!paid) {
         try {
-            channels = await ipaymu.getPaymentChannels();
+            channels = await ipaymu.getPaymentChannels({ sandbox: ctx.sandbox });
         } catch (e) {
             channelError = e.message;
         }
@@ -85,6 +89,7 @@ router.get("/api/bayar/:token/info", async (req, res) => {
         paket: ctx.user.subscription,
         amount: ctx.amount,
         formattedAmount: convertRupiah.convert(ctx.amount),
+        sandbox: ctx.sandbox,
         channels,
         channelError,
     });
@@ -115,14 +120,16 @@ router.post("/api/bayar/:token/charge", chargeLimiter, async (req, res) => {
             email: `${reff}@bill.rafnet.local`,
             paymentMethod: method,
             paymentChannel: channel,
+            sandbox: ctx.sandbox,
         });
     } catch (e) {
         return res.status(502).json({ ok: false, status: "gateway_error", message: e.message });
     }
 
-    // Persist record (tag 'tagihan'). userId/periode dipakai callback untuk catat lunas + reaktivasi.
+    // Persist record (tag 'tagihan'). userId/periode dipakai callback untuk catat lunas + reaktivasi;
+    // sandbox=true → callback verifikasi ke endpoint sandbox (uji, bukan produksi).
     addPayment(reff, result.id, customerJid(ctx.user), "tagihan", ctx.amount, result.channelLabel || channel,
-        `Tagihan ${ctx.user.name}`, { userId: ctx.user.id, periodMonth, periodYear });
+        `Tagihan ${ctx.user.name}`, { userId: ctx.user.id, periodMonth, periodYear, sandbox: ctx.sandbox });
 
     let qrImage = null;
     if (result.qrString) {
