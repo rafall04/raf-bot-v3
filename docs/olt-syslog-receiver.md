@@ -232,8 +232,32 @@ yang sama. Strategi:
 - `persistEvent()` di syslog receiver pakai timestamp comparison — entry yang
   lebih baru menang
 
-Setelah 1–2 minggu monitoring (ratio syslog vs scrape events seimbang, tidak ada
-miss), boleh disable scraper dengan menonaktifkan `webEnabled` di OLT config.
+**Keputusan (Jun 2026): scraper DIPERTAHANKAN permanen sebagai backstop**, bukan
+dibuang. Alasan: syslog itu UDP fire-and-forget — saat link OLT sempat down (mis.
+site via radio yang naik-turun beberapa detik–menit), paket syslog event yang lahir
+saat itu HILANG selamanya. Buffer web OLT bersifat persisten (berhari-hari), jadi
+scrape sesudah link pulih MEMULIHKAN event yang terlewat. Bonus: scrape membaca buffer
+yang tanpa packet-loss (DG & Lost dua-duanya ada, batch, terurut) → ikut MENGOREKSI
+salah-vonis LOS akibat paket DG yang drop saat mass-outage.
+
+### High-water-mark (HWM) reconciliation — `lib/olt-log-scraper.js`
+
+Scrape backstop tidak lagi memakai filter "buang event > 10 menit" (yang dulu
+membuang justru event radio-gap yang ingin dipulihkan). Sekarang per-OLT menyimpan
+**HWM** = timestamp event TERBARU yang sudah diproses (jam OLT, file
+`database/olt-scrape-hwm.json`). Tiap siklus hanya memproses event **> HWM**, apa pun
+umurnya; kedalaman baca halaman juga berhenti begitu menjangkau HWM (jadi normal cuma
+1–2 halaman, dalam hanya saat menutup gap). Guard reset-jam OLT (event terbaru jauh <
+HWM → fallback jendela-waktu). Bootstrap (HWM belum ada) pakai jendela-waktu lalu set
+HWM ke event terbaru. Patokan per-event + jam-OLT-vs-jam-OLT → kebal drift jam & tidak
+ada event yang "meleset". Lihat test `lib/__tests__/olt-log-scraper.test.js`
+("HWM reconciliation").
+
+Best-practice interval (selaras confirmation window LOS 3 menit, lihat
+[[olt-syslog-nat-transparency]] di memori): **site radio (TNJ) ~2 menit**, **site kabel
+stabil (DANDER) ~5 menit** (atau adaptif: lambat saat syslog mengalir, cepat+dalam saat
+syslog sunyi). Interval = LATENSI pemulihan, bukan kelengkapan (buffer tahan berhari-hari).
+Karena itu jangan disable `webEnabled` di site yang transport-nya tidak andal.
 
 ## Phase 2: rxPower correlation (sudah diimplementasi)
 
