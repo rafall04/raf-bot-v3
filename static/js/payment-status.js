@@ -3,7 +3,7 @@
  * Purpose: Mengelola halaman admin payment status, termasuk filter periode, toggle/bulk update bayar, invoice, partial payment, dan bayar di muka (prabayar cash).
  * Caller: `views/sb-admin/payment-status.php`.
  * Deps: API `/api/payment-status/*`, `/api/send-invoice-manual`, jQuery, Bootstrap modal, dan Select2.
- * MainFuncs: `loadUsers`, `togglePaymentStatus`, `bulkUpdatePaymentStatus`, `sendInvoice`, `printInvoice`, `submitPartialPayment`, `openAdvancePaymentModal`, `submitAdvancePayment`.
+ * MainFuncs: `loadUsers`, `togglePaymentStatus`, `bulkUpdatePaymentStatus`, `sendInvoice`, `printInvoice`, `submitPartialPayment`, `openAdvancePaymentModal`, `submitAdvancePayment`, `openFreeMonthModal`, `submitFreeMonth`.
  * SideEffects: Memuat data pelanggan, memanggil API pembayaran, memperbarui tabel/statistik UI, dan memunculkan modal/toast.
  */
 // Global variables
@@ -77,6 +77,13 @@ $(document).ready(function() {
         const userName = $(this).data('name');
         const subscription = $(this).data('subscription');
         openAdvancePaymentModal(userId, userName, subscription);
+    });
+
+    // Event handler for free-month (tandai gratis) button
+    $(document).on('click', '.btn-free-month', function() {
+        const userId = parseInt($(this).data('id'));
+        const userName = $(this).data('name');
+        openFreeMonthModal(userId, userName);
     });
 });
 
@@ -334,6 +341,7 @@ function renderTable() {
     // Render rows
     pageUsers.forEach(user => {
         const isPaid = user.paid === true || user.paid === 1;
+        const isWaived = user.is_waived === true;
         const phoneNumbers = user.phone_number ? user.phone_number.split('|').join(', ') : '-';
         const isSelected = selectedUsers.has(user.id);
         
@@ -357,8 +365,10 @@ function renderTable() {
                 <td>${user.subscription || '-'}</td>
                 <td><small>${user.device_id || '-'}</small></td>
                 <td class="text-center">
-                    ${isPaid ? 
-                        '<span class="badge badge-success status-badge">Sudah Bayar</span>' : 
+                    ${isWaived ?
+                        '<span class="badge badge-info status-badge" title="Bebas tagihan / gratis">GRATIS</span>' :
+                      isPaid ?
+                        '<span class="badge badge-success status-badge">Sudah Bayar</span>' :
                         '<span class="badge badge-danger status-badge">Belum Bayar</span>'}
                 </td>
                 <td class="text-center">
@@ -372,13 +382,20 @@ function renderTable() {
                                 title="${user.paid ? 'Tandai belum bayar' : 'Tandai sudah bayar'}">
                             <i class="fas fa-${user.paid ? 'times-circle' : 'check-circle'}"></i>
                         </button>
-                        ${!isPaid ? 
-                            `<button class="btn btn-sm btn-primary btn-partial-payment" 
+                        ${!isPaid ?
+                            `<button class="btn btn-sm btn-primary btn-partial-payment"
                                     data-id="${user.id}"
                                     data-name="${user.name}"
                                     data-subscription="${user.subscription || ''}"
                                     title="Bayar Sebagian">
                                 <i class="fas fa-coins"></i>
+                            </button>` : ''}
+                        ${!isPaid && !whitelistedPackages.includes(user.subscription) && user.subscription !== 'PAKET-VOUCHER' ?
+                            `<button class="btn btn-sm btn-info btn-free-month"
+                                    data-id="${user.id}"
+                                    data-name="${user.name}"
+                                    title="Tandai gratis (bebas tagihan, tidak masuk pemasukan)">
+                                <i class="fas fa-gift"></i>
                             </button>` : ''}
                         ${isPaid && (user.send_invoice === true || user.send_invoice === 1) ? 
                             `<button class="btn btn-sm btn-info btn-send-invoice" 
@@ -1475,6 +1492,91 @@ function openAdvancePaymentModal(userId, userName, subscription) {
     });
 
     $('#advancePaymentModal').modal('show');
+}
+
+// ============ FREE MONTH (TANDAI GRATIS) FUNCTIONS ============
+
+// Open free-month modal — tandai periode terpilih sebagai GRATIS (bebas tagihan).
+function openFreeMonthModal(userId, userName) {
+    const periodeLabel = formatSelectedPeriod();
+    const { periodMonth, periodYear } = getSelectedPeriod();
+
+    const modalHtml = `
+        <div class="modal fade" id="freeMonthModal" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title"><i class="fas fa-gift"></i> Tandai Gratis</h5>
+                        <button type="button" class="close text-white" data-dismiss="modal">
+                            <span>&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-2">Tandai tagihan <strong>${userName}</strong> untuk periode
+                        <strong>${periodeLabel}</strong> sebagai <strong>GRATIS</strong>?</p>
+                        <div class="alert alert-info py-2 mb-3">
+                            <i class="fas fa-info-circle"></i> Periode ini akan dihitung <strong>lunas</strong>
+                            (aman dari isolir), tetapi <strong>tidak dihitung sebagai pemasukan</strong> di laporan.
+                        </div>
+                        <div class="form-group mb-0">
+                            <label for="fmReason" class="font-weight-bold">Alasan</label>
+                            <input type="text" class="form-control" id="fmReason"
+                                   value="Gratis pemasangan baru" maxlength="120"
+                                   placeholder="Contoh: Gratis pemasangan baru / kompensasi gangguan">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                        <button type="button" class="btn btn-info" id="fmConfirmBtn">
+                            <i class="fas fa-check"></i> Tandai Gratis
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    $('#freeMonthModal').remove();
+    $('body').append(modalHtml);
+
+    $('#fmConfirmBtn').on('click', function() {
+        submitFreeMonth(userId, userName, periodMonth, periodYear);
+    });
+
+    $('#freeMonthModal').modal('show');
+}
+
+// Submit free-month (tandai gratis)
+async function submitFreeMonth(userId, userName, periodMonth, periodYear) {
+    if (!ensureValidPeriodSelection()) return;
+    const reason = $('#fmReason').val().trim() || 'Gratis (dibebaskan admin)';
+
+    $('#fmConfirmBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Memproses...');
+
+    try {
+        const response = await fetch('/api/payment-status/free', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ userId, period_month: periodMonth, period_year: periodYear, reason })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.status === 200) {
+            $('#freeMonthModal').modal('hide');
+            pinnedVisibleUserIds.add(userId);
+            await loadUsers();
+            showToast(`✅ ${userName} ditandai GRATIS untuk ${formatSelectedPeriod()}.`, 'success');
+        } else {
+            showToast('Error: ' + (result.message || 'Gagal menandai gratis'), 'danger');
+        }
+    } catch (error) {
+        console.error('Error submitting free month:', error);
+        showToast('Error menandai gratis', 'danger');
+    } finally {
+        $('#fmConfirmBtn').prop('disabled', false).html('<i class="fas fa-check"></i> Tandai Gratis');
+    }
 }
 
 // Submit advance payment

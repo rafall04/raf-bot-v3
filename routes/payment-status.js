@@ -1,9 +1,9 @@
 /**
  * Header Doc
- * Purpose: Menyediakan API payment status berbasis ledger periodik untuk bulk update, read model halaman admin, diagnostics mismatch, dan bayar di muka (prabayar cash).
+ * Purpose: Menyediakan API payment status berbasis ledger periodik untuk bulk update, read model halaman admin, diagnostics mismatch, bayar di muka (prabayar cash), dan tandai gratis (waiver).
  * Caller: `lib/routes-registry.js` dan frontend `static/js/payment-status.js`.
  * Deps: `lib/payment-finance-service`, `lib/approval-logic`, `lib/services/advance-payment-service`, dan helper periode teknisi.
- * MainFuncs: `POST /bulk-update`, `GET /read-model`, `GET /diagnostics`, `POST /advance`.
+ * MainFuncs: `POST /bulk-update`, `GET /read-model`, `GET /diagnostics`, `POST /advance`, `POST /free`.
  * SideEffects: Menulis histori/reversal pembayaran via payment finance service, mengirim side effect final paid, dan mencatat prabayar + struk WA bila diperlukan.
  */
 const express = require('express');
@@ -11,6 +11,7 @@ const { handlePaidStatusChange } = require('../lib/approval-logic');
 const { getPeriodParts } = require('../lib/technician-collection-settlement');
 const {
     applyPaymentStatusChange,
+    applyFreeMonth,
     getEffectivePrice,
     getPaymentDiagnostics,
     getPaymentPositionForPeriod,
@@ -158,6 +159,7 @@ router.get('/read-model', ensureAdmin, async (req, res) => {
             return {
                 ...user,
                 paid: position.is_fully_paid ? 1 : 0,
+                is_waived: position.is_waived === true,
                 paid_status_period_month: requestPeriodMonth,
                 paid_status_period_year: requestPeriodYear,
                 amount_due: amountDue,
@@ -260,6 +262,56 @@ router.post('/advance', ensureAdmin, async (req, res) => {
     } catch (error) {
         console.error('[PAYMENT_STATUS_ADVANCE_ERROR]', error);
         return res.status(500).json({ status: 500, message: error.message || 'Gagal mencatat bayar di muka' });
+    }
+});
+
+// POST /api/payment-status/free — Tandai sebuah periode GRATIS (bebas tagihan) untuk satu pelanggan.
+// Periode dihitung lunas (aman isolir + sinkron rollover) TANPA masuk pemasukan (waiver terpisah).
+router.post('/free', ensureAdmin, async (req, res) => {
+    const userId = req.body.userId;
+    const periodMonth = parseInt(req.body.period_month, 10);
+    const periodYear = parseInt(req.body.period_year, 10);
+    const reason = (req.body.reason && String(req.body.reason).trim()) || 'Gratis (dibebaskan admin)';
+
+    if (userId === undefined || userId === null || String(userId).trim() === '') {
+        return res.status(400).json({ status: 400, message: 'userId wajib diisi' });
+    }
+    if (!Number.isInteger(periodMonth) || periodMonth < 1 || periodMonth > 12 || !Number.isInteger(periodYear)) {
+        return res.status(400).json({ status: 400, message: 'period_month dan period_year wajib valid' });
+    }
+
+    const user = (global.users || []).find(u => String(u.id) === String(userId));
+    if (!user) {
+        return res.status(404).json({ status: 404, message: 'Pelanggan tidak ditemukan' });
+    }
+    if (user.subscription === 'PAKET-VOUCHER') {
+        return res.status(400).json({ status: 400, message: 'Pelanggan voucher tidak memiliki tagihan bulanan' });
+    }
+
+    try {
+        const result = await applyFreeMonth({
+            user,
+            periodMonth,
+            periodYear,
+            reason,
+            createdBy: req.user.username
+        });
+
+        return res.json({
+            status: 200,
+            message: result.action === 'no_change'
+                ? 'Periode ini sudah ditandai gratis sebelumnya.'
+                : 'Periode berhasil ditandai GRATIS (bebas tagihan, tidak dihitung sebagai pemasukan).',
+            data: {
+                action: result.action,
+                is_waived: result.positionAfter?.is_waived === true,
+                period_month: periodMonth,
+                period_year: periodYear
+            }
+        });
+    } catch (error) {
+        console.error('[PAYMENT_STATUS_FREE_ERROR]', error);
+        return res.status(500).json({ status: 500, message: error.message || 'Gagal menandai periode gratis' });
     }
 });
 
