@@ -1,9 +1,9 @@
 /**
  * Header Doc
- * Purpose: Mengelola halaman admin payment status, termasuk filter periode, toggle/bulk update bayar, invoice, dan partial payment.
+ * Purpose: Mengelola halaman admin payment status, termasuk filter periode, toggle/bulk update bayar, invoice, partial payment, dan bayar di muka (prabayar cash).
  * Caller: `views/sb-admin/payment-status.php`.
  * Deps: API `/api/payment-status/*`, `/api/send-invoice-manual`, jQuery, Bootstrap modal, dan Select2.
- * MainFuncs: `loadUsers`, `togglePaymentStatus`, `bulkUpdatePaymentStatus`, `sendInvoice`, `printInvoice`, `submitPartialPayment`.
+ * MainFuncs: `loadUsers`, `togglePaymentStatus`, `bulkUpdatePaymentStatus`, `sendInvoice`, `printInvoice`, `submitPartialPayment`, `openAdvancePaymentModal`, `submitAdvancePayment`.
  * SideEffects: Memuat data pelanggan, memanggil API pembayaran, memperbarui tabel/statistik UI, dan memunculkan modal/toast.
  */
 // Global variables
@@ -69,6 +69,14 @@ $(document).ready(function() {
         const userName = $(this).data('name');
         const subscription = $(this).data('subscription');
         openPartialPaymentModal(userId, userName, subscription);
+    });
+
+    // Event handler for advance payment (bayar di muka) button
+    $(document).on('click', '.btn-advance-payment', function() {
+        const userId = parseInt($(this).data('id'));
+        const userName = $(this).data('name');
+        const subscription = $(this).data('subscription');
+        openAdvancePaymentModal(userId, userName, subscription);
     });
 });
 
@@ -380,13 +388,21 @@ function renderTable() {
                                     title="Kirim Invoice">
                                 <i class="fas fa-file-invoice"></i>
                             </button>` : ''}
-                        ${isPaid ? 
-                            `<button class="btn btn-sm btn-warning btn-print-invoice" 
-                                    data-id="${user.id}" 
+                        ${isPaid ?
+                            `<button class="btn btn-sm btn-warning btn-print-invoice"
+                                    data-id="${user.id}"
                                     data-name="${user.name}"
                                     data-phone="${user.phone_number || ''}"
                                     title="Cetak invoice">
                                 <i class="fas fa-print"></i>
+                            </button>` : ''}
+                        ${isPaid && !whitelistedPackages.includes(user.subscription) && user.subscription !== 'PAKET-VOUCHER' ?
+                            `<button class="btn btn-sm btn-secondary btn-advance-payment"
+                                    data-id="${user.id}"
+                                    data-name="${user.name}"
+                                    data-subscription="${user.subscription || ''}"
+                                    title="Bayar di muka (prabayar cash)">
+                                <i class="fas fa-calendar-plus"></i>
                             </button>` : ''}
                     </div>
                 </td>
@@ -1360,5 +1376,152 @@ async function submitPartialPayment(userId, maxAmount) {
         showToast('Error memproses pembayaran', 'danger');
     } finally {
         $('#ppConfirmBtn').prop('disabled', false).html('<i class="fas fa-check"></i> Proses Pembayaran');
+    }
+}
+
+
+// ============ ADVANCE PAYMENT (BAYAR DI MUKA) FUNCTIONS ============
+
+// Daftar label bulan ke depan, mulai bulan DEPAN (bukan bulan berjalan), sebanyak `count`.
+function getUpcomingPeriodLabels(count) {
+    const now = new Date();
+    const labels = [];
+    for (let i = 1; i <= count; i += 1) {
+        const zeroIdx = now.getMonth() + i; // getMonth() 0-based
+        const month = ((zeroIdx % 12) + 12) % 12;
+        const year = now.getFullYear() + Math.floor(zeroIdx / 12);
+        labels.push(`${paymentPeriodMonths[month]} ${year}`);
+    }
+    return labels;
+}
+
+// Open advance payment (bayar di muka) modal
+function openAdvancePaymentModal(userId, userName, subscription) {
+    const pricePerMonth = getPackagePrice(subscription);
+
+    const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1)
+        .map(n => `<option value="${n}">${n} bulan</option>`)
+        .join('');
+
+    const modalHtml = `
+        <div class="modal fade" id="advancePaymentModal" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-secondary text-white">
+                        <h5 class="modal-title"><i class="fas fa-calendar-plus"></i> Bayar di Muka</h5>
+                        <button type="button" class="close text-white" data-dismiss="modal">
+                            <span>&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="customer-summary mb-3" style="background: #f8f9fc; border-radius: 10px; padding: 15px;">
+                            <h6 class="mb-2"><i class="fas fa-user"></i> ${userName}</h6>
+                            <div class="detail-row d-flex justify-content-between py-1">
+                                <span class="text-muted">Paket</span>
+                                <span class="font-weight-bold">${subscription || '-'}</span>
+                            </div>
+                            <div class="detail-row d-flex justify-content-between py-1">
+                                <span class="text-muted">Harga / bulan</span>
+                                <span class="font-weight-bold">${formatCurrency(pricePerMonth)}</span>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info py-2">
+                            <i class="fas fa-info-circle"></i> Pembayaran dicatat sebagai <strong>Tunai (Cash)</strong> untuk bulan-bulan ke depan. Tagihan bulan berjalan harus sudah lunas.
+                        </div>
+
+                        <div class="form-group">
+                            <label for="apMonths" class="font-weight-bold">Jumlah bulan ke depan</label>
+                            <select class="form-control" id="apMonths">${monthOptions}</select>
+                        </div>
+
+                        <div class="form-group mb-1">
+                            <label class="font-weight-bold">Bulan yang akan dibayar</label>
+                            <div id="apPeriodList" class="small text-muted"></div>
+                        </div>
+
+                        <hr class="my-2">
+                        <div class="detail-row d-flex justify-content-between py-1">
+                            <span class="font-weight-bold">Total</span>
+                            <span class="text-success font-weight-bold" id="apTotal" style="font-size: 1.2rem;"></span>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                        <button type="button" class="btn btn-success" id="apConfirmBtn">
+                            <i class="fas fa-check"></i> Catat Bayar di Muka
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    $('#advancePaymentModal').remove();
+    $('body').append(modalHtml);
+
+    function refreshAdvancePreview() {
+        const months = parseInt($('#apMonths').val(), 10) || 1;
+        const labels = getUpcomingPeriodLabels(months);
+        $('#apPeriodList').html(labels.join(' · '));
+        $('#apTotal').text(formatCurrency(pricePerMonth * months));
+    }
+
+    $('#apMonths').on('change', refreshAdvancePreview);
+    refreshAdvancePreview();
+
+    $('#apConfirmBtn').on('click', function() {
+        submitAdvancePayment(userId, userName);
+    });
+
+    $('#advancePaymentModal').modal('show');
+}
+
+// Submit advance payment
+async function submitAdvancePayment(userId, userName) {
+    const months = parseInt($('#apMonths').val(), 10) || 0;
+    if (months < 1 || months > 12) {
+        showToast('Pilih jumlah bulan 1 sampai 12.', 'warning');
+        return;
+    }
+
+    $('#apConfirmBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Memproses...');
+
+    try {
+        const response = await fetch('/api/payment-status/advance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ userId, months })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.status === 200) {
+            $('#advancePaymentModal').modal('hide');
+            const recordedCount = Array.isArray(result.data?.recorded) ? result.data.recorded.length : 0;
+            const skippedCount = Array.isArray(result.data?.skipped) ? result.data.skipped.length : 0;
+
+            if (recordedCount > 0) {
+                showToast(`✅ Bayar di muka ${userName} tercatat untuk ${recordedCount} bulan.`, 'success');
+                if (result.data.receiptSent) {
+                    showToast(`🧾 Struk prabayar telah dikirim ke ${userName}.`, 'info');
+                }
+            } else {
+                showToast(`Tidak ada bulan baru yang dicatat — semua periode sudah lunas.`, 'info');
+            }
+            if (skippedCount > 0 && recordedCount > 0) {
+                showToast(`${skippedCount} bulan dilewati (sudah lunas).`, 'warning');
+            }
+        } else if (response.status === 409) {
+            showToast(result.message || 'Tagihan bulan berjalan belum lunas.', 'danger');
+        } else {
+            showToast('Error: ' + (result.message || 'Gagal mencatat bayar di muka'), 'danger');
+        }
+    } catch (error) {
+        console.error('Error submitting advance payment:', error);
+        showToast('Error mencatat bayar di muka', 'danger');
+    } finally {
+        $('#apConfirmBtn').prop('disabled', false).html('<i class="fas fa-check"></i> Catat Bayar di Muka');
     }
 }

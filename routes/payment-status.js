@@ -1,10 +1,10 @@
 /**
  * Header Doc
- * Purpose: Menyediakan API payment status berbasis ledger periodik untuk bulk update, read model halaman admin, dan diagnostics mismatch.
+ * Purpose: Menyediakan API payment status berbasis ledger periodik untuk bulk update, read model halaman admin, diagnostics mismatch, dan bayar di muka (prabayar cash).
  * Caller: `lib/routes-registry.js` dan frontend `static/js/payment-status.js`.
- * Deps: `lib/payment-finance-service`, `lib/approval-logic`, dan helper periode teknisi.
- * MainFuncs: `POST /bulk-update`, `GET /read-model`, `GET /diagnostics`.
- * SideEffects: Menulis histori/reversal pembayaran via payment finance service dan mengirim side effect final paid bila diperlukan.
+ * Deps: `lib/payment-finance-service`, `lib/approval-logic`, `lib/services/advance-payment-service`, dan helper periode teknisi.
+ * MainFuncs: `POST /bulk-update`, `GET /read-model`, `GET /diagnostics`, `POST /advance`.
+ * SideEffects: Menulis histori/reversal pembayaran via payment finance service, mengirim side effect final paid, dan mencatat prabayar + struk WA bila diperlukan.
  */
 const express = require('express');
 const { handlePaidStatusChange } = require('../lib/approval-logic');
@@ -16,6 +16,9 @@ const {
     getPaymentPositionForPeriod,
     normalizeUserPaymentMethod
 } = require('../lib/payment-finance-service');
+const { createAdvancePaymentService } = require('../lib/services/advance-payment-service');
+
+const advancePaymentService = createAdvancePaymentService();
 
 const router = express.Router();
 
@@ -196,6 +199,67 @@ router.get('/diagnostics', ensureAdmin, async (req, res) => {
     } catch (error) {
         console.error('[PAYMENT_STATUS_DIAGNOSTICS_ERROR]', error);
         return res.status(500).json({ status: 500, message: 'Gagal memuat diagnostics payment status' });
+    }
+});
+
+// POST /api/payment-status/advance — Bayar di Muka (prabayar cash) untuk N bulan ke depan.
+// Syarat: tagihan bulan berjalan SUDAH lunas. Idempoten (periode yang sudah dibayar dilewati).
+router.post('/advance', ensureAdmin, async (req, res) => {
+    const userId = req.body.userId;
+    const months = parseInt(req.body.months, 10);
+
+    if (userId === undefined || userId === null || String(userId).trim() === '') {
+        return res.status(400).json({ status: 400, message: 'userId wajib diisi' });
+    }
+    if (!Number.isInteger(months) || months < 1 || months > 12) {
+        return res.status(400).json({ status: 400, message: 'months wajib bilangan 1..12' });
+    }
+
+    const user = (global.users || []).find(u => String(u.id) === String(userId));
+    if (!user) {
+        return res.status(404).json({ status: 404, message: 'Pelanggan tidak ditemukan' });
+    }
+    if (user.subscription === 'PAKET-VOUCHER') {
+        return res.status(400).json({ status: 400, message: 'Pelanggan voucher tidak memiliki tagihan bulanan' });
+    }
+    const pkg = (global.packages || []).find(p => p.name === user.subscription);
+    if (pkg && pkg.whitelist === true) {
+        return res.status(400).json({ status: 400, message: 'Paket pelanggan ini gratis (whitelist) — tidak ada tagihan' });
+    }
+
+    try {
+        const summary = await advancePaymentService.recordAdvancePayment({
+            user,
+            months,
+            createdBy: req.user.username
+        });
+
+        if (!summary.ok && summary.reason === 'current_unpaid') {
+            return res.status(409).json({
+                status: 409,
+                message: 'Tagihan bulan berjalan belum lunas. Lunasi dulu sebelum bayar di muka.'
+            });
+        }
+
+        // Struk WA best-effort — kegagalan kirim TIDAK menggagalkan pencatatan.
+        const receipt = await advancePaymentService.sendAdvanceReceipt({ user, summary });
+
+        return res.json({
+            status: 200,
+            message: summary.recorded.length > 0
+                ? `Bayar di muka tercatat untuk ${summary.recorded.length} bulan.`
+                : 'Tidak ada bulan baru yang dicatat (semua periode sudah lunas).',
+            data: {
+                recorded: summary.recorded,
+                skipped: summary.skipped,
+                totalAmount: summary.totalAmount,
+                coverageUntil: summary.coverageUntil,
+                receiptSent: receipt.sent
+            }
+        });
+    } catch (error) {
+        console.error('[PAYMENT_STATUS_ADVANCE_ERROR]', error);
+        return res.status(500).json({ status: 500, message: error.message || 'Gagal mencatat bayar di muka' });
     }
 });
 

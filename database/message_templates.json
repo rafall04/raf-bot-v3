@@ -151,6 +151,10 @@
     "name": "Struk Tagihan Lunas (otomatis dari pembayaran online)",
     "template": "✅ *PEMBAYARAN BERHASIL*\n\nHalo Kak *${nama_pelanggan}*, tagihan Anda sudah *LUNAS*. Terima kasih! 🙏\n\n🧾 *STRUK PEMBAYARAN*\n━━━━━━━━━━━━━━\n• Paket   : *${nama_paket}*\n• Periode : ${periode}\n• Dibayar : *${harga}*\n• Metode  : ${metode}\n• Waktu   : ${waktu}\n• No. Ref : ${no_ref}\n━━━━━━━━━━━━━━\n\n${status_layanan}\n\n_Simpan struk ini sebagai bukti pembayaran._ Butuh bantuan? Ketik *menuwifi*."
   },
+  "tagihan_prabayar_struk": {
+    "name": "Struk Bayar di Muka (prabayar cash oleh admin)",
+    "template": "✅ *PEMBAYARAN DI MUKA DITERIMA*\n\nHalo Kak *${nama_pelanggan}*, terima kasih! 🙏\nPembayaran di muka Anda sudah kami catat.\n\n🧾 *STRUK PRABAYAR*\n━━━━━━━━━━━━━━\n• Paket   : *${nama_paket}*\n• Bulan   : *${jumlah_bulan} bulan* (${daftar_periode})\n• Dibayar : *${harga}*\n• Metode  : ${metode}\n• Waktu   : ${waktu}\n━━━━━━━━━━━━━━\n\n🛡️ Tagihan Anda *LUNAS sampai ${bebas_sampai}* — aman, tidak akan ada penagihan atau isolir hingga periode tersebut.\n\n_Simpan struk ini sebagai bukti pembayaran._ Butuh bantuan? Ketik *menuwifi*."
+  },
   "tagihan_reaktivasi_gagal_admin": {
     "name": "Alert Admin: Reaktivasi Tagihan GAGAL",
     "template": "⚠️ *REAKTIVASI GAGAL*\n\nPelanggan *${nama_pelanggan}* (PPPoE: ${pppoe}) sudah BAYAR tagihan & ditandai lunas, TAPI auto-reaktivasi (buka isolir) GAGAL.\n\nRef: ${reference_id}\n\nMohon buka isolir manual dari panel admin agar layanan pelanggan aktif kembali."
