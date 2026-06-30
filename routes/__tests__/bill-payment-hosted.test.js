@@ -3,8 +3,8 @@
 /**
  * Header Doc
  * Purpose: Guardrail mode HOSTED bayar tagihan (config.billPaymentHosted) di routes/bill-payment.js —
- *   pastikan: default tetap portal (serve HTML), mode hosted buat sesi payHosted + 302 redirect ke
- *   iPaymu, record tag 'tagihan' trxId null (TransactionId via callback), landing /bayar-status publik.
+ *   pastikan: default tetap portal (serve HTML), mode redirect lewat selector gateway (gw.chargeRedirect)
+ *   + 302 redirect, record tag 'tagihan' bawa gateway + reference, landing /bayar-status publik.
  * Caller: Jest (`npx jest routes/__tests__/bill-payment-hosted.test.js`).
  * Deps: fs, path, source routes/bill-payment.js + lib/http-auth-bootstrap.js (scan, tidak dieksekusi).
  * MainFuncs: -
@@ -22,26 +22,28 @@ describe("bill-payment mode hosted (config.billPaymentHosted)", () => {
         expect(source).toMatch(/billPaymentHostedEnabled[\s\S]{0,80}config[\s\S]{0,40}billPaymentHosted/);
     });
 
-    test("default (flag off) tetap serve portal HTML sendiri", () => {
-        expect(source).toMatch(/if\s*\(\s*!billPaymentHostedEnabled\(\)\s*\)[\s\S]{0,120}bill-payment\.html/);
+    test("default (gateway ipaymu + flag off) tetap serve portal HTML sendiri", () => {
+        // useRedirectFlow false (ipaymu non-hosted) → portal HTML.
+        expect(source).toMatch(/if\s*\(\s*!useRedirectFlow\(\)\s*\)[\s\S]{0,120}bill-payment\.html/);
+        // useRedirectFlow tetap menghormati billPaymentHostedEnabled untuk iPaymu.
+        expect(source).toMatch(/useRedirectFlow[\s\S]{0,160}billPaymentHostedEnabled\(\)/);
     });
 
-    test("mode hosted: buat sesi payHosted lalu 302 redirect ke URL iPaymu", () => {
-        const idxHosted = source.indexOf("ipaymu.payHosted");
-        const idxRedirect = source.indexOf("res.redirect(302, session.url)");
-        expect(idxHosted).toBeGreaterThan(-1);
-        expect(idxRedirect).toBeGreaterThan(idxHosted);
+    test("mode redirect: charge lewat selector gateway lalu 302 redirect", () => {
+        const idxCharge = source.indexOf("gw.chargeRedirect(");
+        const idxRedirect = source.indexOf("res.redirect(302, charge.url)");
+        expect(idxCharge).toBeGreaterThan(-1);
+        expect(idxRedirect).toBeGreaterThan(idxCharge);
     });
 
-    test("record hosted: addPayment tag 'tagihan' dengan trxId NULL (TransactionId via callback)", () => {
-        // addPayment(reff, null, ... "tagihan" ...) — trxId null = penanda hosted.
-        expect(source).toMatch(/addPayment\(\s*reff\s*,\s*null\s*,[\s\S]{0,80}"tagihan"/);
-        expect(source).toMatch(/hosted:\s*true/);
+    test("record redirect: addPayment tag 'tagihan' bawa reference gateway + field gateway", () => {
+        expect(source).toMatch(/addPayment\(\s*reff\s*,\s*charge\.reference\s*,[\s\S]{0,120}"tagihan"/);
+        expect(source).toMatch(/gateway:\s*gw\.name/);
     });
 
-    test("notifyUrl callback & cross-check tetap dari token (resolveBillContext dipakai di branch hosted)", () => {
-        const idxHostedFn = source.indexOf("billPaymentHostedEnabled()");
-        const idxCtx = source.indexOf("resolveBillContext(req.params.token)", idxHostedFn);
+    test("resolveBillContext dipakai di branch redirect (cross-check dari token)", () => {
+        const idxRedirectFn = source.indexOf("useRedirectFlow()");
+        const idxCtx = source.indexOf("resolveBillContext(req.params.token)", idxRedirectFn);
         expect(idxCtx).toBeGreaterThan(-1);
     });
 

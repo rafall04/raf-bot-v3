@@ -2,14 +2,17 @@
  * Header Doc
  * Purpose: Halaman bayar tagihan bulanan publik (tanpa login, via token bertanda-tangan) +
  *   API-nya: info tagihan & channel aktif, buat charge iPaymu multi-channel, polling status.
- *   DUA MODE halaman (config `billPaymentHosted`): (a) PORTAL sendiri = static/bill-payment.html
- *   (default, DANDER); (b) HOSTED = buat sesi iPaymu lalu 302 redirect ke halaman iPaymu (mis. VANS).
+ *   MULTI-GATEWAY (config `paymentGateway`: 'ipaymu' | 'tripay') + mode halaman:
+ *   - Tripay aktif → alur REDIRECT ke halaman Tripay (auto-settle) + callback POST /callback/tripay.
+ *   - iPaymu + `billPaymentHosted` → REDIRECT ke halaman iPaymu (callback POST /callback/payment).
+ *   - iPaymu default → PORTAL sendiri (static/bill-payment.html, multi-channel direct).
+ *   Pemilihan gateway via lib/payment-gateways (selector chargeRedirect/verify).
  * Caller: routes-registry (mount di "/").
- * Deps: lib/bill-pay-token (verify, resolveBaseUrl), lib/ipaymu (getPaymentChannels, payDirect, payHosted),
- *   lib/payment (addPayment, checkStatusPayment), qr-image, rupiah-format.
- * MainFuncs: GET /bayar/:token (portal/hosted), GET /bayar-status, GET /api/bayar/:token/info,
- *   POST /api/bayar/:token/charge, GET /api/bayar/:token/status.
- * SideEffects: Membuat transaksi/sesi iPaymu + menulis record payment.json (tag 'tagihan').
+ * Deps: lib/bill-pay-token, lib/ipaymu, lib/tripay, lib/payment-gateways, lib/payment,
+ *   lib/services/bill-payment-settlement, lib/templating, lib/whatsapp-delivery-service, qr-image, rupiah-format.
+ * MainFuncs: GET /bayar/:token (portal/redirect), GET /bayar-status, POST /callback/tripay,
+ *   GET /api/bayar/:token/info, POST /api/bayar/:token/charge, GET /api/bayar/:token/status.
+ * SideEffects: Membuat transaksi/sesi gateway + menulis record payment.json (tag 'tagihan') + settle + struk WA.
  */
 "use strict";
 
@@ -21,7 +24,14 @@ const rateLimit = require("express-rate-limit");
 
 const { verifyBillPayToken, resolveBaseUrl } = require("../lib/bill-pay-token");
 const ipaymu = require("../lib/ipaymu");
-const { addPayment, checkStatusPayment } = require("../lib/payment");
+const tripay = require("../lib/tripay");
+const gateways = require("../lib/payment-gateways");
+const { addPayment, checkStatusPayment, updateStatusPayment, updateKetPayment } = require("../lib/payment");
+const { createBillPaymentSettlement } = require("../lib/services/bill-payment-settlement");
+const { renderTemplate } = require("../lib/templating");
+const { sendMessage } = require("../lib/whatsapp-delivery-service");
+
+const billSettlement = createBillPaymentSettlement();
 
 const router = express.Router();
 
@@ -85,11 +95,17 @@ function statusPage(title, message) {
         `<body><div class="card"><h1>${escHtml(title)}</h1><p>${escHtml(message)}</p></div></body></html>`;
 }
 
-// Halaman bayar — branch by mode.
-//  - PORTAL (default): HTML statis; JS-nya membaca token dari path /bayar/:token.
-//  - HOSTED (config.billPaymentHosted): buat sesi iPaymu + 302 redirect ke halaman iPaymu.
+// Pakai alur REDIRECT (halaman gateway auto-settle) atau portal HTML sendiri?
+//  - Tripay aktif → SELALU redirect (closed payment di halaman Tripay).
+//  - iPaymu + billPaymentHosted → redirect ke halaman iPaymu.
+//  - iPaymu default → portal HTML direct (multi-channel sendiri).
+function useRedirectFlow() {
+    return gateways.getActiveName() === "tripay" || billPaymentHostedEnabled();
+}
+
+// Halaman bayar — branch by gateway/mode.
 router.get("/bayar/:token", chargeLimiter, async (req, res) => {
-    if (!billPaymentHostedEnabled()) {
+    if (!useRedirectFlow()) {
         return res.sendFile(path.join(__dirname, "..", "static", "bill-payment.html"));
     }
 
@@ -102,31 +118,109 @@ router.get("/bayar/:token", chargeLimiter, async (req, res) => {
     const { periodMonth, periodYear } = currentPeriod();
     const reff = Math.floor(Math.random() * 1677721631342).toString(16);
     const base = resolveBaseUrl(global.config || {});
+    const gw = gateways.getActive();
 
-    let session;
+    let charge;
     try {
-        session = await ipaymu.payHosted({
+        charge = await gw.chargeRedirect({
             amount: ctx.amount,
-            comment: `Tagihan ${ctx.user.subscription} - ${ctx.user.name}`,
             reffId: reff,
             name: ctx.user.name || "Pelanggan",
             phone: customerPhoneDigits(ctx.user) || "628000000000",
             email: `${reff}@bill.rafnet.local`,
-            sandbox: ctx.sandbox,
+            comment: `Tagihan ${ctx.user.subscription} - ${ctx.user.name}`,
             returnUrl: `${base}/bayar-status`,
             cancelUrl: `${base}/bayar/${encodeURIComponent(req.params.token)}`,
+            sandbox: ctx.sandbox,
         });
     } catch (_e) {
         return res.status(502).send(statusPage("Gangguan Pembayaran", "Maaf, gateway pembayaran sedang sibuk. Coba beberapa saat lagi atau hubungi admin."));
     }
 
-    // Persist record (tag 'tagihan'). trxId NULL — di mode hosted TransactionId baru ada saat
-    // buyer bayar (datang via callback `trx_id`). sessionId disimpan utk jejak. userId/periode
-    // dipakai callback untuk catat lunas + reaktivasi (sama dgn portal).
-    addPayment(reff, null, customerJid(ctx.user), "tagihan", ctx.amount, "iPaymu (hosted)",
-        `Tagihan ${ctx.user.name}`, { userId: ctx.user.id, periodMonth, periodYear, sandbox: ctx.sandbox, hosted: true, sessionId: session.sessionId });
+    // Persist record (tag 'tagihan') + gateway. trxId = reference gateway (Tripay punya saat
+    // creation → callback Tripay verify pakai ini; iPaymu hosted null → callback iPaymu pakai
+    // payload trx_id). userId/periode dipakai callback untuk catat lunas + reaktivasi.
+    addPayment(reff, charge.reference, customerJid(ctx.user), "tagihan", ctx.amount,
+        gw.name === "tripay" ? "Tripay" : "iPaymu (hosted)", `Tagihan ${ctx.user.name}`,
+        { userId: ctx.user.id, periodMonth, periodYear, sandbox: ctx.sandbox, gateway: gw.name, hosted: gw.name === "ipaymu", sessionId: charge.sessionId || null });
 
-    return res.redirect(302, session.url);
+    return res.redirect(302, charge.url);
+});
+
+// Callback Tripay (POST). Format & signature beda dari iPaymu → endpoint terpisah.
+// Keamanan = sama modelnya dgn callback iPaymu: VERIFIKASI server-to-server (checkTransaction)
+// + cross-check merchant_ref & amount. Tak bergantung signature (gate utama = S2S verify),
+// jadi tak perlu raw-body (yang butuh edit body-parser global). Balas {success:true} utk ACK.
+router.post("/callback/tripay", async (req, res) => {
+    try {
+        const body = req.body || {};
+        const merchantRef = body.merchant_ref;
+        const reference = body.reference;
+        const status = String(body.status || "").toUpperCase();
+        if (!merchantRef) return res.json({ success: true });
+
+        const pay = (global.payment || []).find((v) => v.reffId == merchantRef && v.gateway === "tripay");
+        if (!pay) return res.json({ success: true }); // bukan record kita / sudah dihapus → ACK
+        if (status !== "PAID") return res.json({ success: true }); // expired/failed → ACK, tak kredit
+        if (checkStatusPayment(merchantRef) === true) return res.json({ success: true }); // idempotent
+
+        // KEAMANAN: jangan percaya body mentah — verifikasi langsung ke Tripay.
+        const verify = await tripay.checkTransaction(pay.trxId || reference, { sandbox: pay.sandbox === true });
+        if (!verify || !verify.ok || !verify.paid) {
+            console.warn("[TRIPAY_CALLBACK_REJECT] Tripay belum konfirmasi PAID — kredit ditolak.", { merchantRef, reference, status: verify?.status, error: verify?.error });
+            return res.status(400).json({ success: false });
+        }
+        if (verify.referenceId != null && String(verify.referenceId) !== String(merchantRef)) {
+            console.warn("[TRIPAY_CALLBACK_REJECT] merchant_ref Tripay tidak cocok.", { merchantRef, tripay_ref: verify.referenceId });
+            return res.status(400).json({ success: false });
+        }
+        if (verify.amount != null && pay.amount != null && parseInt(verify.amount, 10) < parseInt(pay.amount, 10)) {
+            console.warn("[TRIPAY_CALLBACK_REJECT] amount Tripay kurang dari tagihan.", { merchantRef, tripay_amount: verify.amount, expected: pay.amount });
+            return res.status(400).json({ success: false });
+        }
+
+        const user = (global.users || []).find((u) => String(u.id) === String(pay.userId));
+        if (!user) {
+            console.error("[TRIPAY_CALLBACK] User tidak ditemukan — TIDAK ditandai paid", { merchantRef, userId: pay.userId });
+            return res.status(400).json({ success: false });
+        }
+
+        let settleResult;
+        try {
+            settleResult = await billSettlement.settleTagihanPayment({
+                user, amountPaid: pay.amount, periodMonth: pay.periodMonth, periodYear: pay.periodYear,
+                paymentMethod: body.payment_method_code || "Tripay", reffId: merchantRef,
+            });
+        } catch (settleErr) {
+            console.error("[TRIPAY_CALLBACK] Catat lunas GAGAL — TIDAK ditandai paid", { merchantRef, error: settleErr.message });
+            return res.status(400).json({ success: false });
+        }
+
+        updateStatusPayment(merchantRef, true);
+        const react = settleResult.reactivation || {};
+        updateKetPayment(merchantRef, `Tagihan lunas (Tripay)${react.attempted ? (react.ok ? " + reaktivasi OK" : " + reaktivasi GAGAL") : ""}`);
+
+        // Struk best-effort (kegagalan kirim TIDAK menggagalkan callback).
+        try {
+            const periode = (pay.periodMonth && pay.periodYear)
+                ? new Date(pay.periodYear, pay.periodMonth - 1, 1).toLocaleDateString("id-ID", { month: "long", year: "numeric" })
+                : new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+            const struk = renderTemplate("tagihan_struk_lunas", {
+                nama_pelanggan: user.name, nama_paket: user.subscription, harga: convertRupiah.convert(pay.amount),
+                metode: body.payment_name || "Tripay", periode,
+                waktu: new Date().toLocaleString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) + " WIB",
+                no_ref: merchantRef, status_layanan: react.ok ? "⚡ Layanan Anda sudah aktif kembali." : "",
+            });
+            if (pay.sender) await sendMessage(pay.sender, { text: struk });
+        } catch (notifyErr) {
+            console.error("[TRIPAY_CALLBACK] Gagal kirim struk:", notifyErr.message);
+        }
+
+        return res.json({ success: true });
+    } catch (err) {
+        console.error("[TRIPAY_CALLBACK_ERROR]", err.message);
+        return res.status(500).json({ success: false });
+    }
 });
 
 // Landing returnUrl mode hosted — buyer kembali dari halaman iPaymu. Settlement & struk
