@@ -56,8 +56,16 @@ describe("callback tagihan — fail-closed catat lunas + auto-reaktivasi", () =>
 
     test("verifikasi server-to-server tetap berlaku (verify sebelum semua cabang)", () => {
         // checkTransaction (verifyIpaymuTransaction) ada di handler & sebelum blok tagihan.
-        const idxVerify = source.indexOf("verifyIpaymuTransaction(pay.trxId");
+        const idxVerify = source.indexOf("verifyIpaymuTransaction(effectiveTrxId");
         expect(idxVerify).toBeGreaterThan(-1);
         expect(idxVerify).toBeLessThan(idx);
+    });
+
+    test("mode hosted: trxId fallback ke payload (pay.trxId || req.body.trx_id) + cross-check tetap", () => {
+        // Record hosted tak punya trxId saat dibuat → verify pakai trx_id dari payload callback.
+        expect(source).toMatch(/effectiveTrxId\s*=\s*pay\.trxId\s*\|\|\s*req\.body\.trx_id/);
+        // Cross-check keamanan referenceId & amount WAJIB tetap ada (anti substitusi trx).
+        expect(source).toContain("referenceId iPaymu tidak cocok");
+        expect(source).toContain("amount iPaymu kurang dari tagihan");
     });
 });
