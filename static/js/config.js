@@ -47,6 +47,12 @@
                 setValue('ipaymuVA', json.data.ipaymuVA);
                 setValue('ipaymuCallback', json.data.ipaymuCallback);
                 setValue('ipaymuProduction', json.data.ipaymuProduction ? "yes" : "no");
+                setValue('paymentGateway', json.data.paymentGateway || 'ipaymu');
+                setValue('tripayApiKey', json.data.tripayApiKey);
+                setValue('tripayPrivateKey', json.data.tripayPrivateKey);
+                setValue('tripayMerchantCode', json.data.tripayMerchantCode);
+                setValue('tripayProduction', json.data.tripayProduction ? "yes" : "no");
+                setValue('tripayDefaultMethod', json.data.tripayDefaultMethod, 'QRIS');
                 setValue('defaultBulkSSID', json.data.defaultBulkSSID || '1');
                 setValue('speedOnDemandEnabled', json.data.speedOnDemandEnabled !== false ? "true" : "false");
                 setValue('showPaymentStatus', json.data.showPaymentStatus !== false ? "true" : "false");

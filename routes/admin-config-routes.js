@@ -280,7 +280,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     continue;
                 }
 
-                if (key === 'ipaymuProduction') {
+                if (key === 'ipaymuProduction' || key === 'tripayProduction') {
                     newMainConfig[key] = receivedConfig[key] === 'yes';
                     continue;
                 }

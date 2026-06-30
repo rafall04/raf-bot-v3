@@ -410,6 +410,40 @@
                     <label for="ipaymuProduction">Production Ipaymu</label>
                     <input type="text" class="form-control" id="ipaymuProduction" name="ipaymuProduction" />
                   </div>
+                  <hr>
+                  <div class="mb-3">
+                    <label for="paymentGateway" class="form-label">Payment Gateway Aktif (Bayar Tagihan)</label>
+                    <select class="form-control" id="paymentGateway" name="paymentGateway">
+                      <option value="ipaymu">iPaymu</option>
+                      <option value="tripay">Tripay</option>
+                    </select>
+                    <small class="form-text text-muted">Gateway untuk halaman bayar tagihan. <b>Tripay auto-settle</b> (dana cair otomatis, tanpa "Unsettled/klarifikasi" seperti iPaymu).</small>
+                  </div>
+                  <div class="mb-3">
+                    <label for="tripayApiKey">API Key Tripay</label>
+                    <input type="text" class="form-control" id="tripayApiKey" name="tripayApiKey" />
+                  </div>
+                  <div class="mb-3">
+                    <label for="tripayPrivateKey">Private Key Tripay</label>
+                    <input type="text" class="form-control" id="tripayPrivateKey" name="tripayPrivateKey" />
+                  </div>
+                  <div class="mb-3">
+                    <label for="tripayMerchantCode">Merchant Code Tripay</label>
+                    <input type="text" class="form-control" id="tripayMerchantCode" name="tripayMerchantCode" />
+                  </div>
+                  <div class="mb-3">
+                    <label for="tripayProduction">Production Tripay</label>
+                    <select class="form-control" id="tripayProduction" name="tripayProduction">
+                      <option value="no">no (sandbox)</option>
+                      <option value="yes">yes (produksi)</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label for="tripayDefaultMethod">Metode Default Tripay</label>
+                    <input type="text" class="form-control" id="tripayDefaultMethod" name="tripayDefaultMethod" placeholder="QRIS" />
+                    <small class="form-text text-muted">Channel default saat redirect (mis. QRIS / BRIVA / BNIVA). Kosong = QRIS.</small>
+                  </div>
+                  <hr>
                   <div class="mb-3">
                     <label for="defaultBulkSSID" class="form-label">Default SSID Bulk</label>
                     <input type="number" class="form-control" id="defaultBulkSSID" name="defaultBulkSSID" min="1" max="8" />
