@@ -10,6 +10,7 @@ describe("routes/legal-pages (halaman compliance publik)", () => {
         global.config = {
             nama: "RAF NET",
             telfon: "628123456789",
+            tanggal_isolir: "16",
             company: {
                 name: "RAF NET",
                 address: "Ds. Dander Kab. Bojonegoro",
@@ -18,6 +19,11 @@ describe("routes/legal-pages (halaman compliance publik)", () => {
                 website: "https://rafnet.my.id",
             },
         };
+        global.packages = [
+            { name: "PAKET-125K", price: 125000, whitelist: false },
+            { name: "PAKET-VOUCHER", price: 0 }, // harus dikecualikan
+            { name: "PAKET-GRATIS", price: 0, whitelist: true }, // harus dikecualikan
+        ];
         const app = express();
         app.use("/", require("../legal-pages"));
         server = app.listen(0, () => {
@@ -28,6 +34,7 @@ describe("routes/legal-pages (halaman compliance publik)", () => {
 
     afterAll((done) => {
         delete global.config;
+        delete global.packages;
         server.close(done);
     });
 
@@ -36,25 +43,53 @@ describe("routes/legal-pages (halaman compliance publik)", () => {
         return { status: res.status, body: await res.text() };
     }
 
-    test("keempat halaman balas 200 + judul benar", async () => {
+    test("keempat halaman balas 200 + nav lengkap", async () => {
         for (const p of ["/faq", "/refund-policy", "/syarat-ketentuan", "/kontak"]) {
             const r = await get(p);
             expect(r.status).toBe(200);
             expect(r.body).toContain("RAF NET");
+            // nav 4 halaman ada di setiap halaman
+            expect(r.body).toContain('href="/kontak"');
+            expect(r.body).toContain('href="/syarat-ketentuan"');
         }
     });
 
-    test("/kontak menampilkan email, telepon, dan alamat usaha (wajib gateway)", async () => {
+    test("FAQ: berkategori, accordion, dan tabel harga dari data paket nyata", async () => {
+        const r = await get("/faq");
+        expect(r.body).toContain("Layanan &amp; Pemasangan");
+        expect(r.body).toContain("Tagihan &amp; Pembayaran");
+        expect(r.body).toContain("<details class=\"qa\">");
+        // paket asli tampil, voucher & whitelist dikecualikan
+        expect(r.body).toContain("PAKET-125K");
+        expect(r.body).toContain("Rp125.000");
+        expect(r.body).not.toContain("PAKET-VOUCHER");
+        expect(r.body).not.toContain("PAKET-GRATIS");
+        // CTA WhatsApp (fallback telfon)
+        expect(r.body).toMatch(/wa\.me\/628123456789/);
+    });
+
+    test("Terms: ada daftar isi + tanggal isolir nyata + banyak pasal", async () => {
+        const r = await get("/syarat-ketentuan");
+        expect(r.body).toContain("Daftar Isi");
+        expect(r.body).toContain("Penonaktifan Sementara");
+        expect(r.body).toContain("tanggal <b>16</b>"); // dari config.tanggal_isolir
+        expect(r.body).toContain('id="larangan"');
+        expect(r.body).toContain("Hukum yang Berlaku");
+    });
+
+    test("Refund: ketentuan bernomor & substantif", async () => {
+        const r = await get("/refund-policy");
+        expect(r.body).toContain("Pembayaran Ganda");
+        expect(r.body).toContain("Sebelum Aktivasi");
+        expect(r.body).toMatch(/3.14 hari kerja/);
+    });
+
+    test("/kontak menampilkan email, telepon, alamat + catatan keamanan (wajib gateway)", async () => {
         const r = await get("/kontak");
         expect(r.body).toContain("rafnet.bjn@gmail.com");
         expect(r.body).toContain("Ds. Dander Kab. Bojonegoro");
-        // phone placeholder 'ISI_PHONE' harus di-skip → pakai config.telfon.
-        expect(r.body).toContain("628123456789");
+        expect(r.body).toContain("628123456789"); // fallback dari telfon
         expect(r.body).not.toContain("ISI_PHONE");
-    });
-
-    test("refund & syarat berisi konten kebijakan", async () => {
-        expect((await get("/refund-policy")).body).toMatch(/Pengembalian Dana|Refund/i);
-        expect((await get("/syarat-ketentuan")).body).toMatch(/Syarat|Ketentuan/i);
+        expect(r.body).toContain("Catatan Keamanan");
     });
 });
