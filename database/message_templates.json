@@ -167,6 +167,10 @@
     "name": "Pelanggan: Voucher Diproses Manual (pembayaran berhasil)",
     "template": "✅ Pembayaran kamu *BERHASIL* dan sudah tercatat. Voucher segera kami kirimkan ya. Jika dalam beberapa saat belum masuk, silakan hubungi admin. Terima kasih! 🙏"
   },
+  "voucher_beli_web": {
+    "name": "Kode Voucher — Pembelian Online (halaman web)",
+    "template": "✅ *PEMBELIAN VOUCHER BERHASIL*\n\nTerima kasih! Berikut voucher WiFi Anda:\n\n🎫 *KODE VOUCHER*\n━━━━━━━━━━━━━━\n• Paket : *${nama_paket}*\n• Harga : *${harga}*\n• Kode  : *${kode_voucher}*\n━━━━━━━━━━━━━━\n\nHubungkan ke WiFi kami lalu masukkan kode di atas pada halaman login. _Simpan pesan ini sebagai bukti._ 🙏"
+  },
   "sudah_bayar_notification": {
     "name": "Notifikasi 'Sudah Bayar' ke Pelanggan",
     "template": "✅ STATUS PEMBAYARAN TAGIHAN WIFI ANDA ✅\nHalo Kak ${nama_pelanggan},\n\nTerima kasih, pembayaran tagihan WiFi Anda telah kami terima.\n\nRincian Pembayaran:\n\nStatus: *LUNAS*\n\nPaket: *${nama_paket}*\n\nJumlah: *${harga_formatted}*\n\nMetode: *${metode_pembayaran}*\n\nSelamat menikmati layanan kami! 😊\n\nButuh bantuan? Ketik menuwifi untuk bantuan lebih lanjut.\n\nSalam Hangat,\n\nAdmin *${nama_wifi}*"

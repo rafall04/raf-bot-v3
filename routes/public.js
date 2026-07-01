@@ -13,6 +13,7 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const qr = require('qr-image');
 
 // Local dependencies that were used by these routes in index.js
 const pay = require("../lib/ipaymu");
@@ -30,7 +31,7 @@ const { saveReports: _saveReports, saveSpeedRequests, savePackageChangeRequests:
 const { authCache } = require('../lib/auth-cache');
 const { comparePassword, hashPassword: _hashPassword } = require('../lib/password');
 const { apiAuth } = require('../lib/auth');
-const { normalizePhoneNumber: _normalizePhoneNumber } = require('../lib/utils');
+const { normalizePhoneNumber } = require('../lib/utils');
 const { generateSecureOTP, checkOTPRequestLimit, checkOTPVerifyLimit, resetOTPAttempts, isOTPValid } = require('../lib/otp');
 const { asyncHandler, createError, ErrorTypes, validateRequired, dbOperation: _dbOperation } = require('../lib/error-handler');
 const { renderTemplate } = require('../lib/templating');
@@ -697,6 +698,11 @@ router.get('/api/dashboard-status', ensureCustomerAuthenticated, asyncHandler(as
 
 // --- Public Unauthenticated Routes ---
 
+// Halaman publik beli voucher online (pembeli umum/anonim). Static page; API-nya di /app/*.
+router.get('/voucher', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'static', 'voucher-buy.html'));
+});
+
 router.get('/app/:type/:id?', async (req, res) => {
     const { type, id } = req.params;
     try {
@@ -719,6 +725,20 @@ router.get('/app/:type/:id?', async (req, res) => {
                 if (!pay) return res.status(404).json({ status: 404, message: "" });
                 if (!pay.status) return res.status(400).json({ status: 400, message: "menunggu pembayaran!" });
                 return res.status(200).json({ status: 200, message: 'Success', data: global.payment.find(h => h.reffId == id) || null });
+            }
+            case 'qr': {
+                // Render QRIS string (tersimpan saat charge) menjadi gambar PNG agar tampil di
+                // halaman beli voucher tanpa dependensi QR dari CDN.
+                const rec = global.payment.find(d => d.reffId == id);
+                if (!rec || !rec.qrStr) return res.status(404).send('');
+                try {
+                    const png = qr.imageSync(String(rec.qrStr), { type: 'png', ec_level: 'M' });
+                    res.setHeader('Content-Type', 'image/png');
+                    res.setHeader('Cache-Control', 'no-store');
+                    return res.end(png);
+                } catch (_e) {
+                    return res.status(500).send('');
+                }
             }
             default: {
                 return res.json({ data: type == 'packages' ? global.packages : type == 'voucher' ? global.voucher : [] });
@@ -838,6 +858,7 @@ router.post('/callback/payment', async (req, res) => {
                 });
             } else if (pay.tag == 'buynowweb') {
                 const prof = checkprofvc(String(pay.amount));
+                const durasivc = checkdurasivc(prof);
                 await getvoucher(prof, pay.sender, { caller: 'public.payment-callback.buynowweb' }).then(async voucherResult => {
                     if (!voucherResult.ok) {
                         throw new Error(voucherResult.message);
@@ -845,6 +866,24 @@ router.post('/callback/payment', async (req, res) => {
                     const result = voucherResult.data?.username || voucherResult.message;
                     updateKetPayment(reference_id, `${result}`);
                     updateStatusPayment(reference_id, true);
+                    // Kirim kode voucher ke WA pembeli (kode = kritis krn sudah bayar → sendCritical
+                    // retry + dead-letter). pay.sender = nomor mentah dari form web → normalisasi ke JID.
+                    // Best-effort: gagal kirim TIDAK menggagalkan callback (kode tetap tampil di halaman
+                    // via polling statustrx; sendCritical juga menyimpan ke dead-letter bila gagal).
+                    try {
+                        const digits = normalizePhoneNumber(String(pay.sender || ''));
+                        const jid = digits && digits.length > 8 ? `${digits}@s.whatsapp.net` : null;
+                        if (jid) {
+                            const message = renderTemplate('voucher_beli_web', {
+                                nama_paket: durasivc || prof,
+                                harga: convertRupiah.convert(pay.amount),
+                                kode_voucher: result
+                            });
+                            await sendCritical(jid, { text: message }, { label: 'voucher-web-code' });
+                        }
+                    } catch (waErr) {
+                        console.error('[BUYNOWWEB] Gagal kirim kode voucher ke WA:', waErr.message);
+                    }
                     throw !0;
                 }).catch(async err => {
                     if (typeof err === "string" || err instanceof Error) {

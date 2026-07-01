@@ -50,4 +50,22 @@ describe("callback voucher hardening (go-public)", () => {
         expect(catchBlock).toMatch(/recordVoucherOrphan/);
         expect(catchBlock).toMatch(/alertAdmins/);
     });
+
+    test("buynowweb SUKSES: kirim kode voucher ke WA via sendCritical + template voucher_beli_web", () => {
+        const successBlock = webBlock.slice(0, webBlock.indexOf(".catch("));
+        // Normalisasi nomor form → JID sebelum kirim (bukan pakai @lid / nomor mentah).
+        expect(successBlock).toMatch(/normalizePhoneNumber\(String\(pay\.sender/);
+        expect(successBlock).toMatch(/@s\.whatsapp\.net/);
+        expect(successBlock).toMatch(/sendCritical\(jid/);
+        expect(successBlock).toMatch(/voucher_beli_web/);
+        // Best-effort: dibungkus try/catch supaya gagal kirim TIDAK menggagalkan callback.
+        expect(successBlock).toMatch(/try\s*{[\s\S]*sendCritical[\s\S]*catch/);
+    });
+
+    test("halaman & endpoint publik voucher terpasang (page /voucher + QR PNG)", () => {
+        expect(source).toMatch(/router\.get\('\/voucher'/);
+        expect(source).toMatch(/voucher-buy\.html/);
+        expect(source).toMatch(/case 'qr':/);
+        expect(source).toMatch(/qr\.imageSync\(String\(rec\.qrStr\)/);
+    });
 });

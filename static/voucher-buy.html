@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Beli Voucher WiFi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--brand:#4338ca;--brand2:#6366f1;--ink:#0f172a;--body:#334155;--muted:#64748b;
+--line:#e5e7eb;--bg:#f1f5f9;--card:#fff;--ok:#059669;--radius:16px;
+--shadow:0 1px 2px rgba(15,23,42,.05),0 12px 28px -16px rgba(15,23,42,.18)}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+background:var(--bg);color:var(--body);line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:var(--brand)}
+.site-header{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff}
+.bar{max-width:760px;margin:0 auto;padding:22px 20px;display:flex;align-items:center;gap:13px}
+.logo{width:44px;height:44px;border-radius:12px;background:#fff;color:var(--brand);display:flex;
+align-items:center;justify-content:center;font-weight:800;font-size:20px;flex:none}
+.bar h1{font-size:19px;margin:0;font-weight:800}
+.bar .tag{font-size:12.5px;opacity:.9}
+.wrap{max-width:760px;margin:0 auto;padding:24px 20px 48px}
+.page-title{font-size:22px;color:var(--ink);font-weight:800;margin:2px 0 4px}
+.page-sub{color:var(--muted);margin:0 0 20px;font-size:14.5px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pkg{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+box-shadow:var(--shadow);padding:18px;cursor:pointer;transition:transform .12s,border-color .12s,box-shadow .12s;
+display:flex;flex-direction:column;gap:6px}
+.pkg:hover{transform:translateY(-2px);border-color:#c7d2fe}
+.pkg .dur{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.pkg .name{font-size:16px;font-weight:700;color:var(--ink)}
+.pkg .price{font-size:20px;font-weight:800;color:var(--brand);margin-top:4px}
+.pkg .btn{margin-top:10px;background:#eef2ff;color:var(--brand);border:0;border-radius:10px;
+padding:9px;font-weight:700;font-size:14px;cursor:pointer}
+.pkg:hover .btn{background:var(--brand);color:#fff}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+box-shadow:var(--shadow);padding:24px;margin-bottom:16px}
+.sel{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;
+background:#f8fafc;border:1px solid var(--line);border-radius:12px;margin-bottom:16px}
+.sel .name{font-weight:700;color:var(--ink)}.sel .price{font-weight:800;color:var(--brand)}
+label{font-weight:600;color:var(--ink);font-size:14px;display:block;margin-bottom:6px}
+input[type=tel]{width:100%;padding:13px 14px;border:1.5px solid var(--line);border-radius:11px;
+font-size:16px;font-family:inherit;outline:none}
+input[type=tel]:focus{border-color:var(--brand2)}
+.hint{color:var(--muted);font-size:12.5px;margin-top:6px}
+.btn-primary{width:100%;background:var(--brand);color:#fff;border:0;border-radius:12px;padding:14px;
+font-weight:700;font-size:15.5px;cursor:pointer;margin-top:16px}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed}
+.btn-ghost{background:none;border:0;color:var(--muted);font-size:13.5px;cursor:pointer;
+padding:8px;margin-top:8px;text-decoration:underline;display:block;width:100%}
+.qrbox{text-align:center}
+.qrbox img{width:230px;height:230px;border:1px solid var(--line);border-radius:14px;padding:8px;background:#fff}
+.total{font-size:14px;color:var(--muted);margin-top:12px}.total b{color:var(--ink);font-size:20px;display:block}
+.status{display:flex;align-items:center;justify-content:center;gap:9px;margin-top:16px;
+padding:11px;background:#fffbeb;border:1px solid #fde68a;border-radius:11px;color:#92400e;font-size:14px;font-weight:600}
+.spin{width:16px;height:16px;border:2px solid #fcd34d;border-top-color:#b45309;border-radius:50%;animation:s 1s linear infinite;flex:none}
+@keyframes s{to{transform:rotate(360deg)}}
+.ok-hero{text-align:center;padding:8px 0}
+.ok-hero .badge{width:64px;height:64px;border-radius:50%;background:#dcfce7;color:var(--ok);
+display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 12px}
+.ok-hero h2{color:var(--ink);margin:0 0 4px;font-size:20px}
+.code{margin:18px 0;padding:18px;border:2px dashed var(--brand);border-radius:14px;background:#eef2ff;text-align:center}
+.code .k{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.code .v{font-size:28px;font-weight:800;color:var(--brand);letter-spacing:.04em;word-break:break-all;margin-top:4px;font-family:'Courier New',monospace}
+.sent{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:11px;padding:11px 14px;font-size:14px;text-align:center}
+.err{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:11px;padding:13px 16px;font-size:14px}
+.hidden{display:none}
+.loading{text-align:center;color:var(--muted);padding:40px 0}
+footer{text-align:center;color:var(--muted);font-size:12.5px;padding:20px;border-top:1px solid var(--line)}
+@media(max-width:560px){.grid{grid-template-columns:1fr 1fr}.qrbox img{width:200px;height:200px}}
+</style>
+</head>
+<body>
+<header class="site-header"><div class="bar">
+  <div class="logo" id="logo">R</div>
+  <div><h1 id="bizname">Voucher WiFi</h1><div class="tag">Beli voucher hotspot online — bayar QRIS, voucher langsung jadi</div></div>
+</div></header>
+
+<main class="wrap">
+  <!-- View: catalog -->
+  <section id="view-catalog">
+    <h2 class="page-title">Pilih Paket Voucher</h2>
+    <p class="page-sub">Pilih durasi, bayar dengan QRIS/e-wallet, kode voucher tampil di halaman ini &amp; dikirim ke WhatsApp Anda.</p>
+    <div id="catalog" class="grid"><div class="loading">Memuat paket…</div></div>
+  </section>
+
+  <!-- View: form -->
+  <section id="view-form" class="hidden">
+    <h2 class="page-title">Konfirmasi Pembelian</h2>
+    <div class="card">
+      <div class="sel"><div class="name" id="f-name">-</div><div class="price" id="f-price">-</div></div>
+      <label for="phone">Nomor WhatsApp</label>
+      <input type="tel" id="phone" inputmode="numeric" placeholder="Contoh: 0812xxxxxxx" autocomplete="tel">
+      <div class="hint">Kode voucher akan dikirim ke nomor WhatsApp ini. Pastikan benar.</div>
+      <button class="btn-primary" id="buyBtn">Lanjut Bayar</button>
+      <button class="btn-ghost" id="backCatalog">← Pilih paket lain</button>
+      <div id="formErr" class="err hidden" style="margin-top:14px"></div>
+    </div>
+  </section>
+
+  <!-- View: payment -->
+  <section id="view-pay" class="hidden">
+    <h2 class="page-title">Selesaikan Pembayaran</h2>
+    <div class="card qrbox">
+      <div class="sel"><div class="name" id="p-name">-</div><div class="price" id="p-price">-</div></div>
+      <img id="qrimg" alt="QRIS" src="">
+      <div class="total">Total bayar<b id="p-total">-</b></div>
+      <p class="hint" style="margin-top:10px">Scan QR di atas dengan aplikasi e-wallet / m-banking (QRIS). Voucher terbit otomatis setelah pembayaran terverifikasi.</p>
+      <div class="status" id="p-status"><span class="spin"></span> Menunggu pembayaran…</div>
+      <button class="btn-ghost" id="cancelPay">← Batal</button>
+    </div>
+  </section>
+
+  <!-- View: result -->
+  <section id="view-result" class="hidden">
+    <div class="card">
+      <div id="result-ok" class="hidden">
+        <div class="ok-hero"><div class="badge">✓</div><h2>Pembayaran Berhasil</h2>
+          <p class="page-sub" style="margin:0">Berikut kode voucher WiFi Anda:</p></div>
+        <div class="code"><div class="k">Kode Voucher</div><div class="v" id="voucherCode">-</div></div>
+        <div class="sent" id="sentNote">📲 Kode juga dikirim ke WhatsApp Anda.</div>
+        <button class="btn-primary" id="buyMore">Beli Lagi</button>
+      </div>
+      <div id="result-manual" class="hidden">
+        <div class="ok-hero"><div class="badge" style="background:#fef9c3;color:#a16207">⏳</div>
+          <h2>Pembayaran Diterima</h2>
+          <p class="page-sub" style="margin:0">Voucher sedang diproses. Kode akan dikirim ke WhatsApp Anda sesaat lagi. Jika belum masuk, hubungi admin.</p></div>
+        <button class="btn-primary" id="buyMore2">Kembali</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>Pembayaran diproses melalui gateway resmi. Simpan kode voucher Anda sebagai bukti.</footer>
+
+<script>
+(function(){
+  var selected = null, reff = null, pollTimer = null, POLL_MS = 4000, deadline = 0;
+  var $ = function(id){ return document.getElementById(id); };
+  function show(view){
+    ['catalog','form','pay','result'].forEach(function(v){ $('view-'+v).classList.add('hidden'); });
+    $('view-'+view).classList.remove('hidden');
+    window.scrollTo(0,0);
+  }
+  function rupiah(n){ n = parseInt(n,10)||0; return 'Rp' + n.toLocaleString('id-ID'); }
+  function digitsOf(s){ return String(s||'').replace(/\D/g,''); }
+
+  // Personalisasi header (best-effort).
+  fetch('/api/wifi-name').then(function(r){ return r.json(); }).then(function(d){
+    var name = (d && (d.data || d.name || d.wifiName)) || null;
+    if (typeof name === 'string' && name.trim()){ $('bizname').textContent = name.trim(); $('logo').textContent = name.trim().charAt(0).toUpperCase(); }
+  }).catch(function(){});
+
+  // Muat katalog.
+  fetch('/app/voucher').then(function(r){ return r.json(); }).then(function(res){
+    var list = (res && res.data) || res || [];
+    if (!Array.isArray(list) || !list.length){ $('catalog').innerHTML = '<div class="err">Belum ada paket voucher tersedia. Silakan hubungi admin.</div>'; return; }
+    $('catalog').innerHTML = list.map(function(v){
+      var price = parseInt(v.hargavc,10)||0;
+      if (price <= 0) return '';
+      return '<div class="pkg" data-prof="'+encodeURIComponent(v.prof)+'" data-name="'+String(v.namavc||v.prof).replace(/"/g,'&quot;')+'" data-price="'+price+'">'
+        + '<div class="dur">🕒 '+ (v.durasivc||'') +'</div>'
+        + '<div class="name">'+ (v.namavc||v.prof) +'</div>'
+        + '<div class="price">'+ rupiah(price) +'</div>'
+        + '<button class="btn">Beli</button></div>';
+    }).join('') || '<div class="err">Belum ada paket voucher tersedia.</div>';
+  }).catch(function(){ $('catalog').innerHTML = '<div class="err">Gagal memuat paket. Coba muat ulang halaman.</div>'; });
+
+  // Pilih paket.
+  $('catalog').addEventListener('click', function(e){
+    var el = e.target.closest('.pkg'); if (!el) return;
+    selected = { prof: el.getAttribute('data-prof'), name: el.getAttribute('data-name'), price: parseInt(el.getAttribute('data-price'),10) };
+    $('f-name').textContent = selected.name; $('f-price').textContent = rupiah(selected.price);
+    $('formErr').classList.add('hidden'); $('phone').value = '';
+    show('form'); $('phone').focus();
+  });
+  $('backCatalog').addEventListener('click', function(){ show('catalog'); });
+
+  // Beli → charge.
+  $('buyBtn').addEventListener('click', function(){
+    var d = digitsOf($('phone').value);
+    if (d.length < 9 || d.length > 15){ $('formErr').textContent = 'Masukkan nomor WhatsApp yang valid.'; $('formErr').classList.remove('hidden'); return; }
+    $('formErr').classList.add('hidden');
+    $('buyBtn').disabled = true; $('buyBtn').textContent = 'Memproses…';
+    var email = d + '@voucher.rafnet.local';
+    fetch('/app/buy/' + selected.prof + '?phone=' + encodeURIComponent(d) + '&email=' + encodeURIComponent(email))
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if (!res || res.status !== 200 || !res.data) throw new Error((res && res.message) || 'Gagal membuat transaksi.');
+        reff = res.data;
+        startPayment();
+      })
+      .catch(function(err){ $('formErr').textContent = err.message || 'Gagal membuat transaksi. Coba lagi.'; $('formErr').classList.remove('hidden'); })
+      .finally(function(){ $('buyBtn').disabled = false; $('buyBtn').textContent = 'Lanjut Bayar'; });
+  });
+
+  function startPayment(){
+    $('p-name').textContent = selected.name; $('p-price').textContent = rupiah(selected.price);
+    $('qrimg').src = '/app/qr/' + encodeURIComponent(reff) + '?t=' + Date.now();
+    $('p-total').textContent = rupiah(selected.price);
+    // Ambil total sebenarnya (termasuk biaya admin) bila ada.
+    fetch('/app/detailtrx/' + encodeURIComponent(reff)).then(function(r){ return r.json(); }).then(function(res){
+      var rec = res && res.data; if (rec && rec.priceTotal) $('p-total').textContent = rupiah(rec.priceTotal);
+    }).catch(function(){});
+    show('pay');
+    deadline = Date.now() + 15*60*1000; // 15 menit
+    poll();
+  }
+
+  function poll(){
+    clearTimeout(pollTimer);
+    fetch('/app/statustrx/' + encodeURIComponent(reff)).then(function(r){
+      return r.json().then(function(j){ return { code: r.status, json: j }; });
+    }).then(function(o){
+      if (o.code === 200 && o.json && o.json.data){ finish(o.json.data); return; }
+      scheduleNext();
+    }).catch(function(){ scheduleNext(); });
+  }
+  function scheduleNext(){
+    if (Date.now() > deadline){
+      $('p-status').innerHTML = '<span style="color:#b91c1c">⚠ Waktu pembayaran habis. Jika Anda sudah membayar, tunggu sebentar / hubungi admin.</span>';
+      return;
+    }
+    pollTimer = setTimeout(poll, POLL_MS);
+  }
+
+  function finish(rec){
+    clearTimeout(pollTimer);
+    var ket = String(rec.ket || '');
+    if (!ket || /^GAGAL/i.test(ket)){
+      // Sudah bayar tapi voucher belum jadi → diproses manual (orphan + alert admin di server).
+      $('result-ok').classList.add('hidden'); $('result-manual').classList.remove('hidden');
+    } else {
+      $('voucherCode').textContent = ket;
+      $('result-manual').classList.add('hidden'); $('result-ok').classList.remove('hidden');
+    }
+    show('result');
+  }
+
+  $('cancelPay').addEventListener('click', function(){ clearTimeout(pollTimer); show('catalog'); });
+  $('buyMore').addEventListener('click', function(){ reff = null; show('catalog'); });
+  $('buyMore2').addEventListener('click', function(){ reff = null; show('catalog'); });
+})();
+</script>
+</body>
+</html>
