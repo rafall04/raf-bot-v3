@@ -416,8 +416,9 @@
                     <select class="form-control" id="paymentGateway" name="paymentGateway">
                       <option value="ipaymu">iPaymu</option>
                       <option value="tripay">Tripay</option>
+                      <option value="mayar">Mayar</option>
                     </select>
-                    <small class="form-text text-muted">Gateway untuk halaman bayar tagihan. <b>Tripay auto-settle</b> (dana cair otomatis, tanpa "Unsettled/klarifikasi" seperti iPaymu).</small>
+                    <small class="form-text text-muted">Gateway untuk halaman bayar tagihan. <b>Tripay/Mayar auto-settle</b> (dana cair otomatis, tanpa "Unsettled/klarifikasi" seperti iPaymu).</small>
                   </div>
                   <div class="mb-3">
                     <label for="tripayApiKey">API Key Tripay</label>
@@ -442,6 +443,24 @@
                     <label for="tripayDefaultMethod">Metode Default Tripay</label>
                     <input type="text" class="form-control" id="tripayDefaultMethod" name="tripayDefaultMethod" placeholder="QRIS" />
                     <small class="form-text text-muted">Channel default saat redirect (mis. QRIS / BRIVA / BNIVA). Kosong = QRIS.</small>
+                  </div>
+                  <div class="mb-3">
+                    <label for="mayarApiKey">API Key Mayar (Produksi)</label>
+                    <input type="text" class="form-control" id="mayarApiKey" name="mayarApiKey" />
+                    <small class="form-text text-muted">Dari web.mayar.id → Integration → API Key (untuk api.mayar.id).</small>
+                  </div>
+                  <div class="mb-3">
+                    <label for="mayarSandboxApiKey">API Key Mayar (Sandbox)</label>
+                    <input type="text" class="form-control" id="mayarSandboxApiKey" name="mayarSandboxApiKey" />
+                    <small class="form-text text-muted">Dari web.mayar.club (sandbox, untuk api.mayar.club). Untuk uji coba tanpa uang asli.</small>
+                  </div>
+                  <div class="mb-3">
+                    <label for="mayarSandbox">Mode Mayar</label>
+                    <select class="form-control" id="mayarSandbox" name="mayarSandbox">
+                      <option value="yes">Sandbox (api.mayar.club)</option>
+                      <option value="no">Produksi (api.mayar.id)</option>
+                    </select>
+                    <small class="form-text text-muted">Sandbox memakai <b>API Key Sandbox</b> di atas. Ganti ke Produksi hanya setelah uji sandbox lolos.</small>
                   </div>
                   <hr>
                   <div class="mb-3">

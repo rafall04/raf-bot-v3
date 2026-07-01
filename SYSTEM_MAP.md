@@ -56,6 +56,7 @@ Aplikasi monolit Node.js untuk operasional ISP/RTRW-Net yang menggabungkan bot W
 - WhatsApp Multi-Device via Baileys.
 - Mikrotik / PPPoE / voucher / WiFi device adapters di `lib/mikrotik*`, `lib/wifi.js`, dan route API jaringan.
 - iPaymu untuk pembayaran/topup/tagihan. Dua mode dipakai: QRIS-direct in-chat (voucher/topup) dan multi-channel via halaman portal sendiri `/bayar/:token` (tagihan bulanan: QRIS/VA/retail, channel dinamis dari `GET /payment-channels`). Semua callback masuk ke `POST /callback/payment` (verify server-to-server `checkTransaction` sebelum kredit). `lib/ipaymu.js` punya retry koneksi-fresh anti dual-WAN.
+- **Multi-gateway bayar tagihan** (config `paymentGateway`: `ipaymu` default | `tripay` | `mayar`) via selector `lib/payment-gateways.js` (interface `chargeRedirect`/`verify`). Tripay (`lib/tripay.js`) & **Mayar (`lib/mayar.js`, base prod `api.mayar.id/hl/v1` · sandbox `api.mayar.club/hl/v1`)** = adapter redirect hosted auto-settle; callback masing-masing `POST /callback/tripay` & `POST /callback/mayar` (verify S2S sebelum kredit). Kredensial di halaman Setting. ⚠️ Mayar: field status-paid & korelasi webhook masih perlu diverifikasi via sandbox sebelum diaktifkan untuk pelanggan asli; voucher/topup masih iPaymu.
 - SNMP/OLT monitoring untuk perangkat jaringan/ONT.
 - GenieACS untuk provisioning/ACS pelanggan.
 - Telegram backup untuk arsip database.

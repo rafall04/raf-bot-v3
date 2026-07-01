@@ -23,7 +23,8 @@ const cbBlock = cbIdx > -1 ? source.slice(cbIdx, cbIdx + 3200) : "";
 
 describe("bill-payment multi-gateway + callback Tripay", () => {
     test("GET /bayar/:token pilih gateway aktif (selector) untuk alur redirect", () => {
-        expect(source).toMatch(/useRedirectFlow[\s\S]{0,120}getActiveName\(\)\s*===\s*"tripay"/);
+        expect(source).toMatch(/useRedirectFlow[\s\S]{0,160}getActiveName\(\)/);
+        expect(source).toMatch(/useRedirectFlow[\s\S]{0,200}"tripay"[\s\S]{0,40}"mayar"/);
         expect(source).toContain("gateways.getActive()");
         expect(source).toContain("gw.chargeRedirect(");
     });

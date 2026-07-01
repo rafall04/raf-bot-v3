@@ -2,13 +2,14 @@
  * Header Doc
  * Purpose: Halaman bayar tagihan bulanan publik (tanpa login, via token bertanda-tangan) +
  *   API-nya: info tagihan & channel aktif, buat charge iPaymu multi-channel, polling status.
- *   MULTI-GATEWAY (config `paymentGateway`: 'ipaymu' | 'tripay') + mode halaman:
+ *   MULTI-GATEWAY (config `paymentGateway`: 'ipaymu' | 'tripay' | 'mayar') + mode halaman:
  *   - Tripay aktif → alur REDIRECT ke halaman Tripay (auto-settle) + callback POST /callback/tripay.
+ *   - Mayar aktif → alur REDIRECT ke invoice Mayar (auto-settle) + webhook POST /callback/mayar.
  *   - iPaymu + `billPaymentHosted` → REDIRECT ke halaman iPaymu (callback POST /callback/payment).
  *   - iPaymu default → PORTAL sendiri (static/bill-payment.html, multi-channel direct).
  *   Pemilihan gateway via lib/payment-gateways (selector chargeRedirect/verify).
  * Caller: routes-registry (mount di "/").
- * Deps: lib/bill-pay-token, lib/ipaymu, lib/tripay, lib/payment-gateways, lib/payment,
+ * Deps: lib/bill-pay-token, lib/ipaymu, lib/tripay, lib/mayar, lib/payment-gateways, lib/payment,
  *   lib/services/bill-payment-settlement, lib/templating, lib/whatsapp-delivery-service, qr-image, rupiah-format.
  * MainFuncs: GET /bayar/:token (portal/redirect), GET /bayar-status, POST /callback/tripay,
  *   GET /api/bayar/:token/info, POST /api/bayar/:token/charge, GET /api/bayar/:token/status.
@@ -25,6 +26,7 @@ const rateLimit = require("express-rate-limit");
 const { verifyBillPayToken, resolveBaseUrl } = require("../lib/bill-pay-token");
 const ipaymu = require("../lib/ipaymu");
 const tripay = require("../lib/tripay");
+const mayar = require("../lib/mayar");
 const gateways = require("../lib/payment-gateways");
 const { addPayment, checkStatusPayment, updateStatusPayment, updateKetPayment } = require("../lib/payment");
 const { createBillPaymentSettlement } = require("../lib/services/bill-payment-settlement");
@@ -96,11 +98,12 @@ function statusPage(title, message) {
 }
 
 // Pakai alur REDIRECT (halaman gateway auto-settle) atau portal HTML sendiri?
-//  - Tripay aktif → SELALU redirect (closed payment di halaman Tripay).
+//  - Tripay/Mayar aktif → SELALU redirect (halaman gateway hosted auto-settle).
 //  - iPaymu + billPaymentHosted → redirect ke halaman iPaymu.
 //  - iPaymu default → portal HTML direct (multi-channel sendiri).
 function useRedirectFlow() {
-    return gateways.getActiveName() === "tripay" || billPaymentHostedEnabled();
+    const gw = gateways.getActiveName();
+    return gw === "tripay" || gw === "mayar" || billPaymentHostedEnabled();
 }
 
 // Halaman bayar — branch by gateway/mode.
@@ -140,8 +143,9 @@ router.get("/bayar/:token", chargeLimiter, async (req, res) => {
     // Persist record (tag 'tagihan') + gateway. trxId = reference gateway (Tripay punya saat
     // creation → callback Tripay verify pakai ini; iPaymu hosted null → callback iPaymu pakai
     // payload trx_id). userId/periode dipakai callback untuk catat lunas + reaktivasi.
+    const gwLabel = gw.name === "tripay" ? "Tripay" : gw.name === "mayar" ? "Mayar" : "iPaymu (hosted)";
     addPayment(reff, charge.reference, customerJid(ctx.user), "tagihan", ctx.amount,
-        gw.name === "tripay" ? "Tripay" : "iPaymu (hosted)", `Tagihan ${ctx.user.name}`,
+        gwLabel, `Tagihan ${ctx.user.name}`,
         { userId: ctx.user.id, periodMonth, periodYear, sandbox: ctx.sandbox, gateway: gw.name, hosted: gw.name === "ipaymu", sessionId: charge.sessionId || null });
 
     return res.redirect(302, charge.url);
@@ -219,6 +223,84 @@ router.post("/callback/tripay", async (req, res) => {
         return res.json({ success: true });
     } catch (err) {
         console.error("[TRIPAY_CALLBACK_ERROR]", err.message);
+        return res.status(500).json({ success: false });
+    }
+});
+
+// Callback Mayar (POST webhook). Payload `{event, data}`; event 'payment.received' = lunas.
+// Keamanan = model sama dgn callback Tripay: VERIFIKASI server-to-server (checkTransaction)
+// sebelum kredit — TIDAK percaya body webhook mentah. Balas {success:true} untuk ACK.
+// ⚠️ FIELD KORELASI (id di `data` yang cocok dgn invoice kita) & status paid WAJIB
+//    dikonfirmasi lewat uji sandbox sebelum gateway 'mayar' diaktifkan untuk pelanggan asli.
+router.post("/callback/mayar", async (req, res) => {
+    try {
+        const body = req.body || {};
+        const event = String(body.event || body.type || "").toLowerCase();
+        const data = body.data || {};
+        if (event && event !== "payment.received") return res.json({ success: true }); // event lain → ACK
+
+        // Kandidat id korelasi dari payload webhook (defensif — pasti-kan yang benar di sandbox).
+        const candidates = [data.id, data.invoiceId, data.transactionId, data.merchantInvoiceId, data.paymentId]
+            .filter((v) => v != null)
+            .map((v) => String(v));
+        if (candidates.length === 0) return res.json({ success: true }); // tak bisa dikorelasi → ACK
+
+        const pay = (global.payment || []).find((v) => v.gateway === "mayar"
+            && (candidates.includes(String(v.trxId)) || candidates.includes(String(v.reffId))));
+        if (!pay) return res.json({ success: true }); // bukan record kita → ACK
+        if (checkStatusPayment(pay.reffId) === true) return res.json({ success: true }); // idempotent
+
+        // KEAMANAN: verifikasi langsung ke Mayar (S2S) — id invoice = pay.trxId.
+        const verify = await mayar.checkTransaction(pay.trxId, { sandbox: pay.sandbox === true });
+        if (!verify || !verify.ok || !verify.paid) {
+            console.warn("[MAYAR_CALLBACK_REJECT] Mayar belum konfirmasi PAID — kredit ditolak.", { reffId: pay.reffId, status: verify?.status, error: verify?.error });
+            return res.status(400).json({ success: false });
+        }
+        if (verify.amount != null && pay.amount != null && parseInt(verify.amount, 10) < parseInt(pay.amount, 10)) {
+            console.warn("[MAYAR_CALLBACK_REJECT] amount Mayar kurang dari tagihan.", { reffId: pay.reffId, mayar_amount: verify.amount, expected: pay.amount });
+            return res.status(400).json({ success: false });
+        }
+
+        const user = (global.users || []).find((u) => String(u.id) === String(pay.userId));
+        if (!user) {
+            console.error("[MAYAR_CALLBACK] User tidak ditemukan — TIDAK ditandai paid", { reffId: pay.reffId, userId: pay.userId });
+            return res.status(400).json({ success: false });
+        }
+
+        let settleResult;
+        try {
+            settleResult = await billSettlement.settleTagihanPayment({
+                user, amountPaid: pay.amount, periodMonth: pay.periodMonth, periodYear: pay.periodYear,
+                paymentMethod: "Mayar", reffId: pay.reffId,
+            });
+        } catch (settleErr) {
+            console.error("[MAYAR_CALLBACK] Catat lunas GAGAL — TIDAK ditandai paid", { reffId: pay.reffId, error: settleErr.message });
+            return res.status(400).json({ success: false });
+        }
+
+        updateStatusPayment(pay.reffId, true);
+        const react = settleResult.reactivation || {};
+        updateKetPayment(pay.reffId, `Tagihan lunas (Mayar)${react.attempted ? (react.ok ? " + reaktivasi OK" : " + reaktivasi GAGAL") : ""}`);
+
+        // Struk best-effort (kegagalan kirim TIDAK menggagalkan callback).
+        try {
+            const periode = (pay.periodMonth && pay.periodYear)
+                ? new Date(pay.periodYear, pay.periodMonth - 1, 1).toLocaleDateString("id-ID", { month: "long", year: "numeric" })
+                : new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+            const struk = renderTemplate("tagihan_struk_lunas", {
+                nama_pelanggan: user.name, nama_paket: user.subscription, harga: convertRupiah.convert(pay.amount),
+                metode: "Mayar", periode,
+                waktu: new Date().toLocaleString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) + " WIB",
+                no_ref: pay.reffId, status_layanan: react.ok ? "⚡ Layanan Anda sudah aktif kembali." : "",
+            });
+            if (pay.sender) await sendMessage(pay.sender, { text: struk });
+        } catch (notifyErr) {
+            console.error("[MAYAR_CALLBACK] Gagal kirim struk:", notifyErr.message);
+        }
+
+        return res.json({ success: true });
+    } catch (err) {
+        console.error("[MAYAR_CALLBACK_ERROR]", err.message);
         return res.status(500).json({ success: false });
     }
 });

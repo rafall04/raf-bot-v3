@@ -53,6 +53,9 @@
                 setValue('tripayMerchantCode', json.data.tripayMerchantCode);
                 setValue('tripayProduction', json.data.tripayProduction ? "yes" : "no");
                 setValue('tripayDefaultMethod', json.data.tripayDefaultMethod, 'QRIS');
+                setValue('mayarApiKey', json.data.mayarApiKey);
+                setValue('mayarSandboxApiKey', json.data.mayarSandboxApiKey);
+                setValue('mayarSandbox', json.data.mayarSandbox === false ? "no" : "yes");
                 setValue('defaultBulkSSID', json.data.defaultBulkSSID || '1');
                 setValue('speedOnDemandEnabled', json.data.speedOnDemandEnabled !== false ? "true" : "false");
                 setValue('showPaymentStatus', json.data.showPaymentStatus !== false ? "true" : "false");
