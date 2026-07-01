@@ -4,245 +4,328 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Beli Voucher WiFi</title>
+<meta name="theme-color" content="#0e1116">
+<title>Voucher WiFi</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--brand:#4338ca;--brand2:#6366f1;--ink:#0f172a;--body:#334155;--muted:#64748b;
---line:#e5e7eb;--bg:#f1f5f9;--card:#fff;--ok:#059669;--radius:16px;
---shadow:0 1px 2px rgba(15,23,42,.05),0 12px 28px -16px rgba(15,23,42,.18)}
+:root{
+  --ink:#0e1116; --ink-soft:#20242c; --body:#41474f; --muted:#878d97; --faint:#b7bcc4;
+  --bg:#f4f4f1; --surface:#ffffff; --line:#e7e6e0; --line-2:#dedcd4;
+  --accent:#0d8f83; --accent-ink:#0a6d64; --accent-wash:#e7f4f2;
+  --radius:14px; --radius-lg:20px;
+  --shadow:0 1px 2px rgba(14,17,22,.04), 0 18px 40px -28px rgba(14,17,22,.28);
+  --font:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+}
 *{box-sizing:border-box}
-body{margin:0;font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
-background:var(--bg);color:var(--body);line-height:1.6;-webkit-font-smoothing:antialiased}
-a{color:var(--brand)}
-.site-header{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff}
-.bar{max-width:760px;margin:0 auto;padding:22px 20px;display:flex;align-items:center;gap:13px}
-.logo{width:44px;height:44px;border-radius:12px;background:#fff;color:var(--brand);display:flex;
-align-items:center;justify-content:center;font-weight:800;font-size:20px;flex:none}
-.bar h1{font-size:19px;margin:0;font-weight:800}
-.bar .tag{font-size:12.5px;opacity:.9}
-.wrap{max-width:760px;margin:0 auto;padding:24px 20px 48px}
-.page-title{font-size:22px;color:var(--ink);font-weight:800;margin:2px 0 4px}
-.page-sub{color:var(--muted);margin:0 0 20px;font-size:14.5px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.pkg{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-box-shadow:var(--shadow);padding:18px;cursor:pointer;transition:transform .12s,border-color .12s,box-shadow .12s;
-display:flex;flex-direction:column;gap:6px}
-.pkg:hover{transform:translateY(-2px);border-color:#c7d2fe}
-.pkg .dur{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
-.pkg .name{font-size:16px;font-weight:700;color:var(--ink)}
-.pkg .price{font-size:20px;font-weight:800;color:var(--brand);margin-top:4px}
-.pkg .btn{margin-top:10px;background:#eef2ff;color:var(--brand);border:0;border-radius:10px;
-padding:9px;font-weight:700;font-size:14px;cursor:pointer}
-.pkg:hover .btn{background:var(--brand);color:#fff}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-box-shadow:var(--shadow);padding:24px;margin-bottom:16px}
-.sel{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;
-background:#f8fafc;border:1px solid var(--line);border-radius:12px;margin-bottom:16px}
-.sel .name{font-weight:700;color:var(--ink)}.sel .price{font-weight:800;color:var(--brand)}
-label{font-weight:600;color:var(--ink);font-size:14px;display:block;margin-bottom:6px}
-input[type=tel]{width:100%;padding:13px 14px;border:1.5px solid var(--line);border-radius:11px;
-font-size:16px;font-family:inherit;outline:none}
-input[type=tel]:focus{border-color:var(--brand2)}
-.hint{color:var(--muted);font-size:12.5px;margin-top:6px}
-.btn-primary{width:100%;background:var(--brand);color:#fff;border:0;border-radius:12px;padding:14px;
-font-weight:700;font-size:15.5px;cursor:pointer;margin-top:16px}
-.btn-primary:disabled{opacity:.6;cursor:not-allowed}
-.btn-ghost{background:none;border:0;color:var(--muted);font-size:13.5px;cursor:pointer;
-padding:8px;margin-top:8px;text-decoration:underline;display:block;width:100%}
-.qrbox{text-align:center}
-.qrbox img{width:230px;height:230px;border:1px solid var(--line);border-radius:14px;padding:8px;background:#fff}
-.total{font-size:14px;color:var(--muted);margin-top:12px}.total b{color:var(--ink);font-size:20px;display:block}
-.status{display:flex;align-items:center;justify-content:center;gap:9px;margin-top:16px;
-padding:11px;background:#fffbeb;border:1px solid #fde68a;border-radius:11px;color:#92400e;font-size:14px;font-weight:600}
-.spin{width:16px;height:16px;border:2px solid #fcd34d;border-top-color:#b45309;border-radius:50%;animation:s 1s linear infinite;flex:none}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:var(--font);background:var(--bg);color:var(--body);
+  line-height:1.6;font-size:16px;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+a{color:inherit;text-decoration:none}
+::selection{background:var(--accent);color:#fff}
+
+/* Slim dark nav */
+.nav{background:var(--ink);color:#fff;position:sticky;top:0;z-index:20;
+  border-bottom:1px solid rgba(255,255,255,.06)}
+.nav-in{max-width:900px;margin:0 auto;padding:15px 22px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(160deg,#1c2029,#0e1116);
+  border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;flex:none;color:var(--accent)}
+.brand .bn{font-weight:700;font-size:15.5px;letter-spacing:-.01em;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trust-chip{font-size:12px;color:#aab0ba;display:flex;align-items:center;gap:7px;white-space:nowrap;flex:none}
+.trust-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(13,143,131,.18)}
+
+.wrap{max-width:900px;margin:0 auto;padding:46px 22px 60px}
+
+/* Hero */
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent-ink);margin:0 0 14px}
+.h1{font-size:38px;line-height:1.05;letter-spacing:-.035em;font-weight:800;color:var(--ink);margin:0 0 12px}
+.sub{font-size:16.5px;color:var(--body);max-width:560px;margin:0 0 22px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:40px}
+.chip{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);font-weight:500;
+  background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px}
+.chip svg{color:var(--accent)}
+
+/* Section heading */
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin:0 0 18px}
+.sec-head h2{font-size:15px;font-weight:700;letter-spacing:-.01em;color:var(--ink);margin:0}
+.sec-head .hint{font-size:13px;color:var(--muted)}
+
+/* Plan grid */
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.pkg{position:relative;text-align:left;cursor:pointer;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--radius-lg);padding:22px 22px 20px;display:flex;flex-direction:column;
+  transition:transform .18s cubic-bezier(.2,.7,.3,1),border-color .18s,box-shadow .18s;font-family:inherit;width:100%}
+.pkg:before{content:"";position:absolute;left:0;top:22px;bottom:22px;width:3px;border-radius:3px;background:transparent;transition:background .18s}
+.pkg:hover{transform:translateY(-4px);border-color:var(--line-2);box-shadow:var(--shadow)}
+.pkg:hover:before{background:var(--accent)}
+.pkg:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pkg-dur{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink)}
+.pkg-name{font-size:15px;font-weight:600;color:var(--ink-soft);margin-top:9px}
+.pkg-price{font-size:31px;font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-top:12px;
+  font-variant-numeric:tabular-nums;line-height:1}
+.pkg-note{font-size:12.5px;color:var(--muted);margin-top:5px}
+.pkg-cta{margin-top:18px;display:flex;align-items:center;justify-content:center;gap:8px;
+  background:var(--ink);color:#fff;font-weight:600;font-size:14px;border-radius:11px;padding:11px;transition:background .18s}
+.pkg:hover .pkg-cta{background:var(--accent-ink)}
+.pkg-cta svg{transition:transform .18s}
+.pkg:hover .pkg-cta svg{transform:translateX(3px)}
+
+/* Cards / panels for later views */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);
+  box-shadow:var(--shadow);padding:28px;max-width:460px;margin:0 auto}
+.back{background:none;border:0;color:var(--muted);font-family:inherit;font-size:13.5px;cursor:pointer;padding:10px 0 0;
+  display:inline-flex;align-items:center;gap:6px}
+.back:hover{color:var(--ink)}
+
+.summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 18px;
+  background:var(--bg);border:1px solid var(--line);border-radius:13px;margin-bottom:22px}
+.summary .s-name{font-weight:600;color:var(--ink)}
+.summary .s-price{font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+label{display:block;font-weight:600;color:var(--ink);font-size:13.5px;margin-bottom:8px}
+input[type=tel]{width:100%;padding:14px 15px;border:1.5px solid var(--line-2);border-radius:12px;
+  font-size:16px;font-family:inherit;color:var(--ink);background:#fff;outline:none;transition:border-color .15s,box-shadow .15s}
+input[type=tel]:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-wash)}
+.field-hint{color:var(--muted);font-size:12.5px;margin-top:8px}
+.btn{width:100%;background:var(--ink);color:#fff;border:0;border-radius:12px;padding:15px;font-weight:700;
+  font-size:15px;font-family:inherit;cursor:pointer;margin-top:20px;transition:transform .12s,background .18s}
+.btn:hover{background:#000}.btn:active{transform:scale(.99)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+
+/* Payment */
+.pay{text-align:center}
+.qr-frame{position:relative;width:236px;height:236px;margin:6px auto 0;padding:14px;background:#fff;
+  border:1px solid var(--line-2);border-radius:18px}
+.qr-frame img{width:100%;height:100%;display:block;border-radius:6px}
+.qr-frame .corner{position:absolute;width:20px;height:20px;border:2.5px solid var(--ink)}
+.qr-frame .c1{top:8px;left:8px;border-right:0;border-bottom:0;border-radius:6px 0 0 0}
+.qr-frame .c2{top:8px;right:8px;border-left:0;border-bottom:0;border-radius:0 6px 0 0}
+.qr-frame .c3{bottom:8px;left:8px;border-right:0;border-top:0;border-radius:0 0 0 6px}
+.qr-frame .c4{bottom:8px;right:8px;border-left:0;border-top:0;border-radius:0 0 6px 0}
+.total-line{margin-top:20px;font-size:13px;color:var(--muted)}
+.total-line b{display:block;font-size:26px;color:var(--ink);font-weight:800;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;margin-top:2px}
+.pay-note{font-size:13.5px;color:var(--body);margin-top:14px;max-width:330px;margin-left:auto;margin-right:auto}
+.status{display:inline-flex;align-items:center;gap:9px;margin-top:18px;padding:10px 16px;border-radius:999px;
+  background:var(--accent-wash);color:var(--accent-ink);font-size:13.5px;font-weight:600}
+.spin{width:15px;height:15px;border:2px solid rgba(13,143,131,.35);border-top-color:var(--accent-ink);
+  border-radius:50%;animation:s .8s linear infinite;flex:none}
 @keyframes s{to{transform:rotate(360deg)}}
-.ok-hero{text-align:center;padding:8px 0}
-.ok-hero .badge{width:64px;height:64px;border-radius:50%;background:#dcfce7;color:var(--ok);
-display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 12px}
-.ok-hero h2{color:var(--ink);margin:0 0 4px;font-size:20px}
-.code{margin:18px 0;padding:18px;border:2px dashed var(--brand);border-radius:14px;background:#eef2ff;text-align:center}
-.code .k{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
-.code .v{font-size:28px;font-weight:800;color:var(--brand);letter-spacing:.04em;word-break:break-all;margin-top:4px;font-family:'Courier New',monospace}
-.sent{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:11px;padding:11px 14px;font-size:14px;text-align:center}
-.err{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:11px;padding:13px 16px;font-size:14px}
+.status.expired{background:#fdecec;color:#b3261e}
+
+/* Result — ticket */
+.done{text-align:center}
+.seal{width:58px;height:58px;border-radius:50%;background:var(--ink);color:#fff;display:flex;align-items:center;
+  justify-content:center;margin:0 auto 14px}
+.done h2{font-size:21px;color:var(--ink);letter-spacing:-.02em;margin:0 0 4px;font-weight:800}
+.done p{color:var(--muted);margin:0 0 4px;font-size:14.5px}
+.ticket{position:relative;margin:22px 0 18px;background:var(--ink);color:#fff;border-radius:16px;padding:22px 24px;text-align:left;overflow:hidden}
+.ticket:before,.ticket:after{content:"";position:absolute;width:22px;height:22px;background:var(--surface);border-radius:50%;top:50%;transform:translateY(-50%)}
+.ticket:before{left:-11px}.ticket:after{right:-11px}
+.ticket .t-k{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#9aa0ab}
+.ticket .t-v{font-family:'Courier New',ui-monospace,monospace;font-size:27px;font-weight:700;letter-spacing:.06em;
+  color:#fff;margin-top:6px;word-break:break-all}
+.ticket .t-cut{border-top:1.5px dashed rgba(255,255,255,.22);margin:16px -24px 0}
+.ticket .t-meta{display:flex;justify-content:space-between;gap:12px;padding-top:14px;font-size:12.5px;color:#aab0ba}
+.sent{display:flex;align-items:center;justify-content:center;gap:9px;background:var(--accent-wash);
+  color:var(--accent-ink);border-radius:12px;padding:12px 14px;font-size:13.5px;font-weight:600}
+
+.err{background:#fdecec;border:1px solid #f6cbc7;color:#b3261e;border-radius:12px;padding:13px 16px;font-size:14px;margin-top:16px}
+.loading{color:var(--muted);padding:44px 0;text-align:center;font-size:14.5px}
 .hidden{display:none}
-.loading{text-align:center;color:var(--muted);padding:40px 0}
-footer{text-align:center;color:var(--muted);font-size:12.5px;padding:20px;border-top:1px solid var(--line)}
-@media(max-width:560px){.grid{grid-template-columns:1fr 1fr}.qrbox img{width:200px;height:200px}}
+footer{border-top:1px solid var(--line)}
+.foot{max-width:900px;margin:0 auto;padding:22px;color:var(--muted);font-size:12.5px;display:flex;
+  justify-content:space-between;flex-wrap:wrap;gap:8px}
+@media(max-width:560px){
+  .wrap{padding:34px 18px 48px}.h1{font-size:31px}.grid{gap:12px}
+  .pkg{padding:18px}.pkg-price{font-size:28px}
+}
 </style>
 </head>
 <body>
-<header class="site-header"><div class="bar">
-  <div class="logo" id="logo">R</div>
-  <div><h1 id="bizname">Voucher WiFi</h1><div class="tag">Beli voucher hotspot online — bayar QRIS, voucher langsung jadi</div></div>
+<header class="nav"><div class="nav-in">
+  <div class="brand">
+    <span class="mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 15.8a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg></span>
+    <span class="bn" id="bizname">Voucher WiFi</span>
+  </div>
+  <span class="trust-chip"><span class="dot"></span> Pembayaran aman · QRIS</span>
 </div></header>
 
 <main class="wrap">
-  <!-- View: catalog -->
+  <!-- catalog -->
   <section id="view-catalog">
-    <h2 class="page-title">Pilih Paket Voucher</h2>
-    <p class="page-sub">Pilih durasi, bayar dengan QRIS/e-wallet, kode voucher tampil di halaman ini &amp; dikirim ke WhatsApp Anda.</p>
+    <p class="eyebrow">Hotspot · Prabayar</p>
+    <h1 class="h1">Voucher WiFi, terbit seketika.</h1>
+    <p class="sub">Pilih durasi, bayar lewat QRIS atau e-wallet, dan kode voucher langsung tampil di layar sekaligus dikirim ke WhatsApp Anda.</p>
+    <div class="chips">
+      <span class="chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M20 20v.01M17 20v.01M20 17v.01"/></svg> QRIS &amp; e-wallet</span>
+      <span class="chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2 4.5 13H11l-1 9 8.5-11H12l1-9Z"/></svg> Voucher otomatis</span>
+      <span class="chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-5.9A8.5 8.5 0 1 1 21 11.5Z"/></svg> Kode via WhatsApp</span>
+    </div>
+    <div class="sec-head"><h2>Pilih paket</h2><span class="hint">Harga sudah termasuk pajak</span></div>
     <div id="catalog" class="grid"><div class="loading">Memuat paket…</div></div>
   </section>
 
-  <!-- View: form -->
+  <!-- form -->
   <section id="view-form" class="hidden">
-    <h2 class="page-title">Konfirmasi Pembelian</h2>
-    <div class="card">
-      <div class="sel"><div class="name" id="f-name">-</div><div class="price" id="f-price">-</div></div>
+    <button class="back" id="backCatalog">← Kembali ke daftar paket</button>
+    <div class="panel" style="margin-top:14px">
+      <div class="summary"><span class="s-name" id="f-name">-</span><span class="s-price" id="f-price">-</span></div>
       <label for="phone">Nomor WhatsApp</label>
-      <input type="tel" id="phone" inputmode="numeric" placeholder="Contoh: 0812xxxxxxx" autocomplete="tel">
-      <div class="hint">Kode voucher akan dikirim ke nomor WhatsApp ini. Pastikan benar.</div>
-      <button class="btn-primary" id="buyBtn">Lanjut Bayar</button>
-      <button class="btn-ghost" id="backCatalog">← Pilih paket lain</button>
-      <div id="formErr" class="err hidden" style="margin-top:14px"></div>
+      <input type="tel" id="phone" inputmode="numeric" placeholder="0812xxxxxxxx" autocomplete="tel">
+      <div class="field-hint">Kode voucher dikirim ke nomor ini. Pastikan benar &amp; aktif di WhatsApp.</div>
+      <button class="btn" id="buyBtn">Lanjut ke Pembayaran</button>
+      <div id="formErr" class="err hidden"></div>
     </div>
   </section>
 
-  <!-- View: payment -->
+  <!-- payment -->
   <section id="view-pay" class="hidden">
-    <h2 class="page-title">Selesaikan Pembayaran</h2>
-    <div class="card qrbox">
-      <div class="sel"><div class="name" id="p-name">-</div><div class="price" id="p-price">-</div></div>
-      <img id="qrimg" alt="QRIS" src="">
-      <div class="total">Total bayar<b id="p-total">-</b></div>
-      <p class="hint" style="margin-top:10px">Scan QR di atas dengan aplikasi e-wallet / m-banking (QRIS). Voucher terbit otomatis setelah pembayaran terverifikasi.</p>
-      <div class="status" id="p-status"><span class="spin"></span> Menunggu pembayaran…</div>
-      <button class="btn-ghost" id="cancelPay">← Batal</button>
+    <button class="back" id="cancelPay">← Batalkan</button>
+    <div class="panel pay" style="margin-top:14px">
+      <div class="summary"><span class="s-name" id="p-name">-</span><span class="s-price" id="p-price">-</span></div>
+      <div class="qr-frame">
+        <span class="corner c1"></span><span class="corner c2"></span><span class="corner c3"></span><span class="corner c4"></span>
+        <img id="qrimg" alt="QRIS" src="">
+      </div>
+      <div class="total-line">Total pembayaran<b id="p-total">-</b></div>
+      <p class="pay-note">Scan kode QR dengan aplikasi e-wallet atau m-banking apa pun (QRIS). Voucher terbit otomatis begitu pembayaran terverifikasi.</p>
+      <div class="status" id="p-status"><span class="spin"></span> Menunggu pembayaran</div>
     </div>
   </section>
 
-  <!-- View: result -->
+  <!-- result -->
   <section id="view-result" class="hidden">
-    <div class="card">
-      <div id="result-ok" class="hidden">
-        <div class="ok-hero"><div class="badge">✓</div><h2>Pembayaran Berhasil</h2>
-          <p class="page-sub" style="margin:0">Berikut kode voucher WiFi Anda:</p></div>
-        <div class="code"><div class="k">Kode Voucher</div><div class="v" id="voucherCode">-</div></div>
-        <div class="sent" id="sentNote">📲 Kode juga dikirim ke WhatsApp Anda.</div>
-        <button class="btn-primary" id="buyMore">Beli Lagi</button>
+    <div class="panel">
+      <div id="result-ok" class="hidden done">
+        <div class="seal"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg></div>
+        <h2>Pembayaran berhasil</h2>
+        <p>Voucher WiFi Anda sudah aktif dan siap dipakai.</p>
+        <div class="ticket">
+          <div class="t-k">Kode Voucher</div>
+          <div class="t-v" id="voucherCode">-</div>
+          <div class="t-cut"></div>
+          <div class="t-meta"><span id="t-paket">Voucher WiFi</span><span>Simpan sebagai bukti</span></div>
+        </div>
+        <div class="sent" id="sentNote">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-5.9A8.5 8.5 0 1 1 21 11.5Z"/></svg>
+          Kode juga dikirim ke WhatsApp Anda
+        </div>
+        <button class="btn" id="buyMore">Beli Voucher Lagi</button>
       </div>
-      <div id="result-manual" class="hidden">
-        <div class="ok-hero"><div class="badge" style="background:#fef9c3;color:#a16207">⏳</div>
-          <h2>Pembayaran Diterima</h2>
-          <p class="page-sub" style="margin:0">Voucher sedang diproses. Kode akan dikirim ke WhatsApp Anda sesaat lagi. Jika belum masuk, hubungi admin.</p></div>
-        <button class="btn-primary" id="buyMore2">Kembali</button>
+      <div id="result-manual" class="hidden done">
+        <div class="seal" style="background:var(--accent-ink)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <h2>Pembayaran diterima</h2>
+        <p>Voucher sedang diproses dan akan dikirim ke WhatsApp Anda sesaat lagi. Jika belum masuk dalam beberapa menit, silakan hubungi admin.</p>
+        <button class="btn" id="buyMore2">Selesai</button>
       </div>
     </div>
   </section>
 </main>
 
-<footer>Pembayaran diproses melalui gateway resmi. Simpan kode voucher Anda sebagai bukti.</footer>
+<footer><div class="foot">
+  <span>Pembayaran diproses melalui gateway resmi &amp; aman.</span>
+  <span>Simpan kode voucher Anda sebagai bukti.</span>
+</div></footer>
 
 <script>
 (function(){
-  var selected = null, reff = null, pollTimer = null, POLL_MS = 4000, deadline = 0;
-  var $ = function(id){ return document.getElementById(id); };
+  var selected=null, reff=null, pollTimer=null, POLL_MS=4000, deadline=0;
+  var $=function(id){ return document.getElementById(id); };
   function show(view){
     ['catalog','form','pay','result'].forEach(function(v){ $('view-'+v).classList.add('hidden'); });
     $('view-'+view).classList.remove('hidden');
     window.scrollTo(0,0);
   }
-  function rupiah(n){ n = parseInt(n,10)||0; return 'Rp' + n.toLocaleString('id-ID'); }
+  function rupiah(n){ n=parseInt(n,10)||0; return 'Rp'+n.toLocaleString('id-ID'); }
   function digitsOf(s){ return String(s||'').replace(/\D/g,''); }
+  function escAttr(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
 
-  // Personalisasi header (best-effort).
-  fetch('/api/wifi-name').then(function(r){ return r.json(); }).then(function(d){
-    var name = (d && (d.data || d.name || d.wifiName)) || null;
-    if (typeof name === 'string' && name.trim()){ $('bizname').textContent = name.trim(); $('logo').textContent = name.trim().charAt(0).toUpperCase(); }
+  // Personalisasi nama brand (best-effort) — logo tetap glyph WiFi.
+  fetch('/api/wifi-name').then(function(r){return r.json();}).then(function(d){
+    var name=(d&&(d.data||d.name||d.wifiName))||null;
+    if(typeof name==='string'&&name.trim()) $('bizname').textContent=name.trim()+' · Voucher';
   }).catch(function(){});
 
-  // Muat katalog.
-  fetch('/app/voucher').then(function(r){ return r.json(); }).then(function(res){
-    var list = (res && res.data) || res || [];
-    if (!Array.isArray(list) || !list.length){ $('catalog').innerHTML = '<div class="err">Belum ada paket voucher tersedia. Silakan hubungi admin.</div>'; return; }
-    $('catalog').innerHTML = list.map(function(v){
-      var price = parseInt(v.hargavc,10)||0;
-      if (price <= 0) return '';
-      return '<div class="pkg" data-prof="'+encodeURIComponent(v.prof)+'" data-name="'+String(v.namavc||v.prof).replace(/"/g,'&quot;')+'" data-price="'+price+'">'
-        + '<div class="dur">🕒 '+ (v.durasivc||'') +'</div>'
-        + '<div class="name">'+ (v.namavc||v.prof) +'</div>'
-        + '<div class="price">'+ rupiah(price) +'</div>'
-        + '<button class="btn">Beli</button></div>';
-    }).join('') || '<div class="err">Belum ada paket voucher tersedia.</div>';
-  }).catch(function(){ $('catalog').innerHTML = '<div class="err">Gagal memuat paket. Coba muat ulang halaman.</div>'; });
+  // Katalog.
+  fetch('/app/voucher').then(function(r){return r.json();}).then(function(res){
+    var list=(res&&res.data)||res||[];
+    if(!Array.isArray(list)||!list.length){ $('catalog').innerHTML='<div class="err">Belum ada paket voucher tersedia. Silakan hubungi admin.</div>'; return; }
+    var html=list.map(function(v){
+      var price=parseInt(v.hargavc,10)||0; if(price<=0) return '';
+      return '<button class="pkg" type="button" data-prof="'+encodeURIComponent(v.prof)+'" data-name="'+escAttr(v.namavc||v.prof)+'" data-price="'+price+'">'
+        +'<span class="pkg-dur">'+escAttr(v.durasivc||'')+'</span>'
+        +'<span class="pkg-name">'+escAttr(v.namavc||v.prof)+'</span>'
+        +'<span class="pkg-price">'+rupiah(price)+'</span>'
+        +'<span class="pkg-note">Sekali beli · voucher hotspot</span>'
+        +'<span class="pkg-cta">Beli Voucher <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>'
+        +'</button>';
+    }).join('');
+    $('catalog').innerHTML=html||'<div class="err">Belum ada paket voucher tersedia.</div>';
+  }).catch(function(){ $('catalog').innerHTML='<div class="err">Gagal memuat paket. Coba muat ulang halaman.</div>'; });
 
-  // Pilih paket.
-  $('catalog').addEventListener('click', function(e){
-    var el = e.target.closest('.pkg'); if (!el) return;
-    selected = { prof: el.getAttribute('data-prof'), name: el.getAttribute('data-name'), price: parseInt(el.getAttribute('data-price'),10) };
-    $('f-name').textContent = selected.name; $('f-price').textContent = rupiah(selected.price);
-    $('formErr').classList.add('hidden'); $('phone').value = '';
+  $('catalog').addEventListener('click',function(e){
+    var el=e.target.closest('.pkg'); if(!el) return;
+    selected={ prof:el.getAttribute('data-prof'), name:el.getAttribute('data-name'), price:parseInt(el.getAttribute('data-price'),10) };
+    $('f-name').textContent=selected.name; $('f-price').textContent=rupiah(selected.price);
+    $('formErr').classList.add('hidden'); $('phone').value='';
     show('form'); $('phone').focus();
   });
-  $('backCatalog').addEventListener('click', function(){ show('catalog'); });
+  $('backCatalog').addEventListener('click',function(){ show('catalog'); });
 
-  // Beli → charge.
-  $('buyBtn').addEventListener('click', function(){
-    var d = digitsOf($('phone').value);
-    if (d.length < 9 || d.length > 15){ $('formErr').textContent = 'Masukkan nomor WhatsApp yang valid.'; $('formErr').classList.remove('hidden'); return; }
+  $('buyBtn').addEventListener('click',function(){
+    var d=digitsOf($('phone').value);
+    if(d.length<9||d.length>15){ $('formErr').textContent='Masukkan nomor WhatsApp yang valid.'; $('formErr').classList.remove('hidden'); return; }
     $('formErr').classList.add('hidden');
-    $('buyBtn').disabled = true; $('buyBtn').textContent = 'Memproses…';
-    var email = d + '@voucher.rafnet.local';
-    fetch('/app/buy/' + selected.prof + '?phone=' + encodeURIComponent(d) + '&email=' + encodeURIComponent(email))
-      .then(function(r){ return r.json(); })
+    $('buyBtn').disabled=true; $('buyBtn').textContent='Memproses…';
+    var email=d+'@voucher.rafnet.local';
+    fetch('/app/buy/'+selected.prof+'?phone='+encodeURIComponent(d)+'&email='+encodeURIComponent(email))
+      .then(function(r){return r.json();})
       .then(function(res){
-        if (!res || res.status !== 200 || !res.data) throw new Error((res && res.message) || 'Gagal membuat transaksi.');
-        reff = res.data;
-        startPayment();
+        if(!res||res.status!==200||!res.data) throw new Error((res&&res.message)||'Gagal membuat transaksi.');
+        reff=res.data; startPayment();
       })
-      .catch(function(err){ $('formErr').textContent = err.message || 'Gagal membuat transaksi. Coba lagi.'; $('formErr').classList.remove('hidden'); })
-      .finally(function(){ $('buyBtn').disabled = false; $('buyBtn').textContent = 'Lanjut Bayar'; });
+      .catch(function(err){ $('formErr').textContent=err.message||'Gagal membuat transaksi. Coba lagi.'; $('formErr').classList.remove('hidden'); })
+      .finally(function(){ $('buyBtn').disabled=false; $('buyBtn').textContent='Lanjut ke Pembayaran'; });
   });
 
   function startPayment(){
-    $('p-name').textContent = selected.name; $('p-price').textContent = rupiah(selected.price);
-    $('qrimg').src = '/app/qr/' + encodeURIComponent(reff) + '?t=' + Date.now();
-    $('p-total').textContent = rupiah(selected.price);
-    // Ambil total sebenarnya (termasuk biaya admin) bila ada.
-    fetch('/app/detailtrx/' + encodeURIComponent(reff)).then(function(r){ return r.json(); }).then(function(res){
-      var rec = res && res.data; if (rec && rec.priceTotal) $('p-total').textContent = rupiah(rec.priceTotal);
+    $('p-name').textContent=selected.name; $('p-price').textContent=rupiah(selected.price);
+    $('t-paket').textContent=selected.name;
+    $('qrimg').src='/app/qr/'+encodeURIComponent(reff)+'?t='+Date.now();
+    $('p-total').textContent=rupiah(selected.price);
+    fetch('/app/detailtrx/'+encodeURIComponent(reff)).then(function(r){return r.json();}).then(function(res){
+      var rec=res&&res.data; if(rec&&rec.priceTotal) $('p-total').textContent=rupiah(rec.priceTotal);
     }).catch(function(){});
-    show('pay');
-    deadline = Date.now() + 15*60*1000; // 15 menit
-    poll();
+    show('pay'); deadline=Date.now()+15*60*1000; poll();
   }
 
   function poll(){
     clearTimeout(pollTimer);
-    fetch('/app/statustrx/' + encodeURIComponent(reff)).then(function(r){
-      return r.json().then(function(j){ return { code: r.status, json: j }; });
+    fetch('/app/statustrx/'+encodeURIComponent(reff)).then(function(r){
+      return r.json().then(function(j){ return {code:r.status,json:j}; });
     }).then(function(o){
-      if (o.code === 200 && o.json && o.json.data){ finish(o.json.data); return; }
+      if(o.code===200&&o.json&&o.json.data){ finish(o.json.data); return; }
       scheduleNext();
     }).catch(function(){ scheduleNext(); });
   }
   function scheduleNext(){
-    if (Date.now() > deadline){
-      $('p-status').innerHTML = '<span style="color:#b91c1c">⚠ Waktu pembayaran habis. Jika Anda sudah membayar, tunggu sebentar / hubungi admin.</span>';
-      return;
-    }
-    pollTimer = setTimeout(poll, POLL_MS);
+    if(Date.now()>deadline){ $('p-status').className='status expired'; $('p-status').textContent='Waktu pembayaran habis. Jika sudah membayar, tunggu sebentar atau hubungi admin.'; return; }
+    pollTimer=setTimeout(poll,POLL_MS);
   }
-
   function finish(rec){
     clearTimeout(pollTimer);
-    var ket = String(rec.ket || '');
-    if (!ket || /^GAGAL/i.test(ket)){
-      // Sudah bayar tapi voucher belum jadi → diproses manual (orphan + alert admin di server).
-      $('result-ok').classList.add('hidden'); $('result-manual').classList.remove('hidden');
-    } else {
-      $('voucherCode').textContent = ket;
-      $('result-manual').classList.add('hidden'); $('result-ok').classList.remove('hidden');
-    }
+    var ket=String(rec.ket||'');
+    if(!ket||/^GAGAL/i.test(ket)){ $('result-ok').classList.add('hidden'); $('result-manual').classList.remove('hidden'); }
+    else{ $('voucherCode').textContent=ket; $('result-manual').classList.add('hidden'); $('result-ok').classList.remove('hidden'); }
     show('result');
   }
 
-  $('cancelPay').addEventListener('click', function(){ clearTimeout(pollTimer); show('catalog'); });
-  $('buyMore').addEventListener('click', function(){ reff = null; show('catalog'); });
-  $('buyMore2').addEventListener('click', function(){ reff = null; show('catalog'); });
+  $('cancelPay').addEventListener('click',function(){ clearTimeout(pollTimer); show('catalog'); });
+  $('buyMore').addEventListener('click',function(){ reff=null; show('catalog'); });
+  $('buyMore2').addEventListener('click',function(){ reff=null; show('catalog'); });
 })();
 </script>
 </body>
