@@ -190,7 +190,7 @@ function footer() {
         b.email ? `Email: <a href="mailto:${esc(b.email)}">${esc(b.email)}</a>` : "",
     ].filter(Boolean).join("<br>");
     return `<footer><div class="foot">` +
-        `<div class="col"><b>${esc(b.name)}</b>${contactLines || esc(b.name)}<br>Jam layanan: setiap hari 08.00–21.00 WIB` +
+        `<div class="col"><b>${esc(b.name)}</b>${contactLines || esc(b.name)}<br>Jam layanan: setiap hari 08.00–16.00 WIB` +
         `${wa ? `<br><br><a href="${esc(wa)}">Hubungi via WhatsApp →</a>` : ""}</div>` +
         `<div class="col flinks"><b>Informasi</b>` +
         `<a href="/faq">FAQ</a><a href="/refund-policy">Kebijakan Refund</a>` +
@@ -256,7 +256,7 @@ router.get("/faq", (req, res) => {
             `<p>Tersedia beberapa metode:</p><ul>` +
             `<li><b>Pembayaran online</b> melalui tautan resmi yang kami kirimkan via WhatsApp — mendukung QRIS, Virtual Account bank, dan gerai retail (Alfamart/Indomaret). Layanan otomatis aktif kembali setelah pembayaran terverifikasi.</li>` +
             `<li><b>Tunai</b> kepada petugas resmi kami.</li></ul>` +
-            `<p class="small muted">Pastikan hanya membayar melalui tautan/petugas resmi ${esc(b.name)}. Kami tidak pernah meminta pembayaran ke rekening pribadi yang tidak resmi.</p>`) +
+            `<p class="small muted">Pastikan pembayaran dilakukan melalui tautan resmi atau petugas resmi ${esc(b.name)} yang dikirimkan lewat nomor resmi kami.</p>`) +
         qa("Bagaimana cara mengecek status tagihan saya?",
             `<p>Kirim pesan ke bot WhatsApp resmi kami${b.phone ? ` (${esc(b.phone)})` : ""} dengan kata kunci <b>cek tagihan</b>. Anda akan menerima status tagihan beserta tautan pembayaran bila belum lunas.</p>`) +
         qa("Apa yang terjadi jika saya terlambat membayar?",
@@ -276,7 +276,7 @@ router.get("/faq", (req, res) => {
         qa("Bagaimana cara melaporkan gangguan?",
             `<p>Laporkan melalui WhatsApp resmi kami di ${waHtml}. Sertakan nama pelanggan dan kendala yang dialami agar tim teknisi dapat menindaklanjuti dengan cepat.</p>`) +
         qa("Kapan jam layanan dan berapa lama respons pengaduan?",
-            `<p>Kami melayani setiap hari pukul <b>08.00–21.00 WIB</b>. Pengaduan gangguan ditindaklanjuti secepatnya sesuai antrean dan tingkat kendala; gangguan besar/masal menjadi prioritas.</p>`) +
+            `<p>Kami melayani setiap hari pukul <b>08.00–16.00 WIB</b>. Pengaduan gangguan ditindaklanjuti secepatnya sesuai antrean dan tingkat kendala; gangguan besar/masal menjadi prioritas.</p>`) +
         qa("Apakah ada kompensasi jika terjadi gangguan lama?",
             `<p>Untuk gangguan yang berkepanjangan dan menjadi tanggung jawab kami, kami memberikan <b>kompensasi berupa perpanjangan/kredit masa layanan</b> yang wajar. Detail selengkapnya ada pada <a href="/refund-policy">Kebijakan Pengembalian Dana</a>.</p>`) +
 
@@ -294,7 +294,7 @@ router.get("/faq", (req, res) => {
         `</div>` +
 
         `<div class="card"><h2 class="sec">Masih ada pertanyaan?</h2>` +
-        `<p>Tim kami siap membantu setiap hari pukul 08.00–21.00 WIB.</p>` +
+        `<p>Tim kami siap membantu setiap hari pukul 08.00–16.00 WIB.</p>` +
         (wa ? `<a class="cta" href="${esc(wa)}">${ICON.wa} Hubungi Kami via WhatsApp</a>` :
             `<p>Hubungi kami melalui halaman <a href="/kontak">Kontak</a>.</p>`) +
         `</div>`;
@@ -426,7 +426,7 @@ router.get("/kontak", (req, res) => {
         b.email ? citem(ICON.mail, "Email", `<a href="mailto:${esc(b.email)}">${esc(b.email)}</a>`) : "",
         b.address ? citem(ICON.pin, "Alamat Usaha", esc(b.address)) : "",
         b.website ? citem(ICON.globe, "Website", `<a href="${esc(b.website)}">${esc(b.website.replace(/^https?:\/\//, ""))}</a>`) : "",
-        citem(ICON.clock, "Jam Layanan", "Setiap hari, 08.00–21.00 WIB"),
+        citem(ICON.clock, "Jam Layanan", "Setiap hari, 08.00–16.00 WIB"),
     ].filter(Boolean).join("");
 
     const content =
@@ -449,7 +449,7 @@ router.get("/kontak", (req, res) => {
         `</div>` +
 
         `<div class="card"><h2 class="sec">Catatan Keamanan</h2>` +
-        `<p class="small">Demi keamanan Anda, gunakan hanya kontak resmi dan tautan pembayaran yang tertera di halaman ini serta yang kami kirimkan melalui nomor resmi. ${esc(b.name)} tidak pernah meminta kata sandi, OTP, atau pembayaran ke rekening pribadi yang tidak resmi.</p></div>`;
+        `<p class="small">Demi keamanan Anda, gunakan hanya kontak resmi dan informasi pembayaran yang kami kirimkan melalui nomor resmi ${esc(b.name)}. Jangan pernah membagikan kata sandi atau kode OTP Anda kepada siapa pun.</p></div>`;
 
     res.send(page("/kontak", "Kontak",
         `Kontak resmi ${b.name}: WhatsApp/telepon${b.phone ? ` ${b.phone}` : ""}${b.email ? `, email ${b.email}` : ""}${b.address ? `, alamat ${b.address}` : ""}.`,
