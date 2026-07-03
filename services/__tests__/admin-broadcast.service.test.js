@@ -8,7 +8,7 @@
  */
 "use strict";
 
-const { createAdminBroadcastService } = require("../admin-broadcast.service");
+const { createAdminBroadcastService, formatBroadcastMessage } = require("../admin-broadcast.service");
 
 describe("admin-broadcast.service", () => {
     test("queueBroadcast mengirim accepted dan mempertahankan placeholder user", async () => {
@@ -43,5 +43,46 @@ describe("admin-broadcast.service", () => {
         });
         await expect(emptyTargetService.queueBroadcast({ text: "x", sendToAll: false, selectedUsers: [] }))
             .rejects.toMatchObject({ statusCode: 400 });
+    });
+});
+
+describe("formatBroadcastMessage — placeholder pembayaran", () => {
+    const user = { id: 42, name: "Budi", subscription: "PAKET-110K", phone_number: "0812", odp: "ODP-01" };
+
+    beforeAll(() => {
+        global.packages = [{ name: "PAKET-110K", price: 110000 }];
+        global.config = {
+            tanggal_batas_bayar: 10,
+            site_url_bot: "https://portal.example.com",
+            ipaymuSecret: "sekret-uji"
+        };
+    });
+    afterAll(() => {
+        delete global.packages;
+        delete global.config;
+    });
+
+    test("mengganti ${harga}, ${jatuh_tempo}, ${periode} (dan nama/paket)", () => {
+        const out = formatBroadcastMessage(
+            "Tagihan ${nama_pelanggan} paket ${paket} sebesar ${harga}, jatuh tempo ${jatuh_tempo} periode ${periode}.",
+            user
+        );
+        expect(out).toContain("Budi");
+        expect(out).toContain("PAKET-110K");
+        expect(out).toMatch(/110[.,]000/); // rupiah-format
+        expect(out).not.toContain("${harga}");
+        expect(out).not.toContain("${jatuh_tempo}");
+        expect(out).not.toContain("${periode}");
+    });
+
+    test("mengganti ${link_bayar} dengan URL bayar bertoken", () => {
+        const out = formatBroadcastMessage("Bayar di sini: ${link_bayar}", user);
+        expect(out).toContain("https://portal.example.com/bayar/");
+        expect(out).not.toContain("${link_bayar}");
+    });
+
+    test("tanpa placeholder pembayaran → tak menghitung apa pun (aman utk broadcast biasa)", () => {
+        const out = formatBroadcastMessage("Info gangguan area ${odp}", user);
+        expect(out).toBe("Info gangguan area ODP-01");
     });
 });

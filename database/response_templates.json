@@ -4528,5 +4528,10 @@
     "name": "Broadcast GAMAS - Pesan Umum",
     "category": "broadcast",
     "template": "Halo Kak ${nama},\n\nMohon maaf atas ketidaknyamanannya. Saat ini sedang ada gangguan layanan internet. Tim teknisi sedang menangani.\n\nMohon kesabarannya. Terima kasih atas pengertiannya."
+  },
+  "broadcast_tagihan": {
+    "name": "Broadcast Tagihan - Pengingat Pembayaran",
+    "category": "broadcast",
+    "template": "Halo ${nama_pelanggan} 🙏\n\nPengingat tagihan layanan internet Anda:\n• Paket: ${paket}\n• Tagihan: ${harga}\n• Periode: ${periode}\n• Jatuh tempo: ${jatuh_tempo}\n\nSilakan bayar (QRIS/transfer, tanpa perlu login) lewat tautan berikut:\n${link_bayar}\n\nAbaikan pesan ini bila Anda sudah membayar. Terima kasih 🙏"
   }
 }

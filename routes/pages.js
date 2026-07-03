@@ -100,6 +100,11 @@ router.get('/los-broadcast', checkRole(['admin', 'owner', 'superadmin']), (req, 
     res.render('sb-admin/los-broadcast.php');
 });
 
+// Broadcast Tagihan: kirim pesan pembayaran (link bayar mandiri) ke pelanggan terpilih.
+router.get('/broadcast-tagihan', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/broadcast-tagihan.php');
+});
+
 router.get('/cctv-monitor', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/cctv-monitor.php');
 });

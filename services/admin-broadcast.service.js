@@ -2,13 +2,15 @@
  * Header Doc
  * Purpose: Service broadcast admin — resolusi target (segmen + opt-out), throttle anti-ban, dry-run, dan history.
  * Caller: `routes/admin-content-routes.js` (endpoint `/api/broadcast`, `/api/broadcast/preview`, `/api/broadcast/history`).
- * Deps: `lib/whatsapp-gateway`, `lib/whatsapp-delivery-service`, `lib/utils`, `lib/response-template-helper`, `lib/error-handler`, dan `repositories/broadcast.repository`.
+ * Deps: `lib/whatsapp-gateway`, `lib/whatsapp-delivery-service`, `lib/utils`, `lib/response-template-helper`, `lib/error-handler`, `lib/bill-pay-token` (link bayar), `rupiah-format`, dan `repositories/broadcast.repository`.
  * MainFuncs: `createAdminBroadcastService`, `resolveTargetUsers`, `formatBroadcastMessage`, `queueBroadcast`, `previewBroadcast`.
  * SideEffects: Mengirim pesan WhatsApp dengan jeda antar pelanggan, menulis entri history broadcast ke SQLite.
  */
 "use strict";
 
 const { createError, ErrorTypes } = require("../lib/error-handler");
+const formatRupiah = require("rupiah-format");
+const { buildBillPayUrl } = require("../lib/bill-pay-token");
 
 const DEFAULT_MESSAGE_DELAY_MS = 1500;
 const DEFAULT_JITTER_MS = 800;
@@ -54,14 +56,44 @@ function isOptedIn(user) {
 
 function formatBroadcastMessage(template, user) {
     let message = String(template || "");
+    const subscription = user?.subscription || user?.package || "";
     const placeholders = {
         nama: user?.name || "",
-        paket: user?.subscription || user?.package || "",
+        nama_pelanggan: user?.name || "",
+        paket: subscription,
+        nama_paket: subscription,
         alamat: user?.address || "",
         username_pppoe: user?.pppoe_username || "",
         odp: user?.connected_odp_id || user?.odp || "",
         odc: user?.odc || ""
     };
+
+    // Placeholder pembayaran — dihitung LAZY (hanya bila template memuatnya) supaya
+    // broadcast biasa (GAMAS/info gangguan) tak terbebani hitung link/harga per pelanggan.
+    if (message.includes("${harga}")) {
+        const pkg = (global.packages || []).find((p) => p.name === subscription) || {};
+        placeholders.harga = pkg.price ? formatRupiah.convert(pkg.price) : "-";
+    }
+    if (message.includes("${jatuh_tempo}")) {
+        const due = new Date();
+        due.setDate((global.config && parseInt(global.config.tanggal_batas_bayar, 10)) || 10);
+        placeholders.jatuh_tempo = due.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+    }
+    if (message.includes("${periode}")) {
+        placeholders.periode = new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+    }
+    if (message.includes("${link_bayar}")) {
+        // Link bayar mandiri (token bertanda-tangan, tanpa login). Gagal → string kosong;
+        // JANGAN lempar — placeholder untuk notifikasi tak boleh menjatuhkan broadcast.
+        let link = "";
+        try {
+            const now = new Date();
+            link = buildBillPayUrl(user, { periodMonth: now.getMonth() + 1, periodYear: now.getFullYear() });
+        } catch (_err) {
+            link = "";
+        }
+        placeholders.link_bayar = link;
+    }
 
     for (const [key, value] of Object.entries(placeholders)) {
         const regex = new RegExp(`\\$\\{${key}\\}`, "g");

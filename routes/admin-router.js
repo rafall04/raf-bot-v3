@@ -27,6 +27,7 @@ const { registerAdminVoucherRoutes } = require("./admin-voucher-routes");
 const { registerAdminLogsRoutes } = require("./admin-logs-routes");
 const { registerAdminAutoOutageRoutes } = require("./admin-auto-outage-routes");
 const { registerAdminLosBroadcastRoutes } = require("./admin-los-broadcast-routes");
+const { registerAdminBroadcastTagihanRoutes } = require("./admin-broadcast-tagihan-routes");
 const { registerAdminTelegramTeknisiRoutes } = require("./admin-telegram-teknisi-routes");
 const { rateLimit } = require("../lib/security");
 const { templatesCache } = require("../lib/templating");
@@ -195,6 +196,7 @@ function createAdminRouter({ runtime } = {}) {
     registerAdminOpsRoutes(router, createAdminOpsDeps(runtime));
     registerAdminAutoOutageRoutes(router, createAdminAutoOutageDeps(runtime));
     registerAdminLosBroadcastRoutes(router, createAdminLosBroadcastDeps(runtime));
+    registerAdminBroadcastTagihanRoutes(router, { ensureAuthenticatedStaff });
     registerAdminTelegramTeknisiRoutes(router, createAdminTelegramTeknisiDeps(runtime));
     router.use(createAdminRoutes({ runtime }));
     router.use(adminLegacyRouter);

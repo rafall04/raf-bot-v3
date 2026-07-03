@@ -803,12 +803,12 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/payment-status', '/rekap-tunggakan', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi', '/penugasan-agen', '/laporan-agen', '/pengeluaran'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePembayaran" aria-expanded="<?php echo isParentActive(['/payment-status', '/rekap-tunggakan', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi', '/penugasan-agen', '/laporan-agen', '/pengeluaran'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePembayaran">
+    <li class="nav-item <?php echo isParentActive(['/payment-status', '/rekap-tunggakan', '/broadcast-tagihan', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi', '/penugasan-agen', '/laporan-agen', '/pengeluaran'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePembayaran" aria-expanded="<?php echo isParentActive(['/payment-status', '/rekap-tunggakan', '/broadcast-tagihan', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi', '/penugasan-agen', '/laporan-agen', '/pengeluaran'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePembayaran">
             <i class="fas fa-fw fa-money-bill-wave"></i>
             <span>Pembayaran</span>
         </a>
-        <div id="collapsePembayaran" class="collapse <?php echo isParentActive(['/payment-status', '/rekap-tunggakan', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi', '/penugasan-agen', '/laporan-agen'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPembayaran" data-parent="#accordionSidebar">
+        <div id="collapsePembayaran" class="collapse <?php echo isParentActive(['/payment-status', '/rekap-tunggakan', '/broadcast-tagihan', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi', '/penugasan-agen', '/laporan-agen'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPembayaran" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/payment-status', $current_page) ? 'active' : ''; ?>" href="/payment-status">
                     <i class="fas fa-fw fa-money-check-alt mr-2"></i>
@@ -817,6 +817,10 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/rekap-tunggakan', $current_page) ? 'active' : ''; ?>" href="/rekap-tunggakan">
                     <i class="fas fa-fw fa-file-invoice-dollar mr-2"></i>
                     <span>Rekap Tunggakan</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/broadcast-tagihan', $current_page) ? 'active' : ''; ?>" href="/broadcast-tagihan">
+                    <i class="fas fa-fw fa-paper-plane mr-2"></i>
+                    <span>Broadcast Tagihan</span>
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/saldo-management', $current_page) ? 'active' : ''; ?>" href="/saldo-management">
                     <i class="fas fa-fw fa-wallet mr-2"></i>
