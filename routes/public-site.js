@@ -29,7 +29,12 @@ const registerLimiter = rateLimit({
     max: 5,
     message: { status: 429, message: "Terlalu banyak pendaftaran dari koneksi ini. Coba lagi dalam 15 menit." },
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
+    // Mode PORTAL: request datang dari portal via loopback (XFF tak diteruskan) → SEMUA terlihat
+    // sebagai 1 IP (127.0.0.1) sehingga limiter ini akan 429-palsu setelah 5 submit GLOBAL. Portal
+    // sudah throttle per-IP-pembeli, jadi lewati limiter bot untuk sumber loopback. Instalasi
+    // single-bot (langsung) tetap ter-throttle normal karena IP publik bukan loopback.
+    skip: (req) => ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.ip)
 });
 
 const LANDING_CSS = `

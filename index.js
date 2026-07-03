@@ -118,10 +118,11 @@ const PORT = process.env.PORT || 3100;
 const config = global.config;
 // Override opsional dari environment — HANYA di composition root (konsisten dgn PORT). Sumber
 // utama tetap config.json; env berguna untuk deployment/PM2 tanpa menyunting config.json.
-if (process.env.PUBLIC_SITE_ENABLED != null || process.env.PUBLIC_PORT != null) {
+if (process.env.PUBLIC_SITE_ENABLED != null || process.env.PUBLIC_PORT != null || process.env.PUBLIC_HOST != null) {
     config.publicSite = config.publicSite || {};
     if (process.env.PUBLIC_SITE_ENABLED != null) config.publicSite.enabled = process.env.PUBLIC_SITE_ENABLED === 'true';
     if (process.env.PUBLIC_PORT != null) config.publicSite.port = parseInt(process.env.PUBLIC_PORT, 10) || config.publicSite.port;
+    if (process.env.PUBLIC_HOST != null) config.publicSite.host = process.env.PUBLIC_HOST;
 }
 if (process.env.TURNSTILE_ENABLED != null || process.env.TURNSTILE_SITE_KEY != null || process.env.TURNSTILE_SECRET_KEY != null) {
     config.turnstile = config.turnstile || {};
@@ -129,7 +130,11 @@ if (process.env.TURNSTILE_ENABLED != null || process.env.TURNSTILE_SITE_KEY != n
     if (process.env.TURNSTILE_SITE_KEY != null) config.turnstile.siteKey = process.env.TURNSTILE_SITE_KEY;
     if (process.env.TURNSTILE_SECRET_KEY != null) config.turnstile.secretKey = process.env.TURNSTILE_SECRET_KEY;
 }
-const PUBLIC_PORT = (config.publicSite && config.publicSite.port) || 3200;
+const PUBLIC_PORT = (config.publicSite && config.publicSite.port) || 3011;
+// Host bind listener publik. Default 0.0.0.0 (perilaku lama; jangan pecahkan instalasi single-bot
+// di balik tunnel). Mode PORTAL: set '127.0.0.1' agar listener publik bot internal-only — hanya
+// portal (loopback) yang menjangkau; publik hanya lewat portal.
+const PUBLIC_HOST = (config.publicSite && config.publicSite.host) || '0.0.0.0';
 global.monitoringConfig = getMonitoringConfig(config);
 const runtime = createAppRuntime({
     globalScope: global,
@@ -255,8 +260,8 @@ async function startApp() {
             publicServer.on('error', (err) => {
                 console.error(`[PUBLIC_SITE] Gagal bind port ${PUBLIC_PORT} (diabaikan; server utama tetap jalan):`, err.message);
             });
-            publicServer.listen(PUBLIC_PORT, () => {
-                console.log(`[PUBLIC_SITE] Listening on port ${PUBLIC_PORT} (site publik anonim)`);
+            publicServer.listen(PUBLIC_PORT, PUBLIC_HOST, () => {
+                console.log(`[PUBLIC_SITE] Listening on ${PUBLIC_HOST}:${PUBLIC_PORT} (site publik anonim)`);
             });
         } catch (e) {
             console.error('[PUBLIC_SITE] Gagal start (diabaikan; server utama tetap jalan):', e.message);

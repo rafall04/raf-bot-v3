@@ -11,6 +11,7 @@ yarn-error.log*
 config.local.json
 config.json
 database/config.json
+portal.config.json
 
 # ============================================================
 # DATA OPERASIONAL & PII - JANGAN PERNAH DI-COMMIT
