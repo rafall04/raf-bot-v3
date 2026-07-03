@@ -1,4 +1,12 @@
 {
+  "registrasi_lead_admin": {
+    "name": "Notifikasi Admin — Lead Registrasi Online",
+    "template": "🆕 *PENDAFTARAN ONLINE BARU*\n\nCalon pelanggan mendaftar lewat web:\n\n👤 Nama: *${nama_pelanggan}*\n📱 HP: ${telfon}\n📍 Alamat: ${alamat}\n🗺️ Lokasi: ${lokasi}\n📦 Paket diminati: *${paket}*\n🆔 Lead: #${id_lead}\n\n_Silakan verifikasi & tindak lanjuti (survei/pasang baru) dari menu PSB._"
+  },
+  "registrasi_lead_pelanggan": {
+    "name": "Balasan Calon Pelanggan — Registrasi Diterima",
+    "template": "🙏 *Terima kasih, ${nama_pelanggan}!*\n\nPendaftaran Anda sudah kami terima dan sedang kami tinjau. Paket diminati: *${paket}*.\n\nTim kami akan segera menghubungi Anda untuk proses selanjutnya. 🚀\n\n_${nama_wifi}_"
+  },
   "voucher_send": {
     "name": "Kirim Voucher Random via WhatsApp",
     "template": "🎫 *VOUCHER HOTSPOT*\n\n📦 Paket: *${nama_paket}*\n⏱️ Durasi: *${durasi}*\n\n🔐 *KODE VOUCHER:*\n${voucher_list}\n\n📌 *Cara Penggunaan:*\n1. Hubungkan ke WiFi RAF NET\n2. Buka browser, ketik 10.10.0.1 kemudian akan muncul halaman login.\n3. Masukkan Kode Voucher di atas.\n\n*Direkomendasikan terkoneksi ke RAF NET 5G Agar lebih stabil.\n\n${catatan}\n\nTerima kasih! 🙏\n*${nama_wifi}*"

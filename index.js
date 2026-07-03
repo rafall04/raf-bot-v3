@@ -2,7 +2,7 @@
  * Header Doc
  * Purpose: Composition root aplikasi untuk bootstrap runtime, HTTP server, Socket.IO, dan lifecycle WhatsApp.
  * Caller: Node.js runtime melalui `npm start` / `node index.js`.
- * Deps: `lib/app-runtime`, `lib/http-app`, `lib/process-lifecycle`, `lib/http-security`, `lib/http-auth-bootstrap`, `lib/http-socket-bootstrap`, `lib/routes-registry`, `lib/whatsapp-bootstrap`, database, cron, dan router existing.
+ * Deps: `lib/app-runtime`, `lib/http-app`, `lib/public-site-app`, `lib/process-lifecycle`, `lib/http-security`, `lib/http-auth-bootstrap`, `lib/http-socket-bootstrap`, `lib/routes-registry`, `lib/whatsapp-bootstrap`, database, cron, dan router existing.
  * MainFuncs: Inisialisasi config, membuat runtime bersama, memasang bootstrap middleware/process/socket, lalu memulai HTTP + WhatsApp.
  * SideEffects: Membuka server HTTP, menginisialisasi database, menulis `global.*`, dan menjaga koneksi WhatsApp aktif.
  */
@@ -88,6 +88,7 @@ const { createAppRuntime } = require('./lib/app-runtime');
 const { authCache } = require('./lib/auth-cache');
 const { initializeAllCronTasks } = require('./lib/cron');
 const { createHttpApp } = require('./lib/http-app');
+const { createPublicSiteApp } = require('./lib/public-site-app');
 const { registerRoutes } = require('./lib/routes-registry');
 const { registerProcessLifecycleHandlers } = require('./lib/process-lifecycle');
 const { registerHttpSecurity } = require('./lib/http-security');
@@ -115,6 +116,20 @@ global.__dbInitPromise = initializeDatabase();
 
 const PORT = process.env.PORT || 3100;
 const config = global.config;
+// Override opsional dari environment — HANYA di composition root (konsisten dgn PORT). Sumber
+// utama tetap config.json; env berguna untuk deployment/PM2 tanpa menyunting config.json.
+if (process.env.PUBLIC_SITE_ENABLED != null || process.env.PUBLIC_PORT != null) {
+    config.publicSite = config.publicSite || {};
+    if (process.env.PUBLIC_SITE_ENABLED != null) config.publicSite.enabled = process.env.PUBLIC_SITE_ENABLED === 'true';
+    if (process.env.PUBLIC_PORT != null) config.publicSite.port = parseInt(process.env.PUBLIC_PORT, 10) || config.publicSite.port;
+}
+if (process.env.TURNSTILE_ENABLED != null || process.env.TURNSTILE_SITE_KEY != null || process.env.TURNSTILE_SECRET_KEY != null) {
+    config.turnstile = config.turnstile || {};
+    if (process.env.TURNSTILE_ENABLED != null) config.turnstile.enabled = process.env.TURNSTILE_ENABLED === 'true';
+    if (process.env.TURNSTILE_SITE_KEY != null) config.turnstile.siteKey = process.env.TURNSTILE_SITE_KEY;
+    if (process.env.TURNSTILE_SECRET_KEY != null) config.turnstile.secretKey = process.env.TURNSTILE_SECRET_KEY;
+}
+const PUBLIC_PORT = (config.publicSite && config.publicSite.port) || 3200;
 global.monitoringConfig = getMonitoringConfig(config);
 const runtime = createAppRuntime({
     globalScope: global,
@@ -226,8 +241,27 @@ async function startApp() {
 
     runtime.initializeBackgroundServices();
 
-    // Start the HTTP server
+    // Start the HTTP server (utama)
     startHttpServer(connect);
+
+    // Listener publik KEDUA (site anonim: landing/registrasi/beli voucher) dalam PROSES yang SAMA.
+    // Flag-gated + non-fatal: gagal bind port publik TIDAK menjatuhkan server utama. SENGAJA tidak
+    // memanggil initializeBackgroundServices()/startWhatsApp()/Socket.IO → invariant single-instance
+    // (satu koneksi WA, satu cron) tetap terjaga; publicApp berbagi runtime & global.* yang sama.
+    if (config.publicSite && config.publicSite.enabled) {
+        try {
+            const publicApp = createPublicSiteApp(runtime, express, { projectRoot: __dirname });
+            const publicServer = createServer(publicApp);
+            publicServer.on('error', (err) => {
+                console.error(`[PUBLIC_SITE] Gagal bind port ${PUBLIC_PORT} (diabaikan; server utama tetap jalan):`, err.message);
+            });
+            publicServer.listen(PUBLIC_PORT, () => {
+                console.log(`[PUBLIC_SITE] Listening on port ${PUBLIC_PORT} (site publik anonim)`);
+            });
+        } catch (e) {
+            console.error('[PUBLIC_SITE] Gagal start (diabaikan; server utama tetap jalan):', e.message);
+        }
+    }
 
     // Guard anti koneksi-ganda: mencegah dua socket WhatsApp hidup bersamaan
     // (mis. klik Connect dashboard saat reconnect 515 sedang berjalan). Socket

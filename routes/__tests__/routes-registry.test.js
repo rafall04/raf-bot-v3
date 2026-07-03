@@ -13,6 +13,9 @@ function mockCreateRouter(name) {
 }
 
 jest.mock('../public', () => mockCreateRouter('public'));
+jest.mock('../public-anonymous', () => mockCreateRouter('public-anonymous'));
+jest.mock('../bill-payment', () => mockCreateRouter('bill-payment'));
+jest.mock('../legal-pages', () => mockCreateRouter('legal-pages'));
 jest.mock('../api', () => mockCreateRouter('api'));
 jest.mock('../tickets', () => mockCreateRouter('tickets'));
 jest.mock('../invoice', () => mockCreateRouter('invoice'));
@@ -56,11 +59,11 @@ describe('routes-registry', () => {
         expect(createAdminRouter).toHaveBeenCalledWith({ runtime: { id: 'runtime-1' } });
         expect(app.use.mock.calls.slice(0, 6)).toEqual([
             ['/', expect.objectContaining({ __routerName: 'public' })],
+            ['/', expect.objectContaining({ __routerName: 'public-anonymous' })],
+            ['/', expect.objectContaining({ __routerName: 'bill-payment' })],
+            ['/', expect.objectContaining({ __routerName: 'legal-pages' })],
             ['/api/payment-status', expect.objectContaining({ __routerName: 'payment-status' })],
-            ['/api/requests', expect.objectContaining({ __routerName: 'requests' })],
-            ['/', expect.objectContaining({ __routerName: 'admin' })],
-            ['/api/users', expect.objectContaining({ __routerName: 'users' })],
-            ['/api/saldo', expect.objectContaining({ __routerName: 'saldo' })]
+            ['/api/requests', expect.objectContaining({ __routerName: 'requests' })]
         ]);
         expect(app.use.mock.calls[app.use.mock.calls.length - 1]).toEqual([
             '/',

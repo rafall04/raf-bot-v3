@@ -257,5 +257,14 @@
   },
   "messageLogging": {
     "enabled": true
+  },
+  "publicSite": {
+    "enabled": false,
+    "port": 3200
+  },
+  "turnstile": {
+    "enabled": false,
+    "siteKey": "ISI_TURNSTILE_SITE_KEY",
+    "secretKey": "ISI_TURNSTILE_SECRET_KEY"
   }
 }

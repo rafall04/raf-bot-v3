@@ -7,7 +7,7 @@
  *   → recordVoucherOrphan + alertAdmins (tidak silent) + tetap mark paid (stop retry; getvoucher
  *   non-idempotent → retry = risiko voucher ganda). Mencegah regresi ke "silent paid tanpa voucher".
  * Caller: Jest (`npx jest routes/__tests__/payment-callback-voucher.test.js`).
- * Deps: fs, path, source routes/public.js (scan, tidak dieksekusi).
+ * Deps: fs, path, source routes/public.js + routes/public-anonymous.js (scan, tidak dieksekusi).
  * MainFuncs: -
  * SideEffects: Tidak ada.
  */
@@ -16,6 +16,9 @@ const fs = require("fs");
 const path = require("path");
 
 const source = fs.readFileSync(path.join(__dirname, "..", "public.js"), "utf8");
+// Halaman/endpoint publik voucher (page /voucher + /app/* + QR) kini owner-nya
+// routes/public-anonymous.js (dipisah agar bisa di-mount di listener publik port terpisah).
+const anonSource = fs.readFileSync(path.join(__dirname, "..", "public-anonymous.js"), "utf8");
 const buynowIdx = source.indexOf("pay.tag == 'buynow'");
 const webIdx = source.indexOf("pay.tag == 'buynowweb'");
 const buynowBlock = buynowIdx > -1 ? source.slice(buynowIdx, webIdx) : "";
@@ -62,10 +65,10 @@ describe("callback voucher hardening (go-public)", () => {
         expect(successBlock).toMatch(/try\s*{[\s\S]*sendCritical[\s\S]*catch/);
     });
 
-    test("halaman & endpoint publik voucher terpasang (page /voucher + QR PNG)", () => {
-        expect(source).toMatch(/router\.get\('\/voucher'/);
-        expect(source).toMatch(/voucher-buy\.html/);
-        expect(source).toMatch(/case 'qr':/);
-        expect(source).toMatch(/qr\.imageSync\(String\(rec\.qrStr\)/);
+    test("halaman & endpoint publik voucher terpasang di public-anonymous (page /voucher + QR PNG)", () => {
+        expect(anonSource).toMatch(/router\.get\('\/voucher'/);
+        expect(anonSource).toMatch(/voucher-buy\.html/);
+        expect(anonSource).toMatch(/case 'qr':/);
+        expect(anonSource).toMatch(/qr\.imageSync\(String\(rec\.qrStr\)/);
     });
 });

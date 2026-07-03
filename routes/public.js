@@ -13,10 +13,8 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
-const qr = require('qr-image');
 
 // Local dependencies that were used by these routes in index.js
-const pay = require("../lib/ipaymu");
 // Verifikasi server-to-server status transaksi iPaymu (dipakai di callback).
 // Diberi nama lain karena `pay` di-shadow oleh record pembayaran di dalam handler callback.
 const verifyIpaymuTransaction = require("../lib/ipaymu").checkTransaction;
@@ -25,7 +23,7 @@ const { createBillPaymentSettlement } = require('../lib/services/bill-payment-se
 const billSettlement = createBillPaymentSettlement();
 const { getvoucher } = require("../lib/mikrotik");
 const { addKoinUser, checkATMuser } = require('../lib/saldo');
-const { updateStatusPayment, checkStatusPayment, delPayment: _delPayment, addPayBuy: _addPayBuy, addPayment, updateKetPayment } = require('../lib/payment');
+const { updateStatusPayment, checkStatusPayment, delPayment: _delPayment, addPayBuy: _addPayBuy, updateKetPayment } = require('../lib/payment');
 const { checkprofvc, checkdurasivc, checkhargavc } = require('../lib/voucher');
 const { saveReports: _saveReports, saveSpeedRequests, savePackageChangeRequests: _savePackageChangeRequests, loadJSON: _loadJSON } = require('../lib/database');
 const { authCache } = require('../lib/auth-cache');
@@ -697,59 +695,12 @@ router.get('/api/dashboard-status', ensureCustomerAuthenticated, asyncHandler(as
 }));
 
 // --- Public Unauthenticated Routes ---
-
-// Halaman publik beli voucher online (pembeli umum/anonim). Static page; API-nya di /app/*.
-router.get('/voucher', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'static', 'voucher-buy.html'));
-});
-
-router.get('/app/:type/:id?', async (req, res) => {
-    const { type, id } = req.params;
-    try {
-        switch(type) {
-            case "buy": {
-                const { phone, email } = req.query;
-                if (!phone || !email) return res.status(400).json({ status: 400, message: "Nomor telepon dan email diperlukan!" });
-                const reff = Math.floor(Math.random() * 1677721631342).toString(16);
-                let hargavc = checkhargavc(id);
-                hargavc = parseInt(hargavc);
-                let result = await pay({ amount: hargavc, reffId: reff, comment: `pembelian voucher ${id} sebesar Rp. ${hargavc} melalui web`, name: email?.split('@')?.[0] || "Anonymous", phone: parseInt(phone), email });
-                addPayment(reff, result.id, phone, `buynowweb`, hargavc, 'QRIS', ``, { qrStr: result.qrString, priceTotal: result.total, fee: result.fee, subtotal: result.subTotal });
-                return res.status(200).json({ status: 200, message: 'Success', data: reff });
-            }
-            case 'detailtrx': {
-                return res.status(200).json({ status: 200, message: 'Success', data: global.payment.find(h => h.reffId == id) || null });
-            }
-            case 'statustrx': {
-                let pay = global.payment.find(d => d.reffId == id);
-                if (!pay) return res.status(404).json({ status: 404, message: "" });
-                if (!pay.status) return res.status(400).json({ status: 400, message: "menunggu pembayaran!" });
-                return res.status(200).json({ status: 200, message: 'Success', data: global.payment.find(h => h.reffId == id) || null });
-            }
-            case 'qr': {
-                // Render QRIS string (tersimpan saat charge) menjadi gambar PNG agar tampil di
-                // halaman beli voucher tanpa dependensi QR dari CDN.
-                const rec = global.payment.find(d => d.reffId == id);
-                if (!rec || !rec.qrStr) return res.status(404).send('');
-                try {
-                    const png = qr.imageSync(String(rec.qrStr), { type: 'png', ec_level: 'M' });
-                    res.setHeader('Content-Type', 'image/png');
-                    res.setHeader('Cache-Control', 'no-store');
-                    return res.end(png);
-                } catch (_e) {
-                    return res.status(500).send('');
-                }
-            }
-            default: {
-                return res.json({ data: type == 'packages' ? global.packages : type == 'voucher' ? global.voucher : [] });
-            }
-        }
-    } catch(err) {
-        if (typeof err === "string") return res.json({ status: 400, message: err });
-        console.log(err);
-        return res.json({ status: 500, message: "Internal server error" });
-    }
-});
+//
+// Halaman `/voucher` + API `/app/*` (beli voucher online anonim) DIPINDAH ke
+// `routes/public-anonymous.js` (owner tunggal) agar bisa di-mount di listener publik
+// (port terpisah) tanpa menyeret dependency customer. Callback penyelesaiannya
+// (`POST /callback/payment`, di bawah) TETAP di sini: gateway hanya diberi satu callback
+// URL (port utama) dan `global.payment` dibagi dalam proses yang sama.
 
 // Lock per reference_id untuk callback pembayaran — cegah pemrosesan konkuren
 // (double credit) untuk transaksi yang sama. In-process; cukup untuk single instance.
