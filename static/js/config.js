@@ -56,6 +56,15 @@
                 setValue('mayarApiKey', json.data.mayarApiKey);
                 setValue('mayarSandboxApiKey', json.data.mayarSandboxApiKey);
                 setValue('mayarSandbox', json.data.mayarSandbox === false ? "no" : "yes");
+                // Identitas & Kontak Usaha (dipakai halaman publik FAQ/Refund/Syarat/Kontak).
+                // Nilai placeholder "ISI_..." disaring jadi kosong agar field bersih.
+                var _co = json.data.company || {};
+                var _clean = function (v) { v = String(v == null ? '' : v); return /^ISI_/i.test(v) ? '' : v; };
+                setValue('company_name', _clean(_co.name) || _clean(json.data.nama));
+                setValue('company_phone', _clean(_co.phone));
+                setValue('company_email', _clean(_co.email));
+                setValue('company_address', _clean(_co.address));
+                setValue('company_website', _clean(_co.website));
                 setValue('defaultBulkSSID', json.data.defaultBulkSSID || '1');
                 setValue('speedOnDemandEnabled', json.data.speedOnDemandEnabled !== false ? "true" : "false");
                 setValue('showPaymentStatus', json.data.showPaymentStatus !== false ? "true" : "false");

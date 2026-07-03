@@ -61,6 +61,7 @@
           <ul class="nav config-nav" id="configNav">
             <li><a class="nav-link active" data-pane="pane-mikrotik">MikroTik</a></li>
             <li><a class="nav-link" data-pane="pane-bot">Wifi &amp; Bot</a></li>
+            <li><a class="nav-link" data-pane="pane-company">Identitas &amp; Kontak</a></li>
             <li><a class="nav-link" data-pane="pane-welcome">Pesan Selamat Datang</a></li>
             <li><a class="nav-link" data-pane="pane-billing">Penagihan &amp; Isolir</a></li>
             <li><a class="nav-link" data-pane="pane-technical">Teknis</a></li>
@@ -161,6 +162,46 @@
               <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-bot"><i class="fas fa-save"></i> Simpan Wifi &amp; Bot</button>
             </div>
           </div><!-- /#pane-bot -->
+
+          <div class="config-pane" id="pane-company">
+          <h4 class="dashboard-section-title">Identitas &amp; Kontak Usaha</h4>
+          <div class="card table-card mb-4">
+            <div class="card-header">
+              <h6>Identitas &amp; Kontak Usaha</h6>
+            </div>
+            <div class="card-body">
+              <p class="text-muted" style="font-size:13px">Data ini ditampilkan di halaman publik <b>FAQ / Kebijakan Refund / Syarat &amp; Ketentuan / Kontak</b> (untuk verifikasi merchant gateway pembayaran seperti iPaymu). Halaman Kontak wajib menampilkan <b>email, telepon, dan alamat usaha</b>.</p>
+              <div class="mb-3">
+                <label for="company_name">Nama Usaha</label>
+                <input type="text" class="form-control" id="company_name" name="company_name" placeholder="Contoh: VANS 45 NET" />
+                <small class="form-text text-muted">Nama usaha yang tampil di halaman publik. Juga dipakai sebagai nama brand.</small>
+              </div>
+              <div class="mb-3">
+                <label for="company_phone">Nomor Telepon / WhatsApp</label>
+                <input type="text" class="form-control" id="company_phone" name="company_phone" placeholder="Contoh: 08123456789" />
+                <small class="form-text text-muted">Nomor kontak resmi yang tampil di halaman Kontak (wajib untuk verifikasi gateway).</small>
+              </div>
+              <div class="mb-3">
+                <label for="company_email">Email</label>
+                <input type="email" class="form-control" id="company_email" name="company_email" placeholder="Contoh: usaha@email.com" />
+                <small class="form-text text-muted">Email resmi usaha (wajib untuk verifikasi gateway).</small>
+              </div>
+              <div class="mb-3">
+                <label for="company_address">Alamat Usaha</label>
+                <input type="text" class="form-control" id="company_address" name="company_address" placeholder="Alamat lengkap usaha" />
+                <small class="form-text text-muted">Alamat usaha yang tampil di halaman Kontak (wajib untuk verifikasi gateway).</small>
+              </div>
+              <div class="mb-3">
+                <label for="company_website">Website (opsional)</label>
+                <input type="text" class="form-control" id="company_website" name="company_website" placeholder="https://..." />
+                <small class="form-text text-muted">Alamat website utama, jika ada. Kosongkan bila tidak ada.</small>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex justify-content-end mb-4">
+            <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-company"><i class="fas fa-save"></i> Simpan Identitas &amp; Kontak</button>
+          </div>
+          </div><!-- /#pane-company -->
 
           <div class="config-pane" id="pane-welcome">
             <!-- Table Section -->

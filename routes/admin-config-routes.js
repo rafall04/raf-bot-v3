@@ -357,6 +357,21 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     continue;
                 }
 
+                // Identitas & Kontak Usaha → dipetakan ke objek nested `company` (dipakai halaman
+                // publik FAQ/Refund/Syarat/Kontak). company_name juga menyinkron `nama` (brand global).
+                if (key === 'company_name' || key === 'company_phone' || key === 'company_email'
+                    || key === 'company_address' || key === 'company_website') {
+                    if (!newMainConfig.company) {
+                        newMainConfig.company = {};
+                    }
+                    const sub = key.slice('company_'.length);
+                    newMainConfig.company[sub] = String(receivedConfig[key] == null ? '' : receivedConfig[key]).trim();
+                    if (key === 'company_name' && newMainConfig.company.name) {
+                        newMainConfig.nama = newMainConfig.company.name;
+                    }
+                    continue;
+                }
+
                 if (CRON_ALLOWED_FIELDS.has(key)) {
                     console.warn(`[API_CONFIG_SAVE] Ignoring cron-owned config key from /api/config: ${key}`);
                     continue;
@@ -370,6 +385,12 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 finalMainConfig.welcomeMessage = {
                     ...(currentMainConfig.welcomeMessage || {}),
                     ...newMainConfig.welcomeMessage
+                };
+            }
+            if (newMainConfig.company) {
+                finalMainConfig.company = {
+                    ...(currentMainConfig.company || {}),
+                    ...newMainConfig.company
                 };
             }
 
