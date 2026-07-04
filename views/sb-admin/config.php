@@ -63,7 +63,7 @@
             <li><a class="nav-link" data-pane="pane-bot">Wifi &amp; Bot</a></li>
             <li><a class="nav-link" data-pane="pane-company">Identitas &amp; Kontak</a></li>
             <li><a class="nav-link" data-pane="pane-welcome">Pesan Selamat Datang</a></li>
-            <li><a class="nav-link" data-pane="pane-psb">Intake PSB Grup</a></li>
+            <li><a class="nav-link" data-pane="pane-psb">Intake PSB</a></li>
             <li><a class="nav-link" data-pane="pane-billing">Penagihan &amp; Isolir</a></li>
             <li><a class="nav-link" data-pane="pane-technical">Teknis</a></li>
             <li><a class="nav-link" data-pane="pane-backup">Backup Telegram</a></li>
@@ -234,29 +234,34 @@
           </div><!-- /#pane-welcome -->
 
           <div class="config-pane" id="pane-psb">
-          <h4 class="dashboard-section-title">Intake PSB via Grup WhatsApp</h4>
+          <h4 class="dashboard-section-title">Intake PSB (via DM Teknisi)</h4>
           <div class="card table-card mb-4">
             <div class="card-header">
-              <h6>Intake PSB via Grup WhatsApp</h6>
+              <h6>Intake PSB via DM Teknisi</h6>
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                  <label for="psbIntakeEnabled">Aktifkan Intake PSB Grup</label>
+                  <label for="psbIntakeEnabled">Aktifkan Intake PSB</label>
                   <select class="form-control" id="psbIntakeEnabled" name="psbIntakeEnabled">
                       <option value="false">Nonaktif</option>
                       <option value="true">Aktif</option>
                   </select>
-                  <small class="form-text text-muted">Jika Aktif, teknisi cukup kirim <b>1 pesan di grup PSB terpilih</b> berupa <b>foto KTP + caption</b> (diawali <code>#PSB</code>) berisi Nama, Paket, WiFi, Sandi, dan No HP. Bot otomatis membuat pelanggan + secret PPPoE MikroTik, mengirim pesan selamat datang ke pelanggan, lalu membalas kredensial PPPoE ke grup untuk setel modem. Hanya pesan dari akun teknisi/admin/owner di grup terpilih yang diproses; pesan grup lain diabaikan.</small>
+                  <small class="form-text text-muted">Jika Aktif, teknisi cukup <b>DM (japri) bot ini</b> (bot area masing-masing) dengan <b>foto KTP + caption</b> (diawali <code>#PSB</code>) berisi Nama, Paket, WiFi, Sandi, No HP. Bot memandu: kirim foto rumah + share lokasi → bot baca SN modem dari GenieACS untuk <b>dicocokkan teknisi (YA/TIDAK)</b> → hanya setelah <b>YA</b> bot buat pelanggan + push PPPoE &amp; WiFi ke modem + kirim welcome. Hanya akun teknisi/admin/owner yang dilayani.</small>
                 </div>
                 <div class="mb-3">
-                  <label for="psbIntakeGroupId">Grup PSB</label>
+                  <label for="psbIntakeGroupId">Grup Ringkasan PSB (opsional)</label>
                   <div class="d-flex" style="gap:.5rem;">
                     <select class="form-control" id="psbIntakeGroupId" name="psbIntakeGroupId" style="flex:1;">
-                        <option value="">— pilih grup —</option>
+                        <option value="">— tidak ada / pilih grup —</option>
                     </select>
                     <button type="button" class="btn btn-outline-primary" id="btnLoadPsbGroups" style="white-space:nowrap;"><i class="fas fa-sync"></i> Muat Grup</button>
                   </div>
-                  <small class="form-text text-muted">Klik <b>Muat Grup</b> untuk mengambil daftar grup WhatsApp tempat bot menjadi anggota (bot harus online), lalu pilih grup PSB. Contoh caption:<br><code>#PSB<br>Nama: Budi Santoso<br>Paket: PAKET-110K<br>WiFi: BudiNet<br>Sandi: budi12345<br>HP: 08123456789</code></small>
+                  <small class="form-text text-muted">Grup tempat bot <b>posting ringkasan hasil PSB</b> ("✅ PSB selesai …") untuk visibility tim/admin — <b>bukan</b> tempat input (input via DM). Klik <b>Muat Grup</b> (bot harus online), lalu pilih grup PSB bersama. Kosongkan bila tak perlu ringkasan.</small>
+                </div>
+                <div class="mb-3">
+                  <label for="psbIntakeRecency">Window deteksi modem (menit)</label>
+                  <input type="number" class="form-control" id="psbIntakeRecency" name="psbIntakeRecency" min="5" max="1440" placeholder="120" />
+                  <small class="form-text text-muted">Bot menganggap "modem baru dipasang" = modem yang registrasi ke GenieACS dalam N menit terakhir (default 120). Perbesar bila ACS sering telat inform.</small>
                 </div>
             </div>
           </div>

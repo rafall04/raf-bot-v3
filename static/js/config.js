@@ -78,8 +78,9 @@
                 setValue('welcomeMessageEnabled', json.data.welcomeMessage?.enabled !== false ? "true" : "false");
                 setValue('customerPortalUrl', json.data.welcomeMessage?.customerPortalUrl || json.data.company?.website || json.data.site_url_bot || 'https://rafnet.my.id/customer');
 
-                // Intake PSB Grup — toggle + grup tersimpan (pasang opsi agar tetap terpilih walau daftar grup belum dimuat).
+                // Intake PSB — toggle + grup ringkasan tersimpan (pasang opsi agar tetap terpilih walau daftar grup belum dimuat).
                 setValue('psbIntakeEnabled', json.data.psbIntake?.enabled === true ? "true" : "false");
+                setValue('psbIntakeRecency', json.data.psbIntake?.recencyWindowMinutes || '', '120');
                 (function () {
                     var sel = document.getElementById('psbIntakeGroupId');
                     var gid = (json.data.psbIntake && json.data.psbIntake.groupId) || '';

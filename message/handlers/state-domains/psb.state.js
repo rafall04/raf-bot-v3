@@ -1,0 +1,324 @@
+/**
+ * Header Doc
+ * Purpose: State domain wizard PSB via DM teknisi (per-bot area) — bagian Fase 2 [[psb-simplification-plan]].
+ *          Alur: teknisi DM `#PSB` + foto KTP → kumpulkan dokumen (foto rumah + share lokasi, WAJIB) →
+ *          bot BACA modem terbaru dari GenieACS (recency `_registered`) → tampilkan SN utk dicocokkan
+ *          teknisi (YA/TIDAK/pilih-nomor) → HANYA setelah YA: buat pelanggan + secret PPPoE + push
+ *          PPPoE+WiFi ke modem + welcome → ringkasan ke grup PSB. Konfirmasi = gate sebelum sentuh modem.
+ * Caller: `message/handlers/conversation-state-router.js` (owner "psb") + trigger `startPsbSession` dari
+ *         `message/raf.js` (jalur DM teknisi).
+ * Deps (via context/inject, patuh invariant [[raf-invariants]]): `reply` (delivery boundary), `downloadMedia`
+ *        (`lib/whatsapp.adapter`), `setUserState/deleteUserState` (`conversation-handler`), `findRecentPsbCandidates`
+ *        (`lib/psb-genieacs-service`), `usersService` (`global.__apiUsersService`), `getConfig`, `packages`,
+ *        `sendGroupSummary`. Require langsung: `./psb-caption-parser`, `fs`, `path`.
+ * MainFuncs: `startPsbSession(context)`, `handlePsbConversationState(context)`.
+ * SideEffects: Tulis foto KTP/rumah + lokasi ke `uploads/psb/...`, buat pelanggan + push modem GenieACS +
+ *              kirim WA (welcome pelanggan + ringkasan grup). NEVER-THROW.
+ */
+"use strict";
+
+const fs = require("fs");
+const path = require("path");
+const { parsePsbCaption } = require("../psb-caption-parser");
+
+const STEP_COLLECT = "PSB_COLLECT_DOCS";
+const STEP_CONFIRM = "PSB_CONFIRM_MODEM";
+const STEP_PICK = "PSB_PICK_MODEM";
+const PSB_STEPS = new Set([STEP_COLLECT, STEP_CONFIRM, STEP_PICK]);
+
+// Ringkasan ke grup PSB lewat delivery boundary reply-runtime (BUKAN socket mentah) — patuh invariant.
+function defaultSendGroupSummary(groupId, text) {
+    try {
+        const { sendReply } = require("../reply-runtime");
+        return sendReply({ recipient: groupId, text });
+    } catch (_e) { return null; }
+}
+
+// Resolusi dep service (self-contained; yang di-inject menang → testable). Dep pesan (reply/downloadMedia/
+// setUserState/msg/type) tetap dari caller (raf.js / state-router).
+function withPsbDeps(context) {
+    return {
+        ...context,
+        findRecentPsbCandidates: context.findRecentPsbCandidates || require("../../../lib/psb-genieacs-service").findRecentPsbCandidates,
+        usersService: context.usersService || global.__apiUsersService,
+        getConfig: context.getConfig || (() => global.config || {}),
+        packages: context.packages || global.packages || [],
+        uploadsBaseDir: context.uploadsBaseDir || path.join(__dirname, "..", "..", "..", "uploads"),
+        sendGroupSummary: context.sendGroupSummary || defaultSendGroupSummary,
+        botAreaLabel: context.botAreaLabel || ((global.config && global.config.nama) || null)
+    };
+}
+
+function shortSn(sn) {
+    const s = String(sn || "");
+    return s.length > 8 ? `…${s.slice(-8)}` : s;
+}
+
+function minutesAgo(iso, nowMs) {
+    const t = Date.parse(iso);
+    if (!Number.isFinite(t)) return "?";
+    const m = Math.max(0, Math.round((nowMs - t) / 60000));
+    return m < 60 ? `${m} mnt lalu` : `${Math.round(m / 60)} jam lalu`;
+}
+
+// pppoe_username unik dari nama (pola create-user-validate), dedup vs users existing.
+function generatePppoeUsername(nama, existingUsers) {
+    const parts = String(nama || "").toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(Boolean);
+    let base = parts[0] || "user";
+    if (parts.length > 1) base += parts[1].charAt(0);
+    const taken = new Set((existingUsers || []).map((u) => String(u.pppoe_username || "").toLowerCase()));
+    let candidate = base;
+    let n = 1;
+    while (taken.has(candidate.toLowerCase())) { n += 1; candidate = `${base}${n}`; }
+    return candidate;
+}
+
+function checklistText(ctx) {
+    return [
+        `📇 PSB *${ctx.data.nama}* — ${ctx.data.paket}`,
+        `${ctx.ktpSaved ? "✅" : "⬜"} Foto KTP`,
+        `${ctx.rumahSaved ? "✅" : "⬜"} Foto rumah`,
+        `${ctx.lokasi ? "✅" : "⬜"} Share lokasi`
+    ].join("\n");
+}
+
+async function safeReply(reply, text, logger) {
+    try { if (reply) await reply(text); } catch (e) { logger?.error?.("[PSB_DM] gagal balas:", e.message); }
+}
+
+// Simpan buffer media ke folder sesi PSB (best-effort). Return path relatif atau null.
+function saveMedia(dir, filename, buffer) {
+    try {
+        fs.mkdirSync(dir, { recursive: true });
+        const full = path.join(dir, filename);
+        fs.writeFileSync(full, buffer);
+        return full;
+    } catch (_e) { return null; }
+}
+
+// ── Trigger: teknisi DM `#PSB` + foto KTP → buka sesi. Dipanggil dari raf.js. ──
+async function startPsbSession(context) {
+    context = withPsbDeps(context);
+    const { caption, type, msg, staff, stateSender, reply, downloadMedia, packages, uploadsBaseDir, setUserState, nowMs = Date.now(), logger = console } = context;
+
+    if (type !== "imageMessage") {
+        await safeReply(reply, "📷 Mulai PSB: kirim *foto KTP* dengan caption diawali `#PSB` berisi Nama/Paket/WiFi/Sandi/HP.", logger);
+        return { started: false };
+    }
+    const parsed = parsePsbCaption(caption, { packages: packages || global.packages || [] });
+    if (!parsed.ok) {
+        await safeReply(reply, `❌ Data PSB belum lengkap/valid:\n- ${parsed.errors.join("\n- ")}\n\nFormat:\n#PSB\nNama: ...\nPaket: ...\nWiFi: ...\nSandi: ...\nHP: ...`, logger);
+        return { started: false };
+    }
+
+    const now = new Date(nowMs);
+    const tempId = `PSBDM_${now.getTime()}_${Math.random().toString(36).slice(2, 8)}`;
+    const dir = path.join(uploadsBaseDir, "psb", String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, "0"), tempId);
+
+    let ktpSaved = false;
+    try {
+        const buffer = await downloadMedia(msg, "buffer", {});
+        if (buffer && buffer.length > 0) ktpSaved = !!saveMedia(dir, "ktp_photo.jpg", buffer);
+    } catch (e) { logger?.error?.("[PSB_DM] gagal simpan KTP:", e.message); }
+
+    const ctx = { data: parsed.data, staff, tempId, dir, ktpSaved, rumahSaved: false, lokasi: null };
+    setUserState(stateSender, { step: STEP_COLLECT, _scope: "teknisi", context: ctx });
+
+    await safeReply(reply, `${checklistText(ctx)}\n\n➡️ Kirim *foto rumah* dan *share lokasi* rumah. Setelah lengkap, aku baca modem & minta konfirmasi sebelum set apa pun.`, logger);
+    return { started: true };
+}
+
+// ── Deteksi modem + minta konfirmasi (BELUM push apa pun) ──
+async function detectAndAskConfirm(context, ctx) {
+    const { reply, setUserState, stateSender, findRecentPsbCandidates, getConfig, nowMs = Date.now(), logger = console } = context;
+    const cfg = ((getConfig && getConfig()) || global.config || {}).psbIntake || {};
+    const windowMinutes = parseInt(cfg.recencyWindowMinutes, 10) > 0 ? parseInt(cfg.recencyWindowMinutes, 10) : 120;
+
+    let candidates = [];
+    try {
+        const res = await findRecentPsbCandidates({ windowMinutes, limit: 10, nowMs });
+        if (res && res.ok) candidates = res.data || [];
+    } catch (e) { logger?.error?.("[PSB_DM] deteksi modem gagal:", e.message); }
+
+    if (candidates.length === 0) {
+        setUserState(stateSender, { step: STEP_CONFIRM, _scope: "teknisi", context: { ...ctx, candidate: null, candidates: [] } });
+        await safeReply(reply, `⚠️ Dokumen lengkap, tapi *belum ada modem baru terbaca* di ACS (window ${windowMinutes} mnt). Pastikan modem nyala & terhubung, lalu balas *REFRESH*. Atau *BATAL*.`, logger);
+        return;
+    }
+
+    const top = candidates[0];
+    setUserState(stateSender, { step: STEP_CONFIRM, _scope: "teknisi", context: { ...ctx, candidate: top, candidates } });
+    await safeReply(reply, [
+        `✅ Dokumen lengkap.`,
+        `📡 Modem terbaca: SN \`${shortSn(top.serialNumber)}\` · ${top.model} · registrasi ${minutesAgo(top.registeredDate, nowMs)}`,
+        `PPPoE skrg: ${top.currentPPPUsername || "-"}`,
+        ``,
+        `❓ Cocok dgn stiker modem di lokasi? Balas *YA* untuk set modem · *TIDAK* (nanti aku kasih daftar) · *BATAL*`
+    ].join("\n"), logger);
+}
+
+function candidateListText(candidates, nowMs) {
+    const nums = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+    const lines = candidates.slice(0, 10).map((c, i) => `${nums[i] || (i + 1) + "."} SN \`${shortSn(c.serialNumber)}\` · ${c.model} · reg ${minutesAgo(c.registeredDate, nowMs)}`);
+    return `Pilih modem yang cocok dgn stiker (balas *angka*), atau *REFRESH* / *BATAL*:\n${lines.join("\n")}`;
+}
+
+// ── Provisioning FINAL (dipanggil hanya setelah YA / pilih nomor) ──
+async function provision(context, ctx, candidate) {
+    const { reply, deleteUserState, stateSender, usersService, getConfig, sendGroupSummary, botAreaLabel, logger = console } = context;
+    const cfg = ((getConfig && getConfig()) || global.config || {});
+    const psbCfg = cfg.psbIntake || {};
+
+    const pppoeUser = generatePppoeUsername(ctx.data.nama, global.users || []);
+    const pppoePass = Math.random().toString(36).slice(2, 12);
+    const ssidIndices = String(psbCfg.defaultSsidIndices || cfg.defaultBulkSSID || "1").split(",").map((s) => s.trim()).filter(Boolean);
+
+    let result;
+    try {
+        result = await usersService.upsertUserFromAdminPanel({
+            userData: {
+                name: ctx.data.nama,
+                phone_number: ctx.data.hp,
+                subscription: ctx.data.paket,
+                pppoe_username: pppoeUser,
+                pppoe_password: pppoePass,
+                wifi_ssid: ctx.data.wifi_ssid,
+                wifi_password: ctx.data.wifi_password,
+                device_id: candidate ? candidate.deviceId : undefined,
+                ssid_indices: candidate ? ssidIndices : undefined,
+                registration_mode: "new"
+            },
+            actor: { id: ctx.staff.id, username: ctx.staff.username, name: ctx.staff.name || ctx.staff.username, role: ctx.staff.role },
+            requestMeta: { ipAddress: "wa-dm-psb", userAgent: "psb-dm-wizard" }
+        });
+    } catch (e) {
+        logger?.error?.("[PSB_DM] provision throw:", e.message);
+        await safeReply(reply, `❌ Gagal membuat pelanggan: ${e.message}`, logger);
+        deleteUserState(stateSender);
+        return;
+    }
+
+    if (!result || result.status >= 400) {
+        const errMsg = (result && result.body && result.body.message) || "gagal membuat pelanggan";
+        await safeReply(reply, `❌ Gagal daftar *${ctx.data.nama}*: ${errMsg}`, logger);
+        deleteUserState(stateSender);
+        return;
+    }
+
+    // Rekam lokasi ke folder sesi (dokumentasi).
+    try {
+        if (ctx.lokasi) fs.writeFileSync(path.join(ctx.dir, "lokasi.json"), JSON.stringify(ctx.lokasi, null, 2));
+    } catch (_e) { /* best-effort */ }
+
+    const snLine = candidate ? `Modem: SN \`${shortSn(candidate.serialNumber)}\` (${candidate.model})` : "Modem: (set manual — tak ada device terpilih)";
+    await safeReply(reply, [
+        `✅ *${ctx.data.nama}* online!`,
+        `PPPoE: \`${pppoeUser}\` / \`${pppoePass}\``,
+        `WiFi: ${ctx.data.wifi_ssid} / ${ctx.data.wifi_password}`,
+        snLine,
+        candidate ? "PPPoE + WiFi sudah di-push ke modem. Welcome dikirim ke pelanggan." : "Set PPPoE di modem manual pakai kredensial di atas."
+    ].join("\n"), logger);
+
+    // Ringkasan ke grup PSB bersama (best-effort, delivery boundary).
+    try {
+        const summaryGroupId = psbCfg.summaryGroupId || psbCfg.groupId;
+        if (sendGroupSummary && summaryGroupId) {
+            await sendGroupSummary(summaryGroupId, [
+                `✅ *PSB selesai* — ${botAreaLabel || cfg.nama || "area"}`,
+                `Pelanggan: ${ctx.data.nama} (${ctx.data.hp}) · ${ctx.data.paket}`,
+                candidate ? `Modem: SN ${shortSn(candidate.serialNumber)} (${candidate.model})` : "Modem: set manual",
+                `Oleh: ${ctx.staff.name || ctx.staff.username}`
+            ].join("\n"));
+        }
+    } catch (e) { logger?.error?.("[PSB_DM] ringkasan grup gagal:", e.message); }
+
+    deleteUserState(stateSender);
+}
+
+// ── Router state (owner "psb") ──
+async function handlePsbConversationState(context) {
+    context = withPsbDeps(context);
+    const { stateStep, teknisiState, type, msg, chats, reply, downloadMedia, setUserState, deleteUserState, stateSender, nowMs = Date.now(), logger = console } = context;
+
+    if (!PSB_STEPS.has(stateStep)) return { handled: false };
+    const ctx = (teknisiState && teknisiState.context) || null;
+    if (!ctx || !ctx.data) { deleteUserState(stateSender); return { handled: true }; }
+
+    const text = String(chats || "").trim();
+    const lower = text.toLowerCase();
+    if (["batal", "cancel", "ga jadi", "gajadi"].includes(lower)) {
+        deleteUserState(stateSender);
+        await safeReply(reply, "❌ PSB dibatalkan. Tidak ada data/perubahan yang disimpan.", logger);
+        return { handled: true };
+    }
+
+    // ── Fase kumpulkan dokumen ──
+    if (stateStep === STEP_COLLECT) {
+        if (type === "imageMessage") {
+            let ok = false;
+            try {
+                const buffer = await downloadMedia(msg, "buffer", {});
+                if (buffer && buffer.length > 0) ok = !!saveMedia(ctx.dir, "rumah_photo.jpg", buffer);
+            } catch (e) { logger?.error?.("[PSB_DM] gagal simpan foto rumah:", e.message); }
+            ctx.rumahSaved = ctx.rumahSaved || ok;
+        } else if (type === "locationMessage" || type === "liveLocationMessage") {
+            const loc = type === "locationMessage" ? msg?.message?.locationMessage : msg?.message?.liveLocationMessage;
+            if (loc && loc.degreesLatitude && loc.degreesLongitude) {
+                ctx.lokasi = { lat: loc.degreesLatitude, lng: loc.degreesLongitude };
+            }
+        } else {
+            await safeReply(reply, `${checklistText(ctx)}\n\n➡️ Masih menunggu ${!ctx.rumahSaved ? "*foto rumah*" : ""}${!ctx.rumahSaved && !ctx.lokasi ? " & " : ""}${!ctx.lokasi ? "*share lokasi*" : ""}. (*BATAL* untuk membatalkan)`, logger);
+            return { handled: true };
+        }
+
+        setUserState(stateSender, { step: STEP_COLLECT, _scope: "teknisi", context: ctx });
+        if (ctx.rumahSaved && ctx.lokasi) {
+            await detectAndAskConfirm(context, ctx);
+        } else {
+            await safeReply(reply, `${checklistText(ctx)}\n\n➡️ Tinggal kirim ${!ctx.rumahSaved ? "*foto rumah*" : "*share lokasi*"}.`, logger);
+        }
+        return { handled: true };
+    }
+
+    // ── Fase konfirmasi modem ──
+    if (stateStep === STEP_CONFIRM) {
+        if (["ya", "yes", "ok", "oke", "cocok", "y"].includes(lower)) {
+            if (!ctx.candidate) { await safeReply(reply, "Belum ada modem terbaca. Balas *REFRESH* setelah modem online.", logger); return { handled: true }; }
+            await provision(context, ctx, ctx.candidate);
+            return { handled: true };
+        }
+        if (["tidak", "beda", "no", "n", "salah"].includes(lower)) {
+            if (!ctx.candidates || ctx.candidates.length === 0) { await safeReply(reply, "Tak ada kandidat lain. Balas *REFRESH* atau *BATAL*.", logger); return { handled: true }; }
+            setUserState(stateSender, { step: STEP_PICK, _scope: "teknisi", context: ctx });
+            await safeReply(reply, candidateListText(ctx.candidates, nowMs), logger);
+            return { handled: true };
+        }
+        if (lower === "refresh") { await detectAndAskConfirm(context, ctx); return { handled: true }; }
+        await safeReply(reply, "Balas *YA* (cocok) · *TIDAK* (pilih dari daftar) · *REFRESH* · *BATAL*.", logger);
+        return { handled: true };
+    }
+
+    // ── Fase pilih nomor modem ──
+    if (stateStep === STEP_PICK) {
+        if (lower === "refresh") { await detectAndAskConfirm(context, ctx); return { handled: true }; }
+        const n = parseInt(text, 10);
+        if (Number.isInteger(n) && n >= 1 && n <= (ctx.candidates || []).length) {
+            await provision(context, ctx, ctx.candidates[n - 1]);
+            return { handled: true };
+        }
+        await safeReply(reply, candidateListText(ctx.candidates || [], nowMs), logger);
+        return { handled: true };
+    }
+
+    return { handled: false };
+}
+
+module.exports = {
+    handlePsbConversationState,
+    startPsbSession,
+    generatePppoeUsername,
+    PSB_STEPS,
+    STEP_COLLECT,
+    STEP_CONFIRM,
+    STEP_PICK
+};

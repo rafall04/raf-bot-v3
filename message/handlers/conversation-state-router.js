@@ -15,6 +15,7 @@ const { handleTeknisiConversationState } = require("./state-domains/teknisi.stat
 const { handlePaymentConversationState } = require("./state-domains/payment.state");
 const { handleAgentVoucherConversationState } = require("./state-domains/agent-voucher.state");
 const { handleAutoOutageState } = require("./state-domains/auto-outage-state-handler");
+const { handlePsbConversationState } = require("./state-domains/psb.state");
 
 async function routeConversationState(context) {
     const stateStep = context.stateStep || context.userState?.step || context.smartReportState?.step || context.teknisiState?.step || null;
@@ -46,6 +47,9 @@ async function routeConversationState(context) {
     }
     if (owner === "auto-outage") {
         return { owner, ...(await handleAutoOutageState(domainContext)) };
+    }
+    if (owner === "psb") {
+        return { owner, ...(await handlePsbConversationState(domainContext)) };
     }
 
     return { handled: false, owner };

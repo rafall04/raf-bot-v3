@@ -176,7 +176,8 @@
   "psbIntake": {
     "enabled": false,
     "groupId": "",
-    "allowedRoles": ["teknisi", "admin", "owner"]
+    "allowedRoles": ["teknisi", "admin", "owner"],
+    "recencyWindowMinutes": 120
   },
   "monitoring": {
     "enabled": true

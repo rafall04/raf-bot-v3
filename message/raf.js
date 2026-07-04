@@ -479,6 +479,27 @@ module.exports = async (raf, msg, m, options = {}) => {
             }
             return;
         }
+
+        // ── Trigger wizard PSB via DM teknisi (Fase 2 [[psb-simplification-plan]]) ──
+        // #PSB + foto KTP dari teknisi (DM, BUKAN grup) → buka sesi PSB (step PSB_COLLECT_DOCS);
+        // lanjutan (foto rumah/lokasi/konfirmasi) dirutekan otomatis oleh routeConversationState
+        // (owner "psb"). SCOPED KETAT (feature ON + akun staf ber-role) + NON-THROWING.
+        try {
+            const psbDmCfg = (global.config && global.config.psbIntake) || {};
+            const psbCaption = chats || msg.message?.imageMessage?.caption || '';
+            if (psbDmCfg.enabled === true && type === 'imageMessage' && /^\s*#psb\b/i.test(String(psbCaption))) {
+                const { resolveAuthorizedStaff } = require('./handlers/psb-group-intake');
+                const psbStaff = resolveAuthorizedStaff({ participant: optionalJid || sender, plainPhone: plainSenderNumber, accounts, allowedRoles: psbDmCfg.allowedRoles });
+                if (psbStaff) {
+                    const { startPsbSession } = require('./handlers/state-domains/psb.state');
+                    await startPsbSession({ caption: psbCaption, type, msg, staff: psbStaff, stateSender, reply, downloadMedia, setUserState });
+                    return;
+                }
+            }
+        } catch (psbDmErr) {
+            console.error('[PSB_DM_TRIGGER_ERROR]', psbDmErr.message);
+        }
+
         const activeTicketLocationResult = await handleActiveTicketLocationUpdate({
             sender,
             type,
