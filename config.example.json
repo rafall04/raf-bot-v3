@@ -173,6 +173,11 @@
     "enabled": true,
     "customerPortalUrl": "ISI_CUSTOMERPORTALURL"
   },
+  "psbIntake": {
+    "enabled": false,
+    "groupId": "",
+    "allowedRoles": ["teknisi", "admin", "owner"]
+  },
   "monitoring": {
     "enabled": true
   },

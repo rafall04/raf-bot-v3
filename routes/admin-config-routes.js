@@ -171,7 +171,12 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 isolirManualAllowCustomProfile: mainConfig.isolirManualAllowCustomProfile !== false,
                 isolirManualDefaultDisconnect: mainConfig.isolirManualDefaultDisconnect !== false,
                 isolirManualDefaultReboot: mainConfig.isolirManualDefaultReboot === true,
-                isolirOpenDefaultReboot: mainConfig.isolirOpenDefaultReboot === true
+                isolirOpenDefaultReboot: mainConfig.isolirOpenDefaultReboot === true,
+                psbIntake: {
+                    enabled: !!(mainConfig.psbIntake && mainConfig.psbIntake.enabled),
+                    groupId: (mainConfig.psbIntake && mainConfig.psbIntake.groupId) || '',
+                    allowedRoles: (mainConfig.psbIntake && mainConfig.psbIntake.allowedRoles) || ['teknisi', 'admin', 'owner']
+                }
             };
 
             res.status(200).json({
@@ -357,6 +362,20 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     continue;
                 }
 
+                // Intake PSB Grup → objek nested `psbIntake`. allowedRoles tidak diedit dari UI
+                // (dipertahankan dari config lama saat merge). Feature-flag default OFF.
+                if (key === 'psbIntakeEnabled' || key === 'psbIntakeGroupId') {
+                    if (!newMainConfig.psbIntake) {
+                        newMainConfig.psbIntake = {};
+                    }
+                    if (key === 'psbIntakeEnabled') {
+                        newMainConfig.psbIntake.enabled = receivedConfig[key] === 'true';
+                    } else {
+                        newMainConfig.psbIntake.groupId = String(receivedConfig[key] || '').trim();
+                    }
+                    continue;
+                }
+
                 // Identitas & Kontak Usaha → dipetakan ke objek nested `company` (dipakai halaman
                 // publik FAQ/Refund/Syarat/Kontak). company_name juga menyinkron `nama` (brand global).
                 if (key === 'company_name' || key === 'company_phone' || key === 'company_email'
@@ -393,6 +412,12 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     ...newMainConfig.company
                 };
             }
+            if (newMainConfig.psbIntake) {
+                finalMainConfig.psbIntake = {
+                    ...(currentMainConfig.psbIntake || {}),
+                    ...newMainConfig.psbIntake
+                };
+            }
 
             fs.writeFileSync(mainConfigPath, JSON.stringify(finalMainConfig, null, 4), 'utf8');
             requireRuntimeConfig().setConfig(finalMainConfig);
@@ -425,6 +450,17 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
         } catch (error) {
             console.error('[API_CONFIG_SAVE_ERROR]', error);
             res.status(500).json({ message: 'Gagal memproses konfigurasi.', error: error.message });
+        }
+    }));
+
+    // Daftar grup WhatsApp tempat bot jadi member — untuk dropdown pemilih grup PSB di halaman Config.
+    router.get('/api/whatsapp/groups', ensureAuthenticatedStaff, asyncHandler(async (_req, res) => {
+        try {
+            const waAdapter = require('../lib/whatsapp.adapter');
+            const groups = await waAdapter.getGroups();
+            res.status(200).json({ success: true, groups });
+        } catch (err) {
+            res.status(503).json({ success: false, message: err.message || 'WhatsApp belum terkoneksi', groups: [] });
         }
     }));
 

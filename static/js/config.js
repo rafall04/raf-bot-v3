@@ -77,6 +77,20 @@
                 setValue('defaultPPPoEPassword', json.data.defaultPPPoEPassword, '');
                 setValue('welcomeMessageEnabled', json.data.welcomeMessage?.enabled !== false ? "true" : "false");
                 setValue('customerPortalUrl', json.data.welcomeMessage?.customerPortalUrl || json.data.company?.website || json.data.site_url_bot || 'https://rafnet.my.id/customer');
+
+                // Intake PSB Grup — toggle + grup tersimpan (pasang opsi agar tetap terpilih walau daftar grup belum dimuat).
+                setValue('psbIntakeEnabled', json.data.psbIntake?.enabled === true ? "true" : "false");
+                (function () {
+                    var sel = document.getElementById('psbIntakeGroupId');
+                    var gid = (json.data.psbIntake && json.data.psbIntake.groupId) || '';
+                    if (sel && gid && !Array.prototype.some.call(sel.options, function (o) { return o.value === gid; })) {
+                        var opt = document.createElement('option');
+                        opt.value = gid;
+                        opt.textContent = gid + ' (tersimpan)';
+                        sel.appendChild(opt);
+                    }
+                    if (sel && gid) sel.value = gid;
+                })();
                 
                 // Load bank accounts
                 if (json.data.bankAccounts) {
@@ -203,6 +217,49 @@
           });
         });
       });
+
+      // Intake PSB Grup — muat daftar grup WhatsApp ke dropdown (bot harus online).
+      const btnLoadPsbGroups = document.getElementById('btnLoadPsbGroups');
+      if (btnLoadPsbGroups) {
+        btnLoadPsbGroups.addEventListener('click', function () {
+          const sel = document.getElementById('psbIntakeGroupId');
+          const original = btnLoadPsbGroups.innerHTML;
+          const current = sel ? sel.value : '';
+          btnLoadPsbGroups.disabled = true;
+          btnLoadPsbGroups.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+          fetch('/api/whatsapp/groups', { credentials: 'include' })
+            .then(res => res.json())
+            .then(json => {
+              if (!json.success || !Array.isArray(json.groups)) {
+                throw new Error(json.message || 'Bot WhatsApp belum terkoneksi.');
+              }
+              if (!sel) return;
+              sel.innerHTML = '<option value="">— pilih grup —</option>';
+              json.groups.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g.id;
+                opt.textContent = g.subject + ' (' + g.size + ' anggota)';
+                sel.appendChild(opt);
+              });
+              // Pertahankan pilihan sebelumnya bila masih ada di daftar.
+              if (current && Array.prototype.some.call(sel.options, o => o.value === current)) {
+                sel.value = current;
+              }
+              if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'success', title: 'Grup dimuat', text: json.groups.length + ' grup ditemukan.', timer: 1500, showConfirmButton: false });
+              }
+            })
+            .catch(err => {
+              if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Gagal memuat grup', text: err.message });
+              }
+            })
+            .finally(() => {
+              btnLoadPsbGroups.disabled = false;
+              btnLoadPsbGroups.innerHTML = original;
+            });
+        });
+      }
 
       // Mikrotik Devices Management
       const mikrotikDevicesTable = document.getElementById('mikrotikDevicesTable').getElementsByTagName('tbody')[0];

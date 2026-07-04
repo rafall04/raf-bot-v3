@@ -149,6 +149,14 @@ function createApiUsersRouter(deps) {
         logger: console
     });
 
+    // Expose service ini untuk reuse DI LUAR HTTP (mis. handler intake PSB grup di message layer).
+    // Sudah membawa SEMUA deps create/provision/welcome — JANGAN rakit ulang di tempat lain.
+    try {
+        const rt = getRuntime();
+        if (rt) rt.apiUsersService = apiUsersService;
+        global.__apiUsersService = apiUsersService;
+    } catch (_e) { /* noop */ }
+
     const excelUpload = multer({
         storage: multer.memoryStorage(),
         limits: {

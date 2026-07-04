@@ -63,6 +63,7 @@
             <li><a class="nav-link" data-pane="pane-bot">Wifi &amp; Bot</a></li>
             <li><a class="nav-link" data-pane="pane-company">Identitas &amp; Kontak</a></li>
             <li><a class="nav-link" data-pane="pane-welcome">Pesan Selamat Datang</a></li>
+            <li><a class="nav-link" data-pane="pane-psb">Intake PSB Grup</a></li>
             <li><a class="nav-link" data-pane="pane-billing">Penagihan &amp; Isolir</a></li>
             <li><a class="nav-link" data-pane="pane-technical">Teknis</a></li>
             <li><a class="nav-link" data-pane="pane-backup">Backup Telegram</a></li>
@@ -231,6 +232,38 @@
               <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-welcome"><i class="fas fa-save"></i> Simpan Pesan Selamat Datang</button>
             </div>
           </div><!-- /#pane-welcome -->
+
+          <div class="config-pane" id="pane-psb">
+          <h4 class="dashboard-section-title">Intake PSB via Grup WhatsApp</h4>
+          <div class="card table-card mb-4">
+            <div class="card-header">
+              <h6>Intake PSB via Grup WhatsApp</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                  <label for="psbIntakeEnabled">Aktifkan Intake PSB Grup</label>
+                  <select class="form-control" id="psbIntakeEnabled" name="psbIntakeEnabled">
+                      <option value="false">Nonaktif</option>
+                      <option value="true">Aktif</option>
+                  </select>
+                  <small class="form-text text-muted">Jika Aktif, teknisi cukup kirim <b>1 pesan di grup PSB terpilih</b> berupa <b>foto KTP + caption</b> (diawali <code>#PSB</code>) berisi Nama, Paket, WiFi, Sandi, dan No HP. Bot otomatis membuat pelanggan + secret PPPoE MikroTik, mengirim pesan selamat datang ke pelanggan, lalu membalas kredensial PPPoE ke grup untuk setel modem. Hanya pesan dari akun teknisi/admin/owner di grup terpilih yang diproses; pesan grup lain diabaikan.</small>
+                </div>
+                <div class="mb-3">
+                  <label for="psbIntakeGroupId">Grup PSB</label>
+                  <div class="d-flex" style="gap:.5rem;">
+                    <select class="form-control" id="psbIntakeGroupId" name="psbIntakeGroupId" style="flex:1;">
+                        <option value="">— pilih grup —</option>
+                    </select>
+                    <button type="button" class="btn btn-outline-primary" id="btnLoadPsbGroups" style="white-space:nowrap;"><i class="fas fa-sync"></i> Muat Grup</button>
+                  </div>
+                  <small class="form-text text-muted">Klik <b>Muat Grup</b> untuk mengambil daftar grup WhatsApp tempat bot menjadi anggota (bot harus online), lalu pilih grup PSB. Contoh caption:<br><code>#PSB<br>Nama: Budi Santoso<br>Paket: PAKET-110K<br>WiFi: BudiNet<br>Sandi: budi12345<br>HP: 08123456789</code></small>
+                </div>
+            </div>
+          </div>
+          <div class="d-flex justify-content-end mb-4">
+            <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-psb"><i class="fas fa-save"></i> Simpan Intake PSB</button>
+          </div>
+          </div><!-- /#pane-psb -->
 
           <div class="config-pane" id="pane-billing">
             <!-- Table Section -->

@@ -217,11 +217,44 @@ module.exports = async (raf, msg, m, options = {}) => {
     } = messageContext;
     const lowerMessage = typeof chats === 'string' ? chats.toLowerCase().trim() : '';
 
+    if (isGroup) {
+        // Intake PSB via grup (Fase 1) — SCOPED KETAT (hanya grup PSB terkonfigurasi + feature ON) &
+        // NON-THROWING (bug di sini TAK BOLEH menjatuhkan loop pesan). Ditaruh SEBELUM cek chats-undefined
+        // agar pesan GAMBAR (caption di imageMessage) tetap terjangkau. Grup lain tetap diabaikan.
+        try {
+            const psbCfg = (global.config && global.config.psbIntake) || {};
+            if (psbCfg.enabled === true && from && from === psbCfg.groupId) {
+                const psbParticipant = getOptionalJid(msg, sender);
+                const psbPlainPhone = psbParticipant
+                    ? String(psbParticipant).split('@')[0]
+                    : (typeof sender === 'string' ? sender.split('@')[0] : '');
+                const { handlePsbGroupIntake } = require('./handlers/psb-group-intake');
+                await handlePsbGroupIntake({
+                    msg,
+                    caption: chats || msg.message?.imageMessage?.caption || '',
+                    type,
+                    participant: psbParticipant,
+                    plainPhone: psbPlainPhone,
+                    accounts,
+                    ownerNumber,
+                    allowedRoles: psbCfg.allowedRoles,
+                    usersService: global.__apiUsersService,
+                    reply: (teks) => sendReply({ recipient: from, text: teks, quoted: msg }),
+                    downloadMedia,
+                    packages: global.packages,
+                    uploadsBaseDir: require('path').join(__dirname, '..', 'uploads')
+                });
+            }
+        } catch (psbGroupErr) {
+            console.error('[PSB_GROUP_INTAKE_ERROR]', psbGroupErr.message);
+        }
+        return;
+    }
+
     if (chats === undefined || chats === null) {
         console.log('[WARNING] chats is undefined, skipping message processing');
         return;
     }
-    if (isGroup) return;
 
     const primarySenderId = sender;
     const optionalJid = getOptionalJid(msg, sender);
