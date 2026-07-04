@@ -1899,7 +1899,13 @@
                                 <div class="device-action-group">
                                     <button class="btn btn-info btn-sm btn-edit" data-id="${row.id}" data-name="${row.name || ''}" data-phone_number="${row.phone_number || ''}" data-device_id="${deviceIdForActions}" data-address="${row.address || ''}" data-subscription="${row.subscription || ''}" data-paid="${row.paid || false}" data-send_invoice="${row.send_invoice || false}" data-notify_outage="${row.notify_outage !== false && row.notify_outage !== 0 ? 'true' : 'false'}" data-account_type="${String(row.account_type || 'pelanggan').toLowerCase() === 'infrastruktur' ? 'infrastruktur' : 'pelanggan'}" data-pppoe_username="${row.pppoe_username || ''}" data-pppoe_password="${row.pppoe_password || ''}" data-latitude="${row.latitude || ''}" data-longitude="${row.longitude || ''}" data-connected_odp_id="${row.connected_odp_id || ''}" data-bulk='${JSON.stringify(Array.isArray(row.bulk) ? row.bulk : (typeof row.bulk === 'string' ? JSON.parse(row.bulk) : []))}' data-toggle="modal" data-target="#editModal" title="Edit User"><i class="fas fa-edit"></i></button>
                                     <button class="btn btn-dark btn-sm btn-manage-credentials" data-id="${row.id}" data-username="${row.username || ''}" data-toggle="modal" data-target="#credentialsModal" title="Kelola Kredensial"><i class="fas fa-key"></i></button>`;
-                            
+
+                            // Tombol kirim pesan "selamat datang" (hanya bila pelanggan sudah punya No HP)
+                            if (row.phone_number && String(row.phone_number).trim()) {
+                                actionButtonsHtml += `
+                                    <button class="btn btn-outline-success btn-sm btn-send-welcome" data-id="${row.id}" data-name="${String(row.name || '').replace(/"/g, '&quot;')}" title="Kirim Pesan Selamat Datang"><i class="fas fa-hand-sparkles"></i></button>`;
+                            }
+
                             // Add send invoice button if user has send_invoice enabled and is paid
                             if ((row.send_invoice === true || row.send_invoice === 1) && (row.paid === true || row.paid === 1)) {
                                 actionButtonsHtml += `
@@ -3049,6 +3055,35 @@
             $('#manualInvoiceActionType').val(actionType);
 
             $('#paymentMethodModal').modal('show');
+        });
+
+        // Kirim pesan "selamat datang" ke pelanggan (mis. setelah No HP diisi untuk pelanggan yg dibuat tanpa HP).
+        $(document).on('click', '.btn-send-welcome', async function() {
+            const btn = $(this);
+            const userId = btn.data('id');
+            const userName = btn.data('name') || 'pelanggan ini';
+            if (!confirm(`Kirim pesan selamat datang ke ${userName}?`)) return;
+            const originalHtml = btn.html();
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+            try {
+                const response = await fetch(`/api/users/${userId}/send-welcome`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include'
+                });
+                const data = await response.json().catch(() => ({}));
+                const ok = response.ok;
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: ok ? 'success' : 'error', title: ok ? 'Terkirim' : 'Gagal', text: data.message || (ok ? 'Pesan selamat datang terkirim.' : 'Gagal mengirim.') });
+                } else {
+                    alert(data.message || (ok ? 'Pesan selamat datang terkirim.' : 'Gagal mengirim.'));
+                }
+            } catch (err) {
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: err.message });
+                else alert('Error: ' + err.message);
+            } finally {
+                btn.prop('disabled', false).html(originalHtml);
+            }
         });
 
         // New: Handle the confirmation from the payment method modal

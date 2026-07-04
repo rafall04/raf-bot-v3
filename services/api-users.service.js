@@ -16,7 +16,8 @@
  *   create-user-validate.js                    : Phase 1+2 (validate, generate ID/credentials, prepare newUser)
  *   create-user-mikrotik-sync.js               : Phase 3 (mikrotik sync per registration mode)
  *   create-user-persist.js                     : Phase 4-8 (persist + paid status + activity log + welcome msg)
- *   update-user-by-id.js                       : updateUserById
+ *   update-user-by-id.js                       : updateUserById (+ auto-welcome saat No HP kosong→terisi)
+ *   send-welcome.js                            : sendCustomerWelcome / sendWelcomeToUser (resend "selamat datang", password-less import_welcome)
  *   users-excel-schema.js                      : Source-of-truth schema workbook import/export pelanggan
  *   users-excel-template.js                    : Builder workbook template + shared workbook layout
  *   export-users-excel.js                      : Export workbook pelanggan runtime snapshot
@@ -31,6 +32,7 @@ const { deleteUserById } = require('./api-users/delete-user-by-id');
 const { deleteAllUsers } = require('./api-users/delete-all-users');
 const { upsertUserFromAdminPanel } = require('./api-users/create-user');
 const { updateUserById } = require('./api-users/update-user-by-id');
+const { sendWelcomeToUser } = require('./api-users/send-welcome');
 const { buildUsersExcelTemplate } = require('./api-users/users-excel-template');
 const { exportUsersToExcel } = require('./api-users/export-users-excel');
 const { importUsersFromExcel } = require('./api-users/import-users-excel');
@@ -60,6 +62,9 @@ function createApiUsersService(overrides = {}) {
         },
         async updateUserById(args) {
             return updateUserById(deps, args);
+        },
+        async sendWelcomeToUser(args) {
+            return sendWelcomeToUser(deps, args);
         },
         async buildUsersExcelTemplate() {
             return buildUsersExcelTemplate();

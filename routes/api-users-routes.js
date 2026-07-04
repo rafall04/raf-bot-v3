@@ -275,6 +275,18 @@ function createApiUsersRouter(deps) {
      }
  });
 
+ // POST /api/users/:id/send-welcome - Kirim (ulang) pesan "selamat datang" ke pelanggan.
+// Dipakai mis. setelah No HP diisi untuk pelanggan yang dibuat tanpa HP (welcome CREATE terlewat).
+router.post('/users/:id/send-welcome', ensureAdmin, async (req, res) => {
+    try {
+        const result = await apiUsersService.sendWelcomeToUser({ id: req.params.id });
+        return res.status(result.status).json(result.body);
+    } catch (error) {
+        console.error('[API_USERS_SEND_WELCOME_ERROR]', error);
+        return res.status(500).json({ status: 500, message: 'Gagal mengirim pesan selamat datang', error: error.message });
+    }
+});
+
  // POST /api/users/bulk-change-profile - Bulk change MikroTik profile for users with specific package
 // IMPORTANT: This route MUST be defined BEFORE /users/:id to avoid route conflict
 // Also updates the package configuration to sync the new profile

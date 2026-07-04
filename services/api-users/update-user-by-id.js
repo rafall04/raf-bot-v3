@@ -303,6 +303,26 @@ async function updateUserById(deps, { id, userData, actor, requestMeta }) {
         deps.logger.error?.("[ACTIVITY_LOG_ERROR] Failed to log user update:", logErr);
     }
 
+    // Auto-kirim welcome saat No HP PERTAMA kali diisi (kosong → terisi) — solusi "lupa broadcast
+    // selamat datang" untuk pelanggan yang dibuat tanpa HP (welcome CREATE hanya jalan bila HP terisi
+    // saat dibuat). Fire-and-forget, non-blocking, guarded (notifikasi tak boleh menjatuhkan update).
+    try {
+        const oldPhoneEmpty = !String(oldUserData.phone_number || "").trim();
+        const newPhoneFilled = !!String(draftUser.phone_number || "").trim();
+        if (oldPhoneEmpty && newPhoneFilled) {
+            const { sendCustomerWelcome } = require("./send-welcome");
+            void sendCustomerWelcome(deps, { user: draftUser })
+                .then((r) => {
+                    if (r?.sent) {
+                        deps.logger?.log?.(`[WELCOME_AUTO] Welcome terkirim ke ${draftUser.name} (No HP baru diisi)`);
+                    }
+                })
+                .catch((e) => deps.logger?.error?.("[WELCOME_AUTO_ERROR]", e.message));
+        }
+    } catch (welcomeErr) {
+        deps.logger?.error?.("[WELCOME_AUTO_ERROR]", welcomeErr.message);
+    }
+
     return {
         status: 200,
         body: {
