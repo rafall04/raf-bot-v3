@@ -90,25 +90,9 @@
                     <div class="form-group col-md-6">
                       <label>Status Fitur</label>
                       <select class="form-control" name="enabled"><option value="true">Aktif</option><option value="false">Nonaktif</option></select>
-                    </div>
-                    <div class="form-group col-md-6">
-                      <label>Ambang Keyakinan (0–1)</label>
-                      <input type="number" step="0.05" min="0" max="1" class="form-control" name="confidenceThreshold" value="0.6">
-                      <small class="text-muted">Tingkat keyakinan sistem bahwa ini benar LOS (fiber), bukan dying-gasp.</small>
+                      <small class="text-muted">Saklar utama auto-broadcast LOS.</small>
                     </div>
                   </div>
-                  <details class="los-note mb-3" style="font-size:.82rem;">
-                    <summary><i class="fas fa-question-circle text-info mr-1"></i>Arti "Ambang Keyakinan" (0–1)</summary>
-                    <div class="text-muted mt-1">
-                      Setiap LOS diberi skor keyakinan oleh sistem:
-                      <ul class="mb-1 mt-1 pl-3">
-                        <li><strong>1.0</strong> = sangat yakin fiber putus (mis. rxPower menurun).</li>
-                        <li><strong>0.6</strong> = cukup yakin (default — LOS tanpa dying-gasp).</li>
-                        <li><strong>&lt; 0.6</strong> = ragu → <em>tidak</em> auto-broadcast (<code>low_confidence</code>).</li>
-                      </ul>
-                      Naikkan (0.8) = lebih hati-hati; turunkan (0.5) = lebih sensitif.
-                    </div>
-                  </details>
                   <div class="form-row">
                     <div class="form-group col-md-6">
                       <label>Window Konfirmasi (menit)</label>
@@ -280,7 +264,6 @@
     function fillConfig(cfg) {
       const f = document.getElementById('cfgForm');
       f.elements.enabled.value = cfg.enabled ? 'true' : 'false';
-      f.elements.confidenceThreshold.value = cfg.confidenceThreshold;
       f.elements.confirmationWindowMinutes.value = cfg.confirmationWindowMinutes;
       f.elements.rebroadcastCooldownMinutes.value = cfg.rebroadcastCooldownMinutes;
       f.elements.clusterFlushSeconds.value = cfg.clusterFlushSeconds;
@@ -307,7 +290,6 @@
       const c = document.getElementById('custForm');
       return {
         enabled: asBool(f.elements.enabled.value),
-        confidenceThreshold: Number(f.elements.confidenceThreshold.value),
         confirmationWindowMinutes: Number(f.elements.confirmationWindowMinutes.value),
         rebroadcastCooldownMinutes: Number(f.elements.rebroadcastCooldownMinutes.value),
         clusterFlushSeconds: Number(f.elements.clusterFlushSeconds.value),
