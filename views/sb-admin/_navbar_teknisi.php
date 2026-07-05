@@ -452,6 +452,14 @@ $current_page = strtok($current_page, '?');
         </a>
     </li>
 
+    <!-- Nav Item - Panduan Teknisi -->
+    <li class="nav-item <?php echo ($current_page == '/teknisi-tutorial.php' || $current_page == '/teknisi-tutorial') ? 'active' : ''; ?>">
+        <a class="nav-link" href="/teknisi-tutorial">
+            <i class="fas fa-fw fa-book-open"></i>
+            <span>Panduan</span>
+        </a>
+    </li>
+
     <!-- Divider -->
     <hr class="sidebar-divider">
 

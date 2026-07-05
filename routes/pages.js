@@ -128,6 +128,10 @@ router.get('/pembayaran/teknisi', checkRole(['teknisi', 'admin', 'owner', 'super
     res.render('sb-admin/pembayaran/teknisi.php');
 });
 
+router.get('/teknisi-tutorial', checkRole(['teknisi', 'admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/teknisi-tutorial.php');
+});
+
 router.get('/teknisi-tiket', checkRole(['teknisi', 'admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/teknisi-tiket.php');
 });

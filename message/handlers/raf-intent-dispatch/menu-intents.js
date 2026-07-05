@@ -85,7 +85,10 @@ async function handleTutorialTeknisiIntent(context) {
         {}
     );
     const url = (global.config && global.config.teknisiTutorialUrl) || '';
-    await reply(url ? `${body}\n\n📖 Panduan lengkap (bergambar):\n${url}` : body);
+    const linkLine = url
+        ? `\n\n📖 Panduan lengkap (bergambar) — buka *panel teknisi → menu Panduan*:\n${url}`
+        : `\n\n📖 Panduan lengkap (bergambar) ada di *panel teknisi → menu Panduan*.`;
+    await reply(body + linkLine);
 }
 
 const MENU_INTENT_HANDLERS = Object.freeze({
