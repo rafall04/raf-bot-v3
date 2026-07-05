@@ -251,6 +251,11 @@
     "notifyGroup": false,
     "groupId": "",
     "notifyTeknisi": true,
+    "autoTicket": {
+      "enabled": false,
+      "assignTeknisi": "",
+      "priority": "HIGH"
+    },
     "confidenceThreshold": 0.6,
     "confirmationWindowMs": 180000,
     "clusterFlushMs": 20000,
