@@ -12,60 +12,7 @@
     <link href="<?= rafAssetUrl('/css/sb-admin-2.min.css') ?>" rel="stylesheet">
     <link href="<?= rafAssetUrl('/css/dashboard-modern.css') ?>" rel="stylesheet">
     <link href="<?= rafAssetUrl('/css/teknisi-theme.css') ?>" rel="stylesheet">
-    <style>
-      .tut {
-        --psb: #0E8A63; --psb-soft: #E6F4EE; --psb-ink: #0A5C43;
-        --repair: #C96A18; --repair-soft: #FBEEDF; --repair-ink: #8F4A0E;
-        --tline: #E0E9E4; --tink: #17251F; --tsoft: #52635C; --tfaint: #8A9791;
-        --chat: #DEF1E4; --tmono: "SFMono-Regular", "Roboto Mono", ui-monospace, Menlo, Consolas, monospace;
-        max-width: 760px;
-      }
-      body.tk-dark .tut { --psb-soft: rgba(14,138,99,.16); --repair-soft: rgba(201,106,24,.16); --tline: var(--d-line, #2b3a34); --tink: var(--d-ink, #e6efe9); --tsoft: var(--d-ink-soft, #9fb0a8); --tfaint: #7d8c85; --chat: rgba(14,138,99,.14); }
-      .tut .jump { display: flex; gap: .5rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
-      .tut .jump a { flex: 1; min-width: 140px; text-align: center; text-decoration: none; font-weight: 700; font-size: .9rem; padding: .55rem .5rem; border-radius: 10px; border: 1px solid var(--tline); }
-      .tut .jump a.j-psb { color: var(--psb-ink); border-color: #BFE3D3; background: var(--psb-soft); }
-      .tut .jump a.j-repair { color: var(--repair-ink); border-color: #F0D3AE; background: var(--repair-soft); }
-      .tut .rules { display: grid; gap: .5rem; margin-bottom: 1.6rem; }
-      .tut .rule { display: flex; gap: .6rem; align-items: flex-start; border: 1px solid var(--tline); border-radius: 11px; padding: .7rem .85rem; font-size: .9rem; color: var(--tink); }
-      .tut .rule .ic { flex: none; width: 24px; text-align: center; }
-      .tut .flow { margin-top: 2rem; scroll-margin-top: 12px; }
-      .tut .flow-tag { font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: .28rem .6rem; border-radius: 999px; color: #fff; display: inline-block; }
-      .tut .flow.f-psb .flow-tag { background: var(--psb); }
-      .tut .flow.f-repair .flow-tag { background: var(--repair); }
-      .tut .flow h2 { font-size: 1.3rem; font-weight: 800; margin: .5rem 0 .2rem; color: var(--tink); }
-      .tut .flow-sub { color: var(--tsoft); font-size: .92rem; margin: 0 0 1.2rem; }
-      .tut .flow-sub code, .tut .rule code { font-family: var(--tmono); font-size: .85em; background: var(--psb-soft); padding: .1em .4em; border-radius: 5px; }
-      .tut ol.steps { list-style: none; counter-reset: s; margin: 0; padding: 0; position: relative; }
-      .tut ol.steps::before { content: ""; position: absolute; left: 16px; top: 6px; bottom: 24px; width: 2px; background: var(--tline); }
-      .tut ol.steps > li { position: relative; padding: 0 0 1.1rem 2.9rem; counter-increment: s; }
-      .tut ol.steps > li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: .92rem; color: #fff; }
-      .tut .flow.f-psb ol.steps > li::before { background: var(--psb); }
-      .tut .flow.f-repair ol.steps > li::before { background: var(--repair); }
-      .tut .step-t { font-weight: 700; font-size: 1rem; margin: .3rem 0 .25rem; color: var(--tink); }
-      .tut .step-d { color: var(--tsoft); font-size: .9rem; margin: 0; }
-      .tut .step-d strong { color: var(--tink); }
-      .tut .cmd { font-family: var(--tmono); font-size: .88rem; font-weight: 600; display: inline-flex; align-items: center; gap: .5rem; margin: .45rem 0 .1rem; background: var(--chat); color: var(--psb-ink); border: 1px solid #C4E4D3; padding: .4rem .65rem; border-radius: 8px; cursor: pointer; }
-      .tut .flow.f-repair .cmd { background: var(--repair-soft); color: var(--repair-ink); border-color: #EFD1AB; }
-      .tut .cmd::after { content: "salin"; font-family: "Nunito", sans-serif; font-size: .64rem; font-weight: 700; text-transform: uppercase; opacity: .55; border-left: 1px solid currentColor; padding-left: .5rem; }
-      .tut .cmd.copied::after { content: "tersalin ✓"; opacity: 1; }
-      .tut .bubble { border: 1px solid var(--tline); border-radius: 11px; padding: .85rem .95rem; margin: .75rem 0 0; }
-      .tut .bubble .bt { font-size: .7rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--tfaint); margin-bottom: .45rem; }
-      .tut .bubble pre { font-family: var(--tmono); font-size: .86rem; line-height: 1.7; margin: 0; white-space: pre-wrap; color: var(--tink); }
-      .tut .bubble pre b { color: var(--psb-ink); }
-      .tut .note { display: flex; gap: .6rem; align-items: flex-start; border-radius: 11px; padding: .7rem .85rem; margin: .9rem 0 0; font-size: .88rem; }
-      .tut .note.tip { background: var(--psb-soft); color: var(--psb-ink); }
-      .tut .flow.f-repair .note.tip { background: var(--repair-soft); color: var(--repair-ink); }
-      .tut .note.warn { background: #FBEAE3; color: #B4431F; }
-      .tut .cheat { margin-top: 2.4rem; }
-      .tut .cheat h2 { font-size: 1.15rem; font-weight: 800; margin: 0 0 .8rem; color: var(--tink); }
-      .tut .table-scroll { overflow-x: auto; border: 1px solid var(--tline); border-radius: 11px; }
-      .tut table { border-collapse: collapse; width: 100%; font-size: .88rem; }
-      .tut th, .tut td { text-align: left; padding: .65rem .8rem; border-bottom: 1px solid var(--tline); vertical-align: top; color: var(--tink); }
-      .tut th { font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; color: var(--tfaint); font-weight: 700; }
-      .tut tr:last-child td { border-bottom: none; }
-      .tut td.k { font-family: var(--tmono); font-weight: 600; color: var(--psb-ink); white-space: nowrap; }
-      .tut td.k.r { color: var(--repair-ink); }
-    </style>
+    <link href="<?= rafAssetUrl('/css/tutorial.css') ?>" rel="stylesheet">
 </head>
 
 <body id="page-top">
@@ -80,7 +27,7 @@
                             <span class="tk-title-icon"><i class="fas fa-book-open"></i></span>
                             <div>
                                 <h1>Panduan Teknisi</h1>
-                                <p class="tk-subtitle">Cara PSB &amp; Perbaikan lewat WhatsApp — ikuti langkahnya berurutan</p>
+                                <p class="tk-subtitle">Semua langkah PSB &amp; Perbaikan lewat WhatsApp — lengkap</p>
                             </div>
                         </div>
                     </div>
@@ -92,21 +39,25 @@
                         </div>
 
                         <div class="rules">
-                            <div class="rule"><span class="ic">💬</span><span>Semua lewat <b>chat pribadi (japri) ke bot</b> — bot area masing-masing (Dander / Tanjung). Bukan di grup.</span></div>
-                            <div class="rule"><span class="ic">👆</span><span><b>Tap perintah</b> (kotak berwarna) untuk menyalin ke clipboard.</span></div>
-                            <div class="rule"><span class="ic">🔁</span><span>Ketik <code>batal</code> kapan saja untuk membatalkan proses yang berjalan.</span></div>
+                            <div class="rule"><span class="ic">💬</span><span>Semua lewat <b>chat pribadi (japri) ke bot</b> — bot area masing-masing (Dander / Tanjung). <b>Bukan</b> di grup.</span></div>
+                            <div class="rule"><span class="ic">📱</span><span>Nomor WhatsApp kamu <b>harus terdaftar sebagai akun teknisi</b>. Kalau bot tak merespon perintah, hubungi admin untuk cek pendaftaran nomormu.</span></div>
+                            <div class="rule"><span class="ic">👆</span><span><b>Tap perintah</b> (kotak berwarna) untuk menyalin ke clipboard, lalu tempel di chat bot.</span></div>
+                            <div class="rule"><span class="ic">🔁</span><span>Ketik <code class="kbd">batal</code> kapan saja untuk membatalkan proses yang sedang berjalan (PSB maupun tiket).</span></div>
+                            <div class="rule"><span class="ic">⏱️</span><span>Setiap proses <b>kedaluwarsa ±15 menit</b> kalau tak ada balasan. Kalau kelamaan, ulangi dari awal.</span></div>
                         </div>
 
+                        <!-- ============ PSB ============ -->
                         <section class="flow f-psb" id="tut-psb">
                             <span class="flow-tag">Pasang Baru</span>
                             <h2>PSB — Daftarkan Pelanggan Baru</h2>
-                            <p class="flow-sub">Bot yang buat pelanggan + setel modem otomatis. Tugasmu: kirim dokumen &amp; cocokkan modem.</p>
+                            <p class="flow-sub">Bot yang membuat data pelanggan, membuat akun PPPoE di MikroTik, dan menyetel modem — otomatis. Tugasmu: kirim dokumen &amp; <b>cocokkan modem</b>. Kamu tidak perlu mengetik username/password teknis apa pun.</p>
+
                             <ol class="steps">
                                 <li>
-                                    <p class="step-t">Kirim foto KTP + caption <code>#PSB</code></p>
-                                    <p class="step-d">Foto KTP pelanggan, isi caption sesuai contoh. Ini memulai proses.</p>
+                                    <p class="step-t">Kirim foto KTP + caption <code class="kbd">#PSB</code></p>
+                                    <p class="step-d">Foto KTP pelanggan, lalu isi kolom <b>caption</b> foto dengan data pelanggan (lihat format di bawah). Baris pertama <b>wajib</b> diawali <code class="kbd">#PSB</code>.</p>
                                     <div class="bubble">
-                                        <div class="bt">📷 Foto KTP — caption:</div>
+                                        <div class="bt">📷 Foto KTP — isi caption:</div>
                                         <pre><b>#PSB</b>
 Nama: Budi Santoso
 Paket: PAKET-110K
@@ -114,77 +65,141 @@ WiFi: BudiNet
 Sandi: budi12345
 HP: 08123456789</pre>
                                     </div>
-                                    <div class="note tip"><span>💡</span><span><b>Sandi WiFi minimal 8 karakter.</b> Paket sesuai daftar (nama atau kecepatan, mis. <code>16Mbps</code>).</span></div>
+                                    <ul class="plain">
+                                        <li><b>Nama</b> — nama pelanggan (bukan hasil scan KTP; kamu ketik sendiri).</li>
+                                        <li><b>Paket</b> — sesuai daftar paket. Boleh nama paket (<code class="kbd">PAKET-110K</code>) atau kecepatannya (<code class="kbd">16Mbps</code>). Kalau paket tak dikenal, bot akan memberi tahu.</li>
+                                        <li><b>WiFi</b> — nama WiFi (SSID) yang diminta pelanggan.</li>
+                                        <li><b>Sandi</b> — sandi WiFi, <b>minimal 8 karakter</b>.</li>
+                                        <li><b>HP</b> — nomor WhatsApp pelanggan (9–15 digit). Ke sinilah pesan selamat datang dikirim.</li>
+                                    </ul>
+                                    <div class="note tip"><span class="ic">💡</span><span>Kalau ada data yang salah/kurang, bot menolak dan menyebutkan bagian mana yang perlu diperbaiki. Perbaiki captionnya lalu kirim ulang.</span></div>
                                 </li>
+
                                 <li>
                                     <p class="step-t">Kirim foto rumah</p>
-                                    <p class="step-d">Foto tampak depan rumah pelanggan.</p>
+                                    <p class="step-d">Foto tampak depan rumah pelanggan. Bot mencentang checklist dokumen. (Wajib.)</p>
                                 </li>
+
                                 <li>
                                     <p class="step-t">Share lokasi rumah</p>
-                                    <p class="step-d">WhatsApp → <strong>Location → Send your current location</strong>, dari titik rumah pelanggan.</p>
+                                    <p class="step-d">Di WhatsApp: <b>ikon lampiran (📎) → Location → Send your current location</b>, dilakukan <b>dari titik rumah pelanggan</b> supaya akurat. Setelah ini dokumen dianggap lengkap dan bot mulai membaca modem.</p>
+                                    <div class="note tip"><span class="ic">📍</span><span>Kirim lokasi saat kamu <b>berada di rumah pelanggan</b> — lokasi ini dipakai untuk data pemasangan.</span></div>
                                 </li>
+
                                 <li>
-                                    <p class="step-t">Cocokkan modem</p>
-                                    <p class="step-d">Bot menampilkan <strong>nomor seri (SN) modem</strong>. Lihat stiker modem — cocok?</p>
+                                    <p class="step-t">Cocokkan modem yang terbaca</p>
+                                    <p class="step-d">Bot membaca <b>modem yang baru terpasang</b> dari sistem dan menampilkan <b>nomor seri (SN)</b> + tipe modem. <b>Lihat stiker di badan modem</b> di depanmu — apakah SN-nya sama?</p>
                                     <span class="cmd" data-copy="YA">YA</span>
-                                    <div class="note tip"><span>🔀</span><span>Kalau <b>tidak cocok</b>: balas <code>TIDAK</code> → bot kirim daftar bernomor → balas <b>angka</b> modem yang benar. Belum muncul? <code>REFRESH</code>.</span></div>
+                                    <p class="step-d">Kalau <b>cocok</b> → ketik <code class="kbd">YA</code>. Bot langsung menyetel modem itu.</p>
+                                    <div class="note tip"><span class="ic">🔀</span><span>Kalau <b>tidak cocok</b>: balas <code class="kbd">TIDAK</code> → bot mengirim <b>daftar bernomor</b> modem yang baru online → balas <b>angka</b> modem yang serinya sama dengan stiker. Kamu tidak perlu mengetik SN-nya.</span></div>
+                                    <div class="note warn"><span class="ic">⚠️</span><span>Kalau modem belum muncul (baru dinyalakan): tunggu ±1 menit lalu balas <code class="kbd">REFRESH</code>. Modem <b>harus menyala &amp; terhubung ke jaringan</b> agar serinya terbaca sistem.</span></div>
                                 </li>
+
                                 <li>
                                     <p class="step-t">Selesai — pelanggan online</p>
-                                    <p class="step-d">Setelah <strong>YA</strong>, bot buat pelanggan, dorong PPPoE + WiFi ke modem, kirim welcome ke pelanggan, dan balas kredensial PPPoE ke kamu.</p>
-                                    <div class="note warn"><span>⚠️</span><span><b>Modem wajib menyala &amp; terhubung</b> agar SN terbaca. Kalau belum, tunggu ±semenit lalu <code>REFRESH</code>.</span></div>
+                                    <p class="step-d"><b>Hanya setelah kamu ketik YA</b>, bot mengerjakan semuanya sekaligus:</p>
+                                    <ul class="plain">
+                                        <li>Membuat data pelanggan + akun PPPoE di MikroTik.</li>
+                                        <li>Mendorong username/password PPPoE <b>dan</b> nama+sandi WiFi ke modem (modem langsung online).</li>
+                                        <li>Mengirim <b>pesan selamat datang</b> ke HP pelanggan.</li>
+                                        <li>Membalas <b>kredensial PPPoE</b> ke kamu (untuk arsip / bila perlu setel manual).</li>
+                                    </ul>
+                                    <div class="note tip"><span class="ic">✅</span><span>Sebelum kamu ketik <b>YA</b>, <b>tidak ada</b> data yang dibuat. Jadi kalau ragu/salah, aman ketik <code class="kbd">batal</code> — tidak ada yang tersimpan.</span></div>
                                 </li>
                             </ol>
                         </section>
 
+                        <!-- ============ PERBAIKAN ============ -->
                         <section class="flow f-repair" id="tut-repair">
                             <span class="flow-tag">Perbaikan</span>
                             <h2>Perbaikan — Tangani Tiket Gangguan</h2>
-                            <p class="flow-sub">Pelanggan lapor → tiket masuk. Ambil, kerjakan, dokumentasikan, tutup. Ganti <code>[ID]</code> dengan nomor tiket.</p>
+                            <p class="flow-sub">Pelanggan melapor gangguan → tiket masuk. Alur: ambil tiket → berangkat → sampai → verifikasi ke pelanggan → dokumentasi → tutup. Ganti <code class="kbd">[ID]</code> dengan nomor tiket yang sebenarnya (mis. <code class="kbd">TK1042</code>).</p>
+
                             <ol class="steps">
                                 <li>
-                                    <p class="step-t">Lihat tiket masuk</p>
-                                    <p class="step-d">Daftar tiket menunggu + prioritas, nama, alamat, jenis gangguan.</p>
+                                    <p class="step-t">Lihat tiket yang masuk</p>
+                                    <p class="step-d">Menampilkan daftar tiket yang <b>menunggu</b>, diurut prioritas: 🔴 HIGH lebih dulu. Tiap tiket berisi ID, nama pelanggan, alamat, jenis gangguan (mati/lemot), dan lama menunggu.</p>
                                     <span class="cmd" data-copy="list tiket">list tiket</span>
+                                    <div class="note tip"><span class="ic">🔔</span><span>Kamu juga otomatis dapat notifikasi WhatsApp saat ada tiket baru — tak harus cek manual terus.</span></div>
                                 </li>
+
                                 <li>
                                     <p class="step-t">Ambil tiket</p>
-                                    <p class="step-d">Kunci tiket atas namamu (hindari dobel teknisi).</p>
+                                    <p class="step-d">Mengunci tiket atas namamu supaya tidak dikerjakan dobel oleh teknisi lain. Utamakan tiket 🔴 HIGH.</p>
                                     <span class="cmd" data-copy="proses [ID]">proses [ID]</span>
                                 </li>
+
                                 <li>
-                                    <p class="step-t">Berangkat + share lokasi</p>
-                                    <p class="step-d">Tandai <strong>OTW</strong>, lalu <strong>share lokasi</strong> perjalanan.</p>
+                                    <p class="step-t">Berangkat (OTW) + share lokasi</p>
+                                    <p class="step-d">Menandai kamu sedang menuju lokasi. Bot lalu memintamu <b>share lokasi perjalanan</b> (📎 → Location). Pelanggan mendapat notifikasi bahwa teknisi sedang menuju ke sana.</p>
                                     <span class="cmd" data-copy="otw [ID]">otw [ID]</span>
                                 </li>
+
                                 <li>
-                                    <p class="step-t">Sampai lokasi</p>
-                                    <p class="step-d">Bot kirim <strong>OTP ke HP pelanggan</strong> — minta kode itu ke pelanggan.</p>
+                                    <p class="step-t">Sampai di lokasi</p>
+                                    <p class="step-d">Menandai kamu tiba. Bot mengirim <b>kode OTP ke HP pelanggan</b>. <b>Minta kode itu langsung ke pelanggan</b> — ini bukti kamu benar-benar di lokasi.</p>
                                     <span class="cmd" data-copy="sampai [ID]">sampai [ID]</span>
                                 </li>
+
                                 <li>
                                     <p class="step-t">Verifikasi OTP</p>
-                                    <p class="step-d">Masukkan kode dari pelanggan.</p>
+                                    <p class="step-d">Masukkan kode OTP yang diberikan pelanggan. Format: perintah, spasi, ID tiket, spasi, kode.</p>
                                     <span class="cmd" data-copy="verifikasi [ID] [OTP]">verifikasi [ID] [OTP]</span>
+                                    <div class="note tip"><span class="ic">🔢</span><span>Contoh: <code class="kbd">verifikasi TK1042 4829</code>. Setelah cocok, kamu masuk tahap kirim foto.</span></div>
                                 </li>
+
                                 <li>
                                     <p class="step-t">Kirim foto dokumentasi</p>
-                                    <p class="step-d">Minimal <strong>2 foto</strong>: penyebab masalah + screenshot speedtest. Kirim satu per satu, lalu:</p>
+                                    <p class="step-d">Kirim <b>minimal 2 foto</b>, satu per satu:</p>
+                                    <ul class="plain">
+                                        <li>📷 Foto <b>penyebab masalah</b> (kabel putus, redaman, modem, dll).</li>
+                                        <li>📊 <b>Screenshot speedtest</b> setelah diperbaiki.</li>
+                                        <li>(opsional) Foto hasil perbaikan.</li>
+                                    </ul>
+                                    <p class="step-d">Setelah semua foto terkirim, ketik:</p>
                                     <span class="cmd" data-copy="done">done</span>
+                                    <div class="note warn"><span class="ic">⚠️</span><span>Kalau foto kurang dari 2, bot menolak <code class="kbd">done</code> dan memberi tahu kurang berapa. Kirim dulu fotonya.</span></div>
                                 </li>
+
                                 <li>
                                     <p class="step-t">Tulis catatan perbaikan</p>
-                                    <p class="step-d">Ringkas apa yang diperbaiki (min. 10 karakter). Mis. <em>"Ganti kabel drop, sinyal normal"</em>.</p>
+                                    <p class="step-d">Ketik ringkasan apa yang diperbaiki (<b>minimal 10 karakter</b>). Contoh: <em>"Ganti kabel drop, sinyal normal"</em> atau <em>"Restart ONT, redaman kembali normal"</em>.</p>
                                 </li>
+
                                 <li>
                                     <p class="step-t">Tutup tiket</p>
-                                    <p class="step-d">Tiket selesai, pelanggan dinotifikasi, ringkasan masuk grup perbaikan.</p>
+                                    <p class="step-d">Tiket ditandai <b>selesai</b>. Pelanggan otomatis dapat notifikasi tiket beres, dan ringkasan penyelesaian (kamu, durasi, catatan) masuk ke grup perbaikan.</p>
                                     <span class="cmd" data-copy="selesai [ID]">selesai [ID]</span>
                                 </li>
                             </ol>
                         </section>
 
+                        <!-- ============ FAQ ============ -->
+                        <section class="faq">
+                            <h2>Masalah Umum</h2>
+                            <details class="qa">
+                                <summary>Bot tidak membalas perintahku sama sekali</summary>
+                                <div class="qa-body">Kemungkinan nomor WhatsApp-mu belum terdaftar sebagai teknisi, atau kamu mengirim ke grup (harus japri ke bot). Pastikan chat pribadi ke bot area kamu, dan minta admin cek pendaftaran nomormu.</div>
+                            </details>
+                            <details class="qa">
+                                <summary>PSB: SN modem tidak muncul / bot bilang belum terbaca</summary>
+                                <div class="qa-body">Modem harus sudah menyala dan terhubung ke jaringan agar serinya terbaca sistem. Tunggu ±1 menit setelah modem dinyalakan, lalu balas <code class="kbd">REFRESH</code>. Kalau tetap tidak muncul, cek koneksi fiber/kabel modem.</div>
+                            </details>
+                            <details class="qa">
+                                <summary>PSB: modem yang terbaca beda dengan yang di lokasi</summary>
+                                <div class="qa-body">Balas <code class="kbd">TIDAK</code>. Bot akan mengirim daftar bernomor modem yang baru online — cocokkan serinya dengan stiker modem, lalu balas angkanya. Kamu tidak perlu mengetik nomor seri.</div>
+                            </details>
+                            <details class="qa">
+                                <summary>Perbaikan: pelanggan tidak menerima kode OTP</summary>
+                                <div class="qa-body">Pastikan nomor HP pelanggan di sistem benar dan aktif WhatsApp. Kalau tetap tidak masuk, hubungi admin untuk verifikasi manual tiket.</div>
+                            </details>
+                            <details class="qa">
+                                <summary>Salah ketik / ingin mengulang</summary>
+                                <div class="qa-body">Ketik <code class="kbd">batal</code> untuk membatalkan proses yang sedang berjalan, lalu mulai lagi dari awal. Untuk PSB, selama belum ketik <code class="kbd">YA</code>, tidak ada data yang tersimpan.</div>
+                            </details>
+                        </section>
+
+                        <!-- ============ CHEAT SHEET ============ -->
                         <section class="cheat">
                             <h2>Ringkasan Perintah</h2>
                             <div class="table-scroll">
@@ -192,16 +207,16 @@ HP: 08123456789</pre>
                                     <thead><tr><th>Perintah</th><th>Fungsi</th></tr></thead>
                                     <tbody>
                                         <tr><td class="k">#PSB + foto KTP</td><td>Mulai daftar pelanggan baru (caption: Nama/Paket/WiFi/Sandi/HP)</td></tr>
-                                        <tr><td class="k">YA / TIDAK / angka</td><td>Konfirmasi modem PSB</td></tr>
+                                        <tr><td class="k">YA / TIDAK / angka</td><td>Konfirmasi modem PSB — cocok / pilih dari daftar</td></tr>
                                         <tr><td class="k">REFRESH</td><td>Baca ulang modem bila belum terdeteksi</td></tr>
-                                        <tr><td class="k r">list tiket</td><td>Lihat tiket gangguan menunggu</td></tr>
+                                        <tr><td class="k r">list tiket</td><td>Lihat tiket gangguan yang menunggu</td></tr>
                                         <tr><td class="k r">proses [ID]</td><td>Ambil / mulai kerjakan tiket</td></tr>
                                         <tr><td class="k r">otw [ID]</td><td>Tandai berangkat (lalu share lokasi)</td></tr>
                                         <tr><td class="k r">sampai [ID]</td><td>Tandai tiba (pelanggan dapat OTP)</td></tr>
-                                        <tr><td class="k r">verifikasi [ID] [OTP]</td><td>Verifikasi kode OTP pelanggan</td></tr>
-                                        <tr><td class="k r">done</td><td>Selesai kirim foto dokumentasi</td></tr>
+                                        <tr><td class="k r">verifikasi [ID] [OTP]</td><td>Verifikasi kode OTP dari pelanggan</td></tr>
+                                        <tr><td class="k r">done</td><td>Selesai kirim foto dokumentasi (min. 2 foto)</td></tr>
                                         <tr><td class="k r">selesai [ID]</td><td>Tutup tiket</td></tr>
-                                        <tr><td class="k">batal</td><td>Batalkan proses berjalan</td></tr>
+                                        <tr><td class="k">batal</td><td>Batalkan proses yang sedang berjalan</td></tr>
                                     </tbody>
                                 </table>
                             </div>

@@ -233,6 +233,14 @@ $current_page = strtok($current_page, '?');
         </a>
     </li>
 
+    <!-- Nav Item - Panduan -->
+    <li class="nav-item <?php echo ($current_page == '/agen-tutorial.php' || $current_page == '/agen-tutorial') ? 'active' : ''; ?>">
+        <a class="nav-link" href="/agen-tutorial">
+            <i class="fas fa-fw fa-book-open"></i>
+            <span>Panduan</span>
+        </a>
+    </li>
+
     <hr class="sidebar-divider d-none d-md-block">
 
     <!-- Sidebar Toggler (Sidebar) -->

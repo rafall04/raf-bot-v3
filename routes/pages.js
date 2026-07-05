@@ -149,6 +149,10 @@ router.get('/agen-pembayaran', checkRole(['agen', 'admin', 'owner', 'superadmin'
     res.render('sb-admin/agen-pembayaran.php');
 });
 
+router.get('/agen-tutorial', checkRole(['agen', 'admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/agen-tutorial.php');
+});
+
 router.get('/teknisi-kasbon', checkRole(['teknisi', 'admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/teknisi-kasbon.php');
 });

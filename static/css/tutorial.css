@@ -1,0 +1,82 @@
+/*
+ * Header Doc
+ * Purpose: Style bersama halaman panduan per-role (teknisi, agen) — di-scope `.tut` supaya tak
+ *          bentrok Bootstrap/sb-admin. Varian warna per alur: .f-psb (emerald), .f-repair (amber),
+ *          .f-agen (biru). Dipakai teknisi-tutorial.php & agen-tutorial.php.
+ * Caller: views/sb-admin/teknisi-tutorial.php, views/sb-admin/agen-tutorial.php.
+ */
+.tut {
+    --psb: #0E8A63; --psb-soft: #E6F4EE; --psb-ink: #0A5C43;
+    --repair: #C96A18; --repair-soft: #FBEEDF; --repair-ink: #8F4A0E;
+    --agen: #245C9C; --agen-soft: #E4EDF6; --agen-ink: #17416F;
+    --tline: #E0E9E4; --tink: #17251F; --tsoft: #52635C; --tfaint: #8A9791;
+    --chat: #DEF1E4; --tmono: "SFMono-Regular", "Roboto Mono", ui-monospace, Menlo, Consolas, monospace;
+    max-width: 780px;
+}
+body.tk-dark .tut {
+    --psb-soft: rgba(14,138,99,.16); --repair-soft: rgba(201,106,24,.16); --agen-soft: rgba(36,92,156,.18);
+    --tline: var(--d-line, #2b3a34); --tink: var(--d-ink, #e6efe9); --tsoft: var(--d-ink-soft, #9fb0a8);
+    --tfaint: #7d8c85; --chat: rgba(14,138,99,.14);
+}
+.tut .jump { display: flex; gap: .5rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
+.tut .jump a { flex: 1; min-width: 130px; text-align: center; text-decoration: none; font-weight: 700; font-size: .88rem; padding: .55rem .5rem; border-radius: 10px; border: 1px solid var(--tline); color: var(--tink); }
+.tut .jump a.j-psb { color: var(--psb-ink); border-color: #BFE3D3; background: var(--psb-soft); }
+.tut .jump a.j-repair { color: var(--repair-ink); border-color: #F0D3AE; background: var(--repair-soft); }
+.tut .jump a.j-agen { color: var(--agen-ink); border-color: #C3D6EA; background: var(--agen-soft); }
+.tut .rules { display: grid; gap: .5rem; margin-bottom: 1.6rem; }
+.tut .rule { display: flex; gap: .6rem; align-items: flex-start; border: 1px solid var(--tline); border-radius: 11px; padding: .7rem .85rem; font-size: .9rem; color: var(--tink); }
+.tut .rule .ic { flex: none; width: 24px; text-align: center; }
+.tut .flow { margin-top: 2rem; scroll-margin-top: 12px; }
+.tut .flow-tag { font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: .28rem .6rem; border-radius: 999px; color: #fff; display: inline-block; }
+.tut .flow.f-psb .flow-tag { background: var(--psb); }
+.tut .flow.f-repair .flow-tag { background: var(--repair); }
+.tut .flow.f-agen .flow-tag { background: var(--agen); }
+.tut .flow h2 { font-size: 1.3rem; font-weight: 800; margin: .5rem 0 .2rem; color: var(--tink); }
+.tut .flow-sub { color: var(--tsoft); font-size: .92rem; margin: 0 0 1.2rem; }
+.tut code.kbd, .tut .flow-sub code, .tut .rule code, .tut .step-d code, .tut .note code { font-family: var(--tmono); font-size: .85em; background: var(--psb-soft); padding: .1em .4em; border-radius: 5px; }
+.tut .flow.f-agen code { background: var(--agen-soft); }
+.tut ol.steps { list-style: none; counter-reset: s; margin: 0; padding: 0; position: relative; }
+.tut ol.steps::before { content: ""; position: absolute; left: 16px; top: 6px; bottom: 24px; width: 2px; background: var(--tline); }
+.tut ol.steps > li { position: relative; padding: 0 0 1.2rem 2.9rem; counter-increment: s; }
+.tut ol.steps > li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: .92rem; color: #fff; }
+.tut .flow.f-psb ol.steps > li::before { background: var(--psb); }
+.tut .flow.f-repair ol.steps > li::before { background: var(--repair); }
+.tut .flow.f-agen ol.steps > li::before { background: var(--agen); }
+.tut .step-t { font-weight: 700; font-size: 1rem; margin: .3rem 0 .25rem; color: var(--tink); }
+.tut .step-d { color: var(--tsoft); font-size: .9rem; margin: 0 0 .3rem; }
+.tut .step-d strong { color: var(--tink); }
+.tut .step-d + .step-d { margin-top: .35rem; }
+.tut ul.plain { margin: .3rem 0 .2rem; padding-left: 1.1rem; color: var(--tsoft); font-size: .89rem; }
+.tut ul.plain li { margin-bottom: .2rem; }
+.tut .cmd { font-family: var(--tmono); font-size: .88rem; font-weight: 600; display: inline-flex; align-items: center; gap: .5rem; margin: .45rem 0 .1rem; background: var(--chat); color: var(--psb-ink); border: 1px solid #C4E4D3; padding: .4rem .65rem; border-radius: 8px; cursor: pointer; max-width: 100%; overflow-x: auto; }
+.tut .flow.f-repair .cmd { background: var(--repair-soft); color: var(--repair-ink); border-color: #EFD1AB; }
+.tut .flow.f-agen .cmd { background: var(--agen-soft); color: var(--agen-ink); border-color: #C3D6EA; }
+.tut .cmd::after { content: "salin"; font-family: "Nunito", sans-serif; font-size: .64rem; font-weight: 700; text-transform: uppercase; opacity: .55; border-left: 1px solid currentColor; padding-left: .5rem; }
+.tut .cmd.copied::after { content: "tersalin ✓"; opacity: 1; }
+.tut .bubble { border: 1px solid var(--tline); border-radius: 11px; padding: .85rem .95rem; margin: .75rem 0 0; }
+.tut .bubble .bt { font-size: .7rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--tfaint); margin-bottom: .45rem; }
+.tut .bubble pre { font-family: var(--tmono); font-size: .86rem; line-height: 1.7; margin: 0; white-space: pre-wrap; color: var(--tink); }
+.tut .bubble pre b { color: var(--psb-ink); }
+.tut .note { display: flex; gap: .6rem; align-items: flex-start; border-radius: 11px; padding: .7rem .85rem; margin: .9rem 0 0; font-size: .88rem; }
+.tut .note.tip { background: var(--psb-soft); color: var(--psb-ink); }
+.tut .flow.f-repair .note.tip { background: var(--repair-soft); color: var(--repair-ink); }
+.tut .flow.f-agen .note.tip { background: var(--agen-soft); color: var(--agen-ink); }
+.tut .note.warn { background: #FBEAE3; color: #B4431F; }
+.tut .note .ic { flex: none; }
+.tut .faq { margin-top: 2.4rem; }
+.tut .faq h2, .tut .cheat h2 { font-size: 1.15rem; font-weight: 800; margin: 0 0 .8rem; color: var(--tink); }
+.tut details.qa { border: 1px solid var(--tline); border-radius: 11px; padding: 0 .9rem; margin-bottom: .5rem; }
+.tut details.qa summary { font-weight: 700; font-size: .93rem; padding: .75rem 0; cursor: pointer; color: var(--tink); list-style: none; }
+.tut details.qa summary::-webkit-details-marker { display: none; }
+.tut details.qa summary::before { content: "＋ "; color: var(--tfaint); font-weight: 800; }
+.tut details.qa[open] summary::before { content: "－ "; }
+.tut details.qa .qa-body { padding: 0 0 .85rem; color: var(--tsoft); font-size: .89rem; }
+.tut .cheat { margin-top: 2.4rem; }
+.tut .table-scroll { overflow-x: auto; border: 1px solid var(--tline); border-radius: 11px; }
+.tut table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+.tut th, .tut td { text-align: left; padding: .65rem .8rem; border-bottom: 1px solid var(--tline); vertical-align: top; color: var(--tink); }
+.tut th { font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; color: var(--tfaint); font-weight: 700; }
+.tut tr:last-child td { border-bottom: none; }
+.tut td.k { font-family: var(--tmono); font-weight: 600; color: var(--psb-ink); white-space: nowrap; }
+.tut td.k.r { color: var(--repair-ink); }
+.tut td.k.a { color: var(--agen-ink); }
