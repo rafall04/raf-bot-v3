@@ -476,6 +476,14 @@ $current_page = strtok($current_page, '?');
         </a>
     </li>
 
+    <!-- Nav Item - Log Gangguan OLT -->
+    <li class="nav-item <?php echo ($current_page == '/teknisi-olt-log.php' || $current_page == '/teknisi-olt-log') ? 'active' : ''; ?>">
+        <a class="nav-link" href="/teknisi-olt-log">
+            <i class="fas fa-fw fa-clipboard-list"></i>
+            <span>Log Gangguan OLT</span>
+        </a>
+    </li>
+
     <!-- Nav Item - Peta Jaringan -->
     <li class="nav-item <?php echo ($current_page == '/teknisi-map-viewer.php' || $current_page == '/teknisi-map-viewer') ? 'active' : ''; ?>">
         <a class="nav-link" href="/teknisi-map-viewer">

@@ -105,6 +105,11 @@ router.get('/olt-log', checkRole(['admin', 'owner', 'superadmin', 'teknisi']), (
     res.render('sb-admin/olt-log.php');
 });
 
+// Versi TEKNISI (sidebar/tema teknisi) — konten sama via _olt-log-content.php.
+router.get('/teknisi-olt-log', checkRole(['teknisi', 'admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/teknisi-olt-log.php');
+});
+
 // Broadcast Tagihan: kirim pesan pembayaran (link bayar mandiri) ke pelanggan terpilih.
 router.get('/broadcast-tagihan', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/broadcast-tagihan.php');
