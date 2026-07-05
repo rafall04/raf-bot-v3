@@ -246,6 +246,9 @@
   },
   "oltLosBroadcast": {
     "enabled": false,
+    "notifyGroup": false,
+    "groupId": "",
+    "notifyTeknisi": true,
     "confidenceThreshold": 0.6,
     "confirmationWindowMs": 180000,
     "clusterFlushMs": 20000,
@@ -258,6 +261,10 @@
       "onlyIfStillDown": true,
       "messageTemplate": ""
     }
+  },
+  "oltEventLog": {
+    "enabled": true,
+    "retentionDays": 90
   },
   "cctvMonitor": {
     "enabled": false,

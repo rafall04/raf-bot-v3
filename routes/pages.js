@@ -100,6 +100,11 @@ router.get('/los-broadcast', checkRole(['admin', 'owner', 'superadmin']), (req, 
     res.render('sb-admin/los-broadcast.php');
 });
 
+// Log Gangguan OLT: riwayat kejadian OLT (LOS/DG/pulih) ter-enrich pelanggan + durasi.
+router.get('/olt-log', checkRole(['admin', 'owner', 'superadmin', 'teknisi']), (req, res) => {
+    res.render('sb-admin/olt-log.php');
+});
+
 // Broadcast Tagihan: kirim pesan pembayaran (link bayar mandiri) ke pelanggan terpilih.
 router.get('/broadcast-tagihan', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/broadcast-tagihan.php');

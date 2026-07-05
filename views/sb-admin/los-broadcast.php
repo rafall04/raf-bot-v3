@@ -115,6 +115,33 @@
                       <small class="text-muted">≥ nilai ini dalam 1 OLT → framing dugaan gangguan area/uplink.</small>
                     </div>
                   </div>
+                  <hr>
+                  <div class="alert alert-primary" style="font-size:.82rem; border-radius:10px;">
+                    <i class="fas fa-users"></i> <strong>Kirim alarm LOS ke GRUP WhatsApp</strong> (grup khusus alarm OLT). <em>Dying-Gasp / mati listrik TIDAK dikirim ke grup</em> — hanya LOS (fiber putus).
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group col-md-4">
+                      <label>Kirim ke Grup</label>
+                      <select class="form-control" name="notifyGroup"><option value="false">Nonaktif</option><option value="true">Aktif</option></select>
+                    </div>
+                    <div class="form-group col-md-8">
+                      <label>Grup Alarm OLT</label>
+                      <div class="input-group">
+                        <select class="form-control" name="groupId" id="groupIdSelect"><option value="">— pilih grup —</option></select>
+                        <div class="input-group-append">
+                          <button type="button" class="btn btn-outline-secondary" id="btnLoadGroups"><i class="fas fa-sync"></i> Muat Grup</button>
+                        </div>
+                      </div>
+                      <small class="text-muted">Klik "Muat Grup" untuk mengambil daftar grup tempat bot menjadi anggota.</small>
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group col-md-6">
+                      <label>Juga japri tiap teknisi?</label>
+                      <select class="form-control" name="notifyTeknisi"><option value="true">Ya</option><option value="false">Tidak (cukup grup)</option></select>
+                      <small class="text-muted">Bila sudah pakai grup, biasanya "Tidak" sudah cukup.</small>
+                    </div>
+                  </div>
                   <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Simpan Konfigurasi</button>
                 </form>
               </div>
@@ -221,6 +248,9 @@
       f.elements.rebroadcastCooldownMinutes.value = cfg.rebroadcastCooldownMinutes;
       f.elements.clusterFlushSeconds.value = cfg.clusterFlushSeconds;
       f.elements.clusterThreshold.value = cfg.clusterThreshold;
+      f.elements.notifyGroup.value = cfg.notifyGroup ? 'true' : 'false';
+      f.elements.notifyTeknisi.value = (cfg.notifyTeknisi === false) ? 'false' : 'true';
+      setGroupSelect(cfg.groupId || '');
       // Notifikasi pelanggan
       const nc = cfg.notifyCustomer || {};
       const c = document.getElementById('custForm');
@@ -240,6 +270,9 @@
         rebroadcastCooldownMinutes: Number(f.elements.rebroadcastCooldownMinutes.value),
         clusterFlushSeconds: Number(f.elements.clusterFlushSeconds.value),
         clusterThreshold: Number(f.elements.clusterThreshold.value),
+        notifyGroup: asBool(f.elements.notifyGroup.value),
+        groupId: f.elements.groupId.value,
+        notifyTeknisi: asBool(f.elements.notifyTeknisi.value),
         notifyCustomerEnabled: asBool(c.elements.notifyCustomerEnabled.value),
         customerNotifyDelayMinutes: Number(c.elements.customerNotifyDelayMinutes.value),
         customerOnlyIfStillDown: asBool(c.elements.customerOnlyIfStillDown.value),
@@ -299,6 +332,40 @@
         await loadConfig();
       } catch (err) { Swal.fire('Gagal', err.message, 'error'); }
     }
+    async function loadGroups() {
+      const sel = document.getElementById('groupIdSelect');
+      const cur = sel.value;
+      const btn = document.getElementById('btnLoadGroups');
+      btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memuat…';
+      try {
+        const res = await fetch('/api/whatsapp/groups', { credentials: 'include' });
+        const json = await res.json();
+        if (!json.success || !Array.isArray(json.groups)) throw new Error(json.message || 'Bot WhatsApp belum terkoneksi.');
+        sel.innerHTML = '<option value="">— pilih grup —</option>';
+        json.groups.forEach((g) => {
+          const opt = document.createElement('option');
+          opt.value = g.id; opt.textContent = g.subject + (g.size != null ? ' (' + g.size + ' anggota)' : '');
+          sel.appendChild(opt);
+        });
+        if (cur && Array.prototype.some.call(sel.options, (o) => o.value === cur)) sel.value = cur;
+        Swal.fire({ icon: 'success', title: 'Grup dimuat', text: json.groups.length + ' grup ditemukan.', timer: 1500, showConfirmButton: false });
+      } catch (e) {
+        Swal.fire('Gagal memuat grup', e.message, 'error');
+      } finally {
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i> Muat Grup';
+      }
+    }
+    function setGroupSelect(groupId) {
+      const sel = document.getElementById('groupIdSelect');
+      if (!sel) return;
+      if (groupId && !Array.prototype.some.call(sel.options, (o) => o.value === groupId)) {
+        const opt = document.createElement('option');
+        opt.value = groupId; opt.textContent = groupId + ' (tersimpan)';
+        sel.appendChild(opt);
+      }
+      sel.value = groupId || '';
+    }
+    document.getElementById('btnLoadGroups').addEventListener('click', loadGroups);
     document.getElementById('cfgForm').addEventListener('submit', (e) => {
       e.preventDefault();
       saveConfig('Konfigurasi LOS broadcast berhasil disimpan.');

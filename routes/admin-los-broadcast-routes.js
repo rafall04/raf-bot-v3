@@ -44,6 +44,10 @@ function normalizeLosConfig(input = {}) {
     const ncDefault = DEFAULTS.notifyCustomer || {};
     return {
         enabled: asBool(input.enabled),
+        // Grup alarm OLT (grup khusus). notifyTeknisi default true (perilaku lama).
+        notifyGroup: asBool(input.notifyGroup),
+        groupId: input.groupId != null ? String(input.groupId).trim() : (DEFAULTS.groupId || ""),
+        notifyTeknisi: input.notifyTeknisi != null ? asBool(input.notifyTeknisi) : (DEFAULTS.notifyTeknisi !== false),
         confidenceThreshold: clampNumber(input.confidenceThreshold, 0, 1, DEFAULTS.confidenceThreshold),
         confirmationWindowMs: Math.round(confirmationWindowMinutes * 60 * 1000),
         clusterFlushMs: Math.round(clusterFlushSeconds * 1000),

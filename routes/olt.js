@@ -1692,4 +1692,46 @@ router.get('/drivers', (req, res) => {
     }
 });
 
+/**
+ * GET /api/olt/event-log
+ * Log durable kejadian OLT (LOS / Dying-Gasp / pulih) ter-ENRICH identitas pelanggan.
+ * Query: from,to (epoch ms atau ISO), type (los|dying-gasp|discovery), q (cari
+ * nama/pppoe/HP/MAC/alamat), oltId, mac, limit, offset.
+ */
+router.get('/event-log', async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ status: 401, message: 'Unauthorized' });
+        }
+        const repo = require('../repositories/olt-event.repository').getOltEventRepository();
+        const q = req.query || {};
+        const toMs = (v) => {
+            if (v == null || v === '') return undefined;
+            const n = Number(v);
+            if (Number.isFinite(n)) return n;
+            const d = Date.parse(v);
+            return Number.isNaN(d) ? undefined : d;
+        };
+        const filters = {
+            from: toMs(q.from),
+            to: toMs(q.to),
+            type: q.type || undefined,
+            q: q.q || undefined,
+            oltId: q.oltId || undefined,
+            mac: q.mac || undefined,
+            limit: q.limit ? Number(q.limit) : 200,
+            offset: q.offset ? Number(q.offset) : 0,
+        };
+        const [items, total, stats] = await Promise.all([
+            repo.listEvents(filters),
+            repo.countEvents(filters),
+            repo.getStats(filters),
+        ]);
+        res.json({ status: 200, data: { items, total, stats } });
+    } catch (error) {
+        console.error('[OLT] Error event-log:', error);
+        res.status(500).json({ status: 500, message: error.message });
+    }
+});
+
 module.exports = router;
