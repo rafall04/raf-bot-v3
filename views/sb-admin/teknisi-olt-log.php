@@ -24,7 +24,7 @@
       <div id="content">
         <?php include '_role_aware_teknisi_topbar.php'; ?>
         <div class="container-fluid">
-          <?php include '_olt-log-content.php'; ?>
+          <?php $oltLogRole = 'teknisi'; include '_olt-log-content.php'; ?>
         </div>
       </div>
     </div>

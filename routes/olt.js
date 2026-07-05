@@ -1722,11 +1722,18 @@ router.get('/event-log', async (req, res) => {
             limit: q.limit ? Number(q.limit) : 200,
             offset: q.offset ? Number(q.offset) : 0,
         };
-        const [items, total, stats] = await Promise.all([
+        const [rawItems, total, stats] = await Promise.all([
             repo.listEvents(filters),
             repo.countEvents(filters),
             repo.getStats(filters),
         ]);
+        // Enrich tampilan OLT (read-time): olt_id mentah (IP OLT asli / IP MikroTik ke-NAT)
+        // → {olt_name, olt_ip} manusiawi. Tanpa migrasi/backfill.
+        const { resolveOltDisplay } = require('../lib/olt-name-resolver');
+        const items = rawItems.map((r) => {
+            const o = resolveOltDisplay(r.olt_id);
+            return Object.assign({}, r, { olt_name: o.name, olt_ip: o.ip });
+        });
         res.json({ status: 200, data: { items, total, stats } });
     } catch (error) {
         console.error('[OLT] Error event-log:', error);

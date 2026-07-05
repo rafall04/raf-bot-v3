@@ -24,7 +24,7 @@
       <div id="content">
         <?php include 'topbar.php'; ?>
         <div class="container-fluid">
-          <?php include '_olt-log-content.php'; ?>
+          <?php $oltLogRole = 'admin'; include '_olt-log-content.php'; ?>
         </div>
       </div>
     </div>
