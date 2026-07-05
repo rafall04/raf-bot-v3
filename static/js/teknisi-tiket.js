@@ -62,7 +62,27 @@
             
             return statusMap[statusLower] || `<span class="badge badge-secondary">${status}</span>`;
         }
-        
+
+        /**
+         * Badge sumber/prioritas — tandai tiket auto-LOS (fiber putus) + OLT + prioritas
+         * supaya teknisi langsung mengenali gangguan penting.
+         */
+        function renderLosBadges(row) {
+            const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            const parts = [];
+            const src = (row.source || '').toLowerCase();
+            const prio = (row.priority || '').toUpperCase();
+            if (src === 'los') {
+                parts.push('<span class="badge badge-danger"><i class="fas fa-bolt"></i> LOS / FIBER</span>');
+                const olt = row.oltName || row.oltId;
+                if (olt) parts.push('<span class="badge badge-light border"><i class="fas fa-broadcast-tower"></i> ' + esc(olt) + '</span>');
+            }
+            if (prio === 'HIGH' || prio === 'URGENT' || prio === 'TINGGI') {
+                parts.push('<span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> PRIORITAS TINGGI</span>');
+            }
+            return parts.length ? '<div style="display:flex;flex-wrap:wrap;gap:.25rem;margin-bottom:.3rem;">' + parts.join('') + '</div>' : '';
+        }
+
         /**
          * Render workflow stepper based on current ticket status
          * Visual progress indicator showing which step ticket is on
@@ -1296,6 +1316,16 @@
                 // Validasi result.data adalah array
                 const tickets = Array.isArray(result.data) ? result.data : [];
 
+                // Urutkan: tiket LOS/prioritas tinggi dulu, lalu terbaru (tiket penting tak tenggelam).
+                const prioRank = (r) => {
+                    let s = 0;
+                    if ((r.source || '').toLowerCase() === 'los') s += 100;
+                    const p = (r.priority || '').toUpperCase();
+                    if (p === 'URGENT') s += 40; else if (p === 'HIGH' || p === 'TINGGI') s += 30; else if (p === 'MEDIUM') s += 10;
+                    return s;
+                };
+                tickets.sort((a, b) => (prioRank(b) - prioRank(a)) || (new Date(b.createdAt || 0) - new Date(a.createdAt || 0)));
+
                 // Update DataTable dengan data baru
                 dataTable.clear().rows.add(tickets).draw();
 
@@ -1607,8 +1637,8 @@
                         "data": null,
                         "render": function(data, type, row) {
                             const laporan = row.laporanText || row.description || row.laporan || '-';
-                            // Limit text to 100 chars
-                            return laporan.length > 100 ? laporan.substring(0, 100) + '...' : laporan;
+                            const text = laporan.length > 120 ? laporan.substring(0, 120) + '...' : laporan;
+                            return renderLosBadges(row) + text;
                         }
                     },
                     { 
@@ -1671,7 +1701,7 @@
                         }
                     }
                 ],
-                "order": [[ 0, "desc" ]], // Urutkan berdasarkan ID Tiket (newest first)
+                "order": [], // Hormati urutan pre-sort (LOS/prioritas dulu, lalu terbaru)
                 "processing": true, // Mengaktifkan indikator "processing"
                 "pageLength": 10,
                 "responsive": true, // Tambahkan responsive untuk mobile
