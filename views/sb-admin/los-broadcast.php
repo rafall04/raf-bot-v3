@@ -30,7 +30,6 @@
     .m-pending { background: linear-gradient(135deg,#b45309,#78350f); }
     .m-bc { background: linear-gradient(135deg,#b91c1c,#7f1d1d); }
     .m-rec { background: linear-gradient(135deg,#15803d,#14532d); }
-    .m-low { background: linear-gradient(135deg,#475569,#1e293b); }
     /* Catatan collapsible — hemat ruang di HP */
     .los-note { border:1px solid #e5e7eb; border-radius:12px; padding:.55rem .9rem; font-size:.85rem; }
     .los-note summary { cursor:pointer; font-weight:600; outline:none; list-style:none; }
@@ -75,10 +74,9 @@
           </details>
 
           <div class="row mb-3">
-            <div class="col-6 col-md-3 mb-3"><div class="los-metric m-pending"><span>Pending Konfirmasi</span><strong id="metricPending">0</strong><small>menunggu window</small></div></div>
-            <div class="col-6 col-md-3 mb-3"><div class="los-metric m-bc"><span>Broadcasted (24j)</span><strong id="metricBroadcasted">0</strong><small>terkirim ke teknisi</small></div></div>
-            <div class="col-6 col-md-3 mb-3"><div class="los-metric m-rec"><span>Recovered</span><strong id="metricRecovered">0</strong><small>pulih sblm broadcast</small></div></div>
-            <div class="col-6 col-md-3 mb-3"><div class="los-metric m-low"><span>Skipped Low-Conf</span><strong id="metricLowConf">0</strong><small>keyakinan rendah</small></div></div>
+            <div class="col-6 col-md-4 mb-3"><div class="los-metric m-pending"><span>Pending Konfirmasi</span><strong id="metricPending">0</strong><small>menunggu window</small></div></div>
+            <div class="col-6 col-md-4 mb-3"><div class="los-metric m-bc"><span>Broadcasted (24j)</span><strong id="metricBroadcasted">0</strong><small>terkirim ke teknisi</small></div></div>
+            <div class="col-6 col-md-4 mb-3"><div class="los-metric m-rec"><span>Recovered</span><strong id="metricRecovered">0</strong><small>pulih sblm broadcast</small></div></div>
           </div>
 
           <div class="los-grid">
@@ -327,12 +325,11 @@
       const tbody = document.querySelector('#incidentsTable tbody');
       tbody.innerHTML = '';
       const dayAgo = Date.now() - 24 * 3600 * 1000;
-      let bc = 0, rec = 0, low = 0;
+      let bc = 0, rec = 0;
       items.forEach((it) => {
         const t = it.detectedAt ? new Date(it.detectedAt) : null;
         if (it.status === 'broadcasted' && t && t.getTime() >= dayAgo) bc++;
         if (it.status === 'recovered_before_broadcast') rec++;
-        if (it.status === 'low_confidence') low++;
         const cust = it.customer ? (it.customer.name || '-') + (it.customer.address ? ' — ' + it.customer.address : '') : '-';
         const slotOnu = (it.slot != null || it.onu != null) ? esc(it.slot) + '/' + esc(it.onu) : '-';
         const delivered = (it.deliveredCount != null && it.recipientsCount != null) ? (it.deliveredCount + '/' + it.recipientsCount) : '-';
@@ -346,7 +343,6 @@
       });
       document.getElementById('metricBroadcasted').textContent = bc;
       document.getElementById('metricRecovered').textContent = rec;
-      document.getElementById('metricLowConf').textContent = low;
     }
     async function refreshAll() {
       await Promise.all([loadConfig(), loadState(), loadIncidents()]);
