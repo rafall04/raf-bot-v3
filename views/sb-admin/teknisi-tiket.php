@@ -16,6 +16,16 @@
     <link href="<?= rafAssetUrl('/css/teknisi-theme.css') ?>" rel="stylesheet">
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     <link href="<?= rafAssetUrl('/css/teknisi-tiket.css') ?>" rel="stylesheet">
+    <style>
+      .ticket-card { border:1px solid rgba(128,128,128,.22); border-radius:12px; padding:.75rem .85rem; margin-bottom:.6rem; }
+      .ticket-card .tc-head { display:flex; justify-content:space-between; align-items:center; gap:.5rem; margin-bottom:.35rem; }
+      .ticket-card .tc-cust { font-size:.9rem; margin:.15rem 0; }
+      .ticket-card .tc-laporan { font-size:.82rem; opacity:.82; margin:.35rem 0; }
+      .ticket-card .tc-stepper { margin:.45rem 0; overflow-x:auto; }
+      .ticket-card .tc-actions { margin-top:.55rem; }
+      .ticket-card .tc-actions .btn-group-vertical { width:100%; gap:.3rem; }
+      .ticket-filter-bar .custom-switch { padding-left:2.25rem; }
+    </style>
 </head>
 
 <body id="page-top">
@@ -47,6 +57,27 @@
                             <button class="btn btn-sm btn-primary" onclick="loadTickets()"><i class="fas fa-sync-alt"></i> Refresh</button>
                         </div>
                         <div class="card-body">
+                            <div class="ticket-filter-bar mb-3 d-flex flex-wrap align-items-center" style="gap:.5rem;">
+                                <div class="btn-group btn-group-sm" role="group" id="filterSource">
+                                    <button type="button" class="btn btn-outline-primary active" data-value="">Semua</button>
+                                    <button type="button" class="btn btn-outline-danger" data-value="los"><i class="fas fa-bolt"></i> LOS/Fiber</button>
+                                    <button type="button" class="btn btn-outline-secondary" data-value="customer">Lapor pelanggan</button>
+                                </div>
+                                <select id="filterStatus" class="form-control form-control-sm" style="width:auto;">
+                                    <option value="">Semua status</option>
+                                    <option value="baru">Baru</option>
+                                    <option value="process">Diproses</option>
+                                    <option value="otw">OTW</option>
+                                    <option value="arrived">Tiba</option>
+                                    <option value="working">Bekerja</option>
+                                </select>
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="filterHighPrio">
+                                    <label class="custom-control-label" for="filterHighPrio">Prioritas tinggi</label>
+                                </div>
+                                <span class="text-muted small ml-auto" id="filterCount"></span>
+                            </div>
+                            <div class="d-none d-md-block">
                             <div class="table-responsive">
                                 <table class="table table-bordered table-hover" id="ticketsTable" width="100%" cellspacing="0">
                                     <thead>
@@ -64,6 +95,8 @@
                                         </tbody>
                                 </table>
                             </div>
+                            </div>
+                            <div id="ticketCards" class="d-md-none"></div>
                         </div>
                     </div>
                 </div>

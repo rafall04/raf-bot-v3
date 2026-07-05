@@ -1,6 +1,11 @@
         let currentUser = null;
         let isLoadingTickets = false;
         let ticketProcessedTimeout = null;
+        let allTickets = [];
+        const ticketFilter = { source: '', status: '', highPrio: false };
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
         fetch('/api/me', { credentials: 'include' })
             .then(response => response.json())
             .then(data => {
@@ -1326,8 +1331,9 @@
                 };
                 tickets.sort((a, b) => (prioRank(b) - prioRank(a)) || (new Date(b.createdAt || 0) - new Date(a.createdAt || 0)));
 
-                // Update DataTable dengan data baru
-                dataTable.clear().rows.add(tickets).draw();
+                // Simpan + render ke DUA tampilan (tabel desktop + kartu mobile) sesuai filter aktif.
+                allTickets = tickets;
+                renderTickets();
 
             } catch (error) {
                 console.error('[LOAD_TICKETS_ERROR]', error);
@@ -1350,6 +1356,68 @@
                 // Always reset flag
                 isLoadingTickets = false;
             }
+        }
+
+        /**
+         * Filter cocok? (sumber LOS/pelanggan, status, prioritas tinggi).
+         */
+        function matchesTicketFilter(t) {
+            const src = (t.source || '').toLowerCase();
+            if (ticketFilter.source === 'los' && src !== 'los') return false;
+            if (ticketFilter.source === 'customer' && src === 'los') return false;
+            if (ticketFilter.status && ((t.normalizedStatus || t.status || '') + '').toLowerCase() !== ticketFilter.status) return false;
+            if (ticketFilter.highPrio) {
+                const p = (t.priority || '').toUpperCase();
+                if (!(p === 'HIGH' || p === 'URGENT' || p === 'TINGGI')) return false;
+            }
+            return true;
+        }
+
+        /**
+         * Render tiket ke DUA tampilan: tabel (desktop) + kartu (mobile), sesuai filter aktif.
+         */
+        function renderTickets() {
+            const filtered = allTickets.filter(matchesTicketFilter);
+            try {
+                const dt = $('#ticketsTable').DataTable();
+                dt.clear().rows.add(filtered).draw();
+            } catch (_e) { /* DataTable belum siap */ }
+            renderMobileCards(filtered);
+            const fc = document.getElementById('filterCount');
+            if (fc) fc.textContent = filtered.length + ' / ' + allTickets.length + ' tiket';
+        }
+
+        /**
+         * Kartu tiket untuk mobile — reuse badge/stepper/aksi yang sama dengan tabel.
+         */
+        function renderMobileCards(list) {
+            const container = document.getElementById('ticketCards');
+            if (!container) return;
+            if (!list.length) {
+                container.innerHTML = '<div class="text-center text-muted py-4">Tidak ada tiket sesuai filter.</div>';
+                return;
+            }
+            let html = '';
+            list.forEach(function (row) {
+                const id = row.ticketId || row.id || 'N/A';
+                const name = row.pelangganName || row.user_name || 'N/A';
+                const phone = row.pelangganPhone || row.user_phone || '';
+                const laporan = row.laporanText || row.description || row.laporan || '-';
+                const laptxt = laporan.length > 140 ? laporan.substring(0, 140) + '...' : laporan;
+                const status = ((row.normalizedStatus || row.status || 'baru') + '').toLowerCase();
+                const stepper = status === 'baru' ? '' : renderWorkflowStepper(row.normalizedStatus || row.status);
+                const teknisi = row.teknisiName || row.processedByTeknisiName || '';
+                html += '<div class="ticket-card">'
+                    + '<div class="tc-head"><strong>#' + esc(id) + '</strong> ' + getStatusBadge(row.status) + '</div>'
+                    + renderLosBadges(row)
+                    + '<div class="tc-cust"><i class="fas fa-user"></i> <strong>' + esc(name) + '</strong>' + (phone ? ' · ' + esc(phone) : '') + '</div>'
+                    + '<div class="tc-laporan">' + esc(laptxt) + '</div>'
+                    + (stepper ? '<div class="tc-stepper">' + stepper + '</div>' : '')
+                    + (teknisi ? '<div class="tc-teknisi text-muted small"><i class="fas fa-user-cog"></i> ' + esc(teknisi) + '</div>' : '')
+                    + '<div class="tc-actions">' + renderActionButtons(row) + '</div>'
+                    + '</div>';
+            });
+            container.innerHTML = html;
         }
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -1725,7 +1793,21 @@
             });
 
             // Panggil loadTickets setelah inisialisasi selesai
-            loadTickets(); 
+            loadTickets();
+
+            // Filter bar: sumber (LOS/pelanggan) / status / prioritas tinggi → filter tabel + kartu.
+            document.querySelectorAll('#filterSource button').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    document.querySelectorAll('#filterSource button').forEach((b) => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    ticketFilter.source = btn.getAttribute('data-value') || '';
+                    renderTickets();
+                });
+            });
+            const fStatus = document.getElementById('filterStatus');
+            if (fStatus) fStatus.addEventListener('change', function () { ticketFilter.status = fStatus.value; renderTickets(); });
+            const fHigh = document.getElementById('filterHighPrio');
+            if (fHigh) fHigh.addEventListener('change', function () { ticketFilter.highPrio = fHigh.checked; renderTickets(); });
 
             // Fix: Perbaiki event listener untuk mencegah memory leak
             const processModal = document.getElementById('processTicketModal');
