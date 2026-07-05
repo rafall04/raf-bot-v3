@@ -142,6 +142,25 @@
                       <small class="text-muted">Bila sudah pakai grup, biasanya "Tidak" sudah cukup.</small>
                     </div>
                   </div>
+                  <hr>
+                  <div class="alert alert-success" style="font-size:.82rem; border-radius:10px;">
+                    <i class="fas fa-headset"></i> <strong>Auto-Tiket Teknisi</strong> — saat LOS <em>terkonfirmasi</em> (fiber putus), sistem otomatis membuat tiket &amp; meng-assign ke teknisi. Tiket <strong>otomatis dibatalkan</strong> bila ONU pulih sebelum ditangani. Notifikasi tiket mengikuti pengaturan grup/japri di atas.
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group col-md-4">
+                      <label>Buat Tiket Otomatis</label>
+                      <select class="form-control" name="autoTicketEnabled"><option value="false">Nonaktif</option><option value="true">Aktif</option></select>
+                    </div>
+                    <div class="form-group col-md-4">
+                      <label>Assign ke Teknisi</label>
+                      <input type="text" class="form-control" name="autoTicketAssignTeknisi" placeholder="(otomatis — beban paling ringan)">
+                      <small class="text-muted">Kosongkan = auto ke teknisi dengan tiket terbuka paling sedikit. Isi <em>username</em> teknisi untuk memaksa.</small>
+                    </div>
+                    <div class="form-group col-md-4">
+                      <label>Prioritas Tiket</label>
+                      <select class="form-control" name="autoTicketPriority"><option value="HIGH">Tinggi (URGENT)</option><option value="MEDIUM">Sedang (NORMAL)</option></select>
+                    </div>
+                  </div>
                   <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Simpan Konfigurasi</button>
                 </form>
               </div>
@@ -250,6 +269,11 @@
       f.elements.clusterThreshold.value = cfg.clusterThreshold;
       f.elements.notifyGroup.value = cfg.notifyGroup ? 'true' : 'false';
       f.elements.notifyTeknisi.value = (cfg.notifyTeknisi === false) ? 'false' : 'true';
+      // Auto-tiket
+      const at = cfg.autoTicket || {};
+      f.elements.autoTicketEnabled.value = at.enabled ? 'true' : 'false';
+      f.elements.autoTicketAssignTeknisi.value = at.assignTeknisi || '';
+      f.elements.autoTicketPriority.value = (at.priority === 'MEDIUM') ? 'MEDIUM' : 'HIGH';
       setGroupSelect(cfg.groupId || '');
       // Notifikasi pelanggan
       const nc = cfg.notifyCustomer || {};
@@ -273,6 +297,9 @@
         notifyGroup: asBool(f.elements.notifyGroup.value),
         groupId: f.elements.groupId.value,
         notifyTeknisi: asBool(f.elements.notifyTeknisi.value),
+        autoTicketEnabled: asBool(f.elements.autoTicketEnabled.value),
+        autoTicketAssignTeknisi: f.elements.autoTicketAssignTeknisi.value,
+        autoTicketPriority: f.elements.autoTicketPriority.value,
         notifyCustomerEnabled: asBool(c.elements.notifyCustomerEnabled.value),
         customerNotifyDelayMinutes: Number(c.elements.customerNotifyDelayMinutes.value),
         customerOnlyIfStillDown: asBool(c.elements.customerOnlyIfStillDown.value),

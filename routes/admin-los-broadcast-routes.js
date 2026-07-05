@@ -31,6 +31,12 @@ function asBool(v) {
     return v === true || v === "true" || v === "1" || v === 1;
 }
 
+// Prioritas tiket valid (ticket-workflow): HIGH (label URGENT) / MEDIUM (NORMAL). Default HIGH untuk LOS.
+function normalizePriority(v) {
+    const p = String(v || "").trim().toUpperCase();
+    return p === "MEDIUM" ? "MEDIUM" : "HIGH";
+}
+
 function normalizeLosConfig(input = {}) {
     const confirmationWindowMinutes = clampNumber(input.confirmationWindowMinutes, 1, 60, 3);
     const clusterFlushSeconds = clampNumber(input.clusterFlushSeconds, 1, 300, 20);
@@ -42,12 +48,25 @@ function normalizeLosConfig(input = {}) {
         1, 1440, 60
     );
     const ncDefault = DEFAULTS.notifyCustomer || {};
+    // Auto-tiket dari LOS terkonfirmasi. Terima field flat dari form (autoTicket*) ATAU
+    // objek bersarang (autoTicket) dari config yang sudah ada — supaya save dari UI tak
+    // menghapus blok ini (dulu ke-drop karena tak ternormalisasi → tiket auto ikut mati).
+    const at = input.autoTicket || {};
+    const atDefault = DEFAULTS.autoTicket || {};
     return {
         enabled: asBool(input.enabled),
         // Grup alarm OLT (grup khusus). notifyTeknisi default true (perilaku lama).
         notifyGroup: asBool(input.notifyGroup),
         groupId: input.groupId != null ? String(input.groupId).trim() : (DEFAULTS.groupId || ""),
         notifyTeknisi: input.notifyTeknisi != null ? asBool(input.notifyTeknisi) : (DEFAULTS.notifyTeknisi !== false),
+        autoTicket: {
+            enabled: asBool(input.autoTicketEnabled != null ? input.autoTicketEnabled : at.enabled),
+            assignTeknisi: (() => {
+                const v = input.autoTicketAssignTeknisi != null ? input.autoTicketAssignTeknisi : at.assignTeknisi;
+                return v != null ? String(v).trim() : (atDefault.assignTeknisi || "");
+            })(),
+            priority: normalizePriority(input.autoTicketPriority != null ? input.autoTicketPriority : at.priority),
+        },
         confidenceThreshold: clampNumber(input.confidenceThreshold, 0, 1, DEFAULTS.confidenceThreshold),
         confirmationWindowMs: Math.round(confirmationWindowMinutes * 60 * 1000),
         clusterFlushMs: Math.round(clusterFlushSeconds * 1000),
@@ -69,11 +88,19 @@ function normalizeLosConfig(input = {}) {
 function decorateForView(cfg) {
     const nc = cfg.notifyCustomer || DEFAULTS.notifyCustomer || {};
     const ncDefault = DEFAULTS.notifyCustomer || {};
+    // Isi shape lengkap autoTicket (config lama mungkin cuma simpan sebagian key).
+    const at = cfg.autoTicket || {};
+    const atDefault = DEFAULTS.autoTicket || {};
     return {
         ...cfg,
         confirmationWindowMinutes: Math.round((cfg.confirmationWindowMs || DEFAULTS.confirmationWindowMs) / 60000),
         clusterFlushSeconds: Math.round((cfg.clusterFlushMs || DEFAULTS.clusterFlushMs) / 1000),
         rebroadcastCooldownMinutes: Math.round((cfg.rebroadcastCooldownMs || DEFAULTS.rebroadcastCooldownMs) / 60000),
+        autoTicket: {
+            enabled: at.enabled === true,
+            assignTeknisi: at.assignTeknisi != null ? String(at.assignTeknisi) : (atDefault.assignTeknisi || ""),
+            priority: normalizePriority(at.priority != null ? at.priority : atDefault.priority),
+        },
         notifyCustomer: {
             enabled: nc.enabled === true,
             onlyIfStillDown: nc.onlyIfStillDown !== false,

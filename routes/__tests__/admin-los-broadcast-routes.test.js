@@ -99,6 +99,23 @@ describe("admin-los-broadcast-routes", () => {
         expect(saved.confidenceThreshold).toBe(1);       // di-clamp ke max 1
     });
 
+    test("GET /config menyertakan autoTicket shape lengkap (config lama partial)", async () => {
+        const app = buildApp({ readConfig: () => ({ oltLosBroadcast: { autoTicket: { enabled: true } } }) });
+        const res = await request(app, "GET", "/api/admin/los-broadcast/config");
+        expect(res.status).toBe(200);
+        expect(res.body.data.autoTicket).toMatchObject({ enabled: true, priority: "HIGH", assignTeknisi: "" });
+    });
+
+    test("POST /config MEMPERTAHANKAN autoTicket (regresi data-loss saat save)", async () => {
+        const writeConfig = jest.fn();
+        const app = buildApp({ writeConfig });
+        await request(app, "POST", "/api/admin/los-broadcast/config", {
+            enabled: true, autoTicketEnabled: true, autoTicketAssignTeknisi: "budi", autoTicketPriority: "MEDIUM"
+        });
+        const saved = writeConfig.mock.calls[0][0].oltLosBroadcast;
+        expect(saved.autoTicket).toEqual({ enabled: true, assignTeknisi: "budi", priority: "MEDIUM" });
+    });
+
     test("GET /incidents mengembalikan terbaru-dulu + filter status", async () => {
         const incidents = [
             { incidentId: "a", status: "recovered_before_broadcast", mac: "M1" },
@@ -166,5 +183,19 @@ describe("normalizeLosConfig", () => {
     test("customerNotifyDelayMinutes di-clamp ke rentang aman (max 1440)", () => {
         expect(normalizeLosConfig({ customerNotifyDelayMinutes: 99999 }).notifyCustomer.delayMs).toBe(1440 * 60 * 1000);
         expect(normalizeLosConfig({ customerNotifyDelayMinutes: 0 }).notifyCustomer.delayMs).toBe(1 * 60 * 1000);
+    });
+    test("autoTicket: default OFF + shape lengkap saat input kosong", () => {
+        expect(normalizeLosConfig({}).autoTicket).toEqual({ enabled: false, assignTeknisi: "", priority: "HIGH" });
+    });
+    test("autoTicket: field flat dari form (enabled/assign/priority) + trim + uppercase", () => {
+        const c = normalizeLosConfig({ autoTicketEnabled: "true", autoTicketAssignTeknisi: " budi ", autoTicketPriority: "medium" });
+        expect(c.autoTicket).toEqual({ enabled: true, assignTeknisi: "budi", priority: "MEDIUM" });
+    });
+    test("autoTicket: objek bersarang config lama tidak ke-drop saat re-normalisasi", () => {
+        const c = normalizeLosConfig({ autoTicket: { enabled: true, assignTeknisi: "andi", priority: "HIGH" } });
+        expect(c.autoTicket).toEqual({ enabled: true, assignTeknisi: "andi", priority: "HIGH" });
+    });
+    test("autoTicket: prioritas tak dikenal → fallback HIGH", () => {
+        expect(normalizeLosConfig({ autoTicketPriority: "banana" }).autoTicket.priority).toBe("HIGH");
     });
 });
