@@ -34,9 +34,8 @@
     .ev-dg { background:#fef3c7; color:#92400e; }
     .ev-discovery { background:#dcfce7; color:#166534; }
     .cust-name { font-weight: 600; }
-    .cust-sub { font-size: .74rem; color: #6b7280; }
+    .cust-sub { font-size: .74rem; opacity: .65; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .78rem; }
-    .filter-bar { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:1rem; }
   </style>
 </head>
 <body id="page-top">
@@ -65,7 +64,8 @@
             <div class="col-6 col-md-3 mb-3"><div class="olt-metric m-up"><span>Pulih</span><strong id="mUp">0</strong></div></div>
           </div>
 
-          <div class="filter-bar mb-3">
+          <div class="card shadow-sm mb-3" style="border-radius:14px;">
+            <div class="card-body py-3">
             <div class="form-row align-items-end">
               <div class="form-group col-md-3 mb-2">
                 <label class="small mb-1">Cari pelanggan / PPPoE / HP / MAC</label>
@@ -92,6 +92,7 @@
                 <button id="btnApply" class="btn btn-primary btn-sm flex-fill"><i class="fas fa-filter"></i> Terapkan</button>
                 <button id="btnReset" class="btn btn-light btn-sm">Reset</button>
               </div>
+            </div>
             </div>
           </div>
 
