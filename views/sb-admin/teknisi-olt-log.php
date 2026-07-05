@@ -4,7 +4,8 @@
  * Purpose: Halaman TEKNISI "Log Gangguan OLT" — wrapper tipis (head + navbar + topbar peran
  *          teknisi) yang meng-include konten BERSAMA `_olt-log-content.php` (sama dgn admin).
  * Caller: `routes/pages.js` path `/teknisi-olt-log`.
- * Deps: `_head.php`, `_role_aware_navbar.php`, `_role_aware_teknisi_topbar.php`, `_olt-log-content.php`.
+ * Deps: `_head.php`, `_role_aware_navbar.php`, `_role_aware_teknisi_topbar.php`, `_olt-log-content.php`,
+ *       bundle JS footer (jQuery + Bootstrap + sb-admin-2.js) — WAJIB agar toggle sidebar/dropdown chrome jalan.
  */
 ?>
 <!DOCTYPE html>
@@ -29,5 +30,12 @@
       </div>
     </div>
   </div>
+
+  <!-- Bundle chrome sb-admin (WAJIB): tanpa ini toggle sidebar (#sidebarToggleTop) &
+       dropdown chrome tidak berfungsi — handler-nya ada di sb-admin-2.js. -->
+  <script src="/vendor/jquery/jquery.min.js"></script>
+  <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="/vendor/jquery-easing/jquery.easing.min.js"></script>
+  <script src="/js/sb-admin-2.js"></script>
 </body>
 </html>
