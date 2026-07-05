@@ -20,10 +20,22 @@
 
   <style>
     .los-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-    .los-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; box-shadow: 0 12px 30px rgba(15,23,42,0.06); }
+    .los-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; box-shadow: 0 4px 16px rgba(15,23,42,0.05); }
     .los-card .card-header { background: transparent; border-bottom: 1px solid #e5e7eb; }
-    .los-metric { border-radius: 12px; padding: 1rem; background: linear-gradient(135deg, #b91c1c, #7f1d1d); color: #fff; min-height: 100px; }
-    .los-metric strong { font-size: 1.8rem; display: block; }
+    /* Metrik ringkas + warna semantik (pending=amber, broadcast=merah, pulih=hijau, low-conf=slate) */
+    .los-metric { border-radius: 12px; padding: .8rem .95rem; color:#fff; min-height: 74px; box-shadow: 0 4px 14px rgba(15,23,42,.10); }
+    .los-metric span { opacity:.92; font-size:.76rem; display:block; line-height:1.2; }
+    .los-metric strong { font-size: 1.55rem; display:block; line-height:1.1; margin:.06rem 0; }
+    .los-metric small { opacity:.8; font-size:.66rem; }
+    .m-pending { background: linear-gradient(135deg,#b45309,#78350f); }
+    .m-bc { background: linear-gradient(135deg,#b91c1c,#7f1d1d); }
+    .m-rec { background: linear-gradient(135deg,#15803d,#14532d); }
+    .m-low { background: linear-gradient(135deg,#475569,#1e293b); }
+    /* Catatan collapsible — hemat ruang di HP */
+    .los-note { border:1px solid #e5e7eb; border-radius:12px; padding:.55rem .9rem; font-size:.85rem; }
+    .los-note summary { cursor:pointer; font-weight:600; outline:none; list-style:none; }
+    .los-note summary::-webkit-details-marker { display:none; }
+    .los-note[open] summary { margin-bottom:.45rem; }
     .los-table { font-size: .84rem; }
     .badge-status { font-size: .72rem; padding: .3rem .55rem; border-radius: 999px; }
     .st-broadcasted { background:#fee2e2; color:#991b1b; }
@@ -32,6 +44,10 @@
     .st-low_confidence { background:#e0e7ff; color:#3730a3; }
     .st-no_recipients { background:#f3f4f6; color:#374151; }
     @media (max-width: 991px) { .los-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 575px) {
+      .los-metric { min-height: 66px; padding:.65rem .8rem; }
+      .los-metric strong { font-size: 1.4rem; }
+    }
   </style>
 </head>
 <body id="page-top">
@@ -45,7 +61,7 @@
             <div class="d-flex align-items-center justify-content-between flex-wrap">
               <div>
                 <h1>LOS Auto-Broadcast ke Teknisi</h1>
-                <p>Saat OLT mendeteksi <strong>LOS (sinyal optik hilang = kemungkinan fiber putus)</strong> — <em>bukan</em> dying-gasp / mati listrik — sistem otomatis broadcast ke seluruh teknisi setelah konfirmasi window.</p>
+                <p class="mb-0">Begitu OLT melaporkan <strong>LOS (fiber putus)</strong> — bukan mati listrik — sistem otomatis mengabari <strong>teknisi</strong> setelah window konfirmasi.</p>
               </div>
               <div class="d-flex flex-wrap" style="gap:.5rem;">
                 <button id="btnRefresh" class="btn btn-light"><i class="fas fa-sync"></i> Refresh</button>
@@ -53,16 +69,16 @@
             </div>
           </div>
 
-          <div class="alert alert-info" role="alert" style="border-radius:12px;">
-            <i class="fas fa-info-circle"></i>
-            <strong>Bedanya dengan Auto Outage:</strong> halaman ini berbasis <em>layer optik OLT</em> dan hanya memicu untuk <strong>LOS (fiber)</strong>, ditujukan ke <strong>teknisi</strong> untuk respons cepat. Auto Outage berbasis PPPoE MikroTik &amp; ambang waktu, ditujukan ke pelanggan.
-          </div>
+          <details class="los-note mb-3">
+            <summary><i class="fas fa-info-circle text-info mr-1"></i>Apa bedanya dengan Auto Outage?</summary>
+            <div class="text-muted mt-1">Halaman ini berbasis <em>layer optik OLT</em> &amp; hanya memicu untuk <strong>LOS (fiber putus)</strong> → ke <strong>teknisi</strong> untuk respons cepat. <em>Auto Outage</em> berbasis PPPoE MikroTik &amp; ambang waktu → ke <strong>pelanggan</strong>.</div>
+          </details>
 
-          <div class="row mb-4">
-            <div class="col-md-3 mb-3"><div class="los-metric"><span>Pending Konfirmasi</span><strong id="metricPending">0</strong><small>menunggu window</small></div></div>
-            <div class="col-md-3 mb-3"><div class="los-metric"><span>Broadcasted (24j)</span><strong id="metricBroadcasted">0</strong><small>terkirim ke teknisi</small></div></div>
-            <div class="col-md-3 mb-3"><div class="los-metric"><span>Recovered</span><strong id="metricRecovered">0</strong><small>pulih sebelum broadcast</small></div></div>
-            <div class="col-md-3 mb-3"><div class="los-metric"><span>Skipped Low-Conf</span><strong id="metricLowConf">0</strong><small>keyakinan rendah</small></div></div>
+          <div class="row mb-3">
+            <div class="col-6 col-md-3 mb-3"><div class="los-metric m-pending"><span>Pending Konfirmasi</span><strong id="metricPending">0</strong><small>menunggu window</small></div></div>
+            <div class="col-6 col-md-3 mb-3"><div class="los-metric m-bc"><span>Broadcasted (24j)</span><strong id="metricBroadcasted">0</strong><small>terkirim ke teknisi</small></div></div>
+            <div class="col-6 col-md-3 mb-3"><div class="los-metric m-rec"><span>Recovered</span><strong id="metricRecovered">0</strong><small>pulih sblm broadcast</small></div></div>
+            <div class="col-6 col-md-3 mb-3"><div class="los-metric m-low"><span>Skipped Low-Conf</span><strong id="metricLowConf">0</strong><small>keyakinan rendah</small></div></div>
           </div>
 
           <div class="los-grid">
@@ -81,16 +97,18 @@
                       <small class="text-muted">Tingkat keyakinan sistem bahwa ini benar LOS (fiber), bukan dying-gasp.</small>
                     </div>
                   </div>
-                  <div class="alert alert-light border" style="font-size:.82rem;">
-                    <strong>Arti "Ambang Keyakinan" (0–1):</strong> setiap LOS diberi skor keyakinan oleh sistem.
-                    <ul class="mb-1 mt-1 pl-3">
-                      <li><strong>1.0</strong> = sangat yakin LOS/fiber putus (mis. ada bukti rxPower menurun).</li>
-                      <li><strong>0.6</strong> = cukup yakin (default — LOS tanpa dying-gasp).</li>
-                      <li><strong>&lt; 0.6</strong> = ragu → <em>tidak</em> auto-broadcast (dicatat sebagai <code>low_confidence</code>).</li>
-                    </ul>
-                    Naikkan (mis. 0.8) bila ingin lebih hati-hati (lebih sedikit panggilan teknisi, risiko ada yang terlewat).
-                    Turunkan (mis. 0.5) bila ingin lebih sensitif (lebih banyak alert, risiko false-alarm).
-                  </div>
+                  <details class="los-note mb-3" style="font-size:.82rem;">
+                    <summary><i class="fas fa-question-circle text-info mr-1"></i>Arti "Ambang Keyakinan" (0–1)</summary>
+                    <div class="text-muted mt-1">
+                      Setiap LOS diberi skor keyakinan oleh sistem:
+                      <ul class="mb-1 mt-1 pl-3">
+                        <li><strong>1.0</strong> = sangat yakin fiber putus (mis. rxPower menurun).</li>
+                        <li><strong>0.6</strong> = cukup yakin (default — LOS tanpa dying-gasp).</li>
+                        <li><strong>&lt; 0.6</strong> = ragu → <em>tidak</em> auto-broadcast (<code>low_confidence</code>).</li>
+                      </ul>
+                      Naikkan (0.8) = lebih hati-hati; turunkan (0.5) = lebih sensitif.
+                    </div>
+                  </details>
                   <div class="form-row">
                     <div class="form-group col-md-6">
                       <label>Window Konfirmasi (menit)</label>
