@@ -256,6 +256,11 @@
       "assignTeknisi": "",
       "priority": "HIGH"
     },
+    "verifyViaScrape": {
+      "enabled": true,
+      "maxPages": 20,
+      "timeWindowMinutes": 15
+    },
     "confidenceThreshold": 0.6,
     "confirmationWindowMs": 180000,
     "clusterFlushMs": 20000,

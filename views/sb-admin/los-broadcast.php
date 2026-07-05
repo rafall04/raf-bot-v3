@@ -161,6 +161,26 @@
                       <select class="form-control" name="autoTicketPriority"><option value="HIGH">Tinggi (URGENT)</option><option value="MEDIUM">Sedang (NORMAL)</option></select>
                     </div>
                   </div>
+                  <hr>
+                  <div class="alert alert-success" style="font-size:.82rem; border-radius:10px;">
+                    <i class="fas fa-shield-alt"></i> <strong>Verifikasi via Web OLT</strong> — sebelum broadcast, cross-check tiap LOS ke <em>log web OLT</em> (sumber otoritatif yang simpan DG+Lost permanen). Yang ternyata <strong>mati listrik (DG) disaring</strong> → cegah salah-alarm & salah-tiket saat mati listrik massal. <strong>Sangat disarankan Aktif.</strong>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group col-md-4">
+                      <label>Verifikasi Scrape</label>
+                      <select class="form-control" name="verifyEnabled"><option value="true">Aktif</option><option value="false">Nonaktif</option></select>
+                      <small class="text-muted">Nonaktifkan hanya bila web OLT bermasalah.</small>
+                    </div>
+                    <div class="form-group col-md-4">
+                      <label>Kedalaman Baca (halaman)</label>
+                      <input type="number" min="3" max="40" class="form-control" name="verifyMaxPages" value="20">
+                      <small class="text-muted">Perdalam saat kejadian massal (default 20).</small>
+                    </div>
+                    <div class="form-group col-md-4">
+                      <label>Window Baca (menit)</label>
+                      <input type="number" min="3" max="120" class="form-control" name="verifyTimeWindowMinutes" value="15">
+                    </div>
+                  </div>
                   <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Simpan Konfigurasi</button>
                 </form>
               </div>
@@ -273,6 +293,11 @@
       f.elements.autoTicketEnabled.value = at.enabled ? 'true' : 'false';
       f.elements.autoTicketAssignTeknisi.value = at.assignTeknisi || '';
       f.elements.autoTicketPriority.value = (at.priority === 'MEDIUM') ? 'MEDIUM' : 'HIGH';
+      // Verifikasi via scrape web OLT
+      const vs = cfg.verifyViaScrape || {};
+      f.elements.verifyEnabled.value = (vs.enabled === false) ? 'false' : 'true';
+      f.elements.verifyMaxPages.value = vs.maxPages != null ? vs.maxPages : 20;
+      f.elements.verifyTimeWindowMinutes.value = vs.timeWindowMinutes != null ? vs.timeWindowMinutes : 15;
       setGroupSelect(cfg.groupId || '');
       // Notifikasi pelanggan
       const nc = cfg.notifyCustomer || {};
@@ -298,6 +323,9 @@
         autoTicketEnabled: asBool(f.elements.autoTicketEnabled.value),
         autoTicketAssignTeknisi: f.elements.autoTicketAssignTeknisi.value,
         autoTicketPriority: f.elements.autoTicketPriority.value,
+        verifyEnabled: asBool(f.elements.verifyEnabled.value),
+        verifyMaxPages: Number(f.elements.verifyMaxPages.value),
+        verifyTimeWindowMinutes: Number(f.elements.verifyTimeWindowMinutes.value),
         notifyCustomerEnabled: asBool(c.elements.notifyCustomerEnabled.value),
         customerNotifyDelayMinutes: Number(c.elements.customerNotifyDelayMinutes.value),
         customerOnlyIfStillDown: asBool(c.elements.customerOnlyIfStillDown.value),

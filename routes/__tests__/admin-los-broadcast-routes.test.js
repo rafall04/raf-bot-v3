@@ -198,4 +198,15 @@ describe("normalizeLosConfig", () => {
     test("autoTicket: prioritas tak dikenal → fallback HIGH", () => {
         expect(normalizeLosConfig({ autoTicketPriority: "banana" }).autoTicket.priority).toBe("HIGH");
     });
+    test("verifyViaScrape: default ON + shape lengkap saat input kosong", () => {
+        expect(normalizeLosConfig({}).verifyViaScrape).toEqual({ enabled: true, maxPages: 20, timeWindowMinutes: 15 });
+    });
+    test("verifyViaScrape: field flat form (enabled/maxPages/window) + clamp", () => {
+        const c = normalizeLosConfig({ verifyEnabled: "false", verifyMaxPages: 999, verifyTimeWindowMinutes: 1 });
+        expect(c.verifyViaScrape).toEqual({ enabled: false, maxPages: 40, timeWindowMinutes: 3 });
+    });
+    test("verifyViaScrape: objek bersarang config lama tidak ke-drop saat re-normalisasi", () => {
+        const c = normalizeLosConfig({ verifyViaScrape: { enabled: false, maxPages: 30, timeWindowMinutes: 20 } });
+        expect(c.verifyViaScrape).toEqual({ enabled: false, maxPages: 30, timeWindowMinutes: 20 });
+    });
 });

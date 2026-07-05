@@ -53,6 +53,10 @@ function normalizeLosConfig(input = {}) {
     // menghapus blok ini (dulu ke-drop karena tak ternormalisasi → tiket auto ikut mati).
     const at = input.autoTicket || {};
     const atDefault = DEFAULTS.autoTicket || {};
+    // Verifikasi via scrape web log OLT (anti salah-vonis mati-listrik). Terima flat (verify*)
+    // atau nested (verifyViaScrape) — WAJIB dinormalisasi agar tak ke-drop saat admin Simpan.
+    const vs = input.verifyViaScrape || {};
+    const vsDefault = DEFAULTS.verifyViaScrape || {};
     return {
         enabled: asBool(input.enabled),
         // Grup alarm OLT (grup khusus). notifyTeknisi default true (perilaku lama).
@@ -66,6 +70,15 @@ function normalizeLosConfig(input = {}) {
                 return v != null ? String(v).trim() : (atDefault.assignTeknisi || "");
             })(),
             priority: normalizePriority(input.autoTicketPriority != null ? input.autoTicketPriority : at.priority),
+        },
+        verifyViaScrape: {
+            enabled: input.verifyEnabled != null
+                ? asBool(input.verifyEnabled)
+                : (vs.enabled != null ? asBool(vs.enabled) : (vsDefault.enabled !== false)),
+            maxPages: Math.round(clampNumber(
+                input.verifyMaxPages != null ? input.verifyMaxPages : vs.maxPages, 3, 40, vsDefault.maxPages || 20)),
+            timeWindowMinutes: Math.round(clampNumber(
+                input.verifyTimeWindowMinutes != null ? input.verifyTimeWindowMinutes : vs.timeWindowMinutes, 3, 120, vsDefault.timeWindowMinutes || 15)),
         },
         confidenceThreshold: clampNumber(input.confidenceThreshold, 0, 1, DEFAULTS.confidenceThreshold),
         confirmationWindowMs: Math.round(confirmationWindowMinutes * 60 * 1000),
@@ -91,6 +104,8 @@ function decorateForView(cfg) {
     // Isi shape lengkap autoTicket (config lama mungkin cuma simpan sebagian key).
     const at = cfg.autoTicket || {};
     const atDefault = DEFAULTS.autoTicket || {};
+    const vs = cfg.verifyViaScrape || {};
+    const vsDefault = DEFAULTS.verifyViaScrape || {};
     return {
         ...cfg,
         confirmationWindowMinutes: Math.round((cfg.confirmationWindowMs || DEFAULTS.confirmationWindowMs) / 60000),
@@ -100,6 +115,11 @@ function decorateForView(cfg) {
             enabled: at.enabled === true,
             assignTeknisi: at.assignTeknisi != null ? String(at.assignTeknisi) : (atDefault.assignTeknisi || ""),
             priority: normalizePriority(at.priority != null ? at.priority : atDefault.priority),
+        },
+        verifyViaScrape: {
+            enabled: (vs.enabled != null ? vs.enabled : vsDefault.enabled) !== false,
+            maxPages: vs.maxPages != null ? vs.maxPages : (vsDefault.maxPages || 20),
+            timeWindowMinutes: vs.timeWindowMinutes != null ? vs.timeWindowMinutes : (vsDefault.timeWindowMinutes || 15),
         },
         notifyCustomer: {
             enabled: nc.enabled === true,
