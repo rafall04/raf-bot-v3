@@ -73,6 +73,21 @@ async function handleTutorialTopupIntent(context) {
     handleTutorialTopup(global.config, reply, pushname, sender);
 }
 
+// Panduan teknisi (PSB + perbaikan) — teknisi/owner. Body via template (editable), link dari config.
+async function handleTutorialTeknisiIntent(context) {
+    const { isTeknisi, isOwner, reply, mess, global, renderResponseTemplate } = context;
+    if (!isTeknisi && !isOwner) {
+        return reply(mess.teknisiOrOwnerOnly);
+    }
+    const body = renderResponseTemplate(
+        'dispatch_tutorial_teknisi',
+        `📖 *PANDUAN TEKNISI*\n\n━━━ *PSB (Pasang Baru)* ━━━\nJapri bot area kamu:\n1. Foto KTP + caption \`#PSB\` (Nama/Paket/WiFi/Sandi/HP)\n2. Kirim foto rumah\n3. Share lokasi rumah\n4. Bot tampilkan SN modem → balas *YA* (cocok) / *TIDAK* (pilih angka)\n5. Selesai — pelanggan online\n\n━━━ *PERBAIKAN (Tiket)* ━━━\n1. *list tiket* — lihat tiket\n2. *proses [ID]* — ambil tiket\n3. *otw [ID]* + share lokasi\n4. *sampai [ID]* — pelanggan dapat OTP\n5. *verifikasi [ID] [OTP]*\n6. Kirim min. 2 foto → *done*\n7. Ketik catatan perbaikan\n8. *selesai [ID]* — tutup tiket\n\n💡 Ketik *batal* untuk membatalkan proses.`,
+        {}
+    );
+    const url = (global.config && global.config.teknisiTutorialUrl) || '';
+    await reply(url ? `${body}\n\n📖 Panduan lengkap (bergambar):\n${url}` : body);
+}
+
 const MENU_INTENT_HANDLERS = Object.freeze({
     button: handleButtonIntent,
     BANTUAN: handleBantuanIntent,
@@ -86,7 +101,8 @@ const MENU_INTENT_HANDLERS = Object.freeze({
     MENU_OWNER: handleMenuOwnerIntent,
     TANYA_CARA_PASANG: handleTanyaCaraPasangIntent,
     TANYA_PAKET_BULANAN: handleTanyaPaketBulananIntent,
-    TUTORIAL_TOPUP: handleTutorialTopupIntent
+    TUTORIAL_TOPUP: handleTutorialTopupIntent,
+    TUTORIAL_TEKNISI: handleTutorialTeknisiIntent
 });
 
 module.exports = {
@@ -100,5 +116,6 @@ module.exports = {
     handleMenuOwnerIntent,
     handleTanyaCaraPasangIntent,
     handleTanyaPaketBulananIntent,
-    handleTutorialTopupIntent
+    handleTutorialTopupIntent,
+    handleTutorialTeknisiIntent
 };

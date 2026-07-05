@@ -748,6 +748,19 @@
   },
   {
     "keywords": [
+      "panduan teknisi",
+      "tutorial teknisi",
+      "cara psb",
+      "cara perbaikan",
+      "panduan psb"
+    ],
+    "intent": "TUTORIAL_TEKNISI",
+    "category": "menu",
+    "description": "Panduan teknisi (PSB & perbaikan)",
+    "icon": "📖"
+  },
+  {
+    "keywords": [
       "menuowner"
     ],
     "intent": "MENU_OWNER",

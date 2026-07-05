@@ -92,7 +92,21 @@
                     }
                     if (sel && gid) sel.value = gid;
                 })();
-                
+
+                // Notif Perbaikan + tutorial URL.
+                setValue('repairNotifEnabled', json.data.repairNotif?.enabled === true ? "true" : "false");
+                setValue('teknisiTutorialUrl', json.data.teknisiTutorialUrl || '');
+                (function () {
+                    var sel = document.getElementById('repairNotifGroupId');
+                    var gid = (json.data.repairNotif && json.data.repairNotif.groupId) || '';
+                    if (sel && gid && !Array.prototype.some.call(sel.options, function (o) { return o.value === gid; })) {
+                        var opt = document.createElement('option');
+                        opt.value = gid; opt.textContent = gid + ' (tersimpan)';
+                        sel.appendChild(opt);
+                    }
+                    if (sel && gid) sel.value = gid;
+                })();
+
                 // Load bank accounts
                 if (json.data.bankAccounts) {
                     window.bankAccounts = json.data.bankAccounts;
@@ -220,32 +234,34 @@
       });
 
       // Intake PSB Grup — muat daftar grup WhatsApp ke dropdown (bot harus online).
-      const btnLoadPsbGroups = document.getElementById('btnLoadPsbGroups');
-      if (btnLoadPsbGroups) {
-        btnLoadPsbGroups.addEventListener('click', function () {
-          const sel = document.getElementById('psbIntakeGroupId');
-          const original = btnLoadPsbGroups.innerHTML;
-          const current = sel ? sel.value : '';
-          btnLoadPsbGroups.disabled = true;
-          btnLoadPsbGroups.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+      // Muat daftar grup WA ke SEMUA dropdown grup (PSB + Perbaikan) sekaligus dari satu fetch.
+      function wireGroupLoader(btnId, selectIds) {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+          const sels = selectIds.map(function (id) { return document.getElementById(id); }).filter(Boolean);
+          const currents = sels.map(function (s) { return s.value; });
+          const original = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
           fetch('/api/whatsapp/groups', { credentials: 'include' })
             .then(res => res.json())
             .then(json => {
               if (!json.success || !Array.isArray(json.groups)) {
                 throw new Error(json.message || 'Bot WhatsApp belum terkoneksi.');
               }
-              if (!sel) return;
-              sel.innerHTML = '<option value="">— pilih grup —</option>';
-              json.groups.forEach(g => {
-                const opt = document.createElement('option');
-                opt.value = g.id;
-                opt.textContent = g.subject + ' (' + g.size + ' anggota)';
-                sel.appendChild(opt);
+              sels.forEach(function (sel, i) {
+                sel.innerHTML = '<option value="">— pilih grup —</option>';
+                json.groups.forEach(function (g) {
+                  const opt = document.createElement('option');
+                  opt.value = g.id;
+                  opt.textContent = g.subject + ' (' + g.size + ' anggota)';
+                  sel.appendChild(opt);
+                });
+                if (currents[i] && Array.prototype.some.call(sel.options, function (o) { return o.value === currents[i]; })) {
+                  sel.value = currents[i];
+                }
               });
-              // Pertahankan pilihan sebelumnya bila masih ada di daftar.
-              if (current && Array.prototype.some.call(sel.options, o => o.value === current)) {
-                sel.value = current;
-              }
               if (typeof Swal !== 'undefined') {
                 Swal.fire({ icon: 'success', title: 'Grup dimuat', text: json.groups.length + ' grup ditemukan.', timer: 1500, showConfirmButton: false });
               }
@@ -256,11 +272,13 @@
               }
             })
             .finally(() => {
-              btnLoadPsbGroups.disabled = false;
-              btnLoadPsbGroups.innerHTML = original;
+              btn.disabled = false;
+              btn.innerHTML = original;
             });
         });
       }
+      wireGroupLoader('btnLoadPsbGroups', ['psbIntakeGroupId', 'repairNotifGroupId']);
+      wireGroupLoader('btnLoadPsbGroups2', ['psbIntakeGroupId', 'repairNotifGroupId']);
 
       // Mikrotik Devices Management
       const mikrotikDevicesTable = document.getElementById('mikrotikDevicesTable').getElementsByTagName('tbody')[0];

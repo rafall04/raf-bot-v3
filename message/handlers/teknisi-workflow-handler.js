@@ -615,7 +615,16 @@ Silakan kirim foto dulu.`, {
             resolutionNotes: state.resolutionNotes || 'Selesai'
         });
         Object.assign(ticket, completedTicket);
-        
+
+        // Notif GRUP PERBAIKAN: tiket selesai (fire-and-forget, guarded, never-throw).
+        try {
+            require('../../lib/repair-group-notifier').notifyRepairGroupCompleted(ticket, {
+                durationMinutes,
+                teknisiName: ticket.teknisiName || (state && state.teknisiName),
+                resolutionNotes: state.resolutionNotes
+            }).catch(() => {});
+        } catch (_e) { /* never-throw */ }
+
         // Clear teknisi state and photo queue
         deleteUserState(stateKey);
 

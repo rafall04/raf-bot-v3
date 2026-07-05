@@ -263,6 +263,32 @@
                   <input type="number" class="form-control" id="psbIntakeRecency" name="psbIntakeRecency" min="5" max="1440" placeholder="120" />
                   <small class="form-text text-muted">Bot menganggap "modem baru dipasang" = modem yang registrasi ke GenieACS dalam N menit terakhir (default 120). Perbesar bila ACS sering telat inform.</small>
                 </div>
+
+                <hr>
+                <h6 class="mb-2" style="font-weight:700;">Notifikasi Perbaikan &amp; Tutorial Teknisi</h6>
+                <div class="mb-3">
+                  <label for="repairNotifEnabled">Notif Perbaikan ke Grup</label>
+                  <select class="form-control" id="repairNotifEnabled" name="repairNotifEnabled">
+                      <option value="false">Nonaktif</option>
+                      <option value="true">Aktif</option>
+                  </select>
+                  <small class="form-text text-muted">Jika Aktif, bot otomatis posting ke grup perbaikan saat <b>tiket baru masuk</b> ("🔧 Tiket baru…") dan <b>tiket selesai</b> ("✅ Selesai…", berisi teknisi + durasi). Papan pengumuman perbaikan untuk tim/admin.</small>
+                </div>
+                <div class="mb-3">
+                  <label for="repairNotifGroupId">Grup Perbaikan (terpisah dari grup PSB)</label>
+                  <div class="d-flex" style="gap:.5rem;">
+                    <select class="form-control" id="repairNotifGroupId" name="repairNotifGroupId" style="flex:1;">
+                        <option value="">— tidak ada / pilih grup —</option>
+                    </select>
+                    <button type="button" class="btn btn-outline-primary" id="btnLoadPsbGroups2" style="white-space:nowrap;"><i class="fas fa-sync"></i> Muat Grup</button>
+                  </div>
+                  <small class="form-text text-muted">Grup khusus notifikasi perbaikan. Klik <b>Muat Grup</b> (bot online), lalu pilih. Bisa sama atau beda dengan grup PSB.</small>
+                </div>
+                <div class="mb-3">
+                  <label for="teknisiTutorialUrl">Link Tutorial Teknisi</label>
+                  <input type="text" class="form-control" id="teknisiTutorialUrl" name="teknisiTutorialUrl" placeholder="https://…" />
+                  <small class="form-text text-muted">Link halaman panduan bergambar. Dikirim bot saat teknisi ketik <code>panduan teknisi</code> / <code>tutorial teknisi</code>.</small>
+                </div>
             </div>
           </div>
           <div class="d-flex justify-content-end mb-4">

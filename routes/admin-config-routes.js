@@ -177,7 +177,14 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     groupId: (mainConfig.psbIntake && mainConfig.psbIntake.groupId) || '',
                     allowedRoles: (mainConfig.psbIntake && mainConfig.psbIntake.allowedRoles) || ['teknisi', 'admin', 'owner'],
                     recencyWindowMinutes: (mainConfig.psbIntake && mainConfig.psbIntake.recencyWindowMinutes) || 120
-                }
+                },
+                repairNotif: {
+                    enabled: !!(mainConfig.repairNotif && mainConfig.repairNotif.enabled),
+                    groupId: (mainConfig.repairNotif && mainConfig.repairNotif.groupId) || '',
+                    notifyNewTicket: !(mainConfig.repairNotif && mainConfig.repairNotif.notifyNewTicket === false),
+                    notifyCompleted: !(mainConfig.repairNotif && mainConfig.repairNotif.notifyCompleted === false)
+                },
+                teknisiTutorialUrl: mainConfig.teknisiTutorialUrl || ''
             };
 
             res.status(200).json({
@@ -380,6 +387,25 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     continue;
                 }
 
+                // Notif Perbaikan (grup terpisah) → objek nested `repairNotif`. notifyNewTicket/notifyCompleted
+                // tak diedit dari UI (dipertahankan saat merge). Feature-flag default OFF.
+                if (key === 'repairNotifEnabled' || key === 'repairNotifGroupId') {
+                    if (!newMainConfig.repairNotif) {
+                        newMainConfig.repairNotif = {};
+                    }
+                    if (key === 'repairNotifEnabled') {
+                        newMainConfig.repairNotif.enabled = receivedConfig[key] === 'true';
+                    } else {
+                        newMainConfig.repairNotif.groupId = String(receivedConfig[key] || '').trim();
+                    }
+                    continue;
+                }
+
+                if (key === 'teknisiTutorialUrl') {
+                    newMainConfig.teknisiTutorialUrl = String(receivedConfig[key] == null ? '' : receivedConfig[key]).trim();
+                    continue;
+                }
+
                 // Identitas & Kontak Usaha → dipetakan ke objek nested `company` (dipakai halaman
                 // publik FAQ/Refund/Syarat/Kontak). company_name juga menyinkron `nama` (brand global).
                 if (key === 'company_name' || key === 'company_phone' || key === 'company_email'
@@ -420,6 +446,12 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 finalMainConfig.psbIntake = {
                     ...(currentMainConfig.psbIntake || {}),
                     ...newMainConfig.psbIntake
+                };
+            }
+            if (newMainConfig.repairNotif) {
+                finalMainConfig.repairNotif = {
+                    ...(currentMainConfig.repairNotif || {}),
+                    ...newMainConfig.repairNotif
                 };
             }
 

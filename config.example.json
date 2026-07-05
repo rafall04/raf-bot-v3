@@ -179,6 +179,13 @@
     "allowedRoles": ["teknisi", "admin", "owner"],
     "recencyWindowMinutes": 120
   },
+  "repairNotif": {
+    "enabled": false,
+    "groupId": "",
+    "notifyNewTicket": true,
+    "notifyCompleted": true
+  },
+  "teknisiTutorialUrl": "",
   "monitoring": {
     "enabled": true
   },
