@@ -17,6 +17,7 @@ function defaultDeps() {
         getEffectivePrice: null,
         normalizeUserPaymentMethod: null,
         deleteActivePPPoEUser: null,
+        removePPPoESecret: null,
         updateOdpPortUsage: null,
         saveNetworkAssets: null,
         comparePassword: null,

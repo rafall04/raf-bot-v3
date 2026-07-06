@@ -13,6 +13,7 @@ const { hashPassword, comparePassword } = require('../lib/password');
 const {
     updatePPPoEProfile,
     deleteActivePPPoEUser,
+    removePPPoESecret,
     addPPPoEUser,
     checkPPPoEUserExists,
     getAllPPPoESecrets,
@@ -95,6 +96,7 @@ router.use(createApiUsersRouter({
     comparePassword,
     updatePPPoEProfile,
     deleteActivePPPoEUser,
+    removePPPoESecret,
     addPPPoEUser,
     checkPPPoEUserExists,
     assertMikrotikResult,

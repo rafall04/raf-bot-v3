@@ -73,6 +73,7 @@ describe("api-users service", () => {
         const replaceUsersSnapshot = jest.fn();
         const logActivity = jest.fn().mockResolvedValue(undefined);
         const deleteActivePPPoEUser = jest.fn().mockResolvedValue({ ok: true });
+        const removePPPoESecret = jest.fn().mockResolvedValue({ ok: true });
         const updateOdpPortUsage = jest.fn();
         const repository = {
             findUserById: jest.fn(() => ({
@@ -96,6 +97,7 @@ describe("api-users service", () => {
             repository,
             logActivity,
             deleteActivePPPoEUser,
+            removePPPoESecret,
             updateOdpPortUsage,
             logger: { error: jest.fn(), warn: jest.fn(), log: jest.fn() }
         });
@@ -109,6 +111,7 @@ describe("api-users service", () => {
         expect(deleteUserRecord).toHaveBeenCalledWith("u-1");
         expect(replaceUsersSnapshot).toHaveBeenCalledWith([{ id: "u-2", name: "User 2" }]);
         expect(deleteActivePPPoEUser).toHaveBeenCalledWith("pppoe-1", { caller: "api.user-delete" });
+        expect(removePPPoESecret).toHaveBeenCalledWith("pppoe-1", { caller: "api.user-delete" });
         expect(updateOdpPortUsage).toHaveBeenCalledWith("odp-1", 3, false);
         expect(logActivity).toHaveBeenCalled();
         expect(result).toEqual({

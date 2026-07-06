@@ -1,10 +1,10 @@
 /**
  * Header Doc
- * Purpose: Method `deleteUserById` — hapus single user dari DB + in-memory snapshot, disconnect PPPoE active session di MikroTik (best-effort), reset ODP port usage jika user terkait ke ODP, lalu log activity. Audit log dilakukan SEBELUM delete sehingga jika delete gagal, audit tetap menggambarkan intent action.
+ * Purpose: Method `deleteUserById` — hapus single user dari DB + in-memory snapshot, putus sesi PPPoE aktif + HAPUS secret PPPoE di MikroTik (best-effort, agar pelanggan yang dihapus tak bisa konek lagi), reset ODP port usage jika user terkait ke ODP, lalu log activity. Audit log dilakukan SEBELUM delete sehingga jika delete gagal, audit tetap menggambarkan intent action.
  * Caller: `services/api-users.service.js` (composer wraps menjadi method `service.deleteUserById(args)`).
- * Deps: `deps.repository.findUserById`/`deleteUserRecord`/`getUsersSnapshot`/`replaceUsersSnapshot`, `deps.logActivity`, `deps.deleteActivePPPoEUser`, `deps.updateOdpPortUsage`, `deps.logger`.
+ * Deps: `deps.repository.findUserById`/`deleteUserRecord`/`getUsersSnapshot`/`replaceUsersSnapshot`, `deps.logActivity`, `deps.deleteActivePPPoEUser`, `deps.removePPPoESecret` (opsional), `deps.updateOdpPortUsage`, `deps.logger`.
  * MainFuncs: `deleteUserById(deps, { userId, actor, requestMeta })`.
- * SideEffects: Activity log (best-effort) + MikroTik disconnect (best-effort) + DB delete + in-memory snapshot replace + ODP port usage reset (best-effort).
+ * SideEffects: Activity log (best-effort) + MikroTik putus-sesi + hapus-secret (best-effort) + DB delete + in-memory snapshot replace + ODP port usage reset (best-effort).
  */
 "use strict";
 
@@ -55,6 +55,20 @@ async function deleteUserById(deps, { userId, actor, requestMeta }) {
             }
         } catch (err) {
             deps.logger.error?.("[DELETE_USER] Failed to delete PPPoE user:", err);
+        }
+
+        // Hapus SECRET PPPoE di MikroTik supaya pelanggan yang di-hapus tak bisa konek lagi
+        // (kick sesi di atas hanya memutus sekarang; tanpa hapus secret dia bisa reconnect).
+        // Best-effort & NEVER-THROW: kegagalan MikroTik tak boleh menggagalkan hapus record.
+        if (typeof deps.removePPPoESecret === "function") {
+            try {
+                const removeResult = await deps.removePPPoESecret(user.pppoe_username, { caller: "api.user-delete" });
+                if (removeResult && removeResult.ok === false) {
+                    deps.logger.error?.("[DELETE_USER] Gagal hapus PPPoE secret di MikroTik:", removeResult.message);
+                }
+            } catch (err) {
+                deps.logger.error?.("[DELETE_USER] Failed to remove PPPoE secret:", err);
+            }
         }
     }
 
