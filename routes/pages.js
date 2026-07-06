@@ -44,9 +44,26 @@ router.get('/login', (req, res) => {
     res.render('sb-admin/login.php');
 });
 
-// Main dashboard - ADMIN ONLY (teknisi should NOT access this)
-router.get('/', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
-    res.render('sb-admin/index.php');
+// Landing utama — ROLE-AWARE (auto-forward). Admin/owner/superadmin lihat dashboard;
+// role lain diarahkan ke halaman utamanya (samakan dengan redirect pasca-login di
+// routes/public.js). Tamu tanpa token TIDAK pernah sampai sini — sudah di-redirect ke
+// /login oleh middleware auth (lib/http-auth-bootstrap.js).
+// Dulu di-hard-gate `checkRole` admin-only sehingga sesi teknisi yang membuka domain
+// dapat 403 "khusus Administrator" (dan sesi pelanggan dapat 403 "token tidak valid"
+// yang menyesatkan) alih-alih diarahkan otomatis.
+router.get('/', (req, res) => {
+    const role = req.user && req.user.role;
+    if (role === 'admin' || role === 'owner' || role === 'superadmin') {
+        return res.render('sb-admin/index.php');
+    }
+    if (role === 'teknisi') {
+        return res.redirect('/pembayaran/teknisi');
+    }
+    if (role === 'agen') {
+        return res.redirect('/agen-pembayaran');
+    }
+    // Sesi pelanggan (req.customer, tanpa req.user) atau peran tak dikenal → kembalikan ke login.
+    return res.redirect('/login');
 });
 
 // Admin-only pages
