@@ -263,12 +263,16 @@ router.get('/voucher-send', checkRole(['admin', 'owner', 'superadmin']), (req, r
     res.render('sb-admin/voucher-send.php');
 });
 
-// Paket Voucher (katalog CRUD) page - ADMIN ONLY
-// Tanpa route eksplisit ini, halaman jatuh ke generic handler '/:type' yang TANPA
-// guard role, sehingga staf non-admin bisa membuka halaman (API tetap dijaga, tapi
-// page-level harus konsisten dengan /voucher-send).
-router.get('/voucher', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
-    res.render('sb-admin/voucher.php');
+// Paket Voucher (katalog CRUD paket voucher) page - ADMIN ONLY
+// Path SENGAJA '/paket-voucher', BUKAN '/voucher': path '/voucher' kini milik halaman
+// BELI voucher publik anonim (routes/public-anonymous.js) yang di-mount lebih dulu di
+// lib/routes-registry.js DAN masuk PUBLIC_PATHS (lib/http-auth-bootstrap.js) — sehingga
+// route admin di '/voucher' terbayangi total (dead code). Katalog admin pindah ke path
+// khusus ini agar tetap bisa diakses tanpa mengusik surface beli publik yang sudah LIVE.
+// Route eksplisit + checkRole tetap wajib: tanpa ini halaman jatuh ke generic handler
+// '/:type' yang TANPA guard role, sehingga staf non-admin bisa membuka (API tetap dijaga).
+router.get('/paket-voucher', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/paket-voucher.php');
 });
 
 // Cetak Voucher (generate batch + layout + QR, lepas Mikhmon) - ADMIN ONLY

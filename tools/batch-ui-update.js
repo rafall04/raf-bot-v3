@@ -22,7 +22,7 @@ const skipFiles = [
     'saldo-management.php',
     'agent-management.php',
     'kompensasi.php',
-    'voucher.php',
+    'paket-voucher.php',
     '_navbar.php',
     '_navbar_teknisi.php',
     'topbar.php',
