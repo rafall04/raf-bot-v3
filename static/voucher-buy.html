@@ -174,7 +174,12 @@ input[type=tel]:focus{border-color:var(--accent);background:var(--focus-bg);box-
 .qr-frame .scan{position:absolute;left:15px;right:15px;height:2px;top:15px;border-radius:2px;
   background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scan 2.6s ease-in-out infinite}
 @keyframes scan{0%,100%{transform:translateY(0)}50%{transform:translateY(212px)}}
-.total-line{margin-top:22px;font-size:13px;color:var(--muted)}
+.pay-total{margin-top:22px}
+.breakdown{max-width:300px;margin:0 auto 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:2px 14px;text-align:left}
+.bd-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;font-size:13.5px;color:var(--body)}
+.bd-row+.bd-row{border-top:1px solid var(--line)}
+.bd-row span:last-child{font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.total-line{margin-top:0;font-size:13px;color:var(--muted)}
 .total-line b{display:block;font-size:29px;color:var(--ink);font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:3px}
 .pay-note{font-size:13.5px;color:var(--body);margin-top:14px;max-width:340px;margin-left:auto;margin-right:auto}
 .status{display:inline-flex;align-items:center;gap:10px;margin-top:18px;padding:11px 18px;border-radius:999px;
@@ -272,7 +277,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
       <span class="chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2 4.5 13H11l-1 9 8.5-11H12l1-9Z"/></svg> Voucher otomatis</span>
       <span class="chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-5.9A8.5 8.5 0 1 1 21 11.5Z"/></svg> Kode via WhatsApp</span>
     </div>
-    <div class="sec-head"><h2>Pilih paket</h2><span class="hint">Harga sudah termasuk pajak</span></div>
+    <div class="sec-head"><h2>Pilih paket</h2><span class="hint">Bayar sekali, langsung aktif</span></div>
     <div id="catalog" class="grid"><div class="loading"><span class="spin"></span> Memuat paket…</div></div>
   </section>
 
@@ -302,7 +307,13 @@ footer{border-top:1px solid var(--line);margin-top:10px}
         <span class="scan"></span>
         <img id="qrimg" alt="QRIS" src="">
       </div>
-      <div class="total-line">Total pembayaran<b id="p-total">-</b></div>
+      <div class="pay-total">
+        <div class="breakdown hidden" id="breakdown">
+          <div class="bd-row"><span>Harga voucher</span><span id="bd-sub">-</span></div>
+          <div class="bd-row"><span>Biaya admin</span><span id="bd-fee">-</span></div>
+        </div>
+        <div class="total-line">Total pembayaran<b id="p-total">-</b></div>
+      </div>
       <p class="pay-note">Scan kode QR dengan aplikasi e-wallet atau m-banking apa pun (QRIS). Voucher terbit otomatis begitu pembayaran terverifikasi.</p>
       <div class="status" id="p-status"><span class="spin"></span> Menunggu pembayaran</div>
       <div class="countdown">Berlaku hingga <b id="p-countdown">15:00</b></div>
@@ -472,9 +483,14 @@ footer{border-top:1px solid var(--line);margin-top:10px}
     $('p-name').textContent=selected.name; $('p-price').textContent=rupiah(selected.price);
     $('t-paket').textContent=selected.name;
     $('qrimg').src='/app/qr/'+encodeURIComponent(reff)+'?t='+Date.now();
-    $('p-total').textContent=rupiah(selected.price);
+    $('breakdown').classList.add('hidden'); $('p-total').textContent=rupiah(selected.price);
+    // Tampilkan rincian harga asli (harga voucher + biaya admin iPaymu) memakai angka
+    // NYATA dari detailtrx — biaya admin dibebankan ke pembeli (feeDirection BUYER).
     fetch('/app/detailtrx/'+encodeURIComponent(reff)).then(function(r){return r.json();}).then(function(res){
-      var rec=res&&res.data; if(rec&&rec.priceTotal) $('p-total').textContent=rupiah(rec.priceTotal);
+      var rec=res&&res.data; if(!rec) return;
+      var tot=parseInt(rec.priceTotal,10); if(tot>0) $('p-total').textContent=rupiah(tot);
+      var fee=parseInt(rec.fee,10)||0, sub=parseInt(rec.subtotal,10)||selected.price;
+      if(fee>0){ $('bd-sub').textContent=rupiah(sub); $('bd-fee').textContent=rupiah(fee); $('breakdown').classList.remove('hidden'); }
     }).catch(function(){});
     $('p-status').className='status'; $('p-status').innerHTML='<span class="spin"></span> Menunggu pembayaran';
     show('pay'); deadline=Date.now()+15*60*1000; startCountdown(); poll();
