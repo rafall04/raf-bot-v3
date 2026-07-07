@@ -4538,5 +4538,25 @@
     "name": "Asisten - Menu Fallback (pesan tak dikenali)",
     "category": "assist",
     "template": "Halo Kak ${pushname} 🙏 Saya *asisten bot* di nomor ini.\n\nPesan Kakak sudah terekam ya — kalau perlu jawaban admin, mohon ditunggu, admin akan membalas secepatnya. 😊\n\nSambil menunggu, saya bisa bantu langsung:\n• Ketik *cek koneksi* — kalau internet lemot/mati, saya cek jalurnya sekarang\n• Ketik *ganti sandi* — ubah kata sandi WiFi\n• Ketik *cek tagihan* — info tagihan bulan ini\n• Ketik *menu* — semua fitur bot\n\nKetik salah satu ya, Kak 🙌"
+  },
+  "upq_alert_down": {
+    "name": "Alert Jalur Upstream - Gangguan",
+    "category": "monitoring",
+    "template": "🚨 *JALUR UPSTREAM ${level} — ${nama_layanan}*\n\nJalur *${jalur}* terpantau bermasalah beberapa siklus beruntun:\n• Loss: ${loss}%\n• RTT: ${rtt}ms${saran}\n\nDetail: halaman */upstream-quality* di panel admin."
+  },
+  "upq_alert_recovered": {
+    "name": "Alert Jalur Upstream - Pulih",
+    "category": "monitoring",
+    "template": "✅ *JALUR UPSTREAM PULIH — ${nama_layanan}*\n\nJalur *${jalur}* kembali normal (loss ${loss}%, RTT ${rtt}ms).\nDurasi gangguan: ±${durasi}."
+  },
+  "conncheck_upstream_issue": {
+    "name": "Cek Koneksi - Info Jalur Upstream Bermasalah",
+    "category": "support",
+    "template": "\n\n🛣️ *Info jalur internet:* jalur upstream yang dipakai paket Anda (${jalur_label}) sedang *${status_label}* (loss ${loss}%, respons ${rtt}ms). Kendala ini dari sisi jaringan kami — *bukan dari perangkat Anda* — dan tim sudah menerima peringatan otomatis. 🙏${catatan_khusus}"
+  },
+  "conncheck_upstream_note_mni": {
+    "name": "Cek Koneksi - Catatan Jalur MNI (WA/game via jalur lain)",
+    "category": "support",
+    "template": "\n(Catatan: WhatsApp & game Anda lewat jalur berbeda yang saat ini normal — chat/game bisa tetap lancar walau browsing/video lambat.)"
   }
 }

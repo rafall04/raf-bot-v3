@@ -6,7 +6,8 @@
  * Caller: `message/handlers/raf-intent-dispatch/customer-service-intents.js` pada intent `CEK_KONEKSI`.
  * Deps: `../../lib/jid-utils` (resolveCustomerBySender), `../../lib/mikrotik` (getActivePPPoEUsers),
  *       `../../lib/wifi` (getSSIDInfo), `../../repositories/auto-outage.repository` (state offline_since),
- *       `./template-helpers` (renderResponseTemplate).
+ *       `./template-helpers` (renderResponseTemplate), `../../lib/upstream-path-resolver` (IP→jalur)
+ *       + lazy `../../lib/upstream-quality-poller` (status jalur upstream, best-effort).
  * MainFuncs: `handleCekKoneksi`.
  * SideEffects: Membaca PPP active MikroTik (live, di-cache TTL pendek) + GenieACS (best-effort) lalu reply WhatsApp.
  */
@@ -16,10 +17,16 @@ const { resolveCustomerBySender } = require('../../lib/jid-utils');
 const { getActivePPPoEUsers } = require('../../lib/mikrotik');
 const { getSSIDInfo } = require('../../lib/wifi');
 const { renderResponseTemplate } = require('./template-helpers');
+const { resolvePathForIp } = require('../../lib/upstream-path-resolver');
 
 // Cache daftar PPPoE aktif sebentar supaya burst "cek koneksi" tidak menghajar MikroTik.
-let activeCache = { at: 0, routerId: null, set: null };
+// addrByUser dipakai seksi upstream (map username → IP remote utk pemetaan jalur).
+let activeCache = { at: 0, routerId: null, set: null, addrByUser: null };
 const ACTIVE_CACHE_TTL_MS = 30000;
+
+// Cache laporan status jalur upstream (query SQLite ringan, tapi burst tetap dihemat).
+let upstreamReportCache = { at: 0, report: null };
+const UPSTREAM_REPORT_TTL_MS = 30000;
 
 // Ambang kemungkinan gangguan area (jumlah & rasio pelanggan offline berbarengan).
 const AREA_OUTAGE_RATIO = 0.3;
@@ -44,9 +51,92 @@ async function getActiveUsernameSet(routerId) {
         return activeCache.set;
     }
     const list = unwrapMikrotikList(await getActivePPPoEUsers({ router_id: routerId }));
-    const set = new Set(list.map((item) => normalizeUsername(item.name || item.user || item.username)).filter(Boolean));
-    activeCache = { at: now, routerId, set };
+    const set = new Set();
+    const addrByUser = new Map();
+    for (const item of list) {
+        const uname = normalizeUsername(item.name || item.user || item.username);
+        if (!uname) continue;
+        set.add(uname);
+        const addr = item.address || item.ip || null;
+        if (addr) addrByUser.set(uname, String(addr));
+    }
+    activeCache = { at: now, routerId, set, addrByUser };
     return set;
+}
+
+async function getUpstreamReportCached() {
+    const now = Date.now();
+    if (upstreamReportCache.report && now - upstreamReportCache.at < UPSTREAM_REPORT_TTL_MS) {
+        return upstreamReportCache.report;
+    }
+    // Lazy require: modul poller hanya dimuat bila fitur upstream aktif.
+    const { buildStatusReport } = require('../../lib/upstream-quality-poller');
+    const report = await buildStatusReport();
+    upstreamReportCache = { at: now, report };
+    return report;
+}
+
+/**
+ * Seksi info jalur upstream untuk balasan cek koneksi. Best-effort & senyap saat normal:
+ * hanya tampil bila jalur yang dipakai PAKET pelanggan sedang DEGRADASI/GANGGUAN/PUTUS —
+ * itulah jawaban "lemot dari sisi mana" saat PPPoE pelanggan sendiri sehat.
+ * Tidak pernah throw; gagal apa pun → string kosong.
+ */
+async function buildUpstreamSection(user) {
+    try {
+        const upCfg = global.config && global.config.upstreamMonitor;
+        if (!upCfg || upCfg.enabled !== true) return '';
+
+        const uname = normalizeUsername(user.pppoe_username);
+        const addr = activeCache.addrByUser ? activeCache.addrByUser.get(uname) : null;
+        if (!addr) return '';
+
+        const resolved = resolvePathForIp(addr, upCfg);
+        if (!resolved) return '';
+
+        const report = await getUpstreamReportCached();
+        const entry = report && Array.isArray(report.paths)
+            ? report.paths.find((p) => p.key === resolved.path)
+            : null;
+        if (!entry) return '';
+        if (!['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(entry.status)) return '';
+
+        const targets = Array.isArray(entry.targets) ? entry.targets.filter((t) => t.samples > 0) : [];
+        const avg = (field) => {
+            const vals = targets.map((t) => t[field]).filter((v) => v != null);
+            return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(0) : '-';
+        };
+
+        // Pelanggan jalur MNI: WhatsApp/game dipaksa router lewat IH — bila IH normal,
+        // jelaskan kenapa "chat lancar tapi browsing lambat" (pola komplain korpus).
+        let catatanKhusus = '';
+        if (resolved.path === 'mni') {
+            const ih = report.paths.find((p) => p.key === 'ih');
+            if (ih && ih.status === 'NORMAL') {
+                catatanKhusus = renderResponseTemplate(
+                    'conncheck_upstream_note_mni',
+                    '\n(Catatan: WhatsApp & game Anda lewat jalur berbeda yang saat ini normal — chat/game bisa tetap lancar walau browsing/video lambat.)'
+                );
+            }
+        }
+
+        const statusLabel = entry.status === 'PUTUS' ? 'TERPUTUS' : entry.status;
+        return renderResponseTemplate(
+            'conncheck_upstream_issue',
+            `\n\n🛣️ *Info jalur internet:* jalur upstream yang dipakai paket Anda (${entry.label}) sedang *${statusLabel}* ` +
+            `(loss ${avg('loss_avg_pct')}%, respons ${avg('rtt_avg_ms')}ms). ` +
+            `Kendala ini dari sisi jaringan kami — *bukan dari perangkat Anda* — dan tim sudah menerima peringatan otomatis. 🙏${catatanKhusus}`,
+            {
+                jalur_label: entry.label,
+                status_label: statusLabel,
+                loss: avg('loss_avg_pct'),
+                rtt: avg('rtt_avg_ms'),
+                catatan_khusus: catatanKhusus
+            }
+        );
+    } catch (_e) {
+        return '';
+    }
 }
 
 function formatTerakhirOnline(offlineSince) {
@@ -150,10 +240,14 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
 
     const { lineStatus, areaOutage, offlineCount } = await resolveLineStatus({ user, userList, routerId });
     const modem = await buildModemLine(user);
+    // Seksi jalur upstream (best-effort, kosong saat normal/fitur mati) — jawaban
+    // "lemot dari sisi mana" saat PPPoE pelanggan sendiri online tapi jalurnya sakit.
+    const upstream = await buildUpstreamSection(user);
     const data = {
         nama,
         nama_layanan: namaLayanan,
         modem,
+        upstream,
         jumlah: offlineCount,
         terakhir_online: formatTerakhirOnline(offlineSince)
     };
@@ -164,7 +258,7 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
         key = 'conncheck_online';
         fallback =
             `🔎 *STATUS KONEKSI — ${namaLayanan}*\n\nHalo Kak ${nama}! 👋\n\n` +
-            `🟢 *Jalur internet: AKTIF*\nKoneksi Anda ke jaringan kami normal.${modem}\n\n` +
+            `🟢 *Jalur internet: AKTIF*\nKoneksi Anda ke jaringan kami normal.${modem}${upstream}\n\n` +
             `✅ Kalau internet terasa lambat:\n` +
             `• Dekatkan perangkat ke modem / kurangi penghalang\n` +
             `• Ketik *cek wifi* untuk lihat perangkat yang terhubung\n` +
@@ -192,7 +286,7 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
         key = 'conncheck_unknown';
         fallback =
             `🔎 *STATUS KONEKSI — ${namaLayanan}*\n\nHalo Kak ${nama}!\n\n` +
-            `⚪ Status jalur internet Anda belum bisa kami cek otomatis saat ini.${modem}\n\n` +
+            `⚪ Status jalur internet Anda belum bisa kami cek otomatis saat ini.${modem}${upstream}\n\n` +
             `Untuk pengecekan lanjutan ketik *cek wifi*, atau ketik *lapor* bila ada kendala. 🙏`;
     }
 

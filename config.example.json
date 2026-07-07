@@ -320,6 +320,19 @@
     "targets": [
       { "key": "google", "label": "Google DNS", "address": "8.8.4.4" },
       { "key": "cloudflare", "label": "Cloudflare DNS", "address": "1.0.0.1" }
+    ],
+    "alerts": {
+      "enabled": false,
+      "consecutiveCycles": 3,
+      "recoveryCycles": 3,
+      "cooldownMinutes": 120,
+      "notifyAdmins": true,
+      "groupJid": null,
+      "includeSteerSuggestion": true
+    },
+    "pathPools": [
+      { "path": "mni", "cidrs": ["192.168.61.0/24", "192.168.62.0/24", "192.168.71.0/24", "192.168.123.0/24", "10.10.50.0/24"] },
+      { "path": "gmdp", "cidrs": ["192.168.70.0/24", "10.10.0.0/20", "192.168.145.0/24"] }
     ]
   },
   "publicSite": {

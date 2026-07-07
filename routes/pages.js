@@ -127,6 +127,11 @@ router.get('/teknisi-olt-log', checkRole(['teknisi', 'admin', 'owner', 'superadm
     res.render('sb-admin/teknisi-olt-log.php');
 });
 
+// Kualitas Jalur Upstream: status & grafik loss/RTT per jalur (GMDP/IH/MNI/SF) + failover.
+router.get('/upstream-quality', checkRole(['admin', 'owner', 'superadmin', 'teknisi']), (req, res) => {
+    res.render('sb-admin/upstream-quality.php');
+});
+
 // Broadcast Tagihan: kirim pesan pembayaran (link bayar mandiri) ke pelanggan terpilih.
 router.get('/broadcast-tagihan', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/broadcast-tagihan.php');
