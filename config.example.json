@@ -399,6 +399,48 @@
       }
     ]
   },
+  "wanFailover": {
+    "enabled": false,
+    "mode": "propose",
+    "maxAutoActionsPerDay": 4,
+    "flapLockCount": 2,
+    "flapLockHours": 24,
+    "notifyAdmins": true,
+    "recipients": [],
+    "rules": [
+      {
+        "switchId": "mni-to-sf",
+        "sickPath": "mni",
+        "targetPath": "sf",
+        "minLevel": "GANGGUAN",
+        "sickCycles": 3,
+        "targetHealthyCycles": 3,
+        "cooldownMinutes": 30,
+        "proposeCooldownMinutes": 120,
+        "mode": "propose",
+        "autoRevert": true,
+        "revertHealthyCycles": 10
+      },
+      {
+        "switchId": "main-to-ih",
+        "sickPath": "gmdp",
+        "targetPath": "ih",
+        "minLevel": "GANGGUAN",
+        "sickCycles": 4,
+        "targetHealthyCycles": 3,
+        "mode": "propose"
+      }
+    ]
+  },
+  "complaintSignals": {
+    "enabled": false,
+    "windowMinutes": 15,
+    "minDistinctCustomers": 3,
+    "perCustomerCooldownMinutes": 30,
+    "alertCooldownMinutes": 30,
+    "notifyAdmins": true,
+    "recipients": []
+  },
   "publicSite": {
     "enabled": false,
     "host": "0.0.0.0",

@@ -7,7 +7,8 @@
  * Deps: `../../lib/jid-utils` (resolveCustomerBySender), `../../lib/mikrotik` (getActivePPPoEUsers),
  *       `../../lib/wifi` (getSSIDInfo), `../../repositories/auto-outage.repository` (state offline_since),
  *       `./template-helpers` (renderResponseTemplate), `../../lib/upstream-path-resolver` (IP→jalur)
- *       + lazy `../../lib/upstream-quality-poller` (status jalur upstream, best-effort).
+ *       + lazy `../../lib/upstream-quality-poller` (status jalur upstream, best-effort)
+ *       + lazy `../../lib/complaint-signal-service` (sinyal komplain → agregator, fire-and-forget).
  * MainFuncs: `handleCekKoneksi`.
  * SideEffects: Membaca PPP active MikroTik (live, di-cache TTL pendek) + GenieACS (best-effort) lalu reply WhatsApp.
  */
@@ -239,6 +240,19 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
     }
 
     const { lineStatus, areaOutage, offlineCount } = await resolveLineStatus({ user, userList, routerId });
+
+    // Sinyal komplain → agregator (fire-and-forget): komplain "lemot" yang menumpuk pada jalur
+    // upstream yang sama akan dinaikkan sendiri ke owner. Gate config.complaintSignals.enabled.
+    try {
+        const { recordComplaint } = require('../../lib/complaint-signal-service');
+        const addr = activeCache.addrByUser
+            ? activeCache.addrByUser.get(normalizeUsername(user.pppoe_username))
+            : null;
+        recordComplaint({ user, source: 'cek_koneksi', addr, lineStatus }).catch(() => {});
+    } catch (_e) {
+        // Sinyal opsional — tidak boleh mengganggu balasan cek koneksi.
+    }
+
     const modem = await buildModemLine(user);
     // Seksi jalur upstream (best-effort, kosong saat normal/fitur mati) — jawaban
     // "lemot dari sisi mana" saat PPPoE pelanggan sendiri online tapi jalurnya sakit.
