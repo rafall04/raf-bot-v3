@@ -186,6 +186,51 @@ function createApiVoucherRouter({
         }
     });
 
+    // Statistik penjualan voucher ONLINE (buynowweb=web + buynow=WhatsApp) yang sudah dibayar.
+    // Sumber: global.payment (record ber-createdAt). Read-only; dipakai halaman /voucher-sales.
+    router.get('/voucher/sales-stats', requireStaff, (req, res) => {
+        try {
+            const payments = Array.isArray(global.payment) ? global.payment : [];
+            const vouchers = Array.isArray(global.voucher) ? global.voucher : [];
+            const nameByPrice = {};
+            vouchers.forEach((v) => {
+                const h = String(parseInt(v.hargavc, 10) || 0);
+                if (h !== '0' && !nameByPrice[h]) nameByPrice[h] = v.namavc || v.prof || h;
+            });
+            const SALE_TAGS = ['buynowweb', 'buynow'];
+            const sales = payments.filter((p) => p && p.status && SALE_TAGS.includes(p.tag) && (parseInt(p.amount, 10) || 0) > 0);
+            const now = Date.now();
+            const todayStr = new Date().toDateString();
+            const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+            const today = { count: 0, revenue: 0 };
+            const week = { count: 0, revenue: 0 };
+            const total = { count: 0, revenue: 0 };
+            const byPkg = {};
+            const recent = [];
+            sales.forEach((p) => {
+                const amt = parseInt(p.amount, 10) || 0;
+                total.count += 1; total.revenue += amt;
+                const ts = typeof p.createdAt === 'number' ? p.createdAt : Date.parse(p.createdAt);
+                if (ts && !isNaN(ts)) {
+                    if (new Date(ts).toDateString() === todayStr) { today.count += 1; today.revenue += amt; }
+                    if (ts >= weekAgo) { week.count += 1; week.revenue += amt; }
+                }
+                const pkg = nameByPrice[String(amt)] || ('Rp' + amt.toLocaleString('id-ID'));
+                byPkg[pkg] = (byPkg[pkg] || 0) + 1;
+                recent.push({ paket: pkg, amount: amt, ts: (ts && !isNaN(ts)) ? ts : null, tag: p.tag });
+            });
+            const topPackages = Object.keys(byPkg).map((k) => ({ name: k, count: byPkg[k] })).sort((a, b) => b.count - a.count).slice(0, 5);
+            recent.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+            return res.json({
+                enabled: !!(global.config && global.config.voucherSalesDashboard && global.config.voucherSalesDashboard.enabled),
+                today, week, total, topPackages, recent: recent.slice(0, 15)
+            });
+        } catch (e) {
+            console.error('[VOUCHER_SALES_STATS]', e.message);
+            return res.status(500).json({ error: 'Gagal menghitung statistik penjualan.' });
+        }
+    });
+
     router.post('/member/send-credentials', requireStaff, async (req, res) => {
         try {
             const result = await apiVoucherService.sendMemberCredentials({

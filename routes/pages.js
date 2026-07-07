@@ -285,6 +285,15 @@ router.get('/voucher-print', checkRole(['admin', 'owner', 'superadmin']), (req, 
     res.render('sb-admin/voucher-print.php');
 });
 
+// Penjualan Voucher (dashboard statistik voucher online terjual) - ADMIN ONLY.
+// On/off via config.voucherSalesDashboard.enabled (default true); bila OFF → 404.
+router.get('/voucher-sales', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    if (!(global.config && global.config.voucherSalesDashboard && global.config.voucherSalesDashboard.enabled)) {
+        return res.status(404).render('sb-admin/404.php');
+    }
+    res.render('sb-admin/voucher-sales.php');
+});
+
 // Stok Voucher Agent (dashboard reseller) page - ADMIN ONLY
 router.get('/agent-voucher-management', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/agent-voucher-management.php');
