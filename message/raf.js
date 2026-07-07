@@ -22,6 +22,9 @@ const { getSSIDInfo } = require("../lib/wifi");
 const { getPppStats: _getPppStats, getHotspotStats: _getHotspotStats, statusap: _statusap, getvoucher, addPPPoEUser, addbinding, addqueue } = require("../lib/mikrotik");
 const { addPayment } = require("../lib/payment");
 const { getIntentFromKeywords } = require('../lib/wifi_template_handler');
+const { getLooseIntentFromKeywords } = require('../lib/loose-intent-matcher');
+const { noteAdminOutbound } = require('../lib/chat-activity-tracker');
+const { evaluateCustomerFallback } = require('./handlers/customer-fallback-handler');
 const { templatesCache, renderTemplate } = require("../lib/templating");
 const { savePackageChangeRequests: _savePackageChangeRequests, saveSpeedRequests: _saveSpeedRequests } = require("../lib/database");
 const { INTENT_OWNER_MAP } = require("./handlers/intent-owner-map");
@@ -196,7 +199,12 @@ module.exports = async (raf, msg, m, options = {}) => {
     // "siang kak"), bot ikut auto-balas sapaan → mengganggu percakapan admin↔pelanggan.
     // Jalur outbound bot sendiri (sendMessage) tak lewat sini; event fromMe = ketikan device lain
     // yang ter-link ke akun bot (HP admin). Skip semuanya supaya chat manual admin aman.
-    if (msg.key?.fromMe) return;
+    // Sebelum skip, catat jejaknya per chat — dipakai fallback anti-diam agar bot tidak
+    // menyela chat yang sedang ditangani admin (lihat customer-fallback-handler).
+    if (msg.key?.fromMe) {
+        noteAdminOutbound(msg.key?.remoteJid);
+        return;
+    }
 
     const messageContext = extractMessageContext(msg);
     if (!messageContext) {
@@ -574,20 +582,52 @@ module.exports = async (raf, msg, m, options = {}) => {
             agentManager
         });
 
+        // Matcher longgar hanya untuk non-staf (owner/teknisi/agen tetap ketat — chat
+        // koordinasi mereka jangan ditebak-tebak), kill-switch: customerAssist.looseMatcher.enabled=false.
+        const looseMatcherConfig = runtimeGlobalScope?.config?.customerAssist?.looseMatcher;
+        const looseIntentEnabled = (!looseMatcherConfig || looseMatcherConfig.enabled !== false)
+            && !isOwner && !isTeknisi && !isAgent;
+
         const keywordIntentResult = resolveKeywordIntent({
             chats,
             isAgent,
             getIntentFromKeywords,
             args,
             q,
-            command
+            command,
+            getLooseIntentFromKeywords,
+            looseIntentEnabled
         });
         if (keywordIntentResult.intent) {
             intent = keywordIntentResult.intent;
             matchedKeywordLength = keywordIntentResult.matchedKeywordLength;
-            console.log(`[INTENT_DEBUG] Keyword match found: ${intent} for message: "${chats}"`);
+            console.log(`[INTENT_DEBUG] Keyword match found: ${intent} for message: "${chats}"${keywordIntentResult.isLooseMatch ? ' (loose)' : ''}`);
         }
-        const qAfterKeyword = keywordIntentResult.qAfterKeyword;
+        let qAfterKeyword = keywordIntentResult.qAfterKeyword;
+
+        // Fallback anti-diam (gate customerAssist.fallback.enabled, default MATI): pelanggan
+        // terdaftar chat bebas tanpa intent → keluhan bergejala dialihkan ke CEK_KONEKSI,
+        // selain itu menu bantuan ber-cooldown. Modul tidak pernah throw.
+        if (!intent) {
+            const fallbackResult = await evaluateCustomerFallback({
+                chats,
+                sender,
+                stateSender,
+                pushname,
+                customer: canonicalContext.user,
+                isOwner,
+                isTeknisi,
+                isAgent,
+                reply,
+                globalConfig: runtimeGlobalScope?.config
+            });
+            if (fallbackResult && fallbackResult.action === 'intent' && fallbackResult.intent) {
+                intent = fallbackResult.intent;
+                matchedKeywordLength = Array.isArray(args) ? args.length : 0;
+                qAfterKeyword = '';
+                console.log(`[INTENT_DEBUG] Fallback intent: ${intent} for message: "${chats}"`);
+            }
+        }
 
         console.log(`[INTENT_DEBUG] Final intent: ${intent} for message: "${chats}", matchedKeywordLength: ${matchedKeywordLength}, qAfterKeyword: "${qAfterKeyword}"`);
 

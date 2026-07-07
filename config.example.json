@@ -290,6 +290,16 @@
   "messageLogging": {
     "enabled": true
   },
+  "customerAssist": {
+    "looseMatcher": {
+      "enabled": true
+    },
+    "fallback": {
+      "enabled": false,
+      "cooldownMinutes": 30,
+      "adminQuietMinutes": 15
+    }
+  },
   "publicSite": {
     "enabled": false,
     "host": "0.0.0.0",

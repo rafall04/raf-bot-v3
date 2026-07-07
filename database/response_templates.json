@@ -4533,5 +4533,10 @@
     "name": "Broadcast Tagihan - Pengingat Pembayaran",
     "category": "broadcast",
     "template": "Halo ${nama_pelanggan} 🙏\n\nPengingat tagihan layanan internet Anda:\n• Paket: ${paket}\n• Tagihan: ${harga}\n• Periode: ${periode}\n• Jatuh tempo: ${jatuh_tempo}\n\nSilakan bayar (QRIS/transfer, tanpa perlu login) lewat tautan berikut:\n${link_bayar}\n\nAbaikan pesan ini bila Anda sudah membayar. Terima kasih 🙏"
+  },
+  "assist_fallback_menu": {
+    "name": "Asisten - Menu Fallback (pesan tak dikenali)",
+    "category": "assist",
+    "template": "Halo Kak ${pushname} 🙏 Saya *asisten bot* di nomor ini.\n\nPesan Kakak sudah terekam ya — kalau perlu jawaban admin, mohon ditunggu, admin akan membalas secepatnya. 😊\n\nSambil menunggu, saya bisa bantu langsung:\n• Ketik *cek koneksi* — kalau internet lemot/mati, saya cek jalurnya sekarang\n• Ketik *ganti sandi* — ubah kata sandi WiFi\n• Ketik *cek tagihan* — info tagihan bulan ini\n• Ketik *menu* — semua fitur bot\n\nKetik salah satu ya, Kak 🙌"
   }
 }
