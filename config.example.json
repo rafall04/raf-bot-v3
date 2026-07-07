@@ -334,6 +334,7 @@
       "recoveryCycles": 3,
       "cooldownMinutes": 120,
       "notifyAdmins": true,
+      "recipients": [],
       "groupJid": null,
       "includeSteerSuggestion": true
     },
