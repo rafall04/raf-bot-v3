@@ -47,6 +47,22 @@ async function handleCariPelangganIntent(context) {
     return reply(result.message);
 }
 
+async function handleSwitchKoneksiIntent(context) {
+    // Owner/admin-only. Gate peran presisi ada di dalam startWanSwitch (accounts.json), jadi
+    // non-admin akan di-`handled:false` diam-diam dan jatuh ke fallback intent lain.
+    const { startWanSwitch } = require("../state-domains/wan-switch.state");
+    const result = await startWanSwitch(context);
+    if (result && result.handled) return;
+    // Bukan admin → jangan bocorkan fitur; balas seolah command tak dikenal via bantuan ringan.
+    const { reply, renderResponseTemplate } = context;
+    if (typeof reply === "function") {
+        return reply(renderResponseTemplate(
+            "wanswitch_not_authorized",
+            "Perintah ini khusus admin. Ketik *menu* untuk melihat fitur yang tersedia."
+        ));
+    }
+}
+
 async function handleDaftarPelangganIntent(context) {
     const { isOwner, isTeknisi, reply, mess, qAfterKeyword } = context;
     if (!isOwner && !isTeknisi) {
@@ -81,7 +97,8 @@ const OWNER_ADMIN_INTENT_HANDLERS = Object.freeze({
     vc123: handleVc123Intent,
     alluser: handleAllUserIntent,
     CARI_PELANGGAN: handleCariPelangganIntent,
-    DAFTAR_PELANGGAN: handleDaftarPelangganIntent
+    DAFTAR_PELANGGAN: handleDaftarPelangganIntent,
+    SWITCH_KONEKSI: handleSwitchKoneksiIntent
 });
 
 module.exports = {
@@ -91,5 +108,6 @@ module.exports = {
     handleVc123Intent,
     handleAllUserIntent,
     handleCariPelangganIntent,
-    handleDaftarPelangganIntent
+    handleDaftarPelangganIntent,
+    handleSwitchKoneksiIntent
 };

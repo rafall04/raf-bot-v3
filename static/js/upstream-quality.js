@@ -287,8 +287,62 @@
             .catch(function () {});
     }
 
+    function muatSwitch() {
+        var section = document.getElementById("upq-switch-section");
+        var wrap = document.getElementById("upq-switch-list");
+        if (!section || !wrap) return;
+        fetch("/api/wan-switch/status", { credentials: "same-origin" })
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+                var data = (j && j.data) || {};
+                if (!data.enabled || !data.switches || !data.switches.length) {
+                    section.classList.add("d-none");
+                    return;
+                }
+                section.classList.remove("d-none");
+                wrap.innerHTML = data.switches.map(function (s) {
+                    var applied = s.applied === true;
+                    var badge = s.applied === null
+                        ? '<span class="badge badge-secondary">tak terbaca</span>'
+                        : (applied ? '<span class="badge badge-warning">SEDANG DIALIHKAN</span>' : '<span class="badge badge-success">normal</span>');
+                    var btn = s.applied === null ? "" : (applied
+                        ? '<button class="btn btn-sm btn-outline-success upq-sw" data-act="restore" data-id="' + esc(s.id) + '" data-label="' + esc(s.label) + '">Kembalikan ke normal</button>'
+                        : '<button class="btn btn-sm btn-warning upq-sw" data-act="apply" data-id="' + esc(s.id) + '" data-label="' + esc(s.label) + '">Alihkan sekarang</button>');
+                    return '<div class="border-bottom py-2 d-flex justify-content-between align-items-center flex-wrap">' +
+                        '<div class="mr-2"><b>' + esc(s.label) + '</b> ' + badge +
+                        (s.affects ? '<div class="small text-muted">Terdampak: ' + esc(s.affects) + "</div>" : "") + "</div>" +
+                        "<div>" + btn + "</div></div>";
+                }).join("");
+
+                Array.prototype.forEach.call(wrap.querySelectorAll(".upq-sw"), function (b) {
+                    b.addEventListener("click", function () {
+                        var act = b.getAttribute("data-act");
+                        var id = b.getAttribute("data-id");
+                        var label = b.getAttribute("data-label");
+                        var pesan = act === "restore"
+                            ? "Kembalikan \"" + label + "\" ke jalur normal?\n\nKoneksi jalur ini akan terputus sesaat saat berpindah."
+                            : "Alihkan \"" + label + "\" sekarang?\n\nKoneksi jalur ini akan terputus sesaat saat berpindah. Ini memindahkan trafik pelanggan.";
+                        if (!window.confirm(pesan)) return;
+                        b.disabled = true;
+                        b.textContent = "Memproses…";
+                        fetch("/api/wan-switch/" + act + "/" + encodeURIComponent(id), { method: "POST", credentials: "same-origin" })
+                            .then(function (r) { return r.json(); })
+                            .then(function (res) {
+                                var d = (res && res.data) || {};
+                                window.alert(d.ok ? ("✅ " + (d.message || "Berhasil") + "\n\n" + (d.summary || "")) : ("❌ " + (d.message || "Gagal")));
+                                setTimeout(function () { muatStatus(); muatSwitch(); muatInsiden(); }, 1200);
+                            })
+                            .catch(function () { window.alert("Gagal menghubungi server."); })
+                            .then(function () { b.disabled = false; });
+                    });
+                });
+            })
+            .catch(function () { section.classList.add("d-none"); });
+    }
+
     function muatSemua() {
         muatStatus();
+        muatSwitch();
         muatGrafik();
         muatWan();
         muatRapor();

@@ -30,6 +30,7 @@ const { registerAdminLosBroadcastRoutes } = require("./admin-los-broadcast-route
 const { registerAdminBroadcastTagihanRoutes } = require("./admin-broadcast-tagihan-routes");
 const { registerAdminTelegramTeknisiRoutes } = require("./admin-telegram-teknisi-routes");
 const { registerAdminUpstreamQualityRoutes } = require("./admin-upstream-quality-routes");
+const { registerAdminWanSwitchRoutes } = require("./admin-wan-switch-routes");
 const { rateLimit } = require("../lib/security");
 const { templatesCache } = require("../lib/templating");
 const templateManager = require("../lib/template-manager");
@@ -200,6 +201,7 @@ function createAdminRouter({ runtime } = {}) {
     registerAdminBroadcastTagihanRoutes(router, { ensureAuthenticatedStaff });
     registerAdminTelegramTeknisiRoutes(router, createAdminTelegramTeknisiDeps(runtime));
     registerAdminUpstreamQualityRoutes(router, { ensureAuthenticatedStaff });
+    registerAdminWanSwitchRoutes(router, { ensureAuthenticatedStaff });
     router.use(createAdminRoutes({ runtime }));
     router.use(adminLegacyRouter);
     return router;

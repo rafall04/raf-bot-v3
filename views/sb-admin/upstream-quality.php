@@ -44,6 +44,16 @@
           <div id="upq-alert-failover" class="alert alert-warning d-none"></div>
           <div id="upq-cards" class="row"></div>
 
+          <div id="upq-switch-section" class="card shadow mb-4 d-none">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+              <h6 class="m-0 font-weight-bold text-primary">🔀 Switch Koneksi (alihkan jalur antar-ISP)</h6>
+              <span class="small text-muted">khusus admin/owner · perubahan langsung ke router</span>
+            </div>
+            <div class="card-body p-2" id="upq-switch-list">
+              <div class="small text-muted">Memuat…</div>
+            </div>
+          </div>
+
           <div class="row">
             <div class="col-lg-6 mb-4">
               <div class="card shadow">

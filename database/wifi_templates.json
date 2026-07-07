@@ -1131,5 +1131,24 @@
     "category": "admin",
     "description": "Lihat daftar pelanggan (Admin/Teknisi)",
     "icon": "📋"
+  },
+  {
+    "keywords": [
+      "switch koneksi",
+      "switchkoneksi",
+      "alihkan koneksi",
+      "alihkan jalur",
+      "ganti jalur",
+      "pindah jalur",
+      "switch isp",
+      "pindah isp",
+      "alihkan isp",
+      "switch wan",
+      "failover"
+    ],
+    "intent": "SWITCH_KONEKSI",
+    "category": "admin",
+    "description": "Alihkan jalur koneksi antar-ISP (Admin/Owner)",
+    "icon": "🔀"
   }
 ]

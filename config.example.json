@@ -343,6 +343,32 @@
       { "path": "gmdp", "cidrs": ["192.168.70.0/24", "10.10.0.0/20", "192.168.145.0/24"] }
     ]
   },
+  "wanSwitch": {
+    "enabled": false,
+    "notifyAdmins": true,
+    "recipients": [],
+    "switches": [
+      {
+        "id": "mni-to-sf",
+        "label": "MNI → SF (backup)",
+        "affects": "Paket 110k & 125k",
+        "note": "Alihkan trafik dari tunnel MNI ke tunnel SF (backup).",
+        "operations": [
+          { "match": { "routingMark": "MNI", "gateway": "Tunnel-MNI" }, "apply": "disable" }
+        ]
+      },
+      {
+        "id": "main-to-ih",
+        "label": "Reguler GMDP → IndiHome",
+        "affects": "Pelanggan reguler (tabel utama)",
+        "note": "Alihkan pelanggan reguler dari GMDP ke IndiHome.",
+        "operations": [
+          { "match": { "table": "main", "gateway": "1.1.1.1", "comment": "MAIN" }, "apply": "disable" },
+          { "match": { "table": "main", "gateway": "192.168.102.1" }, "apply": "enable" }
+        ]
+      }
+    ]
+  },
   "publicSite": {
     "enabled": false,
     "host": "0.0.0.0",
