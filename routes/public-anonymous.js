@@ -66,7 +66,13 @@ router.get('/app/:type/:id?', async (req, res) => {
                 }
             }
             default: {
-                return res.json({ data: type == 'packages' ? global.packages : type == 'voucher' ? global.voucher : [] });
+                let data = type == 'packages' ? global.packages : type == 'voucher' ? global.voucher : [];
+                // Tandai paket "Terlaris" (config.voucherFeatured = prof) untuk badge di halaman beli.
+                if (type == 'voucher' && Array.isArray(data)) {
+                    const feat = String((global.config && global.config.voucherFeatured) || '').trim();
+                    if (feat) data = data.map(v => String(v.prof) === feat ? Object.assign({}, v, { featured: true }) : v);
+                }
+                return res.json({ data });
             }
         }
     } catch(err) {

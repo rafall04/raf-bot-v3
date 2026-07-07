@@ -185,6 +185,13 @@
     "notifyNewTicket": true,
     "notifyCompleted": true
   },
+  "voucherSaleNotif": {
+    "enabled": false
+  },
+  "voucherFeatured": "",
+  "voucherSalesDashboard": {
+    "enabled": true
+  },
   "teknisiTutorialUrl": "",
   "monitoring": {
     "enabled": true

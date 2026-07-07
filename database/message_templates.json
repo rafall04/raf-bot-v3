@@ -171,6 +171,10 @@
     "name": "Alert Admin: Voucher GAGAL Dibuat (sudah bayar)",
     "template": "⚠️ *VOUCHER GAGAL DIBUAT*\n\nPelanggan SUDAH BAYAR tapi voucher gagal di-generate. Mohon kirim voucher manual.\n\n• Pelanggan: ${pelanggan}\n• Paket: ${paket}\n• Nominal: ${harga}\n• Ref: ${ref}\n• Error: ${error}\n\n⚠️ Cek MikroTik dulu — mungkin voucher SUDAH terbuat tapi response hilang (jangan buat dobel)."
   },
+  "voucher_terjual_admin": {
+    "name": "Notif Admin: Voucher Online Terjual",
+    "template": "🎫 *VOUCHER TERJUAL* (online)\n\n• Paket: ${paket}\n• Nominal: ${harga}\n• Pembeli: ${pembeli}\n• Kode: ${kode}\n• Ref: ${ref}"
+  },
   "voucher_pending_manual": {
     "name": "Pelanggan: Voucher Diproses Manual (pembayaran berhasil)",
     "template": "✅ Pembayaran kamu *BERHASIL* dan sudah tercatat. Voucher segera kami kirimkan ya. Jika dalam beberapa saat belum masuk, silakan hubungi admin. Terima kasih! 🙏"

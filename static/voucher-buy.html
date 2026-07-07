@@ -126,8 +126,10 @@ a{color:inherit;text-decoration:none}
 .pkg-dur{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
   color:var(--accent-ink);background:var(--grad-soft);border:1px solid var(--chip-line);border-radius:999px;padding:5px 10px}
 .pkg-dur .di{flex:none}
-.pkg-badge{position:absolute;top:13px;right:13px;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
-  color:#04231f;background:var(--grad);border-radius:999px;padding:4px 9px;box-shadow:0 5px 14px -6px rgba(45,212,191,.7)}
+.pkg-badges{position:absolute;top:13px;right:13px;display:flex;flex-direction:column;gap:5px;align-items:flex-end;z-index:1}
+.pkg-badge{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:4px 9px;white-space:nowrap}
+.pkg-badge.hemat{color:#04231f;background:var(--grad);box-shadow:0 5px 14px -6px rgba(45,212,191,.7)}
+.pkg-badge.feat{color:#fff;background:linear-gradient(135deg,#f59e0b,#f97316);box-shadow:0 6px 14px -6px rgba(245,158,11,.75)}
 .pkg-name{font-size:15px;font-weight:600;color:var(--ink-soft);margin-top:14px}
 .pkg-price{font-size:32px;font-weight:800;letter-spacing:-.035em;color:var(--ink);margin-top:10px;font-variant-numeric:tabular-nums;line-height:1}
 .pkg-price .cur{font-size:17px;font-weight:700;color:var(--muted);margin-right:3px;letter-spacing:0}
@@ -512,9 +514,12 @@ footer{border-top:1px solid var(--line);margin-top:10px}
     var html=items.map(function(it,i){
       var v=it.v, price=it.price, icon=DUR_ICON[it.type]||DUR_ICON.lain;
       var rate=(it.perHour!=null)?('<span class="pkg-rate">≈ '+rupiah(it.perHour)+'/jam</span>'):'';
-      var badge=(i===hematIdx)?'<span class="pkg-badge">Hemat</span>':'';
+      var badges='';
+      if(v.featured) badges+='<span class="pkg-badge feat">Terlaris</span>';
+      if(i===hematIdx) badges+='<span class="pkg-badge hemat">Hemat</span>';
+      badges=badges?'<span class="pkg-badges">'+badges+'</span>':'';
       return '<button class="pkg" type="button" data-prof="'+encodeURIComponent(v.prof)+'" data-name="'+escAttr(v.namavc||v.prof)+'" data-price="'+price+'">'
-        +badge
+        +badges
         +'<span class="pkg-dur">'+icon+escAttr(v.durasivc||'')+'</span>'
         +'<span class="pkg-name">'+escAttr(v.namavc||v.prof)+'</span>'
         +'<span class="pkg-price"><span class="cur">Rp</span>'+price.toLocaleString('id-ID')+'</span>'

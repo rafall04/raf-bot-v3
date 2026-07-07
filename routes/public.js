@@ -835,6 +835,21 @@ router.post('/callback/payment', async (req, res) => {
                     } catch (waErr) {
                         console.error('[BUYNOWWEB] Gagal kirim kode voucher ke WA:', waErr.message);
                     }
+                    // Notif admin bahwa voucher online TERJUAL (OPSIONAL, anti-spam via config).
+                    // Best-effort + never-throw: gagal notif TIDAK menggagalkan callback.
+                    try {
+                        if (global.config && global.config.voucherSaleNotif && global.config.voucherSaleNotif.enabled) {
+                            await alertAdmins(renderTemplate('voucher_terjual_admin', {
+                                paket: durasivc || prof,
+                                harga: convertRupiah.convert(pay.amount),
+                                pembeli: pay.sender,
+                                kode: result,
+                                ref: reference_id
+                            }), 'voucher-terjual');
+                        }
+                    } catch (notifErr) {
+                        console.error('[BUYNOWWEB] Gagal notif admin penjualan:', notifErr.message);
+                    }
                     throw !0;
                 }).catch(async err => {
                     if (typeof err === "string" || err instanceof Error) {
