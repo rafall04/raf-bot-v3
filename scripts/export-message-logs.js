@@ -4,10 +4,15 @@
  *          review manual gaya bahasa pelanggan. Read-only; anotasi intent keyword bersifat best-effort.
  * Caller: dijalankan manual — `node scripts/export-message-logs.js [outDir]` (default outDir: `tmp/`).
  * Deps: `repositories/message-log.repository`, opsional `lib/wifi_template_handler.getIntentFromKeywords`.
- * MainFuncs: `main`.
+ * MainFuncs: `main`, `intentLabelFromMatch`, `tryKeywordIntent`.
  * SideEffects: Membaca message_logs.sqlite, menulis file ekspor JSON+CSV ke folder output.
+ *              Saat di-require (unit test), tidak mengeksekusi apa pun (guard `require.main`).
  */
 "use strict";
+
+// Skrip sekali-jalan: matikan fs.watchFile milik wifi_template_handler (dipasang saat require)
+// agar proses bisa exit bersih setelah ekspor selesai, bukan menggantung menahan event loop.
+process.env.DISABLE_FILE_WATCHERS = process.env.DISABLE_FILE_WATCHERS || "true";
 
 const fs = require("fs");
 const path = require("path");
@@ -19,15 +24,28 @@ function csvEscape(value) {
     return `"${s}"`;
 }
 
-// Best-effort: kembalikan fungsi klasifikasi intent keyword, atau null bila handler tak tersedia
-// di konteks skrip standalone (mis. template/config belum dimuat).
+// Petakan hasil getIntentFromKeywords ke string identifier intent untuk kolom ekspor.
+// Handler mengembalikan objek `{ intent, matchedKeywordLength, matchedKeyword }` atau null;
+// tanpa pemetaan ini nilai di JSON/CSV tercetak "[object Object]" dan breakdown intent tak terbaca.
+function intentLabelFromMatch(match) {
+    if (!match) return null;
+    // Jaga-jaga bila handler kelak mengembalikan string langsung.
+    if (typeof match === "string") return match.trim() || null;
+    if (typeof match.intent === "string" && match.intent.trim() !== "") {
+        return match.intent.trim();
+    }
+    return null;
+}
+
+// Best-effort: kembalikan fungsi klasifikasi intent keyword (teks → nama intent | null),
+// atau null bila handler tak tersedia di konteks skrip standalone (mis. template/config belum dimuat).
 function tryKeywordIntent() {
     try {
         const { getIntentFromKeywords } = require("../lib/wifi_template_handler");
         if (typeof getIntentFromKeywords !== "function") return null;
         return (text) => {
             try {
-                return getIntentFromKeywords(text) || null;
+                return intentLabelFromMatch(getIntentFromKeywords(text));
             } catch (_e) {
                 return null;
             }
@@ -93,7 +111,12 @@ async function main() {
     await repo.close();
 }
 
-main().catch((err) => {
-    console.error("[EXPORT_MSG_LOG] gagal:", err.message);
-    process.exit(1);
-});
+// Ekspor untuk unit test; eksekusi hanya saat dijalankan langsung sebagai skrip CLI.
+module.exports = { intentLabelFromMatch, tryKeywordIntent };
+
+if (require.main === module) {
+    main().catch((err) => {
+        console.error("[EXPORT_MSG_LOG] gagal:", err.message);
+        process.exit(1);
+    });
+}
