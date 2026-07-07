@@ -18,7 +18,6 @@
 /* RINGAN untuk device low-end + dukung TEMA terang/gelap via CSS variables.
    Tanpa backdrop-filter / filter:blur / animasi infinite mahal. Glow = radial-gradient statis. */
 :root{
-  /* shared (sama di kedua tema) */
   --accent:#14b8a6; --accent-2:#22d3ee;
   --grad:linear-gradient(135deg,#2dd4bf 0%,#22d3ee 100%);
   --radius:14px; --radius-lg:22px;
@@ -90,6 +89,17 @@ a{color:inherit;text-decoration:none}
 
 .wrap{max-width:940px;margin:0 auto;padding:52px 22px 64px}
 
+/* Banner kode terakhir (recovery bila halaman ke-refresh usai beli). */
+.last-code{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 30px;
+  background:var(--grad-soft);border:1px solid var(--chip-line);border-radius:15px;padding:12px 12px 12px 16px}
+.lc-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.lc-k{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink)}
+.lc-v{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--ink);letter-spacing:.04em;word-break:break-all}
+.lc-actions{display:flex;align-items:center;gap:6px;flex:none}
+.lc-copy{background:var(--grad);color:#04231f;border:0;border-radius:9px;padding:8px 12px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.lc-dismiss{background:none;border:0;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:2px 7px;font-family:inherit}
+.lc-dismiss:hover{color:var(--ink)}
+
 .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;font-weight:700;letter-spacing:.18em;
   text-transform:uppercase;color:var(--accent-ink);margin:0 0 18px;padding:6px 12px;border-radius:999px;
   background:var(--grad-soft);border:1px solid var(--chip-line)}
@@ -160,7 +170,8 @@ input[type=tel]:focus{border-color:var(--accent);background:var(--focus-bg);box-
 .btn:active{transform:scale(.99)}
 .btn:disabled{opacity:.6;cursor:not-allowed}
 .btn-ghost{width:100%;background:var(--surface-2);color:var(--ink);border:1px solid var(--line-2);border-radius:13px;
-  padding:15px;font-weight:600;font-size:15px;font-family:inherit;cursor:pointer;margin-top:14px;transition:background .18s ease}
+  padding:15px;font-weight:600;font-size:15px;font-family:inherit;cursor:pointer;margin-top:14px;transition:background .18s ease,border-color .18s ease}
+.btn-ghost:hover{border-color:var(--line-2)}
 
 .pay{text-align:center}
 .qr-frame{position:relative;width:242px;height:242px;margin:6px auto 0;padding:15px;background:#fff;
@@ -189,6 +200,10 @@ input[type=tel]:focus{border-color:var(--accent);background:var(--focus-bg);box-
 .status.expired{background:var(--danger-bg);border-color:var(--danger-line);color:var(--danger)}
 .countdown{margin-top:14px;font-size:12.5px;color:var(--muted)}
 .countdown b{font-variant-numeric:tabular-nums;color:var(--ink-soft);font-weight:700}
+.check-btn{margin-top:16px;background:var(--surface-2);color:var(--ink);border:1px solid var(--line-2);border-radius:11px;
+  padding:11px 16px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:border-color .16s ease,color .16s ease}
+.check-btn:hover{border-color:var(--chip-line);color:var(--accent-ink)}
+.check-btn:disabled{opacity:.6;cursor:not-allowed}
 
 .done{text-align:center}
 .seal{width:64px;height:64px;border-radius:50%;background:var(--grad);color:#04231f;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
@@ -214,6 +229,14 @@ input[type=tel]:focus{border-color:var(--accent);background:var(--focus-bg);box-
 .ticket .t-meta{display:flex;justify-content:space-between;gap:12px;padding-top:15px;font-size:12.5px;color:#8b98ab}
 .sent{display:flex;align-items:center;justify-content:center;gap:9px;background:var(--grad-soft);
   border:1px solid var(--chip-line);color:var(--accent-ink);border-radius:12px;padding:13px 14px;font-size:13.5px;font-weight:600}
+/* Cara pakai voucher (layar sukses). */
+.howto{margin-top:16px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.howto-h{font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.howto-h svg{color:var(--accent);flex:none}
+.howto-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:11px}
+.howto-steps li{display:flex;gap:11px;align-items:flex-start;font-size:13px;color:var(--body);line-height:1.5}
+.hs-n{flex:none;width:20px;height:20px;border-radius:50%;background:var(--grad-soft);border:1px solid var(--chip-line);
+  color:var(--accent-ink);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px}
 
 .err{background:var(--danger-bg);border:1px solid var(--danger-line);color:var(--danger);border-radius:12px;padding:13px 16px;font-size:14px;margin-top:16px}
 .loading{color:var(--muted);padding:48px 0;text-align:center;font-size:14.5px;flex-basis:100%;width:100%;display:flex;flex-direction:column;align-items:center;gap:14px}
@@ -269,6 +292,16 @@ footer{border-top:1px solid var(--line);margin-top:10px}
 <main class="wrap">
   <!-- catalog -->
   <section id="view-catalog">
+    <div class="last-code hidden" id="lastCode">
+      <div class="lc-info">
+        <span class="lc-k">Kode voucher terakhir Anda</span>
+        <span class="lc-v" id="lastCodeVal">-</span>
+      </div>
+      <div class="lc-actions">
+        <button class="lc-copy" id="lastCodeCopy" type="button">Salin</button>
+        <button class="lc-dismiss" id="lastCodeDismiss" type="button" aria-label="Tutup">&times;</button>
+      </div>
+    </div>
     <p class="eyebrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M13 2 4.5 13H11l-1 9 8.5-11H12l1-9Z"/></svg> Hotspot · Prabayar</p>
     <h1 class="h1">Voucher WiFi, <span class="hl">terbit seketika.</span></h1>
     <p class="sub">Pilih durasi, bayar lewat QRIS atau e-wallet, dan kode voucher langsung tampil di layar sekaligus dikirim ke WhatsApp Anda.</p>
@@ -317,6 +350,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
       <p class="pay-note">Scan kode QR dengan aplikasi e-wallet atau m-banking apa pun (QRIS). Voucher terbit otomatis begitu pembayaran terverifikasi.</p>
       <div class="status" id="p-status"><span class="spin"></span> Menunggu pembayaran</div>
       <div class="countdown">Berlaku hingga <b id="p-countdown">15:00</b></div>
+      <div><button class="check-btn" id="checkBtn" type="button">Sudah bayar? Cek status sekarang</button></div>
     </div>
   </section>
 
@@ -344,6 +378,14 @@ footer{border-top:1px solid var(--line);margin-top:10px}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-5.9A8.5 8.5 0 1 1 21 11.5Z"/></svg>
           Kode juga dikirim ke WhatsApp Anda
         </div>
+        <div class="howto">
+          <div class="howto-h"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 15.8a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg> Cara pakai voucher</div>
+          <ol class="howto-steps">
+            <li><span class="hs-n">1</span> Sambungkan HP/laptop ke WiFi hotspot.</li>
+            <li><span class="hs-n">2</span> Buka browser — halaman login otomatis muncul.</li>
+            <li><span class="hs-n">3</span> Masukkan kode voucher di atas, lalu tekan Connect.</li>
+          </ol>
+        </div>
         <button class="btn" id="buyMore">Beli Voucher Lagi</button>
       </div>
       <div id="result-manual" class="hidden done">
@@ -369,13 +411,15 @@ footer{border-top:1px solid var(--line);margin-top:10px}
 (function(){
   var selected=null, reff=null, pollTimer=null, cdTimer=null, POLL_MS=4000, deadline=0;
   var $=function(id){ return document.getElementById(id); };
+  function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 
   // Toggle tema terang/gelap (murni CSS variables; simpan pilihan di localStorage).
   var root=document.documentElement;
   $('themeToggle').addEventListener('click',function(){
     var next=root.getAttribute('data-theme')==='light'?'dark':'light';
     root.setAttribute('data-theme',next);
-    try{ localStorage.setItem('vc-theme',next); }catch(e){}
+    lsSet('vc-theme',next);
     var mc=document.querySelector('meta[name="theme-color"]:not([media])');
     if(mc) mc.setAttribute('content', next==='light'?'#eef1f6':'#070b12');
   });
@@ -389,6 +433,15 @@ footer{border-top:1px solid var(--line);margin-top:10px}
   function rupiah(n){ n=parseInt(n,10)||0; return 'Rp'+n.toLocaleString('id-ID'); }
   function digitsOf(s){ return String(s||'').replace(/\D/g,''); }
   function escAttr(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+  // Salin teks generik ke clipboard (pakai clipboard API + fallback execCommand). labelSel opsional.
+  function copyText(text, btn, labelSel){
+    text=String(text||'').trim(); if(!text||text==='-') return;
+    var label=labelSel?btn.querySelector(labelSel):null, old=label?label.textContent:btn.textContent;
+    function done(){ btn.classList.add('copied'); if(label) label.textContent='Tersalin'; else btn.textContent='Tersalin'; setTimeout(function(){ btn.classList.remove('copied'); if(label) label.textContent=old; else btn.textContent=old; },1600); }
+    function fb(){ try{ var ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.position='absolute'; ta.style.left='-9999px'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done(); }catch(e){} }
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done).catch(fb); } else { fb(); }
+  }
 
   // Deteksi durasi bebas-teks → jam + jenis (ikon, urutan, harga/jam). Robust ke format apa pun.
   function parseDur(s){
@@ -410,6 +463,25 @@ footer{border-top:1px solid var(--line);margin-top:10px}
     lain:'<svg class="di" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M13 2 4.5 13H11l-1 9 8.5-11H12l1-9Z"/></svg>'
   };
   DUR_ICON.bulan=DUR_ICON.minggu;
+
+  function lastPhone(){ return lsGet('vc-phone')||''; }
+
+  // Banner kode voucher terakhir (recovery bila halaman ke-refresh usai beli, <24 jam, belum ditutup).
+  (function(){
+    try{
+      var raw=lsGet('vc-last'); if(!raw) return;
+      var o=JSON.parse(raw); if(!o||!o.code) return;
+      if(Date.now()-(o.ts||0) > 864e5) return;
+      if(lsGet('vc-last-dismissed')===o.code) return;
+      $('lastCodeVal').textContent=o.code;
+      $('lastCode').classList.remove('hidden');
+    }catch(e){}
+  })();
+  $('lastCodeCopy').addEventListener('click',function(){ copyText($('lastCodeVal').textContent, this, null); });
+  $('lastCodeDismiss').addEventListener('click',function(){
+    $('lastCode').classList.add('hidden');
+    try{ var o=JSON.parse(lsGet('vc-last')||'{}'); if(o&&o.code) lsSet('vc-last-dismissed',o.code); }catch(e){}
+  });
 
   // Personalisasi nama brand + link bantuan (best-effort). wifi-name kini bisa balikkan
   // data.wifiName (bentuk baru) / data string (kompat lama) + data.contact (nomor CS opsional).
@@ -458,15 +530,18 @@ footer{border-top:1px solid var(--line);margin-top:10px}
     var el=e.target.closest('.pkg'); if(!el) return;
     selected={ prof:el.getAttribute('data-prof'), name:el.getAttribute('data-name'), price:parseInt(el.getAttribute('data-price'),10) };
     $('f-name').textContent=selected.name; $('f-price').textContent=rupiah(selected.price);
-    $('formErr').classList.add('hidden'); $('phone').value='';
+    $('formErr').classList.add('hidden'); $('phone').value=lastPhone(); // ingat nomor terakhir
     show('form'); $('phone').focus();
   });
   $('backCatalog').addEventListener('click',function(){ show('catalog'); });
 
+  // Validasi & rapikan input nomor: hanya digit (buang spasi/+/huruf saat mengetik).
+  $('phone').addEventListener('input',function(){ var d=this.value.replace(/[^\d]/g,''); if(this.value!==d) this.value=d; });
+
   $('buyBtn').addEventListener('click',function(){
     var d=digitsOf($('phone').value);
     if(d.length<9||d.length>15){ $('formErr').textContent='Masukkan nomor WhatsApp yang valid.'; $('formErr').classList.remove('hidden'); return; }
-    $('formErr').classList.add('hidden');
+    $('formErr').classList.add('hidden'); lsSet('vc-phone',d); // simpan utk pembelian berikutnya
     $('buyBtn').disabled=true; $('buyBtn').textContent='Memproses…';
     var email=d+'@voucher.rafnet.local';
     fetch('/app/buy/'+selected.prof+'?phone='+encodeURIComponent(d)+'&email='+encodeURIComponent(email))
@@ -484,8 +559,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
     $('t-paket').textContent=selected.name;
     $('qrimg').src='/app/qr/'+encodeURIComponent(reff)+'?t='+Date.now();
     $('breakdown').classList.add('hidden'); $('p-total').textContent=rupiah(selected.price);
-    // Tampilkan rincian harga asli (harga voucher + biaya admin iPaymu) memakai angka
-    // NYATA dari detailtrx — biaya admin dibebankan ke pembeli (feeDirection BUYER).
+    // Rincian harga asli (harga voucher + biaya admin iPaymu) dari angka NYATA detailtrx.
     fetch('/app/detailtrx/'+encodeURIComponent(reff)).then(function(r){return r.json();}).then(function(res){
       var rec=res&&res.data; if(!rec) return;
       var tot=parseInt(rec.priceTotal,10); if(tot>0) $('p-total').textContent=rupiah(tot);
@@ -524,17 +598,23 @@ footer{border-top:1px solid var(--line);margin-top:10px}
     clearTimeout(pollTimer); clearInterval(cdTimer);
     var ket=String(rec.ket||'');
     if(!ket||/^GAGAL/i.test(ket)){ $('result-ok').classList.add('hidden'); $('result-manual').classList.remove('hidden'); }
-    else{ $('voucherCode').textContent=ket; $('result-manual').classList.add('hidden'); $('result-ok').classList.remove('hidden'); }
+    else{
+      $('voucherCode').textContent=ket; $('result-manual').classList.add('hidden'); $('result-ok').classList.remove('hidden');
+      // Simpan kode terakhir (untuk recovery bila halaman ditutup/refresh). Reset penanda dismiss.
+      lsSet('vc-last', JSON.stringify({ code:ket, name:selected.name, ts:Date.now() }));
+      lsSet('vc-last-dismissed','');
+    }
     show('result');
   }
 
-  // Salin kode voucher ke clipboard (murni UI; tak menyentuh alur bayar).
-  $('copyCode').addEventListener('click',function(){
-    var code=($('voucherCode').textContent||'').trim(); if(!code||code==='-') return;
-    var btn=this, label=btn.querySelector('.cc-label'), old=label?label.textContent:'';
-    function ok(){ btn.classList.add('copied'); if(label) label.textContent='Tersalin'; setTimeout(function(){ btn.classList.remove('copied'); if(label) label.textContent=old; },1600); }
-    function fallback(){ try{ var ta=document.createElement('textarea'); ta.value=code; ta.setAttribute('readonly',''); ta.style.position='absolute'; ta.style.left='-9999px'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); ok(); }catch(e){} }
-    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(code).then(ok).catch(fallback); } else { fallback(); }
+  $('copyCode').addEventListener('click',function(){ copyText($('voucherCode').textContent, this, '.cc-label'); });
+
+  // Cek status manual (jangan tunggu polling 4 detik).
+  $('checkBtn').addEventListener('click',function(){
+    if(!reff) return;
+    var b=this, old=b.textContent; b.disabled=true; b.textContent='Mengecek…';
+    clearTimeout(pollTimer); poll();
+    setTimeout(function(){ b.disabled=false; b.textContent=old; }, 1600);
   });
 
   $('cancelPay').addEventListener('click',function(){ clearTimeout(pollTimer); clearInterval(cdTimer); show('catalog'); });
