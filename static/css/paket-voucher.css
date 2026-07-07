@@ -1,0 +1,85 @@
+/* Paket Voucher (katalog admin) — gaya modern selaras voucher-send.
+   Kelas .page-header/.card-modern/.stats-row/.stat-card sama seperti halaman modern lain,
+   sehingga override dark-mode di admin-theme.css (body.tk-dark ...) otomatis berlaku. */
+:root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --success: #10b981;
+    --info: #3b82f6;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --dark: #1f2937;
+    --light: #f9fafb;
+    --border-radius: 12px;
+}
+
+.page-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border-radius: var(--border-radius);
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+    color: white;
+}
+.page-header h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+.page-header p { margin: 0.25rem 0 0; opacity: 0.9; font-size: 0.9rem; }
+
+.card-modern {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: none;
+}
+.card-modern .card-header {
+    background: transparent;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+}
+.card-modern .card-body { padding: 1.25rem; }
+
+.stats-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.stat-card {
+    flex: 1;
+    min-width: 150px;
+    background: white;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    border: 1px solid #e5e7eb;
+}
+.stat-card .value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--dark);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+}
+.stat-card .label {
+    font-size: 0.72rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    margin-top: 0.15rem;
+}
+
+/* Tabel katalog */
+#dataTable { width: 100% !important; }
+#dataTable td { vertical-align: middle; }
+.price-cell { font-weight: 700; font-variant-numeric: tabular-nums; }
+.margin-pos { color: var(--success); font-weight: 600; }
+.btn-act {
+    border: none;
+    border-radius: 7px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+}
+.btn-act:hover { filter: brightness(0.95); }
+.btn-act.edit { background: #eef2ff; color: var(--primary-dark); }
+.btn-act.del { background: #fef2f2; color: var(--danger); margin-left: 0.35rem; }
+body.tk-dark .btn-act.edit { background: rgba(99, 102, 241, 0.18); color: #c7d2fe; }
+body.tk-dark .btn-act.del { background: rgba(239, 68, 68, 0.16); color: #fca5a5; }
+
+.voucher-alert { border-radius: 10px; }
