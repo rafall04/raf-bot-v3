@@ -300,6 +300,28 @@
       "adminQuietMinutes": 15
     }
   },
+  "upstreamMonitor": {
+    "enabled": false,
+    "host": "ISI_IP_ROUTER_GATEWAY",
+    "port": 8728,
+    "user": "ISI_USER_API",
+    "password": "ISI_PASSWORD_API",
+    "intervalSeconds": 60,
+    "pingCount": 5,
+    "statusWindowMinutes": 15,
+    "baselineHours": 24,
+    "retentionDays": 30,
+    "paths": [
+      { "key": "gmdp", "label": "GMDP (utama)", "routingTable": null },
+      { "key": "ih", "label": "IndiHome direct", "routingTable": "FREE" },
+      { "key": "mni", "label": "IH via MNI", "routingTable": "MNI" },
+      { "key": "sf", "label": "SF (backup MNI)", "routingTable": "SF-PROBE" }
+    ],
+    "targets": [
+      { "key": "google", "label": "Google DNS", "address": "8.8.4.4" },
+      { "key": "cloudflare", "label": "Cloudflare DNS", "address": "1.0.0.1" }
+    ]
+  },
   "publicSite": {
     "enabled": false,
     "host": "0.0.0.0",
