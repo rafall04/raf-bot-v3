@@ -1244,7 +1244,17 @@ router.post('/api/auth/otp/verify', otpVerifyValidation, asyncHandler(handleOtpV
 
 router.get('/api/wifi-name', asyncHandler(async (req, res) => {
     const wifiData = await PublicService.getWifiName();
-    return sendSuccess(res, wifiData, "Nama WiFi berhasil diambil");
+    // Nomor CS publik OPSIONAL (config.publicContact) untuk link "Chat admin" di halaman
+    // voucher. Hanya diekspos bila berupa digit valid (>=9, bukan placeholder ber-'x');
+    // bila kosong, bentuk respons TIDAK berubah (jaga kompat kontrak lama).
+    let contact = '';
+    try {
+        const raw = String((global.config && global.config.publicContact) || '');
+        const digits = raw.replace(/\D/g, '');
+        if (digits.length >= 9 && !/x/i.test(raw)) contact = digits;
+    } catch (_e) { /* abaikan */ }
+    const data = contact ? Object.assign({}, wifiData, { contact }) : wifiData;
+    return sendSuccess(res, data, "Nama WiFi berhasil diambil");
 }));
 
 // GET /api/announcements - Get all announcements

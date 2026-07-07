@@ -24,7 +24,6 @@
   --radius:14px; --radius-lg:22px;
   --font:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   --mono:ui-monospace,'SF Mono','Cascadia Code','JetBrains Mono',Menlo,Consolas,monospace;
-  /* ticket = stub gelap premium di kedua tema (kode kontras tinggi) */
   --ticket-bg:linear-gradient(150deg,#0e1622,#0a0f18);
   /* ===== DARK (default) ===== */
   --bg:#070b12; --bg-2:#0a1019;
@@ -66,14 +65,12 @@ body{margin:0;font-family:var(--font);background:var(--bg);color:var(--body);lin
 a{color:inherit;text-decoration:none}
 ::selection{background:rgba(45,212,191,.3);color:#fff}
 
-/* Ambient glow STATIS (fixed, dilukis sekali, tak repaint saat scroll). */
 .bg{position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:
     radial-gradient(760px 440px at 12% -8%,var(--glow-1),transparent 58%),
     radial-gradient(720px 440px at 105% 2%,var(--glow-2),transparent 56%),
     radial-gradient(900px 520px at 50% 112%,var(--glow-3),transparent 60%)}
 
-/* Nav (tanpa backdrop-filter). */
 .nav{position:sticky;top:0;z-index:20;background:var(--nav-bg);border-bottom:1px solid var(--line)}
 .nav-in{max-width:940px;margin:0 auto;padding:13px 22px;display:flex;align-items:center;justify-content:space-between;gap:14px}
 .brand{display:flex;align-items:center;gap:11px;min-width:0}
@@ -93,7 +90,6 @@ a{color:inherit;text-decoration:none}
 
 .wrap{max-width:940px;margin:0 auto;padding:52px 22px 64px}
 
-/* Hero */
 .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;font-weight:700;letter-spacing:.18em;
   text-transform:uppercase;color:var(--accent-ink);margin:0 0 18px;padding:6px 12px;border-radius:999px;
   background:var(--grad-soft);border:1px solid var(--chip-line)}
@@ -109,18 +105,23 @@ a{color:inherit;text-decoration:none}
 .sec-head h2{font-size:16px;font-weight:700;letter-spacing:-.01em;color:var(--ink);margin:0}
 .sec-head .hint{font-size:13px;color:var(--muted)}
 
-/* Plan grid */
-.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+/* Plan grid — flexbox agar baris ganjil bisa center (kartu terakhir tak menggantung). */
+.grid{display:flex;flex-wrap:wrap;gap:16px;justify-content:center}
 .pkg{position:relative;text-align:left;cursor:pointer;background:var(--surface);border:1px solid var(--line);
-  border-radius:var(--radius-lg);padding:22px 20px;display:flex;flex-direction:column;
-  transition:transform .18s ease,border-color .18s ease,background .18s ease,box-shadow .18s ease;font-family:inherit;width:100%}
+  border-radius:var(--radius-lg);padding:22px 20px;display:flex;flex-direction:column;min-width:0;
+  flex:0 1 calc(50% - 8px);max-width:calc(50% - 8px);
+  transition:transform .18s ease,border-color .18s ease,background .18s ease,box-shadow .18s ease;font-family:inherit}
 .pkg:hover{transform:translateY(-3px);border-color:rgba(45,212,191,.42);background:var(--surface-2);box-shadow:var(--shadow)}
 .pkg:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-.pkg-dur{display:inline-flex;align-self:flex-start;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+.pkg-dur{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
   color:var(--accent-ink);background:var(--grad-soft);border:1px solid var(--chip-line);border-radius:999px;padding:5px 10px}
+.pkg-dur .di{flex:none}
+.pkg-badge{position:absolute;top:13px;right:13px;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  color:#04231f;background:var(--grad);border-radius:999px;padding:4px 9px;box-shadow:0 5px 14px -6px rgba(45,212,191,.7)}
 .pkg-name{font-size:15px;font-weight:600;color:var(--ink-soft);margin-top:14px}
 .pkg-price{font-size:32px;font-weight:800;letter-spacing:-.035em;color:var(--ink);margin-top:10px;font-variant-numeric:tabular-nums;line-height:1}
 .pkg-price .cur{font-size:17px;font-weight:700;color:var(--muted);margin-right:3px;letter-spacing:0}
+.pkg-rate{font-size:11.5px;font-weight:600;color:var(--accent-ink);margin-top:5px}
 .pkg-note{font-size:12px;color:var(--muted);margin-top:5px}
 .pkg-cta{margin-top:18px;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;
   background:var(--surface-2);color:var(--ink);font-weight:600;font-size:13px;border:1px solid var(--line-2);
@@ -129,7 +130,6 @@ a{color:inherit;text-decoration:none}
 .pkg-cta svg{flex:none;transition:transform .18s ease}
 .pkg:hover .pkg-cta svg{transform:translateX(3px)}
 
-/* Panels */
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);
   box-shadow:var(--shadow);padding:30px;max-width:470px;margin:0 auto;position:relative}
 .panel::before{content:"";position:absolute;top:0;left:24px;right:24px;height:1px;
@@ -162,7 +162,6 @@ input[type=tel]:focus{border-color:var(--accent);background:var(--focus-bg);box-
 .btn-ghost{width:100%;background:var(--surface-2);color:var(--ink);border:1px solid var(--line-2);border-radius:13px;
   padding:15px;font-weight:600;font-size:15px;font-family:inherit;cursor:pointer;margin-top:14px;transition:background .18s ease}
 
-/* Payment */
 .pay{text-align:center}
 .qr-frame{position:relative;width:242px;height:242px;margin:6px auto 0;padding:15px;background:#fff;
   border-radius:20px;box-shadow:0 0 0 1px var(--line),0 18px 44px -26px rgba(20,184,166,.5)}
@@ -186,7 +185,6 @@ input[type=tel]:focus{border-color:var(--accent);background:var(--focus-bg);box-
 .countdown{margin-top:14px;font-size:12.5px;color:var(--muted)}
 .countdown b{font-variant-numeric:tabular-nums;color:var(--ink-soft);font-weight:700}
 
-/* Result: ticket (stub gelap di kedua tema) */
 .done{text-align:center}
 .seal{width:64px;height:64px;border-radius:50%;background:var(--grad);color:#04231f;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
 .seal svg .chk{stroke-dasharray:26;stroke-dashoffset:26;animation:draw .5s .15s ease forwards}
@@ -213,10 +211,17 @@ input[type=tel]:focus{border-color:var(--accent);background:var(--focus-bg);box-
   border:1px solid var(--chip-line);color:var(--accent-ink);border-radius:12px;padding:13px 14px;font-size:13.5px;font-weight:600}
 
 .err{background:var(--danger-bg);border:1px solid var(--danger-line);color:var(--danger);border-radius:12px;padding:13px 16px;font-size:14px;margin-top:16px}
-.loading{color:var(--muted);padding:48px 0;text-align:center;font-size:14.5px;grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:14px}
+.loading{color:var(--muted);padding:48px 0;text-align:center;font-size:14.5px;flex-basis:100%;width:100%;display:flex;flex-direction:column;align-items:center;gap:14px}
 .loading .spin{width:22px;height:22px;border-width:2.5px}
 .hidden{display:none}
 footer{border-top:1px solid var(--line);margin-top:10px}
+.foot-help{text-align:center;padding:22px 22px 0}
+.help-link{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink-soft);font-family:inherit;
+  background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:9px 17px;cursor:pointer;
+  transition:border-color .16s ease,color .16s ease,background .16s ease}
+.help-link:hover{border-color:var(--chip-line);background:var(--surface-2)}
+.help-link .wa{color:#25d366;flex:none}
+.help-link b{color:var(--accent-ink);font-weight:700}
 .foot{max-width:940px;margin:0 auto;padding:22px;color:var(--muted);font-size:12.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center}
 .foot .secure{display:inline-flex;align-items:center;gap:7px}
 .foot .secure svg{color:var(--accent)}
@@ -230,7 +235,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
 
 @media(max-width:560px){
   .wrap{padding:36px 18px 52px}.h1{font-size:33px}.sub{font-size:15.5px}.grid{gap:12px}
-  .pkg{padding:18px}.pkg-price{font-size:29px}.panel{padding:24px}
+  .pkg{padding:18px;flex-basis:calc(50% - 6px);max-width:calc(50% - 6px)}.pkg-price{font-size:29px}.panel{padding:24px}
   .nav-in{padding:12px 16px}.trust-chip{display:none}
 }
 @media(prefers-reduced-motion:reduce){
@@ -340,7 +345,11 @@ footer{border-top:1px solid var(--line);margin-top:10px}
   </section>
 </main>
 
-<footer><div class="foot">
+<footer>
+  <div class="foot-help hidden" id="helpWrap">
+    <a class="help-link" id="helpLink" target="_blank" rel="noopener noreferrer"><svg class="wa" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-5.9A8.5 8.5 0 1 1 21 11.5Z"/></svg> Butuh bantuan? <b>Chat admin</b></a>
+  </div>
+  <div class="foot">
   <span class="secure"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg> Pembayaran diproses melalui gateway resmi &amp; aman.</span>
   <span>Simpan kode voucher Anda sebagai bukti.</span>
 </div></footer>
@@ -370,27 +379,68 @@ footer{border-top:1px solid var(--line);margin-top:10px}
   function digitsOf(s){ return String(s||'').replace(/\D/g,''); }
   function escAttr(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
 
-  // Personalisasi nama brand (best-effort) — logo tetap glyph WiFi.
+  // Deteksi durasi bebas-teks → jam + jenis (ikon, urutan, harga/jam). Robust ke format apa pun.
+  function parseDur(s){
+    s=String(s||'').toLowerCase();
+    var m=s.match(/(\d+(?:[.,]\d+)?)/), n=m?parseFloat(m[1].replace(',','.')):null, hours=null, type='lain';
+    if(n!=null){
+      if(/menit|min\b/.test(s)){ hours=n/60; type='jam'; }
+      else if(/jam|jm|hour/.test(s)){ hours=n; type='jam'; }
+      else if(/hari|day/.test(s)){ hours=n*24; type='hari'; }
+      else if(/minggu|pekan|week/.test(s)){ hours=n*24*7; type='minggu'; }
+      else if(/bulan|bln|month/.test(s)){ hours=n*24*30; type='bulan'; }
+    }
+    return { hours:hours, type:type };
+  }
+  var DUR_ICON={
+    jam:'<svg class="di" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>',
+    hari:'<svg class="di" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v1.6M12 19.4V21M4.6 12H3M21 12h-1.6M5.6 5.6l1.1 1.1M17.3 17.3l1.1 1.1M18.4 5.6l-1.1 1.1M6.7 17.3l-1.1 1.1"/></svg>',
+    minggu:'<svg class="di" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 10h17M8 3v3.4M16 3v3.4"/></svg>',
+    lain:'<svg class="di" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M13 2 4.5 13H11l-1 9 8.5-11H12l1-9Z"/></svg>'
+  };
+  DUR_ICON.bulan=DUR_ICON.minggu;
+
+  // Personalisasi nama brand + link bantuan (best-effort). wifi-name kini bisa balikkan
+  // data.wifiName (bentuk baru) / data string (kompat lama) + data.contact (nomor CS opsional).
   fetch('/api/wifi-name').then(function(r){return r.json();}).then(function(d){
-    var name=(d&&(d.data||d.name||d.wifiName))||null;
+    var data=(d&&d.data)||d||{};
+    var name=(typeof data==='object'?(data.wifiName||data.name):(typeof data==='string'?data:null))||(d&&(d.wifiName||d.name));
     if(typeof name==='string'&&name.trim()) $('bizname').textContent=name.trim()+' · Voucher';
+    var contact=(typeof data==='object'?(data.contact||data.waNumber||data.phone):'')||'';
+    var digits=String(contact||'').replace(/\D/g,'');
+    if(digits.length>=9){
+      if(digits.charAt(0)==='0') digits='62'+digits.slice(1);
+      $('helpLink').href='https://wa.me/'+digits+'?text='+encodeURIComponent('Halo, saya butuh bantuan seputar voucher WiFi.');
+      $('helpWrap').classList.remove('hidden');
+    }
   }).catch(function(){});
 
-  // Katalog.
+  // Katalog: urut termurah dulu; badge "Hemat" utk harga/jam terendah; ikon + harga/jam per paket.
   fetch('/app/voucher').then(function(r){return r.json();}).then(function(res){
-    var list=(res&&res.data)||res||[];
-    if(!Array.isArray(list)||!list.length){ $('catalog').innerHTML='<div class="err">Belum ada paket voucher tersedia. Silakan hubungi admin.</div>'; return; }
-    var html=list.map(function(v){
-      var price=parseInt(v.hargavc,10)||0; if(price<=0) return '';
+    var raw=(res&&res.data)||res||[];
+    var items=(Array.isArray(raw)?raw:[]).map(function(v){
+      var price=parseInt(v.hargavc,10)||0, du=parseDur(v.durasivc);
+      return { v:v, price:price, hours:du.hours, type:du.type, perHour:(du.hours&&du.hours>0)?Math.round(price/du.hours):null };
+    }).filter(function(it){ return it.price>0; });
+    if(!items.length){ $('catalog').innerHTML='<div class="err">Belum ada paket voucher tersedia. Silakan hubungi admin.</div>'; return; }
+    items.sort(function(a,b){ return a.price-b.price; });
+    var hematIdx=-1, minPH=Infinity;
+    if(items.length>=2){ items.forEach(function(it,i){ if(it.perHour!=null&&it.perHour<minPH){ minPH=it.perHour; hematIdx=i; } }); }
+    var html=items.map(function(it,i){
+      var v=it.v, price=it.price, icon=DUR_ICON[it.type]||DUR_ICON.lain;
+      var rate=(it.perHour!=null)?('<span class="pkg-rate">≈ '+rupiah(it.perHour)+'/jam</span>'):'';
+      var badge=(i===hematIdx)?'<span class="pkg-badge">Hemat</span>':'';
       return '<button class="pkg" type="button" data-prof="'+encodeURIComponent(v.prof)+'" data-name="'+escAttr(v.namavc||v.prof)+'" data-price="'+price+'">'
-        +'<span class="pkg-dur">'+escAttr(v.durasivc||'')+'</span>'
+        +badge
+        +'<span class="pkg-dur">'+icon+escAttr(v.durasivc||'')+'</span>'
         +'<span class="pkg-name">'+escAttr(v.namavc||v.prof)+'</span>'
-        +'<span class="pkg-price"><span class="cur">Rp</span>'+(price.toLocaleString('id-ID'))+'</span>'
+        +'<span class="pkg-price"><span class="cur">Rp</span>'+price.toLocaleString('id-ID')+'</span>'
+        +rate
         +'<span class="pkg-note">Sekali beli · voucher hotspot</span>'
         +'<span class="pkg-cta">Beli Voucher <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>'
         +'</button>';
     }).join('');
-    $('catalog').innerHTML=html||'<div class="err">Belum ada paket voucher tersedia.</div>';
+    $('catalog').innerHTML=html;
   }).catch(function(){ $('catalog').innerHTML='<div class="err">Gagal memuat paket. Coba muat ulang halaman.</div>'; });
 
   $('catalog').addEventListener('click',function(e){
