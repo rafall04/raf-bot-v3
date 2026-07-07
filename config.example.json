@@ -319,10 +319,10 @@
     "baselineHours": 24,
     "retentionDays": 30,
     "paths": [
-      { "key": "gmdp", "label": "GMDP (utama)", "routingTable": null, "iface": "1.VLAN62-GMDP", "gatewayTarget": "195.168.62.1", "capacity": { "downMbps": 0, "upMbps": 0 } },
-      { "key": "ih", "label": "IndiHome direct", "routingTable": "FREE", "iface": "2.VLAN502", "gatewayTarget": "192.168.102.1", "capacity": { "downMbps": 0, "upMbps": 0 } },
-      { "key": "mni", "label": "IH via MNI", "routingTable": "MNI", "iface": "Tunnel-MNI", "tunnelType": "l2tp", "capacity": { "downMbps": 0, "upMbps": 0 } },
-      { "key": "sf", "label": "SF (backup MNI)", "routingTable": "SF-PROBE", "iface": "SF", "tunnelType": "sstp", "capacity": { "downMbps": 0, "upMbps": 0 } }
+      { "key": "gmdp", "label": "GMDP (utama)", "routingTable": null, "iface": "1.VLAN62-GMDP", "gatewayTarget": "195.168.62.1", "affects": "pelanggan reguler (pool 70.x)", "capacity": { "downMbps": 0, "upMbps": 0 } },
+      { "key": "ih", "label": "IndiHome direct", "routingTable": "FREE", "iface": "2.VLAN502", "gatewayTarget": "192.168.102.1", "affects": "trafik WhatsApp/game pelanggan 110k-125k + jalur FREE", "capacity": { "downMbps": 0, "upMbps": 0 } },
+      { "key": "mni", "label": "IH via MNI", "routingTable": "MNI", "iface": "Tunnel-MNI", "tunnelType": "l2tp", "affects": "paket 110k & 125k (browsing/video)", "capacity": { "downMbps": 0, "upMbps": 0 } },
+      { "key": "sf", "label": "SF (backup MNI)", "routingTable": "SF-PROBE", "iface": "SF", "tunnelType": "sstp", "affects": "paket 110k & 125k saat dialihkan ke backup", "capacity": { "downMbps": 0, "upMbps": 0 } }
     ],
     "targets": [
       { "key": "google", "label": "Google DNS", "address": "8.8.4.4" },
@@ -336,7 +336,8 @@
       "notifyAdmins": true,
       "recipients": [],
       "groupJid": null,
-      "includeSteerSuggestion": true
+      "includeSteerSuggestion": true,
+      "traceWaitSeconds": 45
     },
     "pathPools": [
       { "path": "mni", "cidrs": ["192.168.61.0/24", "192.168.62.0/24", "192.168.71.0/24", "192.168.123.0/24", "10.10.50.0/24"] },
