@@ -4545,9 +4545,9 @@
     "template": "🚨 *JALUR UPSTREAM ${level} — ${nama_layanan}*\n\nJalur *${jalur}* terpantau bermasalah beberapa siklus beruntun:\n• Loss: ${loss}%\n• RTT: ${rtt}ms${saran}\n\nDetail: halaman */upstream-quality* di panel admin."
   },
   "upq_alert_recovered": {
-    "name": "Alert Jalur Upstream - Pulih",
+    "name": "Alert Jalur Upstream - Pulih (+rekap laporan ISP)",
     "category": "monitoring",
-    "template": "✅ *JALUR UPSTREAM PULIH — ${nama_layanan}*\n\nJalur *${jalur}* kembali normal (loss ${loss}%, RTT ${rtt}ms).\nDurasi gangguan: ±${durasi}."
+    "template": "✅ *JALUR UPSTREAM PULIH — ${nama_layanan}*\n\nJalur *${jalur}* kembali normal (loss ${loss}%, RTT ${rtt}ms).\nDurasi gangguan: ±${durasi}.${rekap}"
   },
   "conncheck_upstream_issue": {
     "name": "Cek Koneksi - Info Jalur Upstream Bermasalah",
