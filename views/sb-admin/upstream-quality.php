@@ -78,6 +78,21 @@
             </div>
           </div>
 
+          <div id="upq-service-section" class="card shadow mb-4 d-none">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+              <h6 class="m-0 font-weight-bold text-primary">📱 Reachability Layanan × Jalur (TCP+TLS nyata dari server)</h6>
+              <span class="small text-muted">Instagram/FB/WA = jaringan Meta yang sama · angka = TLS handshake ms</span>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered mb-0 text-center" style="font-size:.85rem">
+                  <thead id="upq-service-head"></thead>
+                  <tbody id="upq-service-body"><tr><td class="text-muted">Memuat…</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
           <div class="row">
             <div class="col-lg-6 mb-4">
               <div class="card shadow">

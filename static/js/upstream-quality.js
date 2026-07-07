@@ -340,9 +340,48 @@
             .catch(function () { section.classList.add("d-none"); });
     }
 
+    function selVerdict(v) {
+        return {
+            OK: "#1cc88a", LAMBAT: "#f6c23e", TERGANGGU: "#e67e22", DOWN: "#e74a3b", UNKNOWN: "#b7b9cc"
+        }[v] || "#b7b9cc";
+    }
+
+    function muatService() {
+        var section = document.getElementById("upq-service-section");
+        var head = document.getElementById("upq-service-head");
+        var body = document.getElementById("upq-service-body");
+        if (!section) return;
+        fetch("/api/service-quality/status", { credentials: "same-origin" })
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+                var d = (j && j.data) || {};
+                if (!d.enabled || !d.paths || !d.paths.length || !d.services || !d.services.length) {
+                    section.classList.add("d-none");
+                    return;
+                }
+                section.classList.remove("d-none");
+                head.innerHTML = "<tr><th class='text-left'>Layanan</th>" +
+                    d.paths.map(function (p) { return "<th>" + esc(p.label) + "</th>"; }).join("") + "</tr>";
+                body.innerHTML = d.services.map(function (s) {
+                    var cells = s.cells.map(function (c) {
+                        if (!c.samples) return '<td class="text-muted">–</td>';
+                        var warna = selVerdict(c.verdict);
+                        var ms = c.tls_ms != null ? c.tls_ms + "ms" : (c.connect_ms != null ? c.connect_ms + "ms" : "");
+                        var sub = c.ok_pct != null && c.ok_pct < 100 ? '<div style="font-size:.7rem">ok ' + c.ok_pct + "%</div>" : "";
+                        return '<td style="background:' + warna + '22;border-left:3px solid ' + warna + '">' +
+                            '<b style="color:' + warna + '">' + esc(c.verdict) + "</b>" +
+                            '<div style="font-size:.72rem;color:#666">' + ms + "</div>" + sub + "</td>";
+                    }).join("");
+                    return "<tr><td class='text-left'><b>" + esc(s.label) + "</b><div style='font-size:.68rem;color:#999'>" + esc(s.host) + "</div></td>" + cells + "</tr>";
+                }).join("");
+            })
+            .catch(function () { section.classList.add("d-none"); });
+    }
+
     function muatSemua() {
         muatStatus();
         muatSwitch();
+        muatService();
         muatGrafik();
         muatWan();
         muatRapor();

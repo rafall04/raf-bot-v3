@@ -343,6 +343,36 @@
       { "path": "gmdp", "cidrs": ["192.168.70.0/24", "10.10.0.0/20", "192.168.145.0/24"] }
     ]
   },
+  "serviceMonitor": {
+    "enabled": false,
+    "intervalSeconds": 60,
+    "timeoutMs": 6000,
+    "tlsCheck": true,
+    "statusWindowMinutes": 10,
+    "retentionDays": 14,
+    "services": [
+      { "key": "instagram", "label": "Instagram", "host": "www.instagram.com" },
+      { "key": "facebook", "label": "Facebook", "host": "www.facebook.com" },
+      { "key": "whatsapp", "label": "WhatsApp", "host": "g.whatsapp.net" },
+      { "key": "google", "label": "Google", "host": "www.google.com" },
+      { "key": "youtube", "label": "YouTube", "host": "www.youtube.com" },
+      { "key": "cloudflare", "label": "Cloudflare", "host": "www.cloudflare.com" }
+    ],
+    "paths": [
+      { "key": "gmdp", "label": "GMDP", "srcIp": "" },
+      { "key": "ih", "label": "IndiHome", "srcIp": "" },
+      { "key": "mni", "label": "MNI", "srcIp": "" },
+      { "key": "sf", "label": "SF", "srcIp": "" }
+    ],
+    "alerts": {
+      "enabled": false,
+      "consecutiveCycles": 3,
+      "cooldownMinutes": 120,
+      "minServicesDown": 2,
+      "notifyAdmins": true,
+      "recipients": []
+    }
+  },
   "wanSwitch": {
     "enabled": false,
     "notifyAdmins": true,

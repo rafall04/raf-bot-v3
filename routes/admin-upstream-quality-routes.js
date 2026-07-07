@@ -12,6 +12,7 @@
 
 const { asyncHandler } = require("../lib/error-handler");
 const upstreamPoller = require("../lib/upstream-quality-poller");
+const serviceProber = require("../lib/service-reachability-prober");
 const { getUpstreamQualityRepository } = require("../repositories/upstream-quality.repository");
 
 function registerAdminUpstreamQualityRoutes(router, deps) {
@@ -85,6 +86,30 @@ function registerAdminUpstreamQualityRoutes(router, deps) {
     router.post("/api/upstream-quality/trace/:path", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
         const result = await upstreamPoller.runTraceProbe(String(req.params.path || ""));
         res.json({ success: result.ok === true, data: result });
+    }));
+
+    // Matriks reachability Layanan × Jalur (Instagram/FB/Google via GMDP/IH/MNI/SF).
+    router.get("/api/service-quality/status", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const report = await serviceProber.buildServiceReport();
+        res.json({ success: true, data: report });
+    }));
+
+    router.get("/api/service-quality/history", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const minutes = Math.max(5, Math.min(7 * 24 * 60, Number(req.query.minutes) || 360));
+        const sinceIso = new Date(Date.now() - minutes * 60 * 1000).toISOString();
+        const rows = await getUpstreamQualityRepository().getServiceHistory({
+            sinceIso,
+            service: req.query.service || null,
+            path: req.query.path || null,
+            limit: Number(req.query.limit) || 4000
+        });
+        res.json({ success: true, data: { since: sinceIso, count: rows.length, rows } });
+    }));
+
+    // Trigger satu siklus probe layanan sekarang (verifikasi setelah setup).
+    router.post("/api/service-quality/poll-now", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const result = await serviceProber.probeCycle();
+        res.json({ success: result.ok === true, data: result, stats: serviceProber.getProberStats() });
     }));
 }
 

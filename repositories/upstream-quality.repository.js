@@ -123,6 +123,21 @@ function createUpstreamQualityRepository(overrides = {}) {
             )
         `);
         await run("CREATE INDEX IF NOT EXISTS idx_upstream_incidents_time ON upstream_incidents(created_at)");
+        await run(`
+            CREATE TABLE IF NOT EXISTS service_probes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                probed_at TEXT NOT NULL,
+                service TEXT NOT NULL,
+                path TEXT NOT NULL,
+                target_ip TEXT,
+                connect_ms REAL,
+                tls_ms REAL,
+                ok INTEGER NOT NULL DEFAULT 0,
+                error TEXT
+            )
+        `);
+        await run("CREATE INDEX IF NOT EXISTS idx_service_probes_time ON service_probes(probed_at)");
+        await run("CREATE INDEX IF NOT EXISTS idx_service_probes_svc_path_time ON service_probes(service, path, probed_at)");
         schemaReady = true;
     }
 
@@ -369,6 +384,56 @@ function createUpstreamQualityRepository(overrides = {}) {
         );
     }
 
+    /** Simpan hasil probe layanan satu siklus (service×path, probedAt sama). */
+    async function insertServiceProbes(probedAt, rows = []) {
+        await ensureSchema();
+        for (const r of rows) {
+            await run(`
+                INSERT INTO service_probes (probed_at, service, path, target_ip, connect_ms, tls_ms, ok, error)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `, [
+                probedAt,
+                r.service,
+                r.path,
+                r.target_ip || null,
+                r.connect_ms == null ? null : Number(r.connect_ms),
+                r.tls_ms == null ? null : Number(r.tls_ms),
+                r.ok ? 1 : 0,
+                r.error || null
+            ]);
+        }
+        return rows.length;
+    }
+
+    /** Ringkasan per (service, path) pada jendela status: ok-rate + connect/tls rata-rata. */
+    async function getServiceSummary({ windowSinceIso } = {}) {
+        await ensureSchema();
+        return all(`
+            SELECT service, path, target_ip,
+                   COUNT(*) AS samples,
+                   SUM(ok) AS ok_count,
+                   AVG(CASE WHEN ok = 1 THEN connect_ms END) AS connect_avg,
+                   AVG(CASE WHEN ok = 1 THEN tls_ms END) AS tls_avg,
+                   MAX(probed_at) AS last_probed_at
+            FROM service_probes
+            WHERE probed_at >= ?
+            GROUP BY service, path
+        `, [windowSinceIso]);
+    }
+
+    async function getServiceHistory({ sinceIso, service = null, path = null, limit = 4000 } = {}) {
+        await ensureSchema();
+        const where = ["probed_at >= ?"];
+        const params = [sinceIso];
+        if (service) { where.push("service = ?"); params.push(service); }
+        if (path) { where.push("path = ?"); params.push(path); }
+        params.push(Math.max(1, Math.min(Number(limit) || 4000, 20000)));
+        return all(
+            `SELECT * FROM service_probes WHERE ${where.join(" AND ")} ORDER BY probed_at DESC LIMIT ?`,
+            params
+        );
+    }
+
     /** Baris route-state dari snapshot TERAKHIR (untuk deteksi failover terkini). */
     async function getLatestRouteStates() {
         await ensureSchema();
@@ -386,7 +451,8 @@ function createUpstreamQualityRepository(overrides = {}) {
         const b = await run("DELETE FROM upstream_route_state WHERE checked_at < ?", [cutoff]);
         const c = await run("DELETE FROM wan_link_samples WHERE sampled_at < ?", [cutoff]);
         const d = await run("DELETE FROM upstream_incidents WHERE created_at < ?", [cutoff]);
-        return { probes: a.changes, routeStates: b.changes, wanSamples: c.changes, incidents: d.changes };
+        const e = await run("DELETE FROM service_probes WHERE probed_at < ?", [cutoff]);
+        return { probes: a.changes, routeStates: b.changes, wanSamples: c.changes, incidents: d.changes, serviceProbes: e.changes };
     }
 
     function close() {
@@ -409,6 +475,9 @@ function createUpstreamQualityRepository(overrides = {}) {
         getIspReport,
         addIncident,
         getIncidents,
+        insertServiceProbes,
+        getServiceSummary,
+        getServiceHistory,
         getLatestRouteStates,
         pruneOld,
         close
