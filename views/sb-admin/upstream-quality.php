@@ -59,6 +59,42 @@
             </div>
           </div>
 
+          <div class="row">
+            <div class="col-12 mb-4">
+              <div class="card shadow">
+                <div class="card-header py-2"><h6 class="m-0 font-weight-bold text-primary">Throughput per WAN (Mbps, rata-rata per menit) — 6 jam terakhir</h6></div>
+                <div class="card-body" style="height:280px"><canvas id="chart-wan"></canvas></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-lg-6 mb-4">
+              <div class="card shadow">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                  <h6 class="m-0 font-weight-bold text-primary">Rapor ISP — 7 hari</h6>
+                  <span class="small text-muted">availability = % probe non-putus</span>
+                </div>
+                <div class="card-body p-2">
+                  <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                      <thead><tr><th>ISP/Jalur</th><th>Avail</th><th>Loss</th><th>RTT</th><th>Sakit</th><th>Flap</th></tr></thead>
+                      <tbody id="upq-report"><tr><td colspan="6" class="text-muted">Memuat…</td></tr></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-6 mb-4">
+              <div class="card shadow">
+                <div class="card-header py-2"><h6 class="m-0 font-weight-bold text-primary">Insiden Terakhir (alert / flap / traceroute bukti)</h6></div>
+                <div class="card-body p-2" id="upq-incidents" style="max-height:300px;overflow-y:auto">
+                  <div class="small text-muted">Memuat…</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <p class="text-muted small mb-4" id="upq-meta"></p>
 
         </div>

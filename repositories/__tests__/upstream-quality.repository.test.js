@@ -118,4 +118,59 @@ describe("upstream-quality.repository", () => {
         const rows = await repo.getRecentProbes({ sinceIso: new Date(0).toISOString() });
         expect(rows).toHaveLength(1);
     });
+
+    test("baris gateway TIDAK ikut getSummary (far-only) tapi muncul di getGatewaySummary", async () => {
+        await repo.insertProbes(isoMinutesAgo(2), [
+            BASE_PROBE,
+            { ...BASE_PROBE, target: "172.17.41.1", target_key: "gateway", loss_pct: 40, rtt_avg_ms: 5 }
+        ]);
+        const summary = await repo.getSummary({ windowSinceIso: isoMinutesAgo(10), baselineSinceIso: isoMinutesAgo(60) });
+        expect(summary).toHaveLength(1);
+        expect(summary[0].target).toBe("8.8.4.4");
+
+        const gw = await repo.getGatewaySummary({ windowSinceIso: isoMinutesAgo(10) });
+        expect(gw).toHaveLength(1);
+        expect(Number(gw[0].loss_avg)).toBe(40);
+    });
+
+    test("wan samples: insert + window stats + flap terhitung", async () => {
+        await repo.insertWanSamples(isoMinutesAgo(3), [
+            { path: "mni", iface: "Tunnel-MNI", rx_bps: 40e6, tx_bps: 5e6, util_down_pct: 40, util_up_pct: 10, flap: false }
+        ]);
+        await repo.insertWanSamples(isoMinutesAgo(1), [
+            { path: "mni", iface: "Tunnel-MNI", rx_bps: 60e6, tx_bps: 7e6, util_down_pct: 60, util_up_pct: 14, flap: true, rx_error_d: 3 }
+        ]);
+        const stats = await repo.getWanWindowStats({ windowSinceIso: isoMinutesAgo(10), flapSinceIso: isoMinutesAgo(10) });
+        expect(stats).toHaveLength(1);
+        expect(Number(stats[0].util_down_max)).toBe(60);
+        expect(Number(stats[0].flaps)).toBe(1);
+        expect(Number(stats[0].errors)).toBe(3);
+
+        const hist = await repo.getWanHistory({ sinceIso: isoMinutesAgo(10) });
+        expect(hist).toHaveLength(2);
+    });
+
+    test("rapor ISP: availability & persen sakit dihitung dari baris far", async () => {
+        // 4 baris far: 1 putus (100), 1 sakit (30), 2 sehat.
+        await repo.insertProbes(isoMinutesAgo(9), [{ ...BASE_PROBE, loss_pct: 100 }]);
+        await repo.insertProbes(isoMinutesAgo(7), [{ ...BASE_PROBE, loss_pct: 30 }]);
+        await repo.insertProbes(isoMinutesAgo(5), [{ ...BASE_PROBE, loss_pct: 0 }]);
+        await repo.insertProbes(isoMinutesAgo(3), [{ ...BASE_PROBE, loss_pct: 0 }]);
+        // baris gateway TIDAK boleh mempengaruhi rapor
+        await repo.insertProbes(isoMinutesAgo(2), [{ ...BASE_PROBE, target_key: "gateway", loss_pct: 100 }]);
+
+        const rapor = await repo.getIspReport({ sinceIso: isoMinutesAgo(30), lossWarnPct: 5 });
+        expect(rapor).toHaveLength(1);
+        expect(rapor[0].availability_pct).toBe(75); // 3 dari 4 non-putus
+        expect(rapor[0].sick_pct).toBe(50);          // 2 dari 4 >= warn
+    });
+
+    test("insiden: tambah + baca urut terbaru", async () => {
+        await repo.addIncident({ path: "mni", kind: "alert", detail: { level: "GANGGUAN" } });
+        await repo.addIncident({ path: "mni", kind: "trace", detail: { target: "8.8.4.4", hops: [] } });
+        const rows = await repo.getIncidents({ limit: 10 });
+        expect(rows).toHaveLength(2);
+        expect(rows[0].kind).toBe("trace");
+        expect(JSON.parse(rows[1].detail).level).toBe("GANGGUAN");
+    });
 });

@@ -319,10 +319,10 @@
     "baselineHours": 24,
     "retentionDays": 30,
     "paths": [
-      { "key": "gmdp", "label": "GMDP (utama)", "routingTable": null },
-      { "key": "ih", "label": "IndiHome direct", "routingTable": "FREE" },
-      { "key": "mni", "label": "IH via MNI", "routingTable": "MNI" },
-      { "key": "sf", "label": "SF (backup MNI)", "routingTable": "SF-PROBE" }
+      { "key": "gmdp", "label": "GMDP (utama)", "routingTable": null, "iface": "1.VLAN62-GMDP", "gatewayTarget": "195.168.62.1", "capacity": { "downMbps": 0, "upMbps": 0 } },
+      { "key": "ih", "label": "IndiHome direct", "routingTable": "FREE", "iface": "2.VLAN502", "gatewayTarget": "192.168.102.1", "capacity": { "downMbps": 0, "upMbps": 0 } },
+      { "key": "mni", "label": "IH via MNI", "routingTable": "MNI", "iface": "Tunnel-MNI", "tunnelType": "l2tp", "capacity": { "downMbps": 0, "upMbps": 0 } },
+      { "key": "sf", "label": "SF (backup MNI)", "routingTable": "SF-PROBE", "iface": "SF", "tunnelType": "sstp", "capacity": { "downMbps": 0, "upMbps": 0 } }
     ],
     "targets": [
       { "key": "google", "label": "Google DNS", "address": "8.8.4.4" },

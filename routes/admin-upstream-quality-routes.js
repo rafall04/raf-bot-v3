@@ -40,6 +40,52 @@ function registerAdminUpstreamQualityRoutes(router, deps) {
         const result = await upstreamPoller.pollOnce();
         res.json({ success: result.ok === true, data: result, stats: upstreamPoller.getPollerStats() });
     }));
+
+    // Riwayat link WAN (bps/utilisasi/error/flap) untuk grafik throughput per ISP.
+    router.get("/api/upstream-quality/wan-history", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const minutes = Math.max(5, Math.min(7 * 24 * 60, Number(req.query.minutes) || 360));
+        const sinceIso = new Date(Date.now() - minutes * 60 * 1000).toISOString();
+        const rows = await getUpstreamQualityRepository().getWanHistory({
+            sinceIso,
+            path: req.query.path || null,
+            limit: Number(req.query.limit) || 4000
+        });
+        res.json({ success: true, data: { since: sinceIso, count: rows.length, rows } });
+    }));
+
+    // Rapor ISP N hari (availability/loss/RTT/flap) — bahan objektif evaluasi/komplain ISP.
+    router.get("/api/upstream-quality/report", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const days = Math.max(1, Math.min(30, Number(req.query.days) || 7));
+        const sinceIso = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+        const cfg = upstreamPoller.getMonitorConfig();
+        const rows = await getUpstreamQualityRepository().getIspReport({
+            sinceIso,
+            lossWarnPct: cfg.thresholds.lossWarnPct
+        });
+        const labelByPath = new Map(cfg.paths.map((p) => [p.key, p.label || p.key]));
+        res.json({
+            success: true,
+            data: {
+                days,
+                since: sinceIso,
+                rows: rows.map((r) => ({ ...r, label: labelByPath.get(r.path) || r.path }))
+            }
+        });
+    }));
+
+    // Insiden terakhir (alert/flap/traceroute bukti hop) — kronologi utk komplain ISP.
+    router.get("/api/upstream-quality/incidents", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const rows = await getUpstreamQualityRepository().getIncidents({
+            limit: Number(req.query.limit) || 30
+        });
+        res.json({ success: true, data: { rows } });
+    }));
+
+    // Traceroute manual satu jalur (bukti on-demand; hasil ikut masuk daftar insiden).
+    router.post("/api/upstream-quality/trace/:path", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const result = await upstreamPoller.runTraceProbe(String(req.params.path || ""));
+        res.json({ success: result.ok === true, data: result });
+    }));
 }
 
 module.exports = { registerAdminUpstreamQualityRoutes };
