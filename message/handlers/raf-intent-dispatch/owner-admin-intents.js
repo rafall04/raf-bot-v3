@@ -1,10 +1,13 @@
 /**
  * Header Doc
- * Purpose: Skeleton handler map untuk intent owner/admin non-agent di dispatcher WhatsApp.
+ * Purpose: Handler map untuk intent owner/admin non-agent di dispatcher WhatsApp — kontak admin,
+ *          saldo/user global, cari/daftar pelanggan, switch koneksi WAN, dan rangkuman data ISP.
  * Caller: `message/handlers/raf-intent-dispatch/index.js` dan composer dispatcher intent.
- * Deps: Tidak ada; placeholder refactor tahap skeleton.
- * MainFuncs: `OWNER_ADMIN_INTENT_HANDLERS`, `handleAdminIntent`, `handleCariPelangganIntent`, `handleDaftarPelangganIntent`.
- * SideEffects: Tidak ada.
+ * Deps: lazy `../admin-handler`, `../state-domains/wan-switch.state` (startWanSwitch +
+ *       resolveStaffRole utk gate peran presisi), `../../../lib/isp-data-summary` (DATA_ISP).
+ * MainFuncs: `OWNER_ADMIN_INTENT_HANDLERS`, `handleAdminIntent`, `handleCariPelangganIntent`,
+ *            `handleDaftarPelangganIntent`, `handleSwitchKoneksiIntent`, `handleDataIspIntent`.
+ * SideEffects: Balas WhatsApp via `reply` context; DATA_ISP read-only.
  */
 "use strict";
 
@@ -63,6 +66,26 @@ async function handleSwitchKoneksiIntent(context) {
     }
 }
 
+async function handleDataIspIntent(context) {
+    // Rangkuman data jalur ISP on-demand ("data gmdp" / "data isp" / "rapor isp").
+    // READ-ONLY; gate peran PRESISI dari accounts.json (pola sama dengan switch koneksi).
+    const { reply, renderResponseTemplate, chats } = context;
+    const { resolveStaffRole } = require("../state-domains/wan-switch.state");
+    const role = (resolveStaffRole(context) || "").toLowerCase();
+    if (!["admin", "owner", "superadmin"].includes(role)) {
+        return reply(renderResponseTemplate(
+            "ispdata_not_authorized",
+            "Perintah ini khusus admin. Ketik *menu* untuk melihat fitur yang tersedia."
+        ));
+    }
+    const summary = require("../../../lib/isp-data-summary");
+    const pathKey = summary.resolvePathArg(chats);
+    const body = pathKey
+        ? await summary.buildIspDataSummary(pathKey)
+        : await summary.buildIspOverview();
+    return reply(renderResponseTemplate("ispdata_result", "${body}", { body }));
+}
+
 async function handleDaftarPelangganIntent(context) {
     const { isOwner, isTeknisi, reply, mess, qAfterKeyword } = context;
     if (!isOwner && !isTeknisi) {
@@ -98,7 +121,8 @@ const OWNER_ADMIN_INTENT_HANDLERS = Object.freeze({
     alluser: handleAllUserIntent,
     CARI_PELANGGAN: handleCariPelangganIntent,
     DAFTAR_PELANGGAN: handleDaftarPelangganIntent,
-    SWITCH_KONEKSI: handleSwitchKoneksiIntent
+    SWITCH_KONEKSI: handleSwitchKoneksiIntent,
+    DATA_ISP: handleDataIspIntent
 });
 
 module.exports = {
@@ -109,5 +133,6 @@ module.exports = {
     handleAllUserIntent,
     handleCariPelangganIntent,
     handleDaftarPelangganIntent,
-    handleSwitchKoneksiIntent
+    handleSwitchKoneksiIntent,
+    handleDataIspIntent
 };

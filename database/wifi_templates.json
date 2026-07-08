@@ -1150,5 +1150,24 @@
     "category": "admin",
     "description": "Alihkan jalur koneksi antar-ISP (Admin/Owner)",
     "icon": "🔀"
+  },
+  {
+    "keywords": [
+      "data isp",
+      "rapor isp",
+      "laporan isp",
+      "data jalur",
+      "data wan",
+      "data gmdp",
+      "data ih",
+      "data mni",
+      "data sf",
+      "data indihome",
+      "/data"
+    ],
+    "intent": "DATA_ISP",
+    "category": "admin",
+    "description": "Rangkuman data jalur ISP: status, layanan, rapor 24 jam/7 hari (Admin/Owner)",
+    "icon": "📊"
   }
 ]
