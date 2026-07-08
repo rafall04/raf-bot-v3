@@ -18,14 +18,20 @@
 
 const { renderResponseTemplate } = require("./template-helpers");
 const { hasConnectivityComplaintSignal, _internal: looseInternal } = require("../../lib/loose-intent-matcher");
+const { hasBareAppMention } = require("../../lib/app-entity-extractor");
 const {
     getAdminOutboundAgeMs,
     noteFallbackReply,
-    getFallbackReplyAgeMs
+    getFallbackReplyAgeMs,
+    noteConnectivityComplaint,
+    getConnectivityComplaintAgeMs
 } = require("../../lib/chat-activity-tracker");
 
 const DEFAULT_COOLDOWN_MINUTES = 30;
 const DEFAULT_ADMIN_QUIET_MINUTES = 15;
+// Jendela multi-turn: sebutan app polos ("Shopee kak") dianggap lanjutan komplain bila pelanggan
+// baru saja mengeluh koneksi dalam rentang ini (pola korpus: app disebut di pesan susulan).
+const DEFAULT_COMPLAINT_CONTEXT_MINUTES = 10;
 
 // Token yang menandakan pesan basa-basi/ack lanjutan percakapan (dari korpus: "iya mas",
 // "Ok mas", "oke makasi kak", "Siap", "Ya") — bot harus tetap diam, itu bukan pertanyaan.
@@ -114,7 +120,21 @@ async function evaluateCustomerFallback({
         // Gejala gangguan tanpa kata konteks (mis. "Ga bisa ini", "Lemot banget") — untuk
         // pelanggan terdaftar di japri, jawaban paling berguna = diagnosa koneksi read-only.
         if (hasConnectivityComplaintSignal(text)) {
+            noteConnectivityComplaint(stateSender || sender);
             return { action: "intent", intent: "CEK_KONEKSI" };
+        }
+
+        // Sebutan APP (multi-turn): "Digae tik tok kog muter terus" (app+gejala, langsung) ATAU
+        // "Shopee kak" polos yang menyusul komplain koneksi baru-baru ini (pola korpus prod).
+        // Keduanya → CEK_KONEKSI, yang lalu memberi jawaban SPESIFIK per app dari matriks live.
+        const appMention = hasBareAppMention(text);
+        if (appMention) {
+            const complaintCtxMs = minutesToMs(cfg.complaintContextMinutes, DEFAULT_COMPLAINT_CONTEXT_MINUTES);
+            const adaKonteks = chatKeys.some((jid) => getConnectivityComplaintAgeMs(jid) < complaintCtxMs);
+            if (appMention.symptom || adaKonteks) {
+                noteConnectivityComplaint(stateSender || sender);
+                return { action: "intent", intent: "CEK_KONEKSI" };
+            }
         }
 
         const cooldownMs = minutesToMs(cfg.cooldownMinutes, DEFAULT_COOLDOWN_MINUTES);

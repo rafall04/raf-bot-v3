@@ -4559,6 +4559,26 @@
     "category": "support",
     "template": "\n(Catatan: WhatsApp & game Anda lewat jalur berbeda yang saat ini normal — chat/game bisa tetap lancar walau browsing/video lambat.)"
   },
+  "conncheck_app_issue": {
+    "name": "Cek Koneksi - App Spesifik Bermasalah (dari matriks live)",
+    "category": "support",
+    "template": "\n\n🎯 *Soal ${app}:* betul Kak, *${app}* lewat jalur internet paket Anda (${jalur_label}) memang sedang bermasalah (butuh ~${ms} untuk membuka, normalnya ±${normal_ms}ms). Ini dari sisi jaringan kami, *bukan perangkat Anda*, dan tim sudah menerima peringatan otomatis. 🙏"
+  },
+  "conncheck_app_ok": {
+    "name": "Cek Koneksi - App Spesifik Normal (arahkan ke perangkat)",
+    "category": "support",
+    "template": "\n\n🎯 *Soal ${app}:* dari sisi jaringan kami, *${app}* lewat jalur Anda (${jalur_label}) terpantau *normal* (buka ~${ms}ms). Kalau di perangkat masih berat, coba tutup-buka ulang aplikasinya atau restart WiFi/HP. Kalau tetap, balas *lapor* ya Kak. 🙏"
+  },
+  "conncheck_app_path_issue": {
+    "name": "Cek Koneksi - Game/Streaming Jalur Terganggu",
+    "category": "support",
+    "template": "\n\n🎯 *Soal ${app}:* jalur internet paket Anda (${jalur_label}) sekarang sedang terganggu (kehilangan paket ~${loss}%, respons ~${rtt}ms) — itu yang bikin patah-patah/putus. Dari sisi kami, bukan perangkat Anda; tim sudah menerima peringatan otomatis. 🙏"
+  },
+  "conncheck_app_path_ok": {
+    "name": "Cek Koneksi - Game/Streaming Jalur Stabil",
+    "category": "support",
+    "template": "\n\n🎯 *Soal ${app}:* jalur internet Anda (${jalur_label}) terpantau *stabil* saat ini (loss ~${loss}%, respons ~${rtt}ms). Coba dekatkan perangkat ke WiFi atau pakai kabel bila bisa; kalau masih terasa, balas *lapor* ya Kak. 🙏"
+  },
   "wanswitch_confirm": {
     "name": "Switch Koneksi - Konfirmasi",
     "category": "admin",

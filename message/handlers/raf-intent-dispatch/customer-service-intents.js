@@ -114,9 +114,11 @@ async function handleCekStatusSpeedIntent(context) {
 }
 
 async function handleCekKoneksiIntent(context) {
-    const { sender, msg, raf, users, reply, global, mess, pushname } = context;
+    const { sender, msg, raf, users, reply, global, mess, pushname, chats } = context;
     const { handleCekKoneksi } = require('../connection-check-handler');
-    await handleCekKoneksi({ sender, msg, raf, users, reply, global, mess, pushname });
+    // `chats` (teks mentah pelanggan) diteruskan supaya diagnosa app-spesifik bisa membaca
+    // aplikasi yang disebut ("tik tok muter", "video FB") — jawaban presisi dari matriks live.
+    await handleCekKoneksi({ sender, msg, raf, users, reply, global, mess, pushname, chats });
 }
 
 const CUSTOMER_SERVICE_INTENT_HANDLERS = Object.freeze({

@@ -8,7 +8,9 @@
  *       `../../lib/wifi` (getSSIDInfo), `../../repositories/auto-outage.repository` (state offline_since),
  *       `./template-helpers` (renderResponseTemplate), `../../lib/upstream-path-resolver` (IP→jalur)
  *       + lazy `../../lib/upstream-quality-poller` (status jalur upstream, best-effort)
- *       + lazy `../../lib/complaint-signal-service` (sinyal komplain → agregator, fire-and-forget).
+ *       + lazy `../../lib/complaint-signal-service` (sinyal komplain → agregator, fire-and-forget)
+ *       + lazy `../../lib/app-entity-extractor` + `../../lib/app-aware-diagnosis` (jawaban
+ *         SPESIFIK per aplikasi yang disebut pelanggan, dari matriks reachability live).
  * MainFuncs: `handleCekKoneksi`.
  * SideEffects: Membaca PPP active MikroTik (live, di-cache TTL pendek) + GenieACS (best-effort) lalu reply WhatsApp.
  */
@@ -202,7 +204,7 @@ async function resolveLineStatus({ user, userList, routerId }) {
     return { lineStatus: 'offline', areaOutage, offlineCount };
 }
 
-async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname }) {
+async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname, chats }) {
     const userList = Array.isArray(users) && users.length ? users : global.users || [];
 
     const resolved = await resolveCustomerBySender({ users: userList, sender, msg, raf });
@@ -241,16 +243,44 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
 
     const { lineStatus, areaOutage, offlineCount } = await resolveLineStatus({ user, userList, routerId });
 
+    // IP remote PPPoE pelanggan (dari cache PPP active) — dipakai peta jalur + diagnosa app.
+    const addr = activeCache.addrByUser
+        ? activeCache.addrByUser.get(normalizeUsername(user.pppoe_username))
+        : null;
+
+    // Entitas aplikasi yang disebut pelanggan ("tik tok muter", "video FB", "shopee") — jawaban
+    // SPESIFIK per-app dari matriks reachability live. Best-effort; kosong bila tak menyebut app.
+    let appEntity = null;
+    let appDiagnosis = '';
+    try {
+        if (lineStatus !== 'offline' && chats) {
+            const { topAppEntity } = require('../../lib/app-entity-extractor');
+            appEntity = topAppEntity(chats);
+            if (appEntity) {
+                const { buildAppDiagnosis } = require('../../lib/app-aware-diagnosis');
+                appDiagnosis = await buildAppDiagnosis({ addr, appEntity });
+            }
+        }
+    } catch (_e) {
+        // Diagnosa app opsional — tidak boleh mengganggu balasan cek koneksi.
+    }
+
     // Sinyal komplain → agregator (fire-and-forget): komplain "lemot" yang menumpuk pada jalur
     // upstream yang sama akan dinaikkan sendiri ke owner. Gate config.complaintSignals.enabled.
+    // Sertakan app yang disebut supaya alert owner bisa presisi ("5 pelanggan keluhkan TikTok").
     try {
         const { recordComplaint } = require('../../lib/complaint-signal-service');
-        const addr = activeCache.addrByUser
-            ? activeCache.addrByUser.get(normalizeUsername(user.pppoe_username))
-            : null;
-        recordComplaint({ user, source: 'cek_koneksi', addr, lineStatus }).catch(() => {});
+        recordComplaint({ user, source: 'cek_koneksi', addr, lineStatus, app: appEntity ? appEntity.label : null }).catch(() => {});
     } catch (_e) {
         // Sinyal opsional — tidak boleh mengganggu balasan cek koneksi.
+    }
+
+    // Catat konteks komplain (multi-turn): sebutan app polos susulan ("Shopee kak") dalam
+    // beberapa menit ke depan akan dikenali fallback sebagai lanjutan → diagnosa app-spesifik.
+    try {
+        require('../../lib/chat-activity-tracker').noteConnectivityComplaint(sender);
+    } catch (_e) {
+        // opsional
     }
 
     const modem = await buildModemLine(user);
@@ -262,6 +292,7 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
         nama_layanan: namaLayanan,
         modem,
         upstream,
+        app: appDiagnosis,
         jumlah: offlineCount,
         terakhir_online: formatTerakhirOnline(offlineSince)
     };
@@ -272,7 +303,7 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
         key = 'conncheck_online';
         fallback =
             `🔎 *STATUS KONEKSI — ${namaLayanan}*\n\nHalo Kak ${nama}! 👋\n\n` +
-            `🟢 *Jalur internet: AKTIF*\nKoneksi Anda ke jaringan kami normal.${modem}${upstream}\n\n` +
+            `🟢 *Jalur internet: AKTIF*\nKoneksi Anda ke jaringan kami normal.${modem}${upstream}${appDiagnosis}\n\n` +
             `✅ Kalau internet terasa lambat:\n` +
             `• Dekatkan perangkat ke modem / kurangi penghalang\n` +
             `• Ketik *cek wifi* untuk lihat perangkat yang terhubung\n` +
@@ -300,7 +331,7 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
         key = 'conncheck_unknown';
         fallback =
             `🔎 *STATUS KONEKSI — ${namaLayanan}*\n\nHalo Kak ${nama}!\n\n` +
-            `⚪ Status jalur internet Anda belum bisa kami cek otomatis saat ini.${modem}${upstream}\n\n` +
+            `⚪ Status jalur internet Anda belum bisa kami cek otomatis saat ini.${modem}${upstream}${appDiagnosis}\n\n` +
             `Untuk pengecekan lanjutan ketik *cek wifi*, atau ketik *lapor* bila ada kendala. 🙏`;
     }
 
