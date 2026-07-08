@@ -132,6 +132,11 @@ router.get('/upstream-quality', checkRole(['admin', 'owner', 'superadmin', 'tekn
     res.render('sb-admin/upstream-quality.php');
 });
 
+// Steering Pelanggan: pelanggan terkoneksi via ISP mana (live) + arahkan per-pelanggan/pool.
+router.get('/steering-pelanggan', checkRole(['admin', 'owner', 'superadmin', 'teknisi']), (req, res) => {
+    res.render('sb-admin/steering-pelanggan.php');
+});
+
 // Broadcast Tagihan: kirim pesan pembayaran (link bayar mandiri) ke pelanggan terpilih.
 router.get('/broadcast-tagihan', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/broadcast-tagihan.php');

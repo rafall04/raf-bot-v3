@@ -443,6 +443,11 @@
     "notifyAdmins": true,
     "recipients": []
   },
+  "customerSteering": {
+    "enabled": false,
+    "poolLists": ["freedns", "lokaldns"],
+    "reconcileIntervalSeconds": 60
+  },
   "publicSite": {
     "enabled": false,
     "host": "0.0.0.0",

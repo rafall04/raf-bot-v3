@@ -986,6 +986,10 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                     <i class="fas fa-fw fa-route mr-2"></i>
                     <span>Kualitas Jalur</span>
                 </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/steering-pelanggan', $current_page) ? 'active' : ''; ?>" href="/steering-pelanggan">
+                    <i class="fas fa-fw fa-random mr-2"></i>
+                    <span>Steering Pelanggan</span>
+                </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/admin-olt-provision', $current_page) ? 'active' : ''; ?>" href="/admin-olt-provision">
                     <i class="fas fa-fw fa-plug mr-2"></i>
                     <span>Provisioning OLT</span>
