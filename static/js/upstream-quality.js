@@ -6,8 +6,10 @@
  *          manual, auto-refresh 60 dtk.
  * Caller: `views/sb-admin/upstream-quality.php`.
  * Deps: Chart.js vendor (global `Chart`), fetch API, endpoint /api/upstream-quality/*.
- * MainFuncs: `muatStatus`, `muatGrafik`, `muatWan`, `muatRapor`, `muatInsiden`, `renderCards`.
- * SideEffects: DOM update + interval timer di halaman.
+ * MainFuncs: `muatStatus`, `muatGrafik`, `muatWan`, `muatRapor`, `muatInsiden`, `renderCards`,
+ *            `muatKonfig` (panel kustomisasi arah: target/layanan/jalur/thresholds via
+ *            GET/PUT /api/upstream-quality/config — live tanpa restart).
+ * SideEffects: DOM update + interval timer di halaman; simpan konfigurasi arah monitor.
  */
 (function () {
     "use strict";
@@ -377,6 +379,201 @@
             })
             .catch(function () { section.classList.add("d-none"); });
     }
+
+    // ===== Panel kustomisasi arah & jalur =====
+    var cfgLoaded = false;
+    var cfgCanEdit = false;
+
+    function cfgStatus(pesan, ok) {
+        var el = document.getElementById("upq-cfg-status");
+        if (!el) return;
+        el.innerHTML = pesan
+            ? '<span class="' + (ok ? "text-success" : "text-danger") + '">' + esc(pesan) + "</span>"
+            : "";
+    }
+
+    function barisInput(fields, removable) {
+        var tds = fields.map(function (f) {
+            return "<td><input class='form-control form-control-sm' data-f='" + f.name + "' value=\"" + esc(f.value) + "\"" +
+                (cfgCanEdit ? "" : " disabled") + "></td>";
+        }).join("");
+        var hapus = removable && cfgCanEdit
+            ? "<td><button class='btn btn-sm btn-outline-danger py-0 px-1 upq-cfg-del' title='Hapus baris'>×</button></td>"
+            : (removable ? "<td></td>" : "");
+        return "<tr>" + tds + hapus + "</tr>";
+    }
+
+    function pasangHapus(tbody) {
+        Array.prototype.forEach.call(tbody.querySelectorAll(".upq-cfg-del"), function (b) {
+            b.addEventListener("click", function () {
+                var tr = b.closest("tr");
+                if (tr) tr.parentNode.removeChild(tr);
+            });
+        });
+    }
+
+    function renderKonfig(d) {
+        cfgCanEdit = d.canEdit === true;
+        var tT = document.getElementById("upq-cfg-targets");
+        tT.innerHTML = (d.targets || []).map(function (t) {
+            return barisInput([
+                { name: "key", value: t.key },
+                { name: "label", value: t.label },
+                { name: "address", value: t.address }
+            ], true);
+        }).join("");
+        pasangHapus(tT);
+
+        var tS = document.getElementById("upq-cfg-services");
+        tS.innerHTML = (d.services || []).map(function (s) {
+            return barisInput([
+                { name: "key", value: s.key },
+                { name: "label", value: s.label },
+                { name: "host", value: s.host }
+            ], true);
+        }).join("");
+        pasangHapus(tS);
+        var sp = document.getElementById("upq-cfg-servicepaths");
+        sp.textContent = d.serviceEnabled
+            ? "Jalur prober layanan (srcIp, read-only): " + (d.servicePaths || []).map(function (p) { return p.key + "=" + p.srcIp; }).join(" · ")
+            : "Prober layanan nonaktif di bot ini (serviceMonitor.enabled).";
+
+        var tP = document.getElementById("upq-cfg-paths");
+        tP.innerHTML = (d.paths || []).map(function (p) {
+            var wiring = esc(p.wiring.routingTable) +
+                (p.wiring.iface ? " · " + esc(p.wiring.iface) : "") +
+                (p.wiring.tunnelType ? " · " + esc(p.wiring.tunnelType) : "");
+            return "<tr data-key='" + esc(p.key) + "'>" +
+                "<td><b>" + esc(p.key) + "</b></td>" +
+                "<td class='small text-muted'>" + wiring + "</td>" +
+                "<td><input class='form-control form-control-sm' data-f='label' value=\"" + esc(p.label) + "\"" + (cfgCanEdit ? "" : " disabled") + "></td>" +
+                "<td><input class='form-control form-control-sm' data-f='affects' value=\"" + esc(p.affects) + "\"" + (cfgCanEdit ? "" : " disabled") + "></td>" +
+                "<td><input class='form-control form-control-sm' data-f='gatewayTarget' placeholder='(otomatis utk tunnel)' value=\"" + esc(p.gatewayTarget) + "\"" + (cfgCanEdit ? "" : " disabled") + "></td>" +
+                "<td><input type='number' min='0' class='form-control form-control-sm' data-f='downMbps' value=\"" + esc(p.capacity.downMbps) + "\"" + (cfgCanEdit ? "" : " disabled") + "></td>" +
+                "<td><input type='number' min='0' class='form-control form-control-sm' data-f='upMbps' value=\"" + esc(p.capacity.upMbps) + "\"" + (cfgCanEdit ? "" : " disabled") + "></td>" +
+                "</tr>";
+        }).join("");
+
+        ["lossWarnPct", "lossCritPct", "rttWarnFactor", "rttCritFactor", "saturationPct"].forEach(function (k) {
+            var el = document.getElementById("cfg-th-" + k);
+            if (el) {
+                el.value = d.thresholds && d.thresholds[k] != null ? d.thresholds[k] : "";
+                el.disabled = !cfgCanEdit;
+            }
+        });
+
+        ["btn-cfg-target-add", "btn-cfg-target-save", "btn-cfg-service-add", "btn-cfg-service-save", "btn-cfg-path-save", "btn-cfg-th-save"]
+            .forEach(function (id) {
+                var b = document.getElementById(id);
+                if (b) b.disabled = !cfgCanEdit;
+            });
+        if (!cfgCanEdit) cfgStatus("Mode lihat saja — hanya admin/owner yang bisa menyimpan.", false);
+    }
+
+    function muatKonfig() {
+        fetch("/api/upstream-quality/config", { credentials: "same-origin" })
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+                if (j && j.success && j.data) {
+                    renderKonfig(j.data);
+                    cfgLoaded = true;
+                }
+            })
+            .catch(function () { cfgStatus("Gagal memuat konfigurasi.", false); });
+    }
+
+    function kumpulkanBaris(tbodyId, fields) {
+        var rows = [];
+        Array.prototype.forEach.call(document.querySelectorAll("#" + tbodyId + " tr"), function (tr) {
+            var obj = {};
+            fields.forEach(function (f) {
+                var inp = tr.querySelector("input[data-f='" + f + "']");
+                obj[f] = inp ? inp.value.trim() : "";
+            });
+            if (fields.some(function (f) { return obj[f]; })) rows.push(obj);
+        });
+        return rows;
+    }
+
+    function simpanKonfig(patch, btn) {
+        if (btn) { btn.disabled = true; btn.dataset.t = btn.textContent; btn.textContent = "Menyimpan…"; }
+        cfgStatus("");
+        fetch("/api/upstream-quality/config", {
+            method: "PUT",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(patch)
+        })
+            .then(function (r) { return r.json().then(function (j) { return { status: r.status, j: j }; }); })
+            .then(function (res) {
+                if (res.j && res.j.success) {
+                    cfgStatus("✅ Tersimpan (" + (res.j.data.changes || []).join(", ") + ") — berlaku pada siklus berikutnya, tanpa restart.", true);
+                    muatKonfig();
+                    setTimeout(muatSemua, 1500);
+                } else {
+                    var errs = (res.j && res.j.errors) || [(res.j && res.j.message) || "gagal"];
+                    cfgStatus("❌ " + errs.join(" | "), false);
+                }
+            })
+            .catch(function () { cfgStatus("❌ Gagal menghubungi server.", false); })
+            .then(function () { if (btn) { btn.disabled = !cfgCanEdit; btn.textContent = btn.dataset.t; } });
+    }
+
+    (function pasangKonfig() {
+        var toggle = document.getElementById("btn-config-toggle");
+        var body = document.getElementById("upq-config-body");
+        if (!toggle || !body) return;
+        toggle.addEventListener("click", function () {
+            var buka = body.classList.contains("d-none");
+            body.classList.toggle("d-none", !buka);
+            toggle.textContent = buka ? "Tutup" : "Buka";
+            if (buka && !cfgLoaded) muatKonfig();
+        });
+        var addRow = function (tbodyId, fields) {
+            var tbody = document.getElementById(tbodyId);
+            var tmp = document.createElement("tbody");
+            tmp.innerHTML = barisInput(fields.map(function (f) { return { name: f, value: "" }; }), true);
+            tbody.appendChild(tmp.firstChild);
+            pasangHapus(tbody);
+        };
+        document.getElementById("btn-cfg-target-add").addEventListener("click", function () {
+            addRow("upq-cfg-targets", ["key", "label", "address"]);
+        });
+        document.getElementById("btn-cfg-service-add").addEventListener("click", function () {
+            addRow("upq-cfg-services", ["key", "label", "host"]);
+        });
+        document.getElementById("btn-cfg-target-save").addEventListener("click", function () {
+            simpanKonfig({ targets: kumpulkanBaris("upq-cfg-targets", ["key", "label", "address"]) }, this);
+        });
+        document.getElementById("btn-cfg-service-save").addEventListener("click", function () {
+            simpanKonfig({ services: kumpulkanBaris("upq-cfg-services", ["key", "label", "host"]) }, this);
+        });
+        document.getElementById("btn-cfg-path-save").addEventListener("click", function () {
+            var paths = [];
+            Array.prototype.forEach.call(document.querySelectorAll("#upq-cfg-paths tr"), function (tr) {
+                var ambil = function (f) {
+                    var inp = tr.querySelector("input[data-f='" + f + "']");
+                    return inp ? inp.value.trim() : "";
+                };
+                paths.push({
+                    key: tr.getAttribute("data-key"),
+                    label: ambil("label"),
+                    affects: ambil("affects"),
+                    gatewayTarget: ambil("gatewayTarget"),
+                    capacity: { downMbps: Number(ambil("downMbps")) || 0, upMbps: Number(ambil("upMbps")) || 0 }
+                });
+            });
+            simpanKonfig({ paths: paths }, this);
+        });
+        document.getElementById("btn-cfg-th-save").addEventListener("click", function () {
+            var th = {};
+            ["lossWarnPct", "lossCritPct", "rttWarnFactor", "rttCritFactor", "saturationPct"].forEach(function (k) {
+                var el = document.getElementById("cfg-th-" + k);
+                if (el && el.value !== "") th[k] = Number(el.value);
+            });
+            simpanKonfig({ thresholds: th }, this);
+        });
+    })();
 
     function muatSemua() {
         muatStatus();

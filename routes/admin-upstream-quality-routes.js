@@ -1,19 +1,33 @@
 /**
  * Header Doc
  * Purpose: Route admin monitoring kualitas jalur upstream (GMDP/IH/MNI/SF) — status vonis per
- *          jalur, riwayat probe mentah, dan trigger probe manual.
+ *          jalur, riwayat probe mentah, trigger probe manual, dan kustomisasi ARAH monitor
+ *          (target ping/layanan/properti jalur/thresholds) dari halaman web.
  * Caller: `routes/admin-router.js`.
  * Deps: `lib/upstream-quality-poller` (status/poll), `repositories/upstream-quality.repository`
- *       (riwayat), `ensureAuthenticatedStaff`, `lib/error-handler.asyncHandler`.
+ *       (riwayat), `lib/upstream-config-service` (view+patch config arah, admin-only),
+ *       `ensureAuthenticatedStaff`, `lib/error-handler.asyncHandler`.
  * MainFuncs: `registerAdminUpstreamQualityRoutes`.
- * SideEffects: Endpoint poll-now memicu satu siklus ping dari router gateway.
+ * SideEffects: Endpoint poll-now memicu satu siklus ping dari router gateway; PUT config
+ *              menulis `config.json` + live-apply (via upstream-config-service).
  */
 "use strict";
 
 const { asyncHandler } = require("../lib/error-handler");
 const upstreamPoller = require("../lib/upstream-quality-poller");
 const serviceProber = require("../lib/service-reachability-prober");
+const upstreamConfig = require("../lib/upstream-config-service");
 const { getUpstreamQualityRepository } = require("../repositories/upstream-quality.repository");
+
+const ADMIN_ROLES = ["admin", "owner", "superadmin"];
+
+function requireAdminOwner(req, res, next) {
+    const role = req.user && String(req.user.role || "").toLowerCase();
+    if (!role || !ADMIN_ROLES.includes(role)) {
+        return res.status(403).json({ success: false, message: "Pengaturan monitor hanya untuk admin/owner." });
+    }
+    next();
+}
 
 function registerAdminUpstreamQualityRoutes(router, deps) {
     const { ensureAuthenticatedStaff } = deps;
@@ -110,6 +124,29 @@ function registerAdminUpstreamQualityRoutes(router, deps) {
     router.post("/api/service-quality/poll-now", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
         const result = await serviceProber.probeCycle();
         res.json({ success: result.ok === true, data: result, stats: serviceProber.getProberStats() });
+    }));
+
+    // Konfigurasi arah monitor (target ping/layanan/jalur/thresholds) — view efektif + flag canEdit.
+    router.get("/api/upstream-quality/config", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const role = req.user && String(req.user.role || "").toLowerCase();
+        res.json({
+            success: true,
+            data: {
+                ...upstreamConfig.getEditableUpstreamConfig(),
+                canEdit: ADMIN_ROLES.includes(role)
+            }
+        });
+    }));
+
+    // Simpan kustomisasi arah (admin/owner) — validasi semua-atau-batal, live tanpa restart.
+    router.put("/api/upstream-quality/config", ensureAuthenticatedStaff, requireAdminOwner, asyncHandler(async (req, res) => {
+        const u = req.user || {};
+        const actor = `${u.role || "admin"}:${u.name || u.username || u.id || "-"}`;
+        const result = upstreamConfig.applyUpstreamConfigPatch(req.body || {}, actor);
+        if (!result.ok) {
+            return res.status(400).json({ success: false, errors: result.errors || ["gagal"] });
+        }
+        res.json({ success: true, data: { changes: result.changes, appliedLive: true } });
     }));
 }
 

@@ -93,6 +93,64 @@
             </div>
           </div>
 
+          <div id="upq-config-section" class="card shadow mb-4">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+              <h6 class="m-0 font-weight-bold text-primary">⚙️ Pengaturan Arah &amp; Jalur (kustomisasi monitor)</h6>
+              <button id="btn-config-toggle" class="btn btn-sm btn-outline-secondary">Buka</button>
+            </div>
+            <div class="card-body d-none" id="upq-config-body">
+              <div class="alert alert-info py-2 small mb-3">
+                Perubahan berlaku <b>otomatis pada siklus berikutnya (≤1 menit), tanpa restart bot</b>.
+                Field <i>wiring</i> (routing-table / interface / srcIp / jalur baru) sengaja read-only —
+                ubah lewat <code>config.json</code> agar probe tidak rusak. 1.1.1.1 &amp; 8.8.8.8 ditolak
+                sebagai target (dipakai router untuk gateway-check).
+              </div>
+              <div class="row">
+                <div class="col-lg-6 mb-3">
+                  <h6 class="font-weight-bold small text-uppercase text-gray-600">🎯 Target ping (arah ICMP per jalur)</h6>
+                  <div class="table-responsive">
+                    <table class="table table-sm mb-1" style="font-size:.85rem">
+                      <thead><tr><th style="width:22%">Key</th><th style="width:33%">Label</th><th>Alamat (IP/host)</th><th style="width:34px"></th></tr></thead>
+                      <tbody id="upq-cfg-targets"></tbody>
+                    </table>
+                  </div>
+                  <button class="btn btn-sm btn-outline-primary" id="btn-cfg-target-add">+ Tambah target</button>
+                  <button class="btn btn-sm btn-primary" id="btn-cfg-target-save">Simpan target</button>
+                </div>
+                <div class="col-lg-6 mb-3">
+                  <h6 class="font-weight-bold small text-uppercase text-gray-600">🌐 Layanan populer (arah TCP+TLS)</h6>
+                  <div class="table-responsive">
+                    <table class="table table-sm mb-1" style="font-size:.85rem">
+                      <thead><tr><th style="width:22%">Key</th><th style="width:28%">Label</th><th>Host (wajib hostname)</th><th style="width:34px"></th></tr></thead>
+                      <tbody id="upq-cfg-services"></tbody>
+                    </table>
+                  </div>
+                  <button class="btn btn-sm btn-outline-primary" id="btn-cfg-service-add">+ Tambah layanan</button>
+                  <button class="btn btn-sm btn-primary" id="btn-cfg-service-save">Simpan layanan</button>
+                  <div class="small text-muted mt-1" id="upq-cfg-servicepaths"></div>
+                </div>
+              </div>
+              <h6 class="font-weight-bold small text-uppercase text-gray-600 mt-2">🛣️ Jalur / ISP (label, cakupan, gateway, kapasitas)</h6>
+              <div class="table-responsive">
+                <table class="table table-sm mb-1" style="font-size:.85rem">
+                  <thead><tr><th>Key</th><th>Wiring <span class="text-muted">(read-only)</span></th><th>Label</th><th>Terdampak (affects)</th><th>Gateway target</th><th style="width:90px">Kap. ↓Mbps</th><th style="width:90px">Kap. ↑Mbps</th></tr></thead>
+                  <tbody id="upq-cfg-paths"></tbody>
+                </table>
+              </div>
+              <button class="btn btn-sm btn-primary mb-3" id="btn-cfg-path-save">Simpan jalur</button>
+              <h6 class="font-weight-bold small text-uppercase text-gray-600">📐 Ambang vonis (thresholds)</h6>
+              <form class="form-inline" id="upq-cfg-thresholds">
+                <label class="small mr-1">Loss warn %</label><input class="form-control form-control-sm mr-3" style="width:70px" type="number" step="0.5" id="cfg-th-lossWarnPct">
+                <label class="small mr-1">Loss crit %</label><input class="form-control form-control-sm mr-3" style="width:70px" type="number" step="0.5" id="cfg-th-lossCritPct">
+                <label class="small mr-1">RTT warn ×</label><input class="form-control form-control-sm mr-3" style="width:70px" type="number" step="0.1" id="cfg-th-rttWarnFactor">
+                <label class="small mr-1">RTT crit ×</label><input class="form-control form-control-sm mr-3" style="width:70px" type="number" step="0.1" id="cfg-th-rttCritFactor">
+                <label class="small mr-1">Jenuh %</label><input class="form-control form-control-sm mr-3" style="width:70px" type="number" step="1" id="cfg-th-saturationPct">
+                <button class="btn btn-sm btn-primary" type="button" id="btn-cfg-th-save">Simpan ambang</button>
+              </form>
+              <div class="small text-muted mt-2" id="upq-cfg-status"></div>
+            </div>
+          </div>
+
           <div class="row">
             <div class="col-lg-6 mb-4">
               <div class="card shadow">
