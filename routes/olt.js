@@ -1005,6 +1005,19 @@ router.get('/onus', async (req, res) => {
             return res.json({ status: 200, message: oltResult.message || 'Gagal mengambil data OLT', data: [], enabled: true, error: true });
         }
 
+        // Segarkan cache MAC→PPPoE (last-caller-id) dari sesi PPPoE MikroTik SEBELUM matching.
+        // ONU EPON (Hioso) tak membawa description/serial, jadi SATU-SATUNYA jalur match ke
+        // pelanggan adalah MAC-prefix via lastCallerIdCache. Endpoint ini hanya MEMBACA cache
+        // itu; kalau belum pernah dihangatkan (file last-caller-id-cache.json tak ada saat
+        // startup DAN /matched belum pernah dibuka), cache kosong → matchedCount 0 → "nama
+        // pelanggan tak terdeteksi" di Monitor OLT. Panggilan ini ber-cache 15 dtk & non-fatal
+        // (getCachedPppoeData mengembalikan [] bila MikroTik down) — juga mem-persist file cache.
+        try {
+            await getCachedPppoeData();
+        } catch (pppoeErr) {
+            console.warn('[OLT-onus] Gagal segarkan PPPoE caller-id cache:', pppoeErr.message);
+        }
+
         // Index pelanggan untuk anotasi (ONU → pelanggan).
         const users = global.users || [];
         const usersByPppoe = new Map();
