@@ -631,6 +631,22 @@ body.tk-dark .los-card .card-header { border-bottom-color: var(--d-line) !import
 /* Catatan collapsible (.los-note) dipakai di los-broadcast -> border-only, gelapkan garisnya. */
 body.tk-dark .los-note { border-color: var(--d-line) !important; }
 
+/* broadcast-tagihan: #customer-list & #preview-box di-set background terang inline
+   (var(--white)/var(--gray-100)) di PHP -> tak ikut dark, nama pelanggan (ink terang)
+   jadi putih-di-atas-putih. Gelapkan surface + turunkan hairline baris ke --d-line.
+   Sengaja pakai ID (bukan .bg-white) krn preview-box tak punya utility yg pas. */
+body.tk-dark #customer-list {
+    background: var(--d-surface) !important;
+    color: var(--d-ink);
+    border-color: var(--d-line) !important;
+}
+body.tk-dark #customer-list .border-bottom { border-bottom-color: var(--d-line) !important; }
+body.tk-dark #preview-box {
+    background: var(--d-surface-2) !important;
+    color: var(--d-ink);
+    border-color: var(--d-line) !important;
+}
+
 /* psb-rekap status badges */
 body.tk-dark .status-badge.status-completed { background: rgba(16,185,129,.16) !important; color: var(--emerald-300) !important; }
 body.tk-dark .status-badge.status-pending { background: rgba(245,158,11,.16) !important; color: var(--amber-300) !important; }
