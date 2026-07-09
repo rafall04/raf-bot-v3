@@ -55,11 +55,20 @@ if ($current_role === 'guest' && isset($_SESSION['role']) && !empty(trim($_SESSI
 $isAdminLikeRole = in_array($current_role, ['admin', 'owner', 'superadmin'], true);
 $isTeknisiRole = $current_role === 'teknisi';
 
-$layananPages = $isAdminLikeRole
-    ? ['/admin/daftar-tiket', '/speed-requests', '/speed-boost-config', '/kompensasi', '/psb-rekap']
-    : ($isTeknisiRole ? ['/teknisi-tiket'] : []);
-$ticketPagePath = $isAdminLikeRole ? '/admin/daftar-tiket' : ($isTeknisiRole ? '/teknisi-tiket' : null);
-$ticketPageLabel = $isAdminLikeRole ? 'Tiket Support Admin' : 'Tiket Teknisi';
+// CATATAN php-express: file ini (_navbar.php) adalah sidebar ADMIN — di-include langsung
+// hanya pada halaman yang sudah di-gate role admin di layer Express (checkRole). php-express
+// merender PHP lewat CLI dan TIDAK mengisi $_COOKIE, jadi deteksi role dari token di atas
+// SELALU jatuh ke 'guest'. Semua grup menu lain dirender tanpa syarat role; dulu HANYA grup
+// "Layanan" yang dibungkus kondisi berbasis role, jadi grup itu (berisi Kompensasi, Speed
+// Boost, Rekap PSB) HILANG dari menu untuk semua admin. Karena file ini khusus admin, paksa
+// konteks admin agar grup Layanan tampil konsisten dengan grup lain. Otorisasi sebenarnya
+// tetap di layer Express (checkRole), bukan di sidebar ini.
+$isAdminLikeRole = true;
+$isTeknisiRole = false;
+
+$layananPages = ['/admin/daftar-tiket', '/speed-requests', '/speed-boost-config', '/kompensasi', '/psb-rekap'];
+$ticketPagePath = '/admin/daftar-tiket';
+$ticketPageLabel = 'Tiket Support Admin';
 
 function isActive($page, $current) {
     $pages = is_array($page) ? $page : [$page];
