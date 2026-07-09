@@ -4,7 +4,7 @@
  * Caller: `routes/api-psb-routes.js`.
  * Deps: `repositories/api-psb.repository.js`, adapter provisioning PSB/MikroTik, helper upload, dan notification boundary PSB.
  * MainFuncs: `createApiPsbService`, `submitPhase1`, `submitPhase2`, `submitPhase3`, `deleteAllPsbRecords`, `updatePsbStatus`, `activatePsbToUser`, `listPsbRecordsByStatus`, `getPsbRecordDetail`.
- * SideEffects: Membaca/menulis record PSB, memindahkan foto upload phase 1, memanggil adapter provisioning, memindahkan PSB ke users, menghapus snapshot PSB, dan mengirim notifikasi secara bertahap sesuai slice yang sudah dinormalisasi.
+ * SideEffects: Membaca/menulis record PSB, memindahkan foto upload phase 1, memanggil adapter provisioning, memindahkan PSB ke users, menghapus snapshot PSB, dan mengirim notifikasi secara bertahap sesuai slice yang sudah dinormalisasi. Fase 3 (anti-orphan): user dibuat via `movePSBToUsers` SEBELUM record ditandai `completed`; bila gagal sebelum user terbuat, secret PPPoE di-rollback via `removePPPoESecret`; welcome pelanggan DITAHAN bila push GenieACS gagal.
  */
 "use strict";
 
@@ -32,6 +32,7 @@ function defaultDeps() {
         logWifiChange: null,
         updatePSBRecord: null,
         movePSBToUsers: null,
+        removePPPoESecret: null,
         updatePsbDeviceConfig: null,
         withLock: null,
         fs: require("fs"),
@@ -415,7 +416,8 @@ function createApiPsbService(overrides = {}) {
             const transaction = {
                 customerId: null,
                 pppoeCreated: false,
-                deviceUpdated: false
+                deviceUpdated: false,
+                userCreated: false
             };
 
             try {
@@ -549,6 +551,7 @@ function createApiPsbService(overrides = {}) {
                     genieacsError = genieError.message;
                     deps.logger.warn?.("[PSB_PHASE3] GenieACS update failed, but continuing:", genieError.message);
                 }
+                const genieacsOk = transaction.deviceUpdated === true;
 
                 const completedAt = new Date().toISOString();
                 const psbData = {
@@ -562,18 +565,6 @@ function createApiPsbService(overrides = {}) {
                     }
                 };
 
-                await deps.updatePSBRecord?.(customerId, {
-                    pppoe_username,
-                    pppoe_password: finalPPPoEPassword,
-                    device_id,
-                    subscription,
-                    psb_status: "completed",
-                    psb_wifi_ssid: wifi_ssid,
-                    psb_wifi_password: wifi_password,
-                    phase3_completed_at: completedAt,
-                    psb_data: psbData
-                });
-
                 const updatedRecord = {
                     ...psbRecord,
                     pppoe_username,
@@ -586,11 +577,12 @@ function createApiPsbService(overrides = {}) {
                     phase3_completed_at: completedAt,
                     psb_data: psbData
                 };
-                deps.repository.updatePsbRecordsSnapshot((records) =>
-                    records.map((record, index) => (index === psbRecordIndex ? updatedRecord : record))
-                );
 
+                // (1) Buat user asli DULU. Jika movePSBToUsers/updateUsers gagal, record PSB
+                //     TETAP `phase2_completed` (masih bisa di-retry dari UI) dan catch akan
+                //     menghapus secret PPPoE — mencegah bug "record completed tanpa baris users".
                 const newUserId = await deps.movePSBToUsers?.(updatedRecord);
+                transaction.userCreated = true;
                 const bulkSSIDs = ssidIndicesToUpdate.map((idx) => String(idx));
                 const newUser = {
                     id: newUserId,
@@ -613,6 +605,22 @@ function createApiPsbService(overrides = {}) {
                     updated_at: completedAt
                 };
                 deps.repository.updateUsers?.((currentUsers) => [...currentUsers, newUser]);
+
+                // (2) Baru setelah baris users ADA, tandai record PSB `completed` (DB + snapshot).
+                await deps.updatePSBRecord?.(customerId, {
+                    pppoe_username,
+                    pppoe_password: finalPPPoEPassword,
+                    device_id,
+                    subscription,
+                    psb_status: "completed",
+                    psb_wifi_ssid: wifi_ssid,
+                    psb_wifi_password: wifi_password,
+                    phase3_completed_at: completedAt,
+                    psb_data: psbData
+                });
+                deps.repository.updatePsbRecordsSnapshot((records) =>
+                    records.map((record, index) => (index === psbRecordIndex ? updatedRecord : record))
+                );
 
                 try {
                     await deps.logActivity?.({
@@ -674,24 +682,30 @@ function createApiPsbService(overrides = {}) {
                     deps.logger.error?.("[PSB_PHASE3] WiFi log error:", wifiLogErr);
                 }
 
-                try {
-                    await deps.sendPSBPhase2Notification?.({
-                        ...updatedRecord,
-                        subscription
-                    }, {
-                        pppoe_username,
-                        pppoe_password: finalPPPoEPassword,
-                        wifi_ssid,
-                        wifi_password
-                    });
-                } catch (notifErr) {
-                    deps.logger.error?.("[PSB_PHASE3] Notification error:", notifErr);
+                // Welcome pelanggan (WiFi/PPPoE) HANYA bila modem benar terkonfigurasi. Bila GenieACS
+                // gagal, TAHAN welcome (jangan janjikan WiFi aktif) — teknisi set modem manual dulu.
+                if (genieacsOk) {
+                    try {
+                        await deps.sendPSBPhase2Notification?.({
+                            ...updatedRecord,
+                            subscription
+                        }, {
+                            pppoe_username,
+                            pppoe_password: finalPPPoEPassword,
+                            wifi_ssid,
+                            wifi_password
+                        });
+                    } catch (notifErr) {
+                        deps.logger.error?.("[PSB_PHASE3] Notification error:", notifErr);
+                    }
+                } else {
+                    deps.logger.warn?.(`[PSB_PHASE3] Welcome pelanggan DITAHAN (GenieACS gagal) utk ${updatedRecord.name}. Set WiFi/PPPoE modem manual dulu, lalu kirim welcome manual.`);
                 }
 
                 // Transport tetap 200 (frontend butuh ini untuk menampilkan kredensial), tapi
                 // pesan + flag warning mencerminkan kegagalan parsial GenieACS agar device tidak
-                // terlanjur dianggap "beres" saat modem belum dikonfigurasi.
-                const genieacsOk = transaction.deviceUpdated === true;
+                // terlanjur dianggap "beres" saat modem belum dikonfigurasi. (genieacsOk dihitung
+                // tepat setelah blok GenieACS di atas — dipakai juga untuk menahan welcome.)
                 return {
                     status: 200,
                     body: {
@@ -716,8 +730,19 @@ function createApiPsbService(overrides = {}) {
                     }
                 };
             } catch (error) {
-                if (transaction.pppoeCreated) {
-                    deps.logger.warn?.("[PSB_PHASE3_ROLLBACK] PPPoE user created but process failed:", error.message);
+                // Rollback terarah: hapus secret PPPoE HANYA bila user belum terbuat (movePSBToUsers
+                // belum sukses) — supaya retry Fase 3 tidak kena "username sudah ada". Bila user SUDAH
+                // terbuat, secret DIPERTAHANKAN (pelanggan nyata); record PSB masih phase2_completed
+                // (belum ditandai completed) sehingga finalisasi bisa diulang/dilengkapi manual.
+                if (transaction.pppoeCreated && !transaction.userCreated) {
+                    try {
+                        await deps.removePPPoESecret?.(pppoe_username, { caller: "api.psb.submit-phase3.rollback" });
+                        deps.logger.warn?.(`[PSB_PHASE3_ROLLBACK] Secret PPPoE ${pppoe_username} dihapus (user belum terbuat) setelah gagal: ${error.message}`);
+                    } catch (rollbackErr) {
+                        deps.logger.error?.("[PSB_PHASE3_ROLLBACK] Gagal menghapus secret PPPoE:", rollbackErr.message);
+                    }
+                } else if (transaction.pppoeCreated) {
+                    deps.logger.warn?.("[PSB_PHASE3_ROLLBACK] User terbuat tetapi finalisasi gagal — secret PPPoE DIPERTAHANKAN, lengkapi status PSB manual:", error.message);
                 }
                 return {
                     status: 500,

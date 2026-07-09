@@ -311,4 +311,74 @@ describe("api-psb service", () => {
             }
         });
     });
+
+    // --- Fase 3 anti-orphan + welcome jujur (track perbaikan risiko PSB) ---
+    function makePhase3Service(overrides = {}) {
+        const baseRecord = {
+            id: 3, name: "Cust 3", phone_number: "082", address: "Jl. Fiber",
+            latitude: -6.1, longitude: 106.8, location_url: "https://maps.test",
+            odp_id: "ODP-A", installed_odp_id: "ODP-B",
+            psb_status: "phase2_completed", created_at: "2026-04-23T00:00:00.000Z", psb_data: {}
+        };
+        return createApiPsbService({
+            repository: {
+                getPsbRecordsSnapshot: jest.fn(() => [{ ...baseRecord }]),
+                getConfigSnapshot: jest.fn(() => ({ defaultPPPoEPassword: "auto-pass" })),
+                updatePsbRecordsSnapshot: jest.fn((updater) => updater([{ ...baseRecord }])),
+                updateUsers: jest.fn((updater) => updater([]))
+            },
+            addPPPoEUser: jest.fn().mockResolvedValue({ ok: true }),
+            assertMikrotikResult: jest.fn(),
+            getProfileBySubscription: jest.fn(() => "PROFILE-10M"),
+            updatePsbDeviceConfig: jest.fn().mockResolvedValue({ ok: true, accepted: true }),
+            getSSIDInfo: jest.fn().mockResolvedValue({ ssid: [{ id: "1", name: "OLD" }] }),
+            updatePSBRecord: jest.fn().mockResolvedValue(undefined),
+            movePSBToUsers: jest.fn().mockResolvedValue(77),
+            removePPPoESecret: jest.fn().mockResolvedValue({ ok: true }),
+            logActivity: jest.fn().mockResolvedValue(undefined),
+            logWifiChange: jest.fn().mockResolvedValue(undefined),
+            sendPSBPhase2Notification: jest.fn().mockResolvedValue(undefined),
+            logger: { log: jest.fn(), warn: jest.fn(), error: jest.fn() },
+            ...overrides
+        });
+    }
+    const phase3Args = {
+        customerId: 3, pppoe_username: "cust3", subscription: "Paket 10M",
+        device_id: "DEV-3", wifi_ssid: "HOME-3", wifi_password: "wifi-pass", ssid_index: 1,
+        userContext: { id: 5, username: "staff", role: "staff" },
+        requestMeta: { ipAddress: "127.0.0.1", userAgent: "jest" }
+    };
+
+    test("submitPhase3 sukses → user dibuat SEBELUM record ditandai completed (anti-orphan order)", async () => {
+        const service = makePhase3Service();
+        await service.submitPhase3(phase3Args);
+        const moveOrder = service.deps.movePSBToUsers.mock.invocationCallOrder[0];
+        const markOrder = service.deps.updatePSBRecord.mock.invocationCallOrder[0];
+        expect(moveOrder).toBeLessThan(markOrder);
+    });
+
+    test("submitPhase3 GenieACS gagal → welcome pelanggan DITAHAN + warning, user tetap dibuat", async () => {
+        const service = makePhase3Service({
+            updatePsbDeviceConfig: jest.fn().mockResolvedValue({ ok: false, message: "timeout" })
+        });
+        const result = await service.submitPhase3(phase3Args);
+        expect(service.deps.movePSBToUsers).toHaveBeenCalled();
+        expect(service.deps.updatePSBRecord).toHaveBeenCalled();
+        expect(service.deps.sendPSBPhase2Notification).not.toHaveBeenCalled();
+        expect(result.status).toBe(200);
+        expect(result.body.warning).toBe("genieacs_update_failed");
+        expect(result.body.data.genieacsUpdated).toBe(false);
+    });
+
+    test("submitPhase3 movePSBToUsers gagal → rollback secret PPPoE, record TIDAK ditandai completed", async () => {
+        const service = makePhase3Service({
+            movePSBToUsers: jest.fn().mockRejectedValue(new Error("db move fail"))
+        });
+        const result = await service.submitPhase3(phase3Args);
+        expect(service.deps.addPPPoEUser).toHaveBeenCalled();
+        expect(service.deps.movePSBToUsers).toHaveBeenCalled();
+        expect(service.deps.removePPPoESecret).toHaveBeenCalledWith("cust3", { caller: "api.psb.submit-phase3.rollback" });
+        expect(service.deps.updatePSBRecord).not.toHaveBeenCalled();
+        expect(result.status).toBe(500);
+    });
 });

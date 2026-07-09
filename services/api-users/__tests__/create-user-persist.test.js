@@ -98,3 +98,52 @@ describe('create-user-persist — free_first_month waiver', () => {
         expect(deps.logger.error).toHaveBeenCalled();
     });
 });
+
+describe('create-user-persist — welcome jujur saat push modem gagal (device_config)', () => {
+    const welcomeDeps = (overrides = {}) => makeDeps({
+        getConfig: jest.fn(() => ({ welcomeMessage: { enabled: true }, nama: 'RAFNET', namabot: 'BOT' })),
+        getStatusSnapshot: jest.fn(() => ({ connectionState: 'close' })),
+        logger: { error: jest.fn(), warn: jest.fn() },
+        ...overrides
+    });
+
+    test('push modem GAGAL (attempted && !ok) → psb_welcome DITAHAN + warning device_config_failed', async () => {
+        const deps = welcomeDeps();
+        const newUser = { id: 5, name: 'Budi', paid: false, subscription: 'PAKET-100K', phone_number: '08123456789' };
+        const res = await persistAndNotifyNewUser(deps, buildArgs(newUser, { wifi_ssid: 'BudiNet', wifi_password: 'budi12345' }, {
+            registrationMode: 'new',
+            deviceConfig: { attempted: true, ok: false, message: 'timeout' }
+        }));
+        expect(res.status).toBe(201);
+        // Welcome ditahan SEBELUM render → template WiFi tak pernah dibuat/dikirim.
+        expect(deps.renderTemplate).not.toHaveBeenCalled();
+        expect(deps.sendMessage).not.toHaveBeenCalled();
+        // Kegagalan dimunculkan ke teknisi/admin.
+        expect(res.body.warning).toBe('device_config_failed');
+        expect(res.body.device_config).toEqual({ attempted: true, ok: false, message: 'timeout' });
+        expect(res.body.provisioning_note).toMatch(/DITAHAN|modem/i);
+        expect(deps.logger.warn).toHaveBeenCalled();
+    });
+
+    test('push modem OK (attempted && ok) → psb_welcome dirender + device_config disurface tanpa warning', async () => {
+        const deps = welcomeDeps();
+        const newUser = { id: 6, name: 'Sari', paid: false, subscription: 'PAKET-100K', phone_number: '08123456789' };
+        const res = await persistAndNotifyNewUser(deps, buildArgs(newUser, { wifi_ssid: 'SariNet', wifi_password: 'sari12345' }, {
+            registrationMode: 'new',
+            deviceConfig: { attempted: true, ok: true, message: 'ok' }
+        }));
+        expect(res.status).toBe(201);
+        expect(deps.renderTemplate).toHaveBeenCalledWith('psb_welcome', expect.objectContaining({ wifi_ssid: 'SariNet' }));
+        expect(res.body.device_config).toEqual({ attempted: true, ok: true, message: 'ok' });
+        expect(res.body.warning).toBeUndefined();
+    });
+
+    test('tanpa push modem (attempted=false, legacy) → welcome normal jalan, tanpa warning', async () => {
+        const deps = welcomeDeps();
+        const newUser = { id: 7, name: 'Legacy', paid: false, subscription: 'PAKET-100K', phone_number: '08123456789', username: 'legacy' };
+        const res = await persistAndNotifyNewUser(deps, buildArgs(newUser, {}, { registrationMode: 'legacy' }));
+        expect(res.status).toBe(201);
+        expect(res.body.warning).toBeUndefined();
+        expect(deps.renderTemplate).toHaveBeenCalledWith('customer_welcome', expect.objectContaining({ username: 'legacy' }));
+    });
+});

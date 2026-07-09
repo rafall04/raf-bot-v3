@@ -50,6 +50,7 @@ async function upsertUserFromAdminPanel(deps, service, { userData, actor, reques
         requestMeta
     });
     const mikrotikSync = syncResult.mikrotikSync;
+    const deviceConfig = syncResult.deviceConfig;
 
     // Phase 4-8: persist + apply paid + activity log + welcome msg
     return persistAndNotifyNewUser(deps, {
@@ -59,6 +60,7 @@ async function upsertUserFromAdminPanel(deps, service, { userData, actor, reques
         paymentMethod,
         registrationMode,
         mikrotikSync,
+        deviceConfig,
         syncEnabled,
         userData,
         actor,

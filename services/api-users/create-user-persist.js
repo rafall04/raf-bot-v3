@@ -3,12 +3,12 @@
  * Purpose: Phase 4-8 dari workflow create user — insert ke DB + in-memory snapshot, apply paid status via finance boundary (dengan rollback on error: hapus user dari snapshot+DB jika gagal mencatat status lunas), OPSIONAL waiver "bebas tagihan bulan ini" bila `userData.free_first_month` ON (best-effort, mutual-eksklusif dgn paid, hanya paket bertagihan), activity log (best-effort), kirim welcome message via WhatsApp (best-effort, mode-aware: `psb_welcome` untuk mode new, `import_welcome` untuk import, `customer_welcome` default), return final response 201 dengan generated credentials + mikrotik sync metadata + `free_month_applied`.
  * Caller: `services/api-users/create-user.js` (orchestrator).
  * Deps: `deps.repository.insertUserRecord`/`getUsersSnapshot`/`replaceUsersSnapshot`/`deleteUserRecord`, `deps.applyPaymentStatusChange`, `deps.handlePaidStatusChange`, `deps.getPeriodParts`, `deps.getEffectivePrice`, `deps.logActivity`, `deps.getConfig`, `deps.getPackages`, `deps.renderTemplate`, `deps.sendMessage`, `deps.getStatusSnapshot`, `deps.logger`, lazy-require `../../lib/utils` (normalizePhoneNumber).
- * MainFuncs: `persistAndNotifyNewUser(deps, { newUser, plainTextPassword, finalUsername, paymentMethod, registrationMode, mikrotikSync, syncEnabled, userData, actor, requestMeta })`.
- * SideEffects: DB insert + snapshot replace, finance boundary call (paid path), activity log, WhatsApp send (async/fire-and-forget). Rollback paid path: hapus user dari DB+snapshot jika applyPaymentStatusChange gagal — throw final error.
+ * MainFuncs: `persistAndNotifyNewUser(deps, { newUser, plainTextPassword, finalUsername, paymentMethod, registrationMode, mikrotikSync, deviceConfig, syncEnabled, userData, actor, requestMeta })`.
+ * SideEffects: DB insert + snapshot replace, finance boundary call (paid path), activity log, WhatsApp send (async/fire-and-forget). Rollback paid path: hapus user dari DB+snapshot jika applyPaymentStatusChange gagal — throw final error. Welcome mode `new` DITAHAN bila `deviceConfig.attempted && !deviceConfig.ok` (push modem gagal → jangan janjikan WiFi aktif); respons membawa `device_config` + `warning:"device_config_failed"` agar teknisi/admin tahu harus set modem manual.
  */
 "use strict";
 
-async function persistAndNotifyNewUser(deps, { newUser, plainTextPassword, finalUsername, paymentMethod, registrationMode, mikrotikSync, syncEnabled, userData, actor, requestMeta }) {
+async function persistAndNotifyNewUser(deps, { newUser, plainTextPassword, finalUsername, paymentMethod, registrationMode, mikrotikSync, deviceConfig = { attempted: false, ok: false, message: null }, syncEnabled, userData, actor, requestMeta }) {
     await deps.repository.insertUserRecord(newUser);
     deps.repository.replaceUsersSnapshot([...deps.repository.getUsersSnapshot(), newUser]);
 
@@ -105,6 +105,10 @@ async function persistAndNotifyNewUser(deps, { newUser, plainTextPassword, final
 
     const appConfig = deps.getConfig();
     const welcomeEnabled = appConfig.welcomeMessage?.enabled !== false;
+    // Push konfigurasi ke modem GAGAL → jangan kirim welcome yang menjanjikan "WiFi aktif"
+    // (pelanggan akan diberi sandi WiFi yang belum di-set di modem). Kegagalan dimunculkan ke
+    // teknisi/admin via `device_config` di respons. Keputusan user: "Tahan + beri tahu teknisi".
+    const devicePushFailed = Boolean(deviceConfig?.attempted && !deviceConfig.ok);
     if (welcomeEnabled && newUser.phone_number) {
         try {
             const { normalizePhoneNumber } = require("../../lib/utils");
@@ -112,6 +116,10 @@ async function persistAndNotifyNewUser(deps, { newUser, plainTextPassword, final
             let templateData = {};
 
             if (registrationMode === "new" && userData.wifi_ssid && userData.wifi_password) {
+                if (devicePushFailed) {
+                    deps.logger.warn?.(`[WELCOME_HELD] psb_welcome ditahan utk pelanggan ${newUser.id}: push modem gagal (${deviceConfig?.message || "-"}). Set WiFi/PPPoE di modem manual dulu, lalu kirim welcome dari tombol.`);
+                    throw new Error("Skip welcome message");
+                }
                 templateName = "psb_welcome";
                 templateData = {
                     nama_pelanggan: newUser.name,
@@ -201,7 +209,12 @@ async function persistAndNotifyNewUser(deps, { newUser, plainTextPassword, final
             sync_policy: syncEnabled ? "enabled" : "disabled",
             sync_status: mikrotikSync.status,
             sync_message: mikrotikSync.message,
-            mikrotik_sync: mikrotikSync
+            mikrotik_sync: mikrotikSync,
+            device_config: deviceConfig,
+            ...(devicePushFailed ? {
+                warning: "device_config_failed",
+                provisioning_note: "Konfigurasi WiFi/PPPoE ke modem GAGAL dikirim. Set manual di modem; pesan WiFi ke pelanggan DITAHAN sampai modem beres."
+            } : {})
         }
     };
 }

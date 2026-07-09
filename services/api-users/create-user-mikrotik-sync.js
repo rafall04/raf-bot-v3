@@ -4,12 +4,16 @@
  * Caller: `services/api-users/create-user.js` (orchestrator).
  * Deps: `deps.getProfileBySubscription`, `deps.addPPPoEUser`, `deps.assertMikrotikResult`, `deps.buildMikrotikSyncResult`, `deps.getConfig`, `deps.logger`, lazy-require `../../lib/genieacs-helper` (updatePsbDeviceConfig).
  * MainFuncs: `syncMikrotikForNewUser(deps, { newUser, userData, registrationMode, addToMikrotik, skipMikrotik, syncEnabled })`.
- * SideEffects: GenieACS write (set WiFi/PPPoE credentials di device), MikroTik write (add PPPoE user + profile binding). Best-effort untuk WiFi/device PPPoE (errors di-log, tidak fatal). Critical add PPPoE error throw untuk caller propagate.
+ * SideEffects: GenieACS write (set WiFi/PPPoE credentials di device), MikroTik write (add PPPoE user + profile binding). Best-effort untuk WiFi/device PPPoE (errors di-log, tidak fatal). Critical add PPPoE error throw untuk caller propagate. Mengembalikan `{ mikrotikSync, deviceConfig }`; `deviceConfig {attempted,ok,message}` memberi sinyal hasil push modem GenieACS agar caller bisa menahan welcome "WiFi aktif" & memunculkan kegagalan ke teknisi/admin (tidak lagi senyap).
  */
 "use strict";
 
 async function syncMikrotikForNewUser(deps, { newUser, userData, registrationMode, addToMikrotik, skipMikrotik, syncEnabled, actor = null, requestMeta = null }) {
     let mikrotikSync = deps.buildMikrotikSyncResult("skipped_no_pppoe", "Tidak ada sinkronisasi MikroTik yang diperlukan.");
+    // Sinyal hasil push konfigurasi ke modem via GenieACS (WiFi/PPPoE). attempted=false bila
+    // memang tak ada device_id/payload → welcome jalan normal. attempted=true & ok=false =
+    // push GAGAL → caller (persist) menahan welcome "WiFi aktif" + memunculkan kegagalan.
+    const deviceConfig = { attempted: false, ok: false, message: null };
 
     if (registrationMode === "new") {
         const deviceId = userData.device_id;
@@ -61,6 +65,7 @@ async function syncMikrotikForNewUser(deps, { newUser, userData, registrationMod
             }
 
             if (Object.keys(devicePayload).length > 0) {
+                deviceConfig.attempted = true;
                 try {
                     const { updatePsbDeviceConfig } = require("../../lib/genieacs-helper");
                     const deviceResult = await updatePsbDeviceConfig(deviceId, devicePayload, {
@@ -69,6 +74,8 @@ async function syncMikrotikForNewUser(deps, { newUser, userData, registrationMod
                     if (!deviceResult.ok) {
                         throw new Error(deviceResult.message);
                     }
+                    deviceConfig.ok = true;
+                    deviceConfig.message = deviceResult.message || "Konfigurasi WiFi/PPPoE diterima ACS.";
 
                     // Audit log: WiFi awal (nama+sandi) yang di-set admin/teknisi saat
                     // buat pelanggan baru WAJIB tercatat untuk tracking — sebelumnya
@@ -109,6 +116,8 @@ async function syncMikrotikForNewUser(deps, { newUser, userData, registrationMod
                         }
                     }
                 } catch (deviceError) {
+                    deviceConfig.ok = false;
+                    deviceConfig.message = deviceError.message;
                     deps.logger.error?.("[USER_CREATE_MODE_NEW_ERROR] Failed to apply device config (WiFi/PPPoE) via GenieACS:", deviceError.message);
                 }
             }
@@ -138,7 +147,7 @@ async function syncMikrotikForNewUser(deps, { newUser, userData, registrationMod
         mikrotikSync = deps.buildMikrotikSyncResult("applied_locally_sync_disabled", "Sinkronisasi MikroTik dinonaktifkan. User hanya disimpan lokal.");
     }
 
-    return { mikrotikSync };
+    return { mikrotikSync, deviceConfig };
 }
 
 module.exports = {
