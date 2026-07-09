@@ -4550,9 +4550,9 @@
     "template": "✅ *JALUR UPSTREAM PULIH — ${nama_layanan}*\n\nJalur *${jalur}* kembali normal (loss ${loss}%, RTT ${rtt}ms).\nDurasi gangguan: ±${durasi}.${rekap}"
   },
   "conncheck_upstream_issue": {
-    "name": "Cek Koneksi - Info Jalur Upstream Bermasalah",
+    "name": "Cek Koneksi - Info Jalur Upstream Bermasalah (pesan sederhana)",
     "category": "support",
-    "template": "\n\n🛣️ *Info jalur internet:* jalur upstream yang dipakai paket Anda (${jalur_label}) sedang *${status_label}* (loss ${loss}%, respons ${rtt}ms). Kendala ini dari sisi jaringan kami — *bukan dari perangkat Anda* — dan tim sudah menerima peringatan otomatis. 🙏${catatan_khusus}"
+    "template": "\n\n🛣️ *Info koneksi:* jalur internet yang dipakai paket Anda sedang ada kendala saat ini. Ini dari sisi jaringan kami — *bukan dari perangkat Anda* — dan tim sudah menerima peringatan otomatis. Mohon ditunggu ya 🙏${catatan_khusus}"
   },
   "conncheck_upstream_note_mni": {
     "name": "Cek Koneksi - Catatan Jalur MNI (WA/game via jalur lain)",
@@ -4560,24 +4560,24 @@
     "template": "\n(Catatan: WhatsApp & game Anda lewat jalur berbeda yang saat ini normal — chat/game bisa tetap lancar walau browsing/video lambat.)"
   },
   "conncheck_app_issue": {
-    "name": "Cek Koneksi - App Spesifik Bermasalah (dari matriks live)",
+    "name": "Cek Koneksi - App Spesifik Bermasalah (pesan sederhana)",
     "category": "support",
-    "template": "\n\n🎯 *Soal ${app}:* betul Kak, *${app}* lewat jalur internet paket Anda (${jalur_label}) memang sedang bermasalah (butuh ~${ms} untuk membuka, normalnya ±${normal_ms}ms). Ini dari sisi jaringan kami, *bukan perangkat Anda*, dan tim sudah menerima peringatan otomatis. 🙏"
+    "template": "\n\n🎯 *Soal ${app}:* betul Kak, akses ke *${app}* memang sedang ada kendala dari sisi jaringan kami saat ini — *bukan dari perangkat Anda*. Tim kami sudah menerima peringatan otomatis dan sedang menanganinya. Mohon ditunggu ya 🙏"
   },
   "conncheck_app_ok": {
     "name": "Cek Koneksi - App Spesifik Normal (arahkan ke perangkat)",
     "category": "support",
-    "template": "\n\n🎯 *Soal ${app}:* dari sisi jaringan kami, *${app}* lewat jalur Anda (${jalur_label}) terpantau *normal* (buka ~${ms}ms). Kalau di perangkat masih berat, coba tutup-buka ulang aplikasinya atau restart WiFi/HP. Kalau tetap, balas *lapor* ya Kak. 🙏"
+    "template": "\n\n🎯 *Soal ${app}:* dari sisi jaringan kami, akses ke *${app}* terpantau *lancar* saat ini. Kalau di perangkat masih terasa berat, coba tutup lalu buka lagi aplikasinya, atau restart WiFi/HP ya Kak. Kalau tetap, balas *lapor* 🙏"
   },
   "conncheck_app_path_issue": {
-    "name": "Cek Koneksi - Game/Streaming Jalur Terganggu",
+    "name": "Cek Koneksi - Game/Streaming Jalur Terganggu (pesan sederhana)",
     "category": "support",
-    "template": "\n\n🎯 *Soal ${app}:* jalur internet paket Anda (${jalur_label}) sekarang sedang terganggu (kehilangan paket ~${loss}%, respons ~${rtt}ms) — itu yang bikin patah-patah/putus. Dari sisi kami, bukan perangkat Anda; tim sudah menerima peringatan otomatis. 🙏"
+    "template": "\n\n🎯 *Soal ${app}:* jalur internet yang Anda pakai sedang ada kendala saat ini, jadi wajar kalau ${app} terasa terganggu. Ini dari sisi jaringan kami — *bukan dari perangkat Anda* — dan tim sudah menerima peringatan otomatis. Mohon ditunggu ya 🙏"
   },
   "conncheck_app_path_ok": {
-    "name": "Cek Koneksi - Game/Streaming Jalur Stabil",
+    "name": "Cek Koneksi - Game/Streaming Jalur Stabil (arahkan ke perangkat)",
     "category": "support",
-    "template": "\n\n🎯 *Soal ${app}:* jalur internet Anda (${jalur_label}) terpantau *stabil* saat ini (loss ~${loss}%, respons ~${rtt}ms). Coba dekatkan perangkat ke WiFi atau pakai kabel bila bisa; kalau masih terasa, balas *lapor* ya Kak. 🙏"
+    "template": "\n\n🎯 *Soal ${app}:* jalur internet Anda terpantau *lancar* saat ini. Untuk ${app}, coba dekatkan perangkat ke WiFi atau pakai kabel bila memungkinkan. Kalau masih terasa, balas *lapor* ya Kak 🙏"
   },
   "wanswitch_confirm": {
     "name": "Switch Koneksi - Konfirmasi",

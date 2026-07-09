@@ -123,12 +123,14 @@ async function buildUpstreamSection(user) {
             }
         }
 
+        // Pesan pelanggan SEDERHANA: cukup "jalur internet Anda sedang ada kendala" — label ISP
+        // internal (GMDP/MNI) & angka loss/rtt tak berarti bagi awam, tetap dikirim sbg var
+        // template untuk owner/kustomisasi. Fokus: cepat dipahami + "bukan perangkat Anda".
         const statusLabel = entry.status === 'PUTUS' ? 'TERPUTUS' : entry.status;
         return renderResponseTemplate(
             'conncheck_upstream_issue',
-            `\n\n🛣️ *Info jalur internet:* jalur upstream yang dipakai paket Anda (${entry.label}) sedang *${statusLabel}* ` +
-            `(loss ${avg('loss_avg_pct')}%, respons ${avg('rtt_avg_ms')}ms). ` +
-            `Kendala ini dari sisi jaringan kami — *bukan dari perangkat Anda* — dan tim sudah menerima peringatan otomatis. 🙏${catatanKhusus}`,
+            `\n\n🛣️ *Info koneksi:* jalur internet yang dipakai paket Anda sedang ada kendala saat ini. ` +
+            `Ini dari sisi jaringan kami — *bukan dari perangkat Anda* — dan tim sudah menerima peringatan otomatis. Mohon ditunggu ya 🙏${catatanKhusus}`,
             {
                 jalur_label: entry.label,
                 status_label: statusLabel,
