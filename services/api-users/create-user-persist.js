@@ -1,6 +1,6 @@
 /**
  * Header Doc
- * Purpose: Phase 4-8 dari workflow create user — insert ke DB + in-memory snapshot, apply paid status via finance boundary (dengan rollback on error: hapus user dari snapshot+DB jika gagal mencatat status lunas), activity log (best-effort), kirim welcome message via WhatsApp (best-effort, mode-aware: `psb_welcome` untuk mode new, `import_welcome` untuk import, `customer_welcome` default), return final response 201 dengan generated credentials + mikrotik sync metadata.
+ * Purpose: Phase 4-8 dari workflow create user — insert ke DB + in-memory snapshot, apply paid status via finance boundary (dengan rollback on error: hapus user dari snapshot+DB jika gagal mencatat status lunas), OPSIONAL waiver "bebas tagihan bulan ini" bila `userData.free_first_month` ON (best-effort, mutual-eksklusif dgn paid, hanya paket bertagihan), activity log (best-effort), kirim welcome message via WhatsApp (best-effort, mode-aware: `psb_welcome` untuk mode new, `import_welcome` untuk import, `customer_welcome` default), return final response 201 dengan generated credentials + mikrotik sync metadata + `free_month_applied`.
  * Caller: `services/api-users/create-user.js` (orchestrator).
  * Deps: `deps.repository.insertUserRecord`/`getUsersSnapshot`/`replaceUsersSnapshot`/`deleteUserRecord`, `deps.applyPaymentStatusChange`, `deps.handlePaidStatusChange`, `deps.getPeriodParts`, `deps.getEffectivePrice`, `deps.logActivity`, `deps.getConfig`, `deps.getPackages`, `deps.renderTemplate`, `deps.sendMessage`, `deps.getStatusSnapshot`, `deps.logger`, lazy-require `../../lib/utils` (normalizePhoneNumber).
  * MainFuncs: `persistAndNotifyNewUser(deps, { newUser, plainTextPassword, finalUsername, paymentMethod, registrationMode, mikrotikSync, syncEnabled, userData, actor, requestMeta })`.
@@ -45,6 +45,33 @@ async function persistAndNotifyNewUser(deps, { newUser, plainTextPassword, final
             );
             await deps.repository.deleteUserRecord(newUser.id);
             throw new Error(`Gagal mencatat status lunas pelanggan baru: ${paidChangeErr.message}`);
+        }
+    }
+
+    // Toggle "Bebaskan tagihan bulan ini" (pelanggan baru mulai bayar bulan DEPAN). Mencatat WAIVER
+    // (GRATIS) periode berjalan via boundary finance → periode dianggap lunas (kebal isolir + sinkron
+    // rollover) TANPA masuk pemasukan. Mutual-eksklusif dgn paid (lunas=bayar), dan hanya untuk paket
+    // bertagihan (>0). BEST-EFFORT: kegagalan waiver TIDAK menggagalkan pembuatan user (admin bisa
+    // "Tandai Gratis" manual). Lihat lib/payment-finance-service.applyFreeMonth.
+    let freeMonthApplied = false;
+    const freeFirstMonth = userData?.free_first_month === true || userData?.free_first_month === "true";
+    if (freeFirstMonth && newUser.paid !== true && deps.getEffectivePrice(newUser) > 0) {
+        try {
+            const applyFreeMonth = deps.applyFreeMonth
+                || require("../../lib/payment-finance-service").applyFreeMonth;
+            const { periodMonth, periodYear } = deps.getPeriodParts({ date: new Date() });
+            const waiverResult = await applyFreeMonth({
+                user: newUser,
+                periodMonth,
+                periodYear,
+                reason: "Pelanggan baru — bebas tagihan bulan pendaftaran",
+                createdBy: actor.username
+            });
+            freeMonthApplied = waiverResult.action === "waived"
+                || waiverResult.action === "duplicate_retry"
+                || waiverResult.positionAfter?.is_waived === true;
+        } catch (freeErr) {
+            deps.logger.error?.("[FREE_FIRST_MONTH_ERROR] Gagal apply waiver pelanggan baru:", freeErr.message);
         }
     }
 
@@ -161,7 +188,10 @@ async function persistAndNotifyNewUser(deps, { newUser, plainTextPassword, final
         status: 201,
         body: {
             status: 201,
-            message: "User berhasil ditambahkan",
+            message: freeMonthApplied
+                ? "User berhasil ditambahkan (tagihan bulan ini dibebaskan — mulai ditagih bulan depan)"
+                : "User berhasil ditambahkan",
+            free_month_applied: freeMonthApplied,
             data: newUser,
             generated_credentials: {
                 username: finalUsername,

@@ -2660,6 +2660,8 @@
                     data[key] = $(form).find('[name="send_invoice"]').is(':checked');
                 } else if (key === 'notify_outage'){
                     data[key] = $(form).find('[name="notify_outage"]').is(':checked');
+                } else if (key === 'free_first_month'){
+                    data[key] = $(form).find('[name="free_first_month"]').is(':checked');
                 } else if (key === 'latitude' || key === 'longitude') {
                     data[key] = value.trim() === '' ? null : parseFloat(value);
                 } else {
@@ -2740,6 +2742,12 @@
             // Ensure send_invoice is always sent, even if unchecked
             if (!data.hasOwnProperty('send_invoice')) {
                 data.send_invoice = false;
+            }
+
+            // Ensure free_first_month is sent (checkbox hanya ada di form Tambah; default false).
+            // Backend hanya membacanya saat CREATE (waiver bulan pertama pelanggan baru).
+            if (!data.hasOwnProperty('free_first_month')) {
+                data.free_first_month = $(form).find('[name="free_first_month"]').is(':checked');
             }
 
             // Ensure notify_outage is always sent (unchecked checkbox absen dari FormData).
