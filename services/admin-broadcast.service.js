@@ -2,7 +2,7 @@
  * Header Doc
  * Purpose: Service broadcast admin — resolusi target (segmen + opt-out), throttle anti-ban, dry-run, dan history.
  * Caller: `routes/admin-content-routes.js` (endpoint `/api/broadcast`, `/api/broadcast/preview`, `/api/broadcast/history`).
- * Deps: `lib/whatsapp-gateway`, `lib/whatsapp-delivery-service`, `lib/utils`, `lib/response-template-helper`, `lib/error-handler`, `lib/bill-pay-token` (link bayar), `rupiah-format`, dan `repositories/broadcast.repository`.
+ * Deps: `lib/whatsapp-gateway`, `lib/whatsapp-delivery-service`, `lib/utils`, `lib/response-template-helper`, `lib/error-handler`, `lib/bill-pay-token` (link bayar), `lib/templating` (formatBankAccounts utk ${rekening}), `rupiah-format`, dan `repositories/broadcast.repository`.
  * MainFuncs: `createAdminBroadcastService`, `resolveTargetUsers`, `formatBroadcastMessage`, `queueBroadcast`, `previewBroadcast`.
  * SideEffects: Mengirim pesan WhatsApp dengan jeda antar pelanggan, menulis entri history broadcast ke SQLite.
  */
@@ -11,6 +11,7 @@
 const { createError, ErrorTypes } = require("../lib/error-handler");
 const formatRupiah = require("rupiah-format");
 const { buildBillPayUrl } = require("../lib/bill-pay-token");
+const { formatBankAccounts } = require("../lib/templating");
 
 const DEFAULT_MESSAGE_DELAY_MS = 1500;
 const DEFAULT_JITTER_MS = 800;
@@ -93,6 +94,21 @@ function formatBroadcastMessage(template, user) {
             link = "";
         }
         placeholders.link_bayar = link;
+    }
+    // Placeholder rekening/identitas — DISELARASKAN dengan jalur cron (`lib/templating`
+    // renderTemplate) supaya Broadcast Tagihan manual bisa memakai template yang sama,
+    // termasuk opsi "transfer manual ke ${rekening}" saat gateway online tak dipakai.
+    if (message.includes("${rekening}")) {
+        placeholders.rekening =
+            formatBankAccounts() ||
+            (global.config && global.config.rekening_details) ||
+            "Informasi rekening belum diatur. Silakan hubungi Admin.";
+    }
+    if (message.includes("${nama_wifi}")) {
+        placeholders.nama_wifi = (global.config && global.config.nama) || "Layanan WiFi Kami";
+    }
+    if (message.includes("${nama_bot}")) {
+        placeholders.nama_bot = (global.config && global.config.namabot) || "Bot Asisten";
     }
 
     for (const [key, value] of Object.entries(placeholders)) {

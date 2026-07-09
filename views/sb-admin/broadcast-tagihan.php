@@ -73,9 +73,11 @@
                 <textarea class="form-control" id="text" name="text" rows="9" placeholder="Memuat template tagihan…"></textarea>
                 <small class="form-text text-muted">
                   Placeholder per pelanggan:
-                  <code>${nama_pelanggan}</code>, <code>${paket}</code>,
+                  <code>${nama_pelanggan}</code>, <code>${nama_paket}</code>,
                   <code>${harga}</code>, <code>${periode}</code>, <code>${jatuh_tempo}</code>,
-                  <code>${link_bayar}</code> (link bayar mandiri).
+                  <code>${rekening}</code> (rekening transfer manual),
+                  <code>${nama_wifi}</code>, <code>${nama_bot}</code>,
+                  <code>${link_bayar}</code> (link bayar online).
                   Template bisa diedit permanen di <a href="/templates">Template Pesan</a> (key <code>broadcast_tagihan</code>).
                 </small>
               </div>

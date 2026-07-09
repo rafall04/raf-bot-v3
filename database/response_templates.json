@@ -4532,7 +4532,7 @@
   "broadcast_tagihan": {
     "name": "Broadcast Tagihan - Pengingat Pembayaran",
     "category": "broadcast",
-    "template": "Halo ${nama_pelanggan} 🙏\n\nPengingat tagihan layanan internet Anda:\n• Paket: ${paket}\n• Tagihan: ${harga}\n• Periode: ${periode}\n• Jatuh tempo: ${jatuh_tempo}\n\nSilakan bayar (QRIS/transfer, tanpa perlu login) lewat tautan berikut:\n${link_bayar}\n\nAbaikan pesan ini bila Anda sudah membayar. Terima kasih 🙏"
+    "template": "Yth. Pelanggan *${nama_pelanggan}*,\n\nKami dari *${nama_wifi}* mengingatkan tagihan internet Anda periode *${periode}* telah tersedia dan jatuh tempo pada *${jatuh_tempo}*.\n\nDetail Tagihan:\n- Paket: *${nama_paket}*\n- Total: *${harga}*\n\n💳 Pembayaran via transfer ke:\n${rekening}\n\nSetelah transfer, mohon kirim *foto bukti pembayaran* ke chat ini agar kami proses. Bila sudah membayar, mohon abaikan pesan ini.\n\nTerima kasih,\n*${nama_bot}*"
   },
   "assist_fallback_menu": {
     "name": "Asisten - Menu Fallback (pesan tak dikenali)",

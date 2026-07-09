@@ -86,3 +86,43 @@ describe("formatBroadcastMessage — placeholder pembayaran", () => {
         expect(out).toBe("Info gangguan area ODP-01");
     });
 });
+
+describe("formatBroadcastMessage — placeholder rekening/identitas (selaras jalur cron)", () => {
+    const user = { id: 7, name: "Sari", subscription: "PAKET-165K", phone_number: "0813" };
+
+    beforeAll(() => {
+        global.packages = [{ name: "PAKET-165K", price: 165000 }];
+        global.config = {
+            nama: "RAF NET",
+            namabot: "RAF BOT",
+            bankAccounts: [
+                { bank: "BRI", number: "1234", name: "Rafli" },
+                { bank: "DANA", number: "0852", name: "Rafli" }
+            ]
+        };
+    });
+    afterAll(() => {
+        delete global.packages;
+        delete global.config;
+    });
+
+    test("mengganti ${rekening} (daftar bank), ${nama_wifi}, ${nama_bot}", () => {
+        const out = formatBroadcastMessage(
+            "Dari *${nama_wifi}* (${nama_bot}). Transfer ke:\n${rekening}",
+            user
+        );
+        expect(out).toContain("RAF NET");
+        expect(out).toContain("RAF BOT");
+        expect(out).toContain("BRI");
+        expect(out).toContain("1234");
+        expect(out).toContain("DANA");
+        expect(out).not.toContain("${rekening}");
+        expect(out).not.toContain("${nama_wifi}");
+        expect(out).not.toContain("${nama_bot}");
+    });
+
+    test("tanpa ${rekening} → tak menyusun daftar rekening (aman broadcast biasa)", () => {
+        const out = formatBroadcastMessage("Info gangguan ${nama_wifi}", user);
+        expect(out).toBe("Info gangguan RAF NET");
+    });
+});

@@ -2,7 +2,7 @@
  * Header Doc
  * Purpose: Route admin halaman "Broadcast Tagihan" — daftar pelanggan (default belum bayar, dengan
  *          nominal & status HP) untuk diseleksi, template default, dan preview pesan tagihan (render
- *          placeholder pembayaran ${link_bayar}/${harga}/${jatuh_tempo}/${periode}). PENGIRIMAN
+ *          placeholder pembayaran ${rekening}/${harga}/${jatuh_tempo}/${periode}). PENGIRIMAN
  *          REUSE endpoint `/api/broadcast` (mesin broadcast + throttle + opt-in + riwayat) — bukan
  *          jalur kirim baru.
  * Caller: `routes/admin-router.js` (composer) via `registerAdminBroadcastTagihanRoutes`.
@@ -22,18 +22,21 @@ const { renderResponseTemplate } = require("../lib/response-template-helper");
 // Fallback runtime yang aman (invariant: teks user-facing wajib punya fallback). Teks yang sama
 // dipasang sebagai default key `broadcast_tagihan` di database/response_templates.json (bisa diedit admin).
 const BROADCAST_TAGIHAN_FALLBACK = [
-    "Halo ${nama_pelanggan} 🙏",
+    "Yth. Pelanggan *${nama_pelanggan}*,",
     "",
-    "Pengingat tagihan layanan internet Anda:",
-    "• Paket: ${paket}",
-    "• Tagihan: ${harga}",
-    "• Periode: ${periode}",
-    "• Jatuh tempo: ${jatuh_tempo}",
+    "Kami dari *${nama_wifi}* mengingatkan tagihan internet Anda periode *${periode}* telah tersedia dan jatuh tempo pada *${jatuh_tempo}*.",
     "",
-    "Silakan bayar (QRIS/transfer, tanpa perlu login) lewat tautan berikut:",
-    "${link_bayar}",
+    "Detail Tagihan:",
+    "- Paket: *${nama_paket}*",
+    "- Total: *${harga}*",
     "",
-    "Abaikan pesan ini bila Anda sudah membayar. Terima kasih 🙏"
+    "💳 Pembayaran via transfer ke:",
+    "${rekening}",
+    "",
+    "Setelah transfer, mohon kirim *foto bukti pembayaran* ke chat ini agar kami proses. Bila sudah membayar, mohon abaikan pesan ini.",
+    "",
+    "Terima kasih,",
+    "*${nama_bot}*"
 ].join("\n");
 
 function priceForSubscription(subscription) {
