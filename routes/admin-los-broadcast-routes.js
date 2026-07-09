@@ -41,6 +41,8 @@ function normalizeLosConfig(input = {}) {
     const confirmationWindowMinutes = clampNumber(input.confirmationWindowMinutes, 1, 60, 3);
     const clusterFlushSeconds = clampNumber(input.clusterFlushSeconds, 1, 300, 20);
     const rebroadcastCooldownMinutes = clampNumber(input.rebroadcastCooldownMinutes, 1, 720, 30);
+    const recoveryConfirmSeconds = clampNumber(input.recoveryConfirmSeconds, 5, 600, 60);
+    const recoveryClusterFlushSeconds = clampNumber(input.recoveryClusterFlushSeconds, 1, 300, 20);
     // Notifikasi pelanggan terjadwal setelah teknisi (default 60 menit).
     const nc = input.notifyCustomer || {};
     const customerDelayMinutes = clampNumber(
@@ -63,6 +65,10 @@ function normalizeLosConfig(input = {}) {
         notifyGroup: asBool(input.notifyGroup),
         groupId: input.groupId != null ? String(input.groupId).trim() : (DEFAULTS.groupId || ""),
         notifyTeknisi: input.notifyTeknisi != null ? asBool(input.notifyTeknisi) : (DEFAULTS.notifyTeknisi !== false),
+        // Notif PULIH ke grup/teknisi saat ONU kembali online (menutup alarm yang tergantung).
+        notifyRecovery: asBool(input.notifyRecovery),
+        recoveryConfirmMs: Math.round(recoveryConfirmSeconds * 1000),
+        recoveryClusterFlushMs: Math.round(recoveryClusterFlushSeconds * 1000),
         autoTicket: {
             enabled: asBool(input.autoTicketEnabled != null ? input.autoTicketEnabled : at.enabled),
             assignTeknisi: (() => {
@@ -111,6 +117,9 @@ function decorateForView(cfg) {
         confirmationWindowMinutes: Math.round((cfg.confirmationWindowMs || DEFAULTS.confirmationWindowMs) / 60000),
         clusterFlushSeconds: Math.round((cfg.clusterFlushMs || DEFAULTS.clusterFlushMs) / 1000),
         rebroadcastCooldownMinutes: Math.round((cfg.rebroadcastCooldownMs || DEFAULTS.rebroadcastCooldownMs) / 60000),
+        notifyRecovery: cfg.notifyRecovery === true,
+        recoveryConfirmSeconds: Math.round((cfg.recoveryConfirmMs || DEFAULTS.recoveryConfirmMs) / 1000),
+        recoveryClusterFlushSeconds: Math.round((cfg.recoveryClusterFlushMs || DEFAULTS.recoveryClusterFlushMs) / 1000),
         autoTicket: {
             enabled: at.enabled === true,
             assignTeknisi: at.assignTeknisi != null ? String(at.assignTeknisi) : (atDefault.assignTeknisi || ""),

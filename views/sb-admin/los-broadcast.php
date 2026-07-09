@@ -142,6 +142,25 @@
                       <small class="text-muted">Bila sudah pakai grup, biasanya "Tidak" sudah cukup.</small>
                     </div>
                   </div>
+                  <div class="alert alert-info" style="font-size:.82rem; border-radius:10px;">
+                    <i class="fas fa-check-circle"></i> <strong>Notif PULIH</strong> — saat ONU yang tadinya LOS kembali online, kirim kabar <em>pulih + durasi putus</em> ke grup/teknisi yang sama. Menutup alarm yang tergantung (biar tahu mana yang masih rusak). Tahan sebentar (debounce) untuk pastikan stabil, bukan kedip.
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group col-md-4">
+                      <label>Kirim notif PULIH</label>
+                      <select class="form-control" name="notifyRecovery"><option value="false">Nonaktif</option><option value="true">Aktif</option></select>
+                    </div>
+                    <div class="form-group col-md-4">
+                      <label>Tunggu stabil (detik)</label>
+                      <input type="number" min="5" max="600" class="form-control" name="recoveryConfirmSeconds" value="60">
+                      <small class="text-muted">Debounce anti-kedip sebelum vonis pulih.</small>
+                    </div>
+                    <div class="form-group col-md-4">
+                      <label>Gabung pulih serentak (detik)</label>
+                      <input type="number" min="1" max="300" class="form-control" name="recoveryClusterFlushSeconds" value="20">
+                      <small class="text-muted">Banyak pulih bareng → 1 pesan "area pulih".</small>
+                    </div>
+                  </div>
                   <hr>
                   <div class="alert alert-success" style="font-size:.82rem; border-radius:10px;">
                     <i class="fas fa-headset"></i> <strong>Auto-Tiket Teknisi</strong> — saat LOS <em>terkonfirmasi</em> (fiber putus), sistem otomatis membuat tiket &amp; meng-assign ke teknisi. Tiket <strong>otomatis dibatalkan</strong> bila ONU pulih sebelum ditangani. Notifikasi tiket mengikuti pengaturan grup/japri di atas.
@@ -288,6 +307,10 @@
       f.elements.clusterThreshold.value = cfg.clusterThreshold;
       f.elements.notifyGroup.value = cfg.notifyGroup ? 'true' : 'false';
       f.elements.notifyTeknisi.value = (cfg.notifyTeknisi === false) ? 'false' : 'true';
+      // Notif PULIH
+      f.elements.notifyRecovery.value = cfg.notifyRecovery ? 'true' : 'false';
+      f.elements.recoveryConfirmSeconds.value = cfg.recoveryConfirmSeconds != null ? cfg.recoveryConfirmSeconds : 60;
+      f.elements.recoveryClusterFlushSeconds.value = cfg.recoveryClusterFlushSeconds != null ? cfg.recoveryClusterFlushSeconds : 20;
       // Auto-tiket
       const at = cfg.autoTicket || {};
       f.elements.autoTicketEnabled.value = at.enabled ? 'true' : 'false';
@@ -320,6 +343,9 @@
         notifyGroup: asBool(f.elements.notifyGroup.value),
         groupId: f.elements.groupId.value,
         notifyTeknisi: asBool(f.elements.notifyTeknisi.value),
+        notifyRecovery: asBool(f.elements.notifyRecovery.value),
+        recoveryConfirmSeconds: Number(f.elements.recoveryConfirmSeconds.value),
+        recoveryClusterFlushSeconds: Number(f.elements.recoveryClusterFlushSeconds.value),
         autoTicketEnabled: asBool(f.elements.autoTicketEnabled.value),
         autoTicketAssignTeknisi: f.elements.autoTicketAssignTeknisi.value,
         autoTicketPriority: f.elements.autoTicketPriority.value,
