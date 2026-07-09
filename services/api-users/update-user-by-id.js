@@ -37,7 +37,15 @@ async function updateUserById(deps, { id, userData, actor, requestMeta }) {
         updated_at: new Date().toISOString()
     };
 
-    if (Object.prototype.hasOwnProperty.call(userData, "pppoe_username") && userData.pppoe_username !== userToUpdate.pppoe_username) {
+    // Kredensial PPPoE bersifat immutable dari endpoint ini — halaman edit user hanya MENAMPILKAN
+    // (field readonly), tetapi FormData tetap mengirim ulang nilai display-nya. Bandingkan secara
+    // ternormalisasi: null/undefined/"" dianggap setara & angka di-string-kan, jadi guard hanya
+    // menolak PERUBAHAN nyata — bukan round-trip kosong. Tanpa ini, pelanggan tanpa pppoe_password
+    // (tersimpan null, dikirim "") ikut terblokir 400 saat sekadar menambah No HP / edit lain.
+    const normalizePppoeField = (value) => (value === undefined || value === null ? "" : String(value));
+
+    if (Object.prototype.hasOwnProperty.call(userData, "pppoe_username")
+        && normalizePppoeField(userData.pppoe_username) !== normalizePppoeField(userToUpdate.pppoe_username)) {
         return {
             status: 400,
             body: {
@@ -47,7 +55,8 @@ async function updateUserById(deps, { id, userData, actor, requestMeta }) {
         };
     }
 
-    if (Object.prototype.hasOwnProperty.call(userData, "pppoe_password") && userData.pppoe_password !== userToUpdate.pppoe_password) {
+    if (Object.prototype.hasOwnProperty.call(userData, "pppoe_password")
+        && normalizePppoeField(userData.pppoe_password) !== normalizePppoeField(userToUpdate.pppoe_password)) {
         return {
             status: 400,
             body: {
@@ -79,7 +88,10 @@ async function updateUserById(deps, { id, userData, actor, requestMeta }) {
     }
 
     Object.keys(userData).forEach((key) => {
-        if (userData[key] === undefined || key === "id" || key === "payment_method") {
+        // pppoe_username/pppoe_password immutable dari sini — jangan biarkan nilai display
+        // (readonly di halaman edit) menimpa kredensial tersimpan (mis. null → "").
+        if (userData[key] === undefined || key === "id" || key === "payment_method"
+            || key === "pppoe_username" || key === "pppoe_password") {
             return;
         }
 

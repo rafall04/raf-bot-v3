@@ -242,6 +242,61 @@ describe("api-users service", () => {
         expect(result.body.sync_status).toBe("applied_locally_sync_disabled");
     });
 
+    test("updateUserById tidak menolak saat halaman edit mengirim ulang pppoe_password kosong (pelanggan tanpa PPPoE)", async () => {
+        // Regresi: pelanggan dengan pppoe_password null. Halaman edit (field readonly) tetap
+        // mengirim pppoe_username/pppoe_password lewat FormData → nilai display "" masuk ke request.
+        // Guard lama membandingkan strict ("" !== null) sehingga edit tak berkaitan (mis. tambah No HP)
+        // ikut terblokir 400 "PPPoE password tidak dapat diubah". Sekarang harus lolos 200.
+        const updateUserRecord = jest.fn().mockResolvedValue({ updated: true, fields: ["phone_number"] });
+        const replaceUsersSnapshot = jest.fn();
+        const service = createApiUsersService({
+            repository: {
+                findUserById: jest.fn(() => ({
+                    id: "u-1",
+                    name: "Nur Toyibah",
+                    phone_number: "",
+                    subscription: "PAKET-110K",
+                    paid: false,
+                    pppoe_username: "ppp-1",
+                    pppoe_password: null
+                })),
+                updateUserRecord,
+                getUsersSnapshot: jest.fn(() => [{ id: "u-1", name: "Nur Toyibah" }]),
+                replaceUsersSnapshot
+            },
+            normalizeUserPaymentMethod: jest.fn(() => null),
+            validatePhoneNumbers: jest.fn().mockResolvedValue({ valid: true }),
+            getDb: jest.fn(() => ({ run: jest.fn() })),
+            isMikrotikSyncEnabled: jest.fn(() => false),
+            buildMikrotikSyncResult: jest.fn((status, message, extra = {}) => ({ status, message, ...extra })),
+            getPeriodParts: jest.fn(() => ({ periodMonth: 7, periodYear: 2026 })),
+            getEffectivePrice: jest.fn(() => 110000),
+            logActivity: jest.fn().mockResolvedValue(undefined),
+            logger: { error: jest.fn(), warn: jest.fn(), log: jest.fn() }
+        });
+
+        const result = await service.updateUserById({
+            id: "u-1",
+            userData: {
+                phone: "628123456789",
+                subscription: "PAKET-110K",
+                paid: false,
+                // Nilai display yang dikirim ulang oleh halaman edit:
+                pppoe_username: "ppp-1",
+                pppoe_password: ""
+            },
+            actor: { id: 9, username: "admin", role: "admin" },
+            requestMeta: { ipAddress: "127.0.0.1", userAgent: "jest" }
+        });
+
+        expect(result.status).toBe(200);
+        expect(result.body.message).toBe("User berhasil diperbarui");
+        // No HP baru tersimpan; kredensial PPPoE tidak ikut terklobber jadi "" (tetap null).
+        expect(replaceUsersSnapshot).toHaveBeenCalledWith([
+            expect.objectContaining({ id: "u-1", phone_number: "628123456789", pppoe_password: null })
+        ]);
+    });
+
     test("upsertUserFromAdminPanel creates new user through repository owner and returns generated credentials", async () => {
         const insertUserRecord = jest.fn().mockResolvedValue(undefined);
         const replaceUsersSnapshot = jest.fn();
