@@ -142,6 +142,11 @@ router.get('/broadcast-tagihan', checkRole(['admin', 'owner', 'superadmin']), (r
     res.render('sb-admin/broadcast-tagihan.php');
 });
 
+// Konfirmasi Bayar: verifikasi bukti pembayaran yang dikirim pelanggan via WhatsApp.
+router.get('/konfirmasi-bayar', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/konfirmasi-bayar.php');
+});
+
 router.get('/cctv-monitor', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/cctv-monitor.php');
 });

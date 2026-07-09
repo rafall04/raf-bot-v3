@@ -4673,5 +4673,25 @@
     "name": "Alert Layanan - Jalur Gagal Menjangkau Layanan",
     "category": "monitoring",
     "template": "🚨 *LAYANAN TERGANGGU via ${jalur} — ${nama_layanan}*\n\nJalur *${jalur}* gagal menjangkau ${jumlah_down}/${jumlah_total} layanan yang dipantau (Instagram/Facebook/Google, dst) beberapa siklus.\n\nKemungkinan jalur ${jalur} bermasalah. Detail: halaman */upstream-quality* (matriks Layanan × Jalur)."
+  },
+  "payment_proof_received": {
+    "name": "Bukti Bayar - Diterima (ke Pelanggan)",
+    "category": "payment",
+    "template": "Halo ${nama}, foto/bukti kamu sudah kami terima ✅\n\nKalau ini *bukti pembayaran*, admin akan segera mengecek & mengonfirmasi — nanti kami kabari setelah beres. 🙏\nKalau kamu mau *lapor gangguan*, cukup ketik *lapor* ya."
+  },
+  "payment_proof_admin_notification": {
+    "name": "Bukti Bayar - Notifikasi Admin",
+    "category": "payment",
+    "template": "📸 *Dugaan Bukti Pembayaran*\n\nPelanggan: ${nama} (${telepon})\nStatus: *${status}*\nTagihan ${periode}: ${tagihan}\nKode: *${id}*\n\nKonfirmasi di: ${adminUrl}"
+  },
+  "payment_proof_confirmed": {
+    "name": "Bukti Bayar - Terkonfirmasi (ke Pelanggan)",
+    "category": "payment",
+    "template": "✅ *Pembayaran Terkonfirmasi*\n\nTerima kasih ${nama} 🙏\nPembayaran tagihan ${periode} sebesar ${jumlah} sudah kami terima. Layananmu tetap/kembali aktif."
+  },
+  "payment_proof_rejected": {
+    "name": "Bukti Bayar - Ditolak (ke Pelanggan)",
+    "category": "payment",
+    "template": "Mohon maaf ${nama}, bukti pembayaran yang kamu kirim belum bisa kami konfirmasi.\nAlasan: ${alasan}\n\nSilakan kirim ulang bukti yang lebih jelas, atau hubungi admin ya 🙏"
   }
 }

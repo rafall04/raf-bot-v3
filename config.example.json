@@ -185,6 +185,9 @@
     "notifyNewTicket": true,
     "notifyCompleted": true
   },
+  "paymentProof": {
+    "enabled": true
+  },
   "voucherSaleNotif": {
     "enabled": false
   },

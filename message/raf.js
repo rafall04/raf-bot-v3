@@ -554,6 +554,35 @@ module.exports = async (raf, msg, m, options = {}) => {
             return;
         }
 
+        // ── Tangkap FOTO/DOKUMEN bukti pembayaran (pelanggan, tanpa percakapan aktif) ──
+        // Pelanggan sering mengirim bukti transfer sebagai FOTO TANPA teks. Tanpa hook ini, foto
+        // polos dibuang di guard `!chats` di bawah → pelanggan tak dapat respons apa pun. Semua flow
+        // foto ber-state (PSB/keluhan/teknisi) sudah ditangani di atas (routeConversationState &
+        // managed state); di sini hanya foto "yatim" dari pelanggan TERDAFTAR yang tidak sedang
+        // berada dalam alur apa pun. SCOPED (customer only, bukan staf, tanpa userState.step aktif)
+        // + NON-THROWING + feature-gated (config.paymentProof.enabled, default ON).
+        if ((type === 'imageMessage' || type === 'documentMessage')
+            && canonicalContext.user
+            && !isOwner && !isTeknisi
+            && !userState?.step
+            && (runtimeGlobalScope?.config?.paymentProof?.enabled !== false)) {
+            try {
+                const { handleIncomingPaymentProof } = require('./handlers/payment-proof-handler');
+                const proofResult = await handleIncomingPaymentProof({
+                    msg,
+                    user: canonicalContext.user,
+                    canonicalSender: normalizedSenderForSaldo,
+                    pushname,
+                    messageType: type,
+                    reply,
+                    downloadMedia
+                });
+                if (proofResult && proofResult.handled) return;
+            } catch (proofErr) {
+                console.error('[PAYMENT_PROOF_TRIGGER_ERROR]', proofErr.message);
+            }
+        }
+
         let intent;
         let entities = {}; // Default entitas kosong
         let matchedKeywordLength = 0; // Menyimpan jumlah kata dari keyword yang cocok

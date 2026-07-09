@@ -28,6 +28,7 @@ const { registerAdminLogsRoutes } = require("./admin-logs-routes");
 const { registerAdminAutoOutageRoutes } = require("./admin-auto-outage-routes");
 const { registerAdminLosBroadcastRoutes } = require("./admin-los-broadcast-routes");
 const { registerAdminBroadcastTagihanRoutes } = require("./admin-broadcast-tagihan-routes");
+const { registerAdminKonfirmasiBayarRoutes } = require("./admin-konfirmasi-bayar-routes");
 const { registerAdminTelegramTeknisiRoutes } = require("./admin-telegram-teknisi-routes");
 const { registerAdminUpstreamQualityRoutes } = require("./admin-upstream-quality-routes");
 const { registerAdminWanSwitchRoutes } = require("./admin-wan-switch-routes");
@@ -200,6 +201,7 @@ function createAdminRouter({ runtime } = {}) {
     registerAdminAutoOutageRoutes(router, createAdminAutoOutageDeps(runtime));
     registerAdminLosBroadcastRoutes(router, createAdminLosBroadcastDeps(runtime));
     registerAdminBroadcastTagihanRoutes(router, { ensureAuthenticatedStaff });
+    registerAdminKonfirmasiBayarRoutes(router);
     registerAdminTelegramTeknisiRoutes(router, createAdminTelegramTeknisiDeps(runtime));
     registerAdminUpstreamQualityRoutes(router, { ensureAuthenticatedStaff });
     registerAdminWanSwitchRoutes(router, { ensureAuthenticatedStaff });
