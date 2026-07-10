@@ -68,7 +68,8 @@ const CONVERSATION_STATE_PREFIX_OWNER_MAP = {
     AGENT_VOUCHER_PURCHASE_: "agent-voucher",
     AGENT_VOUCHER_SALE_: "agent-voucher",
     PSB_: "psb",
-    WANSW_: "wan-switch"
+    WANSW_: "wan-switch",
+    PAYPROOF_: "payment-proof"
 };
 
 function resolveConversationStateOwner(step) {

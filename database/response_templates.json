@@ -4682,12 +4682,32 @@
   "payment_proof_admin_notification": {
     "name": "Bukti Bayar - Notifikasi Admin",
     "category": "payment",
-    "template": "📸 *Dugaan Bukti Pembayaran*\n\nPelanggan: ${nama} (${telepon})\nStatus: *${status}*\nTagihan ${periode}: ${tagihan}\nKode: *${id}*\n\n👉 *Balas pesan ini* dengan *ok* untuk mengonfirmasi, atau *tolak <alasan>*.\nBisa juga ketik: *terima ${id}* / *tolak ${id} <alasan>*\n\nPortal: ${adminUrl}"
+    "template": "📸 *Dugaan Bukti Pembayaran*\n\nPelanggan: ${nama} (${telepon})\nStatus: *${status}*\nTagihan ${periode}: ${tagihan}\n\n👉 *Balas pesan ini* dengan *ok* untuk mengonfirmasi, atau *tolak <alasan>*.\nBisa juga ketik *ok* saja, atau *bukti* untuk melihat antrian.\n\nKode: ${id}\nPortal: ${adminUrl}"
   },
   "payment_proof_admin_list": {
     "name": "Bukti Bayar - Antrian (ke Admin)",
     "category": "payment",
-    "template": "🧾 *ANTRIAN BUKTI BAYAR* (${total})\n\n${daftar}\n\nBalas *terima <kode>* untuk mengonfirmasi, atau *tolak <kode> <alasan>*."
+    "template": "🧾 *ANTRIAN BUKTI BAYAR* (${total})\n\n${daftar}\n\nBalas *angka* untuk memilih (mis. *1*), atau langsung *terima 1* / *tolak 2 <alasan>*."
+  },
+  "payment_proof_admin_confirm_prompt": {
+    "name": "Bukti Bayar - Minta Penegasan Lunas (ke Admin)",
+    "category": "payment",
+    "template": "💰 *Konfirmasi pembayaran*\n\n${nama}\nTagihan ${periode}: ${jumlah}\n\nBalas *ya* untuk tandai LUNAS, atau *tolak <alasan>*."
+  },
+  "payment_proof_admin_reject_prompt": {
+    "name": "Bukti Bayar - Minta Penegasan Tolak (ke Admin)",
+    "category": "payment",
+    "template": "🚫 *Tolak bukti*\n\n${nama} — tagihan ${periode} ${jumlah}\n\nBalas *ya* untuk menolak, atau ketik *alasannya* langsung (mis. nominal kurang)."
+  },
+  "payment_proof_admin_need_yes": {
+    "name": "Bukti Bayar - Butuh Jawaban Ya (ke Admin)",
+    "category": "payment",
+    "template": "Balas *ya* untuk lanjut, *tolak <alasan>* untuk menolak, atau *batal*."
+  },
+  "payment_proof_admin_invalid_choice": {
+    "name": "Bukti Bayar - Pilihan Tidak Valid (ke Admin)",
+    "category": "payment",
+    "template": "Pilihan tidak valid. Balas angka *1*–*${total}*, atau *batal*."
   },
   "payment_proof_admin_list_empty": {
     "name": "Bukti Bayar - Antrian Kosong (ke Admin)",

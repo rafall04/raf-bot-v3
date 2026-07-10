@@ -122,7 +122,7 @@ function createPaymentProofService(overrides = {}) {
             tagihan: formatRupiah(tagihanNominal),
             periode: padPeriod(record.periodMonth, record.periodYear),
             adminUrl
-        }, `📸 *Dugaan bukti pembayaran*\n\nPelanggan: ${record.userName} (${record.phone})\nStatus: *${statusLabel}*\nTagihan ${padPeriod(record.periodMonth, record.periodYear)}: ${formatRupiah(tagihanNominal)}\nKode: *${record.id}*\n\n👉 *Balas pesan ini* dengan *ok* untuk mengonfirmasi, atau *tolak <alasan>*.\nBisa juga ketik: *terima ${record.id}* / *tolak ${record.id} <alasan>*\n\nPortal: ${adminUrl}`);
+        }, `📸 *Dugaan bukti pembayaran*\n\nPelanggan: ${record.userName} (${record.phone})\nStatus: *${statusLabel}*\nTagihan ${padPeriod(record.periodMonth, record.periodYear)}: ${formatRupiah(tagihanNominal)}\n\n👉 *Balas pesan ini* dengan *ok* untuk mengonfirmasi, atau *tolak <alasan>*.\nBisa juga ketik *ok* saja, atau *bukti* untuk melihat antrian.\n\nKode: ${record.id}\nPortal: ${adminUrl}`);
 
         const payload = fileType === "document"
             ? { document: buffer, fileName: `${record.id}.pdf`, mimetype: "application/pdf", caption }

@@ -2,7 +2,7 @@
  * Header Doc
  * Purpose: Router state percakapan untuk mendispatch `state.step` aktif ke owner domain tunggal.
  * Caller: `message/raf.js`.
- * Deps: Owner map state dan state domain handlers.
+ * Deps: Owner map state dan state domain handlers (termasuk `payment-proof` untuk step `PAYPROOF_*`).
  * MainFuncs: `routeConversationState`.
  * SideEffects: Tidak ada langsung; mendelegasikan side effect ke owner domain yang dipanggil.
  */
@@ -17,6 +17,7 @@ const { handleAgentVoucherConversationState } = require("./state-domains/agent-v
 const { handleAutoOutageState } = require("./state-domains/auto-outage-state-handler");
 const { handlePsbConversationState } = require("./state-domains/psb.state");
 const { handleWanSwitchConversationState } = require("./state-domains/wan-switch.state");
+const { handlePaymentProofAdminState } = require("./state-domains/payment-proof-admin.state");
 
 async function routeConversationState(context) {
     const stateStep = context.stateStep || context.userState?.step || context.smartReportState?.step || context.teknisiState?.step || null;
@@ -54,6 +55,9 @@ async function routeConversationState(context) {
     }
     if (owner === "wan-switch") {
         return { owner, ...(await handleWanSwitchConversationState(domainContext)) };
+    }
+    if (owner === "payment-proof") {
+        return { owner, ...(await handlePaymentProofAdminState(domainContext)) };
     }
 
     return { handled: false, owner };

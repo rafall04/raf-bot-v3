@@ -24,6 +24,7 @@ describe("wa forbidden imports", () => {
             readSource("handlers", "speed-payment-handler.js"),
             readSource("handlers", "payment-proof-handler.js"),
             readSource("handlers", "payment-proof-admin-handler.js"),
+            readSource("handlers", "state-domains", "payment-proof-admin.state.js"),
             readSource("handlers", "reply-runtime.js")
         ];
 
@@ -37,5 +38,6 @@ describe("wa forbidden imports", () => {
         expect(readSource("handlers", "speed-payment-handler.js")).not.toContain(".sendMessage(");
         expect(readSource("handlers", "payment-proof-handler.js")).not.toContain(".sendMessage(");
         expect(readSource("handlers", "payment-proof-admin-handler.js")).not.toContain(".sendMessage(");
+        expect(readSource("handlers", "state-domains", "payment-proof-admin.state.js")).not.toContain(".sendMessage(");
     });
 });

@@ -585,10 +585,12 @@ module.exports = async (raf, msg, m, options = {}) => {
 
         // ── Keputusan ADMIN atas bukti pembayaran, langsung dari WhatsApp ──
         // Pasangan dari hook di atas: pelanggan kirim foto → admin dapat notif bergambar → admin
-        // membalas notif itu (*ok* / *tolak <alasan>*) atau mengetik *terima <kode>* / *bukti*.
-        // Tanpa hook ini konfirmasi HANYA bisa lewat portal web. Handler memvalidasi peran presisi
-        // (accounts.json) dan mengembalikan handled:false secara SENYAP untuk non-admin, jadi aman
-        // ditaruh sebelum resolusi intent: pelanggan yang menulis "ok" tak akan pernah menyentuhnya.
+        // membalas notif itu (*ok* / *tolak <alasan>*), mengetik *terima 1* / *bukti*, atau sekadar
+        // *ok* polos (bot menawarkan antrian & minta *ya*). Tanpa hook ini konfirmasi HANYA bisa lewat
+        // portal web. Handler memvalidasi peran presisi (accounts.json) dan mengembalikan handled:false
+        // secara SENYAP untuk non-admin DAN saat antrian kosong — jadi aman ditaruh sebelum resolusi
+        // intent: pelanggan yang menulis "ok" tak akan pernah menyentuhnya. Lanjutan (`ya`/angka)
+        // dirutekan `routeConversationState` lewat state `PAYPROOF_*` (owner "payment-proof").
         if (typeof chats === 'string' && chats.trim() !== ''
             && !userState?.step
             && (runtimeGlobalScope?.config?.paymentProof?.enabled !== false)) {
@@ -599,9 +601,11 @@ module.exports = async (raf, msg, m, options = {}) => {
                     msg,
                     sender,
                     plainSenderNumber,
+                    stateSender,
                     pushname,
                     accounts,
-                    reply
+                    reply,
+                    setUserState
                 });
                 if (decision && decision.handled) return;
             } catch (proofAdminErr) {
