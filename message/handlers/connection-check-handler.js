@@ -186,7 +186,7 @@ async function buildModemLine(user) {
  */
 async function buildRebootOffer({ user, resolved, lineStatus, areaOutage, offlineCount, remoteAddr, customerText }) {
     try {
-        const { evaluateRebootGate } = require('../../lib/reboot-followup-service');
+        const { evaluateRebootGate, scheduleFollowupForReboot } = require('../../lib/reboot-followup-service');
         const gate = await evaluateRebootGate({
             user,
             lineStatus,
@@ -195,6 +195,32 @@ async function buildRebootOffer({ user, resolved, lineStatus, areaOutage, offlin
             remoteAddr,
             customerText
         });
+
+        // Pelanggan SUDAH mencabut modemnya sendiri. Jangan tawarkan reboot lagi — tapi jangan
+        // diam juga: dialah yang paling butuh dikabari. Jadwalkan verifikasi (TANPA reboot);
+        // `rebootAt` job = sekarang, dipakai sebagai acuan "modem inform sesudah restart".
+        if (!gate.allowed && gate.reason === 'SUDAH_RESTART_SENDIRI') {
+            const stateKey = resolved && resolved.canonicalJid;
+            if (stateKey) {
+                const job = scheduleFollowupForReboot({
+                    user,
+                    jid: stateKey,
+                    reason: 'restart_pelanggan',
+                    remoteAddr: remoteAddr || null
+                });
+                if (job) {
+                    console.log(`[REBOOTFU] Pelanggan restart sendiri → pantau ${job.id} (due ${job.dueAt})`);
+                    return renderResponseTemplate(
+                        'rebootfu_watch_self_restart',
+                        `\n\n👀 Baik Kak, saya pantau dari sini ya. Sekitar 6 menit lagi saya cek ulang ` +
+                            `dan langsung kabari hasilnya — tidak perlu membalas apa pun 🙏`,
+                        { nama: user.name || 'Kak' }
+                    );
+                }
+            }
+            return '';
+        }
+
         if (!gate.allowed) {
             if (gate.reason !== 'FITUR_MATI') {
                 console.log(`[REBOOTFU] Tawaran reboot dilewati (${gate.reason}, mode=${gate.mode})`);

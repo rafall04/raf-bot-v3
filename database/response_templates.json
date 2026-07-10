@@ -4845,5 +4845,13 @@
     "name": "Reboot Berbantu: Konteks Follow-up Hilang",
     "category": "koneksi",
     "template": "Baik Kak, saya catat masih bermasalah. Ketik *cek koneksi* untuk diagnosa ulang ya 🙏"
+  },
+  "rebootfu_watch_self_restart": {
+    "name": "Reboot Berbantu: Pantau Setelah Pelanggan Restart Sendiri",
+    "category": "koneksi",
+    "template": "\n\n👀 Baik Kak, saya pantau dari sini ya. Sekitar 6 menit lagi saya cek ulang dan langsung kabari hasilnya — tidak perlu membalas apa pun 🙏",
+    "placeholders": [
+      "nama"
+    ]
   }
 }

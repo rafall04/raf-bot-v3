@@ -138,7 +138,9 @@
       "koneksi terputus",
       "koneksi saya mati",
       "cek jaringan",
-      "kenapa internet"
+      "kenapa internet",
+      "cek koneksi",
+      "info koneksi"
     ],
     "intent": "CEK_KONEKSI",
     "category": "support",
@@ -152,12 +154,10 @@
       "cek wifi saya",
       "cek wifi rumah",
       "cek wifi rumah saya",
-      "cek koneksi",
       "status wifi",
       "lihat wifi",
       "siapa saja yang pakai wifi",
       "cek pengguna wifi",
-      "info koneksi",
       "status modem",
       "lihat pengguna wifi",
       "siapa yang konek",
