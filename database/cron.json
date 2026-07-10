@@ -4,9 +4,9 @@
   "schedule": "30 9 2 * *",
   "status_schedule": true,
   "status_message_paid_notification": true,
-  "schedule_unpaid_action": "0 0 15 * *",
+  "schedule_unpaid_action": "0 0 12 * *",
   "status_schedule_unpaid_action": true,
-  "schedule_isolir_notification": "0 8 11 * *",
+  "schedule_isolir_notification": "0 8 12 * *",
   "status_message_isolir_notification": true,
   "schedule_compensation_revert": "* * * * *",
   "status_compensation_revert": true,
@@ -18,5 +18,7 @@
   "check_schedule": "0 * * * *",
   "status_check_schedule": true,
   "schedule_telegram_backup": "0 4 * * *",
-  "status_telegram_backup": true
+  "status_telegram_backup": true,
+  "schedule_masa_tenggang": "0 9 11 * *",
+  "status_masa_tenggang": true
 }
