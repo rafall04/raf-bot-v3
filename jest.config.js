@@ -29,7 +29,11 @@ module.exports = {
     '/coverage/',
     '/\\.next/',
     '/\\.nuxt/',
-    '/\\.cache/'
+    '/\\.cache/',
+    // Worktree agen (`.worktrees/<branch>`) berisi SALINAN repo. Tanpa baris ini jest
+    // menjalankan suite USANG dari sana seolah milik repo utama — terbukti menambah
+    // 4 suite/53 test hantu sampai worktree-nya dibersihkan.
+    '/\\.worktrees/'
   ],
   verbose: true,
   testTimeout: 30000, // 30 seconds for property tests
