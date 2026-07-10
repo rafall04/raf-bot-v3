@@ -315,7 +315,8 @@
     "enabled": false,
     "strictWhenNoUpstreamSignal": true,
     "firstCheckMs": 360000,
-    "retryMs": 360000,
+    "retryMs": 420000,
+    "gateInformMaxMinutes": 30,
     "notifyAdminOnEscalation": true
   },
   "upstreamMonitor": {
