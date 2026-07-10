@@ -4757,11 +4757,6 @@
     "category": "payment",
     "template": "⚠️ Gagal memproses bukti *${kode}*: ${pesan}.\nBukti TETAP menunggu — coba lagi atau proses lewat portal admin."
   },
-  "payment_proof_confirmed": {
-    "name": "Bukti Bayar - Terkonfirmasi (ke Pelanggan)",
-    "category": "payment",
-    "template": "✅ *Pembayaran Terkonfirmasi*\n\nTerima kasih ${nama} 🙏\nPembayaran tagihan ${periode} sebesar ${jumlah} sudah kami terima. Layananmu tetap/kembali aktif."
-  },
   "payment_proof_rejected": {
     "name": "Bukti Bayar - Ditolak (ke Pelanggan)",
     "category": "payment",

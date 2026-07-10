@@ -96,12 +96,16 @@ router.post('/bulk-update', ensureAdmin, async (req, res) => {
                     notes: req.body.notes || 'Status pembayaran diperbarui oleh admin',
                     createdBy: req.user.username,
                     sourceAdminAction: `${actionId}:${userId}:paid`,
-                    onFinalPaid: async () => {
+                    onFinalPaid: async (ctx = {}) => {
                         await handlePaidStatusChange(user, {
                             paidDate: new Date().toISOString(),
                             method: paymentMethod,
                             approvedBy: req.user.username,
-                            notes: req.body.notes || 'Status pembayaran diperbarui oleh admin'
+                            notes: req.body.notes || 'Status pembayaran diperbarui oleh admin',
+                            // Dipakai struk kanonik: periode + nomor rujukan yang bisa disebut pelanggan.
+                            periodMonth: ctx.periodMonth,
+                            periodYear: ctx.periodYear,
+                            paymentHistoryId: ctx.paymentHistoryId
                         });
                     }
                 });

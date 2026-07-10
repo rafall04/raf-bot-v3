@@ -30,7 +30,7 @@ const mayar = require("../lib/mayar");
 const gateways = require("../lib/payment-gateways");
 const { addPayment, checkStatusPayment, updateStatusPayment, updateKetPayment } = require("../lib/payment");
 const { createBillPaymentSettlement } = require("../lib/services/bill-payment-settlement");
-const { renderTemplate } = require("../lib/templating");
+const { buildPaidReceiptText } = require("../lib/services/paid-receipt");
 const { sendMessage } = require("../lib/whatsapp-delivery-service");
 
 const billSettlement = createBillPaymentSettlement();
@@ -206,14 +206,14 @@ router.post("/callback/tripay", async (req, res) => {
 
         // Struk best-effort (kegagalan kirim TIDAK menggagalkan callback).
         try {
-            const periode = (pay.periodMonth && pay.periodYear)
-                ? new Date(pay.periodYear, pay.periodMonth - 1, 1).toLocaleDateString("id-ID", { month: "long", year: "numeric" })
-                : new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-            const struk = renderTemplate("tagihan_struk_lunas", {
-                nama_pelanggan: user.name, nama_paket: user.subscription, harga: convertRupiah.convert(pay.amount),
-                metode: body.payment_name || "Tripay", periode,
-                waktu: new Date().toLocaleString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) + " WIB",
-                no_ref: merchantRef, status_layanan: react.ok ? "⚡ Layanan Anda sudah aktif kembali." : "",
+            const struk = buildPaidReceiptText({
+                user,
+                amount: pay.amount,
+                periodMonth: pay.periodMonth,
+                periodYear: pay.periodYear,
+                method: body.payment_name || "Tripay",
+                refId: merchantRef,
+                reactivation: react
             });
             if (pay.sender) await sendMessage(pay.sender, { text: struk });
         } catch (notifyErr) {
@@ -284,14 +284,14 @@ router.post("/callback/mayar", async (req, res) => {
 
         // Struk best-effort (kegagalan kirim TIDAK menggagalkan callback).
         try {
-            const periode = (pay.periodMonth && pay.periodYear)
-                ? new Date(pay.periodYear, pay.periodMonth - 1, 1).toLocaleDateString("id-ID", { month: "long", year: "numeric" })
-                : new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-            const struk = renderTemplate("tagihan_struk_lunas", {
-                nama_pelanggan: user.name, nama_paket: user.subscription, harga: convertRupiah.convert(pay.amount),
-                metode: "Mayar", periode,
-                waktu: new Date().toLocaleString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) + " WIB",
-                no_ref: pay.reffId, status_layanan: react.ok ? "⚡ Layanan Anda sudah aktif kembali." : "",
+            const struk = buildPaidReceiptText({
+                user,
+                amount: pay.amount,
+                periodMonth: pay.periodMonth,
+                periodYear: pay.periodYear,
+                method: "Mayar",
+                refId: pay.reffId,
+                reactivation: react
             });
             if (pay.sender) await sendMessage(pay.sender, { text: struk });
         } catch (notifyErr) {

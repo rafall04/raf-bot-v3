@@ -8,6 +8,7 @@
  *   (list/serve/konfirmasi/tolak lewat portal); message/handlers/payment-proof-admin-handler.js
  *   (konfirmasi/tolak lewat WhatsApp).
  * Deps: repositories/payment-proof.repository, lib/payment-finance-service, lib/services/bill-payment-settlement,
+ *   lib/services/paid-receipt (struk lunas kanonik — JANGAN bikin template struk sendiri),
  *   lib/whatsapp-delivery-service, lib/whatsapp-critical-delivery, lib/admin-recipients, lib/template-service, lib/id-generator.
  * MainFuncs: createPaymentProofService/getPaymentProofService ->
  *   { handleIncomingProof, listPending, getById, getFilePath, confirmProof, rejectProof }.
@@ -59,6 +60,7 @@ function defaultDeps() {
         billSettlement: createLazyBillSettlement(),
         sendMessageToMany: delivery.sendMessageToMany,
         sendCritical: require("../lib/whatsapp-critical-delivery").sendCritical,
+        buildPaidReceiptText: require("../lib/services/paid-receipt").buildPaidReceiptText,
         getAdminJids: () => getAdminJids(),
         findUserById: (id) =>
             (Array.isArray(global.users) ? global.users : []).find((u) => String(u.id) === String(id)) || null,
@@ -142,7 +144,10 @@ function createPaymentProofService(overrides = {}) {
         const ext = messageType === "documentMessage" ? "pdf" : "jpg";
         const fileType = messageType === "documentMessage" ? "document" : "image";
         const billing = await buildBillingSnapshot(user);
-        const displayName = pushname || user.name || (canonicalSender ? String(canonicalSender).split("@")[0] : "Pelanggan");
+        // Semua pesan bertema TAGIHAN menyapa dengan nama PEMILIK AKUN (DB), bukan pushname WhatsApp.
+        // Pushname sering nama anggota keluarga pemegang HP; menyapa "Halo Aulia" lalu mengirim struk
+        // atas nama "Widji Rochani" di percakapan yang sama terlihat seperti dua sistem berbeda.
+        const displayName = user.name || pushname || (canonicalSender ? String(canonicalSender).split("@")[0] : "Pelanggan");
 
         const record = {
             id: generatePaymentProofId(),
@@ -193,13 +198,20 @@ function createPaymentProofService(overrides = {}) {
         return deps.repository.getFilePath(record);
     }
 
-    async function notifyCustomerConfirmed(record, user, periodLabel) {
-        const text = renderResponseTemplate("payment_proof_confirmed", {
-            nama: user.name || record.userName,
-            paket: user.subscription || "",
-            periode: periodLabel,
-            jumlah: formatRupiah(record.amountDue)
-        }, `✅ *Pembayaran Terkonfirmasi*\n\nTerima kasih ${user.name || record.userName} 🙏\nPembayaran tagihan ${periodLabel} sebesar ${formatRupiah(record.amountDue)} sudah kami terima. Layananmu tetap/kembali aktif.`);
+    // Struk pelanggan memakai BUILDER BERSAMA (lib/services/paid-receipt) — bukan template sendiri.
+    // Semua jalur pelunasan harus menghasilkan struk yang sama bentuknya; kode bukti (BP-…) dipakai
+    // sebagai nomor rujukan supaya pelanggan punya pegangan bila ingin menanyakan pembayarannya.
+    async function notifyCustomerConfirmed(record, user, settlement) {
+        const text = deps.buildPaidReceiptText({
+            user,
+            amount: record.amountDue,
+            periodMonth: record.periodMonth,
+            periodYear: record.periodYear,
+            method: "Transfer Bank",
+            paidAt: new Date(),
+            refId: record.id,
+            reactivation: settlement && settlement.reactivation
+        });
         // Kontrak sendCritical: payload WAJIB objek { text }.
         await deps.sendCritical(record.userId, { text }, { label: "payment-proof-confirmed" });
     }
@@ -252,7 +264,7 @@ function createPaymentProofService(overrides = {}) {
 
         // Struk hanya bila transaksi INI yang membuat lunas (hindari struk ganda saat double-confirm).
         if (ledgerAction === "paid") {
-            await notifyCustomerConfirmed(record, user, padPeriod(record.periodMonth, record.periodYear))
+            await notifyCustomerConfirmed(record, user, settlement)
                 .catch((err) => logError("[PAYMENT_PROOF] Struk pelanggan gagal:", err));
         }
 

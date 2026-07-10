@@ -33,6 +33,7 @@ const { normalizePhoneNumber } = require('../lib/utils');
 const { generateSecureOTP, checkOTPRequestLimit, checkOTPVerifyLimit, resetOTPAttempts, isOTPValid } = require('../lib/otp');
 const { asyncHandler, createError, ErrorTypes, validateRequired, dbOperation: _dbOperation } = require('../lib/error-handler');
 const { renderTemplate } = require('../lib/templating');
+const { buildPaidReceiptText } = require('../lib/services/paid-receipt');
 const { renderCategoryTemplate } = require('../lib/template-service');
 const { sendSuccess, sendError } = require('../lib/response-helper');
 const { hasAuthenticatedSession } = require('../lib/whatsapp-gateway');
@@ -917,18 +918,14 @@ router.post('/callback/payment', async (req, res) => {
 
                 // Struk ke pelanggan (best-effort; kegagalan kirim TIDAK menggagalkan callback).
                 try {
-                    const periode = (pay.periodMonth && pay.periodYear)
-                        ? new Date(pay.periodYear, pay.periodMonth - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
-                        : new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-                    const struk = renderTemplate('tagihan_struk_lunas', {
-                        nama_pelanggan: user.name,
-                        nama_paket: user.subscription,
-                        harga: convertRupiah.convert(pay.amount),
-                        metode: pay.method || 'QRIS',
-                        periode,
-                        waktu: new Date().toLocaleString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB',
-                        no_ref: reference_id,
-                        status_layanan: react.ok ? '⚡ Layanan Anda sudah aktif kembali.' : '',
+                    const struk = buildPaidReceiptText({
+                        user,
+                        amount: pay.amount,
+                        periodMonth: pay.periodMonth,
+                        periodYear: pay.periodYear,
+                        method: pay.method || 'QRIS',
+                        refId: reference_id,
+                        reactivation: react
                     });
                     if (pay.sender) await sendMessage(pay.sender, { text: struk });
                 } catch (notifyErr) {

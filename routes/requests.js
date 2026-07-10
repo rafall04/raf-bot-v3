@@ -499,7 +499,7 @@ router.post('/approve-paid-change', rateLimit('approve-request', 20, 60000), asy
                             teknisiId: (!isAgenRequest && nextRequestState.requested_by_teknisi_id) ? String(nextRequestState.requested_by_teknisi_id) : null,
                             agenId: (isAgenRequest && nextRequestState.requested_by_agen_id) ? String(nextRequestState.requested_by_agen_id) : null,
                             agenName: isAgenRequest ? (collectorAccount?.name || collectorAccount?.username || null) : null,
-                            onFinalPaid: async () => {
+                            onFinalPaid: async (ctx = {}) => {
                                 await handlePaidStatusChange(userToUpdate, {
                                     paidDate: new Date().toISOString(),
                                     method: paymentMethod,
@@ -508,7 +508,11 @@ router.post('/approve-paid-change', rateLimit('approve-request', 20, 60000), asy
                                     requestedByTeknisiId: nextRequestState.requested_by_teknisi_id,
                                     isPartial: nextRequestState.is_partial_payment,
                                     amountPaid: nextRequestState.amount_paid,
-                                    amountRemaining: nextRequestState.amount_remaining
+                                    amountRemaining: nextRequestState.amount_remaining,
+                                    // Dipakai struk kanonik: periode + nomor rujukan yang bisa disebut pelanggan.
+                                    periodMonth: ctx.periodMonth,
+                                    periodYear: ctx.periodYear,
+                                    paymentHistoryId: ctx.paymentHistoryId
                                 });
                             }
                         });
@@ -778,12 +782,16 @@ router.post('/bulk-approve-legacy-disabled', ensureAdmin, rateLimit('bulk-approv
                         createdBy,
                         sourceRequestId: approvedRequest.id,
                         teknisiId: approvedRequest.requested_by_teknisi_id ? String(approvedRequest.requested_by_teknisi_id) : null,
-                        onFinalPaid: async () => {
+                        onFinalPaid: async (ctx = {}) => {
                             await handlePaidStatusChange(user, {
                                 paidDate: new Date().toISOString(),
                                 method: paymentMethod,
                                 approvedBy: req.user.username,
-                                notes: `Status pembayaran diperbarui (${paymentMethod === 'CASH' ? 'Tunai' : 'Transfer Bank'})`
+                                notes: `Status pembayaran diperbarui (${paymentMethod === 'CASH' ? 'Tunai' : 'Transfer Bank'})`,
+                                // Dipakai struk kanonik: periode + nomor rujukan yang bisa disebut pelanggan.
+                                periodMonth: ctx.periodMonth,
+                                periodYear: ctx.periodYear,
+                                paymentHistoryId: ctx.paymentHistoryId
                             });
                         }
                     });

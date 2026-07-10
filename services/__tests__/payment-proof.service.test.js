@@ -107,6 +107,12 @@ describe("payment-proof.service confirm/reject", () => {
         const [jid, payload] = deps.sendCritical.mock.calls[0];
         expect(jid).toBe("628222@s.whatsapp.net");
         expect(payload).toHaveProperty("text");
+        // Struk KANONIK (tagihan_struk_lunas), bukan template khusus bukti-bayar: harus berbentuk
+        // struk, memakai kode bukti sebagai nomor rujukan, dan menyebut metode Transfer Bank.
+        expect(payload.text).toContain("STRUK PEMBAYARAN");
+        expect(payload.text).toContain(record.id);
+        expect(payload.text).toContain("Transfer Bank");
+        expect(payload.text).not.toMatch(/\$\{[a-z_]+\}/i);
         expect(res.record.status).toBe("confirmed");
         expect(res.record.verifiedBy).toBe("ana");
     });

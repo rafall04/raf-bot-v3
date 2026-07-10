@@ -258,7 +258,7 @@ router.post('/request', ensureAuthenticatedStaff, rateLimit('partial-payment', 3
                         notes: notes || '',
                         createdBy: req.user.username,
                         sourceAdminAction: `partial-payment-request:${newRequest.id}`,
-                        onFinalPaid: async () => {
+                        onFinalPaid: async (ctx = {}) => {
                             const { handlePaidStatusChange } = require('../lib/approval-logic');
                             await handlePaidStatusChange(user, {
                                 paidDate: new Date().toISOString(),
@@ -267,7 +267,11 @@ router.post('/request', ensureAuthenticatedStaff, rateLimit('partial-payment', 3
                                 notes: `Pembayaran ${isPartial ? 'sebagian (lunas)' : 'penuh'} via admin panel`,
                                 isPartial,
                                 amountPaid,
-                                amountRemaining: 0
+                                amountRemaining: 0,
+                                // Dipakai struk kanonik: periode + nomor rujukan yang bisa disebut pelanggan.
+                                periodMonth: ctx.periodMonth,
+                                periodYear: ctx.periodYear,
+                                paymentHistoryId: ctx.paymentHistoryId
                             });
                         }
                     });
