@@ -10,7 +10,11 @@ RAF Bot V2 is a single-process **monolithic Node.js app for ISP / RTRW-Net opera
 
 ## Essential reading before non-trivial work
 
-**[SYSTEM_MAP.md](SYSTEM_MAP.md) and this file (`CLAUDE.md`) are the only canonical guides.** Read `SYSTEM_MAP.md` before tracing or changing cross-feature logic — it maps the entrypoint, the trigger→controller→service→repo→DB flow, DB locations, integration boundaries, and a running log of refactor ownership ("Boundary Refactor Baru"). **Keep it in sync when you change a flow.**
+**[SYSTEM_MAP.md](SYSTEM_MAP.md) and this file (`CLAUDE.md`) are the only canonical guides.** Read `SYSTEM_MAP.md` before tracing or changing cross-feature logic — it maps the entrypoint, the trigger→controller→service→repo→DB flow, DB locations, and integration boundaries. **Keep it in sync when you change a flow.**
+
+**[docs/boundary-log.md](docs/boundary-log.md) is a CHANGELOG, not a map — do not read it whole.** It holds the per-feature ownership history (116 entries, ~16k words). `SYSTEM_MAP.md` carries only a one-line index; open the single anchor you need (e.g. `#b116`). Reading the whole log used to cost ~24k tokens every session for information almost never needed.
+
+**Writing a new boundary entry:** append to `docs/boundary-log.md`, add one index line to `SYSTEM_MAP.md`. Keep the entry **under 8 lines** — file owner, what it now owns, status of the old path (`410` stub / fallback / deleted), config gate, tests. Long entries are the reason this file had to be split.
 
 > Older rule files (`.cursorrules`, `AGENTS.md`, `PROJECT-RULES.md`, `PROMPTS.md`) were removed — they carried stale paths (e.g. a non-existent `lib/lid-handler.js`) and duplicated each other. Don't reintroduce that sprawl: durable guidance goes here or in `SYSTEM_MAP.md`.
 
@@ -77,3 +81,24 @@ Tests are co-located in `__tests__/` folders per layer (`lib`, `message`, `route
 - **Conversation state** goes through `conversation-handler` (`getUserState`/`setUserState`/`deleteUserState`), not raw `temp[sender]`. State auto-expires after 15 min, needs a `step` field, honors universal cancel words (`batal`/`cancel`/`ga jadi`), and some steps are "protected" from global-command interception.
 - **Concurrency guard per sender.** Wrap message processing with `isProcessing`/`setProcessing`/`clearProcessing` (`lib/state-manager.js`); always `clearProcessing` in a `finally`.
 - **Keep route handlers thin** — DB/business logic belongs in services/repositories, and Express controllers use the central `asyncHandler` (`lib/error-handler.js`) + global error middleware instead of repeating try-catch. Files: kebab-case; classes PascalCase; functions/vars camelCase; constants UPPER_SNAKE; 2-space indent.
+
+## Standards learned the hard way
+
+Each rule below exists because the bug already happened. Don't relax one because it looks trivial.
+
+- **A stored template overrides your fallback.** `renderResponseTemplate(key, fallback, data)` returns the JSON template whenever the key exists — your fallback string is then dead code. Adding a new `${slot}` to the fallback alone means the section is **computed and silently never sent**. That is exactly how the upstream-path section and the app-aware diagnosis stayed invisible to customers for weeks. **Add the slot to `database/*_templates.json` in the same change**, and check no hardcoded copy of that text is left in the stored template.
+- **Gate on evidence, not on a config flag.** `upstreamMonitor.enabled=true` does not mean the upstream is healthy — if the customer IP maps to no path, status resolves to `null`. A gate keyed off the flag then skips *both* the upstream check and the strict check, ending up **looser than with the feature off**. Derive the mode from a resolved verdict; absent evidence ⇒ fail closed.
+- **"Cannot observe" ≠ "observed bad".** When the router is unreachable the bot is blind, not looking at a dead modem — and GenieACS, being local, will happily keep serving a stale `_lastInform` that reads like failure. Never message a customer or escalate from a blind read. Return a third state (`null`), retry, and escalate to **admin** with the real reason after a bounded wait (`lib/reboot-followup-service.js:isModemBack`).
+- **Calibrate thresholds against measured telemetry, never intuition.** A 7-minute "device online" window looked obviously fine and matched only **7%** of healthy modems, because this ACS informs every ~12 minutes. Measure the distribution first, then pick the constant, then encode the measurement in a test.
+- **Prove the event, don't infer it from a heartbeat.** A periodic inform landing after `rebootAt` does not prove a reboot happened. PPPoE session `uptime` does. And the same evidence is wrong for a customer-initiated restart, where `rebootAt` is when they *told* you, not when they unplugged.
+- **Local dialect is not Indonesian.** In this customer base `tak` means *saya* ("Sudah tak bayar" = *I already paid*), not *tidak*. Treating it as negation inverts the meaning of real replies. Same for generic tokens like `sama` — see `lib/affirmative-parser.js` and the corpus tests.
+- **Accept the language customers actually use.** Exact-match confirmation lists (`["ya","ok"]`) rejected **83%** of real affirmatives ("Ok mas", "ya ka", "Siap"). Parse with `lib/affirmative-parser.js`; never re-introduce an exact-match list.
+- **Durable jobs, not `setTimeout`.** Production restarts 7–13×/day. Anything the bot promised a customer must survive a restart: persist it and rescan from disk on tick (`lib/reboot-followup-store.js`).
+
+## Git, deploy, and drift
+
+- **Trunk is `raf-bot-v3/main`.** The local working branch is `clean-main` and it tracks that remote. The local `main` branch is **stale and divergent** (doc-only commits from May) and the remote `clean-main` is an abandoned leftover — don't use either.
+- **Never `git add -A`.** Parallel agents and worktrees share this checkout; a blanket add once swept an unrelated payment refactor into a reboot-fix commit and pushed it. Stage the files you touched, by name.
+- **Production is NOT a git repo.** `/root/bot/raf-dander-v3` and `/root/bot/raf-tanjungharjo-v3` are file copies (`pscp`), so `git status` cannot tell you what is live. Deploy from a git blob (`git cat-file blob HEAD:<path>`) to guarantee LF, `node --check` before `pm2 restart` (PM2 fork keeps running the old code until restart, so a syntax error is still recoverable), and back the target files up first.
+- **`config.json` and `database/*.json` are merge-key, never overwrite.** Production customises templates and config; a blanket copy destroys that.
+- **Make drift visible:** `scripts/prod-drift-check.js` classifies every runtime file as identical / CRLF-only / behind / **real drift** (content never committed — i.e. a hand-edit on the server that the next deploy will erase) / missing / extra. Run it before and after a deploy. Prod files are CRLF from the original Windows install; the tool normalises before comparing, so ignore that bucket.
