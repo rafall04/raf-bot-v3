@@ -968,12 +968,12 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
     </li>
     <?php endif; ?>
 
-    <li class="nav-item <?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/admin-olt-provision', '/olt-log', '/cctv-monitor', '/infra-monitor', '/upstream-quality'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseJaringan" aria-expanded="<?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/admin-olt-provision', '/olt-log', '/cctv-monitor', '/infra-monitor', '/upstream-quality'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseJaringan">
+    <li class="nav-item <?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/admin-olt-provision', '/olt-log', '/cctv-monitor', '/infra-monitor', '/upstream-quality', '/steering-pelanggan'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseJaringan" aria-expanded="<?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/admin-olt-provision', '/olt-log', '/cctv-monitor', '/infra-monitor', '/upstream-quality', '/steering-pelanggan'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseJaringan">
             <i class="fas fa-fw fa-network-wired"></i>
             <span>Jaringan</span>
         </a>
-        <div id="collapseJaringan" class="collapse <?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/admin-olt-provision', '/olt-log', '/infra-monitor', '/upstream-quality'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingJaringan" data-parent="#accordionSidebar">
+        <div id="collapseJaringan" class="collapse <?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/admin-olt-provision', '/olt-log', '/infra-monitor', '/upstream-quality', '/steering-pelanggan'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingJaringan" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/map-viewer', $current_page) ? 'active' : ''; ?>" href="/map-viewer">
                     <i class="fas fa-fw fa-map-marked-alt mr-2"></i>
