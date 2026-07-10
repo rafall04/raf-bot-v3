@@ -2897,7 +2897,7 @@
   "conncheck_offline_single": {
     "name": "Cek Koneksi: Terputus (Hanya Anda)",
     "category": "koneksi",
-    "template": "🔎 *STATUS KONEKSI — ${nama_layanan}*\n\nHalo Kak ${nama}!\n\n🔴 *Jalur internet: TERPUTUS*\nYang terpantau putus hanya koneksi Anda.${terakhir_online}${langkah_manual}${reboot_offer}\n\n🛠️ Coba langkah cepat ini:\n1) Cek kabel & adaptor modem/ONU (apakah lampu *LOS* menyala merah?)\n2) Restart modem: cabut listrik ±30 detik, lalu colok kembali\n3) Tunggu 2-3 menit hingga lampu kembali normal\n\nMasih mati setelah dicoba? Ketik *lapor* untuk membuat laporan ke teknisi. 🙏",
+    "template": "🔎 *STATUS KONEKSI — ${nama_layanan}*\n\nHalo Kak ${nama}!\n\n🔴 *Jalur internet: TERPUTUS*\nYang terpantau putus hanya koneksi Anda.${terakhir_online}${langkah_manual}${reboot_offer}",
     "placeholders": [
       "langkah_manual",
       "reboot_offer"
