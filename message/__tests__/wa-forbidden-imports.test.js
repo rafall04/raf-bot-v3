@@ -23,6 +23,7 @@ describe("wa forbidden imports", () => {
             readSource("handlers", "topup-handler.js"),
             readSource("handlers", "speed-payment-handler.js"),
             readSource("handlers", "payment-proof-handler.js"),
+            readSource("handlers", "payment-proof-admin-handler.js"),
             readSource("handlers", "reply-runtime.js")
         ];
 
@@ -35,5 +36,6 @@ describe("wa forbidden imports", () => {
         expect(readSource("handlers", "topup-handler.js")).not.toContain(".sendMessage(");
         expect(readSource("handlers", "speed-payment-handler.js")).not.toContain(".sendMessage(");
         expect(readSource("handlers", "payment-proof-handler.js")).not.toContain(".sendMessage(");
+        expect(readSource("handlers", "payment-proof-admin-handler.js")).not.toContain(".sendMessage(");
     });
 });

@@ -186,7 +186,8 @@
     "notifyCompleted": true
   },
   "paymentProof": {
-    "enabled": true
+    "enabled": true,
+    "adminUrl": ""
   },
   "voucherSaleNotif": {
     "enabled": false

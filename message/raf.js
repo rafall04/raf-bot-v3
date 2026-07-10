@@ -583,6 +583,32 @@ module.exports = async (raf, msg, m, options = {}) => {
             }
         }
 
+        // ── Keputusan ADMIN atas bukti pembayaran, langsung dari WhatsApp ──
+        // Pasangan dari hook di atas: pelanggan kirim foto → admin dapat notif bergambar → admin
+        // membalas notif itu (*ok* / *tolak <alasan>*) atau mengetik *terima <kode>* / *bukti*.
+        // Tanpa hook ini konfirmasi HANYA bisa lewat portal web. Handler memvalidasi peran presisi
+        // (accounts.json) dan mengembalikan handled:false secara SENYAP untuk non-admin, jadi aman
+        // ditaruh sebelum resolusi intent: pelanggan yang menulis "ok" tak akan pernah menyentuhnya.
+        if (typeof chats === 'string' && chats.trim() !== ''
+            && !userState?.step
+            && (runtimeGlobalScope?.config?.paymentProof?.enabled !== false)) {
+            try {
+                const { handlePaymentProofAdminDecision } = require('./handlers/payment-proof-admin-handler');
+                const decision = await handlePaymentProofAdminDecision({
+                    chats,
+                    msg,
+                    sender,
+                    plainSenderNumber,
+                    pushname,
+                    accounts,
+                    reply
+                });
+                if (decision && decision.handled) return;
+            } catch (proofAdminErr) {
+                console.error('[PAYMENT_PROOF_ADMIN_TRIGGER_ERROR]', proofAdminErr.message);
+            }
+        }
+
         let intent;
         let entities = {}; // Default entitas kosong
         let matchedKeywordLength = 0; // Menyimpan jumlah kata dari keyword yang cocok

@@ -4,7 +4,9 @@
  *   snapshot tagihan, memberi notif admin BERGAMBAR, lalu mengeksekusi konfirmasi (catat lunas via
  *   settleTagihanPayment: applyPaymentStatusChange + reaktivasi best-effort) atau penolakan. Semua
  *   teks user-facing dirender lewat template (response_templates.json) dengan fallback aman.
- * Caller: message/handlers/payment-proof-handler.js (submit); routes/payment-proof.js (list/serve/konfirmasi/tolak).
+ * Caller: message/handlers/payment-proof-handler.js (submit); routes/admin-konfirmasi-bayar-routes.js
+ *   (list/serve/konfirmasi/tolak lewat portal); message/handlers/payment-proof-admin-handler.js
+ *   (konfirmasi/tolak lewat WhatsApp).
  * Deps: repositories/payment-proof.repository, lib/payment-finance-service, lib/services/bill-payment-settlement,
  *   lib/whatsapp-delivery-service, lib/whatsapp-critical-delivery, lib/admin-recipients, lib/template-service, lib/id-generator.
  * MainFuncs: createPaymentProofService/getPaymentProofService ->
@@ -99,7 +101,12 @@ function createPaymentProofService(overrides = {}) {
         }
 
         const cfg = deps.getConfig();
-        const adminUrl = `${cfg.site_url_bot || "http://localhost:3100"}/konfirmasi-bayar`;
+        // `site_url_bot` adalah URL INTERNAL bot (mis. http://127.0.0.1:3100) — tak bisa dibuka dari
+        // HP admin. Utamakan `paymentProof.adminUrl` (URL portal publik) bila diisi.
+        const baseUrl = (cfg.paymentProof && cfg.paymentProof.adminUrl)
+            || cfg.site_url_bot
+            || "http://localhost:3100";
+        const adminUrl = `${String(baseUrl).replace(/\/+$/, "")}/konfirmasi-bayar`;
         const statusLabel = billing.isFullyPaid === true
             ? "SUDAH LUNAS (mungkin bayar di muka / bukan bukti bayar)"
             : (billing.isFullyPaid === false ? "BELUM LUNAS" : "status tak diketahui");
@@ -115,7 +122,7 @@ function createPaymentProofService(overrides = {}) {
             tagihan: formatRupiah(tagihanNominal),
             periode: padPeriod(record.periodMonth, record.periodYear),
             adminUrl
-        }, `📸 *Dugaan bukti pembayaran*\n\nPelanggan: ${record.userName} (${record.phone})\nStatus: *${statusLabel}*\nTagihan ${padPeriod(record.periodMonth, record.periodYear)}: ${formatRupiah(tagihanNominal)}\nKode: *${record.id}*\n\nKonfirmasi di: ${adminUrl}`);
+        }, `📸 *Dugaan bukti pembayaran*\n\nPelanggan: ${record.userName} (${record.phone})\nStatus: *${statusLabel}*\nTagihan ${padPeriod(record.periodMonth, record.periodYear)}: ${formatRupiah(tagihanNominal)}\nKode: *${record.id}*\n\n👉 *Balas pesan ini* dengan *ok* untuk mengonfirmasi, atau *tolak <alasan>*.\nBisa juga ketik: *terima ${record.id}* / *tolak ${record.id} <alasan>*\n\nPortal: ${adminUrl}`);
 
         const payload = fileType === "document"
             ? { document: buffer, fileName: `${record.id}.pdf`, mimetype: "application/pdf", caption }

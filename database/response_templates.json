@@ -4682,7 +4682,47 @@
   "payment_proof_admin_notification": {
     "name": "Bukti Bayar - Notifikasi Admin",
     "category": "payment",
-    "template": "📸 *Dugaan Bukti Pembayaran*\n\nPelanggan: ${nama} (${telepon})\nStatus: *${status}*\nTagihan ${periode}: ${tagihan}\nKode: *${id}*\n\nKonfirmasi di: ${adminUrl}"
+    "template": "📸 *Dugaan Bukti Pembayaran*\n\nPelanggan: ${nama} (${telepon})\nStatus: *${status}*\nTagihan ${periode}: ${tagihan}\nKode: *${id}*\n\n👉 *Balas pesan ini* dengan *ok* untuk mengonfirmasi, atau *tolak <alasan>*.\nBisa juga ketik: *terima ${id}* / *tolak ${id} <alasan>*\n\nPortal: ${adminUrl}"
+  },
+  "payment_proof_admin_list": {
+    "name": "Bukti Bayar - Antrian (ke Admin)",
+    "category": "payment",
+    "template": "🧾 *ANTRIAN BUKTI BAYAR* (${total})\n\n${daftar}\n\nBalas *terima <kode>* untuk mengonfirmasi, atau *tolak <kode> <alasan>*."
+  },
+  "payment_proof_admin_list_empty": {
+    "name": "Bukti Bayar - Antrian Kosong (ke Admin)",
+    "category": "payment",
+    "template": "🧾 Tidak ada bukti pembayaran yang menunggu konfirmasi. Bersih! ✅"
+  },
+  "payment_proof_admin_confirm_ok": {
+    "name": "Bukti Bayar - Konfirmasi Berhasil (ke Admin)",
+    "category": "payment",
+    "template": "✅ *Pembayaran dikonfirmasi*\n\n${nama} — tagihan ${periode} ${jumlah} tercatat LUNAS.\nStruk sudah dikirim ke pelanggan.${reaktivasi}\n\nSisa antrian: ${sisa} bukti."
+  },
+  "payment_proof_admin_confirm_already_paid": {
+    "name": "Bukti Bayar - Sudah Lunas Sebelumnya (ke Admin)",
+    "category": "payment",
+    "template": "✅ Bukti *${kode}* ditandai terkonfirmasi.\n\nTagihan ${periode} milik ${nama} memang SUDAH tercatat lunas sebelumnya, jadi tidak ada struk ganda yang dikirim."
+  },
+  "payment_proof_admin_reject_ok": {
+    "name": "Bukti Bayar - Penolakan Tercatat (ke Admin)",
+    "category": "payment",
+    "template": "🚫 Bukti *${kode}* dari ${nama} ditolak.\nAlasan: ${alasan}\n\nPelanggan sudah diberi tahu untuk mengirim ulang."
+  },
+  "payment_proof_admin_not_found": {
+    "name": "Bukti Bayar - Kode Tak Ditemukan (ke Admin)",
+    "category": "payment",
+    "template": "❌ Bukti *${kode}* tidak ditemukan. Ketik *bukti* untuk melihat antrian."
+  },
+  "payment_proof_admin_already_processed": {
+    "name": "Bukti Bayar - Sudah Diproses (ke Admin)",
+    "category": "payment",
+    "template": "ℹ️ Bukti *${kode}* sudah diproses sebelumnya (status: ${status})."
+  },
+  "payment_proof_admin_error": {
+    "name": "Bukti Bayar - Gagal Diproses (ke Admin)",
+    "category": "payment",
+    "template": "⚠️ Gagal memproses bukti *${kode}*: ${pesan}.\nBukti TETAP menunggu — coba lagi atau proses lewat portal admin."
   },
   "payment_proof_confirmed": {
     "name": "Bukti Bayar - Terkonfirmasi (ke Pelanggan)",
