@@ -70,7 +70,10 @@ async function handleConfirmCancelTicket(userState, userReply, reply, sender, gl
 }
 
 async function handleConfirmReboot(userState, userReply, reply, sender, _global) {
-    if (["ya", "ok", "lanjut", "iya", "y"].includes(userReply)) {
+    // Exact-match dulu menolak "Ok mas" / "ya ka" / "Siap" — hanya 17% balasan afirmatif nyata
+    // yang lolos (diukur dari korpus chat prod). Parser toleran-sapaan menggantikannya.
+    const { isAffirmative } = require("../../../lib/affirmative-parser");
+    if (isAffirmative(userReply)) {
         const { targetUser } = userState;
         reply(renderResponseTemplate("other_reboot_processing", { customerName: targetUser.name }));
 
@@ -85,9 +88,19 @@ async function handleConfirmReboot(userState, userReply, reply, sender, _global)
                 throw new Error(result.message || "Task reboot gagal dikirim");
             }
 
-            setTimeout(() => {
-                console.log(`[REBOOT] Modem ${targetUser.name} rebooted successfully`);
-            }, 5000);
+            // `result.ok` hanya berarti GenieACS MENERIMA task (applied selalu null) — bukan bukti
+            // modem restart. Dulu di sini ada `setTimeout(console.log("rebooted successfully"))`:
+            // klaim sukses tanpa verifikasi, dan pelanggan ditinggal diam setelah dijanjikan
+            // "tunggu 5-10 menit". Sekarang jadwalkan pekerjaan follow-up DURABEL yang
+            // memverifikasi modem benar-benar kembali lalu mengabari pelanggan.
+            if ((userState.featureScope || "adminReboot") === "customerReboot") {
+                try {
+                    const { scheduleFollowupForReboot } = require("../../../lib/reboot-followup-service");
+                    scheduleFollowupForReboot({ user: targetUser, jid: sender, reason: "reboot_modem_intent" });
+                } catch (scheduleError) {
+                    console.error("[REBOOT] Gagal menjadwalkan follow-up:", scheduleError.message);
+                }
+            }
         } catch (error) {
             console.error("[REBOOT_ERROR]", error);
             reply(renderResponseTemplate("other_reboot_failed"));

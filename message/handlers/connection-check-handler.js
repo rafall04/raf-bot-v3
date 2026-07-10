@@ -2,7 +2,9 @@
  * Header Doc
  * Purpose: Self-service "Cek Koneksi" pelanggan — diagnosa instan status jalur internet (PPPoE),
  *          deteksi kemungkinan gangguan area, ringkas modem/WiFi, dan beri langkah berikut.
- *          READ-ONLY: tidak mengubah saldo/konfigurasi; reboot/tiket bukan bagian slice ini.
+ *          Diagnosanya READ-ONLY (tak mengubah saldo/konfigurasi), tapi bila jalur ISP & area
+ *          terbukti sehat dan modem masih terjangkau ACS, balasan menyertakan TAWARAN reboot
+ *          berbantu — bot meminta izin dulu dan tak pernah mereboot sendiri. Tiket tetap di luar.
  * Caller: `message/handlers/raf-intent-dispatch/customer-service-intents.js` pada intent `CEK_KONEKSI`.
  * Deps: `../../lib/jid-utils` (resolveCustomerBySender), `../../lib/mikrotik` (getActivePPPoEUsers),
  *       `../../lib/wifi` (getSSIDInfo), `../../repositories/auto-outage.repository` (state offline_since),
@@ -11,8 +13,10 @@
  *       + lazy `../../lib/complaint-signal-service` (sinyal komplain → agregator, fire-and-forget)
  *       + lazy `../../lib/app-entity-extractor` + `../../lib/app-aware-diagnosis` (jawaban
  *         SPESIFIK per aplikasi yang disebut pelanggan, dari matriks reachability live).
- * MainFuncs: `handleCekKoneksi`.
+ *       + lazy `../../lib/reboot-followup-service` (gate keamanan reboot + penjadwalan follow-up).
+ * MainFuncs: `handleCekKoneksi`, `buildRebootOffer`.
  * SideEffects: Membaca PPP active MikroTik (live, di-cache TTL pendek) + GenieACS (best-effort) lalu reply WhatsApp.
+ *              Bila gate reboot lolos: menyetel conversation state `REBOOTFU_OFFER` (JID kanonik).
  */
 'use strict';
 
@@ -175,6 +179,58 @@ async function buildModemLine(user) {
 }
 
 /**
+ * Tawaran reboot berbantu. Mengembalikan teks tambahan untuk balasan cek koneksi, atau '' bila
+ * reboot TIDAK aman/tidak relevan. Efek samping: menyetel conversation state `REBOOTFU_OFFER`
+ * (di-key JID kanonik) supaya jawaban izin pelanggan tertangkap.
+ * Never-throw: kegagalan apa pun → tanpa tawaran, balasan diagnosa tetap terkirim.
+ */
+async function buildRebootOffer({ user, resolved, lineStatus, areaOutage, offlineCount, remoteAddr, customerText }) {
+    try {
+        const { evaluateRebootGate } = require('../../lib/reboot-followup-service');
+        const gate = await evaluateRebootGate({
+            user,
+            lineStatus,
+            areaOutage,
+            offlineCount,
+            remoteAddr,
+            customerText
+        });
+        if (!gate.allowed) {
+            if (gate.reason !== 'FITUR_MATI') {
+                console.log(`[REBOOTFU] Tawaran reboot dilewati (${gate.reason}, mode=${gate.mode})`);
+            }
+            return '';
+        }
+
+        // State WAJIB di-key JID kanonik, bukan @lid (lihat lib/jid-utils).
+        const stateKey = resolved && resolved.canonicalJid;
+        if (!stateKey) {
+            console.warn('[REBOOTFU] Tawaran reboot dibatalkan: JID kanonik tak terselesaikan.');
+            return '';
+        }
+
+        const { setUserState } = require('./conversation-handler');
+        setUserState(stateKey, {
+            step: 'REBOOTFU_OFFER',
+            targetUser: user,
+            remoteAddr: remoteAddr || null,
+            reason: gate.reason
+        });
+
+        return renderResponseTemplate(
+            'rebootfu_offer',
+            `\n\n🔄 *Boleh saya nyalakan ulang modemnya dari sini?*\n` +
+                `Ini sering memperbaiki kendala seperti ini. Internet akan terputus sekitar 5 menit, ` +
+                `lalu saya cek lagi dan kabari Kak.\n\nBalas *ya* kalau boleh, atau *nanti* kalau belum sekarang.`,
+            { nama: user.name || 'Kak' }
+        );
+    } catch (err) {
+        console.error(`[REBOOTFU] Gagal menyiapkan tawaran reboot: ${err.message}`);
+        return '';
+    }
+}
+
+/**
  * Tentukan status jalur + heuristik gangguan area dari satu fetch PPP active.
  * @returns {Promise<{lineStatus:'online'|'offline'|'unknown', areaOutage:boolean, offlineCount:number}>}
  */
@@ -289,6 +345,19 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
     // Seksi jalur upstream (best-effort, kosong saat normal/fitur mati) — jawaban
     // "lemot dari sisi mana" saat PPPoE pelanggan sendiri online tapi jalurnya sakit.
     const upstream = await buildUpstreamSection(user);
+
+    // Tawaran reboot berbantu: hanya bila jalur ISP & area terbukti sehat, modem masih terjangkau
+    // ACS, dan pelanggan belum mencabut modemnya sendiri. Bot TIDAK PERNAH reboot tanpa izin.
+    const rebootOffer = await buildRebootOffer({
+        user,
+        resolved,
+        lineStatus,
+        areaOutage,
+        offlineCount,
+        remoteAddr: addr,
+        customerText: chats
+    });
+
     const data = {
         nama,
         nama_layanan: namaLayanan,
@@ -296,7 +365,17 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
         upstream,
         app: appDiagnosis,
         jumlah: offlineCount,
-        terakhir_online: formatTerakhirOnline(offlineSince)
+        terakhir_online: formatTerakhirOnline(offlineSince),
+        reboot_offer: rebootOffer,
+        // Bila bot sanggup mereboot sendiri, JANGAN suruh pelanggan mencabut listrik — korpus chat
+        // menunjukkan mereka sering sudah melakukannya ("ini baru dicoba cabut") dan merasa diabaikan.
+        langkah_manual: rebootOffer
+            ? ''
+            : `\n\n🛠️ Coba langkah cepat ini:\n` +
+              `1) Cek kabel & adaptor modem/ONU (apakah lampu *LOS* menyala merah?)\n` +
+              `2) Restart modem: cabut listrik ±30 detik, lalu colok kembali\n` +
+              `3) Tunggu 2-3 menit hingga lampu kembali normal\n\n` +
+              `Masih mati setelah dicoba? Ketik *lapor* untuk membuat laporan ke teknisi. 🙏`
     };
 
     let key;
@@ -309,7 +388,7 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
             `✅ Kalau internet terasa lambat:\n` +
             `• Dekatkan perangkat ke modem / kurangi penghalang\n` +
             `• Ketik *cek wifi* untuk lihat perangkat yang terhubung\n` +
-            `• Masih bermasalah? ketik *lapor wifi lemot*\n\nTerima kasih 🙏`;
+            `• Masih bermasalah? ketik *lapor wifi lemot*\n\nTerima kasih 🙏${rebootOffer}`;
     } else if (lineStatus === 'offline' && areaOutage) {
         key = 'conncheck_offline_area';
         fallback =
@@ -323,12 +402,8 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
         fallback =
             `🔎 *STATUS KONEKSI — ${namaLayanan}*\n\nHalo Kak ${nama}!\n\n` +
             `🔴 *Jalur internet: TERPUTUS*\n` +
-            `Yang terpantau putus hanya koneksi Anda.${data.terakhir_online}\n\n` +
-            `🛠️ Coba langkah cepat ini:\n` +
-            `1) Cek kabel & adaptor modem/ONU (apakah lampu *LOS* menyala merah?)\n` +
-            `2) Restart modem: cabut listrik ±30 detik, lalu colok kembali\n` +
-            `3) Tunggu 2-3 menit hingga lampu kembali normal\n\n` +
-            `Masih mati setelah dicoba? Ketik *lapor* untuk membuat laporan ke teknisi. 🙏`;
+            `Yang terpantau putus hanya koneksi Anda.${data.terakhir_online}` +
+            `${data.langkah_manual}${rebootOffer}`;
     } else {
         key = 'conncheck_unknown';
         fallback =

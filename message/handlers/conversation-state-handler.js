@@ -152,6 +152,17 @@ async function handleConversationState(params) {
             return handleConfirmReboot(userState, userReply, reply, sender, global, axios);
         }
 
+        // ========== Reboot Berbantu + Tindak Lanjut ==========
+        case 'REBOOTFU_OFFER': {
+            const { handleRebootOffer } = require('./states/reboot-followup-state-handler');
+            return handleRebootOffer(userState, userReply, reply, sender);
+        }
+
+        case 'REBOOTFU_ASK': {
+            const { handleRebootFollowupAnswer } = require('./states/reboot-followup-state-handler');
+            return handleRebootFollowupAnswer(userState, userReply, reply, sender);
+        }
+
         case 'AWAITING_COMPLAINT': {
             return handleAwaitingComplaint(userState, chats, reply, sender, pushname);
         }

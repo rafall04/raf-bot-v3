@@ -311,6 +311,13 @@
       "adminQuietMinutes": 15
     }
   },
+  "rebootAssist": {
+    "enabled": false,
+    "strictWhenNoUpstreamSignal": true,
+    "firstCheckMs": 360000,
+    "retryMs": 360000,
+    "notifyAdminOnEscalation": true
+  },
   "upstreamMonitor": {
     "enabled": false,
     "host": "ISI_IP_ROUTER_GATEWAY",
