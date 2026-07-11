@@ -202,6 +202,7 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 - [Fitur 2026-07-10 (Reboot berbantu + tindak lanjut yang MEMBUKTIKAN)](docs/boundary-log.md#b115)
 - [Fitur 2026-07-10 (Tindak lanjut saat PELANGGAN restart modemnya sendiri)](docs/boundary-log.md#b116)
 - [Fitur 2026-07-11 (Digest anti-spam notifikasi pengajuan pembayaran)](docs/boundary-log.md#b117)
+- [Fitur 2026-07-11 (CCTV sadar-modem — tahan broadcast saat mati listrik area)](docs/boundary-log.md#b118)
 
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.
