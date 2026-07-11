@@ -53,6 +53,7 @@ Aplikasi monolit Node.js untuk operasional ISP/RTRW-Net yang menggabungkan bot W
 - Kualitas jalur upstream: `database/upstream_quality.sqlite` (tabel `upstream_probes` loss/RTT/jitter per jalur×target + `upstream_route_state` snapshot route + `wan_link_samples` util/flap + `upstream_incidents` + `service_probes` reachability layanan×jalur). Owner `repositories/upstream-quality.repository.js`; ditulis `lib/upstream-quality-poller.js` (jalur) & `lib/service-reachability-prober.js` (layanan); gate `config.upstreamMonitor.enabled` / `config.serviceMonitor.enabled`. Bukan di-bootstrap `lib/database.js`.
 - Antrian bukti pembayaran: `database/payment_proofs.json` (metadata bukti transfer status pending/confirmed/rejected) + file bukti di `temp/payment_proofs/<id>.<jpg|pdf>`. Owner `repositories/payment-proof.repository.js` (berkunci `withLock`, baca-dari-disk tiap panggil); bukan di-bootstrap `lib/database.js`.
 - Tindak lanjut reboot modem: `database/reboot-followups.json` (`reboot-followups_test.json` saat `NODE_ENV=test`) — antrian pekerjaan `{id,jid,deviceId,pppoeUsername,remoteAddr,dueAt,attempts,status}`. Owner `lib/reboot-followup-store.js`; dipindai tiap tick oleh `lib/reboot-followup-service.js` sehingga pekerjaan **selamat dari `pm2 restart`** (tak ada timer in-memory yang perlu dibangun ulang). Gate `config.rebootAssist.enabled`. Bukan di-bootstrap `lib/database.js`.
+- Digest notifikasi anti-spam: `database/notification-digest.json` (`*_test.json` saat test) — bucket per (penerima, kind) `{recipient, kind, windowUntil, pending[]}`. Owner `lib/notification-digest.js`; dipindai tiap tick sehingga selamat dari `pm2 restart`. Gate `config.paymentRequestDigest.enabled`. Bukan di-bootstrap `lib/database.js`.
 - Watcher data aktif: minimal `announcements.json` dan `news.json` untuk reload runtime.
 - Lokasi fallback legacy: `config.json` dipakai bila resolver env-aware gagal load config.
 
@@ -200,6 +201,7 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 - [Fitur 2026-07-10 (Konfirmasi bukti bayar WA — mode "nol ketik kode")](docs/boundary-log.md#b114)
 - [Fitur 2026-07-10 (Reboot berbantu + tindak lanjut yang MEMBUKTIKAN)](docs/boundary-log.md#b115)
 - [Fitur 2026-07-10 (Tindak lanjut saat PELANGGAN restart modemnya sendiri)](docs/boundary-log.md#b116)
+- [Fitur 2026-07-11 (Digest anti-spam notifikasi pengajuan pembayaran)](docs/boundary-log.md#b117)
 
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.
