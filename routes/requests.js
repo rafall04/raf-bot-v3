@@ -314,7 +314,9 @@ router.post('/', rateLimit('create-request', 30, 60000), async (req, res) => {
                 address: user.address || 'Tidak ada',
                 currentStatus: user.paid ? 'SUDAH BAYAR' : 'BELUM BAYAR',
                 requestedStatus: statusText,
-                adminUrl: adminPanelUrl || `${global.config.site_url_bot || 'http://localhost:3100'}/pembayaran/requests`
+                // Jangan pakai loopback (127.0.0.1) — mati saat diketuk dari HP. URL publik bila ada,
+                // kalau tidak instruksi singkat (label "Link Panel Admin" tetap bermakna, bukan link mati).
+                adminUrl: adminPanelUrl || 'Buka panel admin → menu Pembayaran → Pengajuan.'
             });
 
             // Digest anti-spam: pengajuan PERTAMA ke tiap admin dikirim detail penuh & membuka
