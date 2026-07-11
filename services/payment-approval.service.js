@@ -9,7 +9,7 @@
 "use strict";
 
 const { loadJSON, saveJSON } = require("../lib/database");
-const { handlePaidStatusChange, sendTechnicianNotification } = require("../lib/approval-logic");
+const { handlePaidStatusChange, sendTechnicianNotification, sendTechnicianBulkSummary } = require("../lib/approval-logic");
 const {
     getPeriodParts
 } = require("../lib/technician-collection-settlement");
@@ -30,6 +30,7 @@ function defaultDeps() {
         saveJSON,
         handlePaidStatusChange,
         sendTechnicianNotification,
+        sendTechnicianBulkSummary,
         getPeriodParts,
         applyPaymentStatusChange,
         getEffectivePrice,
@@ -212,11 +213,18 @@ function createPaymentApprovalService(overrides = {}) {
                     }
 
                     allRequests[requestIndex] = approvedRequest;
-                    await Promise.resolve(deps.sendTechnicianNotification(true, approvedRequest, user));
+                    // Anti-spam: JANGAN notifikasi per-item saat bulk. Kumpulkan lalu kirim SATU
+                    // ringkasan per teknisi setelah loop (lihat sendTechnicianBulkSummary di bawah).
+                    // Fallback ke perilaku lama (per-item) hanya bila digest dimatikan.
+                    const digestOn = !!(global.config && global.config.paymentRequestDigest && global.config.paymentRequestDigest.enabled === true);
+                    if (!digestOn) {
+                        await Promise.resolve(deps.sendTechnicianNotification(true, approvedRequest, user));
+                    }
                     results.approved.push({
                         id: requestId,
                         userName: user.name,
-                        newStatus: request.newStatus
+                        newStatus: request.newStatus,
+                        teknisiId: approvedRequest.requested_by_teknisi_id || null
                     });
                 } catch (error) {
                     console.error(`[BULK_APPROVE_ERROR] Failed to approve request ${requestId}:`, error);
@@ -230,6 +238,24 @@ function createPaymentApprovalService(overrides = {}) {
             deps.saveJSON("database/requests.json", allRequests);
             const elapsedTime = Date.now() - startTime;
             console.log(`[BULK_APPROVE] Completed in ${elapsedTime}ms. Approved: ${results.approved.length}, Failed: ${results.failed.length}, Not Found: ${results.notFound.length}, Remaining: ${remainingCount}`);
+
+            // SATU ringkasan per teknisi (bukan N pesan). Hanya saat digest aktif; never-throw.
+            const digestOn = !!(global.config && global.config.paymentRequestDigest && global.config.paymentRequestDigest.enabled === true);
+            if (digestOn && results.approved.length > 0 && typeof deps.sendTechnicianBulkSummary === "function") {
+                const perTeknisi = new Map();
+                for (const item of results.approved) {
+                    if (!item.teknisiId) continue;
+                    if (!perTeknisi.has(item.teknisiId)) perTeknisi.set(item.teknisiId, []);
+                    perTeknisi.get(item.teknisiId).push({ userName: item.userName });
+                }
+                for (const [teknisiId, items] of perTeknisi) {
+                    try {
+                        await deps.sendTechnicianBulkSummary(teknisiId, items);
+                    } catch (summaryErr) {
+                        console.error(`[BULK_APPROVE_SUMMARY_ERROR] teknisi ${teknisiId}: ${summaryErr.message}`);
+                    }
+                }
+            }
 
             let message = "";
             if (results.approved.length > 0) {

@@ -311,6 +311,10 @@
       "adminQuietMinutes": 15
     }
   },
+  "paymentRequestDigest": {
+    "enabled": false,
+    "windowMinutes": 30
+  },
   "rebootAssist": {
     "enabled": false,
     "strictWhenNoUpstreamSignal": true,

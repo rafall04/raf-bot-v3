@@ -44,30 +44,23 @@ function ensureAdmin(req, res, next) {
 }
 
 // Helper function untuk broadcast ke semua admin dan owner
-async function broadcastToAdmins(message, excludePhoneNumbers = []) {
-    if (!hasAuthenticatedSession()) {
-        console.log('[BROADCAST_TO_ADMINS] WhatsApp connection not available');
-        return;
-    }
-    
+// Susun daftar JID admin/owner penerima notifikasi (dari config.ownerNumber + accounts role admin).
+// Dipisah dari broadcastToAdmins supaya jalur digest bisa memakai daftar yang sama.
+function getAdminNotificationRecipients(excludePhoneNumbers = []) {
     const adminRecipients = new Set();
-    
-    // Tambahkan owner numbers dari config
+
     if (global.config.ownerNumber && Array.isArray(global.config.ownerNumber)) {
         global.config.ownerNumber.forEach(num => {
-            if (num && num.trim()) {
-                adminRecipients.add(num.trim());
-            }
+            if (num && num.trim()) adminRecipients.add(num.trim());
         });
     }
-    
-    // Tambahkan admin dan owner dari accounts database
-    const adminAccounts = global.accounts.filter(acc => 
-        ['admin', 'owner', 'superadmin'].includes(acc.role) && 
-        acc.phone_number && 
+
+    const adminAccounts = global.accounts.filter(acc =>
+        ['admin', 'owner', 'superadmin'].includes(acc.role) &&
+        acc.phone_number &&
         acc.phone_number.trim() !== ""
     );
-    
+
     for (const admin of adminAccounts) {
         let adminJid = admin.phone_number.trim();
         if (!adminJid.endsWith('@s.whatsapp.net')) {
@@ -81,22 +74,41 @@ async function broadcastToAdmins(message, excludePhoneNumbers = []) {
         }
         adminRecipients.add(adminJid);
     }
-    
-    // Filter out excluded numbers
-    const recipientsToSend = Array.from(adminRecipients).filter(jid => {
+
+    return Array.from(adminRecipients).filter(jid => {
         const phoneNumber = jid.replace('@s.whatsapp.net', '');
-        return !excludePhoneNumbers.some(excluded => 
+        return !excludePhoneNumbers.some(excluded =>
             jid.includes(excluded) || phoneNumber.includes(excluded)
         );
     });
-    
+}
+
+// URL panel admin yang BISA DIKETUK dari HP. `site_url_bot` adalah loopback (127.0.0.1) —
+// tautan mati saat diketuk. Pakai adminUrl publik bila ada; kalau tidak, JANGAN sertakan link
+// loopback (lebih baik tanpa link daripada link mati).
+function resolveAdminPanelUrl(pathSuffix = '/pembayaran/requests') {
+    const c = global.config || {};
+    const base = (c.paymentProof && c.paymentProof.adminUrl) || c.adminPanelUrl || '';
+    if (base && !/127\.0\.0\.1|localhost/.test(base)) {
+        return `${base.replace(/\/+$/, '')}${pathSuffix}`;
+    }
+    return '';
+}
+
+async function broadcastToAdmins(message, excludePhoneNumbers = []) {
+    if (!hasAuthenticatedSession()) {
+        console.log('[BROADCAST_TO_ADMINS] WhatsApp connection not available');
+        return;
+    }
+
+    const recipientsToSend = getAdminNotificationRecipients(excludePhoneNumbers);
     const delivery = await sendMessageToMany(recipientsToSend, { text: message });
     console.log('[BROADCAST_TO_ADMINS_RESULT]', {
         requested: recipientsToSend.length,
         delivered: delivery.successCount,
         errorCode: delivery.errorCode || null
     });
-    
+
     return recipientsToSend.length;
 }
 
@@ -289,6 +301,8 @@ router.post('/', rateLimit('create-request', 30, 60000), async (req, res) => {
                 timeZone: 'Asia/Jakarta' 
             });
             
+            // Link panel yang bisa diketuk dari HP (loopback → dibiarkan kosong oleh template).
+            const adminPanelUrl = resolveAdminPanelUrl('/pembayaran/requests');
             const messageToAdmins = renderResponseTemplate('routes_request_payment_new_owner_notification', {
                 technicianName: teknisiName,
                 requestId: newRequest.id,
@@ -300,10 +314,42 @@ router.post('/', rateLimit('create-request', 30, 60000), async (req, res) => {
                 address: user.address || 'Tidak ada',
                 currentStatus: user.paid ? 'SUDAH BAYAR' : 'BELUM BAYAR',
                 requestedStatus: statusText,
-                adminUrl: `${global.config.site_url_bot || 'http://localhost:3100'}/pembayaran/requests`
+                adminUrl: adminPanelUrl || `${global.config.site_url_bot || 'http://localhost:3100'}/pembayaran/requests`
             });
-            
-            await broadcastToAdmins(messageToAdmins);
+
+            // Digest anti-spam: pengajuan PERTAMA ke tiap admin dikirim detail penuh & membuka
+            // jendela; pengajuan berikutnya dalam jendela digabung jadi satu ringkasan (lib/notification-digest).
+            // Request tunggal tetap instan. Gate config.paymentRequestDigest.enabled (default OFF → perilaku lama).
+            const digestCfg = (global.config && global.config.paymentRequestDigest) || {};
+            if (digestCfg.enabled === true && hasAuthenticatedSession()) {
+                try {
+                    const { enqueueOrSendFirst } = require('../lib/notification-digest');
+                    const windowMs = Number.isFinite(digestCfg.windowMinutes)
+                        ? digestCfg.windowMinutes * 60000
+                        : undefined;
+                    const recipients = getAdminNotificationRecipients();
+                    for (const recipient of recipients) {
+                        await enqueueOrSendFirst({
+                            recipient,
+                            kind: 'payment_request_new',
+                            detailText: messageToAdmins,
+                            summaryItem: {
+                                customerName: user.name,
+                                price: packagePrice,
+                                teknisiName,
+                                adminUrl: adminPanelUrl
+                            },
+                            windowMs
+                        });
+                    }
+                } catch (digestErr) {
+                    // Never-throw: kalau digest gagal, jatuh ke broadcast biasa agar notifikasi tak hilang.
+                    console.error('[NOTIF_DIGEST] enqueue gagal, fallback broadcast:', digestErr.message);
+                    await broadcastToAdmins(messageToAdmins);
+                }
+            } else {
+                await broadcastToAdmins(messageToAdmins);
+            }
             return res.status(201).json({ status: 201, message: "Pengajuan perubahan status berhasil dibuat dan sedang menunggu persetujuan.", data: newRequest });
         });
     } catch (error) {

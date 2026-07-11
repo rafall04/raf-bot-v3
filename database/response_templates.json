@@ -4848,5 +4848,26 @@
     "placeholders": [
       "nama"
     ]
+  },
+  "payment_request_digest_summary": {
+    "name": "Digest: Ringkasan Pengajuan Pembayaran (owner)",
+    "category": "routes_outbound",
+    "template": "🔔 *${count} Pengajuan Pembayaran Baru*\n\nTeknisi *${teknisi_name}* mengajukan *${count}* perubahan status pembayaran (total *${total}*):\n\n${daftar}\n\nTinjau & proses di panel admin:\n${admin_url}\n\n_Beberapa pengajuan digabung agar tidak memenuhi chat._",
+    "placeholders": [
+      "count",
+      "teknisi_name",
+      "total",
+      "daftar",
+      "admin_url"
+    ]
+  },
+  "approval_teknisi_bulk_summary": {
+    "name": "Ringkasan: Pengajuan Teknisi Disetujui (bulk)",
+    "category": "routes_outbound",
+    "template": "🔔 *Info Pengajuan Pembayaran* 🔔\n\n*${count}* pengajuan Anda telah *DISETUJUI* oleh admin:\n\n${daftar}\n\nTerima kasih 🙏",
+    "placeholders": [
+      "count",
+      "daftar"
+    ]
   }
 }
