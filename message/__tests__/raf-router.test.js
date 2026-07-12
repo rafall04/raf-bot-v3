@@ -197,21 +197,71 @@ describe('raf-router.test.js - Main Router Integration', () => {
         it('should clear all states when user sends "batal"', async () => {
             const { deleteUserState, getUserState } = require('../handlers/conversation-handler');
             const { toCanonicalJid } = require('../../lib/jid-utils');
-            
+
             toCanonicalJid.mockResolvedValue(sender);
 
             getUserState.mockReturnValue({ step: 'ASK_NEW_PASSWORD' });
-            
+
             const m = {
                 key: { remoteJid: sender, fromMe: false, id: 'ABC6' },
                 message: { conversation: 'batal' },
                 pushName: 'Test User'
             };
-            
+
             await rafRouter(raf, m, { messages: [m], type: 'notify' });
 
             expect(deleteUserState).toHaveBeenCalled();
             expect(raf.sendMessage).toHaveBeenCalledWith(sender, expect.objectContaining({ text: expect.stringContaining('dibatalkan') }), expect.anything());
+        });
+    });
+
+    // Regresi: FOTO STATUS (story) WhatsApp pelanggan pernah ikut ditangkap sebagai "bukti
+    // pembayaran" lalu diteruskan ke admin/owner. Penyebabnya `status@broadcast` lolos guard
+    // grup (isGroup hanya true utk @g.us), sedangkan buildCanonicalContext tetap me-resolve
+    // pelanggan lewat key.participant → hook bukti bayar aktif. Guard baru harus membuang
+    // envelope non-chat SEBELUM context di-resolve.
+    describe('Non-chat envelope guard (status/broadcast/newsletter)', () => {
+        it('should ignore WhatsApp status/story (status@broadcast) before resolving the customer', async () => {
+            const { buildCanonicalContext } = require('../../lib/jid-utils');
+
+            const m = {
+                key: { remoteJid: 'status@broadcast', participant: sender, fromMe: false, id: 'STATUS1' },
+                message: { imageMessage: { caption: '' } },
+                pushName: 'Test User'
+            };
+            await rafRouter(raf, m, { messages: [m], type: 'notify' });
+
+            // Return lebih awal → foto status tak pernah menyentuh resolusi pelanggan,
+            // hook bukti pembayaran, maupun auto-reply apa pun.
+            expect(buildCanonicalContext).not.toHaveBeenCalled();
+            expect(raf.sendMessage).not.toHaveBeenCalled();
+        });
+
+        it('should ignore channel/newsletter messages', async () => {
+            const { buildCanonicalContext } = require('../../lib/jid-utils');
+
+            const m = {
+                key: { remoteJid: '120363000000000000@newsletter', participant: sender, fromMe: false, id: 'NEWS1' },
+                message: { imageMessage: { caption: 'promo' } },
+                pushName: 'Channel'
+            };
+            await rafRouter(raf, m, { messages: [m], type: 'notify' });
+
+            expect(buildCanonicalContext).not.toHaveBeenCalled();
+            expect(raf.sendMessage).not.toHaveBeenCalled();
+        });
+
+        it('should still process a normal direct message (control)', async () => {
+            const { buildCanonicalContext } = require('../../lib/jid-utils');
+
+            const m = {
+                key: { remoteJid: sender, fromMe: false, id: 'DIRECT1' },
+                message: { conversation: 'halo' },
+                pushName: 'Test User'
+            };
+            await rafRouter(raf, m, { messages: [m], type: 'notify' });
+
+            expect(buildCanonicalContext).toHaveBeenCalled();
         });
     });
 });

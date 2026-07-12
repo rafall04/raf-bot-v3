@@ -206,6 +206,21 @@ module.exports = async (raf, msg, m, options = {}) => {
         return;
     }
 
+    // ── Abaikan envelope NON-CHAT: status/story, broadcast list, dan channel/newsletter ──
+    // remoteJid di sini generik (`status@broadcast`, `…@broadcast`, `…@newsletter`) sementara
+    // pengirim ASLI ada di `key.participant`. Karena `isGroup` hanya true untuk `@g.us`, envelope
+    // status lolos sebagai "chat pribadi": `sender` jadi `status@broadcast`, TAPI buildCanonicalContext
+    // tetap me-resolve pelanggan lewat participant (jalur message_metadata). Akibatnya FOTO STATUS
+    // pelanggan terdaftar ditangkap hook bukti pembayaran lalu diteruskan ke admin/owner sebagai
+    // "bukti bayar" palsu. Bot tidak pernah melayani status/channel — buang SEBELUM context dibangun,
+    // di-log, atau di-resolve. (Skip `fromMe` di atas hanya menangkap echo status milik bot sendiri.)
+    const inboundRemoteJid = msg.key?.remoteJid || '';
+    if (inboundRemoteJid === 'status@broadcast'
+        || inboundRemoteJid.endsWith('@broadcast')
+        || inboundRemoteJid.endsWith('@newsletter')) {
+        return;
+    }
+
     const messageContext = extractMessageContext(msg);
     if (!messageContext) {
         console.log('[WARNING] chats is undefined, skipping message processing');
