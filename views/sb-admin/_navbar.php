@@ -829,7 +829,7 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/broadcast-tagihan', $current_page) ? 'active' : ''; ?>" href="/broadcast-tagihan">
                     <i class="fas fa-fw fa-paper-plane mr-2"></i>
-                    <span>Broadcast Tagihan</span>
+                    <span>Broadcast Terarah</span>
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/konfirmasi-bayar', $current_page) ? 'active' : ''; ?>" href="/konfirmasi-bayar">
                     <i class="fas fa-fw fa-receipt mr-2"></i>

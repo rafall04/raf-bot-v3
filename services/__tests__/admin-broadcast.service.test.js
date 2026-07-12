@@ -126,3 +126,44 @@ describe("formatBroadcastMessage — placeholder rekening/identitas (selaras jal
         expect(out).toBe("Info gangguan RAF NET");
     });
 });
+
+describe("formatBroadcastMessage — slot broadcast terarah (tenggang & selamat datang)", () => {
+    const user = { id: 9, name: "Andi", subscription: "PAKET-200K", phone_number: "0814" };
+
+    afterEach(() => {
+        delete global.packages;
+        delete global.config;
+    });
+
+    test("mengganti ${tanggal_isolir} dari config (bulan berjalan, default tanggal 16)", () => {
+        global.config = { tanggal_isolir: 16 };
+        const out = formatBroadcastMessage("Bayar sebelum ${tanggal_isolir} ya", user);
+        // Format id-ID: "16 <bulan> <tahun>" — mis. "16 Juli 2026".
+        expect(out).toMatch(/^Bayar sebelum 16 \w+ \d{4} ya$/);
+        expect(out).not.toContain("${tanggal_isolir}");
+    });
+
+    test("${tanggal_isolir} default 16 saat config kosong", () => {
+        global.config = {};
+        const out = formatBroadcastMessage("${tanggal_isolir}", user);
+        expect(out).toMatch(/^16 \w+ \d{4}$/);
+    });
+
+    test("mengganti ${display_profile} dari packages (kecepatan paket)", () => {
+        global.packages = [{ name: "PAKET-200K", price: 200000, display_profile: "50 Mbps", profile: "prof-200k" }];
+        const out = formatBroadcastMessage("Paket ${nama_paket} kecepatan ${display_profile}", user);
+        expect(out).toBe("Paket PAKET-200K kecepatan 50 Mbps");
+    });
+
+    test("${display_profile} fallback: profile → subscription bila display_profile kosong", () => {
+        global.packages = [{ name: "PAKET-200K", price: 200000, profile: "prof-only" }];
+        expect(formatBroadcastMessage("${display_profile}", user)).toBe("prof-only");
+        global.packages = [{ name: "PAKET-200K", price: 200000 }];
+        expect(formatBroadcastMessage("${display_profile}", user)).toBe("PAKET-200K");
+    });
+
+    test("tanpa slot terarah → tak berubah (aman broadcast biasa)", () => {
+        global.config = { tanggal_isolir: 16 };
+        expect(formatBroadcastMessage("Halo ${nama}", user)).toBe("Halo Andi");
+    });
+});

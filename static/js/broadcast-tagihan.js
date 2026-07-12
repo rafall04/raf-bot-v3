@@ -1,18 +1,24 @@
 /**
  * Header Doc
- * Purpose: UI logic halaman /broadcast-tagihan — muat daftar pelanggan (belum bayar/semua) dengan
- *          nominal & status HP, seleksi (search + pilih-semua), pratinjau pesan tagihan (link+nominal
- *          terisi), dan kirim. Kirim REUSE endpoint /api/broadcast (mesin broadcast + riwayat).
+ * Purpose: UI logic halaman /broadcast-tagihan ("Broadcast Terarah") — pilih template broadcast
+ *          (tagihan / masa tenggang / isolir / selamat datang), muat daftar pelanggan dengan filter
+ *          status (belum/sudah bayar, semua, terisolir, menunggak) + nominal & status HP, seleksi
+ *          (search + pilih-semua), pratinjau pesan terisi, dan kirim. Kirim REUSE endpoint
+ *          /api/broadcast (mesin broadcast + riwayat).
  * Caller: `views/sb-admin/broadcast-tagihan.php`.
  * Deps: jQuery/Bootstrap (dimuat di _head), SweetAlert2 global.
- * MainFuncs: loadCustomers, renderCustomers, doPreview, doSend, loadHistory.
- * SideEffects: Fetch /api/broadcast-tagihan/{customers,default-template,preview}, POST /api/broadcast, GET /api/broadcast/history.
+ * MainFuncs: loadTemplates, onTemplateChange, loadCustomers, renderCustomers, doPreview, doSend, loadHistory.
+ * SideEffects: Fetch /api/broadcast-tagihan/{customers,templates,default-template,preview}, POST /api/broadcast, GET /api/broadcast/history.
  */
 (function () {
     "use strict";
 
     let customers = [];
     const selected = new Set();
+
+    let templates = [];               // [{id,label,key}]
+    let currentTemplateId = "";       // id template terpilih
+    let lastLoadedTemplateText = "";  // teks yang terakhir kita isikan otomatis (deteksi edit manual)
 
     const el = (id) => document.getElementById(id);
 
@@ -35,6 +41,11 @@
         let data = {};
         try { data = await res.json(); } catch (_e) { /* non-json */ }
         return { ok: res.ok, status: res.status, data };
+    }
+
+    function currentTemplateKey() {
+        const t = templates.find((x) => x.id === currentTemplateId);
+        return t ? t.key : "";
     }
 
     function filteredCustomers() {
@@ -70,10 +81,14 @@
             const paidBadge = c.paid
                 ? '<span class="badge badge-success">Lunas</span>'
                 : '<span class="badge badge-danger">Belum bayar</span>';
+            // Nominal tunggakan hanya muncul di mode "menunggak" (server menyertakan c.outstanding).
+            const arrearsBadge = (c.outstanding != null && Number(c.outstanding) > 0)
+                ? ` <span class="badge badge-warning">Nunggak ${escapeHtml(rupiah(c.outstanding))}</span>`
+                : "";
             return `<label class="d-flex align-items-center px-3 py-2 border-bottom" style="gap:0.6rem; margin:0; cursor:${noPhone ? "not-allowed" : "pointer"}; ${noPhone ? "opacity:0.7;" : ""}">
                 <input type="checkbox" class="cust-cb" value="${escapeHtml(c.id)}" ${checked} ${noPhone ? "disabled" : ""}>
                 <span style="flex:1;">
-                    <strong>${escapeHtml(c.name)}</strong> ${paidBadge}<br>
+                    <strong>${escapeHtml(c.name)}</strong> ${paidBadge}${arrearsBadge}<br>
                     <small class="text-muted">${escapeHtml(c.subscription || "-")} · ${rupiah(c.price)} · </small>${phoneBadge}
                 </span>
             </label>`;
@@ -109,11 +124,54 @@
         renderCustomers();
     }
 
-    async function loadDefaultTemplate() {
-        const resp = await apiFetch("/api/broadcast-tagihan/default-template");
-        const text = (resp.data && resp.data.data && resp.data.data.text) || "";
+    // Muat daftar template ke dropdown, lalu isi editor dengan template pertama (default: tagihan).
+    async function loadTemplates() {
+        const resp = await apiFetch("/api/broadcast-tagihan/templates");
+        templates = (resp.data && resp.data.data && resp.data.data.items) || [];
+        const sel = el("template-select");
+        if (!templates.length) {
+            sel.innerHTML = '<option value="">(template tidak tersedia)</option>';
+            return;
+        }
+        sel.innerHTML = templates.map((t) =>
+            `<option value="${escapeHtml(t.id)}">${escapeHtml(t.label)}</option>`).join("");
+        currentTemplateId = templates[0].id;
+        sel.value = currentTemplateId;
+        await loadTemplateText(currentTemplateId, { force: true });
+    }
+
+    // Ambil teks default template terpilih dan isikan ke editor. Bila admin sudah mengedit manual,
+    // minta konfirmasi sebelum menimpa (kecuali force / editor masih berisi template yang kita isi).
+    async function loadTemplateText(templateId, opts = {}) {
         const ta = el("text");
-        if (ta && !ta.value.trim()) ta.value = text;
+        const edited = ta.value.trim() && ta.value !== lastLoadedTemplateText;
+        if (!opts.force && edited) {
+            const confirm = await Swal.fire({
+                icon: "warning",
+                title: "Ganti template?",
+                text: "Kotak pesan sudah Anda ubah. Ganti template akan menimpa isinya.",
+                showCancelButton: true,
+                confirmButtonText: "Ganti",
+                cancelButtonText: "Batal"
+            });
+            if (!confirm.isConfirmed) {
+                // kembalikan dropdown ke template sebelumnya
+                el("template-select").value = currentTemplateId;
+                return;
+            }
+        }
+        const resp = await apiFetch(`/api/broadcast-tagihan/default-template?template=${encodeURIComponent(templateId)}`);
+        const text = (resp.data && resp.data.data && resp.data.data.text) || "";
+        ta.value = text;
+        lastLoadedTemplateText = text;
+        currentTemplateId = templateId;
+        el("preview-box").style.display = "none";
+    }
+
+    function onTemplateChange() {
+        const id = el("template-select").value;
+        if (!id || id === currentTemplateId) return;
+        loadTemplateText(id);
     }
 
     async function doPreview() {
@@ -124,7 +182,7 @@
         }
         const resp = await apiFetch("/api/broadcast-tagihan/preview", {
             method: "POST",
-            body: JSON.stringify({ user_id: ids[0], text: el("text").value })
+            body: JSON.stringify({ user_id: ids[0], text: el("text").value, template: currentTemplateId })
         });
         if (!resp.ok) {
             Swal.fire({ icon: "error", title: "Pratinjau gagal", text: (resp.data && resp.data.message) || "Gagal memuat pratinjau." });
@@ -144,13 +202,14 @@
         }
         const text = el("text").value.trim();
         if (!text) {
-            Swal.fire({ icon: "warning", title: "Pesan kosong", text: "Tulis pesan tagihan dulu." });
+            Swal.fire({ icon: "warning", title: "Pesan kosong", text: "Tulis / pilih template pesan dulu." });
             return;
         }
+        const templateLabel = (templates.find((t) => t.id === currentTemplateId) || {}).label || "pesan";
         const confirm = await Swal.fire({
             icon: "question",
-            title: "Kirim tagihan?",
-            html: `Kirim pesan tagihan ke <strong>${ids.length}</strong> pelanggan terpilih?<br><small class="text-muted">Pelanggan tanpa HP otomatis dilewati.</small>`,
+            title: "Kirim broadcast?",
+            html: `Kirim <strong>${escapeHtml(templateLabel)}</strong> ke <strong>${ids.length}</strong> pelanggan terpilih?<br><small class="text-muted">Pelanggan tanpa HP otomatis dilewati.</small>`,
             showCancelButton: true,
             confirmButtonText: "Kirim",
             cancelButtonText: "Batal"
@@ -162,14 +221,15 @@
             body: JSON.stringify({
                 users: ids,
                 text,
-                template_key: "broadcast_tagihan",
+                // Key template terpilih — dicatat di riwayat broadcast (audit). Teks final tetap dari `text`.
+                template_key: currentTemplateKey() || undefined,
                 mode: "manual",
-                // Tagihan = komunikasi esensial → abaikan opt-out info-gangguan (notify_outage).
+                // Broadcast terarah = komunikasi esensial yang admin pilih sadar → abaikan opt-out info-gangguan.
                 force_include_opt_out: true
             })
         });
         if (resp.status === 202 || resp.ok) {
-            Swal.fire({ icon: "success", title: "Terkirim", text: (resp.data && resp.data.message) || "Broadcast tagihan dimulai." });
+            Swal.fire({ icon: "success", title: "Terkirim", text: (resp.data && resp.data.message) || "Broadcast dimulai." });
             selected.clear();
             renderCustomers();
             setTimeout(loadHistory, 3000);
@@ -202,10 +262,11 @@
         el("customer-search").addEventListener("input", renderCustomers);
         el("check-all").addEventListener("click", checkAllFiltered);
         el("clear-all").addEventListener("click", clearAll);
+        el("template-select").addEventListener("change", onTemplateChange);
         el("preview-btn").addEventListener("click", doPreview);
         el("send-btn").addEventListener("click", doSend);
         loadCustomers();
-        loadDefaultTemplate();
+        loadTemplates();
         loadHistory();
     }
 

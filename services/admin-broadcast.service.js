@@ -75,10 +75,21 @@ function formatBroadcastMessage(template, user) {
         const pkg = (global.packages || []).find((p) => p.name === subscription) || {};
         placeholders.harga = pkg.price ? formatRupiah.convert(pkg.price) : "-";
     }
+    if (message.includes("${display_profile}")) {
+        // Nama kecepatan/tampilan paket (dipakai template "Selamat Datang" import_welcome).
+        const pkg = (global.packages || []).find((p) => p.name === subscription) || {};
+        placeholders.display_profile = pkg.display_profile || pkg.profile || subscription || "-";
+    }
     if (message.includes("${jatuh_tempo}")) {
         const due = new Date();
         due.setDate((global.config && parseInt(global.config.tanggal_batas_bayar, 10)) || 10);
         placeholders.jatuh_tempo = due.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+    }
+    if (message.includes("${tanggal_isolir}")) {
+        // Tanggal aksi isolir bulan berjalan (dipakai template "Masa Tenggang" masa_tenggang_reminder).
+        const isolirDate = new Date();
+        isolirDate.setDate((global.config && parseInt(global.config.tanggal_isolir, 10)) || 16);
+        placeholders.tanggal_isolir = isolirDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
     }
     if (message.includes("${periode}")) {
         placeholders.periode = new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" });

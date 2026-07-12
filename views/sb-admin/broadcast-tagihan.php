@@ -3,9 +3,9 @@
 
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Broadcast Tagihan';
+    $pageTitle = 'RAF BOT - Broadcast Terarah';
     $themeRole = 'admin';
-    $pageDescription = 'Kirim pesan tagihan / pengingat pembayaran ke pelanggan terpilih';
+    $pageDescription = 'Kirim pesan (tagihan / masa tenggang / isolir / selamat datang) ke pelanggan terpilih';
     include __DIR__ . '/_head.php';
     ?>
 </head>
@@ -35,8 +35,8 @@
           <div class="dashboard-header">
             <div class="d-flex align-items-center justify-content-between">
               <div>
-                <h1>Broadcast Tagihan</h1>
-                <p>Kirim pesan pembayaran (dengan link bayar mandiri) ke pelanggan terpilih</p>
+                <h1>Broadcast Terarah</h1>
+                <p>Pilih template pesan (tagihan / masa tenggang / isolir / selamat datang) dan kirim ke pelanggan terpilih</p>
               </div>
             </div>
           </div>
@@ -49,7 +49,10 @@
                 <label class="form-label mb-0 mr-2">Tampilkan:</label>
                 <select id="status-filter" class="form-control form-control-sm" style="width: auto;">
                   <option value="unpaid">Belum bayar</option>
+                  <option value="paid">Sudah bayar</option>
                   <option value="all">Semua pelanggan</option>
+                  <option value="isolir">Sedang terisolir</option>
+                  <option value="menunggak">Menunggak (≥1 periode)</option>
                 </select>
                 <input type="text" id="customer-search" class="form-control form-control-sm" placeholder="Cari nama / nomor / paket..." style="flex: 1; min-width: 180px;"/>
                 <button type="button" class="btn btn-sm btn-outline-secondary" id="check-all">Pilih semua hasil</button>
@@ -65,20 +68,28 @@
             </div>
           </div>
 
-          <!-- 2. Pesan -->
-          <h4 class="dashboard-section-title mt-4">2. Pesan Tagihan</h4>
+          <!-- 2. Template & Pesan -->
+          <h4 class="dashboard-section-title mt-4">2. Template & Pesan</h4>
           <div class="dashboard-card" style="height: auto;">
             <div class="card-body">
+              <div class="d-flex align-items-center flex-wrap mb-2" style="gap: 0.5rem;">
+                <label class="form-label mb-0 mr-2" for="template-select">Template:</label>
+                <select id="template-select" class="form-control form-control-sm" style="width: auto; min-width: 220px;">
+                  <option value="">Memuat template…</option>
+                </select>
+                <small class="text-muted">Ganti template akan mengisi ulang kotak pesan di bawah.</small>
+              </div>
               <div class="mb-2">
-                <textarea class="form-control" id="text" name="text" rows="9" placeholder="Memuat template tagihan…"></textarea>
+                <textarea class="form-control" id="text" name="text" rows="9" placeholder="Memuat template…"></textarea>
                 <small class="form-text text-muted">
                   Placeholder per pelanggan:
                   <code>${nama_pelanggan}</code>, <code>${nama_paket}</code>,
                   <code>${harga}</code>, <code>${periode}</code>, <code>${jatuh_tempo}</code>,
+                  <code>${tanggal_isolir}</code>, <code>${display_profile}</code> (kecepatan paket),
                   <code>${rekening}</code> (rekening transfer manual),
                   <code>${nama_wifi}</code>, <code>${nama_bot}</code>,
                   <code>${link_bayar}</code> (link bayar online).
-                  Template bisa diedit permanen di <a href="/templates">Template Pesan</a> (key <code>broadcast_tagihan</code>).
+                  Template bisa diedit permanen di <a href="/templates">Template Pesan</a>.
                 </small>
               </div>
 
@@ -92,7 +103,7 @@
                   <i class="fas fa-eye"></i> Pratinjau
                 </button>
                 <button type="button" id="send-btn" class="btn btn-primary">
-                  <i class="fas fa-paper-plane"></i> Kirim Tagihan
+                  <i class="fas fa-paper-plane"></i> Kirim Broadcast
                 </button>
               </div>
             </div>
