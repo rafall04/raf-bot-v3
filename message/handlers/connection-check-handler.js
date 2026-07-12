@@ -5,6 +5,12 @@
  *          Diagnosanya READ-ONLY (tak mengubah saldo/konfigurasi), tapi bila jalur ISP & area
  *          terbukti sehat dan modem masih terjangkau ACS, balasan menyertakan TAWARAN reboot
  *          berbantu — bot meminta izin dulu dan tak pernah mereboot sendiri. Tiket tetap di luar.
+ *          ANTI DATA-PALSU (prinsip inti): tak pernah menyajikan pembacaan basi/tak-terverifikasi
+ *          sebagai fakta. Verdict jalur-AKTIF berbasis BUKTI (status jalur upstream link utama/
+ *          cadangan) dan FAIL-CLOSED — tanpa bukti sehat, bot bilang "aktif, sedang diperiksa",
+ *          bukan "koneksi normal". Baris modem hanya tampil bila _lastInform GenieACS masih segar,
+ *          dan "0 perangkat terhubung" (tabel host ONU yang kerap keliru) tak pernah diklaim.
+ *          Reboot hanya ditawarkan saat gangguan PLAUSIBEL di modem — bukan saat jaringan yang sakit.
  * Caller: `message/handlers/raf-intent-dispatch/customer-service-intents.js` pada intent `CEK_KONEKSI`.
  * Deps: `../../lib/jid-utils` (resolveCustomerBySender), `../../lib/mikrotik` (getActivePPPoEUsers),
  *       `../../lib/wifi` (getSSIDInfo), `../../repositories/auto-outage.repository` (state offline_since),
@@ -14,7 +20,8 @@
  *       + lazy `../../lib/app-entity-extractor` + `../../lib/app-aware-diagnosis` (jawaban
  *         SPESIFIK per aplikasi yang disebut pelanggan, dari matriks reachability live).
  *       + lazy `../../lib/reboot-followup-service` (gate keamanan reboot + penjadwalan follow-up).
- * MainFuncs: `handleCekKoneksi`, `buildRebootOffer`.
+ * MainFuncs: `handleCekKoneksi`, `buildRebootOffer`, `resolveUpstreamHealth`, `classifyOnlineVerdict`,
+ *            `buildModemLine` (staleness-guarded).
  * SideEffects: Membaca PPP active MikroTik (live, di-cache TTL pendek) + GenieACS (best-effort) lalu reply WhatsApp.
  *              Bila gate reboot lolos: menyetel conversation state `REBOOTFU_OFFER` (JID kanonik).
  */
@@ -37,6 +44,16 @@ const UPSTREAM_REPORT_TTL_MS = 30000;
 
 // Ambang kemungkinan gangguan area (jumlah & rasio pelanggan offline berbarengan).
 const AREA_OUTAGE_RATIO = 0.3;
+
+// Ambang data GenieACS dianggap BASI: ONU belum inform (mis. buta lintas-PTP) atau ACS tak
+// menyimpan _lastInform. Selaras ambang gate reboot — inform periodik ACS prod terukur ~12 mnt,
+// jadi 30 mnt = beberapa siklus dan aman dari salah-vonis "basi" pada modem yang sebenarnya sehat.
+const MODEM_STALE_MS = 30 * 60 * 1000;
+
+function upstreamSignalAvailable() {
+    const up = global.config && global.config.upstreamMonitor;
+    return !!(up && up.enabled === true);
+}
 
 function normalizeUsername(value) {
     return String(value || '')
@@ -148,6 +165,71 @@ async function buildUpstreamSection(user) {
     }
 }
 
+/**
+ * Kesehatan jalur upstream untuk pelanggan yang PPPoE-nya AKTIF. READ-ONLY, cached, never-throw.
+ * @returns {Promise<{status:string|null, anyDegraded:boolean}>}
+ *   status: status jalur yang dipakai IP pelanggan ('NORMAL'|'DEGRADASI'|'GANGGUAN'|'PUTUS') atau
+ *           `null` bila fitur mati / IP belum terpetakan ke jalur (pool CIDR belum dikonfigurasi
+ *           untuk lokasi ini — akar kegagalan senyap: dulu ini membuat verdict jatuh ke "normal").
+ *   anyDegraded: ADA jalur mana pun yang sedang bermasalah — sinyal untuk pelanggan yang IP-nya
+ *           belum terpetakan (jangan klaim "normal" saat ada gangguan jalur yang sedang berjalan).
+ */
+async function resolveUpstreamHealth(user) {
+    const out = { status: null, anyDegraded: false };
+    try {
+        if (!upstreamSignalAvailable()) return out;
+        const report = await getUpstreamReportCached();
+        if (!report || !Array.isArray(report.paths)) return out;
+        out.anyDegraded = report.paths.some((p) => ['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(p.status));
+        const uname = normalizeUsername(user.pppoe_username);
+        const addr = activeCache.addrByUser ? activeCache.addrByUser.get(uname) : null;
+        if (addr) {
+            const resolved = resolvePathForIp(addr, global.config.upstreamMonitor);
+            if (resolved) {
+                const entry = report.paths.find((p) => p.key === resolved.path);
+                if (entry) out.status = entry.status;
+            }
+        }
+    } catch (_e) {
+        // best-effort — tak boleh menjatuhkan diagnosa
+    }
+    return out;
+}
+
+/**
+ * Verdict kesehatan untuk jalur yang PPPoE-nya AKTIF. Prinsip: JANGAN klaim "normal" tanpa bukti
+ * (fail-closed). Hanya menyatakan sehat bila jalur pelanggan — atau SEMUA jalur — terpantau baik.
+ * @returns {'UPSTREAM_ISSUE'|'POSSIBLE_UPSTREAM'|'HEALTHY'|'INCONCLUSIVE'}
+ */
+function classifyOnlineVerdict(up) {
+    if (up.status && ['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(up.status)) return 'UPSTREAM_ISSUE';
+    if (up.status === 'NORMAL') return 'HEALTHY';
+    // status null → IP pelanggan belum terpetakan ke jalur, atau fitur upstream mati.
+    if (up.anyDegraded) return 'POSSIBLE_UPSTREAM';
+    if (upstreamSignalAvailable()) return 'HEALTHY'; // monitor aktif & TAK ada jalur bermasalah → semua jalur sehat.
+    return 'INCONCLUSIVE'; // tak ada sinyal upstream sama sekali → tak bisa klaim "normal", tapi PPPoE aktif.
+}
+
+/** Baris kesehatan (health note) untuk balasan jalur-AKTIF, dirender per verdict via template. */
+function buildHealthNote(verdict) {
+    if (verdict === 'HEALTHY') {
+        return renderResponseTemplate('conncheck_health_ok', 'Koneksi Anda ke jaringan kami terpantau normal.', {});
+    }
+    if (verdict === 'POSSIBLE_UPSTREAM') {
+        return renderResponseTemplate(
+            'conncheck_health_possible',
+            'Koneksi Anda aktif. Saat ini *sebagian jalur jaringan kami sedang terganggu* dan sedang kami tangani — ' +
+                'bila sebagian layanan terasa lambat, kemungkinan dari sisi ini, *bukan dari perangkat Anda*. Mohon ditunggu ya 🙏',
+            {}
+        );
+    }
+    if (verdict === 'INCONCLUSIVE') {
+        return renderResponseTemplate('conncheck_health_active', 'Koneksi Anda terpantau aktif.', {});
+    }
+    // UPSTREAM_ISSUE → dikosongkan di sini; detail jalur dibawa oleh slot ${upstream}.
+    return '';
+}
+
 function formatTerakhirOnline(offlineSince) {
     if (!offlineSince) return '';
     try {
@@ -163,15 +245,34 @@ function formatTerakhirOnline(offlineSince) {
 async function buildModemLine(user) {
     if (!user.device_id) return '';
     try {
-        // skipRefresh=true: baca cache GenieACS biar cepat; modem hanya info pelengkap.
-        const { uptime, ssid } = await getSSIDInfo(user.device_id, true);
+        // skipRefresh=true: baca cache GenieACS biar cepat & tak men-trip breaker; modem info pelengkap.
+        const { uptime, ssid, lastInform } = await getSSIDInfo(user.device_id, true);
+
+        // ANTI DATA-PALSU: bila _lastInform basi/absen, ACS sedang buta terhadap modem ini (mis. ONU
+        // belum inform / lintas-PTP putus). Uptime & jumlah perangkat dari cache basi = data palsu —
+        // lebih baik DIAM soal modem daripada mengarang. Ini akar "0 perangkat terhubung" menyesatkan.
+        const informMs = lastInform ? new Date(lastInform).getTime() : NaN;
+        const fresh = Number.isFinite(informMs) && Date.now() - informMs <= MODEM_STALE_MS;
+        if (!fresh) return '';
+
         const jumlahPerangkat = Array.isArray(ssid)
             ? ssid.reduce((n, s) => n + ((s.associatedDevices && s.associatedDevices.length) || 0), 0)
             : 0;
+
+        // Tabel host ONU (mis. Huawei HG8145V5) kerap melaporkan 0 walau WiFi jelas dipakai. Untuk
+        // pelanggan yang justru sedang mengeluh, "0 perangkat terhubung" hampir pasti keliru & bikin
+        // kecewa — JANGAN diklaim. Tampilkan uptime saja bila hitungannya 0.
+        if (jumlahPerangkat > 0) {
+            return renderResponseTemplate(
+                'conncheck_modem_line',
+                `\n📡 Modem: aktif (uptime ${uptime || '-'}), ${jumlahPerangkat} perangkat terhubung.`,
+                { uptime: uptime || '-', jumlah_perangkat: jumlahPerangkat }
+            );
+        }
         return renderResponseTemplate(
-            'conncheck_modem_line',
-            `\n📡 Modem: aktif (uptime ${uptime || '-'}), ${jumlahPerangkat} perangkat terhubung.`,
-            { uptime: uptime || '-', jumlah_perangkat: jumlahPerangkat }
+            'conncheck_modem_line_nocount',
+            `\n📡 Modem: aktif (uptime ${uptime || '-'}).`,
+            { uptime: uptime || '-' }
         );
     } catch (_e) {
         return '';
@@ -372,23 +473,42 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
     // "lemot dari sisi mana" saat PPPoE pelanggan sendiri online tapi jalurnya sakit.
     const upstream = await buildUpstreamSection(user);
 
-    // Tawaran reboot berbantu: hanya bila jalur ISP & area terbukti sehat, modem masih terjangkau
-    // ACS, dan pelanggan belum mencabut modemnya sendiri. Bot TIDAK PERNAH reboot tanpa izin.
-    const rebootOffer = await buildRebootOffer({
-        user,
-        resolved,
-        lineStatus,
-        areaOutage,
-        offlineCount,
-        remoteAddr: addr,
-        customerText: chats
-    });
+    // VERDICT BERBASIS BUKTI (hanya untuk jalur AKTIF): jangan pernah bilang "koneksi normal" tanpa
+    // bukti. Jalur pelanggan terpetakan & sakit → UPSTREAM_ISSUE; ada jalur lain sakit tapi IP-nya
+    // belum terpetakan → POSSIBLE_UPSTREAM; semua jalur terpantau sehat → HEALTHY; tak ada sinyal
+    // upstream sama sekali → INCONCLUSIVE (aktif, tanpa klaim "normal" — fail-closed).
+    let verdict = null;
+    let healthNote = '';
+    if (lineStatus === 'online') {
+        verdict = classifyOnlineVerdict(await resolveUpstreamHealth(user));
+        healthNote = buildHealthNote(verdict);
+    }
+
+    // Tawaran reboot berbantu HANYA saat reboot masuk akal: jalur AKTIF tanpa bukti gangguan jaringan
+    // (HEALTHY/INCONCLUSIVE), atau jalur TERPUTUS (pola PPPoE hang klasik). Saat justru JARINGAN yang
+    // sakit (UPSTREAM_ISSUE/POSSIBLE_UPSTREAM), reboot tak menolong & menyesatkan → jangan ditawarkan
+    // (dan jangan set state REBOOTFU). Gate internal reboot tetap punya kata akhir untuk sisanya.
+    const rebootEligible =
+        lineStatus === 'offline' ||
+        (lineStatus === 'online' && (verdict === 'HEALTHY' || verdict === 'INCONCLUSIVE'));
+    const rebootOffer = rebootEligible
+        ? await buildRebootOffer({
+              user,
+              resolved,
+              lineStatus,
+              areaOutage,
+              offlineCount,
+              remoteAddr: addr,
+              customerText: chats
+          })
+        : '';
 
     const data = {
         nama,
         nama_layanan: namaLayanan,
         modem,
         upstream,
+        health_note: healthNote,
         app: appDiagnosis,
         jumlah: offlineCount,
         terakhir_online: formatTerakhirOnline(offlineSince),
@@ -410,7 +530,7 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
         key = 'conncheck_online';
         fallback =
             `🔎 *STATUS KONEKSI — ${namaLayanan}*\n\nHalo Kak ${nama}! 👋\n\n` +
-            `🟢 *Jalur internet: AKTIF*\nKoneksi Anda ke jaringan kami normal.${modem}${upstream}${appDiagnosis}\n\n` +
+            `🟢 *Jalur internet: AKTIF*\n${healthNote}${modem}${upstream}${appDiagnosis}\n\n` +
             `✅ Kalau internet terasa lambat:\n` +
             `• Dekatkan perangkat ke modem / kurangi penghalang\n` +
             `• Ketik *cek wifi* untuk lihat perangkat yang terhubung\n` +
@@ -442,5 +562,10 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
 }
 
 module.exports = {
-    handleCekKoneksi
+    handleCekKoneksi,
+    // Test-only: reset cache in-memori (PPP-active + laporan upstream) agar test deterministik.
+    _resetCachesForTest() {
+        activeCache = { at: 0, routerId: null, set: null, addrByUser: null };
+        upstreamReportCache = { at: 0, report: null };
+    }
 };

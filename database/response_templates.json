@@ -2882,8 +2882,10 @@
   "conncheck_online": {
     "name": "Cek Koneksi: Jalur Aktif",
     "category": "koneksi",
-    "template": "🔎 *STATUS KONEKSI — ${nama_layanan}*\n\nHalo Kak ${nama}! 👋\n\n🟢 *Jalur internet: AKTIF*\nKoneksi Anda ke jaringan kami normal.${modem}${upstream}${app}${reboot_offer}\n\n✅ Kalau internet terasa lambat:\n• Dekatkan perangkat ke modem / kurangi penghalang\n• Ketik *cek wifi* untuk lihat perangkat yang terhubung\n• Masih bermasalah? ketik *lapor wifi lemot*\n\nTerima kasih 🙏",
+    "template": "🔎 *STATUS KONEKSI — ${nama_layanan}*\n\nHalo Kak ${nama}! 👋\n\n🟢 *Jalur internet: AKTIF*\n${health_note}${modem}${upstream}${app}${reboot_offer}\n\n✅ Kalau internet terasa lambat:\n• Dekatkan perangkat ke modem / kurangi penghalang\n• Ketik *cek wifi* untuk lihat perangkat yang terhubung\n• Masih bermasalah? ketik *lapor wifi lemot*\n\nTerima kasih 🙏",
     "placeholders": [
+      "health_note",
+      "modem",
       "upstream",
       "app",
       "reboot_offer"
@@ -2916,6 +2918,11 @@
     "name": "Cek Koneksi: Baris Info Modem",
     "category": "koneksi",
     "template": "\n📡 Modem: aktif (uptime ${uptime}), ${jumlah_perangkat} perangkat terhubung."
+  },
+  "conncheck_modem_line_nocount": {
+    "name": "Cek Koneksi: Baris Info Modem (tanpa jumlah perangkat)",
+    "category": "koneksi",
+    "template": "\n📡 Modem: aktif (uptime ${uptime})."
   },
   "wifi_confirm_name_success": {
     "name": "WiFi Confirm: Nama Berhasil Diubah",
@@ -4571,6 +4578,21 @@
     "name": "Cek Koneksi - Catatan Jalur MNI (WA/game via jalur lain)",
     "category": "support",
     "template": "\n(Catatan: WhatsApp & game Anda lewat jalur berbeda yang saat ini normal — chat/game bisa tetap lancar walau browsing/video lambat.)"
+  },
+  "conncheck_health_ok": {
+    "name": "Cek Koneksi - Verdict: Jaringan Terpantau Normal",
+    "category": "support",
+    "template": "Koneksi Anda ke jaringan kami terpantau normal."
+  },
+  "conncheck_health_possible": {
+    "name": "Cek Koneksi - Verdict: Kemungkinan Gangguan Jalur (IP belum terpetakan)",
+    "category": "support",
+    "template": "Koneksi Anda aktif. Saat ini *sebagian jalur jaringan kami sedang terganggu* dan sedang kami tangani — bila sebagian layanan terasa lambat, kemungkinan dari sisi ini, *bukan dari perangkat Anda*. Mohon ditunggu ya 🙏"
+  },
+  "conncheck_health_active": {
+    "name": "Cek Koneksi - Verdict: Aktif (tanpa sinyal upstream, fail-closed)",
+    "category": "support",
+    "template": "Koneksi Anda terpantau aktif."
   },
   "conncheck_app_issue": {
     "name": "Cek Koneksi - App Spesifik Bermasalah (pesan sederhana)",
