@@ -37,6 +37,8 @@ describe("arrears repository contract", () => {
         dbPath = path.join(tempDir, "users.sqlite");
         db = new sqlite3.Database(dbPath);
 
+        // Fixture SENGAJA tanpa kolom `area` agar setara skema `users` produksi (lib/database.js).
+        // Dulu fixture punya `area` sehingga test hijau padahal query SELECT area rusak di prod.
         await run(`CREATE TABLE users (
             id INTEGER PRIMARY KEY,
             name TEXT,
@@ -44,7 +46,6 @@ describe("arrears repository contract", () => {
             subscription TEXT,
             subscription_price INTEGER,
             status TEXT,
-            area TEXT,
             account_type TEXT DEFAULT 'pelanggan'
         )`);
         await run(`CREATE TABLE payment_history (
@@ -70,11 +71,11 @@ describe("arrears repository contract", () => {
             status TEXT
         )`);
 
-        await run(`INSERT INTO users (id, name, phone_number, subscription, subscription_price, status, area)
+        await run(`INSERT INTO users (id, name, phone_number, subscription, subscription_price, status)
             VALUES
-            (1, 'A', '081', 'Paket 150K', 150000, 'aktif', 'Area 1'),
-            (2, 'B', '082', 'Paket 200K', 200000, 'isolir', 'Area 2'),
-            (3, 'C', '083', 'Paket 150K', 150000, 'nonaktif', 'Area 1')`);
+            (1, 'A', '081', 'Paket 150K', 150000, 'aktif'),
+            (2, 'B', '082', 'Paket 200K', 200000, 'isolir'),
+            (3, 'C', '083', 'Paket 150K', 150000, 'nonaktif')`);
 
         await run(`INSERT INTO payment_history (user_id, amount_paid, amount_due, period_month, period_year, payment_method, created_by, created_at)
             VALUES

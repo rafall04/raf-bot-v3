@@ -43,9 +43,12 @@ function createArrearsRepository(overrides = {}) {
         async listBillableCustomers() {
             const db = createDb();
             try {
+                // Catatan: kolom `area` TIDAK ada di skema `users` (lib/database.js) — menyebutnya
+                // di SELECT melempar "no such column: area" di prod → rekap-tunggakan & filter Menunggak
+                // rusak. Dibuang sampai kolom area benar-benar dibuat (roadmap P0 penagihan per-area).
                 return await all(
                     db,
-                    `SELECT id, name, phone_number, subscription, subscription_price, status, area
+                    `SELECT id, name, phone_number, subscription, subscription_price, status
                        FROM users
                       WHERE status IN ('aktif', 'isolir')
                         AND LOWER(COALESCE(account_type, 'pelanggan')) != 'infrastruktur'
