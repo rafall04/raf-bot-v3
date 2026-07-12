@@ -20,7 +20,11 @@ async function updateUserById(deps, { id, userData, actor, requestMeta }) {
         };
     }
 
-    const oldPaidStatus = userToUpdate.paid;
+    // Koersi ke boolean: findUserById mengembalikan `paid` MENTAH dari runtime (integer 0/1),
+    // sedangkan draftUser.paid dikoersi ke boolean di bawah. Tanpa koersi, `0 !== false` / `1 !== true`
+    // membuat `paidStatusChanged` SELALU true → memicu finance boundary di SETIAP update meski status
+    // bayar tak berubah (akar 409 "no_paid_position"/"already_fully_paid"). Selaras update-user-payment-status.js.
+    const oldPaidStatus = userToUpdate.paid === true || userToUpdate.paid === 1 || userToUpdate.paid === "1";
     const paymentMethodInputPresent = userData.payment_method !== undefined
         && userData.payment_method !== null
         && String(userData.payment_method).trim() !== "";
@@ -29,7 +33,7 @@ async function updateUserById(deps, { id, userData, actor, requestMeta }) {
         name: userToUpdate.name,
         phone_number: userToUpdate.phone_number,
         subscription: userToUpdate.subscription,
-        paid: userToUpdate.paid,
+        paid: oldPaidStatus,
         pppoe_username: userToUpdate.pppoe_username
     };
     const draftUser = {
@@ -125,6 +129,10 @@ async function updateUserById(deps, { id, userData, actor, requestMeta }) {
 
         draftUser[key] = userData[key];
     });
+
+    // draftUser.paid bisa MASIH mentah (integer 0/1) bila FE tak mengirim field `paid` (tersalin dari
+    // spread userToUpdate). Koersi ke boolean agar perbandingan paidStatusChanged type-safe di semua kasus.
+    draftUser.paid = draftUser.paid === true || draftUser.paid === 1 || draftUser.paid === "1";
 
     const subscriptionChanged = oldUserData.subscription !== draftUser.subscription;
     const syncEnabled = deps.isMikrotikSyncEnabled();
@@ -236,7 +244,11 @@ async function updateUserById(deps, { id, userData, actor, requestMeta }) {
                     });
                 }
             });
-            if (financeResult.action !== "paid") {
+            // no_change/already_fully_paid = idempoten (target "lunas" sudah tercapai) → BUKAN kegagalan.
+            // Kegagalan nyata dari finance boundary di-throw (→500), jadi cabang ini hanya menyaring no-op.
+            const paidApplied = financeResult.action === "paid"
+                || (financeResult.action === "no_change" && financeResult.reason === "already_fully_paid");
+            if (!paidApplied) {
                 return {
                     status: 409,
                     body: {
@@ -256,7 +268,12 @@ async function updateUserById(deps, { id, userData, actor, requestMeta }) {
                 createdBy: actor.username,
                 sourceAdminAction: `users-update:${id}:unpaid`
             });
-            if (financeResult.action !== "reversed") {
+            // no_change/no_paid_position (tak ada bayaran utk dibalik — sudah unpaid, flag pun sudah di-set
+            // false) & duplicate_retry = idempoten (target "belum bayar" sudah tercapai) → BUKAN kegagalan.
+            const reversalApplied = financeResult.action === "reversed"
+                || financeResult.action === "duplicate_retry"
+                || (financeResult.action === "no_change" && financeResult.reason === "no_paid_position");
+            if (!reversalApplied) {
                 return {
                     status: 409,
                     body: {

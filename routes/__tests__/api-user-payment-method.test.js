@@ -202,7 +202,10 @@ describe('api user payment method routes', () => {
     }
   });
 
-  test('users/:id does not update database when finance mutation is rejected', async () => {
+  test('users/:id: no-op finance idempoten (already_fully_paid) diterima sukses, BUKAN 409', async () => {
+    // Regresi: dulu already_fully_paid / no_paid_position dianggap "rejected" → 409, memblokir SETIAP
+    // edit user yang menyentuh status bayar (akar keluhan "Gagal memperbarui pengguna"). Kegagalan finance
+    // NYATA di-throw (→500) sehingga tak pernah menulis DB; no-op idempoten kini = sukses (update lanjut).
     mockedApplyPaymentStatusChange.mockResolvedValueOnce({ action: 'no_change', reason: 'already_fully_paid' });
     const app = createApp();
     const { server, baseUrl } = await startServer(app);
@@ -218,12 +221,9 @@ describe('api user payment method routes', () => {
           payment_method: 'CASH'
         })
       });
-      const payload = await response.json();
 
-      expect(response.status).toBe(409);
-      expect(payload.message).toMatch(/already_fully_paid|sudah berubah|tidak berubah/i);
-      expect(dbRun).not.toHaveBeenCalled();
-      expect(global.users[0].paid).toBe(0);
+      expect(response.status).toBe(200);
+      expect(mockedApplyPaymentStatusChange).toHaveBeenCalled();
     } finally {
       await stopServer(server);
     }

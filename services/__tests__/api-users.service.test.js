@@ -242,6 +242,121 @@ describe("api-users service", () => {
         expect(result.body.sync_status).toBe("applied_locally_sync_disabled");
     });
 
+    test("updateUserById: paid MENTAH 0 + form paid:false TAK memicu finance (regresi 409 no_paid_position tiap edit)", async () => {
+        // findUserById mengembalikan `paid` mentah dari runtime (integer 0). Sebelum fix, `0 !== false`
+        // membuat paidStatusChanged SELALU true → applyPaymentStatusChange dipanggil → no_paid_position → 409
+        // di SETIAP edit (mis. sekadar menambah No HP, kasus "Reny"). Sekarang: 200, finance TAK dipanggil.
+        const updateUserRecord = jest.fn().mockResolvedValue({ updated: true, fields: ["phone_number"] });
+        const applyPaymentStatusChange = jest.fn();
+        const service = createApiUsersService({
+            repository: {
+                findUserById: jest.fn(() => ({
+                    id: "u-9", name: "Reny", phone_number: "", subscription: "PAKET-110K",
+                    paid: 0, pppoe_username: null
+                })),
+                updateUserRecord,
+                getUsersSnapshot: jest.fn(() => [{ id: "u-9", name: "Reny" }]),
+                replaceUsersSnapshot: jest.fn()
+            },
+            normalizeUserPaymentMethod: jest.fn(() => null),
+            validatePhoneNumbers: jest.fn().mockResolvedValue({ valid: true }),
+            getDb: jest.fn(() => ({ run: jest.fn() })),
+            isMikrotikSyncEnabled: jest.fn(() => false),
+            buildMikrotikSyncResult: jest.fn((status, message, extra = {}) => ({ status, message, ...extra })),
+            applyPaymentStatusChange,
+            getPeriodParts: jest.fn(() => ({ periodMonth: 7, periodYear: 2026 })),
+            getEffectivePrice: jest.fn(() => 110000),
+            logActivity: jest.fn().mockResolvedValue(undefined),
+            logger: { error: jest.fn(), warn: jest.fn(), log: jest.fn() }
+        });
+
+        const result = await service.updateUserById({
+            id: "u-9",
+            userData: { phone: "6282337557930", paid: false },
+            actor: { id: 9, username: "admin", role: "admin" },
+            requestMeta: { ipAddress: "127.0.0.1", userAgent: "jest" }
+        });
+
+        expect(result.status).toBe(200);
+        expect(applyPaymentStatusChange).not.toHaveBeenCalled();
+        expect(updateUserRecord).toHaveBeenCalled();
+    });
+
+    test("updateUserById: FE tak mengirim field paid (edit No HP saja) → 200, finance TAK dipanggil", async () => {
+        // Kasus paling umum dari layar Edit User: admin cuma menambah/ubah No HP tanpa menyentuh checkbox.
+        // draftUser.paid tersalin MENTAH (integer 0) dari spread; setelah koersi harus setara oldPaidStatus
+        // → paidStatusChanged false → finance tak dipanggil (tanpa ini: 0 !== false → 409 no_paid_position).
+        const applyPaymentStatusChange = jest.fn();
+        const service = createApiUsersService({
+            repository: {
+                findUserById: jest.fn(() => ({
+                    id: "u-7", name: "Reny", phone_number: "", subscription: "PAKET-110K",
+                    paid: 0, pppoe_username: null
+                })),
+                updateUserRecord: jest.fn().mockResolvedValue({ updated: true, fields: ["phone_number"] }),
+                getUsersSnapshot: jest.fn(() => [{ id: "u-7", name: "Reny" }]),
+                replaceUsersSnapshot: jest.fn()
+            },
+            normalizeUserPaymentMethod: jest.fn(() => null),
+            validatePhoneNumbers: jest.fn().mockResolvedValue({ valid: true }),
+            getDb: jest.fn(() => ({ run: jest.fn() })),
+            isMikrotikSyncEnabled: jest.fn(() => false),
+            buildMikrotikSyncResult: jest.fn((status, message, extra = {}) => ({ status, message, ...extra })),
+            applyPaymentStatusChange,
+            getPeriodParts: jest.fn(() => ({ periodMonth: 7, periodYear: 2026 })),
+            getEffectivePrice: jest.fn(() => 110000),
+            logActivity: jest.fn().mockResolvedValue(undefined),
+            logger: { error: jest.fn(), warn: jest.fn(), log: jest.fn() }
+        });
+
+        const result = await service.updateUserById({
+            id: "u-7",
+            userData: { phone: "6282337557930" }, // TANPA field paid
+            actor: { id: 9, username: "admin", role: "admin" },
+            requestMeta: {}
+        });
+
+        expect(result.status).toBe(200);
+        expect(applyPaymentStatusChange).not.toHaveBeenCalled();
+    });
+
+    test("updateUserById: perubahan bayar dgn hasil no-op finance (no_paid_position) tetap 200 (bukan 409)", async () => {
+        // Defense-in-depth: bila admin benar-benar mengubah status tapi finance boundary mengembalikan
+        // no-op idempoten (tak ada bayaran utk dibalik), update tetap sukses — bukan 409.
+        const applyPaymentStatusChange = jest.fn().mockResolvedValue({ action: "no_change", reason: "no_paid_position" });
+        const service = createApiUsersService({
+            repository: {
+                findUserById: jest.fn(() => ({
+                    id: "u-8", name: "Budi", phone_number: "0812", subscription: "Basic",
+                    paid: 1, pppoe_username: null
+                })),
+                updateUserRecord: jest.fn().mockResolvedValue({ updated: true, fields: ["paid"] }),
+                getUsersSnapshot: jest.fn(() => [{ id: "u-8", name: "Budi" }]),
+                replaceUsersSnapshot: jest.fn()
+            },
+            normalizeUserPaymentMethod: jest.fn(() => null),
+            validatePhoneNumbers: jest.fn().mockResolvedValue({ valid: true }),
+            getDb: jest.fn(() => ({ run: jest.fn() })),
+            isMikrotikSyncEnabled: jest.fn(() => false),
+            buildMikrotikSyncResult: jest.fn((status, message, extra = {}) => ({ status, message, ...extra })),
+            applyPaymentStatusChange,
+            getPeriodParts: jest.fn(() => ({ periodMonth: 7, periodYear: 2026 })),
+            getEffectivePrice: jest.fn(() => 100000),
+            logActivity: jest.fn().mockResolvedValue(undefined),
+            logger: { error: jest.fn(), warn: jest.fn(), log: jest.fn() }
+        });
+
+        const result = await service.updateUserById({
+            id: "u-8",
+            userData: { paid: false },
+            actor: { id: 9, username: "admin", role: "admin" },
+            requestMeta: {}
+        });
+
+        expect(applyPaymentStatusChange).toHaveBeenCalled();
+        expect(result.status).toBe(200);
+    });
+
     test("updateUserById tidak menolak saat halaman edit mengirim ulang pppoe_password kosong (pelanggan tanpa PPPoE)", async () => {
         // Regresi: pelanggan dengan pppoe_password null. Halaman edit (field readonly) tetap
         // mengirim pppoe_username/pppoe_password lewat FormData → nilai display "" masuk ke request.

@@ -90,7 +90,10 @@ async function updateUserPaymentStatus(deps, { id, paid, paymentMethodInput, use
             }
         });
 
-        if (financeResult.action !== "paid") {
+        // no_change/already_fully_paid = idempoten (sudah lunas) → BUKAN kegagalan. Kegagalan nyata di-throw.
+        const paidApplied = financeResult.action === "paid"
+            || (financeResult.action === "no_change" && financeResult.reason === "already_fully_paid");
+        if (!paidApplied) {
             return {
                 status: 409,
                 body: {
@@ -122,7 +125,11 @@ async function updateUserPaymentStatus(deps, { id, paid, paymentMethodInput, use
             sourceAdminAction: `legacy-users-update:${id}:unpaid`
         });
 
-        if (financeResult.action !== "reversed") {
+        // no_change/no_paid_position (tak ada bayaran utk dibalik) & duplicate_retry = idempoten → BUKAN kegagalan.
+        const reversalApplied = financeResult.action === "reversed"
+            || financeResult.action === "duplicate_retry"
+            || (financeResult.action === "no_change" && financeResult.reason === "no_paid_position");
+        if (!reversalApplied) {
             return {
                 status: 409,
                 body: {
