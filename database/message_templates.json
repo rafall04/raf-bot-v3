@@ -29,15 +29,15 @@
   },
   "unpaid_reminder": {
     "name": "Pengingat Tagihan (Cron Job)",
-    "template": "Yth. Pelanggan *${nama_pelanggan}*,\n\nKami dari *${nama_wifi}* ingin memberitahukan bahwa tagihan internet Anda untuk periode *${periode}* telah tersedia. Dan akan jatuh tempo pada tanggal *${jatuh_tempo}*.\n\nDetail Tagihan:\n- Paket: *${nama_paket}*\n- Total: *${harga}*\n\n💳 *Bayar online sekarang* — QRIS / Transfer VA / Alfamart-Indomaret (otomatis lunas):\n${link_bayar}\n\nAtau transfer manual ke:\n${rekening}\n\nJika sudah membayar, mohon abaikan pesan ini.\n\nTerima kasih,\n*${nama_bot}*"
+    "template": "Yth. Pelanggan *${nama_pelanggan}*,\n\nKami dari *${nama_wifi}* ingin memberitahukan bahwa tagihan internet Anda untuk periode *${periode}* telah tersedia. Dan akan jatuh tempo pada tanggal *${jatuh_tempo}*.\n\nDetail Tagihan:\n- Paket: *${nama_paket}*\n- Total: *${harga}*\n\n💳 Pembayaran via transfer ke:\n${rekening}\n\nJika sudah membayar, mohon abaikan pesan ini.\n\nTerima kasih,\n*${nama_bot}*"
   },
   "masa_tenggang_reminder": {
     "name": "Pengingat Masa Tenggang (Cron Job)",
-    "template": "⚠️ *PEMBERITAHUAN MASA TENGGANG*\n\nYth. *${nama_pelanggan}*,\n\nTagihan internet Anda periode *${periode}* telah melewati jatuh tempo (*${jatuh_tempo}*) dan belum kami terima.\n\nSaat ini Anda berada dalam *masa tenggang*. Mohon selesaikan pembayaran *sebelum ${tanggal_isolir}* agar layanan tidak dinonaktifkan sementara.\n\nDetail Tagihan:\n- Paket: *${nama_paket}*\n- Total: *${harga}*\n\n💳 *Bayar online sekarang* — QRIS / Transfer VA / Alfamart-Indomaret (otomatis lunas):\n${link_bayar}\n\nAtau transfer manual ke:\n${rekening}\n\nJika sudah membayar, mohon abaikan pesan ini.\n\nTerima kasih,\n*${nama_bot}*"
+    "template": "⚠️ *PEMBERITAHUAN MASA TENGGANG*\n\nYth. *${nama_pelanggan}*,\n\nTagihan internet Anda periode *${periode}* telah melewati jatuh tempo (*${jatuh_tempo}*) dan belum kami terima.\n\nSaat ini Anda berada dalam *masa tenggang*. Mohon selesaikan pembayaran *sebelum ${tanggal_isolir}* agar layanan tidak dinonaktifkan sementara.\n\nDetail Tagihan:\n- Paket: *${nama_paket}*\n- Total: *${harga}*\n\n💳 Pembayaran via transfer ke:\n${rekening}\n\nJika sudah membayar, mohon abaikan pesan ini.\n\nTerima kasih,\n*${nama_bot}*"
   },
   "isolir_notification": {
     "name": "Notifikasi Isolir",
-    "template": "Selamat Pagi Bpk/Ibu ${nama_pelanggan},\n\nDiberitahukan kepada pelanggan bahwa saat ini layanan anda terisolir karena adanya tagihan yang belum terbayarkan untuk periode ${periode}.\n\nMohon segera lakukan pembayaran agar layanan dapat aktif kembali.\n\n💳 *Bayar online sekarang* — QRIS / Transfer VA / Alfamart-Indomaret. Layanan otomatis aktif kembali setelah bayar:\n${link_bayar}\n\nAtau transfer manual ke:\n${rekening}\n\n*Abaikan pesan ini jika Anda sudah membayar.\n\n\nTerimakasih\nAdmin ${nama_wifi}"
+    "template": "Selamat Pagi Bpk/Ibu ${nama_pelanggan},\n\nDiberitahukan kepada pelanggan bahwa saat ini layanan anda terisolir karena adanya tagihan yang belum terbayarkan untuk periode ${periode}.\n\nMohon segera lakukan pembayaran agar layanan dapat aktif kembali.\n\n💳 Pembayaran via transfer ke:\n${rekening}\n\n*Abaikan pesan ini jika Anda sudah membayar.\n\n\nTerimakasih\nAdmin ${nama_wifi}"
   },
   "compensation_applied": {
     "name": "Notifikasi Kompensasi Diberikan",
@@ -153,7 +153,7 @@
   },
   "tagihan_belum_lunas": {
     "name": "Cek Tagihan - BELUM LUNAS",
-    "template": "⚠️ *STATUS TAGIHAN ANDA* ⚠️\n\nHalo Kak *${nama_pelanggan}*,\n\nStatus tagihan WiFi Anda untuk paket *${nama_paket}* dengan total *${harga}* adalah: *BELUM LUNAS*.\n\n💳 *Bayar online sekarang* — QRIS / Transfer VA / Alfamart-Indomaret:\n${link_bayar}\n\nPembayaran otomatis terverifikasi & layanan langsung aktif. Butuh bantuan lain? Ketik *menuwifi*."
+    "template": "⚠️ *STATUS TAGIHAN ANDA* ⚠️\n\nHalo Kak *${nama_pelanggan}*,\n\nStatus tagihan WiFi Anda untuk paket *${nama_paket}* dengan total *${harga}* adalah: *BELUM LUNAS*.\n\n💳 Pembayaran via transfer ke:\n${rekening}\n\nSetelah transfer, mohon kirim *foto bukti pembayaran* ke chat ini agar kami proses. Butuh bantuan lain? Ketik *menuwifi*."
   },
   "tagihan_struk_lunas": {
     "name": "Struk Tagihan Lunas (otomatis dari pembayaran online)",
