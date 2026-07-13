@@ -1,9 +1,10 @@
 /**
  * Header Doc
- * Purpose: Uji perintah WA `oper <segmen> ke <jalur>`: parse, gate admin (silent non-admin),
- *          pratinjau + set state konfirmasi, noop, format salah, dan langkah konfirmasi (affirmatif
- *          → applySegmentMove confirm:true + state dibersihkan; non-affirmatif → minta ya/batal,
- *          tak eksekusi). Service disuntik (tanpa router nyata).
+ * Purpose: Uji perintah WA `oper <sasaran> ke <jalur>` — dua mode: SEGMEN (previewSegmentMove +
+ *          applySegmentMove) & PELANGGAN (resolve + steerCustomer). Cakup: parse, deteksi
+ *          segmen-vs-pelanggan, gate admin (silent non-admin), pratinjau + set state, konfirmasi
+ *          affirmatif→eksekusi mode yang benar + state dibersihkan, non-affirmatif→minta ya/batal,
+ *          pelanggan tak ditemukan / banyak cocok. Service & users disuntik (tanpa router nyata).
  * Caller: Jest.
  * Deps: -
  * MainFuncs: -
@@ -13,12 +14,19 @@
 
 const { startOperJalur, handleOperJalurConversationState, _internal } = require("../oper-jalur.state");
 
+const USERS = [
+    { id: 1, name: "Budi Santoso", pppoe_username: "budi@rafcyber" },
+    { id: 2, name: "Ani Wijaya", pppoe_username: "ani@rafcyber" },
+    { id: 3, name: "Budi Hartono", pppoe_username: "budihar@rafcyber" },
+];
+
 function makeSvc(over = {}) {
     return {
         getSegments: () => [{ id: "reguler" }, { id: "110k" }, { id: "125k" }, { id: "free" }],
-        previewSegmentMove: jest.fn(async () => ({ ok: true, segment: "free", label: "FREE", from: "mni", noop: false, ops: [{ desc: "tambah 192.168.71.0/24 ke lokaldns" }, { desc: "nonaktifkan di freedns" }] })),
+        previewSegmentMove: jest.fn(async () => ({ ok: true, segment: "free", label: "FREE", from: "mni", noop: false, ops: [{ desc: "tambah 71 ke lokaldns" }, { desc: "nonaktifkan 71 di freedns" }] })),
         buildSegmentMap: jest.fn(async () => ({ ok: true, segments: [{ id: "free", activeCount: 6 }] })),
         applySegmentMove: jest.fn(async () => ({ ok: true, label: "FREE", from: "mni", to: "gmdp", verified: true })),
+        steerCustomer: jest.fn(async () => ({ ok: true, message: "Budi Santoso diarahkan via SF (IP 192.168.61.9).", appliedNow: true })),
         ...over,
     };
 }
@@ -34,96 +42,103 @@ function ctx(over = {}) {
         plainSenderNumber: "628111",
         pushname: "Aldi",
         qAfterKeyword: "",
-        global: { accounts: [{ phone_number: "628111", role: "owner" }] }, // admin
+        global: { accounts: [{ phone_number: "628111", role: "owner" }], users: USERS },
         customerSteeringService: makeSvc(),
         ...over,
     };
 }
 
-describe("parseOper", () => {
-    const ids = ["reguler", "110k", "125k", "free"];
-    test("berbagai bentuk", () => {
-        expect(_internal.parseOper("free ke gmdp", ids)).toEqual({ segmen: "free", jalur: "gmdp" });
-        expect(_internal.parseOper("110 ke mni", ids)).toEqual({ segmen: "110k", jalur: "mni" });
-        expect(_internal.parseOper("free gmdp", ids)).toEqual({ segmen: "free", jalur: "gmdp" });
-        expect(_internal.parseOper("ngawur", ids)).toEqual({ segmen: null, jalur: null });
+describe("parse & resolve helpers", () => {
+    test("parseOperTarget: jalur terakhir, sisanya target", () => {
+        expect(_internal.parseOperTarget("free ke gmdp")).toEqual({ target: "free", jalur: "gmdp" });
+        expect(_internal.parseOperTarget("budi santoso ke sf")).toEqual({ target: "budi santoso", jalur: "sf" });
+        expect(_internal.parseOperTarget("110 mni")).toEqual({ target: "110", jalur: "mni" });
+        expect(_internal.parseOperTarget("ngawur")).toEqual({ target: "ngawur", jalur: null });
+    });
+    test("matchSegment: id/alias segmen, else null", () => {
+        const ids = ["reguler", "110k", "125k", "free"];
+        expect(_internal.matchSegment("free", ids)).toBe("free");
+        expect(_internal.matchSegment("110", ids)).toBe("110k");
+        expect(_internal.matchSegment("budi", ids)).toBeNull();
+    });
+    test("resolveCustomers: id/pppoe eksak dulu, lalu contains", () => {
+        expect(_internal.resolveCustomers("2", USERS).map((u) => u.id)).toEqual([2]);
+        expect(_internal.resolveCustomers("budi@rafcyber", USERS).map((u) => u.id)).toEqual([1]);
+        expect(_internal.resolveCustomers("budi", USERS).map((u) => u.id)).toEqual([1, 3]); // dua "Budi"
     });
 });
 
-describe("startOperJalur", () => {
-    test("non-admin → handled:false, tak balas (jangan bocorkan)", async () => {
-        const c = ctx({ global: { accounts: [] }, qAfterKeyword: "free ke gmdp" });
+describe("startOperJalur — mode SEGMEN", () => {
+    test("non-admin → handled:false, tak balas", async () => {
+        const c = ctx({ global: { accounts: [], users: USERS }, qAfterKeyword: "free ke gmdp" });
         const r = await startOperJalur(c);
         expect(r).toEqual({ handled: false });
         expect(c.reply).not.toHaveBeenCalled();
     });
-
-    test("admin + valid → pratinjau + set state OPERJALUR_CONFIRM", async () => {
+    test("segmen valid → pratinjau + state mode:segment", async () => {
         const c = ctx({ qAfterKeyword: "free ke gmdp" });
-        const r = await startOperJalur(c);
-        expect(r.handled).toBe(true);
-        expect(c.setUserState).toHaveBeenCalledWith("628111@s.whatsapp.net", expect.objectContaining({ step: "OPERJALUR_CONFIRM", segmen: "free", jalur: "gmdp", from: "mni" }));
-        expect(c.reply).toHaveBeenCalled();
-    });
-
-    test("noop (sudah di jalur) → balas noop TANPA set state", async () => {
-        const svc = makeSvc({ previewSegmentMove: jest.fn(async () => ({ ok: true, noop: true, label: "FREE" })) });
-        const c = ctx({ qAfterKeyword: "free ke mni", customerSteeringService: svc });
         await startOperJalur(c);
-        expect(c.setUserState).not.toHaveBeenCalled();
-        expect(c.reply).toHaveBeenCalled();
+        expect(c.setUserState).toHaveBeenCalledWith("628111@s.whatsapp.net", expect.objectContaining({ step: "OPERJALUR_CONFIRM", mode: "segment", segmen: "free", jalur: "gmdp" }));
     });
-
-    test("format salah → balas invalid, previewSegmentMove tak dipanggil", async () => {
+    test("format salah (tanpa jalur) → invalid, tak set state", async () => {
         const svc = makeSvc();
-        const c = ctx({ qAfterKeyword: "ngawur", customerSteeringService: svc });
+        const c = ctx({ qAfterKeyword: "free", customerSteeringService: svc });
         await startOperJalur(c);
         expect(svc.previewSegmentMove).not.toHaveBeenCalled();
         expect(c.setUserState).not.toHaveBeenCalled();
     });
+});
 
-    test("jalur ih (ditolak service) → balas invalid tanpa set state", async () => {
-        const svc = makeSvc({ previewSegmentMove: jest.fn(async () => ({ ok: false, error: "Jalur segmen v1 hanya mni/gmdp." })) });
-        const c = ctx({ qAfterKeyword: "free ke ih", customerSteeringService: svc });
+describe("startOperJalur — mode PELANGGAN", () => {
+    test("nama unik → pratinjau pelanggan + state mode:customer", async () => {
+        const svc = makeSvc();
+        const c = ctx({ qAfterKeyword: "ani ke sf", customerSteeringService: svc });
         await startOperJalur(c);
-        expect(svc.previewSegmentMove).toHaveBeenCalledWith({ segment: "free", path: "ih" });
+        expect(svc.previewSegmentMove).not.toHaveBeenCalled(); // bukan segmen
+        expect(c.setUserState).toHaveBeenCalledWith("628111@s.whatsapp.net", expect.objectContaining({ step: "OPERJALUR_CONFIRM", mode: "customer", userId: 2, jalur: "sf" }));
+    });
+    test("tak ditemukan → balas notfound, tak set state", async () => {
+        const c = ctx({ qAfterKeyword: "zzz ke sf" });
+        await startOperJalur(c);
         expect(c.setUserState).not.toHaveBeenCalled();
+        expect(c.reply).toHaveBeenCalled();
+    });
+    test("banyak cocok (dua Budi) → minta spesifik, tak set state", async () => {
+        const c = ctx({ qAfterKeyword: "budi ke sf" });
+        await startOperJalur(c);
+        expect(c.setUserState).not.toHaveBeenCalled();
+        expect(c.reply).toHaveBeenCalled();
     });
 });
 
-describe("handleOperJalurConversationState (konfirmasi)", () => {
-    const pending = { step: "OPERJALUR_CONFIRM", segmen: "free", jalur: "gmdp", from: "mni", label: "FREE" };
-
-    test("balas 'ya' → applySegmentMove confirm:true + state dibersihkan", async () => {
+describe("handleConfirm", () => {
+    test("mode segmen + 'ya' → applySegmentMove", async () => {
         const svc = makeSvc();
-        const c = ctx({ chats: "ya", userState: pending, customerSteeringService: svc });
-        const r = await handleOperJalurConversationState(c);
-        expect(r.handled).toBe(true);
-        expect(c.deleteUserState).toHaveBeenCalledWith("628111@s.whatsapp.net");
+        const c = ctx({ chats: "ya", customerSteeringService: svc, userState: { step: "OPERJALUR_CONFIRM", mode: "segment", segmen: "free", jalur: "gmdp", from: "mni", label: "FREE" } });
+        await handleOperJalurConversationState(c);
         expect(svc.applySegmentMove).toHaveBeenCalledWith(expect.objectContaining({ segment: "free", path: "gmdp", confirm: true }));
-        expect(c.reply).toHaveBeenCalled();
+        expect(svc.steerCustomer).not.toHaveBeenCalled();
+        expect(c.deleteUserState).toHaveBeenCalled();
     });
-
-    test("balas non-affirmatif → minta ya/batal, TAK eksekusi", async () => {
+    test("mode pelanggan + 'ya' → steerCustomer", async () => {
         const svc = makeSvc();
-        const c = ctx({ chats: "hmm apa", userState: pending, customerSteeringService: svc });
+        const c = ctx({ chats: "ya", customerSteeringService: svc, userState: { step: "OPERJALUR_CONFIRM", mode: "customer", userId: 1, nama: "Budi Santoso", jalur: "sf" } });
+        await handleOperJalurConversationState(c);
+        expect(svc.steerCustomer).toHaveBeenCalledWith(expect.objectContaining({ userId: 1, path: "sf" }));
+        expect(svc.applySegmentMove).not.toHaveBeenCalled();
+    });
+    test("non-affirmatif → tak eksekusi, tak clear state", async () => {
+        const svc = makeSvc();
+        const c = ctx({ chats: "hmm", customerSteeringService: svc, userState: { step: "OPERJALUR_CONFIRM", mode: "segment", segmen: "free", jalur: "gmdp" } });
         await handleOperJalurConversationState(c);
         expect(svc.applySegmentMove).not.toHaveBeenCalled();
         expect(c.deleteUserState).not.toHaveBeenCalled();
-        expect(c.reply).toHaveBeenCalled();
     });
-
-    test("apply gagal → balas gagal (tak lempar)", async () => {
-        const svc = makeSvc({ applySegmentMove: jest.fn(async () => ({ ok: false, error: "verify gagal" })) });
-        const c = ctx({ chats: "ya", userState: pending, customerSteeringService: svc });
+    test("pelanggan gagal (mis. reconciler nonaktif) → balas gagal, tak lempar", async () => {
+        const svc = makeSvc({ steerCustomer: jest.fn(async () => ({ ok: false, error: "Steering nonaktif (config.customerSteering.enabled=false)." })) });
+        const c = ctx({ chats: "ya", customerSteeringService: svc, userState: { step: "OPERJALUR_CONFIRM", mode: "customer", userId: 1, jalur: "sf" } });
         const r = await handleOperJalurConversationState(c);
         expect(r.handled).toBe(true);
         expect(c.reply).toHaveBeenCalled();
-    });
-
-    test("non-admin di langkah state → handled:false (re-gate)", async () => {
-        const c = ctx({ chats: "ya", userState: pending, global: { accounts: [] } });
-        const r = await handleOperJalurConversationState(c);
-        expect(r.handled).toBe(false);
     });
 });

@@ -208,6 +208,7 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 - [Fitur 2026-07-13 (Oper koneksi per-SEGMEN — Track B/B1 read+dry-run)](docs/boundary-log.md#b121)
 - [Fitur 2026-07-13 (Oper koneksi per-SEGMEN — Track B/B2 apply+verify+rollback)](docs/boundary-log.md#b122)
 - [Fitur 2026-07-13 (Perintah WA oper per-segmen — Track B surface)](docs/boundary-log.md#b123)
+- [Fitur 2026-07-13 (oper diperluas ke per-pelanggan — Track B/B3)](docs/boundary-log.md#b124)
 
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.

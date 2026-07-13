@@ -4917,10 +4917,40 @@
     "placeholders": ["error"]
   },
   "oper_segment_invalid": {
-    "name": "Oper Segmen - Format salah",
+    "name": "Oper - Format salah",
     "category": "network_admin",
-    "template": "⚠️ ${error}\n\nContoh: *oper free ke gmdp*\nSegmen: ${daftar_segmen}\nJalur: mni / gmdp",
+    "template": "⚠️ ${error}\n\nContoh:\n• *oper free ke gmdp* (segmen)\n• *oper budi ke sf* (pelanggan)\n\nSegmen: ${daftar_segmen}\nJalur segmen: mni/gmdp · pelanggan: gmdp/mni/ih/sf",
     "placeholders": ["error", "daftar_segmen"]
+  },
+  "oper_customer_preview": {
+    "name": "Oper Pelanggan - Pratinjau (konfirmasi)",
+    "category": "network_admin",
+    "template": "🔀 *Oper Pelanggan — Pratinjau*\n\nPelanggan: *${nama}* (${pppoe})\nAkan diarahkan ke jalur: *${jalur}*\n(Override per-pelanggan; entri /32 mengikuti IP-nya otomatis.)\n\nBalas *ya* untuk lanjut, atau *batal*.",
+    "placeholders": ["nama", "pppoe", "jalur"]
+  },
+  "oper_customer_applied": {
+    "name": "Oper Pelanggan - Berhasil",
+    "category": "network_admin",
+    "template": "✅ ${message}",
+    "placeholders": ["message", "nama", "jalur"]
+  },
+  "oper_customer_notfound": {
+    "name": "Oper Pelanggan - Tidak ditemukan",
+    "category": "network_admin",
+    "template": "⚠️ Pelanggan \"${query}\" tidak ditemukan. Coba nama lengkap / pppoe / id.",
+    "placeholders": ["query"]
+  },
+  "oper_customer_multiple": {
+    "name": "Oper Pelanggan - Banyak cocok",
+    "category": "network_admin",
+    "template": "⚠️ Beberapa pelanggan cocok \"${query}\":\n${daftar}\n\nSebutkan lebih spesifik (pppoe / id).",
+    "placeholders": ["query", "daftar"]
+  },
+  "oper_customer_failed": {
+    "name": "Oper Pelanggan - Gagal",
+    "category": "network_admin",
+    "template": "❌ Gagal oper pelanggan: ${error}",
+    "placeholders": ["error"]
   },
   "oper_segment_cancelled": {
     "name": "Oper Segmen - Dibatalkan",
