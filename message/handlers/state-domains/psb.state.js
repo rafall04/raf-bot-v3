@@ -1,10 +1,13 @@
 /**
  * Header Doc
  * Purpose: State domain wizard PSB via DM teknisi (per-bot area) — bagian Fase 2 [[psb-simplification-plan]].
- *          Alur: teknisi DM `#PSB` + foto KTP → kumpulkan dokumen (foto rumah + share lokasi, WAJIB) →
- *          bot BACA modem terbaru dari GenieACS (recency `_registered`) → tampilkan SN utk dicocokkan
- *          teknisi (YA/TIDAK/pilih-nomor) → HANYA setelah YA: buat pelanggan + secret PPPoE + push
- *          PPPoE+WiFi ke modem + welcome → ringkasan ke grup PSB. Konfirmasi = gate sebelum sentuh modem.
+ *          Alur: teknisi DM `#PSB` + foto KTP (caption WAJIB berisi Dusun = lokasi pasang) → kumpulkan
+ *          dokumen (foto rumah + share lokasi, WAJIB) → bot BACA modem terbaru dari GenieACS (recency
+ *          `_registered`) → tampilkan RINGKASAN data + username PPPoE rakitan + SN utk diverifikasi teknisi
+ *          (YA/TIDAK/pilih-nomor) → HANYA setelah YA: buat pelanggan + secret PPPoE + push PPPoE+WiFi ke
+ *          modem + welcome → ringkasan ke grup PSB. Konfirmasi = gate verifikasi sebelum sentuh apa pun.
+ *          Username PPPoE dirakit bot dari Nama + Dusun jadi `<nama>-<dusun>@<realm>` (teknisi tak ketik
+ *          format-nya), password pakai `config.defaultPPPoEPassword` (bukan acak).
  * Caller: `message/handlers/conversation-state-router.js` (owner "psb") + trigger `startPsbSession` dari
  *         `message/raf.js` (jalur DM teknisi).
  * Deps (via context/inject, patuh invariant [[raf-invariants]]): `reply` (delivery boundary), `downloadMedia`
@@ -25,6 +28,19 @@ const STEP_COLLECT = "PSB_COLLECT_DOCS";
 const STEP_CONFIRM = "PSB_CONFIRM_MODEM";
 const STEP_PICK = "PSB_PICK_MODEM";
 const PSB_STEPS = new Set([STEP_COLLECT, STEP_CONFIRM, STEP_PICK]);
+
+// Template caption PSB — dibalas bot saat teknisi belum/keliru mengisi. Tinggal salin & isi.
+const PSB_TEMPLATE = [
+    "📋 Format PSB — salin, isi, kirim bareng *foto KTP*:",
+    "",
+    "#PSB",
+    "Nama: (nama pelanggan)",
+    "Dusun: (lokasi PASANG, bukan alamat KTP)",
+    "Paket: ",
+    "WiFi: (nama wifi)",
+    "Sandi: (min. 8 karakter)",
+    "HP: "
+].join("\n");
 
 // Ringkasan ke grup PSB lewat delivery boundary reply-runtime (BUKAN socket mentah) — patuh invariant.
 function defaultSendGroupSummary(groupId, text) {
@@ -61,21 +77,36 @@ function minutesAgo(iso, nowMs) {
     return m < 60 ? `${m} mnt lalu` : `${Math.round(m / 60)} jam lalu`;
 }
 
-// pppoe_username unik dari nama (pola create-user-validate), dedup vs users existing.
-function generatePppoeUsername(nama, existingUsers) {
-    const parts = String(nama || "").toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(Boolean);
-    let base = parts[0] || "user";
-    if (parts.length > 1) base += parts[1].charAt(0);
+// Slug bagian NAMA untuk username: huruf kecil, spasi→_, buang selain [a-z0-9_].
+function slugNamePart(s) {
+    return String(s || "").toLowerCase().trim()
+        .replace(/[^a-z0-9\s]/g, "")
+        .replace(/\s+/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_+|_+$/g, "");
+}
+// Slug bagian DUSUN: huruf kecil, jadikan 1 token (buang spasi & non-alfanumerik).
+function slugDusunPart(s) {
+    return String(s || "").toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+}
+// Rakit username PPPoE baku `<nama>-<dusun>@<realm>` (huruf kecil), dedup angka bila bentrok.
+// Teknisi TIDAK mengetik ini — bot merakit dari Nama + Dusun mentah agar format selalu benar.
+function buildPppoeUsername(nama, dusun, realm, existingUsers) {
+    const namePart = slugNamePart(nama) || "user";
+    const dusunPart = slugDusunPart(dusun);
+    const realmRaw = String(realm || "rafcybernet").trim().replace(/^@+/, "");
+    const suffix = realmRaw ? `@${realmRaw}` : "";
+    const localBase = dusunPart ? `${namePart}-${dusunPart}` : namePart;
     const taken = new Set((existingUsers || []).map((u) => String(u.pppoe_username || "").toLowerCase()));
-    let candidate = base;
+    let candidate = `${localBase}${suffix}`;
     let n = 1;
-    while (taken.has(candidate.toLowerCase())) { n += 1; candidate = `${base}${n}`; }
+    while (taken.has(candidate.toLowerCase())) { n += 1; candidate = `${localBase}${n}${suffix}`; }
     return candidate;
 }
 
 function checklistText(ctx) {
     return [
-        `📇 PSB *${ctx.data.nama}* — ${ctx.data.paket}`,
+        `📇 PSB *${ctx.data.nama}* · Dusun ${ctx.data.dusun} — ${ctx.data.paket}`,
         `${ctx.ktpSaved ? "✅" : "⬜"} Foto KTP`,
         `${ctx.rumahSaved ? "✅" : "⬜"} Foto rumah`,
         `${ctx.lokasi ? "✅" : "⬜"} Share lokasi`
@@ -102,12 +133,17 @@ async function startPsbSession(context) {
     const { caption, type, msg, staff, stateSender, reply, downloadMedia, packages, uploadsBaseDir, setUserState, nowMs = Date.now(), logger = console } = context;
 
     if (type !== "imageMessage") {
-        await safeReply(reply, "📷 Mulai PSB: kirim *foto KTP* dengan caption diawali `#PSB` berisi Nama/Paket/WiFi/Sandi/HP.", logger);
+        await safeReply(reply, `📷 Mulai PSB: kirim *foto KTP* + caption di bawah.\n\n${PSB_TEMPLATE}`, logger);
         return { started: false };
     }
     const parsed = parsePsbCaption(caption, { packages: packages || global.packages || [] });
     if (!parsed.ok) {
-        await safeReply(reply, `❌ Data PSB belum lengkap/valid:\n- ${parsed.errors.join("\n- ")}\n\nFormat:\n#PSB\nNama: ...\nPaket: ...\nWiFi: ...\nSandi: ...\nHP: ...`, logger);
+        await safeReply(reply, `❌ Data PSB belum lengkap/valid:\n- ${parsed.errors.join("\n- ")}\n\n${PSB_TEMPLATE}`, logger);
+        return { started: false };
+    }
+    // Dusun WAJIB di wizard DM — dipakai merakit username PPPoE (lokasi pasang, bukan alamat KTP).
+    if (!parsed.data.dusun) {
+        await safeReply(reply, `❌ *Dusun* belum diisi. Dusun = lokasi pasang sebenarnya (bukan alamat KTP) — dipakai untuk username PPPoE.\n\n${PSB_TEMPLATE}`, logger);
         return { started: false };
     }
 
@@ -128,11 +164,27 @@ async function startPsbSession(context) {
     return { started: true };
 }
 
+// Ringkasan data pelanggan (untuk layar verifikasi sebelum eksekusi).
+function customerRecapLines(ctx) {
+    return [
+        `👤 ${ctx.data.nama} · Dusun ${ctx.data.dusun}`,
+        `🔑 PPPoE: \`${ctx.pppoeUsername}\` / \`${ctx.pppoePassword}\``,
+        `📦 ${ctx.data.paket} · 📶 ${ctx.data.wifi_ssid} / ${ctx.data.wifi_password}`,
+        `📱 ${ctx.data.hp}`
+    ];
+}
+
 // ── Deteksi modem + minta konfirmasi (BELUM push apa pun) ──
 async function detectAndAskConfirm(context, ctx) {
     const { reply, setUserState, stateSender, findRecentPsbCandidates, getConfig, nowMs = Date.now(), logger = console } = context;
-    const cfg = ((getConfig && getConfig()) || global.config || {}).psbIntake || {};
+    const fullCfg = (getConfig && getConfig()) || global.config || {};
+    const cfg = fullCfg.psbIntake || {};
     const windowMinutes = parseInt(cfg.recencyWindowMinutes, 10) > 0 ? parseInt(cfg.recencyWindowMinutes, 10) : 120;
+
+    // Rakit username PPPoE (nama+dusun) & resolve password default SEKALI — ditampilkan untuk
+    // diverifikasi teknisi, lalu dipakai apa adanya saat provision (nilai yang dicek = yang dieksekusi).
+    ctx.pppoeUsername = buildPppoeUsername(ctx.data.nama, ctx.data.dusun, cfg.pppoeRealm, global.users || []);
+    ctx.pppoePassword = fullCfg.defaultPPPoEPassword || "rafnet123";
 
     let candidates = [];
     try {
@@ -142,18 +194,22 @@ async function detectAndAskConfirm(context, ctx) {
 
     if (candidates.length === 0) {
         setUserState(stateSender, { step: STEP_CONFIRM, _scope: "teknisi", context: { ...ctx, candidate: null, candidates: [] } });
-        await safeReply(reply, `⚠️ Dokumen lengkap, tapi *belum ada modem baru terbaca* di ACS (window ${windowMinutes} mnt). Pastikan modem nyala & terhubung, lalu balas *REFRESH*. Atau *BATAL*.`, logger);
+        await safeReply(reply, [
+            ...customerRecapLines(ctx),
+            ``,
+            `⚠️ Data siap, tapi *belum ada modem baru terbaca* di ACS (window ${windowMinutes} mnt). Pastikan modem nyala & terhubung, lalu balas *REFRESH*. Atau *BATAL*.`
+        ].join("\n"), logger);
         return;
     }
 
     const top = candidates[0];
     setUserState(stateSender, { step: STEP_CONFIRM, _scope: "teknisi", context: { ...ctx, candidate: top, candidates } });
     await safeReply(reply, [
-        `✅ Dokumen lengkap.`,
-        `📡 Modem terbaca: SN \`${shortSn(top.serialNumber)}\` · ${top.model} · registrasi ${minutesAgo(top.registeredDate, nowMs)}`,
-        `PPPoE skrg: ${top.currentPPPUsername || "-"}`,
+        `📋 *CEK DULU sebelum dieksekusi:*`,
+        ...customerRecapLines(ctx),
+        `📡 Modem: SN \`${shortSn(top.serialNumber)}\` · ${top.model} · reg ${minutesAgo(top.registeredDate, nowMs)}`,
         ``,
-        `❓ Cocok dgn stiker modem di lokasi? Balas *YA* untuk set modem · *TIDAK* (nanti aku kasih daftar) · *BATAL*`
+        `Semua BENAR & modem cocok stiker? Balas *YA* (eksekusi) · *TIDAK* (ganti modem) · *BATAL*`
     ].join("\n"), logger);
 }
 
@@ -169,8 +225,10 @@ async function provision(context, ctx, candidate) {
     const cfg = ((getConfig && getConfig()) || global.config || {});
     const psbCfg = cfg.psbIntake || {};
 
-    const pppoeUser = generatePppoeUsername(ctx.data.nama, global.users || []);
-    const pppoePass = Math.random().toString(36).slice(2, 12);
+    // Pakai username & password yang SUDAH diverifikasi teknisi di layar konfirmasi (nilai yang
+    // dicek = yang dieksekusi). Fallback rakit ulang kalau ctx belum terisi (mis. alur non-standar).
+    const pppoeUser = ctx.pppoeUsername || buildPppoeUsername(ctx.data.nama, ctx.data.dusun, psbCfg.pppoeRealm, global.users || []);
+    const pppoePass = ctx.pppoePassword || cfg.defaultPPPoEPassword || "rafnet123";
     const ssidIndices = String(psbCfg.defaultSsidIndices || cfg.defaultBulkSSID || "1").split(",").map((s) => s.trim()).filter(Boolean);
 
     let result;
@@ -316,7 +374,7 @@ async function handlePsbConversationState(context) {
 module.exports = {
     handlePsbConversationState,
     startPsbSession,
-    generatePppoeUsername,
+    buildPppoeUsername,
     PSB_STEPS,
     STEP_COLLECT,
     STEP_CONFIRM,

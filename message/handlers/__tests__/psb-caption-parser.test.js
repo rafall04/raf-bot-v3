@@ -25,6 +25,20 @@ describe("parsePsbCaption", () => {
         });
     });
 
+    test("dusun ke-parse saat ada (alias: dusun/dsn/dukuh)", () => {
+        const cap = "#PSB\nNama: Budi\nDusun: Krajan\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789";
+        const r = parsePsbCaption(cap, { packages: PACKAGES });
+        expect(r.ok).toBe(true);
+        expect(r.data.dusun).toBe("Krajan");
+    });
+
+    test("tanpa dusun → parser TETAP ok (opsional di parser; wizard DM yang mewajibkan)", () => {
+        const cap = "#PSB\nNama: Budi\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789";
+        const r = parsePsbCaption(cap, { packages: PACKAGES });
+        expect(r.ok).toBe(true);
+        expect(r.data.dusun).toBe("");
+    });
+
     test("alias key (No HP / Password / SSID) + paket via profil", () => {
         const cap = "#psb\nNAMA : Siti\nPackage: 16Mbps\nSSID: SitiWifi\nPassword: rahasia99\nNo HP: 62812000111";
         const r = parsePsbCaption(cap, { packages: PACKAGES });

@@ -177,7 +177,8 @@
     "enabled": false,
     "groupId": "",
     "allowedRoles": ["teknisi", "admin", "owner"],
-    "recencyWindowMinutes": 120
+    "recencyWindowMinutes": 120,
+    "pppoeRealm": "rafcybernet"
   },
   "repairNotif": {
     "enabled": false,

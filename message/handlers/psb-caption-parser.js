@@ -1,8 +1,9 @@
 /**
  * Header Doc
  * Purpose: Parser MURNI caption intake PSB grup — ubah caption `#PSB ...` (foto KTP) jadi data pelanggan
- *          `{ nama, paket, wifi_ssid, wifi_password, hp }` + validasi. Tanpa side-effect / tanpa global
- *          (packages di-inject) supaya gampang di-unit-test.
+ *          `{ nama, dusun, paket, wifi_ssid, wifi_password, hp }` + validasi. `dusun` OPSIONAL di sini
+ *          (jalur grup Fase 1 tak butuh); wizard DM (`psb.state.js`) yang MEWAJIBKAN dusun untuk merakit
+ *          username PPPoE. Tanpa side-effect / tanpa global (packages di-inject) supaya gampang di-unit-test.
  * Caller: `message/handlers/psb-group-intake.js`.
  * Deps: tidak ada (pure).
  * MainFuncs: `parsePsbCaption(caption, { packages })`, `isPsbCaption(caption)`, `resolvePackage(input, packages)`.
@@ -13,6 +14,7 @@
 // Alias key caption (case-insensitive) → field kanonik. Toleran variasi ketikan teknisi.
 const KEY_ALIASES = {
     nama: ["nama", "name"],
+    dusun: ["dusun", "dsn", "dukuh", "kampung"],
     paket: ["paket", "package", "pkt"],
     wifi_ssid: ["wifi", "nama wifi", "namawifi", "ssid"],
     wifi_password: ["sandi", "sandi wifi", "password", "pass", "pw", "kata sandi", "katasandi"],
@@ -53,7 +55,7 @@ function parsePsbCaption(caption, { packages = [] } = {}) {
     if (!isPsbCaption(raw)) {
         return { ok: false, isPsb: false, errors: ["Bukan pesan PSB (caption harus diawali #PSB)."] };
     }
-    const data = { nama: "", paket: "", wifi_ssid: "", wifi_password: "", hp: "" };
+    const data = { nama: "", dusun: "", paket: "", wifi_ssid: "", wifi_password: "", hp: "" };
     for (const line of raw.split(/\r?\n/)) {
         const idx = line.indexOf(":");
         if (idx < 0) continue;
