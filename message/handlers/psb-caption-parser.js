@@ -1,7 +1,8 @@
 /**
  * Header Doc
  * Purpose: Parser MURNI caption intake PSB grup — ubah caption `#PSB ...` (foto KTP) jadi data pelanggan
- *          `{ nama, dusun, paket, wifi_ssid, wifi_password, hp }` + validasi. `dusun` OPSIONAL di sini
+ *          `{ nama, dusun, paket, wifi_ssid, wifi_password, hp }` + validasi (`hp` boleh MULTI-nomor
+ *          pipe `628a|628b`, primary di depan — divalidasi per-nomor). `dusun` OPSIONAL di sini
  *          (jalur grup Fase 1 tak butuh); wizard DM (`psb.state.js`) yang MEWAJIBKAN dusun untuk merakit
  *          username PPPoE. Tanpa side-effect / tanpa global (packages di-inject) supaya gampang di-unit-test.
  * Caller: `message/handlers/psb-group-intake.js`.
@@ -79,11 +80,20 @@ function parsePsbCaption(caption, { packages = [] } = {}) {
     } else if (String(data.wifi_password).length < 8) {
         errors.push("Sandi WiFi minimal 8 karakter");
     }
-    const hpDigits = String(data.hp).replace(/[^0-9]/g, "");
+    // No HP — dukung MULTI-NOMOR pipe-separated (628xxx|628yyy); nomor PERTAMA = primary.
+    // Validasi PER-nomor (9-15 digit) selaras konvensi phone_number seluruh sistem (welcome/
+    // reminder/lookup semua split "|"). Normalisasi: trim tiap nomor + join kembali dgn "|".
     if (!data.hp) {
         errors.push("No HP kosong");
-    } else if (hpDigits.length < 9 || hpDigits.length > 15) {
-        errors.push(`No HP "${data.hp}" tidak valid`);
+    } else {
+        const hpParts = String(data.hp).split("|").map((s) => s.trim()).filter(Boolean);
+        const badHp = hpParts.filter((p) => {
+            const d = p.replace(/[^0-9]/g, "");
+            return d.length < 9 || d.length > 15;
+        });
+        if (hpParts.length === 0) errors.push("No HP kosong");
+        else if (badHp.length) errors.push(`No HP tidak valid: ${badHp.join(", ")}`);
+        else data.hp = hpParts.join("|");
     }
 
     return {

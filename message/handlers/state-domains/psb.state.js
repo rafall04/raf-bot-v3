@@ -42,7 +42,7 @@ const PSB_TEMPLATE = [
     "Paket: ",
     "WiFi: (nama wifi)",
     "Sandi: (min. 8 karakter)",
-    "HP: "
+    "HP: (nomor WA; bila >1 pisah pakai | )"
 ].join("\n");
 
 // Deteksi perintah panduan PSB (teks, dari teknisi): "#psb", "psb tutorial/panduan/format/cara",
@@ -63,6 +63,7 @@ function psbTutorialText() {
         "*1) Kirim foto KTP + caption*",
         PSB_TEMPLATE,
         "⚠️ *Dusun* = lokasi rumah DIPASANG, bukan alamat di KTP (KTP bisa beda kota).",
+        "💡 *HP boleh >1:* pisah pakai | (mis. 0812xxx|0813yyy). Semua nomor dapat info & dikenali bot; nomor PERTAMA = utama.",
         "",
         "*2) Foto rumah + share lokasi*",
         "Bot minta foto rumah & share lokasi (titik lokasi WA). Kirim keduanya.",

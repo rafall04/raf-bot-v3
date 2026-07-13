@@ -186,6 +186,17 @@ describe("psb.state wizard DM", () => {
         expect(arg.userData.ssid_indices).toEqual(["1", "5"]); // dari defaultBulkSSID, bukan deteksi
         expect(h.base.reply.mock.calls.map((c) => c[0]).join("\n---\n")).toMatch(/tak terbaca/);
     });
+
+    test("HP multi-nomor → diteruskan ke create sbg phone_number pipe (628a|628b)", async () => {
+        const cap = "#PSB\nNama: Budi Santoso\nDusun: Krajan\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789|6285700000002";
+        const h = harness();
+        await startPsbSession({ ...h.base, type: "imageMessage", caption: cap, msg: imageMsg(cap), staff: STAFF });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "imageMessage", msg: imageMsg() });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "locationMessage", msg: locMsg() });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        const arg = h.base.usersService.upsertUserFromAdminPanel.mock.calls[0][0];
+        expect(arg.userData.phone_number).toBe("08123456789|6285700000002");
+    });
 });
 
 describe("buildPppoeUsername", () => {

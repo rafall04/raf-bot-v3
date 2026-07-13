@@ -64,4 +64,19 @@ describe("parsePsbCaption", () => {
         expect(r.errors.join(" ")).toMatch(/Sandi WiFi minimal/);
         expect(r.errors.join(" ")).toMatch(/tidak valid/);
     });
+
+    test("HP MULTI-nomor (pipe) → valid + di-normalize (trim spasi, join |)", () => {
+        const cap = "#PSB\nNama: Budi\nDusun: Krajan\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789 | 6285700000002";
+        const r = parsePsbCaption(cap, { packages: PACKAGES });
+        expect(r.ok).toBe(true);
+        expect(r.data.hp).toBe("08123456789|6285700000002");
+    });
+
+    test("HP multi-nomor dgn salah satu invalid → error menyebut nomor buruk", () => {
+        const cap = "#PSB\nNama: Budi\nDusun: Krajan\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789|123";
+        const r = parsePsbCaption(cap, { packages: PACKAGES });
+        expect(r.ok).toBe(false);
+        expect(r.errors.join(" ")).toMatch(/tidak valid/);
+        expect(r.errors.join(" ")).toContain("123");
+    });
 });
