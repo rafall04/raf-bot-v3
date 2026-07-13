@@ -521,6 +521,24 @@ module.exports = async (raf, msg, m, options = {}) => {
             console.error('[PSB_TUTORIAL_TRIGGER_ERROR]', psbTutErr.message);
         }
 
+        // ── Trigger DAFTAR/JADWAL PSB (teknisi/admin) — teks "#jadwal" / "jadwal psb" / "psb baru" ──
+        // Buka sesi slot-filling jadwal (step PSBJADWAL_COLLECT); lanjutannya dirutekan otomatis oleh
+        // routeConversationState (owner "psb-schedule"). Gated sama (feature ON + akun staf) + NON-THROWING.
+        try {
+            const psbDmCfg = (global.config && global.config.psbIntake) || {};
+            if (psbDmCfg.enabled === true && type !== 'imageMessage' && /^\s*(#?jadwal|psb\s+baru)\b/i.test(String(chats || ''))) {
+                const { resolveAuthorizedStaff } = require('./handlers/psb-group-intake');
+                const jadwalStaff = resolveAuthorizedStaff({ participant: optionalJid || sender, plainPhone: plainSenderNumber, accounts, allowedRoles: psbDmCfg.allowedRoles });
+                if (jadwalStaff) {
+                    const { startPsbScheduleSession } = require('./handlers/state-domains/psb-schedule.state');
+                    await startPsbScheduleSession({ chats, staff: jadwalStaff, stateSender, reply, setUserState, area: (global.config && global.config.nama) || null });
+                    return;
+                }
+            }
+        } catch (jadwalErr) {
+            console.error('[PSB_JADWAL_TRIGGER_ERROR]', jadwalErr.message);
+        }
+
         // ── Trigger wizard PSB via DM teknisi (Fase 2 [[psb-simplification-plan]]) ──
         // #PSB + foto KTP dari teknisi (DM, BUKAN grup) → buka sesi PSB (step PSB_COLLECT_DOCS);
         // lanjutan (foto rumah/lokasi/konfirmasi) dirutekan otomatis oleh routeConversationState

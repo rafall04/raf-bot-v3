@@ -68,6 +68,7 @@ const CONVERSATION_STATE_PREFIX_OWNER_MAP = {
     AGENT_VOUCHER_PURCHASE_: "agent-voucher",
     AGENT_VOUCHER_SALE_: "agent-voucher",
     PSB_: "psb",
+    PSBJADWAL_: "psb-schedule",
     WANSW_: "wan-switch",
     OPERJALUR_: "oper-jalur",
     PAYPROOF_: "payment-proof",

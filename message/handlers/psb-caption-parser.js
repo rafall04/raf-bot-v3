@@ -19,6 +19,7 @@ const KEY_ALIASES = {
     nama: ["nama", "name"],
     dusun: ["dusun", "dsn", "dukuh", "kampung"],
     paket: ["paket", "package", "pkt"],
+    catatan: ["catatan", "note", "ket", "keterangan"],
     wifi_ssid: ["wifi", "nama wifi", "namawifi", "ssid"],
     wifi_password: ["sandi", "sandi wifi", "password", "pass", "pw", "kata sandi", "katasandi"],
     hp: ["hp", "no hp", "nohp", "no", "nomor", "no wa", "wa", "telp", "telepon"]
