@@ -93,635 +93,7 @@ function isParentActive($pages, $current) {
 // Apply saved dark/light theme ASAP (before paint) to avoid a flash.
 (function () { try { var s = localStorage.getItem('tkTheme'); if (s === 'dark' || (!s && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) { document.body.classList.add('tk-dark'); } } catch (e) {} })();
 </script>
-<style>
-/* ============================================================
-   RAF BOT · ADMIN SIDEBAR — Modern indigo glow
-   Inline so it loads on every admin page (no extra link needed).
-   ============================================================ */
-
-#accordionSidebar {
-    overscroll-behavior: contain;
-}
-
-/* premium gradient overrides sb-admin-2 .bg-gradient-primary */
-#accordionSidebar.sidebar {
-    background: linear-gradient(180deg, #1e1b4b 0%, #312e81 35%, #4338ca 75%, #5b21b6 100%) !important;
-    box-shadow: 0 0 40px rgba(15, 23, 42, 0.18);
-    padding-bottom: 1.2rem;
-}
-/* `position: relative` lives on the bare ID (same specificity as the mobile
-   @media rule below, which then wins via later source order with position:fixed). */
-#accordionSidebar { position: relative; }
-/* very faint dotted pattern for premium feel */
-#accordionSidebar.sidebar::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-    background-size: 14px 14px;
-    opacity: 0.6;
-    z-index: 0;
-}
-#accordionSidebar.sidebar > * { position: relative; z-index: 1; }
-
-/* thin custom scrollbar */
-#accordionSidebar.sidebar { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent; }
-#accordionSidebar.sidebar::-webkit-scrollbar { width: 6px; }
-#accordionSidebar.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 999px; }
-#accordionSidebar.sidebar::-webkit-scrollbar-track { background: transparent; }
-
-/* ---------- Brand ---------- */
-#accordionSidebar .sidebar-brand {
-    padding: 1.35rem 1rem 1.15rem;
-    gap: 0.7rem;
-    letter-spacing: 0.01em;
-    height: auto;
-}
-#accordionSidebar .sidebar-brand-icon {
-    width: 2.6rem; height: 2.6rem;
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.14);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
-    display: inline-flex; align-items: center; justify-content: center;
-    transform: none !important; /* kill .rotate-n-15 inherited from sb-admin-2 */
-}
-#accordionSidebar .sidebar-brand-icon i { font-size: 1.25rem; color: #fff; }
-#accordionSidebar .sidebar-brand-text {
-    display: flex; flex-direction: column; gap: 0.1rem;
-    text-align: left; margin: 0 0 0 0.1rem !important;
-}
-#accordionSidebar .sidebar-brand-text .brand-name {
-    font-weight: 800; font-size: 1rem; color: #fff; letter-spacing: 0.01em;
-}
-#accordionSidebar .sidebar-brand-text .brand-name sup { font-size: 0.55rem; opacity: 0.85; }
-#accordionSidebar .sidebar-brand-text .brand-role {
-    font-size: 0.62rem;
-    color: rgba(255, 255, 255, 0.72);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-}
-
-/* hide divider immediately after brand (we use spacing instead) */
-#accordionSidebar > hr.sidebar-divider.my-0 { display: none; }
-#accordionSidebar hr.sidebar-divider {
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    margin: 0.4rem 1rem;
-    opacity: 1;
-}
-
-/* ---------- Search ---------- */
-#accordionSidebar .sidebar-search { list-style: none; padding: 0.1rem 0.85rem 0.55rem; }
-#accordionSidebar .sidebar-search-wrap { position: relative; display: flex; align-items: center; }
-#accordionSidebar .sidebar-search-icon {
-    position: absolute; left: 0.7rem; top: 50%; transform: translateY(-50%);
-    color: rgba(255, 255, 255, 0.55);
-    font-size: 0.78rem;
-    pointer-events: none;
-}
-#accordionSidebar .sidebar-search-input {
-    width: 100%;
-    background: rgba(255, 255, 255, 0.09);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 999px;
-    color: #fff;
-    font-size: 0.82rem;
-    padding: 0.46rem 2rem 0.46rem 2rem;
-    line-height: 1.2;
-    transition: background 0.15s ease, border-color 0.15s ease;
-    -webkit-appearance: none;
-}
-#accordionSidebar .sidebar-search-input::placeholder { color: rgba(255, 255, 255, 0.55); }
-#accordionSidebar .sidebar-search-input:focus {
-    outline: none;
-    background: rgba(255, 255, 255, 0.14);
-    border-color: rgba(255, 255, 255, 0.28);
-}
-#accordionSidebar .sidebar-search-input::-webkit-search-cancel-button,
-#accordionSidebar .sidebar-search-input::-webkit-search-decoration { -webkit-appearance: none; display: none; }
-#accordionSidebar .sidebar-search-clear {
-    position: absolute; right: 0.4rem; top: 50%; transform: translateY(-50%);
-    border: 0; background: transparent;
-    color: rgba(255, 255, 255, 0.7);
-    width: 1.5rem; height: 1.5rem; border-radius: 999px;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 0.72rem; cursor: pointer;
-}
-#accordionSidebar .sidebar-search-clear:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
-#accordionSidebar .sidebar-search-empty {
-    display: flex; align-items: center; gap: 0.45rem;
-    padding: 0.6rem 0.5rem 0.2rem;
-    font-size: 0.74rem;
-    color: rgba(255, 255, 255, 0.6);
-}
-#accordionSidebar .sidebar-search-empty i { font-size: 0.85rem; opacity: 0.75; }
-
-/* filtered-out items hidden via JS-added class */
-#accordionSidebar .nav-item.is-filtered,
-#accordionSidebar .collapse-item.is-filtered,
-#accordionSidebar .sidebar-heading.is-filtered { display: none !important; }
-body.sidebar-search-active #accordionSidebar > hr.sidebar-divider { display: none !important; }
-/* keep submenus open during search to expose matches */
-body.sidebar-search-active #accordionSidebar .nav-item .collapse { display: block !important; height: auto !important; }
-body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner { padding: 0.32rem; }
-
-/* ---------- Section headings ---------- */
-#accordionSidebar .sidebar-heading {
-    color: rgba(255, 255, 255, 0.55);
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    padding: 0.45rem 1.2rem 0.25rem;
-    text-transform: uppercase;
-}
-
-/* ---------- Nav items ---------- */
-#accordionSidebar .nav-item { margin: 0.12rem 0.6rem; }
-#accordionSidebar .nav-item .nav-link {
-    color: rgba(255, 255, 255, 0.78);
-    font-size: 0.84rem;
-    font-weight: 500;
-    border-radius: 12px;
-    padding: 0.62rem 0.85rem;
-    display: flex; align-items: center; gap: 0.7rem;
-    min-height: 2.6rem;
-    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
-    /* sb-admin-2 hard-codes `.sidebar .nav-link { width: 14rem }` (224px) which
-       overflows the sidebar by ~18px because the parent .nav-item has 0.6rem
-       horizontal margin. Force the link to size to its container instead. */
-    width: auto !important;
-    text-align: left;
-}
-#accordionSidebar .nav-item .nav-link i {
-    width: 1.2rem;
-    flex: 0 0 1.2rem;
-    text-align: center;
-    color: rgba(255, 255, 255, 0.72);
-    font-size: 0.95rem;
-    margin: 0;
-}
-#accordionSidebar .nav-item .nav-link span {
-    flex: 1 1 0; min-width: 0;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    color: inherit;
-}
-/* chevron sits flush next to the span (no auto margin so the span actually grows) */
-#accordionSidebar .nav-link[data-toggle="collapse"]::after {
-    margin-left: 0.35rem !important;
-}
-#accordionSidebar .nav-item .nav-link:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-    transform: translateX(2px);
-}
-#accordionSidebar .nav-item .nav-link:hover i { color: #fff; }
-
-/* expanded parent (submenu open) */
-#accordionSidebar .nav-item .nav-link[aria-expanded="true"] {
-    background: rgba(255, 255, 255, 0.08);
-    color: #fff;
-}
-#accordionSidebar .nav-item .nav-link[aria-expanded="true"] i { color: #fff; }
-
-/* active item — pill with left indicator */
-#accordionSidebar .nav-item.active > .nav-link {
-    background: rgba(255, 255, 255, 0.18) !important;
-    color: #fff !important;
-    box-shadow: inset 3px 0 0 #fff;
-}
-#accordionSidebar .nav-item.active > .nav-link i { color: #fff !important; }
-
-/* collapse arrow */
-#accordionSidebar .nav-link[data-toggle="collapse"]::after {
-    content: '\f078';
-    font-family: 'Font Awesome 5 Free'; font-weight: 900;
-    margin-left: auto;
-    font-size: 0.62rem;
-    opacity: 0.65;
-    transition: transform 0.2s ease;
-}
-#accordionSidebar .nav-link[data-toggle="collapse"][aria-expanded="true"]::after {
-    transform: rotate(180deg);
-    opacity: 1;
-}
-
-/* ---------- Submenu ---------- */
-#accordionSidebar .collapse-inner,
-#accordionSidebar .collapsing .collapse-inner {
-    background: rgba(0, 0, 0, 0.20) !important;
-    border-radius: 14px;
-    margin: 0.18rem 0.6rem 0.3rem;
-    padding: 0.32rem;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
-}
-#accordionSidebar .collapse-inner .collapse-item {
-    display: flex !important;
-    align-items: center;
-    color: rgba(255, 255, 255, 0.75) !important;
-    background: transparent !important;
-    font-size: 0.78rem;
-    font-weight: 500;
-    border-radius: 10px;
-    padding: 0.46rem 0.7rem 0.46rem 1.55rem;
-    min-height: 2.1rem;
-    margin: 0.06rem 0;
-    position: relative;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-#accordionSidebar .collapse-inner .collapse-item::before {
-    content: '';
-    position: absolute; left: 0.85rem; top: 50%;
-    width: 4px; height: 4px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.35);
-    transform: translateY(-50%);
-    transition: background 0.18s ease;
-}
-#accordionSidebar .collapse-inner .collapse-item span {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: inherit;
-}
-#accordionSidebar .collapse-inner .collapse-item i {
-    width: 1rem; flex: 0 0 1rem; flex-shrink: 0;
-    font-size: 0.78rem;
-    color: rgba(255, 255, 255, 0.6) !important;
-    margin-right: 0.45rem !important;
-    text-align: center;
-}
-#accordionSidebar .collapse-inner .collapse-item:hover {
-    background: rgba(255, 255, 255, 0.1) !important;
-    color: #fff !important;
-}
-#accordionSidebar .collapse-inner .collapse-item:hover::before { background: #fff; }
-#accordionSidebar .collapse-inner .collapse-item:hover i { color: #fff !important; }
-#accordionSidebar .collapse-inner .collapse-item.active {
-    background: #fff !important;
-    color: #4338ca !important;
-    font-weight: 600;
-}
-#accordionSidebar .collapse-inner .collapse-item.active::before { background: #4338ca; }
-#accordionSidebar .collapse-inner .collapse-item.active i { color: #4338ca !important; }
-
-/* sidebar toggler footer */
-#accordionSidebar #sidebarToggle {
-    background: rgba(255, 255, 255, 0.16);
-}
-#accordionSidebar #sidebarToggle::before { color: rgba(255, 255, 255, 0.85); }
-
-#wrapper,
-#content-wrapper,
-#content {
-    min-width: 0;
-}
-
-#content-wrapper {
-    flex: 1 1 auto;
-    width: 100%;
-}
-
-.container-fluid,
-.row > [class*="col-"],
-.card,
-.modal-content,
-.dataTables_wrapper,
-.table-responsive {
-    min-width: 0;
-}
-
-.table-responsive {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-.topbar .dropdown-menu,
-.topbar .dropdown-list {
-    max-width: calc(100vw - 1rem);
-}
-
-.select2-container {
-    max-width: 100%;
-}
-
-.mobile-sidebar-head {
-    display: none;
-}
-
-@media (max-width: 991.98px) {
-    .container-fluid {
-        padding: 1rem !important;
-    }
-}
-
-@media (max-width: 767.98px) {
-    body {
-        overflow-x: hidden;
-    }
-
-    #accordionSidebar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        bottom: 0;
-        width: min(78vw, 15rem) !important;
-        min-height: 100vh;
-        transform: translateX(-105%);
-        transition: transform 0.25s ease, box-shadow 0.25s ease;
-        z-index: 1055;
-        overflow-y: auto;
-        box-shadow: none;
-        backdrop-filter: saturate(1.1);
-    }
-
-    body.sidebar-toggled #accordionSidebar {
-        transform: translateX(0);
-        box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
-    }
-
-    #accordionSidebar.toggled,
-    body.sidebar-toggled #accordionSidebar {
-        width: min(78vw, 15rem) !important;
-    }
-
-    #accordionSidebar.toggled .sidebar-brand .sidebar-brand-text,
-    #accordionSidebar.toggled .nav-item .nav-link span,
-    #accordionSidebar.toggled .sidebar-heading,
-    body.sidebar-toggled #accordionSidebar .sidebar-brand .sidebar-brand-text,
-    body.sidebar-toggled #accordionSidebar .nav-item .nav-link span,
-    body.sidebar-toggled #accordionSidebar .sidebar-heading {
-        display: inline;
-    }
-
-    #accordionSidebar .mobile-sidebar-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        padding: 0.8rem 0.95rem 0.65rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-        background: rgba(255, 255, 255, 0.04);
-        position: sticky;
-        top: 0;
-        z-index: 2;
-    }
-
-    #accordionSidebar .mobile-sidebar-head .mobile-sidebar-title {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-    }
-
-    #accordionSidebar .mobile-sidebar-head .mobile-sidebar-title strong {
-        color: #fff;
-        font-size: 0.92rem;
-        line-height: 1.1;
-        letter-spacing: 0.01em;
-    }
-
-    #accordionSidebar .mobile-sidebar-head .mobile-sidebar-title span {
-        color: rgba(255, 255, 255, 0.72);
-        font-size: 0.72rem;
-        margin-top: 0.12rem;
-    }
-
-    #accordionSidebar .mobile-sidebar-close {
-        border: 0;
-        background: rgba(255, 255, 255, 0.12);
-        color: #fff;
-        width: 2rem;
-        height: 2rem;
-        border-radius: 999px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex: 0 0 auto;
-    }
-
-    #accordionSidebar .sidebar-brand {
-        height: auto;
-        padding: 0.8rem 0.95rem;
-        justify-content: flex-start !important;
-        text-align: left;
-        gap: 0.7rem;
-    }
-
-    #accordionSidebar .sidebar-brand .sidebar-brand-icon {
-        width: 2rem;
-        display: inline-flex;
-        justify-content: center;
-    }
-
-    #accordionSidebar .sidebar-brand .sidebar-brand-icon i {
-        font-size: 1.35rem;
-    }
-
-    #accordionSidebar .sidebar-brand .sidebar-brand-text {
-        font-size: 0.9rem;
-        margin: 0 !important;
-    }
-
-    #accordionSidebar hr.sidebar-divider {
-        margin: 0.35rem 0.95rem 0.55rem;
-        opacity: 0.45;
-    }
-
-    #accordionSidebar.toggled .nav-item .nav-link,
-    body.sidebar-toggled #accordionSidebar .nav-item .nav-link {
-        width: 100%;
-        padding: 0.78rem 0.95rem;
-        justify-content: flex-start;
-        text-align: left;
-        display: flex;
-        align-items: center;
-        gap: 0.7rem;
-        min-height: 2.9rem;
-        border-radius: 0.85rem;
-        margin: 0 0.55rem;
-    }
-
-    #accordionSidebar.toggled .nav-item .nav-link i,
-    body.sidebar-toggled #accordionSidebar .nav-item .nav-link i {
-        margin-right: 0;
-        width: 1rem;
-        font-size: 0.92rem;
-        text-align: center;
-        flex: 0 0 auto;
-    }
-
-    #accordionSidebar .nav-item {
-        margin-bottom: 0.12rem;
-    }
-
-    #accordionSidebar .nav-item.active > .nav-link,
-    #accordionSidebar .nav-item .nav-link:hover,
-    #accordionSidebar .nav-item .nav-link:focus {
-        background: rgba(255, 255, 255, 0.1);
-    }
-
-    #accordionSidebar .nav-item .nav-link span {
-        font-size: 0.82rem;
-        line-height: 1.2;
-        min-width: 0;
-        flex: 1 1 auto;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    #accordionSidebar .nav-item .nav-link[data-toggle=collapse]::after {
-        margin-left: auto;
-        opacity: 0.72;
-        font-size: 0.72rem;
-    }
-
-    #accordionSidebar .nav-item .collapse,
-    #accordionSidebar .nav-item .collapsing {
-        margin: 0.18rem 0.55rem 0.45rem;
-        position: relative;
-        left: 0;
-        top: 0;
-    }
-
-    /* Submenu on mobile keeps the desktop dark/glass treatment for consistency. */
-    #accordionSidebar .nav-item .collapse .collapse-inner,
-    #accordionSidebar .nav-item .collapsing .collapse-inner {
-        padding: 0.35rem;
-    }
-    #accordionSidebar .collapse-inner .collapse-item {
-        padding: 0.58rem 0.72rem 0.58rem 1.55rem;
-        min-height: 2.45rem;
-        font-size: 0.8rem;
-    }
-
-    /* On mobile, the .mobile-sidebar-head already shows branding —
-       hide the regular .sidebar-brand to avoid duplication & wasted space. */
-    #accordionSidebar .sidebar-brand { display: none !important; }
-    /* show the role badge inside mobile head instead */
-    #accordionSidebar .mobile-sidebar-head .mobile-sidebar-title strong { white-space: nowrap; }
-
-    /* Tighter nav-link on mobile so longer labels like
-       "Agent & Reseller", "Voucher Hotspot" don't get clipped. */
-    #accordionSidebar.toggled .nav-item .nav-link,
-    body.sidebar-toggled #accordionSidebar .nav-item .nav-link {
-        padding: 0.7rem 0.7rem;
-        gap: 0.55rem;
-    }
-    #accordionSidebar.toggled .nav-item .nav-link i,
-    body.sidebar-toggled #accordionSidebar .nav-item .nav-link i {
-        width: 1rem; flex: 0 0 1rem; font-size: 0.88rem;
-    }
-    #accordionSidebar.toggled .nav-item .nav-link[data-toggle="collapse"]::after,
-    body.sidebar-toggled #accordionSidebar .nav-item .nav-link[data-toggle="collapse"]::after {
-        font-size: 0.56rem;
-        margin-left: 0.3rem;
-    }
-    #accordionSidebar.toggled .nav-item,
-    body.sidebar-toggled #accordionSidebar .nav-item {
-        margin: 0.1rem 0.5rem;
-    }
-
-    #accordionSidebar .sidebar-heading,
-    #accordionSidebar #sidebarToggle,
-    #accordionSidebar .text-center.d-none.d-md-inline,
-    #accordionSidebar .sidebar-card {
-        display: none !important;
-    }
-
-    body.sidebar-toggled::before {
-        content: '';
-        position: fixed;
-        inset: 0;
-        background: rgba(15, 23, 42, 0.18);
-        z-index: 1050;
-    }
-
-    .container-fluid {
-        padding: 0.875rem !important;
-    }
-
-    .topbar {
-        padding-left: 0.25rem;
-        padding-right: 0.25rem;
-    }
-
-    .topbar .navbar-nav {
-        flex-direction: row;
-        align-items: center;
-    }
-
-    .topbar .nav-item .nav-link {
-        padding: 0.5rem 0.35rem;
-    }
-
-    .topbar .topbar-divider {
-        display: none !important;
-    }
-
-    .topbar .dropdown-menu,
-    .topbar .dropdown-list {
-        width: min(22rem, calc(100vw - 1rem)) !important;
-        right: 0.5rem !important;
-        left: auto !important;
-    }
-
-    .card .card-header,
-    .workspace-panel .card-header,
-    .modern-panel .panel-header {
-        flex-direction: column;
-        align-items: flex-start !important;
-        gap: 0.75rem;
-    }
-
-    .dataTables_wrapper .row {
-        margin-left: 0;
-        margin-right: 0;
-    }
-
-    .dataTables_wrapper .col-sm-12,
-    .dataTables_wrapper .col-md-6,
-    .dataTables_wrapper .col-lg-12 {
-        padding-left: 0;
-        padding-right: 0;
-    }
-
-    .modal-dialog,
-    .modal-dialog.modal-lg,
-    .modal-dialog.modal-xl {
-        width: calc(100vw - 1rem);
-        max-width: calc(100vw - 1rem);
-        margin: 0.75rem auto;
-    }
-}
-
-@media (max-width: 575.98px) {
-    #accordionSidebar {
-        width: min(80vw, 14.5rem) !important;
-    }
-
-    .container-fluid {
-        padding: 0.75rem !important;
-    }
-
-    .topbar .dropdown-menu,
-    .topbar .dropdown-list {
-        width: calc(100vw - 1rem) !important;
-    }
-
-    .dashboard-header .d-flex,
-    .card-header .d-flex,
-    .panel-header .d-flex {
-        flex-direction: column;
-        align-items: flex-start !important;
-        gap: 0.75rem;
-    }
-}
-</style>
+<link rel="stylesheet" href="<?php echo function_exists('rafAssetUrl') ? rafAssetUrl('/css/sidebar.css') : '/css/sidebar.css'; ?>">
 <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar" aria-label="Navigasi cepat admin">
     <li class="mobile-sidebar-head d-md-none">
         <div class="mobile-sidebar-title">
@@ -764,41 +136,18 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
     </li>
 
     <hr class="sidebar-divider">
+    <div class="sidebar-heading">Operasional</div>
 
-    <li class="nav-item <?php echo isParentActive(['/users', '/packages', '/package-requests', '/import-mikrotik', '/buka-isolir', '/custom-isolir', '/sync-device-id', '/penyesuaian-bulk', '/rubah-paket'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePelanggan" aria-expanded="<?php echo isParentActive(['/users', '/packages', '/package-requests', '/import-mikrotik', '/buka-isolir', '/custom-isolir', '/sync-device-id', '/penyesuaian-bulk', '/rubah-paket'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePelanggan">
+    <li class="nav-item <?php echo isParentActive(['/users', '/packages', '/package-requests', '/rubah-paket', '/buka-isolir', '/custom-isolir', '/import-mikrotik', '/sync-device-id', '/penyesuaian-bulk'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePelanggan" aria-expanded="<?php echo isParentActive(['/users', '/packages', '/package-requests', '/rubah-paket', '/buka-isolir', '/custom-isolir', '/import-mikrotik', '/sync-device-id', '/penyesuaian-bulk'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePelanggan">
             <i class="fas fa-fw fa-users"></i>
             <span>Pelanggan</span>
         </a>
-        <div id="collapsePelanggan" class="collapse <?php echo isParentActive(['/users', '/packages', '/package-requests', '/import-mikrotik', '/buka-isolir', '/custom-isolir', '/sync-device-id', '/penyesuaian-bulk', '/rubah-paket'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPelanggan" data-parent="#accordionSidebar">
+        <div id="collapsePelanggan" class="collapse <?php echo isParentActive(['/users', '/packages', '/package-requests', '/rubah-paket', '/buka-isolir', '/custom-isolir', '/import-mikrotik', '/sync-device-id', '/penyesuaian-bulk'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPelanggan" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/users', $current_page) ? 'active' : ''; ?>" href="/users">
                     <i class="fas fa-fw fa-user mr-2"></i>
                     <span>Data Pelanggan</span>
-                </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/rubah-paket', $current_page) ? 'active' : ''; ?>" href="/rubah-paket">
-                    <i class="fas fa-fw fa-exchange-alt mr-2"></i>
-                    <span>Rubah Paket</span>
-                </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/import-mikrotik', $current_page) ? 'active' : ''; ?>" href="/import-mikrotik">
-                    <i class="fas fa-fw fa-file-import mr-2"></i>
-                    <span>Import MikroTik</span>
-                </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/buka-isolir', $current_page) ? 'active' : ''; ?>" href="/buka-isolir">
-                    <i class="fas fa-fw fa-unlock mr-2"></i>
-                    <span>Buka Isolir</span>
-                </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/custom-isolir', $current_page) ? 'active' : ''; ?>" href="/custom-isolir">
-                    <i class="fas fa-fw fa-user-lock mr-2"></i>
-                    <span>Custom Isolir</span>
-                </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/sync-device-id', $current_page) ? 'active' : ''; ?>" href="/sync-device-id">
-                    <i class="fas fa-fw fa-sync mr-2"></i>
-                    <span>Sync Device ID</span>
-                </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/penyesuaian-bulk', $current_page) ? 'active' : ''; ?>" href="/penyesuaian-bulk">
-                    <i class="fas fa-fw fa-wifi mr-2"></i>
-                    <span>Penyesuaian Bulk SSID</span>
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/packages', $current_page) ? 'active' : ''; ?>" href="/packages">
                     <i class="fas fa-fw fa-box-open mr-2"></i>
@@ -808,40 +157,60 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                     <i class="fas fa-fw fa-sync-alt mr-2"></i>
                     <span>Request Ubah Paket</span>
                 </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/rubah-paket', $current_page) ? 'active' : ''; ?>" href="/rubah-paket">
+                    <i class="fas fa-fw fa-exchange-alt mr-2"></i>
+                    <span>Rubah Paket</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/buka-isolir', $current_page) ? 'active' : ''; ?>" href="/buka-isolir">
+                    <i class="fas fa-fw fa-unlock mr-2"></i>
+                    <span>Buka Isolir</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/custom-isolir', $current_page) ? 'active' : ''; ?>" href="/custom-isolir">
+                    <i class="fas fa-fw fa-user-lock mr-2"></i>
+                    <span>Custom Isolir</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/import-mikrotik', $current_page) ? 'active' : ''; ?>" href="/import-mikrotik">
+                    <i class="fas fa-fw fa-file-import mr-2"></i>
+                    <span>Import MikroTik</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/sync-device-id', $current_page) ? 'active' : ''; ?>" href="/sync-device-id">
+                    <i class="fas fa-fw fa-sync mr-2"></i>
+                    <span>Sync Device ID</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/penyesuaian-bulk', $current_page) ? 'active' : ''; ?>" href="/penyesuaian-bulk">
+                    <i class="fas fa-fw fa-wifi mr-2"></i>
+                    <span>Penyesuaian Bulk SSID</span>
+                </a>
             </div>
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/payment-status', '/rekap-tunggakan', '/broadcast-tagihan', '/konfirmasi-bayar', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi', '/penugasan-agen', '/laporan-agen', '/pengeluaran'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePembayaran" aria-expanded="<?php echo isParentActive(['/payment-status', '/rekap-tunggakan', '/broadcast-tagihan', '/konfirmasi-bayar', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi', '/penugasan-agen', '/laporan-agen', '/pengeluaran'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePembayaran">
+    <li class="nav-item <?php echo isParentActive(['/payment-status', '/konfirmasi-bayar', '/pembayaran/otorisasi', '/rekap-tunggakan', '/admin-diskon', '/payment-method', '/invoice-settings'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePembayaran" aria-expanded="<?php echo isParentActive(['/payment-status', '/konfirmasi-bayar', '/pembayaran/otorisasi', '/rekap-tunggakan', '/admin-diskon', '/payment-method', '/invoice-settings'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePembayaran">
             <i class="fas fa-fw fa-money-bill-wave"></i>
             <span>Pembayaran</span>
         </a>
-        <div id="collapsePembayaran" class="collapse <?php echo isParentActive(['/payment-status', '/rekap-tunggakan', '/broadcast-tagihan', '/konfirmasi-bayar', '/saldo-management', '/transaction', '/payment-method', '/invoice-settings', '/pembayaran/otorisasi', '/admin-kasbon', '/admin-diskon', '/rekap-keuangan', '/gaji-teknisi', '/penugasan-agen', '/laporan-agen'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPembayaran" data-parent="#accordionSidebar">
+        <div id="collapsePembayaran" class="collapse <?php echo isParentActive(['/payment-status', '/konfirmasi-bayar', '/pembayaran/otorisasi', '/rekap-tunggakan', '/admin-diskon', '/payment-method', '/invoice-settings'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPembayaran" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/payment-status', $current_page) ? 'active' : ''; ?>" href="/payment-status">
                     <i class="fas fa-fw fa-money-check-alt mr-2"></i>
                     <span>Status Pembayaran</span>
                 </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/rekap-tunggakan', $current_page) ? 'active' : ''; ?>" href="/rekap-tunggakan">
-                    <i class="fas fa-fw fa-file-invoice-dollar mr-2"></i>
-                    <span>Rekap Tunggakan</span>
-                </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/broadcast-tagihan', $current_page) ? 'active' : ''; ?>" href="/broadcast-tagihan">
-                    <i class="fas fa-fw fa-paper-plane mr-2"></i>
-                    <span>Broadcast Terarah</span>
-                </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/konfirmasi-bayar', $current_page) ? 'active' : ''; ?>" href="/konfirmasi-bayar">
                     <i class="fas fa-fw fa-receipt mr-2"></i>
                     <span>Konfirmasi Bayar</span>
                 </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/saldo-management', $current_page) ? 'active' : ''; ?>" href="/saldo-management">
-                    <i class="fas fa-fw fa-wallet mr-2"></i>
-                    <span>Saldo & Voucher</span>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/pembayaran/otorisasi', $current_page) ? 'active' : ''; ?>" href="/pembayaran/otorisasi">
+                    <i class="fas fa-fw fa-user-shield mr-2"></i>
+                    <span>Otorisasi Pembayaran</span>
                 </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/transaction', $current_page) ? 'active' : ''; ?>" href="/transaction">
-                    <i class="fas fa-fw fa-exchange-alt mr-2"></i>
-                    <span>Transaksi</span>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/rekap-tunggakan', $current_page) ? 'active' : ''; ?>" href="/rekap-tunggakan">
+                    <i class="fas fa-fw fa-file-invoice-dollar mr-2"></i>
+                    <span>Rekap Tunggakan</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/admin-diskon', $current_page) ? 'active' : ''; ?>" href="/admin-diskon">
+                    <i class="fas fa-fw fa-tags mr-2"></i>
+                    <span>Diskon Pelanggan</span>
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/payment-method', $current_page) ? 'active' : ''; ?>" href="/payment-method">
                     <i class="fas fa-fw fa-credit-card mr-2"></i>
@@ -851,30 +220,53 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                     <i class="fas fa-fw fa-file-invoice mr-2"></i>
                     <span>Pengaturan Invoice</span>
                 </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/pembayaran/otorisasi', $current_page) ? 'active' : ''; ?>" href="/pembayaran/otorisasi">
-                    <i class="fas fa-fw fa-user-shield mr-2"></i>
-                    <span>Otorisasi Pembayaran</span>
+            </div>
+        </div>
+    </li>
+
+    <li class="nav-item <?php echo isParentActive(['/admin/daftar-tiket', '/speed-requests', '/speed-boost-config', '/kompensasi', '/psb-rekap'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseLayanan" aria-expanded="<?php echo isParentActive(['/admin/daftar-tiket', '/speed-requests', '/speed-boost-config', '/kompensasi', '/psb-rekap'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseLayanan">
+            <i class="fas fa-fw fa-concierge-bell"></i>
+            <span>Layanan</span>
+        </a>
+        <div id="collapseLayanan" class="collapse <?php echo isParentActive(['/admin/daftar-tiket', '/speed-requests', '/speed-boost-config', '/kompensasi', '/psb-rekap'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingLayanan" data-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
+                <?php if (!empty($layananPages) && $ticketPagePath !== null): ?>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive($ticketPagePath, $current_page) ? 'active' : ''; ?>" href="<?php echo htmlspecialchars($ticketPagePath, ENT_QUOTES, 'UTF-8'); ?>">
+                    <i class="fas fa-fw fa-headset mr-2"></i>
+                    <span><?php echo htmlspecialchars($ticketPageLabel, ENT_QUOTES, 'UTF-8'); ?></span>
                 </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/admin-kasbon', $current_page) ? 'active' : ''; ?>" href="/admin-kasbon">
-                    <i class="fas fa-fw fa-hand-holding-usd mr-2"></i>
-                    <span>Kasbon Teknisi</span>
+                <?php endif; ?>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/speed-requests', $current_page) ? 'active' : ''; ?>" href="/speed-requests">
+                    <i class="fas fa-fw fa-rocket mr-2"></i>
+                    <span>Speed Boost Request</span>
                 </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/gaji-teknisi', $current_page) ? 'active' : ''; ?>" href="/gaji-teknisi">
-                    <i class="fas fa-fw fa-money-bill-wave mr-2"></i>
-                    <span>Gaji Teknisi</span>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/speed-boost-config', $current_page) ? 'active' : ''; ?>" href="/speed-boost-config">
+                    <i class="fas fa-fw fa-tachometer-alt mr-2"></i>
+                    <span>Speed Boost Config</span>
                 </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/penugasan-agen', $current_page) ? 'active' : ''; ?>" href="/penugasan-agen">
-                    <i class="fas fa-fw fa-user-tag mr-2"></i>
-                    <span>Penugasan Agen</span>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/kompensasi', $current_page) ? 'active' : ''; ?>" href="/kompensasi">
+                    <i class="fas fa-fw fa-gift mr-2"></i>
+                    <span>Kompensasi</span>
                 </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/laporan-agen', $current_page) ? 'active' : ''; ?>" href="/laporan-agen">
-                    <i class="fas fa-fw fa-hand-holding-usd mr-2"></i>
-                    <span>Laporan Komisi Agen</span>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/psb-rekap', $current_page) ? 'active' : ''; ?>" href="/psb-rekap">
+                    <i class="fas fa-fw fa-clipboard-list mr-2"></i>
+                    <span>Rekap PSB</span>
                 </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/admin-diskon', $current_page) ? 'active' : ''; ?>" href="/admin-diskon">
-                    <i class="fas fa-fw fa-tags mr-2"></i>
-                    <span>Diskon Pelanggan</span>
-                </a>
+            </div>
+        </div>
+    </li>
+
+    <hr class="sidebar-divider">
+    <div class="sidebar-heading">Keuangan &amp; Bisnis</div>
+
+    <li class="nav-item <?php echo isParentActive(['/rekap-keuangan', '/pengeluaran', '/transaction', '/saldo-management'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseKeuangan" aria-expanded="<?php echo isParentActive(['/rekap-keuangan', '/pengeluaran', '/transaction', '/saldo-management'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseKeuangan">
+            <i class="fas fa-fw fa-chart-line"></i>
+            <span>Keuangan</span>
+        </a>
+        <div id="collapseKeuangan" class="collapse <?php echo isParentActive(['/rekap-keuangan', '/pengeluaran', '/transaction', '/saldo-management'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingKeuangan" data-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/rekap-keuangan', $current_page) ? 'active' : ''; ?>" href="/rekap-keuangan">
                     <i class="fas fa-fw fa-chart-line mr-2"></i>
                     <span>Rekap Keuangan</span>
@@ -883,20 +275,59 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                     <i class="fas fa-fw fa-receipt mr-2"></i>
                     <span>Pengeluaran</span>
                 </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/transaction', $current_page) ? 'active' : ''; ?>" href="/transaction">
+                    <i class="fas fa-fw fa-exchange-alt mr-2"></i>
+                    <span>Transaksi</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/saldo-management', $current_page) ? 'active' : ''; ?>" href="/saldo-management">
+                    <i class="fas fa-fw fa-wallet mr-2"></i>
+                    <span>Saldo &amp; Voucher</span>
+                </a>
             </div>
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/agent-management', '/agent-voucher-management'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseAgent" aria-expanded="<?php echo isParentActive(['/agent-management', '/agent-voucher-management'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseAgent">
-            <i class="fas fa-fw fa-store"></i>
-            <span>Agent & Reseller</span>
+    <li class="nav-item <?php echo isParentActive(['/gaji-teknisi', '/admin-kasbon', '/teknisi-working-hours'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTeknisi" aria-expanded="<?php echo isParentActive(['/gaji-teknisi', '/admin-kasbon', '/teknisi-working-hours'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseTeknisi">
+            <i class="fas fa-fw fa-hard-hat"></i>
+            <span>Teknisi</span>
         </a>
-        <div id="collapseAgent" class="collapse <?php echo isParentActive(['/agent-management', '/agent-voucher-management'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingAgent" data-parent="#accordionSidebar">
+        <div id="collapseTeknisi" class="collapse <?php echo isParentActive(['/gaji-teknisi', '/admin-kasbon', '/teknisi-working-hours'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingTeknisi" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/gaji-teknisi', $current_page) ? 'active' : ''; ?>" href="/gaji-teknisi">
+                    <i class="fas fa-fw fa-money-bill-wave mr-2"></i>
+                    <span>Gaji Teknisi</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/admin-kasbon', $current_page) ? 'active' : ''; ?>" href="/admin-kasbon">
+                    <i class="fas fa-fw fa-hand-holding-usd mr-2"></i>
+                    <span>Kasbon Teknisi</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/teknisi-working-hours', $current_page) ? 'active' : ''; ?>" href="/teknisi-working-hours">
+                    <i class="fas fa-fw fa-business-time mr-2"></i>
+                    <span>Jam Kerja Teknisi</span>
+                </a>
+            </div>
+        </div>
+    </li>
+
+    <li class="nav-item <?php echo isParentActive(['/penugasan-agen', '/laporan-agen', '/agent-management', '/agent-voucher-management'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseAgen" aria-expanded="<?php echo isParentActive(['/penugasan-agen', '/laporan-agen', '/agent-management', '/agent-voucher-management'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseAgen">
+            <i class="fas fa-fw fa-user-tag"></i>
+            <span>Agen &amp; Reseller</span>
+        </a>
+        <div id="collapseAgen" class="collapse <?php echo isParentActive(['/penugasan-agen', '/laporan-agen', '/agent-management', '/agent-voucher-management'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingAgen" data-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/penugasan-agen', $current_page) ? 'active' : ''; ?>" href="/penugasan-agen">
+                    <i class="fas fa-fw fa-user-tag mr-2"></i>
+                    <span>Penugasan Agen</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/laporan-agen', $current_page) ? 'active' : ''; ?>" href="/laporan-agen">
+                    <i class="fas fa-fw fa-hand-holding-usd mr-2"></i>
+                    <span>Laporan Komisi Agen</span>
+                </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/agent-management', $current_page) ? 'active' : ''; ?>" href="/agent-management">
                     <i class="fas fa-fw fa-store mr-2"></i>
-                    <span>Agent & Outlet</span>
+                    <span>Agent &amp; Outlet</span>
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/agent-voucher-management', $current_page) ? 'active' : ''; ?>" href="/agent-voucher-management">
                     <i class="fas fa-fw fa-boxes mr-2"></i>
@@ -933,47 +364,15 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
         </div>
     </li>
 
-    <?php if (!empty($layananPages) && $ticketPagePath !== null): ?>
-    <li class="nav-item <?php echo isParentActive($layananPages, $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseLayanan" aria-expanded="<?php echo isParentActive($layananPages, $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseLayanan">
-            <i class="fas fa-fw fa-headset"></i>
-            <span>Layanan</span>
-        </a>
-        <div id="collapseLayanan" class="collapse <?php echo isParentActive($layananPages, $current_page) ? 'show' : ''; ?>" aria-labelledby="headingLayanan" data-parent="#accordionSidebar">
-            <div class="bg-white py-2 collapse-inner rounded">
-                <a class="collapse-item d-flex align-items-center <?php echo isActive($ticketPagePath, $current_page) ? 'active' : ''; ?>" href="<?php echo htmlspecialchars($ticketPagePath, ENT_QUOTES, 'UTF-8'); ?>">
-                    <i class="fas fa-fw fa-headset mr-2"></i>
-                    <span><?php echo htmlspecialchars($ticketPageLabel, ENT_QUOTES, 'UTF-8'); ?></span>
-                </a>
-                <?php if ($isAdminLikeRole): ?>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/speed-requests', $current_page) ? 'active' : ''; ?>" href="/speed-requests">
-                    <i class="fas fa-fw fa-rocket mr-2"></i>
-                    <span>Speed Boost Request</span>
-                </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/speed-boost-config', $current_page) ? 'active' : ''; ?>" href="/speed-boost-config">
-                    <i class="fas fa-fw fa-tachometer-alt mr-2"></i>
-                    <span>Speed Boost Config</span>
-                </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/kompensasi', $current_page) ? 'active' : ''; ?>" href="/kompensasi">
-                    <i class="fas fa-fw fa-gift mr-2"></i>
-                    <span>Kompensasi</span>
-                </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/psb-rekap', $current_page) ? 'active' : ''; ?>" href="/psb-rekap">
-                    <i class="fas fa-fw fa-clipboard-list mr-2"></i>
-                    <span>Rekap PSB</span>
-                </a>
-                <?php endif; ?>
-            </div>
-        </div>
-    </li>
-    <?php endif; ?>
+    <hr class="sidebar-divider">
+    <div class="sidebar-heading">Jaringan</div>
 
-    <li class="nav-item <?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/admin-olt-provision', '/olt-log', '/cctv-monitor', '/infra-monitor', '/upstream-quality', '/steering-pelanggan'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseJaringan" aria-expanded="<?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/admin-olt-provision', '/olt-log', '/cctv-monitor', '/infra-monitor', '/upstream-quality', '/steering-pelanggan'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseJaringan">
+    <li class="nav-item <?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt-provision'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseInfra" aria-expanded="<?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt-provision'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseInfra">
             <i class="fas fa-fw fa-network-wired"></i>
-            <span>Jaringan</span>
+            <span>Infrastruktur</span>
         </a>
-        <div id="collapseJaringan" class="collapse <?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt', '/admin-olt-provision', '/olt-log', '/infra-monitor', '/upstream-quality', '/steering-pelanggan'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingJaringan" data-parent="#accordionSidebar">
+        <div id="collapseInfra" class="collapse <?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt-provision'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingInfra" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/map-viewer', $current_page) ? 'active' : ''; ?>" href="/map-viewer">
                     <i class="fas fa-fw fa-map-marked-alt mr-2"></i>
@@ -987,6 +386,21 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                     <i class="fas fa-fw fa-network-wired mr-2"></i>
                     <span>IP Statik</span>
                 </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/admin-olt-provision', $current_page) ? 'active' : ''; ?>" href="/admin-olt-provision">
+                    <i class="fas fa-fw fa-plug mr-2"></i>
+                    <span>Provisioning OLT</span>
+                </a>
+            </div>
+        </div>
+    </li>
+
+    <li class="nav-item <?php echo isParentActive(['/admin-olt', '/olt-log', '/upstream-quality', '/steering-pelanggan', '/cctv-monitor', '/infra-monitor'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseMonitorJar" aria-expanded="<?php echo isParentActive(['/admin-olt', '/olt-log', '/upstream-quality', '/steering-pelanggan', '/cctv-monitor', '/infra-monitor'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseMonitorJar">
+            <i class="fas fa-fw fa-satellite-dish"></i>
+            <span>Monitoring</span>
+        </a>
+        <div id="collapseMonitorJar" class="collapse <?php echo isParentActive(['/admin-olt', '/olt-log', '/upstream-quality', '/steering-pelanggan', '/cctv-monitor', '/infra-monitor'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingMonitorJar" data-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/admin-olt', $current_page) ? 'active' : ''; ?>" href="/admin-olt">
                     <i class="fas fa-fw fa-broadcast-tower mr-2"></i>
                     <span>Monitor OLT</span>
@@ -1003,10 +417,6 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                     <i class="fas fa-fw fa-random mr-2"></i>
                     <span>Steering Pelanggan</span>
                 </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/admin-olt-provision', $current_page) ? 'active' : ''; ?>" href="/admin-olt-provision">
-                    <i class="fas fa-fw fa-plug mr-2"></i>
-                    <span>Provisioning OLT</span>
-                </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/cctv-monitor', $current_page) ? 'active' : ''; ?>" href="/cctv-monitor">
                     <i class="fas fa-fw fa-video mr-2"></i>
                     <span>Monitor CCTV</span>
@@ -1019,16 +429,23 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/broadcast', '/auto-outage', '/los-broadcast', '/announcements', '/news', '/templates', '/wifi-templates'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseKomunikasi" aria-expanded="<?php echo isParentActive(['/broadcast', '/auto-outage', '/los-broadcast', '/announcements', '/news', '/templates', '/wifi-templates'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseKomunikasi">
-            <i class="fas fa-fw fa-comments"></i>
-            <span>Komunikasi</span>
+    <hr class="sidebar-divider">
+    <div class="sidebar-heading">Komunikasi</div>
+
+    <li class="nav-item <?php echo isParentActive(['/broadcast', '/broadcast-tagihan', '/auto-outage', '/los-broadcast', '/announcements', '/news'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseBroadcast" aria-expanded="<?php echo isParentActive(['/broadcast', '/broadcast-tagihan', '/auto-outage', '/los-broadcast', '/announcements', '/news'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseBroadcast">
+            <i class="fas fa-fw fa-bullhorn"></i>
+            <span>Broadcast &amp; Info</span>
         </a>
-        <div id="collapseKomunikasi" class="collapse <?php echo isParentActive(['/broadcast', '/auto-outage', '/los-broadcast', '/announcements', '/news', '/templates', '/wifi-templates'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingKomunikasi" data-parent="#accordionSidebar">
+        <div id="collapseBroadcast" class="collapse <?php echo isParentActive(['/broadcast', '/broadcast-tagihan', '/auto-outage', '/los-broadcast', '/announcements', '/news'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingBroadcast" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/broadcast', $current_page) ? 'active' : ''; ?>" href="/broadcast">
                     <i class="fas fa-fw fa-bullhorn mr-2"></i>
                     <span>Broadcast WhatsApp</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/broadcast-tagihan', $current_page) ? 'active' : ''; ?>" href="/broadcast-tagihan">
+                    <i class="fas fa-fw fa-paper-plane mr-2"></i>
+                    <span>Broadcast Terarah</span>
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/auto-outage', $current_page) ? 'active' : ''; ?>" href="/auto-outage">
                     <i class="fas fa-fw fa-satellite-dish mr-2"></i>
@@ -1044,8 +461,19 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/news', $current_page) ? 'active' : ''; ?>" href="/news">
                     <i class="fas fa-fw fa-newspaper mr-2"></i>
-                    <span>Berita & Promo</span>
+                    <span>Berita &amp; Promo</span>
                 </a>
+            </div>
+        </div>
+    </li>
+
+    <li class="nav-item <?php echo isParentActive(['/templates', '/wifi-templates'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTemplate" aria-expanded="<?php echo isParentActive(['/templates', '/wifi-templates'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseTemplate">
+            <i class="fas fa-fw fa-file-alt"></i>
+            <span>Template</span>
+        </a>
+        <div id="collapseTemplate" class="collapse <?php echo isParentActive(['/templates', '/wifi-templates'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingTemplate" data-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/templates', $current_page) ? 'active' : ''; ?>" href="/templates">
                     <i class="fas fa-fw fa-file-alt mr-2"></i>
                     <span>Template Pesan</span>
@@ -1058,12 +486,15 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/wifi-logs', '/login-logs', '/activity-logs', '/telegram-teknisi'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseMonitoring" aria-expanded="<?php echo isParentActive(['/wifi-logs', '/login-logs', '/activity-logs', '/telegram-teknisi'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseMonitoring">
-            <i class="fas fa-fw fa-chart-line"></i>
-            <span>Monitoring</span>
+    <hr class="sidebar-divider">
+    <div class="sidebar-heading">Sistem</div>
+
+    <li class="nav-item <?php echo isParentActive(['/wifi-logs', '/login-logs', '/activity-logs'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseLogAudit" aria-expanded="<?php echo isParentActive(['/wifi-logs', '/login-logs', '/activity-logs'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseLogAudit">
+            <i class="fas fa-fw fa-history"></i>
+            <span>Log &amp; Audit</span>
         </a>
-        <div id="collapseMonitoring" class="collapse <?php echo isParentActive(['/wifi-logs', '/login-logs', '/activity-logs', '/telegram-teknisi'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingMonitoring" data-parent="#accordionSidebar">
+        <div id="collapseLogAudit" class="collapse <?php echo isParentActive(['/wifi-logs', '/login-logs', '/activity-logs'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingLogAudit" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/wifi-logs', $current_page) ? 'active' : ''; ?>" href="/wifi-logs">
                     <i class="fas fa-fw fa-wifi mr-2"></i>
@@ -1077,20 +508,16 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                     <i class="fas fa-fw fa-history mr-2"></i>
                     <span>Log Aktivitas</span>
                 </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/telegram-teknisi', $current_page) ? 'active' : ''; ?>" href="/telegram-teknisi">
-                    <i class="fab fa-fw fa-telegram-plane mr-2"></i>
-                    <span>Bot Teknisi (Telegram)</span>
-                </a>
             </div>
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/cron', '/teknisi-working-hours', '/migrate'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseSistem" aria-expanded="<?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/cron', '/teknisi-working-hours', '/migrate'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseSistem">
+    <li class="nav-item <?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseSistem" aria-expanded="<?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseSistem">
             <i class="fas fa-fw fa-cogs"></i>
-            <span>Sistem</span>
+            <span>Pengaturan</span>
         </a>
-        <div id="collapseSistem" class="collapse <?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/cron', '/teknisi-working-hours', '/migrate'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingSistem" data-parent="#accordionSidebar">
+        <div id="collapseSistem" class="collapse <?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingSistem" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/accounts', $current_page) ? 'active' : ''; ?>" href="/accounts">
                     <i class="fas fa-fw fa-users-cog mr-2"></i>
@@ -1108,174 +535,16 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
                     <i class="fas fa-fw fa-clock mr-2"></i>
                     <span>Cron Jobs</span>
                 </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/teknisi-working-hours', $current_page) ? 'active' : ''; ?>" href="/teknisi-working-hours">
-                    <i class="fas fa-fw fa-business-time mr-2"></i>
-                    <span>Jam Kerja Teknisi</span>
-                </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/migrate', $current_page) ? 'active' : ''; ?>" href="/migrate">
                     <i class="fas fa-fw fa-database mr-2"></i>
                     <span>Migrasi Database</span>
                 </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/telegram-teknisi', $current_page) ? 'active' : ''; ?>" href="/telegram-teknisi">
+                    <i class="fas fa-fw fa-telegram-plane mr-2"></i>
+                    <span>Bot Teknisi (Telegram)</span>
+                </a>
             </div>
         </div>
     </li>
-
-    <hr class="sidebar-divider d-none d-md-block">
-
-    <div class="text-center d-none d-md-inline">
-        <button class="rounded-circle border-0" id="sidebarToggle"></button>
-    </div>
 </ul>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const sidebar = document.getElementById('accordionSidebar');
-    const closeButton = document.getElementById('mobileSidebarClose');
-    if (!sidebar) {
-        return;
-    }
-
-    const closeMobileSidebar = function () {
-        if (window.innerWidth > 767.98) {
-            return;
-        }
-        document.body.classList.remove('sidebar-toggled');
-        sidebar.classList.add('toggled');
-    };
-
-    const closeMobileDrawerAndCollapse = function () {
-        closeMobileSidebar();
-        const openPanels = sidebar.querySelectorAll('.collapse.show');
-        openPanels.forEach(function (panel) {
-            const trigger = sidebar.querySelector('[data-target="#' + panel.id + '"]');
-            if (trigger && trigger.getAttribute('aria-expanded') === 'true' && !trigger.closest('.nav-item.active')) {
-                $(panel).collapse('hide');
-            }
-        });
-    };
-
-    const handleResize = function () {
-        if (window.innerWidth > 767.98) {
-            // Desktop: just clean up the mobile-drawer body class. Do NOT touch
-            // sidebar.toggled here because the user may have manually collapsed it
-            // (sb-admin-2's #sidebarToggle button toggles that class).
-            document.body.classList.remove('sidebar-toggled');
-        } else if (!document.body.classList.contains('sidebar-toggled')) {
-            sidebar.classList.add('toggled');
-        }
-    };
-
-    // One-time cleanup on initial load: sb-admin-2.js auto-adds `.toggled` at
-    // <480px during render and never restores it on desktop. Wipe the stuck
-    // state so a fresh desktop load always shows an expanded sidebar. (We don't
-    // do this on resize events to preserve user manual collapse.)
-    const cleanupInitialToggleStuck = function () {
-        if (window.innerWidth > 767.98) {
-            document.body.classList.remove('sidebar-toggled');
-            sidebar.classList.remove('toggled');
-        }
-    };
-
-    document.addEventListener('click', function (event) {
-        if (window.innerWidth > 767.98 || !document.body.classList.contains('sidebar-toggled')) {
-            return;
-        }
-
-        const topToggle = document.getElementById('sidebarToggleTop');
-        const sideToggle = document.getElementById('sidebarToggle');
-        const clickedToggle = (topToggle && topToggle.contains(event.target)) || (sideToggle && sideToggle.contains(event.target));
-
-        if (clickedToggle || sidebar.contains(event.target)) {
-            return;
-        }
-
-        closeMobileSidebar();
-    });
-
-    if (closeButton) {
-        closeButton.addEventListener('click', closeMobileSidebar);
-    }
-
-    sidebar.querySelectorAll('.collapse-item[href], .nav-link[href]:not([data-toggle="collapse"])').forEach(function (link) {
-        link.addEventListener('click', function () {
-            closeMobileDrawerAndCollapse();
-        });
-    });
-
-    window.addEventListener('resize', handleResize);
-    handleResize();
-    // Initial-load cleanup (separate from resize) — wins the race against
-    // sb-admin-2.js which may add `.toggled` at <480px during early render.
-    cleanupInitialToggleStuck();
-    setTimeout(cleanupInitialToggleStuck, 50);
-    setTimeout(cleanupInitialToggleStuck, 250);
-
-    // -------------------------------------------------------------
-    // Live menu search filter (>=50 menus on admin sidebar).
-    // -------------------------------------------------------------
-    const searchInput = document.getElementById('sidebarMenuSearch');
-    const searchClear = document.getElementById('sidebarMenuSearchClear');
-    const searchEmpty = document.getElementById('sidebarMenuSearchEmpty');
-    if (searchInput) {
-        // Open submenus during search so matches are visible immediately.
-        const navItems = Array.from(sidebar.querySelectorAll('li.nav-item:not(.sidebar-search)'));
-        const headings = Array.from(sidebar.querySelectorAll('.sidebar-heading'));
-
-        function normalise(s) { return (s || '').toLowerCase().trim(); }
-
-        function applyFilter(q) {
-            q = normalise(q);
-            const active = q.length > 0;
-            document.body.classList.toggle('sidebar-search-active', active);
-            searchClear.hidden = !active;
-
-            // headings always hidden during search (we lift items into a flat list visually)
-            headings.forEach(h => h.classList.toggle('is-filtered', active));
-
-            let totalVisible = 0;
-            navItems.forEach(item => {
-                const link = item.querySelector(':scope > .nav-link');
-                const linkText = normalise(link ? link.textContent : '');
-                const childItems = Array.from(item.querySelectorAll('.collapse-item'));
-
-                if (!active) {
-                    item.classList.remove('is-filtered');
-                    childItems.forEach(ci => ci.classList.remove('is-filtered'));
-                    return;
-                }
-
-                const parentMatch = linkText.includes(q);
-                let childMatchCount = 0;
-                childItems.forEach(ci => {
-                    const m = normalise(ci.textContent).includes(q);
-                    ci.classList.toggle('is-filtered', !m && !parentMatch);
-                    if (m || parentMatch) childMatchCount++;
-                });
-
-                const itemHasChildren = childItems.length > 0;
-                const itemVisible = parentMatch || childMatchCount > 0;
-                item.classList.toggle('is-filtered', !itemVisible);
-                if (itemVisible) totalVisible++;
-                // If parent itself matched, reveal all its children too
-                if (itemVisible && parentMatch && itemHasChildren) {
-                    childItems.forEach(ci => ci.classList.remove('is-filtered'));
-                }
-            });
-
-            searchEmpty.hidden = !(active && totalVisible === 0);
-        }
-
-        let debounceId = null;
-        searchInput.addEventListener('input', function () {
-            const v = searchInput.value;
-            clearTimeout(debounceId);
-            debounceId = setTimeout(() => applyFilter(v), 60);
-        });
-        searchInput.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') { searchInput.value = ''; applyFilter(''); searchInput.blur(); }
-        });
-        searchClear.addEventListener('click', function () {
-            searchInput.value = ''; applyFilter(''); searchInput.focus();
-        });
-    }
-});
-</script>
+<script src="<?php echo function_exists('rafAssetUrl') ? rafAssetUrl('/js/sidebar.js') : '/js/sidebar.js'; ?>"></script>

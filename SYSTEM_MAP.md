@@ -210,6 +210,7 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 - [Fitur 2026-07-13 (Perintah WA oper per-segmen — Track B surface)](docs/boundary-log.md#b123)
 - [Fitur 2026-07-13 (oper diperluas ke per-pelanggan — Track B/B3)](docs/boundary-log.md#b124)
 - [Fitur 2026-07-13 (Web admin kartu Oper Segmen — paritas WA)](docs/boundary-log.md#b125)
+- [Fitur 2026-07-13 (Rapikan navbar: IA 5-seksi + CSS/JS statik bersama)](docs/boundary-log.md#b126)
 
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.
