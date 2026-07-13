@@ -358,11 +358,21 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
 
     #accordionSidebar.toggled .sidebar-brand .sidebar-brand-text,
     #accordionSidebar.toggled .nav-item .nav-link span,
-    #accordionSidebar.toggled .sidebar-heading,
     body.sidebar-toggled #accordionSidebar .sidebar-brand .sidebar-brand-text,
-    body.sidebar-toggled #accordionSidebar .nav-item .nav-link span,
-    body.sidebar-toggled #accordionSidebar .sidebar-heading {
+    body.sidebar-toggled #accordionSidebar .nav-item .nav-link span {
         display: inline;
+    }
+
+    /* Label seksi WAJIB tampil sebagai BLOCK di drawer mobile — dulu ke-hide (display:none) +
+       ikut display:inline → runtuh & hilang, menu terasa tak terstruktur. Kembalikan agar
+       OPERASIONAL / KEUANGAN & BISNIS / JARINGAN / KOMUNIKASI / SISTEM terlihat jelas. */
+    #accordionSidebar.toggled .sidebar-heading,
+    body.sidebar-toggled #accordionSidebar .sidebar-heading {
+        display: block !important;
+        margin-top: 0.55rem;
+        padding-top: 0.35rem;
+        color: rgba(255, 255, 255, 0.72);
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     #accordionSidebar .mobile-sidebar-head {
@@ -533,7 +543,6 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
         margin: 0.1rem 0.5rem;
     }
 
-    #accordionSidebar .sidebar-heading,
     #accordionSidebar #sidebarToggle,
     #accordionSidebar .text-center.d-none.d-md-inline,
     #accordionSidebar .sidebar-card {
