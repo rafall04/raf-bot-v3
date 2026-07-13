@@ -1,19 +1,22 @@
 /**
  * Header Doc
- * Purpose: State domain WA `#jadwal` — teknisi/admin DAFTAR calon PSB (belum kepasang) via slot-filling.
- *          Kumpulkan Nama/HP/Dusun/Paket (wajib) + lokasi & catatan (opsional), urutan bebas → buat
- *          record papan (`lib/psb-schedule-service` status menunggu) → notif grup "siapa yang pasang?".
- *          Fase A [[psb-audit-golden-path]]. Data RINGAN (tanpa KTP/modem/WiFi — itu saat pasang #PSB).
+ * Purpose: State domain WA `#jadwal` — teknisi/admin DAFTAR calon PSB (belum kepasang) via slot-filling,
+ *          dengan 3 BUKTI WAJIB (foto KTP + foto rumah + share lokasi) agar installer tahu rumahnya.
+ *          Kumpulkan Identitas (Nama/HP/Dusun/Paket) + 3 bukti + catatan opsional, urutan bebas → buat
+ *          record papan (`lib/psb-schedule-service` status menunggu) → notif grup. Fase A/1 + S1.
+ *          Kontrak intake SAMA dgn wizard #PSB (identitas + 3 bukti); jadwal berhenti di menunggu.
  * Caller: `conversation-state-router` (owner "psb-schedule", prefix step `PSBJADWAL_`) + trigger
  *         `startPsbScheduleSession` dari `message/raf.js`.
- * Deps (inject/patuh [[raf-invariants]]): `reply` (delivery boundary), `setUserState/deleteUserState`
- *        (conversation-handler, key kanonik), `scheduleService` (createRequest), `sendGroupSummary`
- *        (reply-runtime), `getConfig`, `packages`, `botAreaLabel`. Require: `../psb-caption-parser`.
+ * Deps (inject/patuh [[raf-invariants]]): `reply`/`downloadMedia` (delivery boundary/adapter),
+ *        `setUserState/deleteUserState` (conversation-handler, key kanonik), `scheduleService`
+ *        (createRequest), `sendGroupSummary` (reply-runtime), `getConfig`, `packages`, `uploadsBaseDir`.
  * MainFuncs: `startPsbScheduleSession(context)`, `handlePsbScheduleConversationState(context)`.
- * SideEffects: Tulis papan `psb_schedule` + kirim WA (balas teknisi + notif grup). NEVER-THROW.
+ * SideEffects: Tulis foto KTP/rumah ke `uploads/psb-jadwal/...`, papan `psb_schedule`, kirim WA. NEVER-THROW.
  */
 "use strict";
 
+const fs = require("fs");
+const path = require("path");
 const { extractPsbFields, resolvePackage } = require("../psb-caption-parser");
 
 const STEP_COLLECT = "PSBJADWAL_COLLECT";
@@ -41,7 +44,8 @@ function withDeps(context) {
         getConfig: context.getConfig || (() => global.config || {}),
         packages: context.packages || global.packages || [],
         sendGroupSummary: context.sendGroupSummary || defaultSendGroupSummary,
-        botAreaLabel: context.botAreaLabel || ((global.config && global.config.nama) || null)
+        botAreaLabel: context.botAreaLabel || ((global.config && global.config.nama) || null),
+        uploadsBaseDir: context.uploadsBaseDir || path.join(__dirname, "..", "..", "..", "uploads")
     };
 }
 
@@ -49,7 +53,16 @@ async function safeReply(reply, text, logger) {
     try { if (reply) await reply(text); } catch (e) { logger?.error?.("[PSB_JADWAL] gagal balas:", e.message); }
 }
 
-// Validasi field jadwal (nama/hp/dusun/paket) + resolve paket. Ringan (tanpa wifi).
+function saveMedia(dir, filename, buffer) {
+    try {
+        fs.mkdirSync(dir, { recursive: true });
+        const full = path.join(dir, filename);
+        fs.writeFileSync(full, buffer);
+        return full;
+    } catch (_e) { return null; }
+}
+
+// Validasi identitas jadwal (nama/hp/dusun/paket) + resolve paket. Bukti dicek terpisah di gate.
 function validateSchedule(data, packages) {
     const status = {};
     status.nama = data.nama ? "ok" : "missing";
@@ -75,10 +88,15 @@ function mark(status) {
     return "⬜";
 }
 
-function checklistText(data, v) {
+// Lengkap = identitas valid + 3 bukti (KTP + rumah + lokasi).
+function isComplete(ctx, v) {
+    return v.ok && !!ctx.ktpPath && !!ctx.rumahPath && !!ctx.lokasi;
+}
+
+function checklistText(ctx, v) {
     const s = v.status;
-    const lines = REQ_FIELDS.map((f) => {
-        const val = data[f.key];
+    const dataLines = REQ_FIELDS.map((f) => {
+        const val = ctx.data[f.key];
         let tail = "";
         if (val) {
             tail = `: ${val}`;
@@ -89,17 +107,20 @@ function checklistText(data, v) {
         }
         return `${mark(s[f.key])} ${f.label}${tail}`;
     });
+    const nextPhoto = !ctx.ktpPath ? " (kirim foto KTP dulu)" : (!ctx.rumahPath ? " (lalu foto rumah)" : "");
     return [
         `📋 *Jadwal PSB* — lengkapi (urutan bebas):`,
-        ...lines,
-        `${data.lokasi ? "✅" : "⬜"} Lokasi (share lokasi, opsional)`,
-        data.catatan ? `📝 Catatan: ${data.catatan}` : "⬜ Catatan (opsional, ketik `Catatan: …`)",
+        ...dataLines,
+        `${ctx.ktpPath ? "✅" : "⬜"} Foto KTP`,
+        `${ctx.rumahPath ? "✅" : "⬜"} Foto rumah`,
+        `${ctx.lokasi ? "✅" : "⬜"} Share lokasi`,
+        ctx.data.catatan ? `📝 Catatan: ${ctx.data.catatan}` : null,
         ``,
-        `➡️ Kirim yang masih ⬜. Boleh dicicil. *BATAL* untuk batal.`
-    ].join("\n");
+        `➡️ Kirim yang masih ⬜${nextPhoto}. Boleh dicicil. *BATAL* untuk batal.`
+    ].filter((x) => x !== null).join("\n");
 }
 
-// Data lengkap → buat record papan (menunggu) + balas + notif grup. NEVER-THROW. Return true bila sukses.
+// Data + bukti lengkap → buat record papan (menunggu) + balas + notif grup. NEVER-THROW.
 async function finalizeSchedule(context, ctx, v) {
     const { reply, deleteUserState, stateSender, scheduleService, sendGroupSummary, botAreaLabel, getConfig, nowMs = Date.now(), logger = console } = context;
 
@@ -110,9 +131,11 @@ async function finalizeSchedule(context, ctx, v) {
             hp: ctx.data.hp,
             dusun: ctx.data.dusun,
             paket: v.paket,
-            latitude: ctx.data.lokasi ? ctx.data.lokasi.lat : null,
-            longitude: ctx.data.lokasi ? ctx.data.lokasi.lng : null,
+            latitude: ctx.lokasi ? ctx.lokasi.lat : null,
+            longitude: ctx.lokasi ? ctx.lokasi.lng : null,
             catatan: ctx.data.catatan || "",
+            ktpPhotoPath: ctx.ktpPath || null,
+            housePhotoPath: ctx.rumahPath || null,
             requestedById: ctx.staff?.id,
             requestedByName: ctx.staff?.name || ctx.staff?.username,
             area: ctx.area || botAreaLabel,
@@ -121,11 +144,11 @@ async function finalizeSchedule(context, ctx, v) {
     } catch (e) {
         logger?.error?.("[PSB_JADWAL] gagal buat record:", e.message);
         await safeReply(reply, `❌ Gagal menyimpan jadwal: ${e.message}. Coba lagi.`, logger);
-        return false; // state dibiarkan → teknisi bisa ulang
+        return false;
     }
 
     deleteUserState(stateSender);
-    await safeReply(reply, `✅ Terjadwal *${record.ref}* — ${record.name} · ${ctx.data.dusun} · ${v.paket}.\nSudah diumumkan ke grup untuk pemasangan.`, logger);
+    await safeReply(reply, `✅ Terjadwal *${record.ref}* — ${record.name} · ${ctx.data.dusun} · ${v.paket}.\nBukti lengkap (KTP + rumah + lokasi). Sudah diumumkan ke grup untuk pemasangan.`, logger);
 
     try {
         const cfg = ((getConfig && getConfig()) || global.config || {});
@@ -136,11 +159,12 @@ async function finalizeSchedule(context, ctx, v) {
                 `📥 *PSB BARU — belum kepasang* · ${record.ref}`,
                 `👤 ${record.name} · Dusun ${ctx.data.dusun}`,
                 `📦 ${v.paket} · 📱 ${ctx.data.hp}`,
+                `📎 Bukti: KTP ✅ · Rumah ✅ · Lokasi ✅`,
                 ctx.data.catatan ? `📝 ${ctx.data.catatan}` : null,
                 ``,
                 `👉 Belum kepasang — koordinasikan siapa yang pasang. _(klaim/tugaskan otomatis menyusul)_`,
                 `Diminta oleh: ${ctx.staff?.name || ctx.staff?.username || "-"}`
-            ].filter(Boolean).join("\n"));
+            ].filter((x) => x !== null).join("\n"));
         }
     } catch (e) { logger?.error?.("[PSB_JADWAL] notif grup gagal:", e.message); }
 
@@ -150,22 +174,24 @@ async function finalizeSchedule(context, ctx, v) {
 // ── Trigger: teknisi/admin ketik `#jadwal` (teks) → buka sesi. Dipanggil dari raf.js. ──
 async function startPsbScheduleSession(context) {
     context = withDeps(context);
-    const { chats, staff, stateSender, reply, packages, setUserState, area, logger = console } = context;
+    const { chats, staff, stateSender, reply, packages, setUserState, area, uploadsBaseDir, nowMs = Date.now(), logger = console } = context;
 
-    const seed = { nama: "", hp: "", dusun: "", paket: "", catatan: "", lokasi: null, ...extractPsbFields(String(chats || "").replace(/^\s*#?jadwal\b|^\s*psb\s+baru\b/i, "")) };
-    const ctx = { data: seed, staff, area: area || null };
+    const now = new Date(nowMs);
+    const tempId = `PSBJDW_${now.getTime()}_${Math.random().toString(36).slice(2, 8)}`;
+    const dir = path.join(uploadsBaseDir, "psb-jadwal", String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, "0"), tempId);
+    const seed = { nama: "", hp: "", dusun: "", paket: "", catatan: "", ...extractPsbFields(String(chats || "").replace(/^\s*#?jadwal\b|^\s*psb\s+baru\b/i, "")) };
+    const ctx = { data: seed, staff, area: area || null, tempId, dir, ktpPath: null, rumahPath: null, lokasi: null };
     setUserState(stateSender, { step: STEP_COLLECT, _scope: "teknisi", context: ctx });
 
     const v = validateSchedule(ctx.data, packages);
-    if (v.ok) { await finalizeSchedule(context, ctx, v); return { started: true }; } // one-shot: data lengkap di caption
-    await safeReply(reply, `📝 Daftar PSB baru (belum kepasang).\n\n${checklistText(ctx.data, v)}`, logger);
+    await safeReply(reply, `📝 Daftar PSB baru (belum kepasang) — butuh *3 bukti*: foto KTP, foto rumah, share lokasi.\n\n${checklistText(ctx, v)}`, logger);
     return { started: true };
 }
 
 // ── Router state (owner "psb-schedule") ──
 async function handlePsbScheduleConversationState(context) {
     context = withDeps(context);
-    const { stateStep, teknisiState, type, msg, chats, reply, setUserState, deleteUserState, stateSender, packages, logger = console } = context;
+    const { stateStep, teknisiState, type, msg, chats, reply, downloadMedia, setUserState, deleteUserState, stateSender, packages, logger = console } = context;
 
     if (!PSBJADWAL_STEPS.has(stateStep)) return { handled: false };
     const ctx = (teknisiState && teknisiState.context) || null;
@@ -178,19 +204,33 @@ async function handlePsbScheduleConversationState(context) {
         return { handled: true };
     }
 
-    if (type === "locationMessage" || type === "liveLocationMessage") {
+    if (type === "imageMessage") {
+        // Foto pertama = KTP, kedua = rumah (checklist memandu urutan).
+        const target = !ctx.ktpPath ? "ktp_photo.jpg" : (!ctx.rumahPath ? "rumah_photo.jpg" : null);
+        if (!target) {
+            await safeReply(reply, "Foto KTP & rumah sudah diterima. Kirim yang masih kurang.", logger);
+            return { handled: true };
+        }
+        let saved = null;
+        try {
+            const buffer = await downloadMedia(msg, "buffer", {});
+            if (buffer && buffer.length > 0) saved = saveMedia(ctx.dir, target, buffer);
+        } catch (e) { logger?.error?.("[PSB_JADWAL] gagal simpan foto:", e.message); }
+        if (!saved) { await safeReply(reply, "⚠️ Foto gagal diunduh — kirim ulang (foto segar dari galeri/kamera).", logger); return { handled: true }; }
+        if (target === "ktp_photo.jpg") ctx.ktpPath = saved; else ctx.rumahPath = saved;
+    } else if (type === "locationMessage" || type === "liveLocationMessage") {
         const loc = type === "locationMessage" ? msg?.message?.locationMessage : msg?.message?.liveLocationMessage;
-        if (loc && loc.degreesLatitude && loc.degreesLongitude) ctx.data.lokasi = { lat: loc.degreesLatitude, lng: loc.degreesLongitude };
+        if (loc && loc.degreesLatitude && loc.degreesLongitude) ctx.lokasi = { lat: loc.degreesLatitude, lng: loc.degreesLongitude };
     } else {
         const fields = extractPsbFields(text);
         for (const [k, val] of Object.entries(fields)) { if (val) ctx.data[k] = val; }
     }
 
     const v = validateSchedule(ctx.data, packages);
-    if (v.ok) { await finalizeSchedule(context, ctx, v); return { handled: true }; }
+    if (isComplete(ctx, v)) { await finalizeSchedule(context, ctx, v); return { handled: true }; }
 
     setUserState(stateSender, { step: STEP_COLLECT, _scope: "teknisi", context: ctx });
-    await safeReply(reply, checklistText(ctx.data, v), logger);
+    await safeReply(reply, checklistText(ctx, v), logger);
     return { handled: true };
 }
 
@@ -198,6 +238,7 @@ module.exports = {
     startPsbScheduleSession,
     handlePsbScheduleConversationState,
     validateSchedule,
+    isComplete,
     PSBJADWAL_STEPS,
     STEP_COLLECT
 };

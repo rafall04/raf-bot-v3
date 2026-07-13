@@ -189,6 +189,7 @@ function collectChecklistText(ctx, v) {
     return [
         `📋 *PSB* — lengkapi (urutan BEBAS):`,
         ...dataLines,
+        `${ctx.ktpSaved ? "✅" : "⬜"} Foto KTP`,
         `${ctx.rumahSaved ? "✅" : "⬜"} Foto rumah`,
         `${ctx.lokasi ? "✅" : "⬜"} Share lokasi`,
         ``,
@@ -235,12 +236,17 @@ async function startPsbSession(context) {
         if (buffer && buffer.length > 0) ktpSaved = !!saveMedia(dir, "ktp_photo.jpg", buffer);
     } catch (e) { logger?.error?.("[PSB_DM] gagal simpan KTP:", e.message); }
 
+    // Foto KTP WAJIB (bukti). Gagal unduh → jangan mulai sesi; minta kirim ulang yang segar.
+    if (!ktpSaved) {
+        await safeReply(reply, "❌ Foto KTP gagal diunduh. Kirim ulang *#PSB* + foto KTP (foto segar dari galeri/kamera, jangan forward foto lama).", logger);
+        return { started: false };
+    }
+
     const ctx = { data: seed, staff, tempId, dir, ktpSaved, rumahSaved: false, lokasi: null };
     setUserState(stateSender, { step: STEP_COLLECT, _scope: "teknisi", context: ctx });
 
     const v = validatePsbData(ctx.data, { packages: pkgs, requireDusun: true });
-    const ktpNote = ktpSaved ? "✅ Foto KTP diterima." : "⚠️ Foto KTP gagal tersimpan (lanjut saja — cuma arsip).";
-    await safeReply(reply, `${ktpNote}\n\n${collectChecklistText(ctx, v)}`, logger);
+    await safeReply(reply, `✅ Foto KTP diterima.\n\n${collectChecklistText(ctx, v)}`, logger);
     return { started: true };
 }
 
@@ -488,7 +494,7 @@ async function handlePsbConversationState(context) {
         if (v.ok) ctx.data = v.data;
         setUserState(stateSender, { step: STEP_COLLECT, _scope: "teknisi", context: ctx });
 
-        if (v.ok && ctx.rumahSaved && ctx.lokasi) {
+        if (v.ok && ctx.ktpSaved && ctx.rumahSaved && ctx.lokasi) {
             await detectAndAskConfirm(context, ctx);
         } else {
             await safeReply(reply, collectChecklistText(ctx, v), logger);

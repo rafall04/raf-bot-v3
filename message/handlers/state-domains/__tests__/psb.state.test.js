@@ -255,6 +255,14 @@ describe("psb.state wizard DM", () => {
         expect(summary).toContain("48575443AAAA0001");
         expect(summary).not.toContain("rafnet123");
     });
+
+    test("KTP WAJIB: foto KTP gagal diunduh → sesi tak dibuka (S1)", async () => {
+        const h = harness({ downloadMedia: jest.fn(async () => null) });
+        const r = await startPsbSession({ ...h.base, type: "imageMessage", caption: CAPTION, msg: imageMsg(CAPTION), staff: STAFF });
+        expect(r.started).toBe(false);
+        expect(h.getState()).toBeNull();
+        expect(h.base.reply.mock.calls.map((c) => c[0]).join("\n")).toMatch(/KTP gagal/i);
+    });
 });
 
 describe("buildPppoeUsername", () => {
