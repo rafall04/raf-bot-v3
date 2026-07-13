@@ -18,6 +18,7 @@
 const fs = require("fs");
 const path = require("path");
 const { extractPsbFields, resolvePackage } = require("../psb-caption-parser");
+const { buildScheduleGroupNotif } = require("../../../lib/psb-schedule-service");
 
 const STEP_COLLECT = "PSBJADWAL_COLLECT";
 const PSBJADWAL_STEPS = new Set([STEP_COLLECT]);
@@ -155,16 +156,7 @@ async function finalizeSchedule(context, ctx, v) {
         const psbCfg = cfg.psbIntake || {};
         const groupId = psbCfg.summaryGroupId || psbCfg.groupId;
         if (sendGroupSummary && groupId) {
-            await sendGroupSummary(groupId, [
-                `📥 *PSB BARU — belum kepasang* · ${record.ref}`,
-                `👤 ${record.name} · Dusun ${ctx.data.dusun}`,
-                `📦 ${v.paket} · 📱 ${ctx.data.hp}`,
-                `📎 Bukti: KTP ✅ · Rumah ✅ · Lokasi ✅`,
-                ctx.data.catatan ? `📝 ${ctx.data.catatan}` : null,
-                ``,
-                `👉 Belum kepasang — koordinasikan siapa yang pasang. _(klaim/tugaskan otomatis menyusul)_`,
-                `Diminta oleh: ${ctx.staff?.name || ctx.staff?.username || "-"}`
-            ].filter((x) => x !== null).join("\n"));
+            await sendGroupSummary(groupId, buildScheduleGroupNotif(record, { requestedByName: ctx.staff?.name || ctx.staff?.username || "-" }));
         }
     } catch (e) { logger?.error?.("[PSB_JADWAL] notif grup gagal:", e.message); }
 

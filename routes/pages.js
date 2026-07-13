@@ -228,6 +228,11 @@ router.get('/psb-rekap', checkRole(['admin', 'owner', 'superadmin']), (req, res)
     res.render('sb-admin/psb-rekap.php');
 });
 
+// Papan PSB - daftar PSB (belum kepasang) via web; paritas dgn WA #jadwal. Staf (teknisi+admin) boleh daftar.
+router.get('/papan-psb', checkRole(['teknisi', 'admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/papan-psb.php');
+});
+
 // Admin Kasbon page - ADMIN ONLY
 router.get('/admin-kasbon', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/admin-kasbon.php');

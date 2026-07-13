@@ -77,6 +77,7 @@ const createApiNetworkRouter = require('./api-network-routes');
 const createApiVoucherRouter = require('./api-voucher-routes');
 const createApiUsersRouter = require('./api-users-routes');
 const createApiPsbRouter = require('./api-psb-routes');
+const createPsbScheduleRouter = require('./psb-schedule-routes');
 const createArrearsRouter = require('./arrears');
 const psbService = require('../lib/services/api-psb-service');
 
@@ -181,5 +182,6 @@ router.use(createApiVoucherRouter({
     runtime: global.__appRuntime || null
 }));
 router.use('/arrears', createArrearsRouter());
+router.use(createPsbScheduleRouter());
 
 module.exports = router;
