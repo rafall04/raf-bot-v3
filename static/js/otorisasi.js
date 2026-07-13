@@ -701,16 +701,31 @@
       const sortedTeknisi = summary.slice().sort((a, b) => b.net_total - a.net_total || (a.teknisi_name || '').localeCompare(b.teknisi_name || ''));
       
       if (sortedTeknisi.length === 0) {
-        tbody.append('<tr><td colspan="5" class="text-center text-muted">Tidak ada data settlement teknisi</td></tr>');
+        tbody.append('<tr><td colspan="6" class="text-center text-muted">Tidak ada data settlement teknisi</td></tr>');
       } else {
         sortedTeknisi.forEach((item) => {
           let totalClass = 'text-muted';
           if (item.net_total > 0) totalClass = 'text-success font-weight-bold';
           else if (item.net_total < 0) totalClass = 'text-danger font-weight-bold';
 
+          // Total Ditarik = uang yang benar-benar ditarik dari pelanggan (payment_history.amount_paid).
+          const collected = item.total_collected || 0;
+          const collectedCount = item.collected_count || 0;
+          const paidCustomers = item.unique_paid_customers || 0;
+          let collectedCell;
+          if (collected > 0) {
+            collectedCell = `<span class="text-primary font-weight-bold">${rupiah.format(collected)}</span><br><small class="text-muted">${collectedCount} tarikan</small>`;
+            if (collectedCount < paidCustomers) {
+              collectedCell += `<br><small class="text-warning">${paidCustomers - collectedCount} tarikan lama tanpa nominal</small>`;
+            }
+          } else {
+            collectedCell = '<span class="text-muted">—</span><br><small class="text-muted">nominal lama tak tercatat</small>';
+          }
+
           tbody.append(`
             <tr>
               <td>${item.teknisi_name || '-'}</td>
+              <td class="text-right">${collectedCell}</td>
               <td class="text-right ${totalClass}">${rupiah.format(item.net_total || 0)}</td>
               <td class="text-center">
                 <span class="text-success font-weight-bold">${rupiah.format(item.total_credit || 0)}</span>
@@ -728,6 +743,7 @@
           `);
         });
 
+        const grandCollected = sortedTeknisi.reduce((sum, item) => sum + (item.total_collected || 0), 0);
         const grandCredit = sortedTeknisi.reduce((sum, item) => sum + (item.total_credit || 0), 0);
         const grandDebit = sortedTeknisi.reduce((sum, item) => sum + (item.total_debit || 0), 0);
         const grandNet = sortedTeknisi.reduce((sum, item) => sum + (item.net_total || 0), 0);
@@ -737,6 +753,7 @@
         tbody.append(`
           <tr class="font-weight-bold bg-light">
             <td>TOTAL</td>
+            <td class="text-right"><span class="text-primary">${rupiah.format(grandCollected)}</span><br><small class="text-muted">ditarik dari pelanggan</small></td>
             <td class="text-right ${grandTotalClass}">${rupiah.format(grandNet)}</td>
             <td class="text-center"><span class="text-success">${rupiah.format(grandCredit)}</span><br><small class="text-muted">kredit</small></td>
             <td class="text-center"><span class="text-danger">${rupiah.format(grandDebit)}</span><br><small class="text-muted">debit</small></td>

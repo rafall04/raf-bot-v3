@@ -52,10 +52,10 @@
           <!-- Income Summary by Teknisi (Only shown when filtered) -->
           <div id="incomeByTeknisiCard" class="card table-card mb-4" style="display: none;">
             <div class="card-header">
-              <h6>Settlement Komisi Teknisi <span id="incomeFilterPeriod"></span></h6>
+              <h6>Rekap Teknisi — Total Ditarik &amp; Komisi <span id="incomeFilterPeriod"></span></h6>
               <small class="text-muted">
-                <i class="fas fa-info-circle"></i> 
-                Kredit komisi bertambah saat pelanggan periode berjalan final lunas, dan reversal otomatis membuat debit saat status dikembalikan ke belum bayar.
+                <i class="fas fa-info-circle"></i>
+                <strong>Total Ditarik</strong> = uang yang benar-benar ditarik dari pelanggan (untuk totalan kas dengan admin). <strong>Nett Komisi</strong> = kredit komisi dikurangi debit reversal. Entri lama sebelum pencatatan nominal ditandai "nominal lama tak tercatat".
               </small>
             </div>
             <div class="card-body">
@@ -64,7 +64,8 @@
                   <thead>
                     <tr>
                       <th>Teknisi</th>
-                      <th class="text-right">Total Nett</th>
+                      <th class="text-right text-primary">Total Ditarik</th>
+                      <th class="text-right">Nett Komisi</th>
                       <th class="text-center text-success">Tambah (+)</th>
                       <th class="text-center text-danger">Kurang (-)</th>
                       <th class="text-center">Detail Request</th>
