@@ -337,13 +337,23 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
         left: 0;
         bottom: 0;
         width: min(78vw, 15rem) !important;
-        min-height: 100vh;
+        /* 100dvh = tinggi tampak nyata di HP (100vh termasuk area di balik chrome browser →
+           bikin item terbawah "Pengaturan" ke-render di belakang bilah bawah = tak terlihat). */
+        height: 100dvh;
         transform: translateX(-105%);
         transition: transform 0.25s ease, box-shadow 0.25s ease;
         z-index: 1055;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
         box-shadow: none;
         backdrop-filter: saturate(1.1);
+    }
+
+    /* Ruang bawah di `#accordionSidebar.sidebar` (spesifisitas SAMA dgn padding-bottom dasar 1.2rem →
+       menang lewat urutan) supaya item terakhir "Pengaturan" bisa di-scroll di atas gesture bar. */
+    #accordionSidebar.sidebar {
+        padding-bottom: 2rem;
+        padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
     }
 
     body.sidebar-toggled #accordionSidebar {
@@ -382,10 +392,13 @@ body.sidebar-search-active #accordionSidebar .nav-item .collapse .collapse-inner
         gap: 0.75rem;
         padding: 0.8rem 0.95rem 0.65rem;
         border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-        background: rgba(255, 255, 255, 0.04);
+        /* OPAK (warna puncak gradient sidebar) supaya konten yang di-scroll TIDAK tembus di belakang
+           header sticky (dulu rgba .04 = transparan → "Pembayaran" bocor menembus judul). */
+        background: #1e1b4b;
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.28);
         position: sticky;
         top: 0;
-        z-index: 2;
+        z-index: 3;
     }
 
     #accordionSidebar .mobile-sidebar-head .mobile-sidebar-title {
