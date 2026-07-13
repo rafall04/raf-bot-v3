@@ -14,7 +14,8 @@
  * Caller: `message/handlers/raf-intent-dispatch/customer-service-intents.js` pada intent `CEK_KONEKSI`.
  * Deps: `../../lib/jid-utils` (resolveCustomerBySender), `../../lib/mikrotik` (getActivePPPoEUsers),
  *       `../../lib/wifi` (getSSIDInfo), `../../repositories/auto-outage.repository` (state offline_since),
- *       `./template-helpers` (renderResponseTemplate), `../../lib/upstream-path-resolver` (IP→jalur)
+ *       `./template-helpers` (renderResponseTemplate), `../../lib/customer-path-resolver` (IP→jalur LIVE
+ *       dari address-list steering RAF-STEER-*, bukan CIDR statik; default gmdp saat tak di-steer)
  *       + lazy `../../lib/upstream-quality-poller` (status jalur upstream, best-effort)
  *       + lazy `../../lib/complaint-signal-service` (sinyal komplain → agregator, fire-and-forget)
  *       + lazy `../../lib/app-entity-extractor` + `../../lib/app-aware-diagnosis` (jawaban
@@ -31,7 +32,7 @@ const { resolveCustomerBySender } = require('../../lib/jid-utils');
 const { getActivePPPoEUsers } = require('../../lib/mikrotik');
 const { getSSIDInfo } = require('../../lib/wifi');
 const { renderResponseTemplate } = require('./template-helpers');
-const { resolvePathForIp } = require('../../lib/upstream-path-resolver');
+const { resolveCustomerPath } = require('../../lib/customer-path-resolver');
 
 // Cache daftar PPPoE aktif sebentar supaya burst "cek koneksi" tidak menghajar MikroTik.
 // addrByUser dipakai seksi upstream (map username → IP remote utk pemetaan jalur).
@@ -115,12 +116,13 @@ async function buildUpstreamSection(user) {
         const addr = activeCache.addrByUser ? activeCache.addrByUser.get(uname) : null;
         if (!addr) return '';
 
-        const resolved = resolvePathForIp(addr, upCfg);
-        if (!resolved) return '';
+        // Jalur pelanggan dari STEERING LIVE (bukan CIDR statik) — null bila router tak terbaca.
+        const pathKey = await resolveCustomerPath(addr);
+        if (!pathKey) return '';
 
         const report = await getUpstreamReportCached();
         const entry = report && Array.isArray(report.paths)
-            ? report.paths.find((p) => p.key === resolved.path)
+            ? report.paths.find((p) => p.key === pathKey)
             : null;
         if (!entry) return '';
         if (!['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(entry.status)) return '';
@@ -134,7 +136,7 @@ async function buildUpstreamSection(user) {
         // Pelanggan jalur MNI: WhatsApp/game dipaksa router lewat IH — bila IH normal,
         // jelaskan kenapa "chat lancar tapi browsing lambat" (pola komplain korpus).
         let catatanKhusus = '';
-        if (resolved.path === 'mni') {
+        if (pathKey === 'mni') {
             const ih = report.paths.find((p) => p.key === 'ih');
             if (ih && ih.status === 'NORMAL') {
                 catatanKhusus = renderResponseTemplate(
@@ -184,9 +186,11 @@ async function resolveUpstreamHealth(user) {
         const uname = normalizeUsername(user.pppoe_username);
         const addr = activeCache.addrByUser ? activeCache.addrByUser.get(uname) : null;
         if (addr) {
-            const resolved = resolvePathForIp(addr, global.config.upstreamMonitor);
-            if (resolved) {
-                const entry = report.paths.find((p) => p.key === resolved.path);
+            // Jalur pelanggan dari STEERING LIVE (RAF-STEER-*; default 'gmdp' bila tak di-steer).
+            // null = router tak terbaca → status tetap null → verdict fail-closed (bukan asal "normal").
+            const pathKey = await resolveCustomerPath(addr);
+            if (pathKey) {
+                const entry = report.paths.find((p) => p.key === pathKey);
                 if (entry) out.status = entry.status;
             }
         }

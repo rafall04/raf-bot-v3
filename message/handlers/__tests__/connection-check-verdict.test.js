@@ -24,6 +24,8 @@ jest.mock('../../../repositories/auto-outage.repository', () => ({
 // renderResponseTemplate dimock mengembalikan KEY → mudah assert cabang/template mana yang dipilih.
 jest.mock('../template-helpers', () => ({ renderResponseTemplate: jest.fn((key) => key) }));
 jest.mock('../../../lib/upstream-quality-poller', () => ({ buildStatusReport: jest.fn() }));
+// Jalur pelanggan kini dari STEERING LIVE (customer-path-resolver) — dimock supaya test tak menyentuh router.
+jest.mock('../../../lib/customer-path-resolver', () => ({ resolveCustomerPath: jest.fn() }));
 jest.mock('../../../lib/reboot-followup-service', () => ({
     evaluateRebootGate: jest.fn(async () => ({ allowed: false, reason: 'FITUR_MATI', mode: 'strict' })),
     scheduleFollowupForReboot: jest.fn()
@@ -33,15 +35,15 @@ const { resolveCustomerBySender } = require('../../../lib/jid-utils');
 const { getActivePPPoEUsers } = require('../../../lib/mikrotik');
 const { getSSIDInfo } = require('../../../lib/wifi');
 const { buildStatusReport } = require('../../../lib/upstream-quality-poller');
+const { resolveCustomerPath } = require('../../../lib/customer-path-resolver');
 const { evaluateRebootGate } = require('../../../lib/reboot-followup-service');
 const { renderResponseTemplate } = require('../template-helpers');
 const handler = require('../connection-check-handler');
 const { handleCekKoneksi } = handler;
 
 const USER = { id: 7, name: 'Dani', pppoe_username: 'dani-gempol@rafcybernet', device_id: 'DEV-DANI' };
-// 192.168.70.5 ∈ pool default 'gmdp' (jalur utama); 10.99.99.5 tak masuk pool mana pun.
-const MAPPED_IP = '192.168.70.5';
-const UNMAPPED_IP = '10.99.99.5';
+// Jalur pelanggan kini ditentukan mock resolveCustomerPath (steering live), bukan nilai IP.
+const ANY_IP = '192.168.70.5';
 
 function ctx(overrides = {}) {
     const replies = [];
@@ -77,7 +79,9 @@ beforeEach(() => {
         ssid: [{ associatedDevices: [{}, {}] }],
         lastInform: new Date().toISOString()
     });
-    activePppoe(MAPPED_IP);
+    activePppoe(ANY_IP);
+    // Default: pelanggan tak di-steer → jalur utama 'gmdp'. Tiap test menimpanya sesuai skenario.
+    resolveCustomerPath.mockResolvedValue('gmdp');
 });
 
 describe('anti data-palsu: baris modem', () => {
@@ -130,8 +134,9 @@ describe('verdict jalur-AKTIF berbasis bukti', () => {
         expect(evaluateRebootGate).not.toHaveBeenCalled(); // reboot tak ditawarkan saat jaringan sakit
     });
 
-    test('IP belum terpetakan TAPI ada jalur lain sakit → verdict kemungkinan-upstream, reboot TAK ditawarkan', async () => {
-        activePppoe(UNMAPPED_IP);
+    test('jalur pelanggan tak bisa dipastikan (router tak terbaca) TAPI ada jalur sakit → kemungkinan-upstream, reboot TAK ditawarkan', async () => {
+        activePppoe(ANY_IP);
+        resolveCustomerPath.mockResolvedValue(null); // steering tak terbaca → fail-closed
         global.config = { upstreamMonitor: { enabled: true } };
         buildStatusReport.mockResolvedValue({ paths: [{ key: 'gmdp', status: 'PUTUS' }] });
         await handleCekKoneksi(ctx());
