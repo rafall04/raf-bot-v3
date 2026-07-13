@@ -35,6 +35,7 @@ function harness(overrides = {}) {
         deleteUserState,
         downloadMedia: jest.fn(async () => Buffer.from([1, 2, 3, 4])),
         findRecentPsbCandidates: jest.fn(async () => ({ ok: true, data: CANDIDATES })),
+        fetchDeviceCapability: jest.fn(async () => ({ found: true, deviceId: "dev-A", model: "HG8145V5", has5G: true, expectedBulk: ["1", "5"] })),
         usersService: { upsertUserFromAdminPanel: upsert },
         getConfig: () => ({ psbIntake: { enabled: true, groupId: "grp@g.us", recencyWindowMinutes: 120 }, defaultBulkSSID: "1" }),
         packages: PACKAGES,
@@ -79,12 +80,14 @@ describe("psb.state wizard DM", () => {
         expect(h.base.usersService.upsertUserFromAdminPanel).toHaveBeenCalledTimes(1);
         const arg = h.base.usersService.upsertUserFromAdminPanel.mock.calls[0][0];
         expect(arg.userData).toMatchObject({ name: "Budi Santoso", phone_number: "08123456789", subscription: "PAKET-110K", device_id: "dev-A", registration_mode: "new" });
-        expect(arg.userData.ssid_indices).toEqual(["1"]);
+        // Modem dual-band (fetchDeviceCapability has5G) → set 2.4G+5G, BUKAN default global.
+        expect(arg.userData.ssid_indices).toEqual(["1", "5"]);
         // Username dirakit dari Nama+Dusun; password pakai default (harness tak set → fallback rafnet123), BUKAN acak.
         expect(arg.userData.pppoe_username).toBe("budi_santoso-krajan@rafcybernet");
         expect(arg.userData.pppoe_password).toBe("rafnet123");
-        // Push modem OK (device_config.ok) → reply boleh klaim "online".
+        // Push modem OK (device_config.ok) → reply boleh klaim "online" + sebut band 5GHz.
         expect(h.base.reply.mock.calls.map((c) => c[0]).join("\n---\n")).toMatch(/online/i);
+        expect(h.base.reply.mock.calls.map((c) => c[0]).join("\n---\n")).toMatch(/5GHz/);
         expect(h.base.sendGroupSummary).toHaveBeenCalledTimes(1);
         expect(h.getState()).toBeNull(); // state dibersihkan setelah selesai
     });
@@ -159,6 +162,29 @@ describe("psb.state wizard DM", () => {
         const summary = h.base.sendGroupSummary.mock.calls.map((c) => c[1]).join("\n");
         expect(summary).toMatch(/tindak lanjut/i);
         expect(h.getState()).toBeNull(); // pelanggan tetap terdaftar, sesi ditutup
+    });
+
+    test("modem SINGLE-band → hanya set SSID 2.4GHz (index 1), tak nembak index 5", async () => {
+        const h = harness({ fetchDeviceCapability: jest.fn(async () => ({ found: true, deviceId: "dev-A", model: "HG8145", has5G: false, expectedBulk: ["1"] })) });
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        const arg = h.base.usersService.upsertUserFromAdminPanel.mock.calls[0][0];
+        expect(arg.userData.ssid_indices).toEqual(["1"]);
+        const allReplies = h.base.reply.mock.calls.map((c) => c[0]).join("\n---\n");
+        expect(allReplies).toMatch(/2\.4GHz/);
+        expect(allReplies).not.toMatch(/5GHz/);
+    });
+
+    test("kapabilitas band GAGAL dibaca → fallback ke default config + peringatan", async () => {
+        const h = harness({
+            fetchDeviceCapability: jest.fn(async () => ({ found: false, deviceId: "dev-A" })),
+            getConfig: () => ({ psbIntake: { enabled: true, groupId: "grp@g.us", recencyWindowMinutes: 120 }, defaultBulkSSID: "1,5" })
+        });
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        const arg = h.base.usersService.upsertUserFromAdminPanel.mock.calls[0][0];
+        expect(arg.userData.ssid_indices).toEqual(["1", "5"]); // dari defaultBulkSSID, bukan deteksi
+        expect(h.base.reply.mock.calls.map((c) => c[0]).join("\n---\n")).toMatch(/tak terbaca/);
     });
 });
 

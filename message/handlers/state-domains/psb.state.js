@@ -12,8 +12,9 @@
  *         `message/raf.js` (jalur DM teknisi).
  * Deps (via context/inject, patuh invariant [[raf-invariants]]): `reply` (delivery boundary), `downloadMedia`
  *        (`lib/whatsapp.adapter`), `setUserState/deleteUserState` (`conversation-handler`), `findRecentPsbCandidates`
- *        (`lib/psb-genieacs-service`), `usersService` (`global.__apiUsersService`), `getConfig`, `packages`,
- *        `sendGroupSummary`. Require langsung: `./psb-caption-parser`, `fs`, `path`.
+ *        (`lib/psb-genieacs-service`), `fetchDeviceCapability` (`lib/wifi-bulk-reconcile` — SSID sadar-band:
+ *        2.4G index 1 selalu, 5G index 5 hanya bila modem dual-band), `usersService` (`global.__apiUsersService`),
+ *        `getConfig`, `packages`, `sendGroupSummary`. Require langsung: `./psb-caption-parser`, `fs`, `path`.
  * MainFuncs: `startPsbSession(context)`, `handlePsbConversationState(context)`.
  * SideEffects: Tulis foto KTP/rumah + lokasi ke `uploads/psb/...`, buat pelanggan + push modem GenieACS +
  *              kirim WA (welcome pelanggan + ringkasan grup). Reply teknisi & ringkasan grup JUJUR ikut
@@ -58,6 +59,7 @@ function withPsbDeps(context) {
     return {
         ...context,
         findRecentPsbCandidates: context.findRecentPsbCandidates || require("../../../lib/psb-genieacs-service").findRecentPsbCandidates,
+        fetchDeviceCapability: context.fetchDeviceCapability || require("../../../lib/wifi-bulk-reconcile").fetchDeviceCapability,
         usersService: context.usersService || global.__apiUsersService,
         getConfig: context.getConfig || (() => global.config || {}),
         packages: context.packages || global.packages || [],
@@ -223,7 +225,7 @@ function candidateListText(candidates, nowMs) {
 
 // ── Provisioning FINAL (dipanggil hanya setelah YA / pilih nomor) ──
 async function provision(context, ctx, candidate) {
-    const { reply, deleteUserState, stateSender, usersService, getConfig, sendGroupSummary, botAreaLabel, logger = console } = context;
+    const { reply, deleteUserState, stateSender, usersService, getConfig, sendGroupSummary, botAreaLabel, fetchDeviceCapability, logger = console } = context;
     const cfg = ((getConfig && getConfig()) || global.config || {});
     const psbCfg = cfg.psbIntake || {};
 
@@ -231,7 +233,26 @@ async function provision(context, ctx, candidate) {
     // dicek = yang dieksekusi). Fallback rakit ulang kalau ctx belum terisi (mis. alur non-standar).
     const pppoeUser = ctx.pppoeUsername || buildPppoeUsername(ctx.data.nama, ctx.data.dusun, psbCfg.pppoeRealm, global.users || []);
     const pppoePass = ctx.pppoePassword || cfg.defaultPPPoEPassword || "rafnet123";
-    const ssidIndices = String(psbCfg.defaultSsidIndices || cfg.defaultBulkSSID || "1").split(",").map((s) => s.trim()).filter(Boolean);
+
+    // SSID SADAR-BAND: baca kapabilitas modem dari GenieACS — 2.4GHz selalu index 1, 5GHz index 5
+    // HANYA bila modem punya (deviceHas5G). Jadi WiFi di-set ke band yang BENAR-BENAR ada: modem
+    // dual-band → set 2.4G+5G (satu nama/sandi), single-band → cukup 2.4G (tak nembak index 5 yg gaib).
+    // Best-effort: deteksi gagal → fallback default config. Reuse helper bulk-diff (1 sumber kebenaran).
+    let ssidIndices = String(psbCfg.defaultSsidIndices || cfg.defaultBulkSSID || "1").split(",").map((s) => s.trim()).filter(Boolean);
+    let bandLabel = "";
+    let bandDetected = false;
+    if (candidate && candidate.deviceId && typeof fetchDeviceCapability === "function") {
+        try {
+            const cap = await fetchDeviceCapability(candidate.deviceId, { operation: "psb.dm.ssidCapability" });
+            if (cap && cap.found && Array.isArray(cap.expectedBulk) && cap.expectedBulk.length > 0) {
+                ssidIndices = cap.expectedBulk;
+                bandDetected = true;
+                bandLabel = cap.has5G ? "2.4GHz + 5GHz" : "2.4GHz";
+            } else {
+                logger?.warn?.(`[PSB_DM] band modem ${candidate.deviceId} tak terbaca — pakai default SSID [${ssidIndices.join(",")}]`);
+            }
+        } catch (e) { logger?.error?.("[PSB_DM] deteksi band modem gagal:", e.message); }
+    }
 
     let result;
     try {
@@ -297,8 +318,9 @@ async function provision(context, ctx, candidate) {
             `✅ *${ctx.data.nama}* online!`,
             ...credLines,
             snLine,
-            `PPPoE + WiFi sudah di-push ke modem. Welcome dikirim ke pelanggan.`
-        ];
+            `PPPoE + WiFi (${bandLabel || `SSID ${ssidIndices.join(",")}`}) sudah di-push ke modem. Welcome dikirim ke pelanggan.`,
+            bandDetected ? null : "ℹ️ Band modem tak terbaca — bila modem dual-band, cek WiFi 5GHz manual."
+        ].filter(Boolean);
     } else if (candidate) {
         // Modem terpilih tapi push tak terkonfirmasi (mis. tak ada payload) — jangan klaim beres.
         replyLines = [
@@ -326,7 +348,7 @@ async function provision(context, ctx, candidate) {
                     ? `⚠️ *PSB perlu tindak lanjut* (modem belum ter-set) — ${botAreaLabel || cfg.nama || "area"}`
                     : `✅ *PSB selesai* — ${botAreaLabel || cfg.nama || "area"}`,
                 `Pelanggan: ${ctx.data.nama} (${ctx.data.hp}) · ${ctx.data.paket}`,
-                candidate ? `Modem: SN ${shortSn(candidate.serialNumber)} (${candidate.model})` : "Modem: set manual",
+                candidate ? `Modem: SN ${shortSn(candidate.serialNumber)} (${candidate.model}${bandLabel ? ` · ${bandLabel}` : ""})` : "Modem: set manual",
                 pushFailed ? "⚠️ Set WiFi/PPPoE manual di modem — konfigurasi ACS gagal." : null,
                 `Oleh: ${ctx.staff.name || ctx.staff.username}`
             ].filter(Boolean).join("\n"));
