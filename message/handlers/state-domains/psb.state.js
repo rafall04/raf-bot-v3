@@ -45,6 +45,43 @@ const PSB_TEMPLATE = [
     "HP: "
 ].join("\n");
 
+// Deteksi perintah panduan PSB (teks, dari teknisi): "#psb", "psb tutorial/panduan/format/cara",
+// atau "tutorial/panduan/format psb". Bare "psb" (tanpa # / tanpa kata kunci) sengaja TIDAK memicu.
+function isPsbTutorialTrigger(text) {
+    return /^(#psb|(?:#?psb\s+(?:tutorial|panduan|format|cara|help|bantuan))|(?:tutorial|panduan|format|cara|bantuan)\s+psb)$/i
+        .test(String(text || "").trim());
+}
+
+// Panduan PSB lengkap untuk teknisi awam (format + alur langkah demi langkah). Teks operasional
+// teknisi (hardcoded, sesuai pola prompt wizard di file ini) — pesan welcome PELANGGAN tetap templated.
+function psbTutorialText() {
+    return [
+        "📚 *PANDUAN PSB (Pasang Baru) — via Bot*",
+        "",
+        "Chat japri bot ini. Username, password & setting modem diurus bot — kamu ikuti langkahnya saja.",
+        "",
+        "*1) Kirim foto KTP + caption*",
+        PSB_TEMPLATE,
+        "⚠️ *Dusun* = lokasi rumah DIPASANG, bukan alamat di KTP (KTP bisa beda kota).",
+        "",
+        "*2) Foto rumah + share lokasi*",
+        "Bot minta foto rumah & share lokasi (titik lokasi WA). Kirim keduanya.",
+        "",
+        "*3) Cocokkan modem* (lihat stiker SN di modem)",
+        "• SN cocok → balas *YA*",
+        "• Beda → balas *TIDAK* (bot kasih daftar, balas *angka*)",
+        "• Belum kebaca → nyalakan modem, balas *REFRESH*",
+        "",
+        "*4) Cek ringkasan → balas *YA* untuk eksekusi*",
+        "Bot buat pelanggan + set modem + kirim welcome. Tak ada yang ditulis sebelum kamu balas YA.",
+        "",
+        "🤖 *Otomatis (tak usah ketik):* username PPPoE (dari Nama+Dusun), password default, WiFi 2.4GHz (+5GHz bila modem dual-band).",
+        "Batal kapan saja: ketik *BATAL*.",
+        "",
+        "▶️ *Mulai:* kirim *#psb* + foto KTP dengan caption di atas.",
+    ].join("\n");
+}
+
 // Ringkasan ke grup PSB lewat delivery boundary reply-runtime (BUKAN socket mentah) — patuh invariant.
 function defaultSendGroupSummary(groupId, text) {
     try {
@@ -440,6 +477,8 @@ module.exports = {
     handlePsbConversationState,
     startPsbSession,
     buildPppoeUsername,
+    isPsbTutorialTrigger,
+    psbTutorialText,
     PSB_STEPS,
     STEP_COLLECT,
     STEP_CONFIRM,

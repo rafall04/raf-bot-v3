@@ -11,7 +11,7 @@
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
-const { startPsbSession, handlePsbConversationState, buildPppoeUsername } = require("../psb.state");
+const { startPsbSession, handlePsbConversationState, buildPppoeUsername, isPsbTutorialTrigger, psbTutorialText } = require("../psb.state");
 
 const TMP = path.join(os.tmpdir(), `psb-dm-test-${Date.now()}`);
 const PACKAGES = [{ name: "PAKET-110K", profile: "16Mbps" }];
@@ -204,5 +204,29 @@ describe("buildPppoeUsername", () => {
     });
     test("dusun kosong → jatuh ke nama saja (graceful; wizard mewajibkan dusun di depan)", () => {
         expect(buildPppoeUsername("Putri", "", "rafcybernet", [])).toBe("putri@rafcybernet");
+    });
+});
+
+describe("panduan PSB (tutorial)", () => {
+    test("isPsbTutorialTrigger cocok utk #psb / psb tutorial / panduan psb, TIDAK utk bare 'psb'", () => {
+        expect(isPsbTutorialTrigger("#psb")).toBe(true);
+        expect(isPsbTutorialTrigger("psb tutorial")).toBe(true);
+        expect(isPsbTutorialTrigger("#PSB Tutorial")).toBe(true);
+        expect(isPsbTutorialTrigger("panduan psb")).toBe(true);
+        expect(isPsbTutorialTrigger("format psb")).toBe(true);
+        expect(isPsbTutorialTrigger("psb format")).toBe(true);
+        expect(isPsbTutorialTrigger("  tutorial psb  ")).toBe(true);
+        expect(isPsbTutorialTrigger("psb")).toBe(false); // bare, ambigu → tak memicu
+        expect(isPsbTutorialTrigger("cek koneksi")).toBe(false);
+        expect(isPsbTutorialTrigger("")).toBe(false);
+    });
+
+    test("psbTutorialText memuat penanda kunci + template + peringatan dusun", () => {
+        const t = psbTutorialText();
+        expect(t).toMatch(/PANDUAN PSB/);
+        expect(t).toContain("#PSB");
+        expect(t).toMatch(/Dusun/);
+        expect(t).toMatch(/BATAL/);
+        expect(t).toMatch(/5GHz/);
     });
 });

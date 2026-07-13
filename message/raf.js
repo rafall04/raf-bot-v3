@@ -503,6 +503,24 @@ module.exports = async (raf, msg, m, options = {}) => {
             return;
         }
 
+        // ── Perintah panduan PSB (teknisi) — teks "#psb"/"psb tutorial"/"panduan psb" (TANPA foto) ──
+        // Balas panduan lengkap format + alur, sebelum wizard. Gated sama (feature ON + akun staf) + NON-THROWING.
+        try {
+            const psbDmCfg = (global.config && global.config.psbIntake) || {};
+            const { isPsbTutorialTrigger } = require('./handlers/state-domains/psb.state');
+            if (psbDmCfg.enabled === true && type !== 'imageMessage' && isPsbTutorialTrigger(chats)) {
+                const { resolveAuthorizedStaff } = require('./handlers/psb-group-intake');
+                const psbStaff = resolveAuthorizedStaff({ participant: optionalJid || sender, plainPhone: plainSenderNumber, accounts, allowedRoles: psbDmCfg.allowedRoles });
+                if (psbStaff) {
+                    const { psbTutorialText } = require('./handlers/state-domains/psb.state');
+                    await reply(psbTutorialText());
+                    return;
+                }
+            }
+        } catch (psbTutErr) {
+            console.error('[PSB_TUTORIAL_TRIGGER_ERROR]', psbTutErr.message);
+        }
+
         // ── Trigger wizard PSB via DM teknisi (Fase 2 [[psb-simplification-plan]]) ──
         // #PSB + foto KTP dari teknisi (DM, BUKAN grup) → buka sesi PSB (step PSB_COLLECT_DOCS);
         // lanjutan (foto rumah/lokasi/konfirmasi) dirutekan otomatis oleh routeConversationState
