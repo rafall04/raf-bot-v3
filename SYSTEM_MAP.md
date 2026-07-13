@@ -205,6 +205,7 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 - [Fitur 2026-07-11 (CCTV sadar-modem — tahan broadcast saat mati listrik area)](docs/boundary-log.md#b118)
 - [Fitur 2026-07-12 (Broadcast Terarah — pilih template + pelanggan tertentu)](docs/boundary-log.md#b119)
 - [Fitur 2026-07-13 (Resolver jalur baca profil live freedns/lokaldns + monitor drift)](docs/boundary-log.md#b120)
+- [Fitur 2026-07-13 (Oper koneksi per-SEGMEN — Track B/B1 read+dry-run)](docs/boundary-log.md#b121)
 
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.

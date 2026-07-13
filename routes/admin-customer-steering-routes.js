@@ -38,6 +38,19 @@ function registerAdminCustomerSteeringRoutes(router, deps) {
         res.json({ success: data.ok !== false, data: { ...data, canEdit: ADMIN_ROLES.includes(role) } });
     }));
 
+    // Peta SEGMEN (pool/subnet) → jalur base sekarang + jumlah aktif. READ-ONLY (jalan walau dorman).
+    router.get("/api/customer-steering/segments", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const role = req.user && String(req.user.role || "").toLowerCase();
+        const data = await steering.buildSegmentMap();
+        res.json({ success: data.ok !== false, data: { ...data, canEdit: ADMIN_ROLES.includes(role) } });
+    }));
+
+    // Pratinjau (DRY-RUN) pindah segmen: ?segment=<id>&path=<mni|gmdp>. READ-ONLY — tidak menulis router.
+    router.get("/api/customer-steering/segments/preview", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const result = await steering.previewSegmentMove({ segment: req.query.segment, path: req.query.path });
+        res.status(result.ok ? 200 : 400).json({ success: result.ok === true, data: result });
+    }));
+
     // Steer satu pelanggan ({ userId, path: gmdp|ih|mni|sf|null }) — null = kembali ke default.
     router.post("/api/customer-steering/steer", ensureAuthenticatedStaff, requireAdminOwner, asyncHandler(async (req, res) => {
         const { userId, path: targetPath } = req.body || {};
