@@ -36,6 +36,7 @@ function harness(overrides = {}) {
         downloadMedia: jest.fn(async () => Buffer.from([1, 2, 3, 4])),
         findRecentPsbCandidates: jest.fn(async () => ({ ok: true, data: CANDIDATES })),
         fetchDeviceCapability: jest.fn(async () => ({ found: true, deviceId: "dev-A", model: "HG8145V5", has5G: true, expectedBulk: ["1", "5"] })),
+        recordInstall: jest.fn(() => 7),
         usersService: { upsertUserFromAdminPanel: upsert },
         getConfig: () => ({ psbIntake: { enabled: true, groupId: "grp@g.us", recencyWindowMinutes: 120 }, defaultBulkSSID: "1" }),
         packages: PACKAGES,
@@ -232,6 +233,28 @@ describe("psb.state wizard DM", () => {
         const arg = h.base.usersService.upsertUserFromAdminPanel.mock.calls[0][0];
         expect(arg.userData.phone_number).toBe("08123456789|6285700000002");
     });
+
+    test("revisi: SN LENGKAP + password PPPoE DISEMBUNYIKAN + rekap bulanan di ringkasan grup", async () => {
+        const h = harness();
+        await reachConfirm(h);
+        const recap = h.base.reply.mock.calls.map((c) => c[0]).join("\n");
+        expect(recap).toContain("budi_santoso-krajan@rafcybernet"); // username tetap tampil
+        expect(recap).not.toContain("rafnet123");                    // password PPPoE default disembunyikan
+        expect(recap).toContain("48575443AAAA0001");                 // SN LENGKAP
+        expect(recap).not.toMatch(/…/);                              // tak ada elipsis SN
+
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+
+        const allReplies = h.base.reply.mock.calls.map((c) => c[0]).join("\n");
+        expect(allReplies).toContain("48575443AAAA0001");   // SN lengkap di reply sukses
+        expect(allReplies).not.toContain("rafnet123");      // tetap tanpa password
+
+        expect(h.base.recordInstall).toHaveBeenCalledTimes(1); // counter terpasang dicatat
+        const summary = h.base.sendGroupSummary.mock.calls.map((c) => c[1]).join("\n");
+        expect(summary).toMatch(/PSB bulan ini: 7 terpasang/);
+        expect(summary).toContain("48575443AAAA0001");
+        expect(summary).not.toContain("rafnet123");
+    });
 });
 
 describe("buildPppoeUsername", () => {
@@ -267,12 +290,16 @@ describe("panduan PSB (tutorial)", () => {
         expect(isPsbTutorialTrigger("")).toBe(false);
     });
 
-    test("psbTutorialText memuat penanda kunci + template + peringatan dusun", () => {
+    test("psbTutorialText memuat penanda kunci + template + peringatan dusun + logic SLOT-FILLING", () => {
         const t = psbTutorialText();
         expect(t).toMatch(/PANDUAN PSB/);
         expect(t).toContain("#PSB");
         expect(t).toMatch(/Dusun/);
         expect(t).toMatch(/BATAL/);
         expect(t).toMatch(/5GHz/);
+        // Logic terkini (slot-filling): data boleh menyusul, urutan bebas, checklist.
+        expect(t).toMatch(/URUTAN BEBAS/i);
+        expect(t).toMatch(/menyusul|dicicil/i);
+        expect(t).toMatch(/checklist/i);
     });
 });

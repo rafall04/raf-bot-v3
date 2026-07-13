@@ -69,28 +69,31 @@ function psbTutorialText() {
     return [
         "📚 *PANDUAN PSB (Pasang Baru) — via Bot*",
         "",
-        "Chat japri bot ini. Username, password & setting modem diurus bot — kamu ikuti langkahnya saja.",
+        "Chat *japri* bot ini. Username, password & setting modem diurus bot — kamu tinggal kirim bahannya, bot yang nuntun lewat checklist.",
         "",
-        "*1) Kirim foto KTP + caption*",
+        "*1) Mulai:* kirim *foto KTP* + caption *#PSB* (data boleh menyusul, tak harus lengkap).",
+        "",
+        "*2) Lengkapi data* — URUTAN BEBAS, boleh dicicil. Ketik (sekaligus atau satu-satu):",
         PSB_TEMPLATE,
-        "⚠️ *Dusun* = lokasi rumah DIPASANG, bukan alamat di KTP (KTP bisa beda kota).",
-        "💡 *HP boleh >1:* pisah pakai | (mis. 0812xxx|0813yyy). Semua nomor dapat info & dikenali bot; nomor PERTAMA = utama.",
+        "⚠️ *Dusun* = lokasi rumah DIPASANG, bukan alamat di KTP (bisa beda kota).",
+        "💡 *HP boleh >1:* pisah pakai | (mis. 0812xxx|0813yyy). Nomor PERTAMA = utama.",
         "",
-        "*2) Foto rumah + share lokasi*",
-        "Bot minta foto rumah & share lokasi (titik lokasi WA). Kirim keduanya.",
+        "*3) Kirim foto rumah + share lokasi* (kapan saja, urutan bebas).",
         "",
-        "*3) Cocokkan modem* (lihat stiker SN di modem)",
+        "➡️ Tiap kamu kirim, bot tampilkan *checklist* (✅/⬜) & ingatkan yang kurang. Begitu semua ✅, bot lanjut baca modem.",
+        "",
+        "*4) Cocokkan modem* (lihat stiker SN di modem):",
         "• SN cocok → balas *YA*",
         "• Beda → balas *TIDAK* (bot kasih daftar, balas *angka*)",
         "• Belum kebaca → nyalakan modem, balas *REFRESH*",
         "",
-        "*4) Cek ringkasan → balas *YA* untuk eksekusi*",
+        "*5) Cek ringkasan → balas *YA**",
         "Bot buat pelanggan + set modem + kirim welcome. Tak ada yang ditulis sebelum kamu balas YA.",
         "",
-        "🤖 *Otomatis (tak usah ketik):* username PPPoE (dari Nama+Dusun), password default, WiFi 2.4GHz (+5GHz bila modem dual-band).",
+        "🤖 *Otomatis (tak usah ketik):* username PPPoE (Nama+Dusun), password, WiFi 2.4GHz (+5GHz bila dual-band).",
         "Batal kapan saja: ketik *BATAL*.",
         "",
-        "▶️ *Mulai:* kirim *#psb* + foto KTP dengan caption di atas.",
+        "▶️ *Mulai sekarang:* kirim *#psb* + foto KTP.",
     ].join("\n");
 }
 
@@ -109,6 +112,7 @@ function withPsbDeps(context) {
         ...context,
         findRecentPsbCandidates: context.findRecentPsbCandidates || require("../../../lib/psb-genieacs-service").findRecentPsbCandidates,
         fetchDeviceCapability: context.fetchDeviceCapability || require("../../../lib/wifi-bulk-reconcile").fetchDeviceCapability,
+        recordInstall: context.recordInstall || require("../../../lib/psb-install-stats").recordInstall,
         usersService: context.usersService || global.__apiUsersService,
         getConfig: context.getConfig || (() => global.config || {}),
         packages: context.packages || global.packages || [],
@@ -118,9 +122,9 @@ function withPsbDeps(context) {
     };
 }
 
-function shortSn(sn) {
-    const s = String(sn || "");
-    return s.length > 8 ? `…${s.slice(-8)}` : s;
+// SN modem ditampilkan LENGKAP — teknisi cocokkan dgn stiker (potongan bisa ambigu antar-modem).
+function snText(sn) {
+    return String(sn || "").trim();
 }
 
 function minutesAgo(iso, nowMs) {
@@ -241,10 +245,11 @@ async function startPsbSession(context) {
 }
 
 // Ringkasan data pelanggan (untuk layar verifikasi sebelum eksekusi).
+// Password PPPoE SENGAJA tak ditampilkan — akses terbatas admin (bot yang push ke modem otomatis).
 function customerRecapLines(ctx) {
     return [
         `👤 ${ctx.data.nama} · Dusun ${ctx.data.dusun}`,
-        `🔑 PPPoE: \`${ctx.pppoeUsername}\` / \`${ctx.pppoePassword}\``,
+        `🔑 PPPoE: \`${ctx.pppoeUsername}\``,
         `📦 ${ctx.data.paket} · 📶 ${ctx.data.wifi_ssid} / ${ctx.data.wifi_password}`,
         `📱 ${ctx.data.hp}`
     ];
@@ -283,7 +288,7 @@ async function detectAndAskConfirm(context, ctx) {
     await safeReply(reply, [
         `📋 *CEK DULU sebelum dieksekusi:*`,
         ...customerRecapLines(ctx),
-        `📡 Modem: SN \`${shortSn(top.serialNumber)}\` · ${top.model} · reg ${minutesAgo(top.registeredDate, nowMs)}`,
+        `📡 Modem: SN \`${snText(top.serialNumber)}\` · ${top.model} · reg ${minutesAgo(top.registeredDate, nowMs)}`,
         ``,
         `Semua BENAR & modem cocok stiker? Balas *YA* (eksekusi) · *TIDAK* (ganti modem) · *BATAL*`
     ].join("\n"), logger);
@@ -291,13 +296,13 @@ async function detectAndAskConfirm(context, ctx) {
 
 function candidateListText(candidates, nowMs) {
     const nums = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
-    const lines = candidates.slice(0, 10).map((c, i) => `${nums[i] || (i + 1) + "."} SN \`${shortSn(c.serialNumber)}\` · ${c.model} · reg ${minutesAgo(c.registeredDate, nowMs)}`);
+    const lines = candidates.slice(0, 10).map((c, i) => `${nums[i] || (i + 1) + "."} SN \`${snText(c.serialNumber)}\` · ${c.model} · reg ${minutesAgo(c.registeredDate, nowMs)}`);
     return `Pilih modem yang cocok dgn stiker (balas *angka*), atau *REFRESH* / *BATAL*:\n${lines.join("\n")}`;
 }
 
 // ── Provisioning FINAL (dipanggil hanya setelah YA / pilih nomor) ──
 async function provision(context, ctx, candidate) {
-    const { reply, deleteUserState, stateSender, usersService, getConfig, sendGroupSummary, botAreaLabel, fetchDeviceCapability, logger = console } = context;
+    const { reply, deleteUserState, stateSender, usersService, getConfig, sendGroupSummary, botAreaLabel, fetchDeviceCapability, recordInstall, nowMs = Date.now(), logger = console } = context;
     const cfg = ((getConfig && getConfig()) || global.config || {});
     const psbCfg = cfg.psbIntake || {};
 
@@ -358,6 +363,10 @@ async function provision(context, ctx, candidate) {
         return;
     }
 
+    // Catat 1 PSB terpasang bulan ini (durable counter, best-effort) — sumber angka rangkuman grup.
+    let monthInstalled = null;
+    try { if (typeof recordInstall === "function") monthInstalled = recordInstall(nowMs); } catch (_e) { /* best-effort */ }
+
     // Rekam lokasi ke folder sesi (dokumentasi).
     try {
         if (ctx.lokasi) fs.writeFileSync(path.join(ctx.dir, "lokasi.json"), JSON.stringify(ctx.lokasi, null, 2));
@@ -370,11 +379,12 @@ async function provision(context, ctx, candidate) {
     const dc = body.device_config || { attempted: false, ok: false, message: null };
     const pushFailed = body.warning === "device_config_failed" || Boolean(dc.attempted && !dc.ok);
     const pushOk = Boolean(dc.attempted && dc.ok);
+    // Password PPPoE TAK ditampilkan ke teknisi (akses admin). WiFi tetap tampil (kredensial pelanggan).
     const credLines = [
-        `PPPoE: \`${pppoeUser}\` / \`${pppoePass}\``,
+        `PPPoE: \`${pppoeUser}\``,
         `WiFi: ${ctx.data.wifi_ssid} / ${ctx.data.wifi_password}`
     ];
-    const snLine = candidate ? `Modem: SN \`${shortSn(candidate.serialNumber)}\` (${candidate.model})` : "Modem: (tak ada device terpilih)";
+    const snLine = candidate ? `Modem: SN \`${snText(candidate.serialNumber)}\` (${candidate.model})` : "Modem: (tak ada device terpilih)";
 
     let replyLines;
     if (pushFailed) {
@@ -383,7 +393,7 @@ async function provision(context, ctx, candidate) {
             `⚠️ *${ctx.data.nama}* terdaftar, TAPI konfigurasi ke modem *GAGAL*${dc.message ? ` (${dc.message})` : ""}.`,
             ...credLines,
             snLine,
-            `👉 Set PPPoE + WiFi *manual* di modem pakai kredensial di atas. Pesan WiFi ke pelanggan DITAHAN sampai modem beres.`
+            `👉 Cek modem fisik (nyala & konek). WiFi bisa di-set manual pakai data di atas; PPPoE minta *admin* (akses terbatas). Pesan WiFi ke pelanggan DITAHAN sampai modem beres.`
         ];
     } else if (candidate && pushOk) {
         replyLines = [
@@ -406,7 +416,7 @@ async function provision(context, ctx, candidate) {
             `✅ *${ctx.data.nama}* terdaftar.`,
             ...credLines,
             snLine,
-            `Set PPPoE di modem manual pakai kredensial di atas.`
+            `Set WiFi manual pakai data di atas; PPPoE di modem minta *admin* (akses terbatas).`
         ];
     }
     await safeReply(reply, replyLines.join("\n"), logger);
@@ -417,12 +427,16 @@ async function provision(context, ctx, candidate) {
         if (sendGroupSummary && summaryGroupId) {
             await sendGroupSummary(summaryGroupId, [
                 pushFailed
-                    ? `⚠️ *PSB perlu tindak lanjut* (modem belum ter-set) — ${botAreaLabel || cfg.nama || "area"}`
-                    : `✅ *PSB selesai* — ${botAreaLabel || cfg.nama || "area"}`,
-                `Pelanggan: ${ctx.data.nama} (${ctx.data.hp}) · ${ctx.data.paket}`,
-                candidate ? `Modem: SN ${shortSn(candidate.serialNumber)} (${candidate.model}${bandLabel ? ` · ${bandLabel}` : ""})` : "Modem: set manual",
-                pushFailed ? "⚠️ Set WiFi/PPPoE manual di modem — konfigurasi ACS gagal." : null,
-                `Oleh: ${ctx.staff.name || ctx.staff.username}`
+                    ? `⚠️ *PSB PERLU TINDAK LANJUT* — ${botAreaLabel || cfg.nama || "area"}`
+                    : `✅ *PSB SELESAI* — ${botAreaLabel || cfg.nama || "area"}`,
+                ``,
+                `👤 ${ctx.data.nama} · Dusun ${ctx.data.dusun}`,
+                `📦 ${ctx.data.paket} · 📶 ${ctx.data.wifi_ssid}`,
+                `📱 ${ctx.data.hp}`,
+                candidate ? `📡 Modem: SN ${snText(candidate.serialNumber)} (${candidate.model}${bandLabel ? ` · ${bandLabel}` : ""})` : "📡 Modem: set manual",
+                `🧑‍🔧 Oleh: ${ctx.staff.name || ctx.staff.username}`,
+                pushFailed ? "⚠️ Modem belum ter-set — WiFi set manual, PPPoE via admin." : null,
+                monthInstalled ? `\n📊 *PSB bulan ini: ${monthInstalled} terpasang* (via bot)` : null
             ].filter(Boolean).join("\n"));
         }
     } catch (e) { logger?.error?.("[PSB_DM] ringkasan grup gagal:", e.message); }
