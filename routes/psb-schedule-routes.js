@@ -1,19 +1,46 @@
 /**
  * Header Doc
  * Purpose: API papan PSB terjadwal untuk WEB — paritas dengan WA `#jadwal` (kontrak SAMA:
- *          identitas + 3 BUKTI wajib). Create (menunggu) + list + summary. Notif grup pakai
- *          builder yang SAMA dgn WA (`buildScheduleGroupNotif`) → seragam. Bagian S2 standarisasi.
+ *          identitas + 3 BUKTI wajib). Create (menunggu) + list + summary + ASSIGNMENT (Fase B:
+ *          admin TUGASKAN / teknisi AMBIL). Notif grup + DM teknisi pakai builder yang SAMA dgn
+ *          WA (`buildScheduleGroupNotif`/`buildAssignmentDm`/`buildAssignmentGroupNotif`) → seragam.
  * Caller: `routes/api.js` (mount `router.use(createPsbScheduleRouter())`).
  * Deps: Express, `lib/psb-schedule-service`, `message/handlers/psb-caption-parser` (resolvePackage),
- *        `message/handlers/reply-runtime` (sendReply, lazy) untuk notif grup.
- * MainFuncs: `createPsbScheduleRouter()`.
- * SideEffects: Tulis papan `psb_schedule` + kirim WA notif grup (best-effort, never-throw).
+ *        `lib/jid-utils` (normalizePhoneToJid), `message/handlers/reply-runtime` (sendReply, lazy),
+ *        `global.accounts` (resolusi teknisi).
+ * MainFuncs: `createPsbScheduleRouter()`; helper `loadTeknisiAccounts`/`resolveTeknisiById`/`sendAssignmentNotifs`.
+ * SideEffects: Tulis papan `psb_schedule` + kirim WA notif grup & DM teknisi (best-effort, never-throw).
  */
 "use strict";
 
 const express = require("express");
 const scheduleService = require("../lib/psb-schedule-service");
 const { resolvePackage } = require("../message/handlers/psb-caption-parser");
+const { normalizePhoneToJid } = require("../lib/jid-utils");
+
+const ADMIN_ROLES = ["admin", "owner", "superadmin"];
+function isAdminRole(role) { return ADMIN_ROLES.includes(String(role || "").toLowerCase()); }
+
+// Akun teknisi dari global.accounts (untuk dropdown assign + resolusi + DM).
+function loadTeknisiAccounts() {
+    return (global.accounts || [])
+        .filter((a) => a && String(a.role || "").toLowerCase() === "teknisi")
+        .map((a) => ({ id: a.id, name: a.name || a.username, username: a.username, phone_number: a.phone_number }));
+}
+function resolveTeknisiById(id) {
+    const wanted = String(id);
+    return loadTeknisiAccounts().find((a) => String(a.id) === wanted) || null;
+}
+function assignErrorMessage(reason) {
+    switch (reason) {
+        case "not_found": return "Jadwal tak ditemukan.";
+        case "already_installed": return "Jadwal sudah terpasang.";
+        case "cancelled": return "Jadwal sudah dibatalkan.";
+        case "already_assigned": return "Jadwal sudah dipegang teknisi lain (minta admin untuk mengalihkan).";
+        case "no_teknisi": return "Teknisi tak valid.";
+        default: return "Tak bisa menugaskan jadwal ini.";
+    }
+}
 
 function createPsbScheduleRouter() {
     const router = express.Router();
@@ -23,6 +50,20 @@ function createPsbScheduleRouter() {
             return res.status(403).json({ status: 403, message: "Akses ditolak (khusus staf)." });
         }
         return next();
+    }
+
+    // DM teknisi + announce grup saat assign/claim (best-effort, NEVER-THROW). TEKS = builder service (seragam WA/web).
+    async function sendAssignmentNotifs(record, teknisiAccount, { mode, assignedByName }) {
+        try {
+            const { sendReply } = require("../message/handlers/reply-runtime");
+            if (teknisiAccount && teknisiAccount.phone_number) {
+                const jid = normalizePhoneToJid(teknisiAccount.phone_number);
+                if (jid) await sendReply({ recipient: jid, text: scheduleService.buildAssignmentDm(record, { assignedByName, mode }) });
+            }
+            const psbCfg = (global.config && global.config.psbIntake) || {};
+            const groupId = psbCfg.summaryGroupId || psbCfg.groupId;
+            if (groupId) await sendReply({ recipient: groupId, text: scheduleService.buildAssignmentGroupNotif(record, { mode, assignedByName }) });
+        } catch (e) { console.error("[PSB_SCHEDULE_ASSIGN_NOTIF_ERROR]", e.message); }
     }
 
     // Notif grup (best-effort, never-throw) via delivery boundary — TEKS sama dgn jalur WA.
@@ -96,6 +137,47 @@ function createPsbScheduleRouter() {
             const rows = await scheduleService.listSchedules({ status: req.query.status || null });
             return res.json({ status: 200, data: rows });
         } catch (e) { return res.status(500).json({ status: 500, message: e.message }); }
+    });
+
+    // GET /api/psb-schedule/teknisi — daftar teknisi untuk dropdown TUGASKAN (staf).
+    router.get("/psb-schedule/teknisi", ensureStaff, (req, res) => {
+        return res.json({ status: 200, data: loadTeknisiAccounts().map((t) => ({ id: t.id, name: t.name })) });
+    });
+
+    // POST /api/psb-schedule/:id/assign — admin TUGASKAN ke teknisi tertentu. Body { teknisiId }.
+    router.post("/psb-schedule/:id/assign", ensureStaff, async (req, res) => {
+        try {
+            if (!isAdminRole(req.user.role)) return res.status(403).json({ status: 403, message: "Hanya admin yang boleh menugaskan (teknisi pakai Ambil)." });
+            const teknisi = resolveTeknisiById((req.body || {}).teknisiId);
+            if (!teknisi) return res.status(400).json({ status: 400, message: "Teknisi tak ditemukan." });
+            const result = await scheduleService.assignSchedule({
+                scheduleId: req.params.id, teknisiId: teknisi.id, teknisiName: teknisi.name,
+                assignedById: req.user.id, assignedByName: req.user.name || req.user.username, mode: "assign"
+            });
+            if (!result.ok) return res.status(result.reason === "not_found" ? 404 : 409).json({ status: result.reason === "not_found" ? 404 : 409, message: assignErrorMessage(result.reason) });
+            await sendAssignmentNotifs(result.record, teknisi, { mode: "assign", assignedByName: req.user.name || req.user.username });
+            return res.json({ status: 200, message: `Ditugaskan ke ${teknisi.name}`, data: result.record });
+        } catch (e) {
+            console.error("[PSB_SCHEDULE_ASSIGN_ERROR]", e.message);
+            return res.status(500).json({ status: 500, message: "Gagal menugaskan: " + e.message });
+        }
+    });
+
+    // POST /api/psb-schedule/:id/claim — teknisi (atau staf) AMBIL sendiri (self-assign).
+    router.post("/psb-schedule/:id/claim", ensureStaff, async (req, res) => {
+        try {
+            const meAcc = resolveTeknisiById(req.user.id) || { id: req.user.id, name: req.user.name || req.user.username, phone_number: null };
+            const result = await scheduleService.assignSchedule({
+                scheduleId: req.params.id, teknisiId: req.user.id, teknisiName: req.user.name || req.user.username,
+                assignedById: req.user.id, assignedByName: req.user.name || req.user.username, mode: "claim"
+            });
+            if (!result.ok) return res.status(result.reason === "not_found" ? 404 : 409).json({ status: result.reason === "not_found" ? 404 : 409, message: assignErrorMessage(result.reason) });
+            await sendAssignmentNotifs(result.record, meAcc, { mode: "claim", assignedByName: req.user.name || req.user.username });
+            return res.json({ status: 200, message: `Kamu mengambil ${result.record.ref}`, data: result.record });
+        } catch (e) {
+            console.error("[PSB_SCHEDULE_CLAIM_ERROR]", e.message);
+            return res.status(500).json({ status: 500, message: "Gagal mengambil: " + e.message });
+        }
     });
 
     return router;

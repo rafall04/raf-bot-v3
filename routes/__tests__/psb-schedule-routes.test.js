@@ -14,10 +14,19 @@ jest.mock("../../lib/psb-schedule-service", () => ({
     createRequest: jest.fn(),
     getScheduleSummary: jest.fn(),
     listSchedules: jest.fn(),
-    buildScheduleGroupNotif: jest.fn(() => "notif")
+    buildScheduleGroupNotif: jest.fn(() => "notif"),
+    assignSchedule: jest.fn(),
+    buildAssignmentDm: jest.fn(() => "dm"),
+    buildAssignmentGroupNotif: jest.fn(() => "gnotif")
 }));
 jest.mock("../../message/handlers/psb-caption-parser", () => ({
     resolvePackage: jest.fn()
+}));
+jest.mock("../../lib/jid-utils", () => ({
+    normalizePhoneToJid: jest.fn((p) => (p ? `${p}@s.whatsapp.net` : null))
+}));
+jest.mock("../../message/handlers/reply-runtime", () => ({
+    sendReply: jest.fn(async () => {})
 }));
 
 const express = require("express");
@@ -175,5 +184,103 @@ describe("psb-schedule routes", () => {
         } finally {
             await stopServer(server);
         }
+    });
+});
+
+const TEKNISI = { id: 3, username: "davin", name: "DAVIN", role: "teknisi" };
+const { sendReply } = require("../../message/handlers/reply-runtime");
+
+describe("psb-schedule assignment routes (Fase B)", () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        global.accounts = [
+            { id: 3, name: "DAVIN", username: "davin", role: "teknisi", phone_number: "628111" },
+            { id: 4, name: "IVAN", username: "ivan", role: "teknisi", phone_number: "628222" },
+            { id: 1, name: "Aldi", username: "aldi", role: "admin", phone_number: "628999" }
+        ];
+        global.config = { psbIntake: { summaryGroupId: "group@g.us" } };
+    });
+    afterAll(() => { delete global.accounts; delete global.config; });
+
+    async function postJson(baseUrl, pathname, body) {
+        const r = await fetch(`${baseUrl}${pathname}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+        return { status: r.status, payload: await r.json() };
+    }
+
+    test("GET /psb-schedule/teknisi → hanya akun role teknisi (id+name)", async () => {
+        const { server, baseUrl } = await startServer(createApp(ADMIN));
+        try {
+            const r = await fetch(`${baseUrl}/psb-schedule/teknisi`);
+            const payload = await r.json();
+            expect(r.status).toBe(200);
+            expect(payload.data).toEqual([{ id: 3, name: "DAVIN" }, { id: 4, name: "IVAN" }]);
+        } finally { await stopServer(server); }
+    });
+
+    test("POST /:id/assign oleh admin → 200, assignSchedule mode=assign + DM teknisi + notif grup", async () => {
+        scheduleService.assignSchedule.mockResolvedValue({ ok: true, mode: "assign", record: { id: 5, ref: "PSB-5", assigned_teknisi_name: "IVAN", phone_number: "628222" } });
+        const { server, baseUrl } = await startServer(createApp(ADMIN));
+        try {
+            const { status, payload } = await postJson(baseUrl, "/psb-schedule/5/assign", { teknisiId: 4 });
+            expect(status).toBe(200);
+            expect(payload.data.ref).toBe("PSB-5");
+            const arg = scheduleService.assignSchedule.mock.calls[0][0];
+            expect(arg.teknisiId).toBe(4);
+            expect(arg.teknisiName).toBe("IVAN");
+            expect(arg.mode).toBe("assign");
+            expect(sendReply).toHaveBeenCalledTimes(2); // DM teknisi + notif grup
+        } finally { await stopServer(server); }
+    });
+
+    test("POST /:id/assign oleh TEKNISI → 403 (hanya admin yang menugaskan)", async () => {
+        const { server, baseUrl } = await startServer(createApp(TEKNISI));
+        try {
+            const { status } = await postJson(baseUrl, "/psb-schedule/5/assign", { teknisiId: 4 });
+            expect(status).toBe(403);
+            expect(scheduleService.assignSchedule).not.toHaveBeenCalled();
+        } finally { await stopServer(server); }
+    });
+
+    test("POST /:id/assign teknisiId tak dikenal → 400", async () => {
+        const { server, baseUrl } = await startServer(createApp(ADMIN));
+        try {
+            const { status } = await postJson(baseUrl, "/psb-schedule/5/assign", { teknisiId: 99 });
+            expect(status).toBe(400);
+            expect(scheduleService.assignSchedule).not.toHaveBeenCalled();
+        } finally { await stopServer(server); }
+    });
+
+    test("POST /:id/assign service not_found → 404; already_installed → 409", async () => {
+        const { server, baseUrl } = await startServer(createApp(ADMIN));
+        try {
+            scheduleService.assignSchedule.mockResolvedValueOnce({ ok: false, reason: "not_found" });
+            expect((await postJson(baseUrl, "/psb-schedule/9/assign", { teknisiId: 4 })).status).toBe(404);
+            scheduleService.assignSchedule.mockResolvedValueOnce({ ok: false, reason: "already_installed" });
+            expect((await postJson(baseUrl, "/psb-schedule/9/assign", { teknisiId: 4 })).status).toBe(409);
+        } finally { await stopServer(server); }
+    });
+
+    test("POST /:id/claim oleh teknisi → 200, mode=claim (self) + notif", async () => {
+        scheduleService.assignSchedule.mockResolvedValue({ ok: true, mode: "claim", record: { id: 6, ref: "PSB-6", assigned_teknisi_name: "DAVIN" } });
+        const { server, baseUrl } = await startServer(createApp(TEKNISI));
+        try {
+            const { status, payload } = await postJson(baseUrl, "/psb-schedule/6/claim", {});
+            expect(status).toBe(200);
+            expect(payload.data.ref).toBe("PSB-6");
+            const arg = scheduleService.assignSchedule.mock.calls[0][0];
+            expect(arg.teknisiId).toBe(3);
+            expect(arg.mode).toBe("claim");
+            expect(sendReply).toHaveBeenCalled(); // minimal notif grup (DM ke diri sendiri bila punya nomor)
+        } finally { await stopServer(server); }
+    });
+
+    test("POST /:id/claim jadwal sudah dipegang teknisi lain → 409 (anti-serobot)", async () => {
+        scheduleService.assignSchedule.mockResolvedValue({ ok: false, reason: "already_assigned" });
+        const { server, baseUrl } = await startServer(createApp(TEKNISI));
+        try {
+            const { status, payload } = await postJson(baseUrl, "/psb-schedule/6/claim", {});
+            expect(status).toBe(409);
+            expect(payload.message).toMatch(/teknisi lain/i);
+        } finally { await stopServer(server); }
     });
 });

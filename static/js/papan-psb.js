@@ -78,17 +78,69 @@ function statusBadge(s) {
     return `<span class="badge ${map[s] || "badge-light"}">${esc(s || "-")}</span>`;
 }
 
+let currentUser = null; // {id, role, name} dari /api/me
+let teknisiList = [];   // [{id,name}] untuk dropdown TUGASKAN (admin)
+
+function isAdmin() { return currentUser && ["admin", "owner", "superadmin"].includes(String(currentUser.role || "").toLowerCase()); }
+
+function teknisiOptions(selectedId) {
+    const opts = ['<option value="">— pilih teknisi —</option>'];
+    teknisiList.forEach((t) => {
+        const sel = String(t.id) === String(selectedId) ? " selected" : "";
+        opts.push(`<option value="${esc(t.id)}"${sel}>${esc(t.name)}</option>`);
+    });
+    return opts.join("");
+}
+
+// Sel Aksi per baris: admin → dropdown teknisi + Tugaskan/Alihkan; teknisi → Ambil (hanya saat menunggu).
+function actionCell(r) {
+    if (r.status === "terpasang" || r.status === "batal") return '<span class="text-muted">—</span>';
+    if (isAdmin()) {
+        const label = r.status === "ditugaskan" ? "Alihkan" : "Tugaskan";
+        return `<div class="d-flex" style="gap:4px">
+            <select class="form-control form-control-sm" style="width:auto" id="tek-${esc(r.id)}">${teknisiOptions(r.assigned_teknisi_id)}</select>
+            <button class="btn btn-sm btn-primary" onclick="assignRow(${esc(r.id)})">${label}</button>
+        </div>`;
+    }
+    if (r.status === "menunggu") return `<button class="btn btn-sm btn-success" onclick="claimRow(${esc(r.id)})">Ambil</button>`;
+    return '<span class="text-muted">—</span>';
+}
+
 function renderList(rows) {
     const tb = document.getElementById("papanBody");
-    if (!rows.length) { tb.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Belum ada data</td></tr>'; return; }
+    if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Belum ada data</td></tr>'; return; }
     tb.innerHTML = rows.map((r) => `<tr>
         <td><code>${esc(r.ref || r.id)}</code></td>
         <td>${esc(r.name)}</td>
         <td>${esc(r.dusun)}</td>
         <td>${esc(r.paket)}</td>
         <td>${statusBadge(r.status)}</td>
-        <td><small>${esc(r.requested_by_name || "-")}</small></td>
+        <td>${r.assigned_teknisi_name ? esc(r.assigned_teknisi_name) : '<span class="text-muted">—</span>'}</td>
+        <td>${actionCell(r)}</td>
     </tr>`).join("");
+}
+
+async function assignRow(id) {
+    const sel = document.getElementById(`tek-${id}`);
+    const teknisiId = sel ? sel.value : "";
+    if (!teknisiId) return showAlert("Pilih teknisi dulu.", "warning");
+    try {
+        const r = await fetch(`/api/psb-schedule/${id}/assign`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teknisiId }) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.message || "gagal menugaskan");
+        showAlert("✅ " + (j.message || "Ditugaskan"), "success");
+        muatPapan();
+    } catch (e) { showAlert("❌ " + e.message, "danger"); }
+}
+
+async function claimRow(id) {
+    try {
+        const r = await fetch(`/api/psb-schedule/${id}/claim`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}" });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.message || "gagal mengambil");
+        showAlert("✅ " + (j.message || "Diambil"), "success");
+        muatPapan();
+    } catch (e) { showAlert("❌ " + e.message, "danger"); }
 }
 
 async function muatPapan() {
@@ -104,13 +156,30 @@ async function muatPapan() {
         setText("sumTerpasang", s.terpasang_bulan_ini != null ? s.terpasang_bulan_ini : 0);
         renderList((lr && lr.data) || []);
     } catch (_e) {
-        document.getElementById("papanBody").innerHTML = '<tr><td colspan="6" class="text-center text-danger">Gagal memuat papan</td></tr>';
+        document.getElementById("papanBody").innerHTML = '<tr><td colspan="7" class="text-center text-danger">Gagal memuat papan</td></tr>';
     }
 }
 
-document.addEventListener("DOMContentLoaded", muatPapan);
+// Init: kenali peran (Tugaskan vs Ambil) + muat daftar teknisi (admin) SEBELUM render papan.
+async function initPapan() {
+    try {
+        const me = await fetch("/api/me", { credentials: "include" }).then((r) => r.json());
+        if (me && me.data) currentUser = me.data;
+    } catch (_e) { /* biar default non-admin */ }
+    if (isAdmin()) {
+        try {
+            const t = await fetch("/api/psb-schedule/teknisi", { credentials: "include" }).then((r) => r.json());
+            teknisiList = (t && t.data) || [];
+        } catch (_e) { teknisiList = []; }
+    }
+    await muatPapan();
+}
+
+document.addEventListener("DOMContentLoaded", initPapan);
 
 // Dipanggil dari onclick di papan-psb.php.
 window.muatPapan = muatPapan;
 window.ambilLokasi = ambilLokasi;
 window.submitPsb = submitPsb;
+window.assignRow = assignRow;
+window.claimRow = claimRow;
