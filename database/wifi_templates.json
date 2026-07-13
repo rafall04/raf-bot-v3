@@ -1169,5 +1169,18 @@
     "category": "admin",
     "description": "Rangkuman data jalur ISP: status, layanan, rapor 24 jam/7 hari (Admin/Owner)",
     "icon": "📊"
+  },
+  {
+    "keywords": [
+      "oper jalur",
+      "oper koneksi",
+      "oper segmen",
+      "oper segment",
+      "oper"
+    ],
+    "intent": "OPER_JALUR",
+    "category": "admin",
+    "description": "Oper koneksi per SEGMEN (pool) ke jalur lain — Admin/Owner",
+    "icon": "🔀"
   }
 ]

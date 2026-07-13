@@ -17,6 +17,7 @@ const { handleAgentVoucherConversationState } = require("./state-domains/agent-v
 const { handleAutoOutageState } = require("./state-domains/auto-outage-state-handler");
 const { handlePsbConversationState } = require("./state-domains/psb.state");
 const { handleWanSwitchConversationState } = require("./state-domains/wan-switch.state");
+const { handleOperJalurConversationState } = require("./state-domains/oper-jalur.state");
 const { handlePaymentProofAdminState } = require("./state-domains/payment-proof-admin.state");
 
 async function routeConversationState(context) {
@@ -55,6 +56,9 @@ async function routeConversationState(context) {
     }
     if (owner === "wan-switch") {
         return { owner, ...(await handleWanSwitchConversationState(domainContext)) };
+    }
+    if (owner === "oper-jalur") {
+        return { owner, ...(await handleOperJalurConversationState(domainContext)) };
     }
     if (owner === "payment-proof") {
         return { owner, ...(await handlePaymentProofAdminState(domainContext)) };

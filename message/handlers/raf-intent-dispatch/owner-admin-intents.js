@@ -86,6 +86,21 @@ async function handleDataIspIntent(context) {
     return reply(renderResponseTemplate("ispdata_result", "${body}", { body }));
 }
 
+async function handleOperJalurIntent(context) {
+    // Owner/admin-only. Gate peran presisi (accounts.json) ada di dalam startOperJalur, jadi
+    // non-admin di-`handled:false` diam-diam. "oper <segmen> ke <jalur>" → pratinjau + konfirmasi.
+    const { startOperJalur } = require("../state-domains/oper-jalur.state");
+    const result = await startOperJalur(context);
+    if (result && result.handled) return;
+    const { reply, renderResponseTemplate } = context;
+    if (typeof reply === "function") {
+        return reply(renderResponseTemplate(
+            "oper_not_authorized",
+            "Perintah ini khusus admin. Ketik *menu* untuk melihat fitur yang tersedia."
+        ));
+    }
+}
+
 async function handleDaftarPelangganIntent(context) {
     const { isOwner, isTeknisi, reply, mess, qAfterKeyword } = context;
     if (!isOwner && !isTeknisi) {
@@ -122,7 +137,8 @@ const OWNER_ADMIN_INTENT_HANDLERS = Object.freeze({
     CARI_PELANGGAN: handleCariPelangganIntent,
     DAFTAR_PELANGGAN: handleDaftarPelangganIntent,
     SWITCH_KONEKSI: handleSwitchKoneksiIntent,
-    DATA_ISP: handleDataIspIntent
+    DATA_ISP: handleDataIspIntent,
+    OPER_JALUR: handleOperJalurIntent
 });
 
 module.exports = {

@@ -4891,5 +4891,53 @@
       "count",
       "daftar"
     ]
+  },
+  "oper_segment_preview": {
+    "name": "Oper Segmen - Pratinjau (konfirmasi)",
+    "category": "network_admin",
+    "template": "🔀 *Oper Segmen — Pratinjau*\n\nSegmen: *${segmen}* (${aktif} pelanggan aktif)\nJalur: *${from}* → *${to}*\n\nLangkah yang akan dijalankan di router:\n${ops}\n\nBalas *YA* untuk lanjut, atau *batal* untuk membatalkan.",
+    "placeholders": ["segmen", "aktif", "from", "to", "ops"]
+  },
+  "oper_segment_applied": {
+    "name": "Oper Segmen - Berhasil",
+    "category": "network_admin",
+    "template": "✅ Segmen *${segmen}* dipindah *${from}* → *${to}* (terverifikasi di router).",
+    "placeholders": ["segmen", "from", "to"]
+  },
+  "oper_segment_noop": {
+    "name": "Oper Segmen - Sudah di jalur itu",
+    "category": "network_admin",
+    "template": "ℹ️ Segmen *${segmen}* sudah di *${to}*. Tidak ada perubahan.",
+    "placeholders": ["segmen", "to"]
+  },
+  "oper_segment_failed": {
+    "name": "Oper Segmen - Gagal",
+    "category": "network_admin",
+    "template": "❌ Gagal oper segmen: ${error}",
+    "placeholders": ["error"]
+  },
+  "oper_segment_invalid": {
+    "name": "Oper Segmen - Format salah",
+    "category": "network_admin",
+    "template": "⚠️ ${error}\n\nContoh: *oper free ke gmdp*\nSegmen: ${daftar_segmen}\nJalur: mni / gmdp",
+    "placeholders": ["error", "daftar_segmen"]
+  },
+  "oper_segment_cancelled": {
+    "name": "Oper Segmen - Dibatalkan",
+    "category": "network_admin",
+    "template": "Dibatalkan. Tidak ada perubahan pada segmen.",
+    "placeholders": []
+  },
+  "oper_segment_need_yes": {
+    "name": "Oper Segmen - Minta konfirmasi ya/batal",
+    "category": "network_admin",
+    "template": "Balas *ya* untuk lanjut, atau *batal* untuk membatalkan.",
+    "placeholders": []
+  },
+  "oper_not_authorized": {
+    "name": "Oper Segmen - Bukan admin",
+    "category": "network_admin",
+    "template": "Perintah ini khusus admin. Ketik *menu* untuk melihat fitur yang tersedia.",
+    "placeholders": []
   }
 }
