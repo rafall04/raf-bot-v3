@@ -16,7 +16,9 @@
  *        `sendGroupSummary`. Require langsung: `./psb-caption-parser`, `fs`, `path`.
  * MainFuncs: `startPsbSession(context)`, `handlePsbConversationState(context)`.
  * SideEffects: Tulis foto KTP/rumah + lokasi ke `uploads/psb/...`, buat pelanggan + push modem GenieACS +
- *              kirim WA (welcome pelanggan + ringkasan grup). NEVER-THROW.
+ *              kirim WA (welcome pelanggan + ringkasan grup). Reply teknisi & ringkasan grup JUJUR ikut
+ *              hasil push modem (`body.device_config{attempted,ok}`): klaim "online/di-push" hanya bila
+ *              `ok`, selain itu minta set manual (anti sukses-semu). NEVER-THROW.
  */
 "use strict";
 
@@ -268,25 +270,66 @@ async function provision(context, ctx, candidate) {
         if (ctx.lokasi) fs.writeFileSync(path.join(ctx.dir, "lokasi.json"), JSON.stringify(ctx.lokasi, null, 2));
     } catch (_e) { /* best-effort */ }
 
-    const snLine = candidate ? `Modem: SN \`${shortSn(candidate.serialNumber)}\` (${candidate.model})` : "Modem: (set manual — tak ada device terpilih)";
-    await safeReply(reply, [
-        `✅ *${ctx.data.nama}* online!`,
+    // Baca hasil push modem yang SEBENARNYA (bukan asumsi "ada candidate") — hindari sukses semu.
+    // persist sudah MENAHAN welcome pelanggan saat push gagal (warning device_config_failed);
+    // di sini reply teknisi ikut jujur: klaim "online / sudah di-push" HANYA bila device_config.ok.
+    const body = (result && result.body) || {};
+    const dc = body.device_config || { attempted: false, ok: false, message: null };
+    const pushFailed = body.warning === "device_config_failed" || Boolean(dc.attempted && !dc.ok);
+    const pushOk = Boolean(dc.attempted && dc.ok);
+    const credLines = [
         `PPPoE: \`${pppoeUser}\` / \`${pppoePass}\``,
-        `WiFi: ${ctx.data.wifi_ssid} / ${ctx.data.wifi_password}`,
-        snLine,
-        candidate ? "PPPoE + WiFi sudah di-push ke modem. Welcome dikirim ke pelanggan." : "Set PPPoE di modem manual pakai kredensial di atas."
-    ].join("\n"), logger);
+        `WiFi: ${ctx.data.wifi_ssid} / ${ctx.data.wifi_password}`
+    ];
+    const snLine = candidate ? `Modem: SN \`${shortSn(candidate.serialNumber)}\` (${candidate.model})` : "Modem: (tak ada device terpilih)";
 
-    // Ringkasan ke grup PSB bersama (best-effort, delivery boundary).
+    let replyLines;
+    if (pushFailed) {
+        // Pelanggan TERDAFTAR, tapi konfigurasi ke modem GAGAL → jangan bilang "online".
+        replyLines = [
+            `⚠️ *${ctx.data.nama}* terdaftar, TAPI konfigurasi ke modem *GAGAL*${dc.message ? ` (${dc.message})` : ""}.`,
+            ...credLines,
+            snLine,
+            `👉 Set PPPoE + WiFi *manual* di modem pakai kredensial di atas. Pesan WiFi ke pelanggan DITAHAN sampai modem beres.`
+        ];
+    } else if (candidate && pushOk) {
+        replyLines = [
+            `✅ *${ctx.data.nama}* online!`,
+            ...credLines,
+            snLine,
+            `PPPoE + WiFi sudah di-push ke modem. Welcome dikirim ke pelanggan.`
+        ];
+    } else if (candidate) {
+        // Modem terpilih tapi push tak terkonfirmasi (mis. tak ada payload) — jangan klaim beres.
+        replyLines = [
+            `✅ *${ctx.data.nama}* terdaftar.`,
+            ...credLines,
+            snLine,
+            `⚠️ Konfigurasi ke modem belum terkonfirmasi — cek WiFi/PPPoE di modem.`
+        ];
+    } else {
+        replyLines = [
+            `✅ *${ctx.data.nama}* terdaftar.`,
+            ...credLines,
+            snLine,
+            `Set PPPoE di modem manual pakai kredensial di atas.`
+        ];
+    }
+    await safeReply(reply, replyLines.join("\n"), logger);
+
+    // Ringkasan ke grup PSB bersama (best-effort, delivery boundary). Header jujur ikut hasil push.
     try {
         const summaryGroupId = psbCfg.summaryGroupId || psbCfg.groupId;
         if (sendGroupSummary && summaryGroupId) {
             await sendGroupSummary(summaryGroupId, [
-                `✅ *PSB selesai* — ${botAreaLabel || cfg.nama || "area"}`,
+                pushFailed
+                    ? `⚠️ *PSB perlu tindak lanjut* (modem belum ter-set) — ${botAreaLabel || cfg.nama || "area"}`
+                    : `✅ *PSB selesai* — ${botAreaLabel || cfg.nama || "area"}`,
                 `Pelanggan: ${ctx.data.nama} (${ctx.data.hp}) · ${ctx.data.paket}`,
                 candidate ? `Modem: SN ${shortSn(candidate.serialNumber)} (${candidate.model})` : "Modem: set manual",
+                pushFailed ? "⚠️ Set WiFi/PPPoE manual di modem — konfigurasi ACS gagal." : null,
                 `Oleh: ${ctx.staff.name || ctx.staff.username}`
-            ].join("\n"));
+            ].filter(Boolean).join("\n"));
         }
     } catch (e) { logger?.error?.("[PSB_DM] ringkasan grup gagal:", e.message); }
 

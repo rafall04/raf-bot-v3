@@ -27,7 +27,7 @@ function harness(overrides = {}) {
     let state = null;
     const setUserState = jest.fn((k, s) => { state = s; });
     const deleteUserState = jest.fn(() => { state = null; });
-    const upsert = jest.fn(async () => ({ status: 201, body: { data: { id: 99 } } }));
+    const upsert = jest.fn(async () => ({ status: 201, body: { data: { id: 99 }, device_config: { attempted: true, ok: true, message: "ok" } } }));
     const base = {
         stateSender: "628999@s.whatsapp.net",
         reply: jest.fn(async () => {}),
@@ -83,6 +83,8 @@ describe("psb.state wizard DM", () => {
         // Username dirakit dari Nama+Dusun; password pakai default (harness tak set → fallback rafnet123), BUKAN acak.
         expect(arg.userData.pppoe_username).toBe("budi_santoso-krajan@rafcybernet");
         expect(arg.userData.pppoe_password).toBe("rafnet123");
+        // Push modem OK (device_config.ok) → reply boleh klaim "online".
+        expect(h.base.reply.mock.calls.map((c) => c[0]).join("\n---\n")).toMatch(/online/i);
         expect(h.base.sendGroupSummary).toHaveBeenCalledTimes(1);
         expect(h.getState()).toBeNull(); // state dibersihkan setelah selesai
     });
@@ -139,6 +141,24 @@ describe("psb.state wizard DM", () => {
         const arg = h.base.usersService.upsertUserFromAdminPanel.mock.calls[0][0];
         expect(arg.userData.pppoe_username).toBe("budi_santoso-krajan@myisp");
         expect(arg.userData.pppoe_password).toBe("sandi999");
+    });
+
+    test("push modem GAGAL (device_config_failed) → reply JUJUR (bukan 'online!') + grup minta tindak lanjut", async () => {
+        const failUpsert = jest.fn(async () => ({
+            status: 201,
+            body: { data: { id: 99 }, device_config: { attempted: true, ok: false, message: "timeout ACS" }, warning: "device_config_failed" }
+        }));
+        const h = harness({ usersService: { upsertUserFromAdminPanel: failUpsert } });
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+
+        const allReplies = h.base.reply.mock.calls.map((c) => c[0]).join("\n---\n");
+        expect(allReplies).toMatch(/GAGAL/);
+        expect(allReplies).toMatch(/manual/i);
+        expect(allReplies).not.toContain("online!"); // anti sukses-semu
+        const summary = h.base.sendGroupSummary.mock.calls.map((c) => c[1]).join("\n");
+        expect(summary).toMatch(/tindak lanjut/i);
+        expect(h.getState()).toBeNull(); // pelanggan tetap terdaftar, sesi ditutup
     });
 });
 
