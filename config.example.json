@@ -187,7 +187,8 @@
   },
   "paymentProof": {
     "enabled": true,
-    "adminUrl": ""
+    "adminUrl": "",
+    "adminQuietMinutes": 15
   },
   "voucherSaleNotif": {
     "enabled": false

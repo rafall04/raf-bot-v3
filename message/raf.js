@@ -23,7 +23,7 @@ const { getPppStats: _getPppStats, getHotspotStats: _getHotspotStats, statusap: 
 const { addPayment } = require("../lib/payment");
 const { getIntentFromKeywords } = require('../lib/wifi_template_handler');
 const { getLooseIntentFromKeywords } = require('../lib/loose-intent-matcher');
-const { noteAdminOutbound } = require('../lib/chat-activity-tracker');
+const { noteAdminOutbound, isAdminHandlingChat } = require('../lib/chat-activity-tracker');
 const { evaluateCustomerFallback } = require('./handlers/customer-fallback-handler');
 const { templatesCache, renderTemplate } = require("../lib/templating");
 const { savePackageChangeRequests: _savePackageChangeRequests, saveSpeedRequests: _saveSpeedRequests } = require("../lib/database");
@@ -576,25 +576,36 @@ module.exports = async (raf, msg, m, options = {}) => {
         // managed state); di sini hanya foto "yatim" dari pelanggan TERDAFTAR yang tidak sedang
         // berada dalam alur apa pun. SCOPED (customer only, bukan staf, tanpa userState.step aktif)
         // + NON-THROWING + feature-gated (config.paymentProof.enabled, default ON).
+        // GERBANG ADMIN-AKTIF: bila admin SEDANG menangani chat ini manual dari nomor bot (mis. admin
+        // minta "SS sinyal WiFi" lalu pelanggan kirim screenshot), foto itu BUKAN bukti bayar — jangan
+        // ditangkap. Sumber sinyal & pola sama dengan customer-fallback-handler (getAdminOutboundAgeMs
+        // + [sender, stateSender]); window = config.paymentProof.adminQuietMinutes (default 15).
         if ((type === 'imageMessage' || type === 'documentMessage')
             && canonicalContext.user
             && !isOwner && !isTeknisi
             && !userState?.step
             && (runtimeGlobalScope?.config?.paymentProof?.enabled !== false)) {
-            try {
-                const { handleIncomingPaymentProof } = require('./handlers/payment-proof-handler');
-                const proofResult = await handleIncomingPaymentProof({
-                    msg,
-                    user: canonicalContext.user,
-                    canonicalSender: normalizedSenderForSaldo,
-                    pushname,
-                    messageType: type,
-                    reply,
-                    downloadMedia
-                });
-                if (proofResult && proofResult.handled) return;
-            } catch (proofErr) {
-                console.error('[PAYMENT_PROOF_TRIGGER_ERROR]', proofErr.message);
+            const ppAdminQuietMinutes = runtimeGlobalScope?.config?.paymentProof?.adminQuietMinutes;
+            const ppAdminQuietMs = (Number.isFinite(ppAdminQuietMinutes) ? ppAdminQuietMinutes : 15) * 60 * 1000;
+            const adminHandlingChat = isAdminHandlingChat([sender, stateSender], ppAdminQuietMs);
+            if (adminHandlingChat) {
+                console.log('[PAYMENT_PROOF] Intake foto dilewati — admin sedang menangani chat ini (hindari salah-tangkap SS/diagnostik jadi bukti bayar).');
+            } else {
+                try {
+                    const { handleIncomingPaymentProof } = require('./handlers/payment-proof-handler');
+                    const proofResult = await handleIncomingPaymentProof({
+                        msg,
+                        user: canonicalContext.user,
+                        canonicalSender: normalizedSenderForSaldo,
+                        pushname,
+                        messageType: type,
+                        reply,
+                        downloadMedia
+                    });
+                    if (proofResult && proofResult.handled) return;
+                } catch (proofErr) {
+                    console.error('[PAYMENT_PROOF_TRIGGER_ERROR]', proofErr.message);
+                }
             }
         }
 
