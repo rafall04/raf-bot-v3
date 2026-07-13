@@ -51,6 +51,13 @@ function registerAdminCustomerSteeringRoutes(router, deps) {
         res.status(result.ok ? 200 : 400).json({ success: result.ok === true, data: result });
     }));
 
+    // TERAPKAN pindah segmen ({ segment, path: mni|gmdp, confirm:true }) — MENULIS router (verify+rollback).
+    router.post("/api/customer-steering/segments/apply", ensureAuthenticatedStaff, requireAdminOwner, asyncHandler(async (req, res) => {
+        const { segment, path: targetPath, confirm } = req.body || {};
+        const result = await steering.applySegmentMove({ segment, path: targetPath, confirm: confirm === true, actor: actorFromReq(req) });
+        res.status(result.ok ? 200 : 400).json({ success: result.ok === true, data: result });
+    }));
+
     // Steer satu pelanggan ({ userId, path: gmdp|ih|mni|sf|null }) — null = kembali ke default.
     router.post("/api/customer-steering/steer", ensureAuthenticatedStaff, requireAdminOwner, asyncHandler(async (req, res) => {
         const { userId, path: targetPath } = req.body || {};
