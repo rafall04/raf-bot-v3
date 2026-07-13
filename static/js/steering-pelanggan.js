@@ -219,6 +219,79 @@
         });
     }
 
+    // ── Oper Segmen (pool → jalur) — pakai endpoint /segments{,/preview,/apply}. Tidak butuh
+    //    customerSteering.enabled (apply segmen gate cfg.valid saja). Edit ikut canEdit (peran).
+    function renderSegments(d) {
+        var tbody = document.getElementById("seg-rows");
+        var segs = (d && d.segments) || [];
+        var edit = d && d.canEdit === true;
+        if (!segs.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-muted small p-3">Tidak ada segmen terdaftar.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = segs.map(function (s) {
+            var aksi = edit
+                ? ["mni", "gmdp"].filter(function (p) { return p !== s.currentPath; }).map(function (p) {
+                    return '<button class="btn btn-sm btn-outline-primary py-0 px-2 mr-1 seg-oper" data-seg="' + esc(s.id) +
+                        '" data-label="' + esc(s.label) + '" data-path="' + p + '">→ ' + p.toUpperCase() + "</button>";
+                }).join("")
+                : '<span class="small text-muted">lihat saja</span>';
+            return "<tr>" +
+                "<td><b>" + esc(s.label) + "</b></td>" +
+                "<td class='small'><code>" + esc(s.subnet) + "</code></td>" +
+                "<td>" + badgeJalur(s.currentPath) + (s.ambiguous ? ' <span class="text-warning small" title="subnet aktif di dua list">⚠</span>' : "") + "</td>" +
+                "<td class='small'>" + esc(String(s.activeCount)) + "</td>" +
+                "<td>" + aksi + "</td>" +
+                "</tr>";
+        }).join("");
+        Array.prototype.forEach.call(tbody.querySelectorAll(".seg-oper"), function (b) {
+            b.addEventListener("click", function () {
+                operSegmen(b.getAttribute("data-seg"), b.getAttribute("data-label"), b.getAttribute("data-path"), b);
+            });
+        });
+    }
+
+    function operSegmen(seg, label, path, btn) {
+        btn.disabled = true;
+        fetch("/api/customer-steering/segments/preview?segment=" + encodeURIComponent(seg) + "&path=" + encodeURIComponent(path), { credentials: "same-origin" })
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+                var d = (j && j.data) || {};
+                if (!j.success) { notif(d.error || "Gagal membuat pratinjau.", false); return; }
+                if (d.noop) { notif("Segmen " + label + " sudah di " + path.toUpperCase() + ".", true); return; }
+                var langkah = (d.ops || []).map(function (o, i) { return (i + 1) + ". " + o.desc; }).join("\n");
+                var pesan = "Oper segmen " + label + ": " + String(d.from).toUpperCase() + " → " + path.toUpperCase() +
+                    "\n\nLangkah yang akan dijalankan di router:\n" + langkah + "\n\nLanjutkan?";
+                if (!window.confirm(pesan)) return;
+                return fetch("/api/customer-steering/segments/apply", {
+                    method: "POST", credentials: "same-origin",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ segment: seg, path: path, confirm: true })
+                }).then(function (r) { return r.json(); }).then(function (j2) {
+                    var d2 = (j2 && j2.data) || {};
+                    notif(d2.message || d2.error || (j2.success ? "OK" : "Gagal"), j2.success === true);
+                    muatSegmen();
+                    muatOverview();
+                });
+            })
+            .catch(function () { notif("Gagal menghubungi server.", false); })
+            .then(function () { btn.disabled = false; });
+    }
+
+    function muatSegmen() {
+        fetch("/api/customer-steering/segments", { credentials: "same-origin" })
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+                var d = (j && j.data) || {};
+                if (!j.success) {
+                    document.getElementById("seg-rows").innerHTML = '<tr><td colspan="5" class="text-danger small p-3">' + esc(d.error || "Gagal memuat segmen.") + "</td></tr>";
+                    return;
+                }
+                renderSegments(d);
+            })
+            .catch(function () { /* biarkan; overview yang tampilkan notif */ });
+    }
+
     function cekSetup() {
         if (!canEdit) return;
         fetch("/api/customer-steering/setup?check=1", { method: "POST", credentials: "same-origin" })
@@ -255,7 +328,7 @@
             .catch(function () { notif("Gagal menghubungi server.", false); });
     }
 
-    document.getElementById("btn-steer-refresh").addEventListener("click", muatOverview);
+    document.getElementById("btn-steer-refresh").addEventListener("click", function () { muatOverview(); muatSegmen(); });
     document.getElementById("steer-search").addEventListener("input", function () {
         if (dataTerakhir) renderCustomers(dataTerakhir);
     });
@@ -274,6 +347,7 @@
     });
 
     muatOverview();
+    muatSegmen();
     setTimeout(cekSetup, 800);
-    setInterval(muatOverview, 60000);
+    setInterval(function () { muatOverview(); muatSegmen(); }, 60000);
 })();

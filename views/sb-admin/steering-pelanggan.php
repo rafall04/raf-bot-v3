@@ -1,10 +1,12 @@
 <?php
 /**
  * Header Doc
- * Purpose: Halaman ADMIN "Steering Pelanggan" — daftar live pelanggan online + jalur ISP yang
- *          sedang dipakai (intended/actual dari address-list & route router), aksi arahkan
- *          per-pelanggan (GMDP/IH/MNI/SF/default), kelola entri pool (freedns/lokaldns), dan
- *          pemasangan rule override RAF-CUSTSTEER (sekali, idempoten).
+ * Purpose: Halaman ADMIN "Steering Pelanggan" — (a) OPER SEGMEN (pool→jalur, pratinjau+konfirmasi
+ *          via /segments{,/preview,/apply}; setara perintah WA `oper`), (b) daftar live pelanggan
+ *          online + jalur ISP intended/actual, aksi arahkan per-pelanggan (GMDP/IH/MNI/SF/default),
+ *          (c) kelola entri pool (freedns/lokaldns) mentah, dan pemasangan rule override
+ *          RAF-CUSTSTEER (sekali, idempoten). Kartu Oper Segmen jalan tanpa customerSteering.enabled
+ *          (apply segmen gate cfg.valid); aksi per-pelanggan/pool tetap butuh enabled.
  * Caller: `routes/pages.js` path `/steering-pelanggan`.
  * Deps: `_head.php`, `_navbar.php`, `topbar.php`, API `/api/customer-steering/*`,
  *       `static/js/steering-pelanggan.js`, bundle sb-admin footer.
@@ -43,6 +45,23 @@
           </div>
 
           <div id="steer-counts" class="mb-3"></div>
+
+          <div class="card shadow mb-4 border-left-primary">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap">
+              <h6 class="m-0 font-weight-bold text-primary">🔀 Oper Segmen (Pool → Jalur)</h6>
+              <span class="small text-muted">Pindahkan SATU paket antar jalur — pratinjau lalu konfirmasi. Sama seperti perintah WA <code>oper &lt;segmen&gt; ke &lt;jalur&gt;</code>.</span>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm mb-0" style="font-size:.85rem">
+                  <thead><tr>
+                    <th>Segmen</th><th>Subnet</th><th>Jalur sekarang</th><th>Pelanggan aktif</th><th style="min-width:200px">Oper ke</th>
+                  </tr></thead>
+                  <tbody id="seg-rows"><tr><td colspan="5" class="text-muted small p-3">Memuat…</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
 
           <div class="card shadow mb-4">
             <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap">
