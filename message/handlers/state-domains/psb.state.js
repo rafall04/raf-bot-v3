@@ -1,8 +1,9 @@
 /**
  * Header Doc
  * Purpose: State domain wizard PSB via DM teknisi (per-bot area) — bagian Fase 2 [[psb-simplification-plan]].
- *          Alur: teknisi DM `#PSB` + foto KTP (caption WAJIB berisi Dusun = lokasi pasang) → kumpulkan
- *          dokumen (foto rumah + share lokasi, WAJIB) → bot BACA modem terbaru dari GenieACS (recency
+ *          Alur SLOT-FILLING: teknisi DM `#PSB` + foto KTP (data caption OPSIONAL) → bot kumpulkan
+ *          data (Nama/Dusun/Paket/WiFi/Sandi/HP — boleh dicicil per pesan) + foto rumah + share lokasi
+ *          URUTAN BEBAS, tampilkan checklist & nagih yg kurang → begitu lengkap bot BACA modem (recency
  *          `_registered`) → tampilkan RINGKASAN data + username PPPoE rakitan + SN utk diverifikasi teknisi
  *          (YA/TIDAK/pilih-nomor) → HANYA setelah YA: buat pelanggan + secret PPPoE + push PPPoE+WiFi ke
  *          modem + welcome → ringkasan ke grup PSB. Konfirmasi = gate verifikasi sebelum sentuh apa pun.
@@ -25,7 +26,17 @@
 
 const fs = require("fs");
 const path = require("path");
-const { parsePsbCaption } = require("../psb-caption-parser");
+const { extractPsbFields, validatePsbData } = require("../psb-caption-parser");
+
+// Field data PSB yang dikumpulkan wizard (label utk checklist + urutan tampil).
+const PSB_DATA_FIELDS = [
+    { key: "nama", label: "Nama" },
+    { key: "dusun", label: "Dusun" },
+    { key: "paket", label: "Paket" },
+    { key: "wifi_ssid", label: "WiFi" },
+    { key: "wifi_password", label: "Sandi" },
+    { key: "hp", label: "HP" }
+];
 
 const STEP_COLLECT = "PSB_COLLECT_DOCS";
 const STEP_CONFIRM = "PSB_CONFIRM_MODEM";
@@ -146,12 +157,38 @@ function buildPppoeUsername(nama, dusun, realm, existingUsers) {
     return candidate;
 }
 
-function checklistText(ctx) {
+function fieldMark(status) {
+    if (status === "ok") return "✅";
+    if (status === "short" || status === "unknown" || status === "invalid") return "⚠️";
+    return "⬜"; // missing / optional
+}
+
+// Checklist slot-filling: status tiap field data (dari validatePsbData) + foto rumah + lokasi.
+// Data boleh dikirim dicicil & urutan bebas; bot nagih yang masih ⬜/⚠️.
+const FIELD_HINT = { dusun: "(lokasi pasang, bukan KTP)", wifi_ssid: "(nama wifi)", wifi_password: "(min 8 huruf)", hp: "(nomor WA; >1 pisah |)" };
+function collectChecklistText(ctx, v) {
+    const s = (v && v.status) || {};
+    const dataLines = PSB_DATA_FIELDS.map((f) => {
+        const st = s[f.key];
+        const val = ctx.data[f.key];
+        let tail = "";
+        if (val) {
+            tail = `: ${val}`;
+            if (st === "unknown") tail += " ⚠️ tak dikenal";
+            else if (st === "short") tail += " ⚠️ min 8";
+            else if (st === "invalid") tail += " ⚠️ tak valid";
+        } else if (FIELD_HINT[f.key]) {
+            tail = ` ${FIELD_HINT[f.key]}`;
+        }
+        return `${fieldMark(st)} ${f.label}${tail}`;
+    });
     return [
-        `📇 PSB *${ctx.data.nama}* · Dusun ${ctx.data.dusun} — ${ctx.data.paket}`,
-        `${ctx.ktpSaved ? "✅" : "⬜"} Foto KTP`,
+        `📋 *PSB* — lengkapi (urutan BEBAS):`,
+        ...dataLines,
         `${ctx.rumahSaved ? "✅" : "⬜"} Foto rumah`,
-        `${ctx.lokasi ? "✅" : "⬜"} Share lokasi`
+        `${ctx.lokasi ? "✅" : "⬜"} Share lokasi`,
+        ``,
+        `➡️ Kirim yang masih ⬜/⚠️. Data boleh dicicil (mis. \`Dusun: Krajan\`). *BATAL* untuk batal.`
     ].join("\n");
 }
 
@@ -175,19 +212,14 @@ async function startPsbSession(context) {
     const { caption, type, msg, staff, stateSender, reply, downloadMedia, packages, uploadsBaseDir, setUserState, nowMs = Date.now(), logger = console } = context;
 
     if (type !== "imageMessage") {
-        await safeReply(reply, `📷 Mulai PSB: kirim *foto KTP* + caption di bawah.\n\n${PSB_TEMPLATE}`, logger);
+        await safeReply(reply, `📷 Mulai PSB: kirim *foto KTP* + caption \`#PSB\` (data boleh menyusul).\n\n${PSB_TEMPLATE}`, logger);
         return { started: false };
     }
-    const parsed = parsePsbCaption(caption, { packages: packages || global.packages || [] });
-    if (!parsed.ok) {
-        await safeReply(reply, `❌ Data PSB belum lengkap/valid:\n- ${parsed.errors.join("\n- ")}\n\n${PSB_TEMPLATE}`, logger);
-        return { started: false };
-    }
-    // Dusun WAJIB di wizard DM — dipakai merakit username PPPoE (lokasi pasang, bukan alamat KTP).
-    if (!parsed.data.dusun) {
-        await safeReply(reply, `❌ *Dusun* belum diisi. Dusun = lokasi pasang sebenarnya (bukan alamat KTP) — dipakai untuk username PPPoE.\n\n${PSB_TEMPLATE}`, logger);
-        return { started: false };
-    }
+
+    // Slot-filling: sesi DIMULAI dari `#PSB` + foto KTP. Data (Nama/Dusun/dst) boleh KOSONG di caption
+    // ini dan disusul kemudian — dikumpulkan urutan BEBAS di STEP_COLLECT. TIDAK ditolak walau minim.
+    const pkgs = packages || global.packages || [];
+    const seed = { nama: "", dusun: "", paket: "", wifi_ssid: "", wifi_password: "", hp: "", ...extractPsbFields(caption) };
 
     const now = new Date(nowMs);
     const tempId = `PSBDM_${now.getTime()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -199,10 +231,12 @@ async function startPsbSession(context) {
         if (buffer && buffer.length > 0) ktpSaved = !!saveMedia(dir, "ktp_photo.jpg", buffer);
     } catch (e) { logger?.error?.("[PSB_DM] gagal simpan KTP:", e.message); }
 
-    const ctx = { data: parsed.data, staff, tempId, dir, ktpSaved, rumahSaved: false, lokasi: null };
+    const ctx = { data: seed, staff, tempId, dir, ktpSaved, rumahSaved: false, lokasi: null };
     setUserState(stateSender, { step: STEP_COLLECT, _scope: "teknisi", context: ctx });
 
-    await safeReply(reply, `${checklistText(ctx)}\n\n➡️ Kirim *foto rumah* dan *share lokasi* rumah. Setelah lengkap, aku baca modem & minta konfirmasi sebelum set apa pun.`, logger);
+    const v = validatePsbData(ctx.data, { packages: pkgs, requireDusun: true });
+    const ktpNote = ktpSaved ? "✅ Foto KTP diterima." : "⚠️ Foto KTP gagal tersimpan (lanjut saja — cuma arsip).";
+    await safeReply(reply, `${ktpNote}\n\n${collectChecklistText(ctx, v)}`, logger);
     return { started: true };
 }
 
@@ -413,8 +447,9 @@ async function handlePsbConversationState(context) {
         return { handled: true };
     }
 
-    // ── Fase kumpulkan dokumen ──
+    // ── Fase kumpulkan (SLOT-FILLING): data (teks, boleh dicicil) + foto rumah + lokasi, URUTAN BEBAS ──
     if (stateStep === STEP_COLLECT) {
+        const pkgs = context.packages || global.packages || [];
         if (type === "imageMessage") {
             let ok = false;
             try {
@@ -422,21 +457,27 @@ async function handlePsbConversationState(context) {
                 if (buffer && buffer.length > 0) ok = !!saveMedia(ctx.dir, "rumah_photo.jpg", buffer);
             } catch (e) { logger?.error?.("[PSB_DM] gagal simpan foto rumah:", e.message); }
             ctx.rumahSaved = ctx.rumahSaved || ok;
+            if (!ok) { await safeReply(reply, "⚠️ Foto rumah gagal diunduh — kirim ulang foto segar dari galeri/kamera (jangan forward foto lama).", logger); return { handled: true }; }
         } else if (type === "locationMessage" || type === "liveLocationMessage") {
             const loc = type === "locationMessage" ? msg?.message?.locationMessage : msg?.message?.liveLocationMessage;
             if (loc && loc.degreesLatitude && loc.degreesLongitude) {
                 ctx.lokasi = { lat: loc.degreesLatitude, lng: loc.degreesLongitude };
             }
         } else {
-            await safeReply(reply, `${checklistText(ctx)}\n\n➡️ Masih menunggu ${!ctx.rumahSaved ? "*foto rumah*" : ""}${!ctx.rumahSaved && !ctx.lokasi ? " & " : ""}${!ctx.lokasi ? "*share lokasi*" : ""}. (*BATAL* untuk membatalkan)`, logger);
-            return { handled: true };
+            // Teks → ambil field yang ada, MERGE ke data terkumpul (boleh dicicil / dikoreksi ulang).
+            const fields = extractPsbFields(text);
+            for (const [k, val] of Object.entries(fields)) { if (val) ctx.data[k] = val; }
         }
 
+        // Cek kelengkapan tiap pesan. Bila lengkap → adopsi nilai ternormalisasi (paket resolved, hp joined).
+        const v = validatePsbData(ctx.data, { packages: pkgs, requireDusun: true });
+        if (v.ok) ctx.data = v.data;
         setUserState(stateSender, { step: STEP_COLLECT, _scope: "teknisi", context: ctx });
-        if (ctx.rumahSaved && ctx.lokasi) {
+
+        if (v.ok && ctx.rumahSaved && ctx.lokasi) {
             await detectAndAskConfirm(context, ctx);
         } else {
-            await safeReply(reply, `${checklistText(ctx)}\n\n➡️ Tinggal kirim ${!ctx.rumahSaved ? "*foto rumah*" : "*share lokasi*"}.`, logger);
+            await safeReply(reply, collectChecklistText(ctx, v), logger);
         }
         return { handled: true };
     }

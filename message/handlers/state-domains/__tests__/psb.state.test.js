@@ -121,20 +121,55 @@ describe("psb.state wizard DM", () => {
         expect(h.base.usersService.upsertUserFromAdminPanel).not.toHaveBeenCalled();
     });
 
-    test("caption ngawur → sesi tak dibuka", async () => {
+    test("caption minim (#PSB + Nama saja) → sesi TETAP dibuka (slot-filling), checklist minta sisanya", async () => {
         const h = harness();
         const r = await startPsbSession({ ...h.base, type: "imageMessage", caption: "#PSB\nNama: Budi", msg: imageMsg("#PSB\nNama: Budi"), staff: STAFF });
-        expect(r.started).toBe(false);
-        expect(h.getState()).toBeNull();
+        expect(r.started).toBe(true);
+        expect(h.getState().step).toBe("PSB_COLLECT_DOCS");
+        expect(h.getState().context.data.nama).toBe("Budi");
+        const reply = h.base.reply.mock.calls.map((c) => c[0]).join("\n");
+        expect(reply).toMatch(/lengkapi/i);
+        expect(reply).toMatch(/Dusun/); // masih diminta
     });
 
-    test("dusun kosong → sesi tak dibuka (wajib untuk username PPPoE)", async () => {
+    test("dusun tetap WAJIB: tak ke konfirmasi tanpa dusun walau field lain + foto + lokasi lengkap", async () => {
         const h = harness();
-        const cap = "#PSB\nNama: Budi Santoso\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789";
-        const r = await startPsbSession({ ...h.base, type: "imageMessage", caption: cap, msg: imageMsg(cap), staff: STAFF });
-        expect(r.started).toBe(false);
-        expect(h.getState()).toBeNull();
-        expect(h.base.reply.mock.calls.map((c) => c[0]).join("\n")).toMatch(/Dusun/);
+        const cap = "#PSB\nNama: Budi Santoso\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789"; // tanpa dusun
+        await startPsbSession({ ...h.base, type: "imageMessage", caption: cap, msg: imageMsg(cap), staff: STAFF });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "imageMessage", msg: imageMsg() });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "locationMessage", msg: locMsg() });
+        expect(h.getState().step).toBe("PSB_COLLECT_DOCS"); // masih nunggu dusun
+        expect(h.base.findRecentPsbCandidates).not.toHaveBeenCalled();
+        // kirim dusun → baru lengkap → konfirmasi
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "Dusun: Krajan" });
+        expect(h.getState().step).toBe("PSB_CONFIRM_MODEM");
+        expect(h.base.findRecentPsbCandidates).toHaveBeenCalled();
+    });
+
+    test("slot-filling URUTAN BEBAS: KTP #PSB → foto rumah → lokasi → data TERAKHIR → konfirmasi", async () => {
+        const h = harness();
+        const r = await startPsbSession({ ...h.base, type: "imageMessage", caption: "#PSB", msg: imageMsg("#PSB"), staff: STAFF });
+        expect(r.started).toBe(true);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "imageMessage", msg: imageMsg() });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "locationMessage", msg: locMsg() });
+        expect(h.getState().step).toBe("PSB_COLLECT_DOCS"); // data belum ada → belum baca modem
+        expect(h.base.findRecentPsbCandidates).not.toHaveBeenCalled();
+        // data dikirim TERAKHIR (sekaligus)
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "Nama: Budi Santoso\nDusun: Krajan\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789" });
+        expect(h.getState().step).toBe("PSB_CONFIRM_MODEM");
+    });
+
+    test("slot-filling: data DICICIL beberapa pesan → digabung", async () => {
+        const h = harness();
+        await startPsbSession({ ...h.base, type: "imageMessage", caption: "#PSB\nNama: Budi Santoso", msg: imageMsg("#PSB\nNama: Budi Santoso"), staff: STAFF });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "Dusun: Krajan" });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "Paket: PAKET-110K\nWiFi: BudiNet" });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "Sandi: budi12345\nHP: 08123456789" });
+        expect(h.getState().context.data.dusun).toBe("Krajan");
+        expect(h.getState().step).toBe("PSB_COLLECT_DOCS"); // data lengkap tapi belum foto/lokasi
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "imageMessage", msg: imageMsg() });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "locationMessage", msg: locMsg() });
+        expect(h.getState().step).toBe("PSB_CONFIRM_MODEM");
     });
 
     test("realm & password default dari config dipakai untuk username/secret", async () => {
