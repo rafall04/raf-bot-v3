@@ -232,6 +232,7 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 - [Fitur 2026-07-14 (Bukti bayar: aksi HAPUS bukti palsu — deleteProof/softDelete, POST /konfirmasi-bayar/:id/hapus + WA `hapus`, tanpa notif pelanggan/ledger; beda dari tolak)](docs/boundary-log.md#b144)
 - [Fitur 2026-07-14 (Gratis bulan pemasangan: auto saat PSB via config.psbIntake.freeInstallMonth→free_first_month + halaman /gratis-bulan-ini untuk yg terlanjur, reuse applyFreeMonth/read-model)](docs/boundary-log.md#b145)
 - [Bugfix 2026-07-14 (KRITIS: INSERT pelanggan membuang kolom senyap — created_at/lokasi GPS/kredensial hilang; fix INSERT dinamis + trigger DB + test round-trip)](docs/boundary-log.md#b146)
+- [Bugfix 2026-07-14 (Share lokasi PSB tak tersimpan: ctx.lokasi tak dikirim ke create API; rantai tangkap→kirim→spread→INSERT kini lengkap)](docs/boundary-log.md#b147)
 
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.
