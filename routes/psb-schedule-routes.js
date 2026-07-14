@@ -4,8 +4,9 @@
  *          identitas + 3 BUKTI wajib). Create (menunggu) + list + summary + ASSIGNMENT (Fase B:
  *          admin TUGASKAN / teknisi AMBIL). Notif grup + DM teknisi pakai builder yang SAMA dgn
  *          WA (`buildScheduleGroupNotif`/`buildAssignmentDm`/`buildAssignmentGroupNotif`) → seragam.
- *          MARKETING (Fase 1 komisi PSB): create terima pemberi lead opsional; `POST /:id/marketing`
- *          (ADMIN saja) set/koreksi pemberi lead + nominal komisi. Fase 1 HANYA catat (belum bayar).
+ *          MARKETING (komisi PSB): create terima pemberi lead opsional; `POST /:id/marketing` (ADMIN)
+ *          set/koreksi pemberi lead + nominal; `POST /:id/marketing/pay` (ADMIN, Fase 2a) BAYAR komisi
+ *          LUAR via kas → expense-manager (createExpense di-inject). Teknisi→payroll = Fase 2b.
  * Caller: `routes/api.js` (mount `router.use(createPsbScheduleRouter())`).
  * Deps: Express, `lib/psb-schedule-service`, `message/handlers/psb-caption-parser` (resolvePackage),
  *        `lib/jid-utils` (normalizePhoneToJid), `message/handlers/reply-runtime` (sendReply, lazy),
@@ -229,6 +230,40 @@ function createPsbScheduleRouter() {
         } catch (e) {
             console.error("[PSB_SCHEDULE_MARKETING_ERROR]", e.message);
             return res.status(500).json({ status: 500, message: "Gagal menyimpan komisi: " + e.message });
+        }
+    });
+
+    // POST /api/psb-schedule/:id/marketing/pay — BAYAR komisi pemberi lead LUAR (makelar) via KAS (Fase 2a).
+    // ADMIN saja. Catat pengeluaran (expense-manager, kategori "marketing") + kunci row jadi `paid`. Teknisi
+    // TIDAK lewat sini (masuk payroll — Fase 2b). Body opsional { payment_method }. createExpense DI-INJECT
+    // ke service (bukan hard-require) agar service tak terikat expense-manager & tetap testable.
+    router.post("/psb-schedule/:id/marketing/pay", ensureStaff, async (req, res) => {
+        try {
+            if (!isAdminRole(req.user.role)) return res.status(403).json({ status: 403, message: "Hanya admin yang boleh membayar komisi." });
+            const { createExpense } = require("../lib/expense-manager");
+            const result = await scheduleService.payMarketingExternal(req.params.id, {
+                actor: { id: req.user.id, username: req.user.username, name: req.user.name || req.user.username, role: req.user.role },
+                paymentMethod: (req.body && req.body.payment_method) || "CASH",
+                createExpense
+            });
+            if (!result.ok) {
+                const map = {
+                    not_found: [404, "Jadwal tak ditemukan."],
+                    cancelled: [409, "Jadwal sudah dibatalkan."],
+                    not_external: [400, "Hanya komisi pemberi lead LUAR yang dibayar via kas (teknisi lewat gaji)."],
+                    already_paid: [409, "Komisi sudah dibayar."],
+                    no_pending: [409, "Tak ada komisi terutang untuk dibayar."],
+                    no_fee: [400, "Nominal komisi belum diisi."],
+                    race: [409, "Komisi sedang/br saja diproses. Muat ulang."],
+                    expense_failed: [500, "Gagal mencatat pengeluaran: " + (result.error || "")]
+                };
+                const [code, msg] = map[result.reason] || [500, "Gagal membayar komisi."];
+                return res.status(code).json({ status: code, message: msg });
+            }
+            return res.json({ status: 200, message: "Komisi dibayar (kas) & tercatat sebagai pengeluaran.", data: result.record });
+        } catch (e) {
+            console.error("[PSB_SCHEDULE_MARKETING_PAY_ERROR]", e.message);
+            return res.status(500).json({ status: 500, message: "Gagal membayar komisi: " + e.message });
         }
     });
 

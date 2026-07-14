@@ -18,8 +18,10 @@ jest.mock("../../lib/psb-schedule-service", () => ({
     assignSchedule: jest.fn(),
     buildAssignmentDm: jest.fn(() => "dm"),
     buildAssignmentGroupNotif: jest.fn(() => "gnotif"),
-    setMarketing: jest.fn()
+    setMarketing: jest.fn(),
+    payMarketingExternal: jest.fn()
 }));
+jest.mock("../../lib/expense-manager", () => ({ createExpense: jest.fn(async () => ({ id: 1 })) }));
 jest.mock("../../message/handlers/psb-caption-parser", () => ({
     resolvePackage: jest.fn()
 }));
@@ -376,5 +378,40 @@ describe("psb-schedule marketing routes (Fase 1 komisi)", () => {
             const arg = scheduleService.createRequest.mock.calls[0][0];
             expect(arg.marketing).toMatchObject({ refName: "Pak Broker" });
         } finally { await stopServer(server); delete global.packages; }
+    });
+
+    // ── Fase 2a: POST /:id/marketing/pay (bayar komisi luar via kas) ──
+    test("admin bayar komisi luar → 200, payMarketingExternal dipanggil dgn createExpense di-inject", async () => {
+        scheduleService.payMarketingExternal.mockResolvedValue({ ok: true, expenseId: "1", record: { id: 5, ref: "PSB-5", marketing_status: "paid" } });
+        const { server, baseUrl } = await startServer(createApp(ADMIN));
+        try {
+            const { status, payload } = await postJson(baseUrl, "/psb-schedule/5/marketing/pay", {});
+            expect(status).toBe(200);
+            expect(payload.data.marketing_status).toBe("paid");
+            const arg = scheduleService.payMarketingExternal.mock.calls[0];
+            expect(arg[0]).toBe("5");
+            expect(typeof arg[1].createExpense).toBe("function"); // createExpense di-inject dari expense-manager
+        } finally { await stopServer(server); }
+    });
+
+    test("non-admin → 403; payMarketingExternal tak dipanggil", async () => {
+        const { server, baseUrl } = await startServer(createApp(TEKNISI));
+        try {
+            const { status } = await postJson(baseUrl, "/psb-schedule/5/marketing/pay", {});
+            expect(status).toBe(403);
+            expect(scheduleService.payMarketingExternal).not.toHaveBeenCalled();
+        } finally { await stopServer(server); }
+    });
+
+    test("mapping alasan: not_external→400, already_paid→409, no_fee→400", async () => {
+        const { server, baseUrl } = await startServer(createApp(ADMIN));
+        try {
+            scheduleService.payMarketingExternal.mockResolvedValueOnce({ ok: false, reason: "not_external" });
+            expect((await postJson(baseUrl, "/psb-schedule/5/marketing/pay", {})).status).toBe(400);
+            scheduleService.payMarketingExternal.mockResolvedValueOnce({ ok: false, reason: "already_paid" });
+            expect((await postJson(baseUrl, "/psb-schedule/5/marketing/pay", {})).status).toBe(409);
+            scheduleService.payMarketingExternal.mockResolvedValueOnce({ ok: false, reason: "no_fee" });
+            expect((await postJson(baseUrl, "/psb-schedule/5/marketing/pay", {})).status).toBe(400);
+        } finally { await stopServer(server); }
     });
 });

@@ -123,12 +123,16 @@ function marketingText(r) {
     return `${tag}${who}${fee}${status}`;
 }
 
-// Sel Marketing: info + tombol set/koreksi (admin, kecuali sudah dibayar → terkunci).
+// Sel Marketing: info + aksi admin. Terkunci bila sudah paid(kas)/settled(payroll). Tombol "Bayar kas"
+// hanya untuk pemberi lead LUAR yang masih pending & bernominal (teknisi dibayar via gaji — Fase 2b).
 function marketingCell(r) {
     const info = marketingText(r);
     if (!isAdmin()) return info;
-    if (r.marketing_status === "paid") return info;
-    return `<div class="d-flex align-items-center" style="gap:6px;flex-wrap:wrap">${info}<button class="btn btn-sm btn-outline-info" onclick="openMarketing(${esc(r.id)})" title="Set pemberi lead & komisi"><i class="fas fa-hand-holding-usd"></i></button></div>`;
+    if (r.marketing_status === "paid" || r.marketing_status === "settled") return info;
+    const editBtn = `<button class="btn btn-sm btn-outline-info" onclick="openMarketing(${esc(r.id)})" title="Set pemberi lead & komisi"><i class="fas fa-hand-holding-usd"></i></button>`;
+    const canPay = r.marketing_type === "luar" && r.marketing_status === "pending" && r.marketing_fee > 0;
+    const payBtn = canPay ? `<button class="btn btn-sm btn-success" onclick="payMarketing(${esc(r.id)})" title="Bayar komisi via kas">Bayar kas</button>` : "";
+    return `<div class="d-flex align-items-center" style="gap:6px;flex-wrap:wrap">${info}${editBtn}${payBtn}</div>`;
 }
 
 function renderList(rows) {
@@ -219,6 +223,20 @@ function openMarketing(id) {
 
 function mktError(msg) { document.getElementById("mktAlert").innerHTML = `<div class="alert alert-danger mb-2">${esc(msg)}</div>`; }
 
+async function payMarketing(id) {
+    const r = papanRows.find((x) => String(x.id) === String(id));
+    const who = r && r.marketing_ref_name ? r.marketing_ref_name : "makelar";
+    const nominal = r && r.marketing_fee ? "Rp" + fmtRp(r.marketing_fee) : "komisi";
+    if (!window.confirm(`Bayar ${nominal} ke ${who} lewat kas? Ini dicatat sebagai pengeluaran & tak bisa dibatalkan dari sini.`)) return;
+    try {
+        const resp = await fetch(`/api/psb-schedule/${id}/marketing/pay`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}" });
+        const j = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(j.message || "gagal membayar komisi");
+        showAlert("✅ " + (j.message || "Komisi dibayar (kas)"), "success");
+        muatPapan();
+    } catch (e) { showAlert("❌ " + e.message, "danger"); }
+}
+
 async function submitMarketing() {
     const id = document.getElementById("mktId").value;
     const type = document.getElementById("mktType").value;
@@ -275,3 +293,4 @@ window.claimRow = claimRow;
 window.openMarketing = openMarketing;
 window.onMktTypeChange = onMktTypeChange;
 window.submitMarketing = submitMarketing;
+window.payMarketing = payMarketing;
