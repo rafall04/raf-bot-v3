@@ -36,7 +36,12 @@ function harness(overrides = {}) {
         downloadMedia: jest.fn(async () => Buffer.from([1, 2, 3, 4])),
         findRecentPsbCandidates: jest.fn(async () => ({ ok: true, data: CANDIDATES })),
         fetchDeviceCapability: jest.fn(async () => ({ found: true, deviceId: "dev-A", model: "HG8145V5", has5G: true, expectedBulk: ["1", "5"] })),
-        recordInstall: jest.fn(() => 7),
+        scheduleService: {
+            markScheduleInstalled: jest.fn(async () => ({ ok: true, record: { ref: "PSB-5" } })),
+            findOpenScheduleForInstall: jest.fn(async () => null),
+            recordWalkInInstall: jest.fn(async () => ({ id: 1, ref: "PSB-1" })),
+            getScheduleSummary: jest.fn(async () => ({ terpasang_bulan_ini: 7, belum_kepasang: 3 }))
+        },
         usersService: { upsertUserFromAdminPanel: upsert },
         getConfig: () => ({ psbIntake: { enabled: true, groupId: "grp@g.us", recencyWindowMinutes: 120 }, defaultBulkSSID: "1" }),
         packages: PACKAGES,
@@ -249,11 +254,32 @@ describe("psb.state wizard DM", () => {
         expect(allReplies).toContain("48575443AAAA0001");   // SN lengkap di reply sukses
         expect(allReplies).not.toContain("rafnet123");      // tetap tanpa password
 
-        expect(h.base.recordInstall).toHaveBeenCalledTimes(1); // counter terpasang dicatat
+        // Fase C: tanpa jadwal cocok → dicatat walk-in + rangkuman dari getScheduleSummary (bukan psb-install-stats)
+        expect(h.base.scheduleService.findOpenScheduleForInstall).toHaveBeenCalledTimes(1);
+        expect(h.base.scheduleService.recordWalkInInstall).toHaveBeenCalledTimes(1);
+        expect(h.base.scheduleService.getScheduleSummary).toHaveBeenCalled();
         const summary = h.base.sendGroupSummary.mock.calls.map((c) => c[1]).join("\n");
-        expect(summary).toMatch(/PSB bulan ini: 7 terpasang/);
+        expect(summary).toMatch(/Bulan ini: 7 terpasang/);
         expect(summary).toContain("48575443AAAA0001");
         expect(summary).not.toContain("rafnet123");
+    });
+
+    test("Fase C: ada jadwal cocok (by HP) → markScheduleInstalled + reply sebut jadwal ditutup", async () => {
+        const h = harness({
+            scheduleService: {
+                findOpenScheduleForInstall: jest.fn(async () => ({ id: 12, ref: "PSB-12" })),
+                markScheduleInstalled: jest.fn(async () => ({ ok: true, record: { ref: "PSB-12" } })),
+                recordWalkInInstall: jest.fn(async () => ({ id: 1, ref: "PSB-1" })),
+                getScheduleSummary: jest.fn(async () => ({ terpasang_bulan_ini: 4, belum_kepasang: 2 }))
+            }
+        });
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        // jadwal cocok → ditutup, BUKAN walk-in
+        expect(h.base.scheduleService.markScheduleInstalled).toHaveBeenCalledWith(12, 99, expect.anything());
+        expect(h.base.scheduleService.recordWalkInInstall).not.toHaveBeenCalled();
+        const allReplies = h.base.reply.mock.calls.map((c) => c[0]).join("\n");
+        expect(allReplies).toContain("PSB-12"); // reply teknisi sebut jadwal ditutup
     });
 
     test("KTP WAJIB: foto KTP gagal diunduh → sesi tak dibuka (S1)", async () => {

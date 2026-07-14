@@ -112,7 +112,7 @@ function withPsbDeps(context) {
         ...context,
         findRecentPsbCandidates: context.findRecentPsbCandidates || require("../../../lib/psb-genieacs-service").findRecentPsbCandidates,
         fetchDeviceCapability: context.fetchDeviceCapability || require("../../../lib/wifi-bulk-reconcile").fetchDeviceCapability,
-        recordInstall: context.recordInstall || require("../../../lib/psb-install-stats").recordInstall,
+        scheduleService: context.scheduleService || require("../../../lib/psb-schedule-service"),
         usersService: context.usersService || global.__apiUsersService,
         getConfig: context.getConfig || (() => global.config || {}),
         packages: context.packages || global.packages || [],
@@ -308,7 +308,7 @@ function candidateListText(candidates, nowMs) {
 
 // ── Provisioning FINAL (dipanggil hanya setelah YA / pilih nomor) ──
 async function provision(context, ctx, candidate) {
-    const { reply, deleteUserState, stateSender, usersService, getConfig, sendGroupSummary, botAreaLabel, fetchDeviceCapability, recordInstall, nowMs = Date.now(), logger = console } = context;
+    const { reply, deleteUserState, stateSender, usersService, getConfig, sendGroupSummary, botAreaLabel, fetchDeviceCapability, scheduleService, nowMs = Date.now(), logger = console } = context;
     const cfg = ((getConfig && getConfig()) || global.config || {});
     const psbCfg = cfg.psbIntake || {};
 
@@ -369,9 +369,30 @@ async function provision(context, ctx, candidate) {
         return;
     }
 
-    // Catat 1 PSB terpasang bulan ini (durable counter, best-effort) — sumber angka rangkuman grup.
-    let monthInstalled = null;
-    try { if (typeof recordInstall === "function") monthInstalled = recordInstall(nowMs); } catch (_e) { /* best-effort */ }
+    // Fase C — TUTUP lingkaran papan PSB: install ini menutup jadwal terkait (jadi `terpasang`) atau,
+    // bila tak ada jadwal, dicatat sbg walk-in. Sumber angka rangkuman grup = getScheduleSummary
+    // (SATU sumber; pensiun psb-install-stats). Best-effort, tak boleh menjatuhkan alur provisioning.
+    const newUserId = (result && result.body && result.body.data && result.body.data.id) || null;
+    let linkedRef = null;
+    let summary = null;
+    try {
+        if (scheduleService) {
+            let linked = null;
+            if (ctx.scheduleId) { // link eksplisit (pre-fill Fase C/2)
+                const m = await scheduleService.markScheduleInstalled(ctx.scheduleId, newUserId, { nowIso: new Date(nowMs).toISOString() });
+                if (m && m.ok) linked = m.record;
+            }
+            if (!linked) { // auto-match jadwal terbuka by HP + teknisi
+                const match = await scheduleService.findOpenScheduleForInstall({ teknisiId: ctx.staff && ctx.staff.id, phone: ctx.data.hp });
+                if (match) { const m = await scheduleService.markScheduleInstalled(match.id, newUserId, { nowIso: new Date(nowMs).toISOString() }); if (m && m.ok) linked = m.record; }
+            }
+            if (!linked) { // walk-in: catat supaya SEMUA install terhitung
+                await scheduleService.recordWalkInInstall({ nama: ctx.data.nama, hp: ctx.data.hp, dusun: ctx.data.dusun, paket: ctx.data.paket, installedUserId: newUserId, area: cfg.nama || null, nowIso: new Date(nowMs).toISOString() });
+            }
+            if (linked) linkedRef = linked.ref;
+            summary = await scheduleService.getScheduleSummary({ nowMs });
+        }
+    } catch (e) { logger?.error?.("[PSB_DM] tutup jadwal/rangkuman gagal:", e.message); }
 
     // Rekam lokasi ke folder sesi (dokumentasi).
     try {
@@ -425,6 +446,7 @@ async function provision(context, ctx, candidate) {
             `Set WiFi manual pakai data di atas; PPPoE di modem minta *admin* (akses terbatas).`
         ];
     }
+    if (linkedRef) replyLines.push(`📋 Jadwal *${linkedRef}* ditutup (terpasang).`);
     await safeReply(reply, replyLines.join("\n"), logger);
 
     // Ringkasan ke grup PSB bersama (best-effort, delivery boundary). Header jujur ikut hasil push.
@@ -442,7 +464,7 @@ async function provision(context, ctx, candidate) {
                 candidate ? `📡 Modem: SN ${snText(candidate.serialNumber)} (${candidate.model}${bandLabel ? ` · ${bandLabel}` : ""})` : "📡 Modem: set manual",
                 `🧑‍🔧 Oleh: ${ctx.staff.name || ctx.staff.username}`,
                 pushFailed ? "⚠️ Modem belum ter-set — WiFi set manual, PPPoE via admin." : null,
-                monthInstalled ? `\n📊 *PSB bulan ini: ${monthInstalled} terpasang* (via bot)` : null
+                summary ? `\n📊 *Bulan ini: ${summary.terpasang_bulan_ini} terpasang* · belum kepasang: ${summary.belum_kepasang}` : null
             ].filter(Boolean).join("\n"));
         }
     } catch (e) { logger?.error?.("[PSB_DM] ringkasan grup gagal:", e.message); }
