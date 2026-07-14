@@ -263,6 +263,14 @@
                   <input type="number" class="form-control" id="psbIntakeRecency" name="psbIntakeRecency" min="5" max="1440" placeholder="120" />
                   <small class="form-text text-muted">Bot menganggap "modem baru dipasang" = modem yang registrasi ke GenieACS dalam N menit terakhir (default 120). Perbesar bila ACS sering telat inform.</small>
                 </div>
+                <div class="mb-3">
+                  <label for="psbIntakeFreeInstallMonth">Gratis Bulan Pemasangan (otomatis saat PSB selesai)</label>
+                  <select class="form-control" id="psbIntakeFreeInstallMonth" name="psbIntakeFreeInstallMonth">
+                      <option value="false">Nonaktif</option>
+                      <option value="true">Aktif</option>
+                  </select>
+                  <small class="form-text text-muted">Jika <b>Aktif</b>, setiap pelanggan PSB baru otomatis <b>dibebaskan tagihan bulan pemasangan</b>: periode ini dihitung lunas (kebal isolir) <b>tanpa masuk pemasukan</b>, dan pelanggan mulai bayar <b>bulan depan</b>. Hanya berlaku untuk paket bertagihan. Untuk pelanggan yang <b>sudah terlanjur</b> terpasang, pakai halaman <b>Pembayaran → Gratis Bulan Ini</b>.</small>
+                </div>
 
                 <hr>
                 <h6 class="mb-2" style="font-weight:700;">Notifikasi Perbaikan &amp; Tutorial Teknisi</h6>

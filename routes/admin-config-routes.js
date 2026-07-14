@@ -176,7 +176,8 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     enabled: !!(mainConfig.psbIntake && mainConfig.psbIntake.enabled),
                     groupId: (mainConfig.psbIntake && mainConfig.psbIntake.groupId) || '',
                     allowedRoles: (mainConfig.psbIntake && mainConfig.psbIntake.allowedRoles) || ['teknisi', 'admin', 'owner'],
-                    recencyWindowMinutes: (mainConfig.psbIntake && mainConfig.psbIntake.recencyWindowMinutes) || 120
+                    recencyWindowMinutes: (mainConfig.psbIntake && mainConfig.psbIntake.recencyWindowMinutes) || 120,
+                    freeInstallMonth: !!(mainConfig.psbIntake && mainConfig.psbIntake.freeInstallMonth)
                 },
                 repairNotif: {
                     enabled: !!(mainConfig.repairNotif && mainConfig.repairNotif.enabled),
@@ -372,7 +373,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
 
                 // Intake PSB Grup → objek nested `psbIntake`. allowedRoles tidak diedit dari UI
                 // (dipertahankan dari config lama saat merge). Feature-flag default OFF.
-                if (key === 'psbIntakeEnabled' || key === 'psbIntakeGroupId' || key === 'psbIntakeRecency') {
+                if (key === 'psbIntakeEnabled' || key === 'psbIntakeGroupId' || key === 'psbIntakeRecency' || key === 'psbIntakeFreeInstallMonth') {
                     if (!newMainConfig.psbIntake) {
                         newMainConfig.psbIntake = {};
                     }
@@ -380,6 +381,8 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                         newMainConfig.psbIntake.enabled = receivedConfig[key] === 'true';
                     } else if (key === 'psbIntakeGroupId') {
                         newMainConfig.psbIntake.groupId = String(receivedConfig[key] || '').trim();
+                    } else if (key === 'psbIntakeFreeInstallMonth') {
+                        newMainConfig.psbIntake.freeInstallMonth = receivedConfig[key] === 'true';
                     } else {
                         const n = parseInt(receivedConfig[key], 10);
                         newMainConfig.psbIntake.recencyWindowMinutes = (Number.isFinite(n) && n > 0) ? Math.min(1440, Math.max(5, n)) : 120;

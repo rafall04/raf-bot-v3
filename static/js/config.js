@@ -81,6 +81,7 @@
                 // Intake PSB — toggle + grup ringkasan tersimpan (pasang opsi agar tetap terpilih walau daftar grup belum dimuat).
                 setValue('psbIntakeEnabled', json.data.psbIntake?.enabled === true ? "true" : "false");
                 setValue('psbIntakeRecency', json.data.psbIntake?.recencyWindowMinutes || '', '120');
+                setValue('psbIntakeFreeInstallMonth', json.data.psbIntake?.freeInstallMonth === true ? "true" : "false");
                 (function () {
                     var sel = document.getElementById('psbIntakeGroupId');
                     var gid = (json.data.psbIntake && json.data.psbIntake.groupId) || '';
