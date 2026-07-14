@@ -1,24 +1,43 @@
 /**
  * Header Doc
- * Purpose: Registrar route admin untuk network assets dan route map.
+ * Purpose: Registrar route admin untuk aset jaringan (ODC/ODP) dan route peta.
+ *          Controller TIPIS: seluruh aturan (ID, normalisasi tipe, kapasitas, hitung-ulang port) dimiliki
+ *          `lib/network-assets-service` — SATU jalur pembuatan yang sama dipakai wizard WA `#ODC`/`#ODP`,
+ *          supaya web dan WA tak pernah diam-diam berbeda aturan.
  * Caller: `routes/admin-router.js`.
- * Deps: Router Express, middleware auth staf, helper asset ID, repository runtime, dan persistence assets.
+ * Deps: Router Express, `ensureAuthenticatedStaff` + `ensureAdmin` (api-route-helpers), repository runtime,
+ *       persistence assets (lock/save), `lib/network-assets-service`, `lib/routing-service`.
  * MainFuncs: `registerAdminNetworkAssetsRoutes`.
- * SideEffects: Menulis data network assets ke store runtime dan persistence existing.
+ * SideEffects: Menulis `database/network_assets.json` (di bawah file-lock) + state runtime.
  */
 "use strict";
 
 const { asyncHandler } = require("../lib/error-handler");
+const { ensureAdmin } = require("./api-route-helpers");
+const assetService = require("../lib/network-assets-service");
 
 function registerAdminNetworkAssetsRoutes(router, deps) {
     const {
         ensureAuthenticatedStaff,
         rateLimit,
         runtime,
-        generateAssetId,
-        updateNetworkAssetsWithLock,
-        saveNetworkAssets
+        updateNetworkAssetsWithLock
     } = deps;
+
+    // BACA: seluruh staf (teknisi butuh peta). TULIS: admin saja — teknisi memetakan lewat wizard WA
+    // `#ODC`/`#ODP` (kanal yang memang mereka pakai di lapangan), bukan lewat HTTP.
+    // Dulu cek admin ini disalin INLINE 3× di dalam handler (rawan drift); kini satu middleware.
+    const getUsers = () => (typeof deps.getUsers === "function"
+        ? deps.getUsers()
+        : (Array.isArray(global.users) ? global.users : []));
+
+    const publishLatest = () => {
+        const latest = (runtime.state && typeof runtime.state.get === "function")
+            ? runtime.state.get("networkAssets")
+            : (Array.isArray(global.networkAssets) ? global.networkAssets : []);
+        runtime.repositories.networkAssets.setAll(latest);
+        return latest;
+    };
 
     router.get("/api/map/network-assets", ensureAuthenticatedStaff, (_req, res) => {
         try {
@@ -30,6 +49,72 @@ function registerAdminNetworkAssetsRoutes(router, deps) {
         } catch (error) {
             console.error("[API_NETWORK_ASSETS_ERROR]", error);
             res.status(500).json({ status: 500, message: `Failed to load network assets: ${error.message}` });
+        }
+    });
+
+    /**
+     * "Rapikan ODP" — pelanggan yang BELUM punya ODP tapi PUNYA GPS, beserta usulan ODP terdekat
+     * (yang masih bersisa port). BACA-SAJA: jarak garis lurus adalah TEBAKAN — kabel drop bisa saja
+     * ditarik ke ODP lain — jadi endpoint ini hanya MENGUSULKAN. Penetapannya lewat
+     * `POST /api/users/:id` yang sudah ada (di sana validasi ODP + hitung-ulang port ikut jalan),
+     * supaya tak lahir jalur tulis kedua yang diam-diam beda aturan.
+     */
+    router.get("/api/map/odp-tidy", ensureAuthenticatedStaff, ensureAdmin, (req, res) => {
+        try {
+            const assets = runtime.repositories.networkAssets.getAll() || [];
+            const users = getUsers();
+            const qMax = parseInt(req.query.maxMeters, 10);
+            const maxMeters = Number.isFinite(qMax) && qMax > 0 ? qMax : assetService.getAssetConfig().odpSuggestMaxMeters;
+
+            const rows = [];
+            let tanpaGps = 0;
+            let sudahTerpetakan = 0;
+
+            for (const u of users) {
+                if (!u) continue;
+                if (String(u.connected_odp_id || "").trim()) { sudahTerpetakan++; continue; }
+
+                const lat = Number(u.latitude);
+                const lng = Number(u.longitude);
+                if (!Number.isFinite(lat) || !Number.isFinite(lng)) { tanpaGps++; continue; }
+
+                const usul = assetService.suggestOdpForPoint(lat, lng, { assets, users, limit: 3, maxMeters });
+                rows.push({
+                    id: u.id,
+                    name: u.name || `#${u.id}`,
+                    address: u.address || "",
+                    latitude: lat,
+                    longitude: lng,
+                    suggestions: usul.map((s) => ({
+                        id: s.asset.id,
+                        name: s.asset.name,
+                        meters: s.meters,
+                        sisa: s.status ? s.status.sisa : null
+                    }))
+                });
+            }
+
+            // Yang paling dekat duluan: itu yang paling aman dikonfirmasi borongan.
+            rows.sort((a, b) => {
+                const am = a.suggestions.length ? a.suggestions[0].meters : Infinity;
+                const bm = b.suggestions.length ? b.suggestions[0].meters : Infinity;
+                return am - bm;
+            });
+
+            res.status(200).json({
+                status: 200,
+                message: "Usulan ODP siap.",
+                data: {
+                    rows,
+                    maxMeters,
+                    tanpaGps, // jujur: tanpa GPS kita TAK BISA mengusulkan apa pun — butuh kunjungan
+                    sudahTerpetakan,
+                    totalOdp: assets.filter((a) => a && a.type === "ODP").length
+                }
+            });
+        } catch (error) {
+            console.error("[API_ODP_TIDY_ERROR]", error);
+            res.status(500).json({ status: 500, message: `Gagal menyusun usulan ODP: ${error.message}` });
         }
     });
 
@@ -80,132 +165,127 @@ function registerAdminNetworkAssetsRoutes(router, deps) {
         }
     }));
 
-    router.post("/api/map/network-assets", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
-        if (!req.user || !["admin", "owner", "superadmin"].includes(req.user.role)) {
-            return res.status(403).json({ message: "Akses ditolak." });
-        }
-        const { type, name, address, capacity_ports: capacityPorts, latitude, longitude, notes, parent_odc_id: parentOdcId } = req.body;
-        if (!type || !name || !latitude || !longitude) {
-            return res.status(400).json({ message: "Tipe, Nama, Latitude, dan Longitude wajib diisi." });
-        }
-
+    router.post("/api/map/network-assets", ensureAuthenticatedStaff, ensureAdmin, asyncHandler(async (req, res) => {
         try {
-            const result = await updateNetworkAssetsWithLock(async (assets) => {
-                const newAssetId = generateAssetId(type, parentOdcId, assets, name);
-                const newAsset = {
-                    id: newAssetId,
-                    type,
-                    name,
-                    address: address || "",
-                    capacity_ports: parseInt(capacityPorts) || 0,
-                    latitude: parseFloat(latitude),
-                    longitude: parseFloat(longitude),
-                    notes: notes || "",
-                    parent_odc_id: parentOdcId || null,
-                    ports_used: 0,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                };
-                if (newAsset.type === "ODP" && newAsset.parent_odc_id) {
-                    const parentOdc = assets.find((asset) => String(asset.id) === String(newAsset.parent_odc_id) && asset.type === "ODC");
-                    if (!parentOdc) throw new Error(`Parent ODC dengan ID ${newAsset.parent_odc_id} tidak ditemukan.`);
-                    const currentUsage = parseInt(parentOdc.ports_used) || 0;
-                    const capacity = parseInt(parentOdc.capacity_ports) || 0;
-                    if (capacity > 0 && currentUsage >= capacity) {
-                        throw new Error(`ODC ${parentOdc.name} sudah penuh (${currentUsage}/${capacity}). Tidak dapat menambahkan ODP baru.`);
-                    }
-                    parentOdc.ports_used = currentUsage + 1;
-                }
-                assets.push(newAsset);
-                return newAsset;
-            });
-            runtime.repositories.networkAssets.setAll(runtime.state.get("networkAssets"));
-            res.status(201).json({ status: 201, message: "Aset jaringan berhasil ditambahkan.", data: result });
+            const asset = await assetService.createAsset({
+                ...req.body,
+                created_by: (req.user && (req.user.name || req.user.username)) || "",
+                source: "web"
+            }, { updateWithLock: updateNetworkAssetsWithLock, getUsers });
+
+            publishLatest();
+            res.status(201).json({ status: 201, message: "Aset jaringan berhasil ditambahkan.", data: asset });
         } catch (error) {
             console.error("[API_NETWORK_ASSETS_POST_ERROR]", error);
-            res.status(500).json({ status: 500, message: `Gagal menambahkan aset jaringan: ${error.message}` });
+            res.status(400).json({ status: 400, message: error.message || "Gagal menambahkan aset jaringan." });
         }
     }));
 
-    router.put("/api/map/network-assets/:id", ensureAuthenticatedStaff, (req, res) => {
-        if (!req.user || !["admin", "owner", "superadmin"].includes(req.user.role)) {
-            return res.status(403).json({ message: "Akses ditolak." });
-        }
+    router.put("/api/map/network-assets/:id", ensureAuthenticatedStaff, ensureAdmin, asyncHandler(async (req, res) => {
         const { id } = req.params;
         const { type, name, address, capacity_ports: capacityPorts, latitude, longitude, notes, parent_odc_id: parentOdcId } = req.body;
-        if (!type || !name || !latitude || !longitude) {
-            return res.status(400).json({ message: "Tipe, Nama, Latitude, dan Longitude wajib diisi." });
+
+        const nextType = String(type || "").trim().toUpperCase();
+        if (nextType !== "ODC" && nextType !== "ODP") {
+            return res.status(400).json({ status: 400, message: 'Tipe aset harus "ODC" atau "ODP".' });
+        }
+        if (!name || latitude === undefined || longitude === undefined || latitude === "" || longitude === "") {
+            return res.status(400).json({ status: 400, message: "Nama, Latitude, dan Longitude wajib diisi." });
         }
 
         try {
-            const existingAssets = [...runtime.repositories.networkAssets.getAll()];
-            const assetIndex = existingAssets.findIndex((asset) => String(asset.id) === String(id));
-            if (assetIndex === -1) return res.status(404).json({ status: 404, message: "Aset jaringan tidak ditemukan." });
-            const oldAsset = { ...existingAssets[assetIndex] };
-            const updatedAsset = {
-                ...oldAsset,
-                type,
-                name,
-                address: address || "",
-                capacity_ports: parseInt(capacityPorts) || 0,
-                latitude: parseFloat(latitude),
-                longitude: parseFloat(longitude),
-                notes: notes || "",
-                parent_odc_id: parentOdcId || null,
-                updatedAt: new Date().toISOString()
-            };
-            if (oldAsset.type === "ODP" && oldAsset.parent_odc_id && (updatedAsset.type !== "ODP" || updatedAsset.parent_odc_id !== oldAsset.parent_odc_id)) {
-                const oldParentOdc = existingAssets.find((asset) => String(asset.id) === String(oldAsset.parent_odc_id) && asset.type === "ODC");
-                if (oldParentOdc) oldParentOdc.ports_used = Math.max(0, (parseInt(oldParentOdc.ports_used) || 0) - 1);
-            }
-            if (updatedAsset.type === "ODP" && updatedAsset.parent_odc_id && (oldAsset.type !== "ODP" || updatedAsset.parent_odc_id !== oldAsset.parent_odc_id)) {
-                const newParentOdc = existingAssets.find((asset) => String(asset.id) === String(updatedAsset.parent_odc_id) && asset.type === "ODC");
-                if (!newParentOdc) return res.status(400).json({ status: 400, message: `Parent ODC dengan ID ${updatedAsset.parent_odc_id} tidak ditemukan.` });
-                const currentUsage = parseInt(newParentOdc.ports_used) || 0;
-                const capacity = parseInt(newParentOdc.capacity_ports) || 0;
-                if (capacity > 0 && currentUsage >= capacity) {
-                    return res.status(400).json({ status: 400, message: `ODC ${newParentOdc.name} sudah penuh (${currentUsage}/${capacity}). Tidak dapat memindahkan ODP ke ODC ini.` });
+            // Di bawah LOCK (dulu PUT menulis langsung via saveNetworkAssets → race lost-update dgn POST/DELETE).
+            const updated = await updateNetworkAssetsWithLock(async (assets) => {
+                const index = assets.findIndex((asset) => String(asset.id) === String(id));
+                if (index === -1) throw new Error("Aset jaringan tidak ditemukan.");
+                const oldAsset = assets[index];
+
+                const nextParentOdcId = nextType === "ODP" ? (String(parentOdcId || "").trim() || null) : null;
+                if (nextParentOdcId) {
+                    const parent = assets.find((a) => String(a.id) === String(nextParentOdcId) && a.type === "ODC");
+                    if (!parent) throw new Error(`Induk ODC "${nextParentOdcId}" tidak ditemukan.`);
+
+                    const movingToNewParent = String(oldAsset.parent_odc_id || "") !== String(nextParentOdcId);
+                    if (movingToNewParent) {
+                        // Kapasitas ODC = berapa ODP boleh digantung. Dihitung dari DATA (jumlah ODP anak),
+                        // bukan dari ports_used tersimpan yang bisa basi.
+                        const cap = parseInt(parent.capacity_ports, 10) || 0;
+                        const childCount = assets.filter((a) => a.type === "ODP" && String(a.parent_odc_id || "") === String(parent.id)).length;
+                        if (cap > 0 && childCount >= cap) {
+                            throw new Error(`ODC ${parent.name} sudah penuh (${childCount}/${cap} ODP). Pilih ODC lain.`);
+                        }
+                    }
                 }
-                newParentOdc.ports_used = currentUsage + 1;
-            }
-            existingAssets[assetIndex] = updatedAsset;
-            runtime.repositories.networkAssets.setAll(existingAssets);
-            saveNetworkAssets(existingAssets);
-            res.status(200).json({ status: 200, message: "Aset jaringan berhasil diperbarui.", data: updatedAsset });
+
+                // Pindah tipe ODP→ODC padahal masih ada pelanggan menempel = memutus rujukan diam-diam.
+                if (oldAsset.type === "ODP" && nextType !== "ODP") {
+                    const attached = getUsers().filter((u) => String((u && u.connected_odp_id) || "") === String(oldAsset.id)).length;
+                    if (attached > 0) {
+                        throw new Error(`ODP ${oldAsset.name} masih dipakai ${attached} pelanggan. Pindahkan pelanggannya dulu sebelum mengubah tipe.`);
+                    }
+                }
+
+                assets[index] = {
+                    ...oldAsset,
+                    type: nextType,
+                    name: String(name).trim(),
+                    address: address || "",
+                    capacity_ports: parseInt(capacityPorts, 10) || 0,
+                    latitude: parseFloat(latitude),
+                    longitude: parseFloat(longitude),
+                    notes: notes || "",
+                    parent_odc_id: nextParentOdcId,
+                    updated_by: (req.user && (req.user.name || req.user.username)) || "",
+                    updatedAt: new Date().toISOString()
+                };
+
+                assetService.recomputePortUsage(assets, getUsers());
+                return assets[index];
+            });
+
+            publishLatest();
+            res.status(200).json({ status: 200, message: "Aset jaringan berhasil diperbarui.", data: updated });
         } catch (error) {
             console.error("[API_NETWORK_ASSETS_PUT_ERROR]", error);
-            res.status(500).json({ status: 500, message: `Gagal memperbarui aset jaringan: ${error.message}` });
+            res.status(400).json({ status: 400, message: error.message || "Gagal memperbarui aset jaringan." });
         }
-    });
+    }));
 
-    router.delete("/api/map/network-assets/:id", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
-        if (!req.user || !["admin", "owner", "superadmin"].includes(req.user.role)) {
-            return res.status(403).json({ message: "Akses ditolak." });
-        }
+    router.delete("/api/map/network-assets/:id", ensureAuthenticatedStaff, ensureAdmin, asyncHandler(async (req, res) => {
         const { id } = req.params;
         try {
             await updateNetworkAssetsWithLock(async (assets) => {
-                const assetToDeleteIndex = assets.findIndex((asset) => String(asset.id) === String(id));
-                if (assetToDeleteIndex === -1) throw new Error("Aset jaringan tidak ditemukan.");
-                const assetToDelete = assets[assetToDeleteIndex];
-                if (assetToDelete.type === "ODC") {
-                    const childOdps = assets.filter((asset) => asset.type === "ODP" && String(asset.parent_odc_id) === String(id));
-                    if (childOdps.length > 0) {
-                        throw new Error(`ODC ${assetToDelete.name} tidak dapat dihapus karena memiliki ${childOdps.length} ODP yang terhubung. Hapus atau pindahkan ODP terlebih dahulu.`);
+                const index = assets.findIndex((asset) => String(asset.id) === String(id));
+                if (index === -1) throw new Error("Aset jaringan tidak ditemukan.");
+                const asset = assets[index];
+
+                if (asset.type === "ODC") {
+                    const children = assets.filter((a) => a.type === "ODP" && String(a.parent_odc_id || "") === String(id));
+                    if (children.length > 0) {
+                        throw new Error(`ODC ${asset.name} tidak dapat dihapus karena masih memiliki ${children.length} ODP. Hapus atau pindahkan ODP-nya dulu.`);
                     }
                 }
-                if (assetToDelete.type === "ODP" && assetToDelete.parent_odc_id) {
-                    const parentOdc = assets.find((asset) => String(asset.id) === String(assetToDelete.parent_odc_id) && asset.type === "ODC");
-                    if (parentOdc) parentOdc.ports_used = Math.max(0, (parseInt(parentOdc.ports_used) || 0) - 1);
+
+                // ODP yang masih menampung pelanggan TIDAK boleh dihapus: `connected_odp_id` mereka akan
+                // menunjuk aset hantu (tak ada FK yang menahan) → data sampah yang tak terlihat.
+                if (asset.type === "ODP") {
+                    const attached = getUsers().filter((u) => String((u && u.connected_odp_id) || "") === String(id));
+                    if (attached.length > 0) {
+                        const contoh = attached.slice(0, 3).map((u) => u.name || u.id).join(", ");
+                        throw new Error(`ODP ${asset.name} masih dipakai ${attached.length} pelanggan (${contoh}${attached.length > 3 ? ", …" : ""}). Pindahkan pelanggannya dulu.`);
+                    }
                 }
-                assets.splice(assetToDeleteIndex, 1);
+
+                assets.splice(index, 1);
+                assetService.recomputePortUsage(assets, getUsers());
                 return true;
             });
-            runtime.repositories.networkAssets.setAll(runtime.state.get("networkAssets"));
+
+            publishLatest();
             res.status(200).json({ status: 200, message: "Aset jaringan berhasil dihapus." });
         } catch (error) {
             console.error("[API_NETWORK_ASSETS_DELETE_ERROR]", error);
-            res.status(500).json({ status: 500, message: `Gagal menghapus aset jaringan: ${error.message}` });
+            res.status(400).json({ status: 400, message: error.message || "Gagal menghapus aset jaringan." });
         }
     }));
 }

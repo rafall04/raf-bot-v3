@@ -58,6 +58,28 @@ async function prepareNewUser(deps, { userData }) {
         };
     }
 
+    // ODP: tolak ID yang TIDAK TERDAFTAR (typo yang diterima diam-diam = akar data sampah — dulu
+    // `connected_odp_id` tak pernah divalidasi sama sekali) dan ODP yang sudah PENUH (kapasitas ODP
+    // dulu hanya ditegakkan untuk relasi ODC→ODP, tak pernah untuk PELANGGAN → ODP 8 port bisa diisi
+    // tak terbatas, padahal "muat berapa lagi" justru alasan utama mencatat ODP).
+    // Kosong = SAH (pelanggan memang belum dipetakan). Semua jalur tulis (web, #PSB, import Excel)
+    // bermuara ke sini, jadi satu penjaga cukup.
+    const odpToAssign = userData.connected_odp_id || userData.odp_id;
+    if (odpToAssign) {
+        const assertOdpAssignable = deps.assertOdpAssignable
+            || require("../../lib/network-assets-service").assertOdpAssignable;
+        try {
+            assertOdpAssignable(odpToAssign, {});
+        } catch (err) {
+            return {
+                errorResponse: {
+                    status: 400,
+                    body: { status: 400, message: err.message }
+                }
+            };
+        }
+    }
+
     let finalUsername = userData.username;
     let finalPassword = userData.password;
     let plainTextPassword = "";

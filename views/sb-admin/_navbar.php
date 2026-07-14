@@ -397,6 +397,10 @@ function isParentActive($pages, $current) {
                     <i class="fas fa-fw fa-boxes mr-2"></i>
                     <span>Manajemen Aset</span>
                 </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/rapikan-odp', $current_page) ? 'active' : ''; ?>" href="/rapikan-odp">
+                    <i class="fas fa-fw fa-link mr-2"></i>
+                    <span>Rapikan ODP</span>
+                </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/statik', $current_page) ? 'active' : ''; ?>" href="/statik">
                     <i class="fas fa-fw fa-network-wired mr-2"></i>
                     <span>IP Statik</span>

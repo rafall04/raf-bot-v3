@@ -69,6 +69,7 @@ const CONVERSATION_STATE_PREFIX_OWNER_MAP = {
     AGENT_VOUCHER_SALE_: "agent-voucher",
     PSB_: "psb",
     PSBJADWAL_: "psb-schedule",
+    ASSET_: "network-asset", // wizard WA #ODC/#ODP (pemetaan aset oleh teknisi)
     WANSW_: "wan-switch",
     OPERJALUR_: "oper-jalur",
     PAYPROOF_: "payment-proof",

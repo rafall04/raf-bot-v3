@@ -218,6 +218,25 @@ router.get('/teknisi-olt', checkRole(['teknisi', 'admin', 'owner', 'superadmin']
     res.render('sb-admin/teknisi-olt.php');
 });
 
+// Aset jaringan (ODC/ODP) + peta admin. DULU tak punya route eksplisit → jatuh ke handler generik
+// `/:type([^.]+)` di bawah yang TANPA checkRole, jadi teknisi, agen, bahkan PELANGGAN yang login pun
+// bisa merender halaman aset admin. Kini digate eksplisit (data-nya memang sudah ter-gate, tapi
+// halaman internal tak boleh terbuka begitu saja).
+// Teknisi MELIHAT lewat /teknisi-map-viewer dan MEMETAKAN lewat WhatsApp (#ODC / #ODP).
+router.get('/network-assets', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/network-assets.php');
+});
+
+router.get('/map-viewer', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/map-viewer.php');
+});
+
+// Sambungkan pelanggan LAMA (yang sudah punya GPS) ke ODP: bot mengusulkan yang terdekat, admin
+// memutuskan. Tak ada penetapan otomatis — jarak garis lurus itu tebakan, bukan kebenaran.
+router.get('/rapikan-odp', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/rapikan-odp.php');
+});
+
 // Web PSB 3-fase legacy (teknisi-psb / -installation / -setup) + Rekap PSB lama DIPENSIUNKAN (S3):
 // jalur utama sekarang = Papan PSB (/papan-psb) + wizard WA #PSB. Redirect ke papan supaya bookmark
 // lama tetap mendarat di board terpadu (bukan 404). Endpoint tulis 3-fase di-410 di api-psb-routes.

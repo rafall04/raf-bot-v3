@@ -20,6 +20,7 @@ const { handlePsbScheduleConversationState } = require("./state-domains/psb-sche
 const { handleWanSwitchConversationState } = require("./state-domains/wan-switch.state");
 const { handleOperJalurConversationState } = require("./state-domains/oper-jalur.state");
 const { handlePaymentProofAdminState } = require("./state-domains/payment-proof-admin.state");
+const { handleNetworkAssetConversationState } = require("./state-domains/network-asset.state");
 
 async function routeConversationState(context) {
     const stateStep = context.stateStep || context.userState?.step || context.smartReportState?.step || context.teknisiState?.step || null;
@@ -66,6 +67,9 @@ async function routeConversationState(context) {
     }
     if (owner === "payment-proof") {
         return { owner, ...(await handlePaymentProofAdminState(domainContext)) };
+    }
+    if (owner === "network-asset") {
+        return { owner, ...(await handleNetworkAssetConversationState(domainContext)) };
     }
 
     return { handled: false, owner };

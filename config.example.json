@@ -181,6 +181,12 @@
     "pppoeRealm": "rafcybernet",
     "freeInstallMonth": false
   },
+  "networkAssets": {
+    "waIntake": { "enabled": true },
+    "defaultOdpCapacity": 8,
+    "odpSuggestMaxMeters": 250,
+    "odcSuggestMaxMeters": 2000
+  },
   "repairNotif": {
     "enabled": false,
     "groupId": "",

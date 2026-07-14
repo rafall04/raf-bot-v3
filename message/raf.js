@@ -539,6 +539,34 @@ module.exports = async (raf, msg, m, options = {}) => {
             console.error('[PSB_JADWAL_TRIGGER_ERROR]', jadwalErr.message);
         }
 
+        // ── Trigger PETAKAN ASET (teknisi/admin) — teks "#ODC <nama>" / "#ODP <nama>" ──
+        // Peta jaringan selama ini KOSONG karena satu-satunya jalur input adalah halaman admin, dan di
+        // sana teknisi di-403 — orang yang paling tahu posisi ODP justru terkunci. Ini membuka jalur
+        // lapangan: cukup nama + share lokasi (induk ODC dipilihkan bot). Lanjutannya dirutekan otomatis
+        // oleh routeConversationState (owner "network-asset", prefix step ASSET_).
+        // Gate: akun staf (sama seperti #jadwal) + config `networkAssets.waIntake.enabled` (default ON).
+        // NON-THROWING: gagal di sini tak boleh menjatuhkan pesan lain.
+        try {
+            const asetCfg = (global.config && global.config.networkAssets) || {};
+            const asetAktif = !(asetCfg.waIntake && asetCfg.waIntake.enabled === false);
+            const { TRIGGER_RE, startNetworkAssetSession } = require('./handlers/state-domains/network-asset.state');
+            if (asetAktif && type !== 'imageMessage' && TRIGGER_RE.test(String(chats || ''))) {
+                const { resolveAuthorizedStaff } = require('./handlers/psb-group-intake');
+                const asetStaff = resolveAuthorizedStaff({
+                    participant: optionalJid || sender,
+                    plainPhone: plainSenderNumber,
+                    accounts,
+                    allowedRoles: (global.config && global.config.psbIntake && global.config.psbIntake.allowedRoles) || null
+                });
+                if (asetStaff) {
+                    await startNetworkAssetSession({ chats, staff: asetStaff, stateSender, reply, setUserState });
+                    return;
+                }
+            }
+        } catch (asetErr) {
+            console.error('[ASET_TRIGGER_ERROR]', asetErr.message);
+        }
+
         // ── Perintah assignment papan PSB (Fase B/2 [[psb-papan-terjadwal]]) — "ambil/tugaskan/papan psb" ──
         // One-shot (TANPA state): teknisi AMBIL, admin TUGASKAN, semua staf lihat PAPAN. Pakai core
         // assignSchedule + builder DM/notif yang SAMA dgn web. Gated (feature ON + akun staf) + NON-THROWING.

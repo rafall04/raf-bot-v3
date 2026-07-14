@@ -130,6 +130,20 @@ async function updateUserById(deps, { id, userData, actor, requestMeta }) {
         draftUser[key] = userData[key];
     });
 
+    // ODP: validasi HANYA bila berubah. Mengedit pelanggan yang sudah lama menempel di ODP penuh tak
+    // boleh ditolak — dia memang sudah di sana. `excludeUserId` mencegah dirinya sendiri ikut dihitung
+    // lalu divonis "penuh". Kosong = sah (melepas pelanggan dari ODP).
+    const odpChanged = String(draftUser.connected_odp_id || "") !== String(oldUserData.connected_odp_id || "");
+    if (odpChanged && draftUser.connected_odp_id) {
+        const assertOdpAssignable = deps.assertOdpAssignable
+            || require("../../lib/network-assets-service").assertOdpAssignable;
+        try {
+            assertOdpAssignable(draftUser.connected_odp_id, { excludeUserId: id });
+        } catch (err) {
+            return { status: 400, body: { status: 400, message: err.message } };
+        }
+    }
+
     // draftUser.paid bisa MASIH mentah (integer 0/1) bila FE tak mengirim field `paid` (tersalin dari
     // spread userToUpdate). Koersi ke boolean agar perbandingan paidStatusChanged type-safe di semua kasus.
     draftUser.paid = draftUser.paid === true || draftUser.paid === 1 || draftUser.paid === "1";
@@ -296,6 +310,17 @@ async function updateUserById(deps, { id, userData, actor, requestMeta }) {
         String(user.id) === String(id) ? { ...user, ...draftUser } : user
     ));
     deps.repository.replaceUsersSnapshot(nextUsers);
+
+    // ODP pindah → segarkan pemakaian port ODP lama & baru sekaligus (dihitung ULANG dari data, jadi
+    // tak perlu tahu mana yang naik/turun). Best-effort: user sudah tersimpan, angka port tak boleh
+    // menggagalkan request (boot juga menghitung ulang).
+    if (odpChanged) {
+        try {
+            deps.syncPortUsage?.({ getUsers: () => nextUsers });
+        } catch (err) {
+            deps.logger?.error?.("[UPDATE_USER] Gagal hitung ulang pemakaian port ODP:", err);
+        }
+    }
 
     try {
         const changedFields = [];

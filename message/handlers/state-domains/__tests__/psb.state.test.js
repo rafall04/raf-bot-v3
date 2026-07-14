@@ -106,6 +106,41 @@ describe("psb.state wizard DM", () => {
         expect(h.getState()).toBeNull(); // state dibersihkan setelah selesai
     });
 
+    test("ODP terdekat DIUSULKAN di layar konfirmasi & ikut tersimpan saat YA (nol ketik)", async () => {
+        const h = harness({
+            assetService: {
+                suggestOdpForPoint: jest.fn(() => [
+                    { asset: { id: "ODP-BALEN-002", name: "ODP Balen 2" }, meters: 35, status: { sisa: 6 } }
+                ])
+            }
+        });
+        await reachConfirm(h);
+
+        // Nebeng layar konfirmasi yang SUDAH ada (SN modem) → tak menambah langkah bagi teknisi,
+        // tapi usulan ODP tetap lewat MATA MANUSIA sebelum tersimpan (jarak = tebakan, bukan kebenaran).
+        const konfirmasi = h.base.reply.mock.calls.at(-1)[0];
+        expect(konfirmasi).toContain("ODP Balen 2");
+        expect(konfirmasi).toContain("35 m");
+        expect(konfirmasi).toContain("sisa 6 port");
+
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+
+        const arg = h.base.usersService.upsertUserFromAdminPanel.mock.calls[0][0];
+        expect(arg.userData.connected_odp_id).toBe("ODP-BALEN-002");
+    });
+
+    test("tak ada ODP terdaftar di dekat rumah → JUJUR & lanjut TANPA ODP (jangan menebak)", async () => {
+        const h = harness({ assetService: { suggestOdpForPoint: jest.fn(() => []) } });
+        await reachConfirm(h);
+
+        expect(h.base.reply.mock.calls.at(-1)[0]).toContain("belum ada ODP terdaftar");
+
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+
+        const arg = h.base.usersService.upsertUserFromAdminPanel.mock.calls[0][0];
+        expect(arg.userData.connected_odp_id).toBeUndefined();
+    });
+
     test("dokumen WAJIB: sebelum rumah+lokasi lengkap, modem TIDAK dibaca & TIDAK provision", async () => {
         const h = harness();
         await startPsbSession({ ...h.base, type: "imageMessage", caption: CAPTION, msg: imageMsg(CAPTION), staff: STAFF });

@@ -74,8 +74,11 @@ describe("api-users service", () => {
         const logActivity = jest.fn().mockResolvedValue(undefined);
         const deleteActivePPPoEUser = jest.fn().mockResolvedValue({ ok: true });
         const removePPPoESecret = jest.fn().mockResolvedValue({ ok: true });
-        const updateOdpPortUsage = jest.fn();
+        const syncPortUsage = jest.fn();
         const repository = {
+            // Kolom NYATA di tabel users adalah `connected_odp_id`. Fixture LAMA mengarang `odp_id` +
+            // `odp_port` — dua kolom yang TIDAK PERNAH ADA — sehingga test hijau untuk panggilan port
+            // yang di produksi tak pernah jalan (penjaganya tak pernah lolos). Jangan diulang.
             findUserById: jest.fn(() => ({
                 id: "u-1",
                 name: "User 1",
@@ -83,8 +86,7 @@ describe("api-users service", () => {
                 subscription: "Basic",
                 paid: false,
                 pppoe_username: "pppoe-1",
-                odp_id: "odp-1",
-                odp_port: 3
+                connected_odp_id: "ODP-A-001"
             })),
             getUsersSnapshot: jest.fn(() => [
                 { id: "u-1", name: "User 1" },
@@ -98,7 +100,7 @@ describe("api-users service", () => {
             logActivity,
             deleteActivePPPoEUser,
             removePPPoESecret,
-            updateOdpPortUsage,
+            syncPortUsage,
             logger: { error: jest.fn(), warn: jest.fn(), log: jest.fn() }
         });
 
@@ -112,7 +114,10 @@ describe("api-users service", () => {
         expect(replaceUsersSnapshot).toHaveBeenCalledWith([{ id: "u-2", name: "User 2" }]);
         expect(deleteActivePPPoEUser).toHaveBeenCalledWith("pppoe-1", { caller: "api.user-delete" });
         expect(removePPPoESecret).toHaveBeenCalledWith("pppoe-1", { caller: "api.user-delete" });
-        expect(updateOdpPortUsage).toHaveBeenCalledWith("odp-1", 3, false);
+        // Port ODP dihitung ULANG dari data pasca-hapus (bukan di-decrement): yang dilihat recompute
+        // harus SUDAH tanpa user yang baru dihapus — itulah yang membuat angkanya benar.
+        expect(syncPortUsage).toHaveBeenCalledTimes(1);
+        expect(syncPortUsage.mock.calls[0][0].getUsers()).toEqual([{ id: "u-2", name: "User 2" }]);
         expect(logActivity).toHaveBeenCalled();
         expect(result).toEqual({
             status: 200,

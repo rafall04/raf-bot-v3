@@ -314,13 +314,42 @@ async function startPsbSession(context) {
 
 // Ringkasan data pelanggan (untuk layar verifikasi sebelum eksekusi).
 // Password PPPoE SENGAJA tak ditampilkan — akses terbatas admin (bot yang push ke modem otomatis).
+/**
+ * ODP terdekat dari titik rumah pelanggan yang MASIH punya sisa port. Tak ada → null.
+ * JANGAN menebak ODP jauh: jarak garis lurus itu TEBAKAN, kabel drop bisa saja ditarik ke ODP lain.
+ * Karena itu usulan ini ditampilkan di layar konfirmasi (teknisi tetap bilang YA), bukan dipasang diam-diam.
+ * NEVER-THROW: usulan ODP itu bonus — gagal mencarinya tak boleh menjatuhkan PSB.
+ */
+function resolveNearestOdp(context, ctx) {
+    try {
+        if (!ctx.lokasi) return null;
+        const svc = context.assetService || require("../../../lib/network-assets-service");
+        const usul = svc.suggestOdpForPoint(ctx.lokasi.lat, ctx.lokasi.lng, { limit: 1 });
+        const top = usul && usul[0];
+        if (!top) return null;
+        return { id: top.asset.id, name: top.asset.name, meters: top.meters, sisa: top.status ? top.status.sisa : null };
+    } catch (e) {
+        context.logger?.error?.("[PSB_DM] cari ODP terdekat gagal:", e.message);
+        return null;
+    }
+}
+
 function customerRecapLines(ctx) {
-    return [
+    const lines = [
         `👤 ${ctx.data.nama} · Dusun ${ctx.data.dusun}`,
         `🔑 PPPoE: \`${ctx.pppoeUsername}\``,
         `📦 ${ctx.data.paket} · 📶 ${ctx.data.wifi_ssid} / ${ctx.data.wifi_password}`,
         `📱 ${ctx.data.hp}`
     ];
+
+    // ODP diusulkan otomatis dari titik rumah — teknisi tak perlu hafal/ketik ID ODP.
+    if (ctx.odp) {
+        const sisa = ctx.odp.sisa != null ? ` · sisa ${ctx.odp.sisa} port` : "";
+        lines.push(`🔗 ODP: ${ctx.odp.name} (${ctx.odp.meters} m)${sisa}`);
+    } else if (ctx.lokasi) {
+        lines.push(`🔗 ODP: — belum ada ODP terdaftar di dekat sini (petakan dulu: *#ODP <nama>*)`);
+    }
+    return lines;
 }
 
 // ── Deteksi modem + minta konfirmasi (BELUM push apa pun) ──
@@ -334,6 +363,10 @@ async function detectAndAskConfirm(context, ctx) {
     // diverifikasi teknisi, lalu dipakai apa adanya saat provision (nilai yang dicek = yang dieksekusi).
     ctx.pppoeUsername = buildPppoeUsername(ctx.data.nama, ctx.data.dusun, cfg.pppoeRealm, global.users || []);
     ctx.pppoePassword = fullCfg.defaultPPPoEPassword || "rafnet123";
+
+    // ODP terdekat (yang masih ada sisa port) dari titik rumah → tampil di layar konfirmasi, ikut
+    // di-YA-kan teknisi bersama SN modem. Nol langkah tambahan, tapi tetap ADA mata manusia.
+    ctx.odp = resolveNearestOdp(context, ctx);
 
     let candidates = [];
     try {
@@ -422,6 +455,9 @@ async function provision(context, ctx, candidate) {
                 latitude: ctx.lokasi ? ctx.lokasi.lat : undefined,
                 longitude: ctx.lokasi ? ctx.lokasi.lng : undefined,
                 maps_url: ctx.lokasi ? `https://maps.google.com/?q=${ctx.lokasi.lat},${ctx.lokasi.lng}` : undefined,
+                // ODP yang diusulkan bot & sudah dilihat/di-YA-kan teknisi di layar konfirmasi.
+                // Divalidasi lagi di create-user-validate (ada? penuh?) → typo/ODP penuh ditolak keras.
+                connected_odp_id: ctx.odp ? ctx.odp.id : undefined,
                 // Auto "gratis bulan pemasangan" bila diaktifkan: pelanggan PSB baru mulai bayar
                 // bulan DEPAN (waiver periode berjalan, kebal isolir, tak masuk pemasukan). Reuse blok
                 // free_first_month di create-user-persist. Gate: config.psbIntake.freeInstallMonth.

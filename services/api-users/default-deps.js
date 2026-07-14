@@ -18,7 +18,7 @@ function defaultDeps() {
         normalizeUserPaymentMethod: null,
         deleteActivePPPoEUser: null,
         removePPPoESecret: null,
-        updateOdpPortUsage: null,
+        syncPortUsage: null, // lib/network-assets-service.syncPortUsage — hitung ULANG (bukan increment)
         saveNetworkAssets: null,
         comparePassword: null,
         logActivity: null,

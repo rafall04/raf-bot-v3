@@ -10,7 +10,18 @@
 
 async function persistAndNotifyNewUser(deps, { newUser, plainTextPassword, finalUsername, paymentMethod, registrationMode, mikrotikSync, deviceConfig = { attempted: false, ok: false, message: null }, syncEnabled, userData, actor, requestMeta }) {
     await deps.repository.insertUserRecord(newUser);
-    deps.repository.replaceUsersSnapshot([...deps.repository.getUsersSnapshot(), newUser]);
+    const usersAfterInsert = [...deps.repository.getUsersSnapshot(), newUser];
+    deps.repository.replaceUsersSnapshot(usersAfterInsert);
+
+    // Pelanggan menempel ke ODP → segarkan pemakaian port (dihitung ULANG dari data pelanggan).
+    // Best-effort & never-throw: user sudah tersimpan; angka port tak boleh menggagalkan pendaftaran.
+    if (newUser.connected_odp_id) {
+        try {
+            deps.syncPortUsage?.({ getUsers: () => usersAfterInsert });
+        } catch (err) {
+            deps.logger?.error?.("[CREATE_USER] Gagal hitung ulang pemakaian port ODP:", err);
+        }
+    }
 
     if (newUser.paid === true) {
         const { periodMonth, periodYear } = deps.getPeriodParts({ date: new Date() });
