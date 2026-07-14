@@ -539,6 +539,25 @@ module.exports = async (raf, msg, m, options = {}) => {
             console.error('[PSB_JADWAL_TRIGGER_ERROR]', jadwalErr.message);
         }
 
+        // ── Perintah assignment papan PSB (Fase B/2 [[psb-papan-terjadwal]]) — "ambil/tugaskan/papan psb" ──
+        // One-shot (TANPA state): teknisi AMBIL, admin TUGASKAN, semua staf lihat PAPAN. Pakai core
+        // assignSchedule + builder DM/notif yang SAMA dgn web. Gated (feature ON + akun staf) + NON-THROWING.
+        // Non-staf yang kebetulan ketik "ambil/tugaskan/papan psb" → diabaikan (lanjut ke alur normal).
+        try {
+            const psbDmCfg = (global.config && global.config.psbIntake) || {};
+            if (psbDmCfg.enabled === true && type !== 'imageMessage' && /^\s*(ambil|tugaskan|papan|daftar)\s+psb\b/i.test(String(chats || ''))) {
+                const { resolveAuthorizedStaff } = require('./handlers/psb-group-intake');
+                const psbAssignStaff = resolveAuthorizedStaff({ participant: optionalJid || sender, plainPhone: plainSenderNumber, accounts, allowedRoles: psbDmCfg.allowedRoles });
+                if (psbAssignStaff) {
+                    const { handlePsbAssignCommand } = require('./handlers/psb-assign-command');
+                    await handlePsbAssignCommand({ text: chats, staff: psbAssignStaff, reply });
+                    return;
+                }
+            }
+        } catch (psbAssignErr) {
+            console.error('[PSB_ASSIGN_TRIGGER_ERROR]', psbAssignErr.message);
+        }
+
         // ── Trigger wizard PSB via DM teknisi (Fase 2 [[psb-simplification-plan]]) ──
         // #PSB + foto KTP dari teknisi (DM, BUKAN grup) → buka sesi PSB (step PSB_COLLECT_DOCS);
         // lanjutan (foto rumah/lokasi/konfirmasi) dirutekan otomatis oleh routeConversationState

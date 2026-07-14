@@ -215,6 +215,7 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 - [Fitur 2026-07-13 (P0 upstream: "Terdampak" alert + klaster komplain → data LIVE via getAffectedSet, buang peta statis 46% meleset)](docs/boundary-log.md#b128)
 - [Fitur 2026-07-13 (PSB terjadwal Fase A/2: form + papan WEB /papan-psb, paritas WA)](docs/boundary-log.md#b128)
 - [Fitur 2026-07-14 (PSB terjadwal Fase B/1: assignment WEB — admin TUGASKAN / teknisi AMBIL + DM)](docs/boundary-log.md#b129)
+- [Fitur 2026-07-14 (PSB terjadwal Fase B/2: perintah WA ambil / tugaskan / papan)](docs/boundary-log.md#b130)
 
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.
