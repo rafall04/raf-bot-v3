@@ -259,10 +259,17 @@ function createApiUsersRepository(overrides = {}) {
                 throw new Error("Database runtime tidak tersedia");
             }
 
+            // Whitelist kolom yang boleh di-UPDATE lewat jalur generik ini. `id`/`created_at`/
+            // `registration_date` SENGAJA tak ada (tak boleh ditimpa sembarangan).
+            // `maps_url` DITAMBAHKAN: dia pasangan `latitude`/`longitude` yang sudah ada di sini, dan
+            // tanpa dia link peta TERBUANG SENYAP saat update — objek in-memory tetap membawanya
+            // sehingga tampak tersimpan sampai bot restart. Itu persis pola bug #b146 (INSERT membuang
+            // kolom karena daftar diketik manual). Kalau menambah kolom baru ke tabel users dan ingin
+            // bisa diedit, DAFTARKAN DI SINI — jangan mengandalkan snapshot memori.
             const validColumns = [
                 "name", "phone_number", "address", "subscription", "pppoe_username",
                 "device_id", "paid", "username", "password", "otp", "otpTimestamp",
-                "bulk", "connected_odp_id", "latitude", "longitude", "pppoe_password",
+                "bulk", "connected_odp_id", "latitude", "longitude", "maps_url", "pppoe_password",
                 "send_invoice", "is_corporate", "corporate_name", "corporate_address",
                 "corporate_npwp", "corporate_pic_name", "corporate_pic_phone",
                 "corporate_pic_email", "notify_outage", "account_type"

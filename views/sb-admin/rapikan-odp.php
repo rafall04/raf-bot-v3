@@ -54,28 +54,78 @@
 
           <div id="ro-alert"></div>
 
-          <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex align-items-center justify-content-between">
-              <h6 class="m-0 font-weight-bold text-primary">Pelanggan belum tersambung ke ODP</h6>
-              <button id="ro-bulk" class="btn btn-sm btn-success" disabled>
-                <i class="fas fa-bolt fa-sm mr-1"></i>Terapkan semua yang &lt; 50 m
-              </button>
+          <ul class="nav nav-tabs mb-0" role="tablist">
+            <li class="nav-item">
+              <a class="nav-link active" id="tab-gps" data-toggle="tab" href="#pane-gps" role="tab">
+                <i class="fas fa-map-marker-alt fa-sm mr-1"></i>Ada GPS <span class="badge badge-warning ml-1" id="ro-count-gps">0</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" id="tab-nogps" data-toggle="tab" href="#pane-nogps" role="tab">
+                <i class="fas fa-question-circle fa-sm mr-1"></i>Tanpa GPS <span class="badge badge-secondary ml-1" id="ro-count-nogps">0</span>
+              </a>
+            </li>
+          </ul>
+
+          <div class="tab-content">
+            <!-- Tab 1: punya titik → bot mengusulkan ODP terdekat -->
+            <div class="tab-pane fade show active" id="pane-gps" role="tabpanel">
+              <div class="card shadow mb-4" style="border-top-left-radius:0">
+                <div class="card-header py-3 d-flex align-items-center justify-content-between">
+                  <h6 class="m-0 font-weight-bold text-primary">Usulan dari jarak</h6>
+                  <button id="ro-bulk" class="btn btn-sm btn-success" disabled>
+                    <i class="fas fa-bolt fa-sm mr-1"></i>Terapkan semua yang &lt; 50 m
+                  </button>
+                </div>
+                <div class="card-body">
+                  <div class="table-responsive">
+                    <table class="table table-bordered table-sm" width="100%" cellspacing="0">
+                      <thead>
+                        <tr>
+                          <th>Pelanggan</th>
+                          <th style="width:110px">Jarak</th>
+                          <th style="width:280px">Usulan ODP</th>
+                          <th style="width:110px">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody id="ro-rows">
+                        <tr><td colspan="4" class="text-center text-muted py-4">Memuat…</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="card-body">
-              <div class="table-responsive">
-                <table class="table table-bordered table-sm" width="100%" cellspacing="0">
-                  <thead>
-                    <tr>
-                      <th>Pelanggan</th>
-                      <th style="width:110px">Jarak</th>
-                      <th style="width:280px">Usulan ODP</th>
-                      <th style="width:110px">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody id="ro-rows">
-                    <tr><td colspan="4" class="text-center text-muted py-4">Memuat…</td></tr>
-                  </tbody>
-                </table>
+
+            <!-- Tab 2: TAK punya titik → jarak tak bisa menolong; pilih ODP manual -->
+            <div class="tab-pane fade" id="pane-nogps" role="tabpanel">
+              <div class="card shadow mb-4" style="border-top-left-radius:0">
+                <div class="card-header py-3">
+                  <h6 class="m-0 font-weight-bold text-primary">Pelanggan tanpa titik GPS</h6>
+                  <p class="mb-0 mt-1 small text-muted">
+                    Tanpa koordinat, jarak tak bisa mengusulkan apa pun — pilih ODP-nya sendiri.
+                    Atau minta teknisi kirim <code>#LOKASI &lt;nama&gt;</code> di WhatsApp saat di rumah pelanggan,
+                    lalu titiknya masuk dan usulan otomatis jalan.
+                  </p>
+                </div>
+                <div class="card-body">
+                  <input type="text" id="ro-search" class="form-control form-control-sm mb-3"
+                         placeholder="Cari nama atau nomor HP…">
+                  <div class="table-responsive">
+                    <table class="table table-bordered table-sm" width="100%" cellspacing="0">
+                      <thead>
+                        <tr>
+                          <th>Pelanggan</th>
+                          <th style="width:300px">Pilih ODP</th>
+                          <th style="width:110px">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody id="ro-nogps-rows">
+                        <tr><td colspan="3" class="text-center text-muted py-4">Memuat…</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

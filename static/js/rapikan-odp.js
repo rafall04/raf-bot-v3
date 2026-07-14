@@ -15,6 +15,8 @@
 
     var BULK_MAX_METERS = 50;
     var rows = [];
+    var noGpsRows = [];
+    var odps = [];
 
     function esc(s) {
         var d = document.createElement("div");
@@ -40,18 +42,69 @@
             + '<button type="button" class="close" data-dismiss="alert">&times;</button></div>';
     }
 
+    // Dropdown ODP untuk penetapan MANUAL (pelanggan tanpa titik). Tampilkan hunian supaya admin tak
+    // menjejalkan ODP yang sudah penuh — yang penuh memang tak bisa dipilih (ditolak juga oleh API).
+    function odpOptions() {
+        return '<option value="">— pilih ODP —</option>' + odps.map(function (o) {
+            var huni = o.capacity > 0 ? o.used + "/" + o.capacity : o.used + " (tak dibatasi)";
+            return '<option value="' + esc(o.id) + '"' + (o.full ? " disabled" : "") + ">"
+                + esc(o.name) + " — " + huni + (o.full ? " · PENUH" : "") + "</option>";
+        }).join("");
+    }
+
+    function renderNoGps() {
+        var q = (el("ro-search").value || "").trim().toLowerCase();
+        var qd = q.replace(/[^0-9]/g, "");
+        var tampil = noGpsRows.filter(function (r) {
+            if (!q) return true;
+            if (String(r.name).toLowerCase().indexOf(q) !== -1) return true;
+            return qd.length >= 3 && String(r.phone).replace(/[^0-9]/g, "").indexOf(qd) !== -1;
+        });
+
+        var tbody = el("ro-nogps-rows");
+        if (!odps.length) {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">'
+                + "Belum ada ODP terdaftar — petakan dulu lewat WhatsApp (<code>#ODP &lt;nama&gt;</code>)."
+                + "</td></tr>";
+            return;
+        }
+        if (!tampil.length) {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">'
+                + (noGpsRows.length ? "Tak ada yang cocok dengan pencarian." : "Semua pelanggan sudah punya titik GPS. 🎉")
+                + "</td></tr>";
+            return;
+        }
+
+        tbody.innerHTML = tampil.map(function (r) {
+            return '<tr data-nrow="' + esc(r.id) + '">'
+                + "<td>" + esc(r.name)
+                + '<div class="small text-muted">' + esc(r.phone || "—") + (r.address ? " · " + esc(r.address) : "") + "</div></td>"
+                + '<td><select class="form-control form-control-sm ro-npick" data-id="' + esc(r.id) + '">'
+                + odpOptions() + "</select></td>"
+                + '<td><button class="btn btn-sm btn-primary ro-nsave" data-id="' + esc(r.id) + '">Simpan</button></td>'
+                + "</tr>";
+        }).join("");
+    }
+
     function render(data) {
         rows = data.rows || [];
+        noGpsRows = data.tanpaGpsRows || [];
+        odps = data.odps || [];
 
         var dekat = rows.filter(function (r) {
             return r.suggestions.length && r.suggestions[0].meters < BULK_MAX_METERS;
         }).length;
 
+        el("ro-count-gps").textContent = rows.length;
+        el("ro-count-nogps").textContent = noGpsRows.length;
+
         el("ro-summary").innerHTML =
             chip("Belum ber-ODP (ada GPS)", rows.length, "warning")
             + chip("Usulan < 50 m", dekat, "success")
-            + chip("Tanpa GPS (tak bisa diusulkan)", data.tanpaGps, "secondary")
+            + chip("Tanpa GPS (pilih manual)", noGpsRows.length, "secondary")
             + chip("ODP terdaftar", data.totalOdp, "info");
+
+        renderNoGps();
 
         var bulkBtn = el("ro-bulk");
         bulkBtn.disabled = dekat === 0;
@@ -65,8 +118,8 @@
         var tbody = el("ro-rows");
         if (!rows.length) {
             tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">'
-                + (data.tanpaGps > 0
-                    ? "Tidak ada pelanggan ber-GPS yang belum tersambung. (" + data.tanpaGps + " pelanggan tanpa GPS — perlu kunjungan/share lokasi.)"
+                + (noGpsRows.length > 0
+                    ? "Tidak ada pelanggan ber-GPS yang belum tersambung. Sisanya ada di tab <strong>Tanpa GPS</strong> (" + noGpsRows.length + ")."
                     : "Semua pelanggan sudah tersambung ke ODP. 🎉")
                 + "</td></tr>";
             return;
@@ -132,6 +185,27 @@
     }
 
     document.addEventListener("click", function (ev) {
+        // Tab "Tanpa GPS": ODP dipilih MANUAL oleh admin (jarak tak bisa menolong tanpa koordinat).
+        var nbtn = ev.target.closest ? ev.target.closest(".ro-nsave") : null;
+        if (nbtn) {
+            var nid = nbtn.getAttribute("data-id");
+            var nsel = document.querySelector('.ro-npick[data-id="' + nid + '"]');
+            if (!nsel || !nsel.value) {
+                alertBox("warning", "Pilih ODP-nya dulu.");
+                return;
+            }
+            nbtn.disabled = true;
+            nbtn.textContent = "…";
+            simpan(nid, nsel.value)
+                .then(function () { muat(); })
+                .catch(function (e) {
+                    nbtn.disabled = false;
+                    nbtn.textContent = "Simpan";
+                    alertBox("danger", "<strong>Gagal:</strong> " + esc(e.message));
+                });
+            return;
+        }
+
         var btn = ev.target.closest ? ev.target.closest(".ro-save") : null;
         if (btn) {
             var id = btn.getAttribute("data-id");
@@ -185,5 +259,6 @@
 
     el("ro-refresh").addEventListener("click", muat);
     el("ro-radius").addEventListener("change", muat);
+    el("ro-search").addEventListener("input", renderNoGps); // filter lokal, tanpa bolak-balik server
     muat();
 })();

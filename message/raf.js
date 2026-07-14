@@ -546,11 +546,21 @@ module.exports = async (raf, msg, m, options = {}) => {
         // oleh routeConversationState (owner "network-asset", prefix step ASSET_).
         // Gate: akun staf (sama seperti #jadwal) + config `networkAssets.waIntake.enabled` (default ON).
         // NON-THROWING: gagal di sini tak boleh menjatuhkan pesan lain.
+        // 4 perintah menata jaringan, semuanya khusus STAF:
+        //   #ODC/#ODP <nama>   → petakan (nama SUDAH ADA = edit, bukan duplikat)
+        //   #ISI <nama ODP>    → sambungkan pelanggan ke ODP (terima nomor ATAU nama → tak butuh GPS)
+        //   #LOKASI <pelanggan>→ simpan titik GPS pelanggan
+        //   odp <nama>         → cek hunian (3/8, siapa saja, link peta) — TANPA '#', jadi tak bentrok
+        // Non-staf yang kebetulan mengetik "odp ..." → resolveAuthorizedStaff null → jatuh ke alur normal.
         try {
             const asetCfg = (global.config && global.config.networkAssets) || {};
             const asetAktif = !(asetCfg.waIntake && asetCfg.waIntake.enabled === false);
-            const { TRIGGER_RE, startNetworkAssetSession } = require('./handlers/state-domains/network-asset.state');
-            if (asetAktif && type !== 'imageMessage' && TRIGGER_RE.test(String(chats || ''))) {
+            const aset = require('./handlers/state-domains/network-asset.state');
+            const teksAset = String(chats || '');
+            const cocokAset = aset.TRIGGER_RE.test(teksAset) || aset.FILL_RE.test(teksAset)
+                || aset.LOC_RE.test(teksAset) || aset.INSPECT_RE.test(teksAset);
+
+            if (asetAktif && type !== 'imageMessage' && cocokAset) {
                 const { resolveAuthorizedStaff } = require('./handlers/psb-group-intake');
                 const asetStaff = resolveAuthorizedStaff({
                     participant: optionalJid || sender,
@@ -559,7 +569,11 @@ module.exports = async (raf, msg, m, options = {}) => {
                     allowedRoles: (global.config && global.config.psbIntake && global.config.psbIntake.allowedRoles) || null
                 });
                 if (asetStaff) {
-                    await startNetworkAssetSession({ chats, staff: asetStaff, stateSender, reply, setUserState });
+                    const ctxAset = { chats, staff: asetStaff, stateSender, reply, setUserState, deleteUserState };
+                    if (aset.TRIGGER_RE.test(teksAset)) await aset.startNetworkAssetSession(ctxAset);
+                    else if (aset.FILL_RE.test(teksAset)) await aset.startFillSession(ctxAset);
+                    else if (aset.LOC_RE.test(teksAset)) await aset.startLocationSession(ctxAset);
+                    else await aset.inspectOdp(ctxAset);
                     return;
                 }
             }

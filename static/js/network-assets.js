@@ -248,7 +248,18 @@
                             { data: 'type', width: '5%', className: "text-center" }, { data: 'address', render: data => data || '-' },
                             { data: null, render: (data, type, row) => (row.latitude && row.longitude) ? `${parseFloat(row.latitude).toFixed(5)}, ${parseFloat(row.longitude).toFixed(5)}` : 'N/A' },
                             { data: 'capacity_ports', className: "text-center", width: '5%' },
-                            { data: 'ports_used', className: "text-center", width: '5%', render: (data) => data != null ? data : 0 },
+                            // Hunian sekali-lihat: "5/8" + warna. Untuk ODC angka ini = jumlah ODP anak,
+                            // untuk ODP = jumlah pelanggan (satu makna, diturunkan dari data — lihat
+                            // lib/network-assets-service.recomputePortUsage).
+                            { data: 'ports_used', className: "text-center", width: '7%', render: (data, type, row) => {
+                                const used = data != null ? parseInt(data, 10) || 0 : 0;
+                                const cap = parseInt(row.capacity_ports, 10) || 0;
+                                if (cap <= 0) return `<span class="badge badge-secondary">${used}</span>`;
+                                const penuh = used >= cap;
+                                const hampir = !penuh && used >= cap - 1;
+                                const warna = penuh ? 'danger' : (hampir ? 'warning' : 'success');
+                                return `<span class="badge badge-${warna}">${used}/${cap}</span>`;
+                            } },
                             { data: 'parent_odc_id', render: function(data, type, row) {
                                 if (row.type === 'ODP' && data) {
                                     const parentOdc = allOdcData.find(odc => String(odc.id) === String(data));

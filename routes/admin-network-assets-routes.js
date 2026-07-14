@@ -67,7 +67,7 @@ function registerAdminNetworkAssetsRoutes(router, deps) {
             const maxMeters = Number.isFinite(qMax) && qMax > 0 ? qMax : assetService.getAssetConfig().odpSuggestMaxMeters;
 
             const rows = [];
-            let tanpaGps = 0;
+            const tanpaGpsRows = [];
             let sudahTerpetakan = 0;
 
             for (const u of users) {
@@ -79,7 +79,18 @@ function registerAdminNetworkAssetsRoutes(router, deps) {
                 // belum dipetakan. parseCoord memperlakukan null/""/0 sebagai BELUM DISET.
                 const lat = assetService.parseCoord(u.latitude);
                 const lng = assetService.parseCoord(u.longitude);
-                if (lat === null || lng === null) { tanpaGps++; continue; }
+                if (lat === null || lng === null) {
+                    // Tanpa titik, jarak TAK BISA mengusulkan apa pun — tapi orangnya tetap harus bisa
+                    // ditata: admin memilih ODP manual di sini, atau teknisi menyambungkan lewat NAMA
+                    // di WA (#ISI). Jangan sembunyikan mereka hanya karena tak punya koordinat.
+                    tanpaGpsRows.push({
+                        id: u.id,
+                        name: u.name || `#${u.id}`,
+                        phone: u.phone_number || "",
+                        address: u.address || ""
+                    });
+                    continue;
+                }
 
                 const usul = assetService.suggestOdpForPoint(lat, lng, { assets, users, limit: 3, maxMeters });
                 rows.push({
@@ -104,15 +115,26 @@ function registerAdminNetworkAssetsRoutes(router, deps) {
                 return am - bm;
             });
 
+            // Daftar SEMUA ODP + huniannya — dipakai dropdown manual (pelanggan tanpa GPS).
+            const odps = assets
+                .filter((a) => a && a.type === "ODP")
+                .map((a) => {
+                    const st = assetService.getOdpStatus(a.id, { assets, users });
+                    return { id: a.id, name: a.name, used: st.used, capacity: st.capacity, full: st.full };
+                })
+                .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+
             res.status(200).json({
                 status: 200,
                 message: "Usulan ODP siap.",
                 data: {
                     rows,
                     maxMeters,
-                    tanpaGps, // jujur: tanpa GPS kita TAK BISA mengusulkan apa pun — butuh kunjungan
+                    tanpaGpsRows, // jujur: tanpa titik, jarak tak bisa mengusulkan — pilih ODP manual
+                    tanpaGps: tanpaGpsRows.length,
                     sudahTerpetakan,
-                    totalOdp: assets.filter((a) => a && a.type === "ODP").length
+                    odps,
+                    totalOdp: odps.length
                 }
             });
         } catch (error) {
