@@ -4,9 +4,11 @@
  * Header Doc
  * Purpose: Guardrail — pastikan callback iPaymu cabang `tagihan` fail-closed: catat lunas
  *   (settleTagihanPayment) DULU, tandai paid HANYA bila settle sukses; user tak ketemu / settle
- *   gagal → throw !1 (HTTP 500 → iPaymu retry, pembayaran tidak hilang). Reaktivasi best-effort.
+ *   gagal → throw !1 (HTTP 500 → iPaymu retry, pembayaran tidak hilang). Reaktivasi + kirim struk
+ *   best-effort (gagal kirim WA tidak boleh menggagalkan callback).
  * Caller: Jest (`npx jest routes/__tests__/payment-callback-tagihan.test.js`).
- * Deps: fs, path, source routes/public.js (scan, tidak dieksekusi).
+ * Deps: fs, path, source routes/public.js (scan, tidak dieksekusi). Struk dirender lewat
+ *   `buildPaidReceiptText` (lib/services/paid-receipt.js) — satu-satunya perender template struk.
  * MainFuncs: -
  * SideEffects: Tidak ada.
  */
@@ -48,10 +50,16 @@ describe("callback tagihan — fail-closed catat lunas + auto-reaktivasi", () =>
     });
 
     test("kirim struk dibungkus try/catch (best-effort, tak menggagalkan callback)", () => {
-        const idxStruk = block.indexOf("tagihan_struk_lunas");
+        // Struk dirender SATU sumber: lib/services/paid-receipt.js (buildPaidReceiptText). Key template
+        // `tagihan_struk_lunas` sengaja TIDAK lagi disebut di routes/public.js — itu justru dilarang oleh
+        // lib/services/__tests__/paid-receipt-single-source.test.js. Jadi anchor-nya fungsi, bukan key.
+        const idxStruk = block.indexOf("buildPaidReceiptText");
         const before = block.slice(Math.max(0, idxStruk - 400), idxStruk);
+        const after = block.slice(idxStruk, idxStruk + 600);
         expect(idxStruk).toBeGreaterThan(-1);
+        // Dibungkus try { ... } catch: gagal render/kirim WA ditelan, callback tetap 200.
         expect(before).toMatch(/try\s*{/);
+        expect(after).toMatch(/catch\s*\(/);
     });
 
     test("verifikasi server-to-server tetap berlaku (verify sebelum semua cabang)", () => {

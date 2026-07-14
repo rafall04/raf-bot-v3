@@ -168,6 +168,12 @@ jest.mock("../../lib/middleware/validation", () => ({
 jest.mock("../../lib/path-helper", () => ({
     getReportsUploadsPath: jest.fn((year, month, ticketId, dirname) => require("path").join(dirname, "..", "temp-tests", String(year), String(month), String(ticketId)))
 }));
+// Sengaja POJO, bukan class: routes/public.js hanya memakai BaseService.getCustomerJids.
+// Efek sampingnya jadi guard: kalau ada modul `extends BaseService` (mis. isolir-service) ikut
+// tertarik ke graf impor routes/public.js, suite ini pecah dengan
+// "Class extends value #<Object> is not a constructor". Itu BUKAN alasan mengubah mock ini jadi
+// class — itu tanda ada require berat (mikrotik/genieacs/wifi) yang bocor ke router portal
+// pelanggan dan harus dibikin lazy di modulnya (lihat lib/services/bill-payment-settlement.js).
 jest.mock("../../lib/services/base-service", () => ({
     getCustomerJids: jest.fn((phoneNumber) => [phoneNumber])
 }));

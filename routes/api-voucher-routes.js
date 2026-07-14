@@ -222,7 +222,7 @@ function createApiVoucherRouter({
             const topPackages = Object.keys(byPkg).map((k) => ({ name: k, count: byPkg[k] })).sort((a, b) => b.count - a.count).slice(0, 5);
             recent.sort((a, b) => (b.ts || 0) - (a.ts || 0));
             return res.json({
-                enabled: !!(global.config && global.config.voucherSalesDashboard && global.config.voucherSalesDashboard.enabled),
+                enabled: !!getConfig().voucherSalesDashboard?.enabled,
                 today, week, total, topPackages, recent: recent.slice(0, 15)
             });
         } catch (e) {
