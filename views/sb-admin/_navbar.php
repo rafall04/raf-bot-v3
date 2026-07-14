@@ -135,6 +135,13 @@ function isParentActive($pages, $current) {
         </a>
     </li>
 
+    <li class="nav-item <?php echo isActive('/owner', $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link" href="/owner">
+            <i class="fas fa-fw fa-crown"></i>
+            <span>Owner Cockpit</span>
+        </a>
+    </li>
+
     <hr class="sidebar-divider">
     <div class="sidebar-heading">Operasional</div>
 

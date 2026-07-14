@@ -233,6 +233,11 @@ router.get('/admin-diskon', checkRole(['admin', 'owner', 'superadmin']), (req, r
     res.render('sb-admin/admin-diskon.php');
 });
 
+// Owner Cockpit - beranda ringkasan sekali-baca owner (income/ISP/tiket/PSB/outage). Admin/owner.
+router.get('/owner', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/owner-cockpit.php');
+});
+
 // Rekap Keuangan page - ADMIN ONLY
 router.get('/rekap-keuangan', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/rekap-keuangan.php');
