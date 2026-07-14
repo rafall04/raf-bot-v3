@@ -18,6 +18,7 @@
     $pageDescription = 'Ringkasan sekali-baca owner: pemasukan, status ISP, tiket, PSB, outage OLT';
     include __DIR__ . '/_head.php';
     ?>
+    <link rel="stylesheet" href="<?php echo function_exists('rafAssetUrl') ? rafAssetUrl('/css/owner-cockpit.css') : '/css/owner-cockpit.css'; ?>">
 </head>
 <body id="page-top">
   <div id="wrapper">
@@ -35,8 +36,8 @@
             <button id="oc-refresh" class="btn btn-sm btn-outline-secondary shadow-sm" title="Muat ulang"><i class="fas fa-sync fa-sm"></i></button>
           </div>
 
-          <div id="oc-cards" class="row">
-            <div class="col-12"><div class="small text-muted">Memuat cockpit…</div></div>
+          <div id="oc-cards" class="oc-grid">
+            <div class="oc-na">Memuat cockpit…</div>
           </div>
 
           <p class="text-muted small mb-4" id="oc-meta"></p>

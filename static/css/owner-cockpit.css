@@ -1,0 +1,92 @@
+/* ============================================================
+   RAF BOT · Owner Cockpit — gaya kartu ringkasan (elegan, dark-aware)
+   ------------------------------------------------------------
+   Purpose : Tampilan kartu Owner Cockpit (/owner) yang modern —
+             icon chip ber-aksen, angka besar, badge tren, progress
+             bar, dan stat rows rapi. Memakai design token
+             (tokens.css via admin-theme.css) → konsisten + otomatis
+             ikut mode gelap `body.tk-dark`.
+   Caller  : `views/sb-admin/owner-cockpit.php` (<link>), diisi
+             `static/js/owner-cockpit.js`.
+   ============================================================ */
+
+.oc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 1.25rem;
+}
+
+.oc-card {
+    --oc-accent: var(--slate-400);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: var(--white);
+    border: 1px solid var(--slate-200);
+    border-radius: var(--radius-lg);
+    padding: 1.2rem 1.35rem 1.15rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 4px 16px rgba(15, 23, 42, .04);
+    transition: transform .16s ease, box-shadow .16s ease;
+}
+.oc-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(15, 23, 42, .10); }
+
+.oc-card--success { --oc-accent: var(--color-success); }
+.oc-card--info    { --oc-accent: var(--color-info); }
+.oc-card--warning { --oc-accent: var(--color-warning); }
+.oc-card--danger  { --oc-accent: var(--color-danger); }
+.oc-card--neutral { --oc-accent: var(--slate-400); }
+
+.oc-card__top { display: flex; align-items: flex-start; gap: .8rem; margin-bottom: .55rem; }
+
+.oc-chip {
+    flex: 0 0 auto;
+    width: 44px; height: 44px;
+    border-radius: 14px;
+    display: grid; place-items: center;
+    font-size: 1.15rem;
+    color: var(--oc-accent);
+    background: color-mix(in srgb, var(--oc-accent) 14%, transparent);
+}
+
+.oc-labelwrap { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding-top: .3rem; }
+.oc-label { font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--slate-400); }
+
+.oc-trend { flex: 0 0 auto; font-size: .72rem; font-weight: 700; padding: .12rem .5rem; border-radius: var(--radius-pill); display: inline-flex; align-items: center; gap: .25rem; white-space: nowrap; }
+.oc-trend--up   { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 15%, transparent); }
+.oc-trend--down { color: var(--color-danger);  background: color-mix(in srgb, var(--color-danger) 15%, transparent); }
+.oc-trend--flat { color: var(--slate-400);     background: color-mix(in srgb, var(--slate-400) 15%, transparent); }
+
+.oc-metric { font-size: 1.9rem; font-weight: 800; line-height: 1.08; letter-spacing: -.01em; color: var(--slate-900); }
+.oc-metric small { font-size: .92rem; font-weight: 600; color: var(--slate-400); }
+.oc-metric--accent { color: var(--oc-accent); }
+
+.oc-rows { margin-top: .8rem; display: flex; flex-direction: column; gap: .38rem; flex: 1 1 auto; }
+.oc-row { display: flex; align-items: center; justify-content: space-between; gap: .6rem; font-size: .82rem; color: var(--slate-600); }
+.oc-row b { color: var(--slate-900); font-weight: 700; }
+.oc-row .text-danger { color: var(--color-danger) !important; }
+.oc-row .text-success { color: var(--color-success) !important; }
+
+.oc-bar { height: 7px; border-radius: var(--radius-pill); background: var(--slate-100); overflow: hidden; margin: .1rem 0 .15rem; }
+.oc-bar__fill { height: 100%; border-radius: inherit; background: var(--oc-accent); transition: width .5s ease; }
+
+.oc-badges { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .35rem; }
+.oc-badge { font-size: .7rem; font-weight: 700; padding: .12rem .55rem; border-radius: var(--radius-pill); }
+.oc-badge--NORMAL    { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 15%, transparent); }
+.oc-badge--DEGRADASI { color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 16%, transparent); }
+.oc-badge--GANGGUAN, .oc-badge--PUTUS { color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 15%, transparent); }
+.oc-badge--UNKNOWN, .oc-badge--OFF { color: var(--slate-400); background: color-mix(in srgb, var(--slate-400) 15%, transparent); }
+
+.oc-link { margin-top: .85rem; align-self: flex-start; font-size: .8rem; font-weight: 700; color: var(--indigo-600); text-decoration: none; }
+.oc-link:hover { color: var(--indigo-700); text-decoration: underline; }
+
+.oc-na { font-size: .82rem; color: var(--slate-400); }
+
+/* ── Mode gelap (body.tk-dark) — permukaan deep-slate dari tokens ── */
+body.tk-dark .oc-card { background: var(--dark-surface); border-color: var(--dark-line); box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 22px rgba(0, 0, 0, .28); }
+body.tk-dark .oc-card:hover { box-shadow: 0 12px 34px rgba(0, 0, 0, .45); }
+body.tk-dark .oc-metric, body.tk-dark .oc-row b { color: var(--dark-ink); }
+body.tk-dark .oc-label, body.tk-dark .oc-metric small, body.tk-dark .oc-na { color: var(--dark-muted); }
+body.tk-dark .oc-row { color: var(--dark-ink-soft); }
+body.tk-dark .oc-bar { background: var(--dark-surface-2); }
+body.tk-dark .oc-link { color: var(--indigo-300); }
+body.tk-dark .oc-link:hover { color: var(--indigo-200); }
