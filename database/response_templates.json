@@ -4662,7 +4662,7 @@
   "wanfail_propose": {
     "name": "Failover - Saran Alihkan (mode propose)",
     "category": "monitoring",
-    "template": "🤖 *SARAN FAILOVER — ${nama_layanan}*\n\nJalur *${jalur_sakit}* ${level} ${siklus} siklus beruntun (loss ${loss}%), sedangkan *${jalur_target}* sehat (loss ${loss_target}%).\n\nSaran: alihkan lewat switch *${switch_label}*.\n➡️ Balas *switch koneksi* lalu pilih nomornya, atau buka panel */upstream-quality*.\n\n(Mode saat ini: saran saja — bot tidak mengubah router. Set `wanFailover.rules[].mode=\"auto\"` bila ingin otomatis.)"
+    "template": "🤖 *SARAN FAILOVER — ${nama_layanan}*\n\nJalur *${jalur_sakit}* ${level} ${siklus} siklus beruntun (loss ${loss}%), sedangkan *${jalur_target}* sehat (loss ${loss_target}%).${terdampak}\n\nSaran: alihkan lewat switch *${switch_label}*.\n➡️ Balas *switch koneksi* lalu pilih nomornya, atau buka panel */upstream-quality*.\n\n(Mode saat ini: saran saja — bot tidak mengubah router. Set `wanFailover.rules[].mode=\"auto\"` bila ingin otomatis.)"
   },
   "wanfail_auto_start": {
     "name": "Failover - Auto Alihkan Dimulai",
