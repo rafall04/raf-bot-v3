@@ -64,12 +64,17 @@
         // 👥 Pelanggan
         var c = d.customers;
         if (c && c.ok) {
+            // isolir === null → profil PPPoE live tak terbaca (MikroTik). JANGAN klaim "N aktif" —
+            // kita tak tahu berapa yang terisolir. Tampilkan total apa adanya; baris Terisolir jadi "—".
+            var cMetric = c.isolir == null
+                ? (c.total + ' <small>pelanggan</small>')
+                : (c.aktif + ' <small>aktif</small>');
             var crows = row("Terisolir", num(c.isolir), c.isolir > 0 ? "text-danger" : "") +
                 row("PPPoE online", num(c.pppoeOnline)) +
                 row("Offline (aktif)", num(c.offline), c.offline > 0 ? "text-danger" : "") +
                 row("Baru bln ini", num(c.baru));
             html += card("info", "fa-users", "Pelanggan", "",
-                metric(c.aktif + ' <small>aktif</small>'), crows, "/users", "Kelola pelanggan");
+                metric(cMetric), crows, "/users", "Kelola pelanggan");
         } else html += naCard("fa-users", "Pelanggan");
 
         // ⚠️ Perlu Tindakan
