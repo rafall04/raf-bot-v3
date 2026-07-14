@@ -188,6 +188,22 @@ describe("psb.state wizard DM", () => {
         expect(arg.userData.pppoe_password).toBe("sandi999");
     });
 
+    test("default: TANPA config.psbIntake.freeInstallMonth → free_first_month tidak diaktifkan", async () => {
+        const h = harness();
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        const arg = h.base.usersService.upsertUserFromAdminPanel.mock.calls[0][0];
+        expect(arg.userData.free_first_month).toBe(false);
+    });
+
+    test("psbIntake.freeInstallMonth ON → PSB baru bebas tagihan bulan pemasangan (free_first_month:true)", async () => {
+        const h = harness({ getConfig: () => ({ psbIntake: { enabled: true, groupId: "grp@g.us", recencyWindowMinutes: 120, freeInstallMonth: true }, defaultBulkSSID: "1" }) });
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        const arg = h.base.usersService.upsertUserFromAdminPanel.mock.calls[0][0];
+        expect(arg.userData.free_first_month).toBe(true);
+    });
+
     test("push modem GAGAL (device_config_failed) → reply JUJUR (bukan 'online!') + grup minta tindak lanjut", async () => {
         const failUpsert = jest.fn(async () => ({
             status: 201,

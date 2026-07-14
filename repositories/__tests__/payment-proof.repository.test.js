@@ -47,4 +47,31 @@ describe("payment-proof.repository", () => {
         expect(repo.getById("nope")).toBeNull();
         expect(repo.getFilePath({ id: "x" })).toBeNull();
     });
+
+    test("softDelete: buang file + pertahankan metadata (status), fileName di-null-kan", async () => {
+        const { dir, repo } = tmpRepo();
+        await repo.create({ id: "BP-9", status: "pending" }, Buffer.from("img"), "jpg");
+        const filePath = path.join(dir, "files", "BP-9.jpg");
+        expect(fs.existsSync(filePath)).toBe(true);
+
+        const res = await repo.softDelete("BP-9", { status: "deleted", verifiedBy: "ana", notes: "keluhan" });
+
+        expect(res.status).toBe("deleted");
+        expect(res.verifiedBy).toBe("ana");
+        expect(res.fileName).toBeNull();
+        // File fisik dibuang, tapi record tetap ada (jejak audit) & hilang dari antrian pending.
+        expect(fs.existsSync(filePath)).toBe(false);
+        expect(repo.getById("BP-9")).toMatchObject({ id: "BP-9", status: "deleted" });
+        expect(repo.listPending()).toHaveLength(0);
+        expect(repo.getFilePath(res)).toBeNull();
+    });
+
+    test("softDelete id tak ada → null (idempoten, tak melempar walau file hilang)", async () => {
+        const { repo } = tmpRepo();
+        expect(await repo.softDelete("nope", { status: "deleted" })).toBeNull();
+        // Record tanpa file (null buffer) tetap bisa di-softDelete tanpa error.
+        await repo.create({ id: "BP-10", status: "pending" }, null);
+        const res = await repo.softDelete("BP-10", { status: "deleted" });
+        expect(res.status).toBe("deleted");
+    });
 });

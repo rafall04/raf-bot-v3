@@ -1,13 +1,15 @@
 /**
  * Header Doc
- * Purpose: Jalur ADMIN menyetujui/menolak bukti pembayaran pelanggan LANGSUNG DARI WHATSAPP — tanpa
- *   membuka portal web dan tanpa mengetik kode panjang. Bentuk perintah yang dikenali:
- *     (1) BALASAN ter-quote pada notif bukti → `ok` / `tolak <alasan>` (kode dibaca dari caption);
- *     (2) NOMOR antrian → `terima 1` / `tolak 2 <alasan>` (nomor dari perintah `bukti`);
- *     (3) KODE eksplisit → `terima BP-YYMMDD-XXXX` / `tolak BP-… <alasan>`;
- *     (4) POLOS → `ok` / `tolak` tanpa apa pun: bot menawarkan antrian (1 bukti → minta `ya`,
+ * Purpose: Jalur ADMIN menyetujui/menolak/menghapus bukti pembayaran pelanggan LANGSUNG DARI WHATSAPP —
+ *   tanpa membuka portal web dan tanpa mengetik kode panjang. Tiga aksi: konfirmasi (catat lunas),
+ *   tolak (bukti sah tapi belum bisa → pelanggan diberi tahu kirim ulang), dan HAPUS (foto PALSU/bukan
+ *   bukti bayar mis. keluhan → buang dari antrian TANPA menyentuh pelanggan). Bentuk perintah:
+ *     (1) BALASAN ter-quote pada notif bukti → `ok` / `tolak <alasan>` / `hapus` (kode dibaca dari caption);
+ *     (2) NOMOR antrian → `terima 1` / `tolak 2 <alasan>` / `hapus 3` (nomor dari perintah `bukti`);
+ *     (3) KODE eksplisit → `terima BP-YYMMDD-XXXX` / `tolak BP-… <alasan>` / `hapus BP-…`;
+ *     (4) POLOS → `ok` / `tolak` / `hapus` tanpa apa pun: bot menawarkan antrian (1 bukti → minta `ya`,
  *         banyak bukti → daftar bernomor). Bila antrian KOSONG, pesan dilepas (handled:false) supaya
- *         "ok" biasa dari admin tidak dibajak.
+ *         "ok"/"hapus" biasa dari admin tidak dibajak.
  *   Langkah `ya` dan pemilihan angka dilanjutkan oleh state domain `PAYPROOF_*`.
  *   Gate peran PRESISI (admin/owner/superadmin dari accounts.json). Non-admin → `handled:false`
  *   senyap (fitur tak bocor). NEVER-THROW.
@@ -16,10 +18,12 @@
  * Deps: services/payment-proof.service (listPending/confirmProof/rejectProof),
  *   ./state-domains/wan-switch.state (resolveStaffRole), lib/response-template-helper,
  *   `setUserState` diinjeksi pemanggil (conversation-handler, key stateSender kanonik).
- * MainFuncs: handlePaymentProofAdminDecision, parseProofCommand, extractQuotedText, executeConfirm,
- *   executeReject, replyPendingList, promptDecision, resolvePendingByIndex, STEP_SELECT, STEP_CONFIRM.
+ * MainFuncs: handlePaymentProofAdminDecision, parseProofCommand, extractQuotedText, dispatchAction,
+ *   executeConfirm, executeReject, executeDelete, replyPendingList, promptDecision, resolvePendingByIndex,
+ *   STEP_SELECT, STEP_CONFIRM.
  * SideEffects: Lewat service — menulis ledger pembayaran (lunas), reaktivasi MikroTik, kirim WA ke
- *   pelanggan (struk/penolakan). Balasan ke admin lewat `reply` yang diinjeksi; menulis conversation state.
+ *   pelanggan (struk/penolakan). HAPUS tidak menyentuh pelanggan/ledger (buang entri saja). Balasan ke
+ *   admin lewat `reply` yang diinjeksi; menulis conversation state.
  */
 "use strict";
 
@@ -36,18 +40,25 @@ const CODE_ANYWHERE = new RegExp(CODE, "i");
 
 const CONFIRM_WORDS = "terima|konfirmasi|setuju|approve|acc|ok|oke|lunas";
 const REJECT_WORDS = "tolak|reject|ditolak";
+// Hapus = untuk bukti PALSU (foto yang ternyata bukan transfer, mis. keluhan). Beda dari tolak:
+// jalur ini tak pernah menyentuh pelanggan.
+const DELETE_WORDS = "hapus|delete";
 const YES_WORDS = ["ya", "y", "iya", "ok", "oke", "yes", "lanjut", "gas", "betul", "benar", "sip"];
 
 const CMD_CONFIRM_CODE = new RegExp(`^(?:${CONFIRM_WORDS})\\s+(${CODE})\\s*$`, "i");
 const CMD_REJECT_CODE = new RegExp(`^(?:${REJECT_WORDS})\\s+(${CODE})\\s*(.*)$`, "i");
+const CMD_DELETE_CODE = new RegExp(`^(?:${DELETE_WORDS})\\s+(${CODE})\\s*(.*)$`, "i");
 const CMD_CONFIRM_NUM = new RegExp(`^(?:${CONFIRM_WORDS})\\s+(\\d{1,2})\\s*$`, "i");
 const CMD_REJECT_NUM = new RegExp(`^(?:${REJECT_WORDS})\\s+(\\d{1,2})(?:\\s+(.*))?$`, "i");
+const CMD_DELETE_NUM = new RegExp(`^(?:${DELETE_WORDS})\\s+(\\d{1,2})(?:\\s+(.*))?$`, "i");
 const CMD_BARE_CONFIRM = new RegExp(`^(?:${CONFIRM_WORDS})\\s*$`, "i");
-// Pada balasan ter-quote sasarannya sudah pasti, jadi teks di belakang = ALASAN.
+// Pada balasan ter-quote sasarannya sudah pasti, jadi teks di belakang = ALASAN/catatan.
 const CMD_QUOTED_REJECT = new RegExp(`^(?:${REJECT_WORDS})\\s*(.*)$`, "i");
-// Tanpa sasaran, "alasan" tak ada artinya — cocokkan PERSIS supaya "tolak angin" tetap lolos ke
-// jalur intent biasa alih-alih dibaca sebagai perintah menolak bukti.
+const CMD_QUOTED_DELETE = new RegExp(`^(?:${DELETE_WORDS})\\s*(.*)$`, "i");
+// Tanpa sasaran, "alasan" tak ada artinya — cocokkan PERSIS supaya "tolak angin" / "hapus dulu"
+// tetap lolos ke jalur intent biasa alih-alih dibaca sebagai perintah bukti bayar.
 const CMD_BARE_REJECT = new RegExp(`^(?:${REJECT_WORDS})$`, "i");
+const CMD_BARE_DELETE = new RegExp(`^(?:${DELETE_WORDS})$`, "i");
 const CMD_LIST = /^(?:bukti|bukti bayar|daftar bukti|antrian bukti|antrean bukti)$/i;
 
 function formatRupiah(value) {
@@ -88,7 +99,7 @@ function extractQuotedText(msg) {
 
 /**
  * Kenali perintah bukti bayar dari teks (+ konteks quote). Murni, tanpa efek samping.
- * @returns {{action:'confirm'|'reject'|'list', code?:string, index?:number, reason?:string}|null}
+ * @returns {{action:'confirm'|'reject'|'delete'|'list', code?:string, index?:number, reason?:string}|null}
  */
 function parseProofCommand(text, quotedText = "") {
     const body = String(text || "").trim();
@@ -101,6 +112,9 @@ function parseProofCommand(text, quotedText = "") {
     const rejectCode = body.match(CMD_REJECT_CODE);
     if (rejectCode) return { action: "reject", code: rejectCode[1].toUpperCase(), reason: (rejectCode[2] || "").trim() };
 
+    const deleteCode = body.match(CMD_DELETE_CODE);
+    if (deleteCode) return { action: "delete", code: deleteCode[1].toUpperCase(), reason: (deleteCode[2] || "").trim() };
+
     // 2) Nomor antrian.
     const confirmNum = body.match(CMD_CONFIRM_NUM);
     if (confirmNum) return { action: "confirm", index: parseInt(confirmNum[1], 10) };
@@ -108,14 +122,20 @@ function parseProofCommand(text, quotedText = "") {
     const rejectNum = body.match(CMD_REJECT_NUM);
     if (rejectNum) return { action: "reject", index: parseInt(rejectNum[1], 10), reason: (rejectNum[2] || "").trim() };
 
+    const deleteNum = body.match(CMD_DELETE_NUM);
+    if (deleteNum) return { action: "delete", index: parseInt(deleteNum[1], 10), reason: (deleteNum[2] || "").trim() };
+
     if (CMD_LIST.test(body)) return { action: "list" };
 
-    // 3) Balasan ter-quote: hanya sah bila pesan yang dibalas memuat kode bukti — jadi "ok" ke pesan
-    // bot lain tidak akan pernah mengonfirmasi pembayaran secara tak sengaja.
+    // 3) Balasan ter-quote: hanya sah bila pesan yang dibalas memuat kode bukti — jadi "ok"/"hapus" ke
+    // pesan bot lain tidak akan pernah menyentuh pembayaran secara tak sengaja.
     const quotedCode = String(quotedText || "").match(CODE_ANYWHERE);
     if (quotedCode) {
         const code = quotedCode[0].toUpperCase();
         if (CMD_BARE_CONFIRM.test(body)) return { action: "confirm", code };
+        // Cek hapus SEBELUM tolak: keduanya sama-sama menutup entri, tapi "hapus" tak menyentuh pelanggan.
+        const replyDelete = body.match(CMD_QUOTED_DELETE);
+        if (replyDelete) return { action: "delete", code, reason: (replyDelete[1] || "").trim() };
         const replyReject = body.match(CMD_QUOTED_REJECT);
         if (replyReject) return { action: "reject", code, reason: (replyReject[1] || "").trim() };
         return null;
@@ -124,6 +144,7 @@ function parseProofCommand(text, quotedText = "") {
     // 4) Polos, tanpa sasaran. Pemanggil yang memutuskan (antrian kosong → lepaskan pesannya).
     if (CMD_BARE_CONFIRM.test(body)) return { action: "confirm" };
     if (CMD_BARE_REJECT.test(body)) return { action: "reject", reason: "" };
+    if (CMD_BARE_DELETE.test(body)) return { action: "delete", reason: "" };
 
     return null;
 }
@@ -225,15 +246,23 @@ async function promptDecision(ctx, record, action) {
         jumlah: formatRupiah(record.amountDue),
         kode: record.id
     };
-    const text = action === "reject"
-        ? renderResponseTemplate(
+    let text;
+    if (action === "reject") {
+        text = renderResponseTemplate(
             "payment_proof_admin_reject_prompt",
             "🚫 *Tolak bukti*\n\n${nama} — tagihan ${periode} ${jumlah}\n\nBalas *ya* untuk menolak, atau ketik *alasannya* langsung (mis. nominal kurang).",
-            data)
-        : renderResponseTemplate(
+            data);
+    } else if (action === "delete") {
+        text = renderResponseTemplate(
+            "payment_proof_admin_delete_prompt",
+            "🗑️ *Hapus bukti*\n\n${nama} — tagihan ${periode} ${jumlah}\n\nIni MENGHAPUS entri dari antrian TANPA memberi tahu pelanggan (pakai bila ternyata foto keluhan, bukan transfer).\nBalas *ya* untuk hapus, atau *batal*.",
+            data);
+    } else {
+        text = renderResponseTemplate(
             "payment_proof_admin_confirm_prompt",
             "💰 *Konfirmasi pembayaran*\n\n${nama}\nTagihan ${periode}: ${jumlah}\n\nBalas *ya* untuk tandai LUNAS, atau *tolak <alasan>*.",
             data);
+    }
     return ctx.reply(text, { skipDuplicateCheck: true });
 }
 
@@ -305,6 +334,26 @@ async function executeReject(ctx, service, code, reason, adminName) {
     ), { skipDuplicateCheck: true });
 }
 
+async function executeDelete(ctx, service, code, reason, adminName) {
+    const result = await service.deleteProof(code, { adminName, reason });
+    if (!result.ok) return replyFailure(ctx, code, result);
+
+    const record = result.record || {};
+    const sisa = service.listPending().length;
+    return ctx.reply(renderResponseTemplate(
+        "payment_proof_admin_delete_ok",
+        "🗑️ Bukti *${kode}* dari ${nama} DIHAPUS dari antrian (dianggap bukan bukti bayar).\nPelanggan *tidak* diberi tahu.\n\nSisa antrian: ${sisa} bukti.",
+        { kode: code, nama: record.userName || "-", sisa }
+    ), { skipDuplicateCheck: true });
+}
+
+/** Jalankan aksi pada satu bukti (id/kode sudah pasti). Satu tempat mapping aksi → eksekutor. */
+async function dispatchAction(ctx, service, action, id, reason, adminName) {
+    if (action === "reject") return executeReject(ctx, service, id, reason, adminName);
+    if (action === "delete") return executeDelete(ctx, service, id, reason, adminName);
+    return executeConfirm(ctx, service, id, adminName);
+}
+
 /**
  * Hook utama (pesan TANPA state aktif). Selalu `{handled}` — tidak pernah melempar.
  *
@@ -341,8 +390,7 @@ async function handlePaymentProofAdminDecision(ctx) {
 
         // Sasaran eksplisit (kode / nomor) → langsung eksekusi.
         if (command.code) {
-            if (command.action === "confirm") await executeConfirm(ctx, service, command.code, adminName);
-            else await executeReject(ctx, service, command.code, command.reason, adminName);
+            await dispatchAction(ctx, service, command.action, command.code, command.reason, adminName);
             return { handled: true };
         }
 
@@ -358,8 +406,7 @@ async function handlePaymentProofAdminDecision(ctx) {
                 ), { skipDuplicateCheck: true });
                 return { handled: true };
             }
-            if (command.action === "confirm") await executeConfirm(ctx, service, target.id, adminName);
-            else await executeReject(ctx, service, target.id, command.reason, adminName);
+            await dispatchAction(ctx, service, command.action, target.id, command.reason, adminName);
             return { handled: true };
         }
 
@@ -404,6 +451,7 @@ module.exports = {
     isYes,
     executeConfirm,
     executeReject,
+    executeDelete,
     replyPendingList,
     replyEmptyQueue,
     promptDecision,

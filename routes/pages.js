@@ -147,6 +147,11 @@ router.get('/konfirmasi-bayar', checkRole(['admin', 'owner', 'superadmin']), (re
     res.render('sb-admin/konfirmasi-bayar.php');
 });
 
+// Gratis Bulan Ini: bebaskan tagihan (waiver) untuk pelanggan baru — lunas tanpa masuk pemasukan.
+router.get('/gratis-bulan-ini', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/gratis-bulan-ini.php');
+});
+
 router.get('/cctv-monitor', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/cctv-monitor.php');
 });

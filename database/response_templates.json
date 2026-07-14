@@ -4764,6 +4764,16 @@
     "category": "payment",
     "template": "🚫 Bukti *${kode}* dari ${nama} ditolak.\nAlasan: ${alasan}\n\nPelanggan sudah diberi tahu untuk mengirim ulang."
   },
+  "payment_proof_admin_delete_prompt": {
+    "name": "Bukti Bayar - Konfirmasi Hapus (ke Admin)",
+    "category": "payment",
+    "template": "🗑️ *Hapus bukti*\n\n${nama} — tagihan ${periode} ${jumlah}\n\nIni MENGHAPUS entri dari antrian TANPA memberi tahu pelanggan (pakai bila ternyata foto keluhan, bukan transfer).\nBalas *ya* untuk hapus, atau *batal*."
+  },
+  "payment_proof_admin_delete_ok": {
+    "name": "Bukti Bayar - Terhapus (ke Admin)",
+    "category": "payment",
+    "template": "🗑️ Bukti *${kode}* dari ${nama} DIHAPUS dari antrian (dianggap bukan bukti bayar).\nPelanggan *tidak* diberi tahu.\n\nSisa antrian: ${sisa} bukti."
+  },
   "payment_proof_admin_not_found": {
     "name": "Bukti Bayar - Kode Tak Ditemukan (ke Admin)",
     "category": "payment",

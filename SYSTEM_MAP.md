@@ -229,6 +229,8 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 - [Fitur 2026-07-14 (Owner Cockpit diperkaya: tunggakan/pelunasan/MRR + kartu Pelanggan & Perlu Tindakan + trafik/komisi/tiket-breakdown/offline; getPppStats cache 90s)](docs/boundary-log.md#b141)
 - [Fitur 2026-07-14 (Owner Cockpit tren MoM + offline presisi silang PPPoE×pelanggan + redesign elegan dark-aware via design tokens)](docs/boundary-log.md#b142)
 - [Fitur 2026-07-14 (Owner Cockpit fix: status tiket resolved/dibatalkan bukan aktif + route /admin/daftar-tiket 500→tiket.php + timestamp ke header)](docs/boundary-log.md#b143)
+- [Fitur 2026-07-14 (Bukti bayar: aksi HAPUS bukti palsu — deleteProof/softDelete, POST /konfirmasi-bayar/:id/hapus + WA `hapus`, tanpa notif pelanggan/ledger; beda dari tolak)](docs/boundary-log.md#b144)
+- [Fitur 2026-07-14 (Gratis bulan pemasangan: auto saat PSB via config.psbIntake.freeInstallMonth→free_first_month + halaman /gratis-bulan-ini untuk yg terlanjur, reuse applyFreeMonth/read-model)](docs/boundary-log.md#b145)
 
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.

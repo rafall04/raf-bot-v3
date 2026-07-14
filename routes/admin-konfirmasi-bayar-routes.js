@@ -2,7 +2,8 @@
  * Header Doc
  * Purpose: Route admin halaman "Konfirmasi Bayar" — daftar bukti pembayaran pelanggan yang menunggu
  *          verifikasi, serve file bukti (auth admin, TIDAK lewat /temp static yang bisa bocor), serta
- *          aksi konfirmasi (catat lunas + reaktivasi + struk) / tolak. Semua logika ada di
+ *          aksi konfirmasi (catat lunas + reaktivasi + struk) / tolak (beri tahu pelanggan) / hapus
+ *          (buang bukti PALSU tanpa memberi tahu pelanggan). Semua logika ada di
  *          services/payment-proof.service; route ini tipis.
  * Caller: routes/admin-router.js (composer) via registerAdminKonfirmasiBayarRoutes.
  * Deps: Express router, ensureAdmin (routes/api-route-helpers), asyncHandler (lib/error-handler),
@@ -111,6 +112,20 @@ function registerAdminKonfirmasiBayarRoutes(router, deps = {}) {
             return res.status(code).json({ status: code, message: messageForReason(result) });
         }
         res.status(200).json({ status: 200, message: "Bukti ditolak & pelanggan diberi tahu.", data: { id: req.params.id } });
+    }));
+
+    // Hapus bukti PALSU → buang dari antrian TANPA memberi tahu pelanggan (untuk foto yang ternyata
+    // bukan bukti bayar, mis. keluhan). Beda dari /tolak yang mengirim pesan ke pelanggan.
+    router.post("/api/konfirmasi-bayar/:id/hapus", guard, asyncHandler(async (req, res) => {
+        const result = await service.deleteProof(req.params.id, {
+            adminName: resolveAdminName(req),
+            reason: (req.body && req.body.reason) || ""
+        });
+        if (!result.ok) {
+            const code = statusCodeForReason(result.reason);
+            return res.status(code).json({ status: code, message: messageForReason(result) });
+        }
+        res.status(200).json({ status: 200, message: "Bukti dihapus dari antrian. Pelanggan tidak diberi tahu.", data: { id: req.params.id } });
     }));
 
     return {};

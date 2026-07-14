@@ -62,6 +62,7 @@ function fakeService(overrides = {}) {
             alreadyPaid: false
         })),
         rejectProof: jest.fn(async () => ({ ok: true, record: pending() })),
+        deleteProof: jest.fn(async () => ({ ok: true, record: pending() })),
         ...overrides
     };
 }
@@ -96,10 +97,22 @@ describe("parseProofCommand", () => {
         expect(parseProofCommand("ok")).toEqual({ action: "confirm" });
         expect(parseProofCommand("terima")).toEqual({ action: "confirm" });
         expect(parseProofCommand("tolak")).toEqual({ action: "reject", reason: "" });
+        expect(parseProofCommand("hapus")).toEqual({ action: "delete", reason: "" });
+    });
+
+    test("HAPUS: kode / nomor / quoted / polos", () => {
+        expect(parseProofCommand(`hapus ${CODE}`)).toEqual({ action: "delete", code: CODE, reason: "" });
+        expect(parseProofCommand(`hapus ${CODE.toLowerCase()} foto keluhan`))
+            .toEqual({ action: "delete", code: CODE, reason: "foto keluhan" });
+        expect(parseProofCommand("hapus 2")).toEqual({ action: "delete", index: 2, reason: "" });
+        expect(parseProofCommand("hapus 2 salah masuk"))
+            .toEqual({ action: "delete", index: 2, reason: "salah masuk" });
+        // Balasan ter-quote → ambil kode dari pesan yang dibalas.
+        expect(parseProofCommand("hapus", `Kode: ${CODE}`)).toEqual({ action: "delete", code: CODE, reason: "" });
     });
 
     test("frasa pelanggan sehari-hari tidak pernah cocok", () => {
-        ["terima kasih", "terima kasih banyak", "oke bang besok ya", "tolak angin", ""]
+        ["terima kasih", "terima kasih banyak", "oke bang besok ya", "tolak angin", "hapus dulu chatnya", ""]
             .forEach((t) => expect(parseProofCommand(t)).toBeNull());
     });
 
@@ -169,6 +182,68 @@ describe("handlePaymentProofAdminDecision — sasaran eksplisit", () => {
 
         expect(service.confirmProof).toHaveBeenCalledWith(CODE, { adminName: "Ana" });
         expect(ctx.setUserState).not.toHaveBeenCalled();
+    });
+});
+
+describe("handlePaymentProofAdminDecision — HAPUS (bukan tolak)", () => {
+    test("hapus <kode> → deleteProof; balas 'DIHAPUS' + tegaskan pelanggan tak diberi tahu", async () => {
+        const service = fakeService();
+        const ctx = baseCtx({ chats: `hapus ${CODE}`, service });
+
+        const res = await handlePaymentProofAdminDecision(ctx);
+
+        expect(res.handled).toBe(true);
+        expect(service.deleteProof).toHaveBeenCalledWith(CODE, { adminName: "Ana", reason: "" });
+        // Jalur hapus TIDAK boleh menyentuh confirm/reject.
+        expect(service.confirmProof).not.toHaveBeenCalled();
+        expect(service.rejectProof).not.toHaveBeenCalled();
+        const text = ctx.reply.mock.calls[0][0];
+        expect(text).toContain("DIHAPUS");
+        expect(text).toContain("tidak");
+    });
+
+    test("hapus 1 → resolve nomor dari antrian lalu deleteProof", async () => {
+        const service = fakeService({ listPending: jest.fn(() => [pending(CODE2, "Siti"), pending(CODE, "Budi")]) });
+        const ctx = baseCtx({ chats: "hapus 1", service });
+
+        await handlePaymentProofAdminDecision(ctx);
+
+        expect(service.deleteProof).toHaveBeenCalledWith(CODE2, { adminName: "Ana", reason: "" });
+    });
+
+    test("balas 'hapus' ke notif → deleteProof pakai kode dari quote (bukan reject)", async () => {
+        const service = fakeService();
+        const ctx = baseCtx({ chats: "hapus", msg: textMsg(`Kode: ${CODE}`), service });
+
+        await handlePaymentProofAdminDecision(ctx);
+
+        expect(service.deleteProof).toHaveBeenCalledWith(CODE, { adminName: "Ana", reason: "" });
+        expect(service.rejectProof).not.toHaveBeenCalled();
+    });
+
+    test("'hapus' polos + antrian KOSONG → dilepas (handled:false), tak dibajak", async () => {
+        const service = fakeService();
+        const ctx = baseCtx({ chats: "hapus", service });
+
+        const res = await handlePaymentProofAdminDecision(ctx);
+
+        expect(res.handled).toBe(false);
+        expect(service.deleteProof).not.toHaveBeenCalled();
+        expect(ctx.reply).not.toHaveBeenCalled();
+    });
+
+    test("'hapus' polos + 1 antrian → minta penegasan 'ya' (state CONFIRM action delete), BELUM menghapus", async () => {
+        const service = fakeService({ listPending: jest.fn(() => [pending()]) });
+        const ctx = baseCtx({ chats: "hapus", service });
+
+        await handlePaymentProofAdminDecision(ctx);
+
+        expect(service.deleteProof).not.toHaveBeenCalled();
+        expect(ctx.setUserState).toHaveBeenCalledWith(
+            "628111@s.whatsapp.net",
+            expect.objectContaining({ step: STEP_CONFIRM, action: "delete" })
+        );
+        expect(ctx.reply.mock.calls[0][0]).toContain("Hapus bukti");
     });
 });
 

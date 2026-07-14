@@ -192,12 +192,12 @@ function isParentActive($pages, $current) {
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/payment-status', '/konfirmasi-bayar', '/pembayaran/otorisasi', '/rekap-tunggakan', '/admin-diskon', '/payment-method', '/invoice-settings'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePembayaran" aria-expanded="<?php echo isParentActive(['/payment-status', '/konfirmasi-bayar', '/pembayaran/otorisasi', '/rekap-tunggakan', '/admin-diskon', '/payment-method', '/invoice-settings'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePembayaran">
+    <li class="nav-item <?php echo isParentActive(['/payment-status', '/konfirmasi-bayar', '/gratis-bulan-ini', '/pembayaran/otorisasi', '/rekap-tunggakan', '/admin-diskon', '/payment-method', '/invoice-settings'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePembayaran" aria-expanded="<?php echo isParentActive(['/payment-status', '/konfirmasi-bayar', '/gratis-bulan-ini', '/pembayaran/otorisasi', '/rekap-tunggakan', '/admin-diskon', '/payment-method', '/invoice-settings'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePembayaran">
             <i class="fas fa-fw fa-money-bill-wave"></i>
             <span>Pembayaran</span>
         </a>
-        <div id="collapsePembayaran" class="collapse <?php echo isParentActive(['/payment-status', '/konfirmasi-bayar', '/pembayaran/otorisasi', '/rekap-tunggakan', '/admin-diskon', '/payment-method', '/invoice-settings'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPembayaran" data-parent="#accordionSidebar">
+        <div id="collapsePembayaran" class="collapse <?php echo isParentActive(['/payment-status', '/konfirmasi-bayar', '/gratis-bulan-ini', '/pembayaran/otorisasi', '/rekap-tunggakan', '/admin-diskon', '/payment-method', '/invoice-settings'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPembayaran" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/payment-status', $current_page) ? 'active' : ''; ?>" href="/payment-status">
                     <i class="fas fa-fw fa-money-check-alt mr-2"></i>
@@ -206,6 +206,10 @@ function isParentActive($pages, $current) {
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/konfirmasi-bayar', $current_page) ? 'active' : ''; ?>" href="/konfirmasi-bayar">
                     <i class="fas fa-fw fa-receipt mr-2"></i>
                     <span>Konfirmasi Bayar</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/gratis-bulan-ini', $current_page) ? 'active' : ''; ?>" href="/gratis-bulan-ini">
+                    <i class="fas fa-fw fa-gift mr-2"></i>
+                    <span>Gratis Bulan Ini</span>
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/pembayaran/otorisasi', $current_page) ? 'active' : ''; ?>" href="/pembayaran/otorisasi">
                     <i class="fas fa-fw fa-user-shield mr-2"></i>

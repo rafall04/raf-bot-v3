@@ -19,6 +19,12 @@ function makeFakeRepo() {
             records[i] = { ...records[i], ...patch };
             return records[i];
         }),
+        softDelete: jest.fn(async (id, patch) => {
+            const i = records.findIndex((r) => r.id === id);
+            if (i < 0) return null;
+            records[i] = { ...records[i], ...patch, fileName: null };
+            return records[i];
+        }),
         getFilePath: (rec) => (rec && rec.fileName ? `/x/${rec.fileName}` : null)
     };
 }
@@ -167,5 +173,41 @@ describe("payment-proof.service confirm/reject", () => {
         const svc = createPaymentProofService(makeDeps());
         expect((await svc.confirmProof("nope")).reason).toBe("not_found");
         expect((await svc.rejectProof("nope")).reason).toBe("not_found");
+    });
+});
+
+describe("payment-proof.service deleteProof (bukti palsu — tanpa menyentuh pelanggan)", () => {
+    test("soft-delete: status 'deleted' + TIDAK ada notifikasi/settle ke pelanggan", async () => {
+        const deps = makeDeps();
+        const svc = createPaymentProofService(deps);
+        const { record } = await submit(svc);
+
+        const res = await svc.deleteProof(record.id, { adminName: "ana", reason: "foto keluhan" });
+
+        expect(res.ok).toBe(true);
+        expect(res.record.status).toBe("deleted");
+        expect(res.record.verifiedBy).toBe("ana");
+        expect(res.record.notes).toBe("foto keluhan");
+        expect(deps.repository.softDelete).toHaveBeenCalledTimes(1);
+        // INTI FITUR: hapus ≠ tolak — pelanggan tak dikirimi apa pun & ledger tak disentuh.
+        expect(deps.sendCritical).not.toHaveBeenCalled();
+        expect(deps.billSettlement.settleTagihanPayment).not.toHaveBeenCalled();
+        // Hilang dari antrian.
+        expect(svc.listPending().find((r) => r.id === record.id)).toBeUndefined();
+    });
+
+    test("idempoten: record non-pending → already_processed", async () => {
+        const deps = makeDeps();
+        const svc = createPaymentProofService(deps);
+        const { record } = await submit(svc);
+        await svc.deleteProof(record.id);
+        const again = await svc.deleteProof(record.id);
+        expect(again.ok).toBe(false);
+        expect(again.reason).toBe("already_processed");
+    });
+
+    test("id tak dikenal → not_found", async () => {
+        const svc = createPaymentProofService(makeDeps());
+        expect((await svc.deleteProof("nope")).reason).toBe("not_found");
     });
 });

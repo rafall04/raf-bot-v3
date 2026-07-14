@@ -6,8 +6,8 @@
  *   mutasi dengan withLock agar read-modify-write tidak balapan dengan submit/konfirmasi lain.
  * Caller: services/payment-proof.service.js (Fase 1 submit; Fase 2/3 list/serve/konfirmasi).
  * Deps: fs, path, lib/request-lock (withLock).
- * MainFuncs: createPaymentProofRepository -> { create, list, listPending, getById, update, getFilePath }.
- * SideEffects: Menulis JSON store + menyimpan file bukti di temp/payment_proofs/.
+ * MainFuncs: createPaymentProofRepository -> { create, list, listPending, getById, update, softDelete, getFilePath }.
+ * SideEffects: Menulis JSON store + menyimpan file bukti di temp/payment_proofs/ (softDelete juga MENGHAPUS file bukti).
  */
 "use strict";
 
@@ -90,12 +90,42 @@ function createPaymentProofRepository(options = {}) {
         });
     }
 
+    /**
+     * Soft-delete sebuah bukti: perbarui metadata (mis. status "deleted") DALAM SATU lock dan
+     * BUANG file bukti dari disk. Dipakai saat foto ternyata BUKAN bukti bayar (mis. keluhan) —
+     * beda dari reject, jalur ini TIDAK menyentuh pelanggan sama sekali. Metadata record
+     * dipertahankan (jejak audit: siapa/kapan menghapus); hanya file fisiknya yang dibuang supaya
+     * foto pelanggan yang tak relevan tidak menumpuk di temp/payment_proofs/.
+     * @returns record final (fileName di-null-kan), atau null bila id tak ada.
+     */
+    async function softDelete(id, patch = {}) {
+        return withLock(lockKey, async () => {
+            const records = readAll();
+            const idx = records.findIndex((r) => r.id === id);
+            if (idx === -1) return null;
+            const current = records[idx];
+            if (current.fileName) {
+                try {
+                    fs.unlinkSync(path.join(proofDir, current.fileName));
+                } catch (err) {
+                    // File hilang duluan = tak apa; error lain cukup di-log (best-effort, jangan gagalkan hapus).
+                    if (err && err.code !== "ENOENT") {
+                        console.warn("[PAYMENT_PROOF_STORE] Gagal menghapus file bukti:", err.message);
+                    }
+                }
+            }
+            records[idx] = { ...current, ...patch, fileName: null };
+            writeAll(records);
+            return records[idx];
+        });
+    }
+
     function getFilePath(record) {
         if (!record || !record.fileName) return null;
         return path.join(proofDir, record.fileName);
     }
 
-    return { create, list, listPending, getById, update, getFilePath, storePath, proofDir };
+    return { create, list, listPending, getById, update, softDelete, getFilePath, storePath, proofDir };
 }
 
 module.exports = { createPaymentProofRepository };

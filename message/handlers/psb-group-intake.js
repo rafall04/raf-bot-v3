@@ -8,7 +8,8 @@
  * Deps (di-inject supaya testable + patuh invariant): `usersService` (global.__apiUsersService),
  *        `reply` (delivery boundary — balas ke grup, BUKAN Baileys mentah), `downloadMedia`
  *        (`lib/whatsapp.adapter`), `isProcessing/setProcessing/clearProcessing` (`lib/state-manager`),
- *        `generateRandomPassword`, `packages`, `accounts`, `ownerNumber`, `uploadsBaseDir`.
+ *        `generateRandomPassword`, `packages`, `accounts`, `ownerNumber`, `uploadsBaseDir`,
+ *        `freeInstallMonth` (opsional — auto gratis bulan pemasangan; fallback `global.config.psbIntake.freeInstallMonth`).
  *        Require langsung: `./psb-caption-parser`, `fs`, `path`.
  * MainFuncs: `handlePsbGroupIntake(deps)`, `resolveAuthorizedStaff(...)`, `generatePppoeUsername(...)`.
  * SideEffects: Tulis foto KTP ke `uploads/psb/...`, buat pelanggan + secret PPPoE + kirim WA (welcome
@@ -122,6 +123,12 @@ async function handlePsbGroupIntake(deps) {
         const pppoePass = genPassFn();
 
         // 7. Buat pelanggan (reuse create-user: mode "new" → secret PPPoE + welcome psb_welcome ke HP).
+        // Auto "gratis bulan pemasangan" bila diaktifkan (gate config.psbIntake.freeInstallMonth):
+        // pelanggan PSB baru mulai bayar bulan DEPAN via waiver — reuse blok free_first_month di
+        // create-user-persist. Bisa di-inject lewat deps (testable) atau fallback ke global.config.
+        const freeInstallMonth = (deps.freeInstallMonth !== undefined
+            ? deps.freeInstallMonth
+            : global.config?.psbIntake?.freeInstallMonth) === true;
         const result = await usersService.upsertUserFromAdminPanel({
             userData: {
                 name: d.nama,
@@ -131,7 +138,8 @@ async function handlePsbGroupIntake(deps) {
                 pppoe_password: pppoePass,
                 wifi_ssid: d.wifi_ssid,
                 wifi_password: d.wifi_password,
-                registration_mode: "new"
+                registration_mode: "new",
+                free_first_month: freeInstallMonth
             },
             actor: { id: staff.id, username: staff.username, name: staff.name || staff.username, role: staff.role },
             requestMeta: { ipAddress: "wa-group-psb", userAgent: "psb-group-intake" }

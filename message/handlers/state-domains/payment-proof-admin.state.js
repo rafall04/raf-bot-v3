@@ -1,10 +1,12 @@
 /**
  * Header Doc
- * Purpose: State domain `PAYPROOF_*` — lanjutan percakapan admin saat mengonfirmasi bukti pembayaran
- *   lewat WhatsApp. Dua langkah: `PAYPROOF_SELECT` (antrian bernomor sudah ditampilkan, menunggu admin
- *   membalas angka / `terima 1` / `tolak 2 <alasan>`) dan `PAYPROOF_CONFIRM` (satu bukti terpilih,
- *   menunggu `ya`; pada aksi tolak, teks bebas dianggap sebagai ALASAN). Snapshot antrian disimpan di
- *   state supaya penomoran stabil walau ada bukti baru masuk di tengah jalan.
+ * Purpose: State domain `PAYPROOF_*` — lanjutan percakapan admin saat mengonfirmasi/menolak/menghapus
+ *   bukti pembayaran lewat WhatsApp. Dua langkah: `PAYPROOF_SELECT` (antrian bernomor sudah ditampilkan,
+ *   menunggu admin membalas angka / `terima 1` / `tolak 2 <alasan>` / `hapus 3`) dan `PAYPROOF_CONFIRM`
+ *   (satu bukti terpilih, menunggu `ya`; pada aksi tolak, teks bebas dianggap sebagai ALASAN; aksi hapus
+ *   membuang entri TANPA menyentuh pelanggan). Kata kunci eksplisit (`tolak`/`hapus`/`terima`) boleh
+ *   mengganti aksi di tengah jalan. Snapshot antrian disimpan di state supaya penomoran stabil walau ada
+ *   bukti baru masuk di tengah jalan.
  *   Gate peran diulang tiap langkah (accounts.json). Perintah global (`menu`, `lapor`, …) SENGAJA
  *   dilepas (`handled:false`) agar admin tetap bisa keluar dari alur ini. NEVER-THROW.
  * Caller: message/handlers/conversation-state-router.js (owner "payment-proof", prefix `PAYPROOF_`).
@@ -27,6 +29,7 @@ const {
     isYes,
     executeConfirm,
     executeReject,
+    executeDelete,
     replyPendingList,
     promptDecision,
     resolvePendingByIndex
@@ -36,9 +39,18 @@ const CODE = "BP-\\d{6}-[A-Z0-9]{4}";
 const PICK_NUMBER = /^(\d{1,2})$/;
 const PICK_CONFIRM = new RegExp(`^(?:terima|konfirmasi|setuju|approve|acc|lunas)\\s+(\\d{1,2}|${CODE})\\s*$`, "i");
 const PICK_REJECT = new RegExp(`^(?:tolak|reject)\\s+(\\d{1,2}|${CODE})(?:\\s+(.*))?$`, "i");
+const PICK_DELETE = new RegExp(`^(?:hapus|delete)\\s+(\\d{1,2}|${CODE})(?:\\s+(.*))?$`, "i");
 const BARE_REJECT = /^(?:tolak|reject)\s*(.*)$/i;
+const BARE_DELETE = /^(?:hapus|delete)\s*(.*)$/i;
 const BARE_CONFIRM = /^(?:terima|konfirmasi|setuju|lunas)\s*$/i;
 const CODE_ONLY = new RegExp(`^${CODE}$`, "i");
+
+/** Samakan aksi tersimpan ke salah satu dari confirm/reject/delete (default confirm). */
+function normalizeAction(action) {
+    if (action === "reject") return "reject";
+    if (action === "delete") return "delete";
+    return "confirm";
+}
 
 function clearState(ctx) {
     if (typeof ctx.deleteUserState === "function" && ctx.stateSender) ctx.deleteUserState(ctx.stateSender);
@@ -100,12 +112,21 @@ async function handleSelect(ctx, userState) {
         return { handled: true };
     }
 
+    const deletePick = body.match(PICK_DELETE);
+    if (deletePick) {
+        const target = resolveToken(service, deletePick[1], items);
+        if (!target) { await replyInvalidChoice(ctx, items.length); return { handled: true }; }
+        clearState(ctx);
+        await executeDelete(ctx, service, target.id, (deletePick[2] || "").trim(), adminName);
+        return { handled: true };
+    }
+
     // Angka polos → tegaskan dulu (`ya`), sesuai aksi yang membuka daftar ini.
     const picked = body.match(PICK_NUMBER);
     if (picked) {
         const target = resolvePendingByIndex(service, parseInt(picked[1], 10), items);
         if (!target) { await replyInvalidChoice(ctx, items.length); return { handled: true }; }
-        await promptDecision(ctx, target, userState.action === "reject" ? "reject" : "confirm");
+        await promptDecision(ctx, target, normalizeAction(userState.action));
         return { handled: true };
     }
 
@@ -119,7 +140,7 @@ async function handleConfirm(ctx, userState) {
     const service = getService(ctx);
     const adminName = adminNameOf(ctx);
     const body = String(ctx.chats || "").trim();
-    const action = userState.action === "reject" ? "reject" : "confirm";
+    const action = normalizeAction(userState.action);
 
     // Pesan tanpa teks (mis. admin mengirim foto) bukan urusan kami — dan pada alur TOLAK jangan
     // sampai media kosong terbaca sebagai "alasan".
@@ -128,14 +149,24 @@ async function handleConfirm(ctx, userState) {
     if (isYes(body)) {
         clearState(ctx);
         if (action === "reject") await executeReject(ctx, service, userState.id, "", adminName);
+        else if (action === "delete") await executeDelete(ctx, service, userState.id, "", adminName);
         else await executeConfirm(ctx, service, userState.id, adminName);
         return { handled: true };
     }
 
+    // Kata kunci eksplisit boleh mengganti aksi di tengah jalan (mis. buka prompt konfirmasi lalu
+    // sadar ini keluhan → ketik "hapus").
     const reject = body.match(BARE_REJECT);
     if (reject) {
         clearState(ctx);
         await executeReject(ctx, service, userState.id, (reject[1] || "").trim(), adminName);
+        return { handled: true };
+    }
+
+    const del = body.match(BARE_DELETE);
+    if (del) {
+        clearState(ctx);
+        await executeDelete(ctx, service, userState.id, (del[1] || "").trim(), adminName);
         return { handled: true };
     }
 

@@ -62,6 +62,20 @@ describe("handlePsbGroupIntake", () => {
         expect(deps.clearProcessing).toHaveBeenCalled();
     });
 
+    test("freeInstallMonth ON (deps) → PSB grup baru bebas tagihan bulan pemasangan", async () => {
+        const deps = baseDeps({ freeInstallMonth: true });
+        await handlePsbGroupIntake(deps);
+        const arg = deps.usersService.upsertUserFromAdminPanel.mock.calls[0][0];
+        expect(arg.userData.free_first_month).toBe(true);
+    });
+
+    test("freeInstallMonth OFF (deps) → tidak diaktifkan", async () => {
+        const deps = baseDeps({ freeInstallMonth: false });
+        await handlePsbGroupIntake(deps);
+        const arg = deps.usersService.upsertUserFromAdminPanel.mock.calls[0][0];
+        expect(arg.userData.free_first_month).toBe(false);
+    });
+
     test("pengirim bukan staf → diabaikan, create TIDAK dipanggil", async () => {
         const deps = baseDeps({ participant: "628000@s.whatsapp.net", plainPhone: "628000" });
         const r = await handlePsbGroupIntake(deps);

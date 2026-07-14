@@ -11,9 +11,11 @@
  *   lib/services/paid-receipt (struk lunas kanonik — JANGAN bikin template struk sendiri),
  *   lib/whatsapp-delivery-service, lib/whatsapp-critical-delivery, lib/admin-recipients, lib/template-service, lib/id-generator.
  * MainFuncs: createPaymentProofService/getPaymentProofService ->
- *   { handleIncomingProof, listPending, getById, getFilePath, confirmProof, rejectProof }.
+ *   { handleIncomingProof, listPending, getById, getFilePath, confirmProof, rejectProof, deleteProof }.
  * SideEffects: Tulis store + file bukti, kirim WA (notif admin bergambar + notifikasi hasil ke pelanggan),
  *   menulis ledger pembayaran (paid) + reaktivasi MikroTik via settlement.
+ *   CATATAN: deleteProof TIDAK mengirim apa pun ke pelanggan & TIDAK menyentuh ledger — ia hanya
+ *   membuang entri dari antrian (untuk foto yang ternyata BUKAN bukti bayar, mis. keluhan).
  */
 "use strict";
 
@@ -292,6 +294,29 @@ function createPaymentProofService(overrides = {}) {
         return { ok: true, record: updated };
     }
 
+    /**
+     * Hapus bukti PALSU (foto yang ternyata BUKAN bukti bayar — mis. keluhan yang salah tertangkap).
+     * BEDA TEGAS dari rejectProof: jalur ini SENGAJA TIDAK mengirim apa pun ke pelanggan (mereka tak
+     * pernah mengaku bayar, jadi pesan "pembayaran ditolak" akan membingungkan) dan TIDAK menyentuh
+     * ledger. Cukup buang entri dari antrian: tandai status "deleted" (jejak audit tetap) & buang file.
+     * Idempoten: hanya record berstatus pending yang bisa dihapus.
+     */
+    async function deleteProof(id, { adminName = "admin", reason = "" } = {}) {
+        const record = deps.repository.getById(id);
+        if (!record) return { ok: false, reason: "not_found" };
+        if (record.status !== "pending") return { ok: false, reason: "already_processed", status: record.status };
+
+        const updated = await deps.repository.softDelete(id, {
+            status: "deleted",
+            verifiedBy: adminName,
+            verifiedAt: new Date().toISOString(),
+            notes: reason || null
+        });
+
+        // Tidak ada notifyCustomer* di sini — itulah inti "hapus" vs "tolak".
+        return { ok: true, record: updated };
+    }
+
     return {
         deps,
         handleIncomingProof,
@@ -299,7 +324,8 @@ function createPaymentProofService(overrides = {}) {
         getById,
         getFilePath,
         confirmProof,
-        rejectProof
+        rejectProof,
+        deleteProof
     };
 }
 

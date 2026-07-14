@@ -412,7 +412,11 @@ async function provision(context, ctx, candidate) {
                 wifi_password: ctx.data.wifi_password,
                 device_id: candidate ? candidate.deviceId : undefined,
                 ssid_indices: candidate ? ssidIndices : undefined,
-                registration_mode: "new"
+                registration_mode: "new",
+                // Auto "gratis bulan pemasangan" bila diaktifkan: pelanggan PSB baru mulai bayar
+                // bulan DEPAN (waiver periode berjalan, kebal isolir, tak masuk pemasukan). Reuse blok
+                // free_first_month di create-user-persist. Gate: config.psbIntake.freeInstallMonth.
+                free_first_month: psbCfg.freeInstallMonth === true
             },
             actor: { id: ctx.staff.id, username: ctx.staff.username, name: ctx.staff.name || ctx.staff.username, role: ctx.staff.role },
             requestMeta: { ipAddress: "wa-dm-psb", userAgent: "psb-dm-wizard" }

@@ -45,11 +45,14 @@
   }
 
   function card(rec) {
+    var namaArg = esc(rec.userName).replace(/'/g, "\\'");
     var actions =
-      '<button class="btn btn-sm btn-success" onclick="konfirmasiBukti(\'' + esc(rec.id) + '\',\'' + esc(rec.userName).replace(/'/g, "\\'") + '\',' + Number(rec.amountDue || 0) + ')">' +
+      '<button class="btn btn-sm btn-success" onclick="konfirmasiBukti(\'' + esc(rec.id) + '\',\'' + namaArg + '\',' + Number(rec.amountDue || 0) + ')">' +
         '<i class="fas fa-check"></i> Konfirmasi Lunas</button>' +
-      '<button class="btn btn-sm btn-outline-danger" onclick="tolakBukti(\'' + esc(rec.id) + '\',\'' + esc(rec.userName).replace(/'/g, "\\'") + '\')">' +
-        '<i class="fas fa-times"></i> Tolak</button>';
+      '<button class="btn btn-sm btn-outline-danger" onclick="tolakBukti(\'' + esc(rec.id) + '\',\'' + namaArg + '\')">' +
+        '<i class="fas fa-times"></i> Tolak</button>' +
+      '<button class="btn btn-sm btn-outline-secondary" onclick="hapusBukti(\'' + esc(rec.id) + '\',\'' + namaArg + '\')">' +
+        '<i class="fas fa-trash"></i> Hapus (bukan bukti bayar)</button>';
 
     return '' +
       '<div class="dashboard-card" style="height:auto;" data-id="' + esc(rec.id) + '">' +
@@ -160,7 +163,8 @@
   window.tolakBukti = function (id, nama) {
     Swal.fire({
       title: "Tolak Bukti?",
-      html: "Tolak bukti dari <b>" + esc(nama) + "</b>?",
+      html: "Tolak bukti dari <b>" + esc(nama) + "</b>?" +
+        "<br><small class='text-muted'>Pakai bila ini <b>memang</b> bukti bayar tapi belum sah (nominal kurang, buram). Pelanggan diberi tahu untuk mengirim ulang.</small>",
       input: "text",
       inputPlaceholder: "Alasan (opsional, dikirim ke pelanggan)",
       icon: "warning",
@@ -172,6 +176,25 @@
     }).then(function (r) {
       if (!r.isConfirmed) return;
       postAction("/api/konfirmasi-bayar/" + encodeURIComponent(id) + "/tolak", { reason: r.value || "" }, "Ditolak");
+    });
+  };
+
+  // Hapus = untuk foto yang ternyata BUKAN bukti bayar (mis. keluhan yang salah masuk antrian).
+  // Beda dari Tolak: entri dibuang tanpa memberi tahu pelanggan sama sekali.
+  window.hapusBukti = function (id, nama) {
+    Swal.fire({
+      title: "Hapus bukti ini?",
+      html: "Hapus entri dari <b>" + esc(nama) + "</b>?" +
+        "<br><small class='text-muted'>Gunakan bila foto ini sebenarnya <b>bukan bukti bayar</b> (mis. keluhan). Entri dibuang dari antrian dan <b>pelanggan tidak diberi tahu</b>. Berbeda dari Tolak.</small>",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Ya, Hapus",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#858796",
+      reverseButtons: true
+    }).then(function (r) {
+      if (!r.isConfirmed) return;
+      postAction("/api/konfirmasi-bayar/" + encodeURIComponent(id) + "/hapus", {}, "Dihapus");
     });
   };
 

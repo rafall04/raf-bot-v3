@@ -28,6 +28,7 @@ function fakeService(overrides = {}) {
             alreadyPaid: false
         })),
         rejectProof: jest.fn(async () => ({ ok: true, record: pending() })),
+        deleteProof: jest.fn(async () => ({ ok: true, record: pending() })),
         ...overrides
     };
 }
@@ -122,6 +123,32 @@ describe("PAYPROOF_CONFIRM", () => {
         expect(res.handled).toBe(false);
         expect(ctx.service.rejectProof).not.toHaveBeenCalled();
     });
+
+    test("alur HAPUS: 'ya' → deleteProof, BUKAN reject (pelanggan tak disentuh)", async () => {
+        const ctx = ctxWith({ ...state(), action: "delete" }, { chats: "ya" });
+        await handlePaymentProofAdminState(ctx);
+
+        expect(ctx.service.deleteProof).toHaveBeenCalledWith(CODE, { adminName: "Ana", reason: "" });
+        expect(ctx.service.rejectProof).not.toHaveBeenCalled();
+        expect(ctx.service.confirmProof).not.toHaveBeenCalled();
+        expect(ctx.deleteUserState).toHaveBeenCalled();
+    });
+
+    test("alur HAPUS: teks bebas TIDAK dianggap alasan → minta 'ya' dulu (beda dari tolak)", async () => {
+        const ctx = ctxWith({ ...state(), action: "delete" }, { chats: "kayaknya keluhan deh" });
+        await handlePaymentProofAdminState(ctx);
+
+        expect(ctx.service.deleteProof).not.toHaveBeenCalled();
+        expect(ctx.reply.mock.calls[0][0]).toContain("ya");
+    });
+
+    test("'hapus' saat menunggu konfirmasi lunas → berbelok jadi HAPUS", async () => {
+        const ctx = ctxWith(state(), { chats: "hapus" });
+        await handlePaymentProofAdminState(ctx);
+
+        expect(ctx.service.confirmProof).not.toHaveBeenCalled();
+        expect(ctx.service.deleteProof).toHaveBeenCalledWith(CODE, { adminName: "Ana", reason: "" });
+    });
 });
 
 describe("PAYPROOF_SELECT", () => {
@@ -183,6 +210,25 @@ describe("PAYPROOF_SELECT", () => {
             expect.objectContaining({ step: STEP_CONFIRM, action: "reject", id: CODE2 })
         );
         expect(ctx.reply.mock.calls[0][0]).toContain("Tolak bukti");
+    });
+
+    test("aksi 'delete' pada daftar → angka membuka penegasan HAPUS", async () => {
+        const ctx = ctxWith(state("delete"), { chats: "1" });
+        await handlePaymentProofAdminState(ctx);
+
+        expect(ctx.setUserState).toHaveBeenCalledWith(
+            "628111@s.whatsapp.net",
+            expect.objectContaining({ step: STEP_CONFIRM, action: "delete", id: CODE2 })
+        );
+        expect(ctx.reply.mock.calls[0][0]).toContain("Hapus bukti");
+    });
+
+    test("'hapus 2 <catatan>' → eksekusi hapus dari snapshot (bukan reject)", async () => {
+        const ctx = ctxWith(state(), { chats: "hapus 2 foto keluhan" });
+        await handlePaymentProofAdminState(ctx);
+
+        expect(ctx.service.deleteProof).toHaveBeenCalledWith(CODE, { adminName: "Ana", reason: "foto keluhan" });
+        expect(ctx.service.rejectProof).not.toHaveBeenCalled();
     });
 
     test("perintah global menembus daftar", async () => {
