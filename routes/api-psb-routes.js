@@ -68,6 +68,22 @@ function createApiPsbRouter(deps) {
 
     const router = express.Router();
 
+    // S3 — PENSIUN jalur PSB 3-fase legacy (psb_records/movePSBToUsers). Endpoint TULIS 3-fase di-410
+    // di sini (sebelum handler lama) supaya tak ada record legacy baru; jalur utama = Papan PSB
+    // (/papan-psb) + wizard WA #PSB. Endpoint SHARED (upload-photo, device/validate helpers) TETAP.
+    const RETIRED_PSB_WRITE_PATHS = new Set([
+        '/psb/submit-phase1', '/psb/submit-phase2', '/psb/submit-phase3', '/psb/update-status', '/psb/delete-all'
+    ]);
+    router.use((req, res, next) => {
+        if (req.method === 'POST' && RETIRED_PSB_WRITE_PATHS.has(req.path)) {
+            return res.status(410).json({
+                status: 410,
+                message: 'PSB 3-fase (web legacy) sudah dipensiunkan. Pakai Papan PSB (/papan-psb) atau wizard WA #PSB.'
+            });
+        }
+        return next();
+    });
+
     function getRuntime() {
         return deps.runtime || global.__appRuntime || null;
     }

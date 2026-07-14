@@ -67,24 +67,12 @@ $current_page = strtok($current_page, '?');
     </li>
 
     <!-- Nav Item - Pasang Baru (PSB) -->
-    <li class="nav-item <?php echo (strpos($current_page, '/teknisi-psb') !== false) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePSB" aria-expanded="<?php echo (strpos($current_page, '/teknisi-psb') !== false) ? 'true' : 'false'; ?>" aria-controls="collapsePSB">
-            <i class="fas fa-fw fa-user-plus"></i>
-            <span>Pasang Baru (PSB)</span>
+    <!-- Pasang Baru (PSB): jalur 3-fase legacy dipensiunkan (S3) → Papan PSB terpadu + wizard WA #PSB -->
+    <li class="nav-item <?php echo ($current_page == '/papan-psb') ? 'active' : ''; ?>">
+        <a class="nav-link" href="/papan-psb">
+            <i class="fas fa-fw fa-clipboard-check"></i>
+            <span>Papan PSB</span>
         </a>
-        <div id="collapsePSB" class="collapse <?php echo (strpos($current_page, '/teknisi-psb') !== false) ? 'show' : ''; ?>" aria-labelledby="headingPSB" data-parent="#accordionSidebar">
-            <div class="bg-white py-2 collapse-inner rounded">
-                <a class="collapse-item <?php echo ($current_page == '/teknisi-psb') ? 'active' : ''; ?>" href="/teknisi-psb">
-                    <i class="fas fa-fw fa-user-plus"></i> Daftar Pelanggan
-                </a>
-                <a class="collapse-item <?php echo ($current_page == '/teknisi-psb-installation') ? 'active' : ''; ?>" href="/teknisi-psb-installation">
-                    <i class="fas fa-fw fa-tools"></i> Proses Instalasi
-                </a>
-                <a class="collapse-item <?php echo ($current_page == '/teknisi-psb-setup') ? 'active' : ''; ?>" href="/teknisi-psb-setup">
-                    <i class="fas fa-fw fa-wifi"></i> Setup Pelanggan
-                </a>
-            </div>
-        </div>
     </li>
 
     <!-- Nav Item - Pembayaran Teknisi -->

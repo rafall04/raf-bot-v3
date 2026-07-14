@@ -211,21 +211,11 @@ router.get('/teknisi-olt', checkRole(['teknisi', 'admin', 'owner', 'superadmin']
     res.render('sb-admin/teknisi-olt.php');
 });
 
-router.get('/teknisi-psb', checkRole(['teknisi', 'admin', 'owner', 'superadmin']), (req, res) => {
-    res.render('sb-admin/teknisi-psb.php');
-});
-
-router.get('/teknisi-psb-installation', checkRole(['teknisi', 'admin', 'owner', 'superadmin']), (req, res) => {
-    res.render('sb-admin/teknisi-psb-installation.php');
-});
-
-router.get('/teknisi-psb-setup', checkRole(['teknisi', 'admin', 'owner', 'superadmin']), (req, res) => {
-    res.render('sb-admin/teknisi-psb-setup.php');
-});
-
-// PSB Rekap page - ADMIN ONLY
-router.get('/psb-rekap', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
-    res.render('sb-admin/psb-rekap.php');
+// Web PSB 3-fase legacy (teknisi-psb / -installation / -setup) + Rekap PSB lama DIPENSIUNKAN (S3):
+// jalur utama sekarang = Papan PSB (/papan-psb) + wizard WA #PSB. Redirect ke papan supaya bookmark
+// lama tetap mendarat di board terpadu (bukan 404). Endpoint tulis 3-fase di-410 di api-psb-routes.
+router.get(['/teknisi-psb', '/teknisi-psb-installation', '/teknisi-psb-setup', '/psb-rekap'], checkRole(['teknisi', 'admin', 'owner', 'superadmin']), (req, res) => {
+    res.redirect('/papan-psb');
 });
 
 // Papan PSB - daftar PSB (belum kepasang) via web; paritas dgn WA #jadwal. Staf (teknisi+admin) boleh daftar.

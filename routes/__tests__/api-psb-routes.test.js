@@ -183,3 +183,38 @@ describe('api psb routes mount', () => {
     }
   });
 });
+
+describe('PSB 3-fase legacy dipensiunkan (S3)', () => {
+  beforeEach(() => { global.users = []; global.accounts = []; global.config = {}; });
+  afterEach(() => { delete global.users; delete global.accounts; delete global.config; });
+
+  const RETIRED = ['submit-phase1', 'submit-phase2', 'submit-phase3', 'update-status', 'delete-all'];
+
+  test.each(RETIRED)('POST /api/psb/%s → 410 Gone (tak ada record legacy baru)', async (path) => {
+    const app = createApp();
+    const { server, baseUrl } = await startServer(app);
+    try {
+      const r = await fetch(`${baseUrl}/api/psb/${path}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'X' })
+      });
+      const payload = await r.json();
+      expect(r.status).toBe(410);
+      expect(payload.status).toBe(410);
+      expect(payload.message).toMatch(/dipensiunkan|Papan PSB/i);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  test('SHARED /api/psb/upload-photo TIDAK di-410 (dipakai Papan PSB)', async () => {
+    const app = createApp();
+    const { server, baseUrl } = await startServer(app);
+    try {
+      // tanpa file → handler balas non-410 (400/500), yang penting BUKAN 410 (masih hidup)
+      const r = await fetch(`${baseUrl}/api/psb/upload-photo`, { method: 'POST' });
+      expect(r.status).not.toBe(410);
+    } finally {
+      await stopServer(server);
+    }
+  });
+});
