@@ -162,7 +162,9 @@ router.get('/agent-management', (req, res) => {
 });
 
 router.get('/admin/daftar-tiket', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
-    res.render('sb-admin/admin-daftar-tiket.php');
+    // View admin = tiket.php ("Ticket Management"). Dulu render 'admin-daftar-tiket.php' yang
+    // TIDAK ADA → 500 ("Failed to lookup view") — kena navbar "Tiket Support Admin" & Owner Cockpit.
+    res.render('sb-admin/tiket.php');
 });
 
 // Teknisi pages - PROTECTED

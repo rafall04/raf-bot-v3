@@ -127,7 +127,7 @@
         } else html += naCard("fa-satellite-dish", "Outage OLT");
 
         elCards.innerHTML = html;
-        if (elMeta) elMeta.textContent = "Diperbarui: " + new Date(d.generatedAt || Date.now()).toLocaleString("id-ID");
+        if (elMeta) elMeta.textContent = "Diperbarui " + new Date(d.generatedAt || Date.now()).toLocaleTimeString("id-ID") + " · auto 60 dtk";
     }
 
     function load() {

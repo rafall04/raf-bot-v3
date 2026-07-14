@@ -31,16 +31,17 @@
           <div class="d-sm-flex align-items-center justify-content-between mb-3">
             <div>
               <h1 class="h3 mb-1 text-gray-800">👑 Owner Cockpit</h1>
-              <p class="mb-0 text-muted small">Ringkasan operasional sekali-baca. Klik kartu untuk detail. Auto-refresh tiap 60 detik.</p>
+              <p class="mb-0 text-muted small">Ringkasan operasional sekali-baca — klik kartu untuk detail.</p>
             </div>
-            <button id="oc-refresh" class="btn btn-sm btn-outline-secondary shadow-sm" title="Muat ulang"><i class="fas fa-sync fa-sm"></i></button>
+            <div class="text-sm-right mt-2 mt-sm-0">
+              <button id="oc-refresh" class="btn btn-sm btn-outline-secondary shadow-sm"><i class="fas fa-sync fa-sm mr-1"></i>Segarkan</button>
+              <div class="text-muted small mt-1" id="oc-meta">memuat…</div>
+            </div>
           </div>
 
           <div id="oc-cards" class="oc-grid">
             <div class="oc-na">Memuat cockpit…</div>
           </div>
-
-          <p class="text-muted small mb-4" id="oc-meta"></p>
 
         </div>
       </div>
