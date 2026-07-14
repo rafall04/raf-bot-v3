@@ -227,6 +227,7 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 - [Fitur 2026-07-14 (Komisi marketing PSB Fase 2b: komisi TEKNISI → payroll technician_gaji komisi_marketing, mirror rail collection, sumber di-inject + defensif)](docs/boundary-log.md#b139)
 - [Fitur 2026-07-14 (Komisi marketing PSB Fase 3: halaman /laporan-marketing-psb per pemberi lead — getMarketingReport group+totals, GET /api/psb-schedule/marketing-report admin read-only)](docs/boundary-log.md#b140)
 - [Fitur 2026-07-14 (Owner Cockpit diperkaya: tunggakan/pelunasan/MRR + kartu Pelanggan & Perlu Tindakan + trafik/komisi/tiket-breakdown/offline; getPppStats cache 90s)](docs/boundary-log.md#b141)
+- [Fitur 2026-07-14 (Owner Cockpit tren MoM + offline presisi silang PPPoE×pelanggan + redesign elegan dark-aware via design tokens)](docs/boundary-log.md#b142)
 
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.
