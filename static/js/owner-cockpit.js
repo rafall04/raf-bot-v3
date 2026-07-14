@@ -55,7 +55,7 @@
         if (cst && cst.ok) {
             html += card(cst.isolir > 0 ? "warning" : "info", "👥 Pelanggan",
                 big(cst.aktif + ' <span class="small text-muted">aktif</span>') +
-                sub('isolir <b>' + cst.isolir + '</b> · baru bln ini ' + cst.baru + ' · online ' + num(cst.pppoeOnline) + '/' + cst.total),
+                sub('isolir <b>' + cst.isolir + '</b> · baru bln ini ' + cst.baru + ' · PPPoE online ' + num(cst.pppoeOnline)),
                 "/users", "Kelola pelanggan");
         } else html += naCard("👥 Pelanggan");
 

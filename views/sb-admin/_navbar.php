@@ -66,7 +66,7 @@ $isTeknisiRole = $current_role === 'teknisi';
 $isAdminLikeRole = true;
 $isTeknisiRole = false;
 
-$layananPages = ['/admin/daftar-tiket', '/speed-requests', '/speed-boost-config', '/kompensasi', '/papan-psb'];
+$layananPages = ['/admin/daftar-tiket', '/speed-requests', '/speed-boost-config', '/kompensasi', '/papan-psb', '/laporan-marketing-psb'];
 $ticketPagePath = '/admin/daftar-tiket';
 $ticketPageLabel = 'Tiket Support Admin';
 
@@ -231,12 +231,12 @@ function isParentActive($pages, $current) {
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/admin/daftar-tiket', '/speed-requests', '/speed-boost-config', '/kompensasi', '/papan-psb'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseLayanan" aria-expanded="<?php echo isParentActive(['/admin/daftar-tiket', '/speed-requests', '/speed-boost-config', '/kompensasi', '/papan-psb'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseLayanan">
+    <li class="nav-item <?php echo isParentActive(['/admin/daftar-tiket', '/speed-requests', '/speed-boost-config', '/kompensasi', '/papan-psb', '/laporan-marketing-psb'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseLayanan" aria-expanded="<?php echo isParentActive(['/admin/daftar-tiket', '/speed-requests', '/speed-boost-config', '/kompensasi', '/papan-psb', '/laporan-marketing-psb'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseLayanan">
             <i class="fas fa-fw fa-concierge-bell"></i>
             <span>Layanan</span>
         </a>
-        <div id="collapseLayanan" class="collapse <?php echo isParentActive(['/admin/daftar-tiket', '/speed-requests', '/speed-boost-config', '/kompensasi', '/papan-psb'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingLayanan" data-parent="#accordionSidebar">
+        <div id="collapseLayanan" class="collapse <?php echo isParentActive(['/admin/daftar-tiket', '/speed-requests', '/speed-boost-config', '/kompensasi', '/papan-psb', '/laporan-marketing-psb'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingLayanan" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <?php if (!empty($layananPages) && $ticketPagePath !== null): ?>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive($ticketPagePath, $current_page) ? 'active' : ''; ?>" href="<?php echo htmlspecialchars($ticketPagePath, ENT_QUOTES, 'UTF-8'); ?>">
@@ -259,6 +259,10 @@ function isParentActive($pages, $current) {
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/papan-psb', $current_page) ? 'active' : ''; ?>" href="/papan-psb">
                     <i class="fas fa-fw fa-clipboard-check mr-2"></i>
                     <span>Papan PSB</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/laporan-marketing-psb', $current_page) ? 'active' : ''; ?>" href="/laporan-marketing-psb">
+                    <i class="fas fa-fw fa-hand-holding-usd mr-2"></i>
+                    <span>Laporan Marketing PSB</span>
                 </a>
             </div>
         </div>

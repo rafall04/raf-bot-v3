@@ -225,6 +225,7 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 - [Fitur 2026-07-14 (Komisi marketing PSB Fase 2a: bayar pemberi lead LUAR via kas → expense-manager, POST /:id/marketing/pay admin, anti double-expense optimistic-lock+rollback)](docs/boundary-log.md#b137)
 - [Fitur 2026-07-14 (Owner Cockpit web: beranda /owner ringkasan sekali-baca — income/ISP/tiket/PSB/outage, agregasi best-effort + drill-down)](docs/boundary-log.md#b138)
 - [Fitur 2026-07-14 (Komisi marketing PSB Fase 2b: komisi TEKNISI → payroll technician_gaji komisi_marketing, mirror rail collection, sumber di-inject + defensif)](docs/boundary-log.md#b139)
+- [Fitur 2026-07-14 (Komisi marketing PSB Fase 3: halaman /laporan-marketing-psb per pemberi lead — getMarketingReport group+totals, GET /api/psb-schedule/marketing-report admin read-only)](docs/boundary-log.md#b140)
 
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.

@@ -263,6 +263,11 @@ router.get('/laporan-agen', checkRole(['admin', 'owner', 'superadmin']), (req, r
     res.render('sb-admin/laporan-agen.php');
 });
 
+// Laporan Marketing PSB (komisi pemberi lead) page - ADMIN ONLY
+router.get('/laporan-marketing-psb', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/laporan-marketing-psb.php');
+});
+
 // Rubah Paket Pelanggan page - ADMIN ONLY
 router.get('/rubah-paket', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/rubah-paket.php');

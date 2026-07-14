@@ -19,7 +19,8 @@ jest.mock("../../lib/psb-schedule-service", () => ({
     buildAssignmentDm: jest.fn(() => "dm"),
     buildAssignmentGroupNotif: jest.fn(() => "gnotif"),
     setMarketing: jest.fn(),
-    payMarketingExternal: jest.fn()
+    payMarketingExternal: jest.fn(),
+    getMarketingReport: jest.fn()
 }));
 jest.mock("../../lib/expense-manager", () => ({ createExpense: jest.fn(async () => ({ id: 1 })) }));
 jest.mock("../../message/handlers/psb-caption-parser", () => ({
@@ -354,6 +355,28 @@ describe("psb-schedule marketing routes (Fase 1 komisi)", () => {
         try {
             const { status } = await postJson(baseUrl, "/psb-schedule/5/marketing", { marketing_type: "luar", marketing_ref_name: "X", marketing_fee: -5 });
             expect(status).toBe(400);
+        } finally { await stopServer(server); }
+    });
+
+    // ── Fase 3: laporan komisi per pemberi lead ──
+    test("GET /marketing-report (admin) → 200 + data; teruskan month/year", async () => {
+        scheduleService.getMarketingReport.mockResolvedValue({ summary: [{ name: "Rudi", total_fee: 50000 }], entries: [], totals: { total_fee: 50000, count: 2 } });
+        const { server, baseUrl } = await startServer(createApp(ADMIN));
+        try {
+            const r = await fetch(`${baseUrl}/psb-schedule/marketing-report?month=7&year=2026`, { credentials: "include" });
+            const payload = await r.json();
+            expect(r.status).toBe(200);
+            expect(payload.data.totals.total_fee).toBe(50000);
+            expect(scheduleService.getMarketingReport).toHaveBeenCalledWith({ month: 7, year: 2026 });
+        } finally { await stopServer(server); }
+    });
+
+    test("GET /marketing-report non-admin (teknisi) → 403", async () => {
+        const { server, baseUrl } = await startServer(createApp(TEKNISI));
+        try {
+            const r = await fetch(`${baseUrl}/psb-schedule/marketing-report`, { credentials: "include" });
+            expect(r.status).toBe(403);
+            expect(scheduleService.getMarketingReport).not.toHaveBeenCalled();
         } finally { await stopServer(server); }
     });
 

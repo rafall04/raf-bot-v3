@@ -7,6 +7,7 @@
  *          MARKETING (komisi PSB): create terima pemberi lead opsional; `POST /:id/marketing` (ADMIN)
  *          set/koreksi pemberi lead + nominal; `POST /:id/marketing/pay` (ADMIN, Fase 2a) BAYAR komisi
  *          LUAR via kas → expense-manager (createExpense di-inject). Teknisi→payroll = Fase 2b.
+ *          `GET /marketing-report` (ADMIN, Fase 3) laporan komisi per pemberi lead (read-only).
  * Caller: `routes/api.js` (mount `router.use(createPsbScheduleRouter())`).
  * Deps: Express, `lib/psb-schedule-service`, `message/handlers/psb-caption-parser` (resolvePackage),
  *        `lib/jid-utils` (normalizePhoneToJid), `message/handlers/reply-runtime` (sendReply, lazy),
@@ -147,6 +148,18 @@ function createPsbScheduleRouter() {
         try {
             const summary = await scheduleService.getScheduleSummary({ nowMs: Date.now() });
             return res.json({ status: 200, data: summary });
+        } catch (e) { return res.status(500).json({ status: 500, message: e.message }); }
+    });
+
+    // GET /api/psb-schedule/marketing-report — laporan komisi per PEMBERI LEAD (ADMIN, Fase 3). Read-only.
+    // Query opsional { month, year } (filter periode by tgl-aktivitas; tanpa keduanya = all-time).
+    router.get("/psb-schedule/marketing-report", ensureStaff, async (req, res) => {
+        try {
+            if (!isAdminRole(req.user.role)) return res.status(403).json({ status: 403, message: "Khusus admin." });
+            const month = req.query.month ? parseInt(req.query.month, 10) : null;
+            const year = req.query.year ? parseInt(req.query.year, 10) : null;
+            const report = await scheduleService.getMarketingReport({ month, year });
+            return res.json({ status: 200, data: report });
         } catch (e) { return res.status(500).json({ status: 500, message: e.message }); }
     });
 
