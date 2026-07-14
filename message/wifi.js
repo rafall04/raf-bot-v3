@@ -88,16 +88,22 @@ exports.menupasang = (nama, namabot, pushname, sender) => {
 };
 
 exports.menuowner = (nama, namabot, pushname, sender) => {
-    const template = templatesCache.wifiMenuTemplates?.menuowner || '';
-    return formatTemplate(template, { 
-        nama: nama,           // Backward compatibility
-        nama_wifi: nama,      // Clear naming: WiFi provider name
-        namabot: namabot,     // Backward compatibility
-        nama_bot: namabot,    // Clear naming: Bot name
-        pushname: pushname || 'Owner',  // WhatsApp display name with fallback
-        sender: sender,       // Full sender ID
-        phone: sender?.replace('@s.whatsapp.net', '') // Clean phone number
-    });
+    // Menu owner DIGENERATE dari katalog perintah (anti-basi) + daftar ISP dinamis + link web.
+    // Fallback ke template statis lama bila generator gagal (defensif — never-throw ke pemanggil).
+    try {
+        return require('../lib/owner-menu-builder').buildOwnerMenu({ nama, namabot, pushname });
+    } catch (_e) {
+        const template = templatesCache.wifiMenuTemplates?.menuowner || '';
+        return formatTemplate(template, {
+            nama: nama,
+            nama_wifi: nama,
+            namabot: namabot,
+            nama_bot: namabot,
+            pushname: pushname || 'Owner',
+            sender: sender,
+            phone: sender?.replace('@s.whatsapp.net', '')
+        });
+    }
 };
 
 exports.menupaket = (nama, namabot, pushname, sender) => {
