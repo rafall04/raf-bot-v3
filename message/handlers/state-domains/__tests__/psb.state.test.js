@@ -92,6 +92,13 @@ describe("psb.state wizard DM", () => {
         // Username dirakit dari Nama+Dusun; password pakai default (harness tak set → fallback rafnet123), BUKAN acak.
         expect(arg.userData.pppoe_username).toBe("budi_santoso-krajan@rafcybernet");
         expect(arg.userData.pppoe_password).toBe("rafnet123");
+        // REGRESI (bug "share lokasi pelanggan baru tidak terdeteksi"): lokasi WAJIB di wizard &
+        // sudah ditulis ke lokasi.json, TAPI dulu ctx.lokasi TIDAK dikirim ke create API sehingga
+        // koordinat tak pernah sampai ke tabel users. Test lama hanya assert SEBAGIAN userData →
+        // lokasi tak pernah dicek → bug lolos. Sekarang dikunci.
+        expect(arg.userData.latitude).toBe(-7.1);
+        expect(arg.userData.longitude).toBe(111.9);
+        expect(arg.userData.maps_url).toContain("-7.1,111.9");
         // Push modem OK (device_config.ok) → reply boleh klaim "online" + sebut band 5GHz.
         expect(h.base.reply.mock.calls.map((c) => c[0]).join("\n---\n")).toMatch(/online/i);
         expect(h.base.reply.mock.calls.map((c) => c[0]).join("\n---\n")).toMatch(/5GHz/);

@@ -413,6 +413,15 @@ async function provision(context, ctx, candidate) {
                 device_id: candidate ? candidate.deviceId : undefined,
                 ssid_indices: candidate ? ssidIndices : undefined,
                 registration_mode: "new",
+                // LOKASI PEMASANGAN — share lokasi WAJIB di wizard (gate STEP_COLLECT) dan sudah ditulis
+                // ke `lokasi.json`, TAPI dulu `ctx.lokasi` TIDAK PERNAH dikirim ke create API → koordinat
+                // tak sampai ke tabel users (bug: "share lokasi pelanggan baru tidak terdeteksi").
+                // `ctx.lokasi` terisi dari share WA (STEP_COLLECT) ATAU pre-fill jadwal papan
+                // (startLinkedSession seed dari rec.latitude/longitude). userData di-SPREAD di
+                // create-user-validate, jadi field ini terbawa sampai INSERT.
+                latitude: ctx.lokasi ? ctx.lokasi.lat : undefined,
+                longitude: ctx.lokasi ? ctx.lokasi.lng : undefined,
+                maps_url: ctx.lokasi ? `https://maps.google.com/?q=${ctx.lokasi.lat},${ctx.lokasi.lng}` : undefined,
                 // Auto "gratis bulan pemasangan" bila diaktifkan: pelanggan PSB baru mulai bayar
                 // bulan DEPAN (waiver periode berjalan, kebal isolir, tak masuk pemasukan). Reuse blok
                 // free_first_month di create-user-persist. Gate: config.psbIntake.freeInstallMonth.
