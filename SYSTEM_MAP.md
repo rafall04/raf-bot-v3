@@ -221,6 +221,7 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 - [Fitur 2026-07-14 (PSB terjadwal S3: pensiun web 3-fase legacy → redirect papan + 410 endpoint tulis)](docs/boundary-log.md#b133)
 - [Fitur 2026-07-14 (Kustomisasi TAMPILAN report "data <isp>": daftar terdampak lengkap + on/off tiap seksi, panel /upstream-quality)](docs/boundary-log.md#b134)
 - [Fitur 2026-07-14 (Komisi marketing PSB Fase 1: catat pemberi lead peran ke-3 + nominal komisi manual, capture #jadwal/web + POST /:id/marketing admin, deploy gelap)](docs/boundary-log.md#b135)
+- [Fitur 2026-07-14 (Menu OWNER WA generatif dari katalog: anti-basi + daftar ISP dinamis + link web per domain)](docs/boundary-log.md#b136)
 
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.
