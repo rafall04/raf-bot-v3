@@ -7,9 +7,10 @@
  * Caller: `views/sb-admin/upstream-quality.php`.
  * Deps: Chart.js vendor (global `Chart`), fetch API, endpoint /api/upstream-quality/*.
  * MainFuncs: `muatStatus`, `muatGrafik`, `muatWan`, `muatRapor`, `muatInsiden`, `renderCards`,
- *            `muatKonfig` (panel kustomisasi arah: target/layanan/jalur/thresholds via
- *            GET/PUT /api/upstream-quality/config — live tanpa restart).
- * SideEffects: DOM update + interval timer di halaman; simpan konfigurasi arah monitor.
+ *            `muatKonfig` (panel kustomisasi arah: target/layanan/jalur/thresholds + TAMPILAN
+ *            report "data <isp>": jumlah pelanggan terdampak + on/off tiap seksi — via
+ *            GET/PUT /api/upstream-quality/config, live tanpa restart).
+ * SideEffects: DOM update + interval timer di halaman; simpan konfigurasi arah & tampilan report.
  */
 (function () {
     "use strict";
@@ -412,6 +413,9 @@
         });
     }
 
+    // Seksi report yg bisa di-toggle (harus sinkron dgn REPORT_SECTION_KEYS backend / DEFAULT_REPORT poller).
+    var REPORT_SEC_KEYS = ["rincianArah", "layananPopuler", "polaLossPerJam", "perArah24jam", "gangguanTercatat", "tujuhHari", "insidenTerakhir"];
+
     function renderKonfig(d) {
         cfgCanEdit = d.canEdit === true;
         var tT = document.getElementById("upq-cfg-targets");
@@ -462,7 +466,18 @@
             }
         });
 
-        ["btn-cfg-target-add", "btn-cfg-target-save", "btn-cfg-service-add", "btn-cfg-service-save", "btn-cfg-path-save", "btn-cfg-th-save"]
+        // Tampilan report "data <isp>": jumlah pelanggan terdampak (report & alert) + on/off tiap seksi.
+        var rep = d.report || {};
+        var repMax = document.getElementById("cfg-rep-affectedListMax");
+        if (repMax) { repMax.value = rep.affectedListMax != null ? rep.affectedListMax : 0; repMax.disabled = !cfgCanEdit; }
+        var repAlert = document.getElementById("cfg-rep-alertAffectedListMax");
+        if (repAlert) { repAlert.value = rep.alertAffectedListMax != null ? rep.alertAffectedListMax : 5; repAlert.disabled = !cfgCanEdit; }
+        REPORT_SEC_KEYS.forEach(function (k) {
+            var el = document.getElementById("cfg-rep-sec-" + k);
+            if (el) { el.checked = !(rep.sections && rep.sections[k] === false); el.disabled = !cfgCanEdit; }
+        });
+
+        ["btn-cfg-target-add", "btn-cfg-target-save", "btn-cfg-service-add", "btn-cfg-service-save", "btn-cfg-path-save", "btn-cfg-th-save", "btn-cfg-report-save"]
             .forEach(function (id) {
                 var b = document.getElementById(id);
                 if (b) b.disabled = !cfgCanEdit;
@@ -572,6 +587,18 @@
                 if (el && el.value !== "") th[k] = Number(el.value);
             });
             simpanKonfig({ thresholds: th }, this);
+        });
+        document.getElementById("btn-cfg-report-save").addEventListener("click", function () {
+            var rep = { sections: {} };
+            var repMax = document.getElementById("cfg-rep-affectedListMax");
+            var repAlert = document.getElementById("cfg-rep-alertAffectedListMax");
+            if (repMax && repMax.value !== "") rep.affectedListMax = Number(repMax.value);
+            if (repAlert && repAlert.value !== "") rep.alertAffectedListMax = Number(repAlert.value);
+            REPORT_SEC_KEYS.forEach(function (k) {
+                var el = document.getElementById("cfg-rep-sec-" + k);
+                if (el) rep.sections[k] = el.checked;
+            });
+            simpanKonfig({ report: rep }, this);
         });
     })();
 

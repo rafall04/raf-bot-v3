@@ -2,7 +2,9 @@
 /**
  * Header Doc
  * Purpose: Halaman ADMIN "Kualitas Jalur Upstream" — kartu status per jalur (GMDP/IH/MNI/SF)
- *          + grafik loss & RTT dari probe policy-routed router gateway, auto-refresh.
+ *          + grafik loss & RTT dari probe policy-routed router gateway, auto-refresh. Panel
+ *          kustomisasi (arah/thresholds + TAMPILAN report "data <isp>": jumlah pelanggan
+ *          terdampak & on/off tiap seksi) — live tanpa restart.
  * Caller: `routes/pages.js` path `/upstream-quality`.
  * Deps: `_head.php`, `_navbar.php`, `topbar.php`, API `/api/upstream-quality/*`,
  *       `vendor/chart.js/Chart.min.js`, `static/js/upstream-quality.js`, bundle sb-admin footer.
@@ -147,6 +149,29 @@
                 <label class="small mr-1">Jenuh %</label><input class="form-control form-control-sm mr-3" style="width:70px" type="number" step="1" id="cfg-th-saturationPct">
                 <button class="btn btn-sm btn-primary" type="button" id="btn-cfg-th-save">Simpan ambang</button>
               </form>
+              <hr class="my-3">
+              <h6 class="font-weight-bold small text-uppercase text-gray-600">🧾 Tampilan report &quot;data &lt;isp&gt;&quot;</h6>
+              <div class="small text-muted mb-2">Atur seberapa ringkas/lengkap report koneksi yang dikirim ke WhatsApp — berlaku untuk report yang ditarik admin (<i>data gmdp</i>) &amp; notif alert gangguan. Live tanpa restart.</div>
+              <form class="form-inline mb-2" id="upq-cfg-report">
+                <label class="small mr-1">Daftar pelanggan terdampak (report)</label>
+                <input class="form-control form-control-sm mr-1" style="width:80px" type="number" min="0" max="1000" step="1" id="cfg-rep-affectedListMax">
+                <span class="small text-muted mr-3">0 = tampilkan semua</span>
+                <label class="small mr-1">…di notif alert</label>
+                <input class="form-control form-control-sm mr-3" style="width:80px" type="number" min="0" max="200" step="1" id="cfg-rep-alertAffectedListMax">
+              </form>
+              <div class="mb-2">
+                <div class="small text-gray-600 mb-1">Seksi yang ditampilkan di report:</div>
+                <div id="upq-cfg-report-sections">
+                  <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="cfg-rep-sec-rincianArah"><label class="form-check-label small" for="cfg-rep-sec-rincianArah">Rincian arah + terdampak</label></div>
+                  <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="cfg-rep-sec-layananPopuler"><label class="form-check-label small" for="cfg-rep-sec-layananPopuler">Layanan populer</label></div>
+                  <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="cfg-rep-sec-polaLossPerJam"><label class="form-check-label small" for="cfg-rep-sec-polaLossPerJam">Pola loss/jam (grafik)</label></div>
+                  <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="cfg-rep-sec-perArah24jam"><label class="form-check-label small" for="cfg-rep-sec-perArah24jam">Per-arah 24 jam</label></div>
+                  <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="cfg-rep-sec-gangguanTercatat"><label class="form-check-label small" for="cfg-rep-sec-gangguanTercatat">Gangguan tercatat</label></div>
+                  <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="cfg-rep-sec-tujuhHari"><label class="form-check-label small" for="cfg-rep-sec-tujuhHari">Rapor 7 hari</label></div>
+                  <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="cfg-rep-sec-insidenTerakhir"><label class="form-check-label small" for="cfg-rep-sec-insidenTerakhir">Insiden terakhir</label></div>
+                </div>
+              </div>
+              <button class="btn btn-sm btn-primary mb-1" type="button" id="btn-cfg-report-save">Simpan tampilan report</button>
               <div class="small text-muted mt-2" id="upq-cfg-status"></div>
             </div>
           </div>
