@@ -17,11 +17,77 @@ function defaultDeps() {
     };
 }
 
+// ── Kolom users yang boleh ditulis saat CREATE ───────────────────────────────────────────
+// Daftar VALUES dibangun DINAMIS dari whitelist ini (bukan diketik manual). Dulu INSERT hanya
+// memuat 20 kolom, sehingga created_at/updated_at/address/latitude/longitude/username/password
+// TERBUANG tanpa error — data tampak utuh di snapshot in-memory lalu RAIB saat bot restart
+// (users di-reload dari SQLite). Menambah field baru cukup di sini; tak ada lagi kolom hilang senyap.
+const USER_INSERT_COLUMNS = [
+    "id", "name", "phone_number", "address",
+    "subscription", "subscription_price", "payment_due_date",
+    "pppoe_username", "pppoe_password", "device_id",
+    "username", "password",
+    "latitude", "longitude", "maps_url",
+    "connected_odp_id", "odc", "odp", "olt",
+    "bulk", "paid", "is_paid", "send_invoice", "notify_outage", "auto_isolir",
+    "is_corporate", "corporate_name", "corporate_address", "corporate_npwp",
+    "corporate_pic_name", "corporate_pic_phone", "corporate_pic_email",
+    "status", "account_type", "assigned_agen_id",
+    "email", "alternative_phone", "notes",
+    "registration_date", "created_at", "updated_at"
+];
+
+/** boolean → 0/1, array/objek → JSON string; sisanya apa adanya. */
+function toDbValue(value) {
+    if (typeof value === "boolean") return value ? 1 : 0;
+    if (value !== null && typeof value === "object") return JSON.stringify(value);
+    return value;
+}
+
+/**
+ * Samakan alias historis (phone/package/odp_id) + normalisasi ke bentuk kolom DB. TIDAK memutasi
+ * objek asal. `created_at`/`updated_at` DIJAMIN terisi di sini (lapis aplikasi); lapis DB dijaga
+ * trigger `trg_users_stamp_timestamps` (lib/database.js) karena tabel prod lama ber-DEFAULT NULL.
+ */
+function buildUserInsertRecord(newUser) {
+    const u = newUser || {};
+    const nowIso = new Date().toISOString();
+    return {
+        ...u,
+        phone_number: u.phone_number || u.phone,
+        subscription: u.subscription || u.package,
+        connected_odp_id: u.connected_odp_id || u.odp_id || null,
+        paid: u.paid ? 1 : 0,
+        send_invoice: u.send_invoice ? 1 : 0,
+        is_corporate: u.is_corporate ? 1 : 0,
+        bulk: typeof u.bulk === "string" ? u.bulk : JSON.stringify(u.bulk || ["1"]),
+        notify_outage: u.notify_outage === false ? 0 : 1,
+        account_type: String(u.account_type || "").trim().toLowerCase() === "infrastruktur" ? "infrastruktur" : "pelanggan",
+        created_at: u.created_at || nowIso,
+        updated_at: u.updated_at || u.created_at || nowIso
+    };
+}
+
 function createApiUsersRepository(overrides = {}) {
     const deps = {
         ...defaultDeps(),
         ...overrides
     };
+
+    // Cache kolom tabel users (PER INSTANCE — aman untuk test dengan DB berbeda). Dipakai sebagai
+    // guard drift skema: kolom whitelist yang tak ada di tabel di-SKIP, bukan bikin INSERT gagal.
+    let usersColumnsCache = null;
+    function getUsersTableColumns(db) {
+        if (usersColumnsCache) return Promise.resolve(usersColumnsCache);
+        return new Promise((resolve) => {
+            if (!db || typeof db.all !== "function") { resolve(null); return; }
+            db.all("PRAGMA table_info(users)", [], (err, rows) => {
+                if (err || !Array.isArray(rows) || !rows.length) { resolve(null); return; }
+                usersColumnsCache = new Set(rows.map((row) => row.name));
+                resolve(usersColumnsCache);
+            });
+        });
+    }
 
     return {
         deps,
@@ -164,40 +230,20 @@ function createApiUsersRepository(overrides = {}) {
                 throw new Error("Database runtime tidak tersedia");
             }
 
-            const insertQuery = `
-                INSERT INTO users (
-                    id, name, phone_number, subscription, device_id, paid,
-                    pppoe_username, pppoe_password, connected_odp_id,
-                    send_invoice, is_corporate, corporate_name,
-                    corporate_address, corporate_npwp, corporate_pic_name,
-                    corporate_pic_phone, corporate_pic_email, bulk, notify_outage,
-                    account_type
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `;
+            // INSERT DIBANGUN DINAMIS dari USER_INSERT_COLUMNS ∩ kolom tabel ∩ field yang ada di
+            // record. Sebelumnya daftar kolom diketik manual dan LUPA memuat created_at/address/
+            // latitude/longitude/username/password → data terbuang senyap (lihat komentar whitelist).
+            const record = buildUserInsertRecord(newUser);
+            const tableColumns = await getUsersTableColumns(db);
+            const columns = USER_INSERT_COLUMNS.filter(
+                (col) => record[col] !== undefined && (!tableColumns || tableColumns.has(col))
+            );
+            const insertQuery =
+                `INSERT INTO users (${columns.join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`;
+            const values = columns.map((col) => toDbValue(record[col]));
 
             await new Promise((resolve, reject) => {
-                db.run(insertQuery, [
-                    newUser.id,
-                    newUser.name,
-                    newUser.phone_number || newUser.phone,
-                    newUser.subscription || newUser.package,
-                    newUser.device_id,
-                    newUser.paid ? 1 : 0,
-                    newUser.pppoe_username,
-                    newUser.pppoe_password,
-                    newUser.connected_odp_id || newUser.odp_id || null,
-                    newUser.send_invoice ? 1 : 0,
-                    newUser.is_corporate ? 1 : 0,
-                    newUser.corporate_name || null,
-                    newUser.corporate_address || null,
-                    newUser.corporate_npwp || null,
-                    newUser.corporate_pic_name || null,
-                    newUser.corporate_pic_phone || null,
-                    newUser.corporate_pic_email || null,
-                    JSON.stringify(newUser.bulk || ["1"]),
-                    newUser.notify_outage === false ? 0 : 1,
-                    String(newUser.account_type || "").trim().toLowerCase() === "infrastruktur" ? "infrastruktur" : "pelanggan"
-                ], function onInsertUser(err) {
+                db.run(insertQuery, values, function onInsertUser(err) {
                     if (err) {
                         reject(err);
                         return;
