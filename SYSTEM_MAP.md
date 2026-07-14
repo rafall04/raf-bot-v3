@@ -217,6 +217,7 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 - [Fitur 2026-07-14 (PSB terjadwal Fase B/1: assignment WEB — admin TUGASKAN / teknisi AMBIL + DM)](docs/boundary-log.md#b129)
 - [Fitur 2026-07-14 (PSB terjadwal Fase B/2: perintah WA ambil / tugaskan / papan)](docs/boundary-log.md#b130)
 - [Fitur 2026-07-14 (PSB terjadwal Fase C/1: #PSB tutup jadwal→terpasang + rangkuman 1 sumber, pensiun psb-install-stats)](docs/boundary-log.md#b131)
+- [Fitur 2026-07-14 (PSB terjadwal Fase C/2: pre-fill #PSB PSB-<n> dari jadwal papan — nol ketik ulang)](docs/boundary-log.md#b132)
 
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.

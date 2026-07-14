@@ -11,7 +11,7 @@
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
-const { startPsbSession, handlePsbConversationState, buildPppoeUsername, isPsbTutorialTrigger, psbTutorialText } = require("../psb.state");
+const { startPsbSession, handlePsbConversationState, buildPppoeUsername, isPsbTutorialTrigger, psbTutorialText, parsePsbScheduleRef } = require("../psb.state");
 
 const TMP = path.join(os.tmpdir(), `psb-dm-test-${Date.now()}`);
 const PACKAGES = [{ name: "PAKET-110K", profile: "16Mbps" }];
@@ -37,6 +37,7 @@ function harness(overrides = {}) {
         findRecentPsbCandidates: jest.fn(async () => ({ ok: true, data: CANDIDATES })),
         fetchDeviceCapability: jest.fn(async () => ({ found: true, deviceId: "dev-A", model: "HG8145V5", has5G: true, expectedBulk: ["1", "5"] })),
         scheduleService: {
+            getScheduleById: jest.fn(async () => null),
             markScheduleInstalled: jest.fn(async () => ({ ok: true, record: { ref: "PSB-5" } })),
             findOpenScheduleForInstall: jest.fn(async () => null),
             recordWalkInInstall: jest.fn(async () => ({ id: 1, ref: "PSB-1" })),
@@ -335,5 +336,71 @@ describe("panduan PSB (tutorial)", () => {
         expect(t).toMatch(/URUTAN BEBAS/i);
         expect(t).toMatch(/menyusul|dicicil/i);
         expect(t).toMatch(/checklist/i);
+    });
+});
+
+describe("PSB Fase C/2 — link ke jadwal (#PSB PSB-<n>)", () => {
+    test("parsePsbScheduleRef: butuh #psb + PSB-<n> (hyphen); tolak tanpa hyphen / tanpa #psb", () => {
+        expect(parsePsbScheduleRef("#PSB PSB-12")).toBe(12);
+        expect(parsePsbScheduleRef("#psb psb-5")).toBe(5);
+        expect(parsePsbScheduleRef("#PSB")).toBeNull();
+        expect(parsePsbScheduleRef("#PSB Nama: Budi")).toBeNull();
+        expect(parsePsbScheduleRef("#PSB paket PSB2")).toBeNull(); // tanpa hyphen → bukan ref
+        expect(parsePsbScheduleRef("PSB-12")).toBeNull();          // tanpa #psb
+    });
+
+    const SCHED = {
+        id: 12, ref: "PSB-12", name: "Budi Santoso", phone_number: "081234567890",
+        dusun: "Krajan", paket: "PAKET-110K", latitude: -7.12, longitude: 111.45,
+        ktp_photo_path: "/uploads/psb-jadwal/x/ktp.jpg", house_photo_path: "/uploads/psb-jadwal/x/rumah.jpg", status: "ditugaskan"
+    };
+
+    test("#PSB PSB-12 (TEKS, tanpa foto) → pre-fill data+bukti dari jadwal; sisakan WiFi (checklist)", async () => {
+        const h = harness({ scheduleService: { getScheduleById: jest.fn(async () => SCHED), markScheduleInstalled: jest.fn(), findOpenScheduleForInstall: jest.fn(), recordWalkInInstall: jest.fn(), getScheduleSummary: jest.fn() } });
+        const r = await startPsbSession({ ...h.base, type: "conversation", caption: "#PSB PSB-12", chats: "#PSB PSB-12", msg: {}, staff: STAFF });
+        expect(r.started).toBe(true);
+        expect(r.linked).toBe("PSB-12");
+        const st = h.getState();
+        expect(st.step).toBe("PSB_COLLECT_DOCS"); // WiFi belum ada (jadwal tak bawa WiFi) → checklist
+        expect(st.context.scheduleId).toBe(12);
+        expect(st.context.data.nama).toBe("Budi Santoso");
+        expect(st.context.data.hp).toBe("081234567890");
+        expect(st.context.data.dusun).toBe("Krajan");
+        expect(st.context.data.paket).toBe("PAKET-110K");
+        expect(st.context.ktpSaved).toBe(true);   // bukti dari jadwal (nol upload ulang)
+        expect(st.context.rumahSaved).toBe(true);
+        expect(st.context.lokasi).toEqual({ lat: -7.12, lng: 111.45 });
+        const replies = h.base.reply.mock.calls.map((c) => c[0]).join("\n");
+        expect(replies).toMatch(/PSB-12/);
+        expect(replies).toMatch(/WiFi/i); // minta lengkapi WiFi
+    });
+
+    test("link → isi WiFi → YA → provision menutup jadwal EKSPLISIT (markScheduleInstalled scheduleId, bukan auto-match)", async () => {
+        const markInstalled = jest.fn(async () => ({ ok: true, record: { ref: "PSB-12" } }));
+        const h = harness({ scheduleService: { getScheduleById: jest.fn(async () => SCHED), markScheduleInstalled: markInstalled, findOpenScheduleForInstall: jest.fn(async () => null), recordWalkInInstall: jest.fn(), getScheduleSummary: jest.fn(async () => ({ terpasang_bulan_ini: 3, belum_kepasang: 1 })) } });
+        await startPsbSession({ ...h.base, type: "conversation", caption: "#PSB PSB-12", chats: "#PSB PSB-12", msg: {}, staff: STAFF });
+        // lengkapi WiFi → melengkapi data → deteksi modem → STEP_CONFIRM
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "WiFi: RumahBudi\nSandi: rahasia123" });
+        expect(h.getState().step).toBe("PSB_CONFIRM_MODEM");
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        // link EKSPLISIT via ctx.scheduleId → auto-match & walk-in TAK dipakai
+        expect(markInstalled).toHaveBeenCalledWith(12, 99, expect.anything());
+        expect(h.base.scheduleService.findOpenScheduleForInstall).not.toHaveBeenCalled();
+        expect(h.base.scheduleService.recordWalkInInstall).not.toHaveBeenCalled();
+    });
+
+    test("#PSB PSB-99 tak ditemukan → tolak, tak buka sesi", async () => {
+        const h = harness({ scheduleService: { getScheduleById: jest.fn(async () => null), markScheduleInstalled: jest.fn(), findOpenScheduleForInstall: jest.fn(), recordWalkInInstall: jest.fn(), getScheduleSummary: jest.fn() } });
+        const r = await startPsbSession({ ...h.base, type: "conversation", caption: "#PSB PSB-99", chats: "#PSB PSB-99", msg: {}, staff: STAFF });
+        expect(r.started).toBe(false);
+        expect(h.getState()).toBeNull();
+        expect(h.base.reply.mock.calls.map((c) => c[0]).join("\n")).toMatch(/tak ditemukan/i);
+    });
+
+    test("#PSB PSB-12 yang sudah terpasang → tolak (tak pasang ulang)", async () => {
+        const h = harness({ scheduleService: { getScheduleById: jest.fn(async () => ({ ...SCHED, status: "terpasang" })), markScheduleInstalled: jest.fn(), findOpenScheduleForInstall: jest.fn(), recordWalkInInstall: jest.fn(), getScheduleSummary: jest.fn() } });
+        const r = await startPsbSession({ ...h.base, type: "conversation", caption: "#PSB PSB-12", chats: "#PSB PSB-12", msg: {}, staff: STAFF });
+        expect(r.started).toBe(false);
+        expect(h.base.reply.mock.calls.map((c) => c[0]).join("\n")).toMatch(/sudah \*terpasang\*/i);
     });
 });

@@ -63,6 +63,15 @@ function isPsbTutorialTrigger(text) {
         .test(String(text || "").trim());
 }
 
+// C/2: ekstrak ref jadwal papan dari "#PSB PSB-<n>" (butuh HYPHEN — sesuai format ref yang teknisi
+// lihat di DM/papan/grup — agar nama paket/data yang kebetulan berisi "psb12" TIDAK salah picu). null bila tak ada.
+function parsePsbScheduleRef(text) {
+    const s = String(text || "").trim();
+    if (!/^#psb\b/i.test(s)) return null;
+    const m = s.replace(/^#psb\b/i, "").match(/\bpsb-(\d+)\b/i);
+    return m ? parseInt(m[1], 10) : null;
+}
+
 // Panduan PSB lengkap untuk teknisi awam (format + alur langkah demi langkah). Teks operasional
 // teknisi (hardcoded, sesuai pola prompt wizard di file ini) — pesan welcome PELANGGAN tetap templated.
 function psbTutorialText() {
@@ -211,10 +220,63 @@ function saveMedia(dir, filename, buffer) {
     } catch (_e) { return null; }
 }
 
+// C/2: pakai ulang foto bukti dari jadwal (KTP/rumah) ke folder sesi #PSB. srcPath bisa absolut atau
+// web-path (/uploads/...). Return true bila BUKTI dianggap ada: jadwal WAJIB 3 bukti saat dibuat, jadi
+// path tercatat = bukti terkumpul (walau file tak ter-resolve lokal saat ini). Copy best-effort utk arsip.
+function reuseScheduleMedia(srcPath, dir, filename) {
+    if (!srcPath) return false;
+    try {
+        const rel = String(srcPath).replace(/^\/+/, "");
+        const candidates = [srcPath, path.join(process.cwd(), rel), path.join(__dirname, "..", "..", "..", rel)];
+        const src = candidates.find((p) => { try { return fs.existsSync(p); } catch (_e) { return false; } });
+        if (src) { fs.mkdirSync(dir, { recursive: true }); fs.copyFileSync(src, path.join(dir, filename)); }
+    } catch (_e) { /* best-effort — flag tetap true krn bukti terkumpul di jadwal */ }
+    return true;
+}
+
+// ── C/2: mulai sesi #PSB TERHUBUNG jadwal papan (#PSB PSB-<n>) — tarik data + REUSE foto (nol ketik ulang). ──
+async function startLinkedSession(context, scheduleId) {
+    const { staff, stateSender, reply, setUserState, packages, uploadsBaseDir, scheduleService, nowMs = Date.now(), logger = console } = context;
+    let rec = null;
+    try { rec = await scheduleService.getScheduleById(scheduleId); } catch (e) { logger?.error?.("[PSB_DM] baca jadwal gagal:", e.message); }
+    if (!rec) { await safeReply(reply, `❌ Jadwal PSB-${scheduleId} tak ditemukan. Ketik *papan psb* untuk lihat daftar.`, logger); return { started: false }; }
+    if (rec.status === "terpasang") { await safeReply(reply, `ℹ️ Jadwal ${rec.ref} sudah *terpasang* — tak perlu dipasang lagi.`, logger); return { started: false }; }
+    if (rec.status === "batal") { await safeReply(reply, `ℹ️ Jadwal ${rec.ref} sudah *dibatalkan*.`, logger); return { started: false }; }
+
+    const pkgs = packages || global.packages || [];
+    const seed = { nama: rec.name || "", dusun: rec.dusun || "", paket: rec.paket || "", wifi_ssid: "", wifi_password: "", hp: rec.phone_number || "" };
+    const now = new Date(nowMs);
+    const tempId = `PSBDM_${now.getTime()}_${Math.random().toString(36).slice(2, 8)}`;
+    const dir = path.join(uploadsBaseDir, "psb", String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, "0"), tempId);
+    const ktpSaved = reuseScheduleMedia(rec.ktp_photo_path, dir, "ktp_photo.jpg");
+    const rumahSaved = reuseScheduleMedia(rec.house_photo_path, dir, "rumah_photo.jpg");
+    const lokasi = (rec.latitude != null && rec.longitude != null) ? { lat: rec.latitude, lng: rec.longitude } : null;
+
+    const ctx = { data: seed, staff, tempId, dir, ktpSaved, rumahSaved, lokasi, scheduleId: rec.id };
+    const v = validatePsbData(ctx.data, { packages: pkgs, requireDusun: true });
+    if (v.ok) ctx.data = v.data;
+    setUserState(stateSender, { step: STEP_COLLECT, _scope: "teknisi", context: ctx });
+
+    const filled = `👤 ${seed.nama} · Dusun ${seed.dusun} · 📦 ${seed.paket} · 📱 ${seed.hp}`;
+    if (v.ok && ktpSaved && rumahSaved && lokasi) {
+        await safeReply(reply, `🔗 *${rec.ref}* — data & 3 bukti dari jadwal dipakai (nol ketik ulang).\n${filled}\n\nLanjut cari modem…`, logger);
+        await detectAndAskConfirm(context, ctx);
+    } else {
+        await safeReply(reply, `🔗 *${rec.ref}* — data & foto jadwal dipakai. Lengkapi sisanya (biasanya *WiFi* & *Sandi*):\n${filled}\n\n${collectChecklistText(ctx, v)}`, logger);
+    }
+    return { started: true, linked: rec.ref };
+}
+
 // ── Trigger: teknisi DM `#PSB` + foto KTP → buka sesi. Dipanggil dari raf.js. ──
 async function startPsbSession(context) {
     context = withPsbDeps(context);
-    const { caption, type, msg, staff, stateSender, reply, downloadMedia, packages, uploadsBaseDir, setUserState, nowMs = Date.now(), logger = console } = context;
+    const { caption, type, msg, staff, stateSender, reply, downloadMedia, packages, uploadsBaseDir, setUserState, scheduleService, nowMs = Date.now(), logger = console } = context;
+
+    // C/2: bila caption menyebut ref jadwal (#PSB PSB-<n>) → jalur TERHUBUNG (pre-fill dari papan).
+    const linkedRefId = parsePsbScheduleRef(caption);
+    if (linkedRefId && scheduleService) {
+        return await startLinkedSession(context, linkedRefId);
+    }
 
     if (type !== "imageMessage") {
         await safeReply(reply, `📷 Mulai PSB: kirim *foto KTP* + caption \`#PSB\` (data boleh menyusul).\n\n${PSB_TEMPLATE}`, logger);
@@ -560,6 +622,7 @@ async function handlePsbConversationState(context) {
 module.exports = {
     handlePsbConversationState,
     startPsbSession,
+    parsePsbScheduleRef,
     buildPppoeUsername,
     isPsbTutorialTrigger,
     psbTutorialText,

@@ -565,7 +565,11 @@ module.exports = async (raf, msg, m, options = {}) => {
         try {
             const psbDmCfg = (global.config && global.config.psbIntake) || {};
             const psbCaption = chats || msg.message?.imageMessage?.caption || '';
-            if (psbDmCfg.enabled === true && type === 'imageMessage' && /^\s*#psb\b/i.test(String(psbCaption))) {
+            const isPsbCmd = /^\s*#psb\b/i.test(String(psbCaption));
+            // C/2: "#PSB PSB-<n>" boleh mulai via TEKS (tanpa foto) — bukti diambil dari jadwal papan.
+            let psbLinkedRef = null;
+            if (isPsbCmd) { try { psbLinkedRef = require('./handlers/state-domains/psb.state').parsePsbScheduleRef(psbCaption); } catch (_e) { psbLinkedRef = null; } }
+            if (psbDmCfg.enabled === true && isPsbCmd && (type === 'imageMessage' || psbLinkedRef)) {
                 const { resolveAuthorizedStaff } = require('./handlers/psb-group-intake');
                 const psbStaff = resolveAuthorizedStaff({ participant: optionalJid || sender, plainPhone: plainSenderNumber, accounts, allowedRoles: psbDmCfg.allowedRoles });
                 if (psbStaff) {
