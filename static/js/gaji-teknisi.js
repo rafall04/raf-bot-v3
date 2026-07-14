@@ -7,6 +7,8 @@ $(document).ready(function() {
     let gajiTable;
     let createCollectionPayable = 0;
     let editCollectionPayable = 0;
+    let createMarketingPayable = 0; // komisi marketing PSB (pemberi lead teknisi) — Fase 2b
+    let editMarketingPayable = 0;
 
     initSelectors();
     initCurrencyInputs();
@@ -156,6 +158,7 @@ $(document).ready(function() {
             const pendapatan = [];
             if ((gaji.bonus || 0) > 0) pendapatan.push(`<small class="d-block text-success">Bonus: ${formatRupiah(gaji.bonus)}</small>`);
             if ((gaji.komisi_collection || 0) !== 0) pendapatan.push(`<small class="d-block text-info">Collection: ${formatRupiah(gaji.komisi_collection)}</small>`);
+            if ((gaji.komisi_marketing || 0) !== 0) pendapatan.push(`<small class="d-block text-info">Marketing PSB: ${formatRupiah(gaji.komisi_marketing)}</small>`);
 
             const potongan = [];
             if ((gaji.potongan_kasbon || 0) > 0) potongan.push(`<small class="d-block text-danger">Kasbon: ${formatRupiah(gaji.potongan_kasbon)}</small>`);
@@ -186,6 +189,7 @@ $(document).ready(function() {
         const total = getInputValue('#createGajiPokok')
             + getInputValue('#createBonus')
             + createCollectionPayable
+            + createMarketingPayable
             - getInputValue('#createPotonganKasbon')
             - getInputValue('#createPotonganLain');
         $('#createTotalPreview').text(formatRupiah(total));
@@ -195,6 +199,7 @@ $(document).ready(function() {
         const total = getInputValue('#editGajiPokok')
             + getInputValue('#editBonus')
             + editCollectionPayable
+            + editMarketingPayable
             - getInputValue('#editPotonganKasbon')
             - getInputValue('#editPotonganLain');
         $('#editTotalPreview').text(formatRupiah(total));
@@ -217,8 +222,9 @@ $(document).ready(function() {
         }).done((response) => {
             if (response.status !== 200) return;
             createCollectionPayable = response.data.komisi_collection || 0;
+            createMarketingPayable = response.data.komisi_marketing || 0;
             $('#kasbonInfo').text(`Saldo hutang aktif: ${formatRupiah(response.data.total_kasbon || 0)}`);
-            $('#collectionInfo').text(`Komisi collection periode ini: ${formatRupiah(createCollectionPayable)}`);
+            $('#collectionInfo').text(`Komisi collection: ${formatRupiah(createCollectionPayable)} · marketing PSB: ${formatRupiah(createMarketingPayable)}`);
             calculateCreateTotal();
         });
     });
@@ -278,6 +284,7 @@ $(document).ready(function() {
         $('#kasbonInfo').text('Saldo hutang aktif: Rp 0');
         $('#collectionInfo').text('Komisi collection periode ini: Rp 0');
         createCollectionPayable = 0;
+        createMarketingPayable = 0;
     }
 
     window.viewDetail = function(id) {
@@ -293,6 +300,7 @@ $(document).ready(function() {
                     <tr><td>Gaji Pokok</td><td class="text-right">${formatRupiah(gaji.gaji_pokok)}</td></tr>
                     <tr><td>Bonus Manual</td><td class="text-right text-success">${formatRupiah(gaji.bonus)}</td></tr>
                     <tr><td>Komisi Collection</td><td class="text-right text-info">${formatRupiah(gaji.komisi_collection || 0)}</td></tr>
+                    <tr><td>Komisi Marketing PSB</td><td class="text-right text-info">${formatRupiah(gaji.komisi_marketing || 0)}</td></tr>
                     <tr><td>Gross</td><td class="text-right">${formatRupiah(gaji.gross_amount || 0)}</td></tr>
                     <tr><td>Potongan Kasbon</td><td class="text-right text-danger">-${formatRupiah(gaji.potongan_kasbon || 0)}</td></tr>
                     <tr><td>Potongan Lain</td><td class="text-right text-danger">-${formatRupiah(gaji.potongan_lain || 0)}</td></tr>
@@ -320,6 +328,7 @@ $(document).ready(function() {
             const gaji = (response.data || [])[0];
             if (!gaji) return;
             editCollectionPayable = gaji.komisi_collection || 0;
+            editMarketingPayable = gaji.komisi_marketing || 0;
             $('#editGajiId').val(gaji.id);
             $('#editTeknisiName').val(gaji.teknisi_name);
             $('#editPeriode').val(`${bulanNames[gaji.period_month]} ${gaji.period_year}`);

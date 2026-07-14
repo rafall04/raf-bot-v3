@@ -11,6 +11,7 @@ const {
     ensureFinanceTables,
     getKasbonSummary,
     getCollectionPayableSummary,
+    getMarketingPayableSummary,
     createPayrollDraft,
     getPayrollList,
     getPayrollRecord,
@@ -113,9 +114,10 @@ router.get('/kasbon-summary/:teknisiId', ensureAdmin, async (req, res) => {
         const teknisiId = parseInt(req.params.teknisiId, 10);
         const month = parseInt(req.query.month, 10) || new Date().getMonth() + 1;
         const year = parseInt(req.query.year, 10) || new Date().getFullYear();
-        const [kasbon, collection] = await Promise.all([
+        const [kasbon, collection, marketing] = await Promise.all([
             getKasbonSummary({ teknisiId }),
-            getCollectionPayableSummary({ teknisiId, periodMonth: month, periodYear: year })
+            getCollectionPayableSummary({ teknisiId, periodMonth: month, periodYear: year }),
+            getMarketingPayableSummary({ teknisiId })
         ]);
 
         res.json({
@@ -127,7 +129,8 @@ router.get('/kasbon-summary/:teknisiId', ensureAdmin, async (req, res) => {
                 max_potongan: kasbon.total_outstanding,
                 komisi_collection: collection.net_total,
                 collection_credit: collection.total_credit,
-                collection_debit: collection.total_debit
+                collection_debit: collection.total_debit,
+                komisi_marketing: marketing.net_total
             }
         });
     } catch (error) {
