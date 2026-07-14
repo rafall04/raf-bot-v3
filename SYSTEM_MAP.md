@@ -235,6 +235,7 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 - [Bugfix 2026-07-14 (Share lokasi PSB tak tersimpan: ctx.lokasi tak dikirim ke create API; rantai tangkap→kirim→spread→INSERT kini lengkap)](docs/boundary-log.md#b147)
 - [Bugfix 2026-07-14 (Owner Cockpit kartu isolir SELALU 0: dihitung dari users.status yang tak pernah ditulis → kini dari profil PPPoE LIVE via IsolirService.buildProfileMap; fail-closed null, bukan 0 palsu)](docs/boundary-log.md#b148)
 - [Fitur 2026-07-14 (Aset jaringan: teknisi memetakan ODC/ODP dari WhatsApp #ODC/#ODP — nama+share lokasi, induk ODC otomatis; fondasi ports_used 3-makna→1 turunan, kapasitas ODP ditegakkan, connected_odp_id divalidasi, lubang auth halaman aset ditutup; /rapikan-odp + usul ODP di #PSB)](docs/boundary-log.md#b149)
+- [Fitur 2026-07-14 (Menata ODP dari lapangan: sesudah #ODP bot langsung menawarkan sambungkan pelanggan — nomor ATAU nama; nama TAK butuh GPS → 55 pelanggan tanpa titik tertata; #ISI/#LOKASI/cek-odp; #ODP nama-sudah-ada = EDIT bukan duplikat; tab Tanpa-GPS di /rapikan-odp; fix maps_url terbuang di updateUserRecord)](docs/boundary-log.md#b150)
 
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.
