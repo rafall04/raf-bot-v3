@@ -74,9 +74,12 @@ function registerAdminNetworkAssetsRoutes(router, deps) {
                 if (!u) continue;
                 if (String(u.connected_odp_id || "").trim()) { sudahTerpetakan++; continue; }
 
-                const lat = Number(u.latitude);
-                const lng = Number(u.longitude);
-                if (!Number.isFinite(lat) || !Number.isFinite(lng)) { tanpaGps++; continue; }
+                // JANGAN pakai Number() polos: `Number(null) === 0` → pelanggan TANPA GPS akan terbaca
+                // "punya GPS di titik (0,0)" dan halaman melaporkan "0 tanpa GPS" padahal puluhan
+                // belum dipetakan. parseCoord memperlakukan null/""/0 sebagai BELUM DISET.
+                const lat = assetService.parseCoord(u.latitude);
+                const lng = assetService.parseCoord(u.longitude);
+                if (lat === null || lng === null) { tanpaGps++; continue; }
 
                 const usul = assetService.suggestOdpForPoint(lat, lng, { assets, users, limit: 3, maxMeters });
                 rows.push({
