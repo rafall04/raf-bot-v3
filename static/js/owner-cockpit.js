@@ -1,10 +1,11 @@
 /**
  * Header Doc
- * Purpose: Frontend Owner Cockpit (/owner) — ambil GET /api/owner/cockpit lalu render 5 kartu
- *          ringkas (Pemasukan, Status ISP, PSB belum-kepasang, Tiket aktif, Outage OLT), tiap kartu
- *          klik → panel detail (stretched-link). Kartu ok:false degradasi anggun. Auto-refresh 60 dtk.
+ * Purpose: Frontend Owner Cockpit (/owner) — ambil GET /api/owner/cockpit lalu render 7 kartu ringkas:
+ *          Pemasukan (+tunggakan/pelunasan/MRR), Pelanggan (aktif/isolir/baru/online), Perlu Tindakan,
+ *          Status ISP (+trafik), PSB (+terpasang/komisi), Tiket (+per-status/lama), Outage OLT (+offline).
+ *          Tiap kartu klik → panel detail (stretched-link); kartu ok:false degradasi anggun. Auto-refresh 60s.
  * Caller: views/sb-admin/owner-cockpit.php.
- * Deps: fetch API, endpoint /api/owner/cockpit. TANPA vendor tambahan.
+ * Deps: fetch API, endpoint /api/owner/cockpit.
  * SideEffects: DOM update + interval timer.
  */
 (function () {
@@ -15,6 +16,7 @@
 
     function rupiah(n) { return "Rp " + (Number(n) || 0).toLocaleString("id-ID"); }
     function esc(s) { var d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+    function num(n) { return n == null ? "—" : String(n); }
 
     var ISP_BADGE = { NORMAL: "success", DEGRADASI: "warning", GANGGUAN: "danger", PUTUS: "danger", UNKNOWN: "secondary" };
     var OVERALL = {
@@ -30,19 +32,43 @@
             bodyHtml + link +
             '</div></div></div>';
     }
+    function big(v) { return '<div class="h4 mb-0 font-weight-bold text-gray-800">' + v + '</div>'; }
+    function sub(v) { return '<div class="small text-muted mt-1">' + v + '</div>'; }
     function naCard(title) { return card("secondary", title, '<div class="small text-muted">Data tak tersedia saat ini.</div>'); }
 
     function render(d) {
         var html = "";
 
+        // 💰 Pemasukan
         var i = d.income;
-        html += (i && i.ok)
-            ? card("success", "💰 Pemasukan (periode " + esc(i.period) + ")",
-                '<div class="h4 mb-0 font-weight-bold text-gray-800">' + rupiah(i.netPaid) + '</div>' +
-                '<div class="small text-muted mt-1">' + i.paymentTransactions + ' transaksi · hari ini ' + i.todayCount + ' (' + rupiah(i.todayAmount) + ')</div>',
-                "/rekap-keuangan", "Rekap keuangan")
-            : naCard("💰 Pemasukan");
+        if (i && i.ok) {
+            var extra = "";
+            if (i.arrearsCustomers != null) extra += '<div class="small text-danger mt-1">Tunggakan: <b>' + i.arrearsCustomers + '</b> plg · ' + rupiah(i.arrearsOutstanding) + '</div>';
+            extra += sub('Lunas ' + num(i.lunas) + '/' + num(i.totalCustomers) + (i.collectionRate != null ? ' (' + i.collectionRate + '%)' : '') + ' · target ' + rupiah(i.mrr));
+            html += card("success", "💰 Pemasukan (periode " + esc(i.period) + ")",
+                big(rupiah(i.netPaid)) + sub(i.paymentTransactions + ' transaksi · hari ini ' + i.todayCount + ' (' + rupiah(i.todayAmount) + ')') + extra,
+                "/rekap-keuangan", "Rekap keuangan");
+        } else html += naCard("💰 Pemasukan");
 
+        // 👥 Pelanggan
+        var cst = d.customers;
+        if (cst && cst.ok) {
+            html += card(cst.isolir > 0 ? "warning" : "info", "👥 Pelanggan",
+                big(cst.aktif + ' <span class="small text-muted">aktif</span>') +
+                sub('isolir <b>' + cst.isolir + '</b> · baru bln ini ' + cst.baru + ' · online ' + num(cst.pppoeOnline) + '/' + cst.total),
+                "/users", "Kelola pelanggan");
+        } else html += naCard("👥 Pelanggan");
+
+        // ⚠️ Perlu Tindakan
+        var a = d.actions;
+        if (a && a.ok) {
+            html += card(a.total > 0 ? "warning" : "success", "⚠️ Perlu Tindakan",
+                big(a.total) +
+                sub('bukti bayar ' + a.buktiBayar + ' · ganti paket ' + a.gantiPaket + ' · topup ' + a.topup + ' · approval ' + a.bayarApproval),
+                "/konfirmasi-bayar", "Konfirmasi bayar");
+        } else html += naCard("⚠️ Perlu Tindakan");
+
+        // 🌐 Status ISP
         var s = d.isp;
         if (s && s.ok) {
             var ov = OVERALL[s.overall] || OVERALL.OFF;
@@ -50,35 +76,43 @@
                 var b = ISP_BADGE[p.status] || "secondary";
                 return '<span class="badge badge-' + b + ' mr-1 mb-1">' + esc(p.label) + ': ' + esc(p.status) + '</span>';
             }).join("");
+            var traffic = (s.rxMbps != null || s.txMbps != null) ? sub('Trafik: &darr;' + num(s.rxMbps) + ' / &uarr;' + num(s.txMbps) + ' Mbps') : "";
             html += card(ov.c, "🌐 Status ISP",
                 '<div class="h5 mb-2 font-weight-bold text-' + ov.c + '">' + ov.t + '</div>' +
-                (chips || '<div class="small text-muted">' + (s.enabled ? "&mdash;" : "Monitor upstream nonaktif") + '</div>'),
+                (chips || '<div class="small text-muted">' + (s.enabled ? "&mdash;" : "Monitor upstream nonaktif") + '</div>') + traffic,
                 "/upstream-quality", "Detail upstream");
         } else html += naCard("🌐 Status ISP");
 
+        // 🔧 PSB
         var p = d.psb;
-        html += (p && p.ok)
-            ? card(p.belumKepasang > 0 ? "warning" : "info", "🔧 PSB (belum kepasang)",
-                '<div class="h4 mb-0 font-weight-bold text-gray-800">' + p.belumKepasang + '</div>' +
-                '<div class="small text-muted mt-1">menunggu ' + p.menunggu + ' · ditugaskan ' + p.ditugaskan + ' · terpasang bln ini ' + p.terpasangBulanIni + '</div>',
-                "/papan-psb", "Papan PSB")
-            : naCard("🔧 PSB");
+        if (p && p.ok) {
+            var komisi = p.komisiBulanIni > 0 ? '<div class="small text-success mt-1">Komisi marketing bln ini: ' + rupiah(p.komisiBulanIni) + '</div>' : "";
+            html += card(p.belumKepasang > 0 ? "warning" : "info", "🔧 PSB",
+                big(p.belumKepasang + ' <span class="small text-muted">belum kepasang</span>') +
+                sub('menunggu ' + p.menunggu + ' · ditugaskan ' + p.ditugaskan + ' · <b>terpasang bln ini ' + p.terpasangBulanIni + '</b>') + komisi,
+                "/papan-psb", "Papan PSB");
+        } else html += naCard("🔧 PSB");
 
+        // 🎫 Tiket
         var t = d.tickets;
-        html += (t && t.ok)
-            ? card(t.belumDiambil > 0 ? "warning" : "info", "🎫 Tiket aktif",
-                '<div class="h4 mb-0 font-weight-bold text-gray-800">' + t.active + '</div>' +
-                '<div class="small text-muted mt-1">belum diambil ' + t.belumDiambil + '</div>',
-                "/admin-daftar-tiket", "Daftar tiket")
-            : naCard("🎫 Tiket");
+        if (t && t.ok) {
+            var bs = t.byStatus || {};
+            var bsTxt = Object.keys(bs).map(function (k) { return esc(k) + ' ' + bs[k]; }).join(" · ");
+            html += card(t.belumDiambil > 0 || t.lama > 0 ? "warning" : "info", "🎫 Tiket aktif",
+                big(t.active) +
+                sub('belum diambil ' + t.belumDiambil + ' · lama &gt;24j ' + t.lama) +
+                (bsTxt ? '<div class="small text-muted">' + bsTxt + '</div>' : ""),
+                "/admin/daftar-tiket", "Daftar tiket");
+        } else html += naCard("🎫 Tiket");
 
+        // 📡 Outage OLT
         var o = d.olt;
-        html += (o && o.ok)
-            ? card(o.activeOutage > 0 ? "danger" : "success", "📡 Outage OLT (LOS)",
-                '<div class="h4 mb-0 font-weight-bold text-gray-800">' + o.activeOutage + '</div>' +
-                '<div class="small text-muted mt-1">memulih ' + o.recovering + ' · antre ' + o.pending + '</div>',
-                "/olt-log", "Log gangguan OLT")
-            : naCard("📡 Outage OLT");
+        if (o && o.ok) {
+            html += card(o.activeOutage > 0 ? "danger" : "success", "📡 Outage OLT (LOS)",
+                big(o.activeOutage) +
+                sub('pelanggan offline ' + num(o.offline) + ' · memulih ' + o.recovering + ' · antre ' + o.pending),
+                "/olt-log", "Log gangguan OLT");
+        } else html += naCard("📡 Outage OLT");
 
         elCards.innerHTML = html;
         if (elMeta) elMeta.textContent = "Diperbarui: " + new Date(d.generatedAt || Date.now()).toLocaleString("id-ID");
