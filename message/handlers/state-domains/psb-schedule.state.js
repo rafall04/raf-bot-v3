@@ -140,6 +140,9 @@ async function finalizeSchedule(context, ctx, v) {
             requestedById: ctx.staff?.id,
             requestedByName: ctx.staff?.name || ctx.staff?.username,
             area: ctx.area || botAreaLabel,
+            // Pemberi lead OPSIONAL dari caption (Marketing: <nama>) — nama bebas, type belum diklasifikasi;
+            // admin set type (teknisi/luar) + nominal komisi di papan PSB web (Fase 1 komisi PSB).
+            marketing: ctx.data.marketing ? { refName: ctx.data.marketing } : null,
             nowIso: new Date(nowMs).toISOString()
         });
     } catch (e) {

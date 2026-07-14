@@ -7,7 +7,7 @@
  */
 "use strict";
 
-const { parsePsbCaption, isPsbCaption } = require("../psb-caption-parser");
+const { parsePsbCaption, isPsbCaption, extractPsbFields } = require("../psb-caption-parser");
 
 const PACKAGES = [
     { name: "PAKET-110K", profile: "16Mbps" },
@@ -78,5 +78,16 @@ describe("parsePsbCaption", () => {
         expect(r.ok).toBe(false);
         expect(r.errors.join(" ")).toMatch(/tidak valid/);
         expect(r.errors.join(" ")).toContain("123");
+    });
+
+    // Pemberi lead / marketing OPSIONAL (Fase 1 komisi PSB) — ke-parse tanpa mengganggu validasi wajib.
+    test("field Marketing (alias) ke-parse via extractPsbFields; tak bikin caption invalid", () => {
+        expect(extractPsbFields("Marketing: Pak Broker").marketing).toBe("Pak Broker");
+        expect(extractPsbFields("Pemberi lead: Budi").marketing).toBe("Budi");
+        expect(extractPsbFields("Referral: Sales A").marketing).toBe("Sales A");
+        const cap = "#PSB\nNama: Budi\nDusun: Krajan\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789\nMarketing: Pak Broker";
+        const r = parsePsbCaption(cap, { packages: PACKAGES });
+        expect(r.ok).toBe(true);
+        expect(r.data.marketing).toBe("Pak Broker");
     });
 });

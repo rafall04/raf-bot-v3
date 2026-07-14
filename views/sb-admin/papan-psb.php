@@ -41,6 +41,24 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-left-info shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Komisi Marketing (bln ini)</div>
+                                    <div class="h4 mb-0 font-weight-bold text-gray-800">Rp <span id="sumKomisi">–</span></div>
+                                    <small class="text-muted">teknisi Rp<span id="sumKomisiTeknisi">0</span> · luar Rp<span id="sumKomisiLuar">0</span></small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-left-secondary shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">Komisi Belum Dibayar</div>
+                                    <div class="h4 mb-0 font-weight-bold text-gray-800">Rp <span id="sumKomisiPending">–</span></div>
+                                    <small class="text-muted"><span id="sumKomisiPendingCount">0</span> pemasangan terutang</small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="row">
@@ -78,14 +96,55 @@
                                 <div class="card-body">
                                     <div class="table-responsive">
                                         <table class="table table-sm table-hover align-middle">
-                                            <thead><tr><th>Ref</th><th>Nama</th><th>Dusun</th><th>Paket</th><th>Status</th><th>Teknisi</th><th>Aksi</th></tr></thead>
-                                            <tbody id="papanBody"><tr><td colspan="7" class="text-center text-muted">Memuat…</td></tr></tbody>
+                                            <thead><tr><th>Ref</th><th>Nama</th><th>Dusun</th><th>Paket</th><th>Status</th><th>Teknisi</th><th>Marketing / Komisi</th><th>Aksi</th></tr></thead>
+                                            <tbody id="papanBody"><tr><td colspan="8" class="text-center text-muted">Memuat…</td></tr></tbody>
                                         </table>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal set/koreksi PEMBERI LEAD + komisi (admin). Fase 1: hanya catat (belum ada uang bergerak). -->
+    <div class="modal fade" id="marketingModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title font-weight-bold">Pemberi Lead &amp; Komisi — <span id="mktRef"></span></h6>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <div id="mktAlert"></div>
+                    <input type="hidden" id="mktId">
+                    <div class="form-group">
+                        <label>Sumber lead</label>
+                        <select class="form-control" id="mktType" onchange="onMktTypeChange()">
+                            <option value="none">Tanpa marketing (langsung)</option>
+                            <option value="teknisi">Teknisi</option>
+                            <option value="luar">Orang luar / makelar</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="mktTeknisiWrap" style="display:none">
+                        <label>Teknisi pemberi lead</label>
+                        <select class="form-control" id="mktTeknisi"></select>
+                    </div>
+                    <div id="mktLuarWrap" style="display:none">
+                        <div class="form-group"><label>Nama pemberi lead</label><input type="text" class="form-control" id="mktRefName" placeholder="mis. Pak Budi"></div>
+                        <div class="form-group"><label>HP <small class="text-muted">(opsional, buat kontak bayar)</small></label><input type="text" class="form-control" id="mktRefPhone" placeholder="0812…"></div>
+                    </div>
+                    <div class="form-group" id="mktFeeWrap" style="display:none">
+                        <label>Nominal komisi (Rp)</label>
+                        <input type="number" min="0" step="1000" class="form-control" id="mktFee" placeholder="mis. 50000">
+                        <small class="text-muted">Biasanya diisi saat pemasangan selesai. Kosong = belum ditentukan.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-primary" id="mktSave" onclick="submitMarketing()">Simpan</button>
                 </div>
             </div>
         </div>

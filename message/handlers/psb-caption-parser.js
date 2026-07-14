@@ -1,7 +1,8 @@
 /**
  * Header Doc
  * Purpose: Parser MURNI caption intake PSB grup — ubah caption `#PSB ...` (foto KTP) jadi data pelanggan
- *          `{ nama, dusun, paket, wifi_ssid, wifi_password, hp }` + validasi (`hp` boleh MULTI-nomor
+ *          `{ nama, dusun, paket, wifi_ssid, wifi_password, hp }` (+ `marketing` OPSIONAL: nama pemberi
+ *          lead, tak divalidasi — dipakai jalur #jadwal utk komisi PSB) + validasi (`hp` boleh MULTI-nomor
  *          pipe `628a|628b`, primary di depan — divalidasi per-nomor). `dusun` OPSIONAL di sini
  *          (jalur grup Fase 1 tak butuh); wizard DM (`psb.state.js`) yang MEWAJIBKAN dusun untuk merakit
  *          username PPPoE. Tanpa side-effect / tanpa global (packages di-inject) supaya gampang di-unit-test.
@@ -20,6 +21,8 @@ const KEY_ALIASES = {
     dusun: ["dusun", "dsn", "dukuh", "kampung"],
     paket: ["paket", "package", "pkt"],
     catatan: ["catatan", "note", "ket", "keterangan"],
+    // Pemberi lead / marketing (OPSIONAL, Fase 1 komisi PSB) — nama bebas; klasifikasi type & nominal di web.
+    marketing: ["marketing", "mkt", "pemberi lead", "pemberilead", "lead", "referral", "referrer", "sales"],
     wifi_ssid: ["wifi", "nama wifi", "namawifi", "ssid"],
     wifi_password: ["sandi", "sandi wifi", "password", "pass", "pw", "kata sandi", "katasandi"],
     hp: ["hp", "no hp", "nohp", "no", "nomor", "no wa", "wa", "telp", "telepon"]

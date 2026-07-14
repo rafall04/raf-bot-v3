@@ -80,8 +80,10 @@ function statusBadge(s) {
 
 let currentUser = null; // {id, role, name} dari /api/me
 let teknisiList = [];   // [{id,name}] untuk dropdown TUGASKAN (admin)
+let papanRows = [];     // cache baris terakhir (buat prefill modal komisi)
 
 function isAdmin() { return currentUser && ["admin", "owner", "superadmin"].includes(String(currentUser.role || "").toLowerCase()); }
+function fmtRp(n) { return (parseInt(n, 10) || 0).toLocaleString("id-ID"); }
 
 function teknisiOptions(selectedId) {
     const opts = ['<option value="">— pilih teknisi —</option>'];
@@ -106,9 +108,32 @@ function actionCell(r) {
     return '<span class="text-muted">—</span>';
 }
 
+// Info pemberi lead + komisi (badge tipe + nama + nominal + status bayar). "—" bila belum ada.
+function marketingText(r) {
+    const t = r.marketing_type;
+    if (t === "none") return '<span class="text-muted">tanpa marketing</span>';
+    if (!t && !r.marketing_ref_name && !r.marketing_fee) return '<span class="text-muted">—</span>';
+    const tag = t === "teknisi" ? '<span class="badge badge-info">teknisi</span>'
+        : t === "luar" ? '<span class="badge badge-warning">luar</span>'
+            : '<span class="badge badge-light">belum diklasifikasi</span>';
+    const who = r.marketing_ref_name ? " " + esc(r.marketing_ref_name) : "";
+    const fee = r.marketing_fee ? ` · Rp${fmtRp(r.marketing_fee)}` : "";
+    const status = r.marketing_status === "paid" ? ' <span class="badge badge-success">dibayar</span>'
+        : r.marketing_status === "pending" ? ' <span class="badge badge-secondary">belum bayar</span>' : "";
+    return `${tag}${who}${fee}${status}`;
+}
+
+// Sel Marketing: info + tombol set/koreksi (admin, kecuali sudah dibayar → terkunci).
+function marketingCell(r) {
+    const info = marketingText(r);
+    if (!isAdmin()) return info;
+    if (r.marketing_status === "paid") return info;
+    return `<div class="d-flex align-items-center" style="gap:6px;flex-wrap:wrap">${info}<button class="btn btn-sm btn-outline-info" onclick="openMarketing(${esc(r.id)})" title="Set pemberi lead & komisi"><i class="fas fa-hand-holding-usd"></i></button></div>`;
+}
+
 function renderList(rows) {
     const tb = document.getElementById("papanBody");
-    if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Belum ada data</td></tr>'; return; }
+    if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Belum ada data</td></tr>'; return; }
     tb.innerHTML = rows.map((r) => `<tr>
         <td><code>${esc(r.ref || r.id)}</code></td>
         <td>${esc(r.name)}</td>
@@ -116,6 +141,7 @@ function renderList(rows) {
         <td>${esc(r.paket)}</td>
         <td>${statusBadge(r.status)}</td>
         <td>${r.assigned_teknisi_name ? esc(r.assigned_teknisi_name) : '<span class="text-muted">—</span>'}</td>
+        <td>${marketingCell(r)}</td>
         <td>${actionCell(r)}</td>
     </tr>`).join("");
 }
@@ -154,10 +180,73 @@ async function muatPapan() {
         setText("sumMenunggu", s.menunggu != null ? s.menunggu : 0);
         setText("sumDitugaskan", s.ditugaskan != null ? s.ditugaskan : 0);
         setText("sumTerpasang", s.terpasang_bulan_ini != null ? s.terpasang_bulan_ini : 0);
-        renderList((lr && lr.data) || []);
+        setText("sumKomisi", fmtRp(s.komisi_bulan_ini));
+        setText("sumKomisiTeknisi", fmtRp(s.komisi_teknisi_bulan_ini));
+        setText("sumKomisiLuar", fmtRp(s.komisi_luar_bulan_ini));
+        setText("sumKomisiPending", fmtRp(s.komisi_pending_total));
+        setText("sumKomisiPendingCount", s.komisi_pending_count != null ? s.komisi_pending_count : 0);
+        papanRows = (lr && lr.data) || [];
+        renderList(papanRows);
     } catch (_e) {
-        document.getElementById("papanBody").innerHTML = '<tr><td colspan="7" class="text-center text-danger">Gagal memuat papan</td></tr>';
+        document.getElementById("papanBody").innerHTML = '<tr><td colspan="8" class="text-center text-danger">Gagal memuat papan</td></tr>';
     }
+}
+
+// ── Modal set/koreksi pemberi lead + komisi (admin). Fase 1: hanya catat, belum ada uang bergerak. ──
+function onMktTypeChange() {
+    const t = document.getElementById("mktType").value;
+    document.getElementById("mktTeknisiWrap").style.display = t === "teknisi" ? "" : "none";
+    document.getElementById("mktLuarWrap").style.display = t === "luar" ? "" : "none";
+    document.getElementById("mktFeeWrap").style.display = t === "none" ? "none" : "";
+}
+
+function openMarketing(id) {
+    const r = papanRows.find((x) => String(x.id) === String(id));
+    if (!r) return;
+    document.getElementById("mktAlert").innerHTML = "";
+    document.getElementById("mktId").value = r.id;
+    setText("mktRef", r.ref || ("PSB-" + r.id));
+    document.getElementById("mktTeknisi").innerHTML = teknisiOptions(r.marketing_ref_id);
+    // Nama bebas dari #jadwal (type NULL) → tawarkan "luar" agar admin tinggal klasifikasi & beri nominal.
+    const type = r.marketing_type || (r.marketing_ref_name ? "luar" : "none");
+    document.getElementById("mktType").value = ["teknisi", "luar", "none"].includes(type) ? type : "none";
+    document.getElementById("mktRefName").value = r.marketing_type === "teknisi" ? "" : (r.marketing_ref_name || "");
+    document.getElementById("mktRefPhone").value = r.marketing_ref_phone || "";
+    document.getElementById("mktFee").value = r.marketing_fee || "";
+    onMktTypeChange();
+    $("#marketingModal").modal("show");
+}
+
+function mktError(msg) { document.getElementById("mktAlert").innerHTML = `<div class="alert alert-danger mb-2">${esc(msg)}</div>`; }
+
+async function submitMarketing() {
+    const id = document.getElementById("mktId").value;
+    const type = document.getElementById("mktType").value;
+    const body = { marketing_type: type };
+    if (type === "teknisi") {
+        body.marketing_ref_id = document.getElementById("mktTeknisi").value;
+        if (!body.marketing_ref_id) return mktError("Pilih teknisi pemberi lead dulu.");
+    }
+    if (type === "luar") {
+        body.marketing_ref_name = (document.getElementById("mktRefName").value || "").trim();
+        body.marketing_ref_phone = (document.getElementById("mktRefPhone").value || "").trim();
+        if (!body.marketing_ref_name) return mktError("Nama pemberi lead wajib untuk tipe luar.");
+    }
+    if (type !== "none") {
+        const fee = (document.getElementById("mktFee").value || "").trim();
+        if (fee !== "") body.marketing_fee = fee;
+    }
+    const btn = document.getElementById("mktSave"); btn.disabled = true;
+    try {
+        const r = await fetch(`/api/psb-schedule/${id}/marketing`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.message || "gagal menyimpan komisi");
+        $("#marketingModal").modal("hide");
+        showAlert("✅ " + (j.message || "Komisi disimpan"), "success");
+        muatPapan();
+    } catch (e) {
+        mktError(e.message);
+    } finally { btn.disabled = false; }
 }
 
 // Init: kenali peran (Tugaskan vs Ambil) + muat daftar teknisi (admin) SEBELUM render papan.
@@ -183,3 +272,6 @@ window.ambilLokasi = ambilLokasi;
 window.submitPsb = submitPsb;
 window.assignRow = assignRow;
 window.claimRow = claimRow;
+window.openMarketing = openMarketing;
+window.onMktTypeChange = onMktTypeChange;
+window.submitMarketing = submitMarketing;

@@ -17,7 +17,8 @@ jest.mock("../../lib/psb-schedule-service", () => ({
     buildScheduleGroupNotif: jest.fn(() => "notif"),
     assignSchedule: jest.fn(),
     buildAssignmentDm: jest.fn(() => "dm"),
-    buildAssignmentGroupNotif: jest.fn(() => "gnotif")
+    buildAssignmentGroupNotif: jest.fn(() => "gnotif"),
+    setMarketing: jest.fn()
 }));
 jest.mock("../../message/handlers/psb-caption-parser", () => ({
     resolvePackage: jest.fn()
@@ -282,5 +283,98 @@ describe("psb-schedule assignment routes (Fase B)", () => {
             expect(status).toBe(409);
             expect(payload.message).toMatch(/teknisi lain/i);
         } finally { await stopServer(server); }
+    });
+});
+
+describe("psb-schedule marketing routes (Fase 1 komisi)", () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        global.accounts = [
+            { id: 3, name: "DAVIN", username: "davin", role: "teknisi", phone_number: "628111" },
+            { id: 1, name: "Aldi", username: "aldi", role: "admin", phone_number: "628999" }
+        ];
+        global.config = { psbIntake: {} };
+    });
+    afterAll(() => { delete global.accounts; delete global.config; });
+
+    async function postJson(baseUrl, pathname, body) {
+        const r = await fetch(`${baseUrl}${pathname}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+        return { status: r.status, payload: await r.json() };
+    }
+
+    test("admin set type=luar + fee → 200, setMarketing dgn payload ternormalisasi", async () => {
+        scheduleService.setMarketing.mockResolvedValue({ ok: true, record: { id: 5, ref: "PSB-5", marketing_type: "luar", marketing_fee: 50000, marketing_status: "pending" } });
+        const { server, baseUrl } = await startServer(createApp(ADMIN));
+        try {
+            const { status, payload } = await postJson(baseUrl, "/psb-schedule/5/marketing", { marketing_type: "luar", marketing_ref_name: "Makelar A", marketing_ref_phone: "0811", marketing_fee: 50000 });
+            expect(status).toBe(200);
+            expect(payload.data.marketing_status).toBe("pending");
+            const arg = scheduleService.setMarketing.mock.calls[0];
+            expect(arg[0]).toBe("5");
+            expect(arg[1]).toMatchObject({ type: "luar", refName: "Makelar A", fee: 50000 });
+        } finally { await stopServer(server); }
+    });
+
+    test("admin set type=teknisi → nama & HP di-resolve dari akun teknisi", async () => {
+        scheduleService.setMarketing.mockResolvedValue({ ok: true, record: { id: 6, ref: "PSB-6" } });
+        const { server, baseUrl } = await startServer(createApp(ADMIN));
+        try {
+            const { status } = await postJson(baseUrl, "/psb-schedule/6/marketing", { marketing_type: "teknisi", marketing_ref_id: 3, marketing_fee: 20000 });
+            expect(status).toBe(200);
+            const payload = scheduleService.setMarketing.mock.calls[0][1];
+            expect(payload.type).toBe("teknisi");
+            expect(payload.refName).toBe("DAVIN");        // di-resolve dari akun
+            expect(payload.refPhone).toBe("628111");
+        } finally { await stopServer(server); }
+    });
+
+    test("non-admin (teknisi) → 403 (komisi = uang, admin saja)", async () => {
+        const { server, baseUrl } = await startServer(createApp(TEKNISI));
+        try {
+            const { status } = await postJson(baseUrl, "/psb-schedule/5/marketing", { marketing_type: "luar", marketing_ref_name: "X", marketing_fee: 1000 });
+            expect(status).toBe(403);
+            expect(scheduleService.setMarketing).not.toHaveBeenCalled();
+        } finally { await stopServer(server); }
+    });
+
+    test("type tak valid → 400; type=luar tanpa nama → 400; type=teknisi id ngawur → 400", async () => {
+        const { server, baseUrl } = await startServer(createApp(ADMIN));
+        try {
+            expect((await postJson(baseUrl, "/psb-schedule/5/marketing", { marketing_type: "ngawur" })).status).toBe(400);
+            expect((await postJson(baseUrl, "/psb-schedule/5/marketing", { marketing_type: "luar", marketing_fee: 1000 })).status).toBe(400);
+            expect((await postJson(baseUrl, "/psb-schedule/5/marketing", { marketing_type: "teknisi", marketing_ref_id: 999 })).status).toBe(400);
+            expect(scheduleService.setMarketing).not.toHaveBeenCalled();
+        } finally { await stopServer(server); }
+    });
+
+    test("fee bukan angka ≥ 0 → 400", async () => {
+        const { server, baseUrl } = await startServer(createApp(ADMIN));
+        try {
+            const { status } = await postJson(baseUrl, "/psb-schedule/5/marketing", { marketing_type: "luar", marketing_ref_name: "X", marketing_fee: -5 });
+            expect(status).toBe(400);
+        } finally { await stopServer(server); }
+    });
+
+    test("service already_paid → 409 (terkunci); not_found → 404", async () => {
+        const { server, baseUrl } = await startServer(createApp(ADMIN));
+        try {
+            scheduleService.setMarketing.mockResolvedValueOnce({ ok: false, reason: "already_paid" });
+            expect((await postJson(baseUrl, "/psb-schedule/5/marketing", { marketing_type: "none" })).status).toBe(409);
+            scheduleService.setMarketing.mockResolvedValueOnce({ ok: false, reason: "not_found" });
+            expect((await postJson(baseUrl, "/psb-schedule/9/marketing", { marketing_type: "none" })).status).toBe(404);
+        } finally { await stopServer(server); }
+    });
+
+    test("create teruskan pemberi lead (marketing_ref_name) ke createRequest", async () => {
+        scheduleService.createRequest.mockResolvedValue({ id: 1, ref: "PSB-1", name: "Budi", status: "menunggu" });
+        resolvePackage.mockImplementation((p) => (p === "110rb" ? "PAKET-110K" : null));
+        global.packages = [{ name: "PAKET-110K" }];
+        const { server, baseUrl } = await startServer(createApp(ADMIN));
+        try {
+            const r = await fetch(`${baseUrl}/psb-schedule`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...VALID_BODY, marketing_ref_name: "Pak Broker" }) });
+            expect(r.status).toBe(201);
+            const arg = scheduleService.createRequest.mock.calls[0][0];
+            expect(arg.marketing).toMatchObject({ refName: "Pak Broker" });
+        } finally { await stopServer(server); delete global.packages; }
     });
 });

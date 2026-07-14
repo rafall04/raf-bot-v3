@@ -4,6 +4,8 @@
  *          identitas + 3 BUKTI wajib). Create (menunggu) + list + summary + ASSIGNMENT (Fase B:
  *          admin TUGASKAN / teknisi AMBIL). Notif grup + DM teknisi pakai builder yang SAMA dgn
  *          WA (`buildScheduleGroupNotif`/`buildAssignmentDm`/`buildAssignmentGroupNotif`) → seragam.
+ *          MARKETING (Fase 1 komisi PSB): create terima pemberi lead opsional; `POST /:id/marketing`
+ *          (ADMIN saja) set/koreksi pemberi lead + nominal komisi. Fase 1 HANYA catat (belum bayar).
  * Caller: `routes/api.js` (mount `router.use(createPsbScheduleRouter())`).
  * Deps: Express, `lib/psb-schedule-service`, `message/handlers/psb-caption-parser` (resolvePackage),
  *        `lib/jid-utils` (normalizePhoneToJid), `message/handlers/reply-runtime` (sendReply, lazy),
@@ -40,6 +42,20 @@ function assignErrorMessage(reason) {
         case "no_teknisi": return "Teknisi tak valid.";
         default: return "Tak bisa menugaskan jadwal ini.";
     }
+}
+
+// Bangun payload marketing dari body web → { type, refId, refName, refPhone, fee }. Bila type=teknisi,
+// resolve nama/HP dari akun (biar nama konsisten & HP kontak terisi). Normalisasi akhir di service.
+function resolveMarketingPayload(body = {}) {
+    const type = body.marketing_type || null;
+    let refId = body.marketing_ref_id || null;
+    let refName = body.marketing_ref_name || null;
+    let refPhone = body.marketing_ref_phone || null;
+    if (String(type).toLowerCase() === "teknisi" && refId) {
+        const tk = resolveTeknisiById(refId);
+        if (tk) { refName = tk.name; refPhone = refPhone || tk.phone_number || null; }
+    }
+    return { type, refId, refName, refPhone, fee: body.marketing_fee };
 }
 
 function createPsbScheduleRouter() {
@@ -113,7 +129,9 @@ function createPsbScheduleRouter() {
                 housePhotoPath: house_photo_path,
                 requestedById: req.user.id,
                 requestedByName: req.user.name || req.user.username,
-                area: (global.config && global.config.nama) || null
+                area: (global.config && global.config.nama) || null,
+                // Pemberi lead OPSIONAL saat daftar (marketing_* di body). Nominal biasanya diisi saat tutup.
+                marketing: resolveMarketingPayload(req.body || {})
             });
             await notifyGroup(record, req.user.name || req.user.username || "-");
             return res.status(201).json({ status: 201, message: `Terjadwal ${record.ref}`, data: record });
@@ -177,6 +195,40 @@ function createPsbScheduleRouter() {
         } catch (e) {
             console.error("[PSB_SCHEDULE_CLAIM_ERROR]", e.message);
             return res.status(500).json({ status: 500, message: "Gagal mengambil: " + e.message });
+        }
+    });
+
+    // POST /api/psb-schedule/:id/marketing — set/koreksi PEMBERI LEAD + nominal komisi (ADMIN saja — ini uang).
+    // Body: { marketing_type: teknisi|luar|none, marketing_ref_id?, marketing_ref_name?, marketing_ref_phone?, marketing_fee? }.
+    // Fase 1: HANYA mencatat (belum ada uang bergerak); pembayaran teknisi→gaji / luar→kas menyusul Fase 2.
+    router.post("/psb-schedule/:id/marketing", ensureStaff, async (req, res) => {
+        try {
+            if (!isAdminRole(req.user.role)) return res.status(403).json({ status: 403, message: "Hanya admin yang boleh mengatur komisi marketing." });
+            const body = req.body || {};
+            const type = String(body.marketing_type || "").toLowerCase();
+            if (!["teknisi", "luar", "none"].includes(type)) {
+                return res.status(400).json({ status: 400, message: "marketing_type wajib: teknisi | luar | none." });
+            }
+            if (type === "teknisi" && !resolveTeknisiById(body.marketing_ref_id)) {
+                return res.status(400).json({ status: 400, message: "Teknisi pemberi lead tak ditemukan (marketing_ref_id)." });
+            }
+            if (type === "luar" && !String(body.marketing_ref_name || "").trim()) {
+                return res.status(400).json({ status: 400, message: "Nama pemberi lead (marketing_ref_name) wajib untuk tipe luar." });
+            }
+            const fee = body.marketing_fee;
+            if (fee != null && String(fee).trim() !== "" && !(Number.isFinite(parseInt(fee, 10)) && parseInt(fee, 10) >= 0)) {
+                return res.status(400).json({ status: 400, message: "Nominal komisi (marketing_fee) harus angka ≥ 0." });
+            }
+            const result = await scheduleService.setMarketing(req.params.id, resolveMarketingPayload(body));
+            if (!result.ok) {
+                const code = result.reason === "not_found" ? 404 : 409;
+                const msg = result.reason === "already_paid" ? "Komisi sudah dibayar — terkunci." : result.reason === "cancelled" ? "Jadwal sudah dibatalkan." : "Jadwal tak ditemukan.";
+                return res.status(code).json({ status: code, message: msg });
+            }
+            return res.json({ status: 200, message: "Pemberi lead & komisi disimpan.", data: result.record });
+        } catch (e) {
+            console.error("[PSB_SCHEDULE_MARKETING_ERROR]", e.message);
+            return res.status(500).json({ status: 500, message: "Gagal menyimpan komisi: " + e.message });
         }
     });
 
