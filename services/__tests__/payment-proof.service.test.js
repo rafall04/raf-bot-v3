@@ -176,6 +176,122 @@ describe("payment-proof.service confirm/reject", () => {
     });
 });
 
+describe("payment-proof.service evaluateIntake (GERBANG — sebelum apa pun disimpan)", () => {
+    test("ada tagihan → capture, snapshot tagihan ikut dikembalikan", async () => {
+        const svc = createPaymentProofService(makeDeps());
+        const res = await svc.evaluateIntake({ user: baseUser, caption: "" });
+        expect(res.action).toBe("capture");
+        expect(res.billing.outstanding).toBe(150000);
+        expect(res.ackText).toBeNull();
+    });
+
+    test("TAK ada tagihan → neutral + ack yang TIDAK menyebut pembayaran (insiden Lapak RT 15)", async () => {
+        const deps = makeDeps({
+            getPaymentPositionForPeriod: jest.fn(async () => ({ outstanding: 0, is_fully_paid: true, amount_due: 150000 }))
+        });
+        const svc = createPaymentProofService(deps);
+        const res = await svc.evaluateIntake({ user: baseUser, caption: "" });
+
+        expect(res.action).toBe("neutral");
+        expect(res.reason).toBe("tak-ada-tagihan");
+        // Inti misleading-nya ada di KALIMAT, bukan di record. Template tersimpan pun harus bersih.
+        expect(res.ackText).not.toMatch(/bayar|pembayaran/i);
+        expect(res.ackText).not.toMatch(/\$\{[a-z_]+\}/i);
+    });
+
+    test("admin sedang menangani chat → silent, dan tagihan TIDAK di-query sama sekali", async () => {
+        const deps = makeDeps();
+        const svc = createPaymentProofService(deps);
+        const res = await svc.evaluateIntake({ user: baseUser, adminActive: true });
+
+        expect(res.action).toBe("silent");
+        expect(res.ackText).toBeNull();
+        expect(deps.getPaymentPositionForPeriod).not.toHaveBeenCalled();
+    });
+
+    test("snapshot tagihan MELEMPAR → neutral (buta ≠ nol), tidak pernah capture", async () => {
+        const deps = makeDeps({
+            getPaymentPositionForPeriod: jest.fn(async () => { throw new Error("db down"); })
+        });
+        const svc = createPaymentProofService(deps);
+        const res = await svc.evaluateIntake({ user: baseUser });
+        expect(res.action).toBe("neutral");
+        expect(res.reason).toBe("tagihan-tak-diketahui");
+    });
+
+    test("caption keluhan → complaint + ack mengarahkan ke lapor", async () => {
+        const svc = createPaymentProofService(makeDeps());
+        const res = await svc.evaluateIntake({ user: baseUser, caption: "internet lemot mas" });
+        expect(res.action).toBe("complaint");
+        expect(res.ackText).toMatch(/lapor/i);
+        expect(res.ackText).not.toMatch(/\$\{[a-z_]+\}/i);
+    });
+});
+
+describe("payment-proof.service notif admin (3 aksi + saran ikut bukti)", () => {
+    test("BELUM LUNAS → notif mengiklankan ok / tolak / HAPUS", async () => {
+        const deps = makeDeps();
+        const svc = createPaymentProofService(deps);
+        await submit(svc);
+
+        const [, payload] = deps.sendMessageToMany.mock.calls[0];
+        // Bug yang ditemukan owner: aksi `hapus` SUDAH jalan di WA sejak #b144, tapi notifnya tidak
+        // pernah menyebutnya — admin hanya diberi tahu `ok` dan `tolak`. Web punya 3 tombol, WA 2.
+        expect(payload.caption).toMatch(/\bok\b/i);
+        expect(payload.caption).toMatch(/tolak/i);
+        expect(payload.caption).toMatch(/hapus/i);
+        expect(payload.caption).not.toMatch(/\$\{[a-z_]+\}/i);
+    });
+
+    test("SUDAH LUNAS → notif MEMIMPIN dengan hapus, bukan mengundang 'ok' refleks", async () => {
+        const deps = makeDeps({
+            getPaymentPositionForPeriod: jest.fn(async () => ({ outstanding: 0, is_fully_paid: true, amount_due: 150000 }))
+        });
+        const svc = createPaymentProofService(deps);
+        // Jalur ini hanya tercapai lewat "bayar di muka" (caption menyebut transfer) — gerbang intake
+        // sudah menahan yang caption-nya polos.
+        await submit(svc, { caption: "sudah transfer buat bulan depan", advance: true });
+
+        const [, payload] = deps.sendMessageToMany.mock.calls[0];
+        expect(payload.caption).toMatch(/tidak punya tagihan terbuka/i);
+        expect(payload.caption).toMatch(/hapus/i);
+    });
+});
+
+describe("payment-proof.service confirmProof — menolak melunasi yang tidak terutang", () => {
+    test("pelanggan sudah lunas → no_outstanding, ledger TIDAK disentuh, record tetap pending", async () => {
+        const deps = makeDeps();
+        const svc = createPaymentProofService(deps);
+        const { record } = await submit(svc);
+
+        // Antara submit & konfirmasi, tagihannya sudah lunas (mis. ditarik teknisi / bukan bukti bayar).
+        deps.getPaymentPositionForPeriod.mockImplementation(async () => ({
+            outstanding: 0, is_fully_paid: true, amount_due: 150000
+        }));
+
+        const res = await svc.confirmProof(record.id, { adminName: "ana" });
+
+        expect(res.ok).toBe(false);
+        expect(res.reason).toBe("no_outstanding");
+        // Dulu record semacam ini tetap dibalik jadi "confirmed" (ledger no_change) → antrian berbohong.
+        expect(svc.getById(record.id).status).toBe("pending");
+        expect(deps.billSettlement.settleTagihanPayment).not.toHaveBeenCalled();
+        expect(deps.sendCritical).not.toHaveBeenCalled();
+    });
+
+    test("cek tagihan gagal → JANGAN blokir admin (settle sendiri sudah idempoten & fail-closed)", async () => {
+        const deps = makeDeps();
+        const svc = createPaymentProofService(deps);
+        const { record } = await submit(svc);
+
+        deps.getPaymentPositionForPeriod.mockImplementation(async () => { throw new Error("db down"); });
+
+        const res = await svc.confirmProof(record.id);
+        expect(res.ok).toBe(true);
+        expect(deps.billSettlement.settleTagihanPayment).toHaveBeenCalled();
+    });
+});
+
 describe("payment-proof.service deleteProof (bukti palsu — tanpa menyentuh pelanggan)", () => {
     test("soft-delete: status 'deleted' + TIDAK ada notifikasi/settle ke pelanggan", async () => {
         const deps = makeDeps();

@@ -23,7 +23,7 @@ const { getPppStats: _getPppStats, getHotspotStats: _getHotspotStats, statusap: 
 const { addPayment } = require("../lib/payment");
 const { getIntentFromKeywords } = require('../lib/wifi_template_handler');
 const { getLooseIntentFromKeywords } = require('../lib/loose-intent-matcher');
-const { noteAdminOutbound, isAdminHandlingChat } = require('../lib/chat-activity-tracker');
+const { noteAdminOutbound, isAdminHandlingChat, isChatSignalReady, hasRecentComplaint } = require('../lib/chat-activity-tracker');
 const { evaluateCustomerFallback } = require('./handlers/customer-fallback-handler');
 const { templatesCache, renderTemplate } = require("../lib/templating");
 const { savePackageChangeRequests: _savePackageChangeRequests, saveSpeedRequests: _saveSpeedRequests } = require("../lib/database");
@@ -670,43 +670,48 @@ module.exports = async (raf, msg, m, options = {}) => {
             return;
         }
 
-        // ── Tangkap FOTO/DOKUMEN bukti pembayaran (pelanggan, tanpa percakapan aktif) ──
+        // ── FOTO/DOKUMEN "yatim" dari pelanggan (tanpa percakapan aktif) ──
         // Pelanggan sering mengirim bukti transfer sebagai FOTO TANPA teks. Tanpa hook ini, foto
         // polos dibuang di guard `!chats` di bawah → pelanggan tak dapat respons apa pun. Semua flow
         // foto ber-state (PSB/keluhan/teknisi) sudah ditangani di atas (routeConversationState &
-        // managed state); di sini hanya foto "yatim" dari pelanggan TERDAFTAR yang tidak sedang
-        // berada dalam alur apa pun. SCOPED (customer only, bukan staf, tanpa userState.step aktif)
-        // + NON-THROWING + feature-gated (config.paymentProof.enabled, default ON).
-        // GERBANG ADMIN-AKTIF: bila admin SEDANG menangani chat ini manual dari nomor bot (mis. admin
-        // minta "SS sinyal WiFi" lalu pelanggan kirim screenshot), foto itu BUKAN bukti bayar — jangan
-        // ditangkap. Sumber sinyal & pola sama dengan customer-fallback-handler (getAdminOutboundAgeMs
-        // + [sender, stateSender]); window = config.paymentProof.adminQuietMinutes (default 15).
+        // managed state); di sini hanya foto dari pelanggan TERDAFTAR yang tidak sedang berada dalam
+        // alur apa pun. SCOPED (customer only, bukan staf, tanpa userState.step aktif) + NON-THROWING
+        // + feature-gated (config.paymentProof.enabled, default ON).
+        //
+        // KEPUTUSAN "bukti bayar atau bukan" TIDAK diambil di sini — lihat lib/payment-proof-intake-policy
+        // (fungsi murni, diuji ulang terhadap korpus prod). Di sini kita hanya MENGUMPULKAN SINYAL:
+        //   - adminActive    : admin sedang membalas manual di chat ini (jejak DURABEL, lintas restart)
+        //   - recentComplaint: pelanggan baru mengeluh koneksi (jejak DURABEL)
+        //   - signalReady    : jejak sudah pulih dari disk? Kalau belum, bot BUTA → policy fail-closed.
+        //                      Dulu sinyal ini cuma Map in-memory: restart = amnesia, dan gerbangnya
+        //                      diam-diam merosot jadi "tangkap semua foto" (insiden 14-07).
         if ((type === 'imageMessage' || type === 'documentMessage')
             && canonicalContext.user
             && !isOwner && !isTeknisi
             && !userState?.step
             && (runtimeGlobalScope?.config?.paymentProof?.enabled !== false)) {
-            const ppAdminQuietMinutes = runtimeGlobalScope?.config?.paymentProof?.adminQuietMinutes;
-            const ppAdminQuietMs = (Number.isFinite(ppAdminQuietMinutes) ? ppAdminQuietMinutes : 15) * 60 * 1000;
-            const adminHandlingChat = isAdminHandlingChat([sender, stateSender], ppAdminQuietMs);
-            if (adminHandlingChat) {
-                console.log('[PAYMENT_PROOF] Intake foto dilewati — admin sedang menangani chat ini (hindari salah-tangkap SS/diagnostik jadi bukti bayar).');
-            } else {
-                try {
-                    const { handleIncomingPaymentProof } = require('./handlers/payment-proof-handler');
-                    const proofResult = await handleIncomingPaymentProof({
-                        msg,
-                        user: canonicalContext.user,
-                        canonicalSender: normalizedSenderForSaldo,
-                        pushname,
-                        messageType: type,
-                        reply,
-                        downloadMedia
-                    });
-                    if (proofResult && proofResult.handled) return;
-                } catch (proofErr) {
-                    console.error('[PAYMENT_PROOF_TRIGGER_ERROR]', proofErr.message);
-                }
+            try {
+                const ppCfg = runtimeGlobalScope?.config?.paymentProof || {};
+                const ppAdminQuietMs = (Number.isFinite(ppCfg.adminQuietMinutes) ? ppCfg.adminQuietMinutes : 15) * 60 * 1000;
+                const ppComplaintQuietMs = (Number.isFinite(ppCfg.complaintQuietMinutes) ? ppCfg.complaintQuietMinutes : 15) * 60 * 1000;
+                const chatKeys = [sender, stateSender];
+
+                const { handleIncomingPaymentProof } = require('./handlers/payment-proof-handler');
+                const proofResult = await handleIncomingPaymentProof({
+                    msg,
+                    user: canonicalContext.user,
+                    canonicalSender: normalizedSenderForSaldo,
+                    pushname,
+                    messageType: type,
+                    reply,
+                    downloadMedia,
+                    adminActive: isAdminHandlingChat(chatKeys, ppAdminQuietMs),
+                    recentComplaint: hasRecentComplaint(chatKeys, ppComplaintQuietMs),
+                    signalReady: isChatSignalReady()
+                });
+                if (proofResult && proofResult.handled) return;
+            } catch (proofErr) {
+                console.error('[PAYMENT_PROOF_TRIGGER_ERROR]', proofErr.message);
             }
         }
 

@@ -281,6 +281,16 @@ function replyFailure(ctx, code, result) {
             { kode: code, status: result.status || "-" }
         ), { skipDuplicateCheck: true });
     }
+    // Tidak ada yang bisa dilunasi. Ini BUKAN error sistem — ini penolakan yang disengaja: menandai
+    // "confirmed" tanpa ada tagihan membuat antrian berbohong. Arahkan admin ke *hapus* (aksi yang
+    // memang untuk foto bukan-bukti-bayar, dan yang TIDAK mengirim apa pun ke pelanggan).
+    if (result.reason === "no_outstanding") {
+        return ctx.reply(renderResponseTemplate(
+            "payment_proof_admin_no_outstanding",
+            "🛑 *${kode}* tidak dikonfirmasi.\n\nPelanggan ini *sudah lunas* untuk periode ${periode} — tidak ada tagihan yang perlu dilunasi, jadi foto ini kemungkinan besar BUKAN bukti pembayaran.\n\n👉 Balas *hapus ${kode}* untuk membuang dari antrian (pelanggan TIDAK dikirimi pesan apa pun).\nKalau ini benar-benar *bayar di muka*, catat lewat menu Bayar di Muka di portal.",
+            { kode: code, periode: padPeriod(result.periodMonth, result.periodYear) }
+        ), { skipDuplicateCheck: true });
+    }
     const pesan = result.reason === "user_not_found"
         ? "data pelanggan tidak ditemukan"
         : (result.error || "kesalahan sistem");

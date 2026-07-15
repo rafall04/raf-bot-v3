@@ -1,21 +1,31 @@
 /**
  * Header Doc
- * Purpose: Business rules alur "pelanggan kirim bukti bayar → admin konfirmasi". Menyimpan bukti +
- *   snapshot tagihan, memberi notif admin BERGAMBAR, lalu mengeksekusi konfirmasi (catat lunas via
- *   settleTagihanPayment: applyPaymentStatusChange + reaktivasi best-effort) atau penolakan. Semua
- *   teks user-facing dirender lewat template (response_templates.json) dengan fallback aman.
- * Caller: message/handlers/payment-proof-handler.js (submit); routes/admin-konfirmasi-bayar-routes.js
- *   (list/serve/konfirmasi/tolak lewat portal); message/handlers/payment-proof-admin-handler.js
- *   (konfirmasi/tolak lewat WhatsApp).
- * Deps: repositories/payment-proof.repository, lib/payment-finance-service, lib/services/bill-payment-settlement,
+ * Purpose: Business rules alur "pelanggan kirim bukti bayar → admin konfirmasi". MEMUTUSKAN dulu
+ *   apakah foto masuk itu memang kandidat bukti bayar (`evaluateIntake` → lib/payment-proof-intake-policy),
+ *   baru menyimpan bukti + snapshot tagihan, memberi notif admin BERGAMBAR, lalu mengeksekusi
+ *   konfirmasi (catat lunas via settleTagihanPayment: applyPaymentStatusChange + reaktivasi
+ *   best-effort), penolakan, atau penghapusan. Semua teks user-facing dirender lewat template
+ *   (response_templates.json) dengan fallback aman.
+ *
+ *   GERBANG UANG (14-07): klaim "bukti pembayaran" hanya boleh berdiri kalau pelanggan PUNYA yang
+ *   bisa dilunasi. Sebelumnya snapshot tagihan dihitung, disimpan, bahkan dicetak ke admin sebagai
+ *   "SUDAH LUNAS (mungkin bukan bukti bayar)" — tapi TIDAK PERNAH dipakai sebagai gerbang, sehingga
+ *   foto koordinasi CCTV dari pelanggan nol-tunggakan tetap masuk antrian & pelanggannya dibalas
+ *   "kalau ini bukti pembayaran…". Angka itu sekarang jadi gerbang, bukan sekadar label.
+ * Caller: message/handlers/payment-proof-handler.js (evaluateIntake + submit);
+ *   routes/admin-konfirmasi-bayar-routes.js (list/serve/konfirmasi/tolak/hapus lewat portal);
+ *   message/handlers/payment-proof-admin-handler.js (konfirmasi/tolak/hapus lewat WhatsApp).
+ * Deps: repositories/payment-proof.repository, lib/payment-proof-intake-policy (keputusan MURNI),
+ *   lib/payment-finance-service, lib/services/bill-payment-settlement,
  *   lib/services/paid-receipt (struk lunas kanonik — JANGAN bikin template struk sendiri),
  *   lib/whatsapp-delivery-service, lib/whatsapp-critical-delivery, lib/admin-recipients, lib/template-service, lib/id-generator.
  * MainFuncs: createPaymentProofService/getPaymentProofService ->
- *   { handleIncomingProof, listPending, getById, getFilePath, confirmProof, rejectProof, deleteProof }.
+ *   { evaluateIntake, handleIncomingProof, listPending, getById, getFilePath, confirmProof, rejectProof, deleteProof }.
  * SideEffects: Tulis store + file bukti, kirim WA (notif admin bergambar + notifikasi hasil ke pelanggan),
  *   menulis ledger pembayaran (paid) + reaktivasi MikroTik via settlement.
- *   CATATAN: deleteProof TIDAK mengirim apa pun ke pelanggan & TIDAK menyentuh ledger — ia hanya
- *   membuang entri dari antrian (untuk foto yang ternyata BUKAN bukti bayar, mis. keluhan).
+ *   CATATAN: evaluateIntake MURNI-BACA (tak menulis apa pun). deleteProof TIDAK mengirim apa pun ke
+ *   pelanggan & TIDAK menyentuh ledger — ia hanya membuang entri dari antrian (untuk foto yang
+ *   ternyata BUKAN bukti bayar, mis. keluhan).
  */
 "use strict";
 
@@ -25,6 +35,7 @@ const { createBillPaymentSettlement } = require("../lib/services/bill-payment-se
 const { renderCategoryTemplate } = require("../lib/template-service");
 const { getAdminJids } = require("../lib/admin-recipients");
 const { generatePaymentProofId } = require("../lib/id-generator");
+const { classifyIncomingPhoto, ACTION } = require("../lib/payment-proof-intake-policy");
 
 function renderResponseTemplate(key, data = {}, fallback = "") {
     const result = renderCategoryTemplate("responseTemplates", key, data);
@@ -112,11 +123,20 @@ function createPaymentProofService(overrides = {}) {
             || "http://localhost:3100";
         const adminUrl = `${String(baseUrl).replace(/\/+$/, "")}/konfirmasi-bayar`;
         const statusLabel = billing.isFullyPaid === true
-            ? "SUDAH LUNAS (mungkin bayar di muka / bukan bukti bayar)"
+            ? "SUDAH LUNAS (tak ada tagihan terbuka)"
             : (billing.isFullyPaid === false ? "BELUM LUNAS" : "status tak diketahui");
         const tagihanNominal = billing.outstanding != null && billing.outstanding > 0
             ? billing.outstanding
             : record.amountDue;
+
+        // SARAN AKSI IKUT BUKTI, bukan kebiasaan. Notif lama selalu memimpin dengan "balas *ok*" —
+        // termasuk untuk pelanggan yang jelas-jelas TIDAK punya tagihan. Di prod 11 dari 13 bukti
+        // dikonfirmasi refleks oleh admin yang sama; satu "ok" pada foto keluhan = tagihan tercatat
+        // LUNAS tanpa uang masuk. Kalau tak ada yang bisa dilunasi, yang dipimpin adalah *hapus*.
+        const looksLikeProof = billing.isFullyPaid === false;
+        const saran = looksLikeProof
+            ? renderResponseTemplate("payment_proof_admin_hint_due", {}, "👉 *Balas pesan ini*: *ok* (catat lunas) · *tolak <alasan>* · *hapus* (ternyata bukan bukti bayar).")
+            : renderResponseTemplate("payment_proof_admin_hint_nodue", {}, "⚠️ Pelanggan ini *tidak punya tagihan terbuka* — besar kemungkinan ini BUKAN bukti pembayaran (mis. foto keluhan).\n👉 *Balas pesan ini* dengan *hapus* untuk membuang dari antrian. *ok* hanya bila ini benar-benar pembayaran di muka.");
 
         const caption = renderResponseTemplate("payment_proof_admin_notification", {
             id: record.id,
@@ -125,8 +145,9 @@ function createPaymentProofService(overrides = {}) {
             status: statusLabel,
             tagihan: formatRupiah(tagihanNominal),
             periode: padPeriod(record.periodMonth, record.periodYear),
+            saran,
             adminUrl
-        }, `📸 *Dugaan bukti pembayaran*\n\nPelanggan: ${record.userName} (${record.phone})\nStatus: *${statusLabel}*\nTagihan ${padPeriod(record.periodMonth, record.periodYear)}: ${formatRupiah(tagihanNominal)}\n\n👉 *Balas pesan ini* dengan *ok* untuk mengonfirmasi, atau *tolak <alasan>*.\nBisa juga ketik *ok* saja, atau *bukti* untuk melihat antrian.\n\nKode: ${record.id}\nPortal: ${adminUrl}`);
+        }, `📸 *Dugaan bukti pembayaran*\n\nPelanggan: ${record.userName} (${record.phone})\nStatus: *${statusLabel}*\nTagihan ${padPeriod(record.periodMonth, record.periodYear)}: ${formatRupiah(tagihanNominal)}\n\n${saran}\n\nBisa juga ketik *bukti* untuk melihat antrian.\n\nKode: ${record.id}\nPortal: ${adminUrl}`);
 
         const payload = fileType === "document"
             ? { document: buffer, fileName: `${record.id}.pdf`, mimetype: "application/pdf", caption }
@@ -139,13 +160,66 @@ function createPaymentProofService(overrides = {}) {
     }
 
     /**
+     * GERBANG INTAKE — dipanggil SEBELUM media diunduh & sebelum apa pun disimpan.
+     *
+     * Mengumpulkan bukti (snapshot tagihan) lalu menyerahkan keputusan ke `classifyIncomingPhoto`
+     * (fungsi MURNI, satu-satunya tempat aturannya hidup). Tidak menulis apa pun.
+     *
+     * @returns {Promise<{action: string, reason: string, advance: boolean, billing: object|null, ackText: string|null}>}
+     */
+    async function evaluateIntake({ user, caption = "", adminActive = false, signalReady = true, recentComplaint = false }) {
+        // Short-circuit murah: kalau admin sedang mengetik di chat ini, jangan sampai kita membuang
+        // query tagihan — dan JANGAN bersuara. Aturannya tetap hidup (dan diuji) di policy.
+        if (adminActive) {
+            return { action: ACTION.SILENT, reason: "admin-aktif", advance: false, billing: null, ackText: null };
+        }
+
+        const billing = await buildBillingSnapshot(user);
+        const decision = classifyIncomingPhoto({
+            adminActive: false,
+            signalReady,
+            billing,
+            userStatus: user && user.status,
+            caption,
+            recentComplaint
+        });
+
+        let ackText = null;
+        if (decision.action === ACTION.COMPLAINT) {
+            ackText = renderResponseTemplate("payment_proof_complaint_ack", {
+                nama: (user && user.name) || "Kak"
+            }, "Foto kamu sudah kami terima 🙏\n\nKalau ini soal *gangguan/kendala*, ketik *lapor* ya supaya langsung kami buatkan tiket ke teknisi.");
+        } else if (decision.action === ACTION.NEUTRAL) {
+            // Ack NETRAL: sengaja TIDAK menyebut kata "pembayaran" sama sekali. Inilah sumber
+            // misleading-nya — bot menanamkan bingkai bayar ke percakapan yang bukan soal bayar.
+            ackText = renderResponseTemplate("payment_proof_neutral_ack", {
+                nama: (user && user.name) || "Kak"
+            }, "Foto kamu sudah kami terima 🙏\n\nAda yang bisa kami bantu? Kalau ada *kendala jaringan*, ketik *lapor* ya.");
+        }
+
+        return { ...decision, billing, ackText };
+    }
+
+    /**
      * Fase 1: simpan bukti + snapshot tagihan + notif admin. Kembalikan ackText untuk dibalas ke
      * pelanggan oleh handler (lewat reply-runtime yang aman untuk @lid).
      */
-    async function handleIncomingProof({ user, canonicalSender, pushname, messageType, buffer, caption = "" }) {
+    async function handleIncomingProof({
+        user,
+        canonicalSender,
+        pushname,
+        messageType,
+        buffer,
+        caption = "",
+        billing: precomputedBilling = null,
+        intakeReason = null,
+        advance = false
+    }) {
         const ext = messageType === "documentMessage" ? "pdf" : "jpg";
         const fileType = messageType === "documentMessage" ? "document" : "image";
-        const billing = await buildBillingSnapshot(user);
+        // Snapshot tagihan sudah dihitung oleh evaluateIntake — pakai ulang agar tidak query dua kali
+        // DAN agar keputusan gerbang & isi record berdiri di atas angka yang PERSIS SAMA.
+        const billing = precomputedBilling || await buildBillingSnapshot(user);
         // Semua pesan bertema TAGIHAN menyapa dengan nama PEMILIK AKUN (DB), bukan pushname WhatsApp.
         // Pushname sering nama anggota keluarga pemegang HP; menyapa "Halo Aulia" lalu mengirim struk
         // atas nama "Widji Rochani" di percakapan yang sama terlihat seperti dua sistem berbeda.
@@ -166,6 +240,10 @@ function createPaymentProofService(overrides = {}) {
             caption: caption || "",
             submittedAt: new Date().toISOString(),
             status: "pending",
+            // Jejak audit gerbang: KENAPA foto ini dianggap kandidat bukti bayar. Tanpa ini,
+            // salah-tangkap berikutnya tak bisa dilacak sebabnya (dan kita hanya bisa menebak lagi).
+            intakeReason: intakeReason || null,
+            isAdvancePayment: Boolean(advance),
             verifiedBy: null,
             verifiedAt: null,
             notes: null
@@ -231,13 +309,38 @@ function createPaymentProofService(overrides = {}) {
      * Konfirmasi bukti → catat lunas (fail-closed) + reaktivasi best-effort + struk pelanggan.
      * Idempoten: record non-pending ditolak; ledger yang sudah lunas → no_change (tanpa struk ganda).
      */
-    async function confirmProof(id, { adminName = "admin", notes = "" } = {}) {
+    async function confirmProof(id, { adminName = "admin", notes = "", allowNoOutstanding = false } = {}) {
         const record = deps.repository.getById(id);
         if (!record) return { ok: false, reason: "not_found" };
         if (record.status !== "pending") return { ok: false, reason: "already_processed", status: record.status };
 
         const user = deps.findUserById(record.userDbId);
         if (!user) return { ok: false, reason: "user_not_found" };
+
+        // GERBANG KONFIRMASI: menolak melunasi apa yang tidak terutang.
+        // Dulu record semacam ini tetap dibalik jadi "confirmed" walau settlement menghasilkan
+        // ledger `no_change` — antrian jadi BERBOHONG (tampak terkonfirmasi, padahal tak ada apa pun
+        // yang dilunasi), dan admin merasa sudah memproses bukti yang sebenarnya bukan bukti bayar.
+        // Sekarang: kalau tak ada yang bisa dilunasi, katakan apa adanya dan arahkan ke *hapus*.
+        if (!allowNoOutstanding) {
+            try {
+                const position = await deps.getPaymentPositionForPeriod(user, record.periodMonth, record.periodYear, {
+                    amountDue: record.amountDue || deps.getEffectivePrice(user)
+                });
+                if (position && position.is_fully_paid === true) {
+                    return {
+                        ok: false,
+                        reason: "no_outstanding",
+                        periodMonth: record.periodMonth,
+                        periodYear: record.periodYear
+                    };
+                }
+            } catch (err) {
+                // Tagihan tak terbaca ≠ tagihan nol. Jangan memblokir admin karena DB sedang ngambek;
+                // lanjutkan — settleTagihanPayment sendiri idempoten & fail-closed.
+                logWarn("[PAYMENT_PROOF] Cek tagihan saat konfirmasi gagal (lanjut):", err.message);
+            }
+        }
 
         let settlement;
         try {
@@ -319,6 +422,7 @@ function createPaymentProofService(overrides = {}) {
 
     return {
         deps,
+        evaluateIntake,
         handleIncomingProof,
         listPending,
         getById,

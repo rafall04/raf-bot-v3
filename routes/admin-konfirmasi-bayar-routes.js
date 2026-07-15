@@ -37,6 +37,7 @@ function toClientRecord(r) {
 function statusCodeForReason(reason) {
     if (reason === "not_found") return 404;
     if (reason === "already_processed") return 409;
+    if (reason === "no_outstanding") return 409;
     return 422;
 }
 
@@ -46,6 +47,10 @@ function messageForReason(result) {
         case "already_processed": return `Bukti sudah diproses (status: ${result.status}).`;
         case "user_not_found": return "Data pelanggan tidak ditemukan.";
         case "settle_failed": return `Gagal mencatat lunas: ${result.error || "kesalahan sistem"}.`;
+        // Bukan error sistem — penolakan yang disengaja (lihat payment-proof.service.confirmProof):
+        // melunasi apa yang tidak terutang hanya membuat antrian tampak beres tanpa apa pun berubah.
+        case "no_outstanding":
+            return "Pelanggan ini sudah lunas — tidak ada tagihan yang perlu dilunasi, jadi foto ini kemungkinan bukan bukti pembayaran. Gunakan tombol \"Hapus (bukan bukti bayar)\" untuk membuang dari antrian.";
         default: return "Gagal memproses bukti.";
     }
 }

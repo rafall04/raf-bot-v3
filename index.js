@@ -2,9 +2,9 @@
  * Header Doc
  * Purpose: Composition root aplikasi untuk bootstrap runtime, HTTP server, Socket.IO, dan lifecycle WhatsApp.
  * Caller: Node.js runtime melalui `npm start` / `node index.js`.
- * Deps: `lib/app-runtime`, `lib/http-app`, `lib/public-site-app`, `lib/process-lifecycle`, `lib/http-security`, `lib/http-auth-bootstrap`, `lib/http-socket-bootstrap`, `lib/routes-registry`, `lib/whatsapp-bootstrap`, database, cron, dan router existing.
- * MainFuncs: Inisialisasi config, membuat runtime bersama, memasang bootstrap middleware/process/socket, lalu memulai HTTP + WhatsApp.
- * SideEffects: Membuka server HTTP, menginisialisasi database, menulis `global.*`, dan menjaga koneksi WhatsApp aktif.
+ * Deps: `lib/app-runtime`, `lib/http-app`, `lib/public-site-app`, `lib/process-lifecycle`, `lib/http-security`, `lib/http-auth-bootstrap`, `lib/http-socket-bootstrap`, `lib/routes-registry`, `lib/whatsapp-bootstrap`, `lib/chat-activity-tracker` + `repositories/message-log.repository` (pemulihan jejak chat durabel saat boot), database, cron, dan router existing.
+ * MainFuncs: Inisialisasi config, membuat runtime bersama, memasang bootstrap middleware/process/socket, memulihkan jejak aktivitas chat dari disk, lalu memulai HTTP + WhatsApp.
+ * SideEffects: Membuka server HTTP, menginisialisasi database, menulis `global.*`, memulihkan jejak chat ke memori, dan menjaga koneksi WhatsApp aktif.
  */
 process.env.TZ = 'Asia/Jakarta';
 
@@ -243,6 +243,21 @@ const {
 async function startApp() {
     // Load ESM modules first
     const { default: makeWASocket, DisconnectReason, useMultiFileAuthState, delay, fetchLatestWaWebVersion } = await import('@whiskeysockets/baileys');
+
+    // Pulihkan JEJAK AKTIVITAS CHAT dari disk SEBELUM socket WhatsApp dibuka. Jejak ini (kapan admin
+    // terakhir balas manual di sebuah chat) adalah gerbang yang menahan foto keluhan pelanggan agar
+    // tidak salah-tangkap jadi "bukti pembayaran". Dulu murni in-memory → hilang tiap restart, dan
+    // prod restart 7–13×/hari: insiden 14-07 terjadi 19 DETIK sesudah restart. Ditunggu (await) di
+    // sini supaya jejaknya sudah pulih saat pesan pertama masuk; kegagalan/timeout TIDAK fatal —
+    // tracker jatuh ke mode in-memory seperti dulu.
+    try {
+        const { configureChatActivityPersistence } = require('./lib/chat-activity-tracker');
+        const { createChatActivityPersistence } = require('./repositories/message-log.repository');
+        const restored = await configureChatActivityPersistence(createChatActivityPersistence());
+        console.log(`[CHAT_ACTIVITY] Jejak chat dipulihkan dari disk: ${restored} chat dengan balasan admin terakhir <60 menit`);
+    } catch (chatActivityErr) {
+        console.warn('[CHAT_ACTIVITY] Persistensi jejak chat tidak aktif (mode in-memory):', chatActivityErr.message);
+    }
 
     runtime.initializeBackgroundServices();
 

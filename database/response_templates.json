@@ -4717,7 +4717,7 @@
   "payment_proof_admin_notification": {
     "name": "Bukti Bayar - Notifikasi Admin",
     "category": "payment",
-    "template": "📸 *Dugaan Bukti Pembayaran*\n\nPelanggan: ${nama} (${telepon})\nStatus: *${status}*\nTagihan ${periode}: ${tagihan}\n\n👉 *Balas pesan ini* dengan *ok* untuk mengonfirmasi, atau *tolak <alasan>*.\nBisa juga ketik *ok* saja, atau *bukti* untuk melihat antrian.\n\nKode: ${id}\nPortal: ${adminUrl}"
+    "template": "📸 *Dugaan Bukti Pembayaran*\n\nPelanggan: ${nama} (${telepon})\nStatus: *${status}*\nTagihan ${periode}: ${tagihan}\n\n${saran}\n\nKetik *bukti* untuk melihat antrian.\n\nKode: ${id}\nPortal: ${adminUrl}"
   },
   "payment_proof_admin_list": {
     "name": "Bukti Bayar - Antrian (ke Admin)",
@@ -4906,61 +4906,94 @@
     "name": "Oper Segmen - Pratinjau (konfirmasi)",
     "category": "network_admin",
     "template": "🔀 *Oper Segmen — Pratinjau*\n\nSegmen: *${segmen}* (${aktif} pelanggan aktif)\nJalur: *${from}* → *${to}*\n\nLangkah yang akan dijalankan di router:\n${ops}\n\nBalas *YA* untuk lanjut, atau *batal* untuk membatalkan.",
-    "placeholders": ["segmen", "aktif", "from", "to", "ops"]
+    "placeholders": [
+      "segmen",
+      "aktif",
+      "from",
+      "to",
+      "ops"
+    ]
   },
   "oper_segment_applied": {
     "name": "Oper Segmen - Berhasil",
     "category": "network_admin",
     "template": "✅ Segmen *${segmen}* dipindah *${from}* → *${to}* (terverifikasi di router).",
-    "placeholders": ["segmen", "from", "to"]
+    "placeholders": [
+      "segmen",
+      "from",
+      "to"
+    ]
   },
   "oper_segment_noop": {
     "name": "Oper Segmen - Sudah di jalur itu",
     "category": "network_admin",
     "template": "ℹ️ Segmen *${segmen}* sudah di *${to}*. Tidak ada perubahan.",
-    "placeholders": ["segmen", "to"]
+    "placeholders": [
+      "segmen",
+      "to"
+    ]
   },
   "oper_segment_failed": {
     "name": "Oper Segmen - Gagal",
     "category": "network_admin",
     "template": "❌ Gagal oper segmen: ${error}",
-    "placeholders": ["error"]
+    "placeholders": [
+      "error"
+    ]
   },
   "oper_segment_invalid": {
     "name": "Oper - Format salah",
     "category": "network_admin",
     "template": "⚠️ ${error}\n\nContoh:\n• *oper free ke gmdp* (segmen)\n• *oper budi ke sf* (pelanggan)\n\nSegmen: ${daftar_segmen}\nJalur segmen: mni/gmdp · pelanggan: gmdp/mni/ih/sf",
-    "placeholders": ["error", "daftar_segmen"]
+    "placeholders": [
+      "error",
+      "daftar_segmen"
+    ]
   },
   "oper_customer_preview": {
     "name": "Oper Pelanggan - Pratinjau (konfirmasi)",
     "category": "network_admin",
     "template": "🔀 *Oper Pelanggan — Pratinjau*\n\nPelanggan: *${nama}* (${pppoe})\nAkan diarahkan ke jalur: *${jalur}*\n(Override per-pelanggan; entri /32 mengikuti IP-nya otomatis.)\n\nBalas *ya* untuk lanjut, atau *batal*.",
-    "placeholders": ["nama", "pppoe", "jalur"]
+    "placeholders": [
+      "nama",
+      "pppoe",
+      "jalur"
+    ]
   },
   "oper_customer_applied": {
     "name": "Oper Pelanggan - Berhasil",
     "category": "network_admin",
     "template": "✅ ${message}",
-    "placeholders": ["message", "nama", "jalur"]
+    "placeholders": [
+      "message",
+      "nama",
+      "jalur"
+    ]
   },
   "oper_customer_notfound": {
     "name": "Oper Pelanggan - Tidak ditemukan",
     "category": "network_admin",
     "template": "⚠️ Pelanggan \"${query}\" tidak ditemukan. Coba nama lengkap / pppoe / id.",
-    "placeholders": ["query"]
+    "placeholders": [
+      "query"
+    ]
   },
   "oper_customer_multiple": {
     "name": "Oper Pelanggan - Banyak cocok",
     "category": "network_admin",
     "template": "⚠️ Beberapa pelanggan cocok \"${query}\":\n${daftar}\n\nSebutkan lebih spesifik (pppoe / id).",
-    "placeholders": ["query", "daftar"]
+    "placeholders": [
+      "query",
+      "daftar"
+    ]
   },
   "oper_customer_failed": {
     "name": "Oper Pelanggan - Gagal",
     "category": "network_admin",
     "template": "❌ Gagal oper pelanggan: ${error}",
-    "placeholders": ["error"]
+    "placeholders": [
+      "error"
+    ]
   },
   "oper_segment_cancelled": {
     "name": "Oper Segmen - Dibatalkan",
@@ -5041,5 +5074,35 @@
       "lines",
       "hint"
     ]
+  },
+  "payment_proof_admin_hint_due": {
+    "name": "Bukti Bayar - Saran Aksi (ada tagihan)",
+    "category": "payment",
+    "template": "👉 *Balas pesan ini*: *ok* (catat lunas) · *tolak <alasan>* (bukti kurang jelas) · *hapus* (ternyata bukan bukti bayar)."
+  },
+  "payment_proof_admin_hint_nodue": {
+    "name": "Bukti Bayar - Saran Aksi (TANPA tagihan)",
+    "category": "payment",
+    "template": "⚠️ Pelanggan ini *tidak punya tagihan terbuka* — besar kemungkinan ini BUKAN bukti pembayaran (mis. foto keluhan/kendala).\n\n👉 *Balas pesan ini* dengan *hapus* untuk membuang dari antrian (pelanggan tidak dikirimi pesan apa pun).\nPakai *ok* HANYA bila ini benar-benar pembayaran di muka."
+  },
+  "payment_proof_admin_no_outstanding": {
+    "name": "Bukti Bayar - Konfirmasi Ditolak (tak ada tagihan)",
+    "category": "payment",
+    "template": "🛑 *${kode}* tidak dikonfirmasi.\n\nPelanggan ini *sudah lunas* untuk periode ${periode} — tidak ada tagihan yang perlu dilunasi, jadi foto ini kemungkinan besar BUKAN bukti pembayaran.\n\n👉 Balas *hapus ${kode}* untuk membuang dari antrian (pelanggan TIDAK dikirimi pesan apa pun).\nKalau ini benar-benar *bayar di muka*, catat lewat menu Bayar di Muka di portal."
+  },
+  "payment_proof_complaint_ack": {
+    "name": "Bukti Bayar - Ack Foto Keluhan (BUKAN bayar)",
+    "category": "payment",
+    "template": "Foto kamu sudah kami terima 🙏\n\nKalau ini soal *gangguan/kendala*, ketik *lapor* ya — nanti langsung kami buatkan tiket ke teknisi."
+  },
+  "payment_proof_neutral_ack": {
+    "name": "Bukti Bayar - Ack Netral (tanpa bingkai bayar)",
+    "category": "payment",
+    "template": "Foto kamu sudah kami terima 🙏\n\nAda yang bisa kami bantu? Kalau ada *kendala jaringan*, ketik *lapor* ya."
+  },
+  "payment_proof_error_ack": {
+    "name": "Bukti Bayar - Ack Darurat (gerbang gagal)",
+    "category": "payment",
+    "template": "Foto kamu sudah kami terima ✅. Admin akan segera mengeceknya ya 🙏"
   }
 }

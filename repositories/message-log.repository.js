@@ -1,14 +1,24 @@
 /**
  * Header Doc
- * Purpose: Logger pesan MASUK WhatsApp (read-only) — menyimpan korpus bahasa pelanggan untuk
- *          evaluasi fitur AI. Tidak mengubah saldo/state/kirim pesan, dan TIDAK boleh menjatuhkan
- *          jalur pesan (fire-and-forget; semua error ditelan & dilog).
- * Caller: `message/raf.js` (hook ingest, via `logInboundMessageSafe`) dan `scripts/export-message-logs.js`.
+ * Purpose: Owner file `database/message_logs.sqlite` — dua isi, satu domain (lalu lintas chat WA):
+ *          (1) korpus pesan MASUK pelanggan (`inbound_messages`) untuk evaluasi fitur AI, dan
+ *          (2) JEJAK AKTIVITAS CHAT DURABEL (`chat_activity`) — kapan admin terakhir balas manual &
+ *          kapan pelanggan terakhir mengeluh, per chat. Yang kedua adalah tulang punggung gerbang
+ *          pengaman intake bukti pembayaran: sebelum ada tabel ini jejaknya cuma Map in-memory, dan
+ *          prod restart 7–13×/hari membuat gerbang itu amnesia (insiden 14-07: foto koordinasi CCTV
+ *          jadi "bukti bayar" 19 detik sesudah restart).
+ *          Tidak mengubah saldo/state/kirim pesan, dan TIDAK boleh menjatuhkan jalur pesan
+ *          (fire-and-forget; semua error ditelan & dilog).
+ * Caller: `message/raf.js` (hook ingest, via `logInboundMessageSafe`), `index.js` (memasang adapter
+ *         `createChatActivityPersistence()` ke `lib/chat-activity-tracker` saat boot), dan
+ *         `scripts/export-message-logs.js`.
  * Deps: `sqlite3`, `lib/env-config.getDatabasePath` (→ `database/message_logs.sqlite`, auto `_test` saat NODE_ENV=test),
  *       `lib/sqlite-pragmas` (opsional, WAL).
  * MainFuncs: `createMessageLogRepository`, `getMessageLogRepository` (singleton), `logInboundMessageSafe`,
- *            serta method repo `logInbound` / `getRecent` / `getStats`.
- * SideEffects: Membuka koneksi SQLite ke `database/message_logs.sqlite` dan menulis baris pesan masuk.
+ *            `createChatActivityPersistence`, serta method repo `logInbound` / `getRecent` / `getStats` /
+ *            `saveAdminOutbound` / `saveComplaint` / `loadRecentChatActivity`.
+ * SideEffects: Membuka koneksi SQLite ke `database/message_logs.sqlite`, menulis baris pesan masuk,
+ *              dan meng-upsert jejak aktivitas chat.
  */
 "use strict";
 
@@ -98,6 +108,28 @@ function createMessageLogRepository(overrides = {}) {
         `);
         await run("CREATE INDEX IF NOT EXISTS idx_inbound_messages_received ON inbound_messages(received_at)");
         await run("CREATE INDEX IF NOT EXISTS idx_inbound_messages_role ON inbound_messages(role)");
+
+        // Jejak aktivitas chat DURABEL (satu baris per chat, di-upsert). Stempel disimpan sebagai
+        // epoch ms INTEGER supaya bisa dibandingkan langsung dengan Date.now() tanpa parsing.
+        await run(`
+            CREATE TABLE IF NOT EXISTS chat_activity (
+                chat_jid TEXT PRIMARY KEY,
+                last_admin_outbound_at INTEGER,
+                last_complaint_at INTEGER
+            )
+        `);
+        await run("CREATE INDEX IF NOT EXISTS idx_chat_activity_admin ON chat_activity(last_admin_outbound_at)");
+
+        // Batasi pertumbuhan: jejak lebih tua dari 7 hari tak berguna (jendela gerbang paling lama
+        // hitungan menit). Sekali per proses saja — bukan cron.
+        const staleCutoff = Date.now() - (7 * 24 * 60 * 60 * 1000);
+        await run(
+            `DELETE FROM chat_activity
+              WHERE COALESCE(last_admin_outbound_at, 0) < ?
+                AND COALESCE(last_complaint_at, 0) < ?`,
+            [staleCutoff, staleCutoff]
+        );
+
         schemaReady = true;
     }
 
@@ -174,6 +206,56 @@ function createMessageLogRepository(overrides = {}) {
         };
     }
 
+    // ── Jejak aktivitas chat (durabel) ──
+    // ON CONFLICT DO UPDATE, BUKAN INSERT OR REPLACE: replace akan menulis NULL ke kolom yang tidak
+    // ikut disebut, jadi mencatat balasan admin akan MENGHAPUS jejak komplain di baris yang sama.
+
+    async function saveAdminOutbound(chatJid, timestampMs) {
+        if (!chatJid) return false;
+        try {
+            await ensureSchema();
+            await run(
+                `INSERT INTO chat_activity (chat_jid, last_admin_outbound_at)
+                 VALUES (?, ?)
+                 ON CONFLICT(chat_jid) DO UPDATE SET last_admin_outbound_at = excluded.last_admin_outbound_at`,
+                [String(chatJid), Number(timestampMs) || Date.now()]
+            );
+            return true;
+        } catch (err) {
+            console.warn(`[CHAT_ACTIVITY] gagal menyimpan jejak admin: ${err.message}`);
+            return false;
+        }
+    }
+
+    async function saveComplaint(chatJid, timestampMs) {
+        if (!chatJid) return false;
+        try {
+            await ensureSchema();
+            await run(
+                `INSERT INTO chat_activity (chat_jid, last_complaint_at)
+                 VALUES (?, ?)
+                 ON CONFLICT(chat_jid) DO UPDATE SET last_complaint_at = excluded.last_complaint_at`,
+                [String(chatJid), Number(timestampMs) || Date.now()]
+            );
+            return true;
+        } catch (err) {
+            console.warn(`[CHAT_ACTIVITY] gagal menyimpan jejak komplain: ${err.message}`);
+            return false;
+        }
+    }
+
+    async function loadRecentChatActivity(maxAgeMs = 60 * 60 * 1000) {
+        await ensureSchema();
+        const cutoff = Date.now() - (Number(maxAgeMs) || 0);
+        return all(
+            `SELECT chat_jid, last_admin_outbound_at, last_complaint_at
+               FROM chat_activity
+              WHERE COALESCE(last_admin_outbound_at, 0) >= ?
+                 OR COALESCE(last_complaint_at, 0) >= ?`,
+            [cutoff, cutoff]
+        );
+    }
+
     function close() {
         return new Promise((resolve, reject) => {
             db.close((err) => {
@@ -186,7 +268,17 @@ function createMessageLogRepository(overrides = {}) {
         });
     }
 
-    return { deps, ensureSchema, logInbound, getRecent, getStats, close };
+    return {
+        deps,
+        ensureSchema,
+        logInbound,
+        getRecent,
+        getStats,
+        saveAdminOutbound,
+        saveComplaint,
+        loadRecentChatActivity,
+        close
+    };
 }
 
 let singleton = null;
@@ -224,8 +316,46 @@ function logInboundMessageSafe(record) {
     }
 }
 
+/**
+ * Adapter persistensi untuk `lib/chat-activity-tracker` (dipasang di index.js saat boot).
+ *
+ * SENGAJA TIDAK digerbangi `config.messageLogging.enabled`: itu flag KORPUS (fitur AI). Jejak
+ * aktivitas chat adalah SINYAL PENGAMAN — mematikannya lewat flag yang tak ada hubungannya akan
+ * diam-diam menghidupkan lagi bug "foto keluhan jadi bukti bayar". (CLAUDE.md: gate on evidence,
+ * not on a config flag.)
+ *
+ * Tulis bersifat fire-and-forget: tracker in-memory adalah sumber baca di runtime; disk hanya untuk
+ * bertahan lintas restart. Kegagalan tulis TIDAK boleh menjatuhkan jalur pesan.
+ */
+function createChatActivityPersistence() {
+    return {
+        saveAdminOutbound(chatJid, timestampMs) {
+            try {
+                Promise.resolve()
+                    .then(() => getMessageLogRepository().saveAdminOutbound(chatJid, timestampMs))
+                    .catch(() => {});
+            } catch (_error) {
+                // Jangan pernah throw dari hot path pemrosesan pesan.
+            }
+        },
+        saveComplaint(chatJid, timestampMs) {
+            try {
+                Promise.resolve()
+                    .then(() => getMessageLogRepository().saveComplaint(chatJid, timestampMs))
+                    .catch(() => {});
+            } catch (_error) {
+                // idem
+            }
+        },
+        loadRecent(maxAgeMs) {
+            return getMessageLogRepository().loadRecentChatActivity(maxAgeMs);
+        }
+    };
+}
+
 module.exports = {
     createMessageLogRepository,
     getMessageLogRepository,
-    logInboundMessageSafe
+    logInboundMessageSafe,
+    createChatActivityPersistence
 };
