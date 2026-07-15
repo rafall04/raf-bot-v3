@@ -6,15 +6,17 @@ function readFile(...segments) {
 }
 
 describe('layanan navbar route hardening', () => {
-  test('navbar uses role-aware ticket targets and removes legacy /tiket dependency', () => {
+  test('navbar renders layanan menu with admin ticket target and no legacy /tiket dependency', () => {
     const source = readFile('..', 'sb-admin', '_navbar.php');
 
-    expect(source).toContain("$layananPages = $isAdminLikeRole");
-    expect(source).toContain("['/admin/daftar-tiket', '/speed-requests', '/speed-boost-config', '/kompensasi', '/psb-rekap']");
-    expect(source).toContain("($isTeknisiRole ? ['/teknisi-tiket'] : [])");
-    expect(source).toContain("$ticketPagePath = $isAdminLikeRole ? '/admin/daftar-tiket' : ($isTeknisiRole ? '/teknisi-tiket' : null);");
-    expect(source).toContain("$ticketPageLabel = $isAdminLikeRole ? 'Tiket Support Admin' : 'Tiket Teknisi';");
-    expect(source).not.toContain("href=\"/tiket\"");
+    // _navbar.php = sidebar ADMIN. php-express merender PHP via CLI tanpa $_COOKIE, jadi konteks
+    // admin dipaksa di file ini (lihat catatan di _navbar.php); menu Layanan dari daftar eksplisit.
+    expect(source).toContain("$layananPages = ['/admin/daftar-tiket', '/speed-requests', '/speed-boost-config', '/kompensasi', '/papan-psb', '/laporan-marketing-psb']");
+    expect(source).toContain("$ticketPagePath = '/admin/daftar-tiket';");
+    expect(source).toContain("$ticketPageLabel = 'Tiket Support Admin';");
+
+    // Guard: tak boleh balik ke rute /tiket legacy.
+    expect(source).not.toContain('href="/tiket"');
     expect(source).not.toContain("isActive('/tiket'");
     expect(source).not.toContain("['/tiket', '/speed-requests'");
   });
@@ -22,11 +24,12 @@ describe('layanan navbar route hardening', () => {
   test('page routes required by layanan navbar exist in pages router', () => {
     const routesSource = readFile('..', '..', 'routes', 'pages.js');
 
+    // Setiap item menu Layanan wajib punya rute terdaftar (anti tautan mati).
     expect(routesSource).toContain("router.get('/admin/daftar-tiket'");
-    expect(routesSource).toContain("router.get('/teknisi-tiket'");
     expect(routesSource).toContain("router.get('/speed-requests'");
     expect(routesSource).toContain("router.get('/speed-boost-config'");
     expect(routesSource).toContain("router.get('/kompensasi'");
-    expect(routesSource).toContain("router.get('/psb-rekap'");
+    expect(routesSource).toContain("router.get('/papan-psb'");
+    expect(routesSource).toContain("router.get('/laporan-marketing-psb'");
   });
 });
