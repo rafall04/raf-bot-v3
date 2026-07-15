@@ -342,6 +342,8 @@ function renderTable() {
     pageUsers.forEach(user => {
         const isPaid = user.paid === true || user.paid === 1;
         const isWaived = user.is_waived === true;
+        // Pelanggan gratis (paket whitelist ATAU tagihan Rp0) bukan "Belum Bayar" — tak ada yang ditagih.
+        const isFree = whitelistedPackages.includes(user.subscription) || Number(user.amount_due) === 0;
         const phoneNumbers = user.phone_number ? user.phone_number.split('|').join(', ') : '-';
         const isSelected = selectedUsers.has(user.id);
         
@@ -365,7 +367,7 @@ function renderTable() {
                 <td>${user.subscription || '-'}</td>
                 <td><small>${user.device_id || '-'}</small></td>
                 <td class="text-center">
-                    ${isWaived ?
+                    ${(isWaived || isFree) ?
                         '<span class="badge badge-info status-badge" title="Bebas tagihan / gratis">GRATIS</span>' :
                       isPaid ?
                         '<span class="badge badge-success status-badge">Sudah Bayar</span>' :
