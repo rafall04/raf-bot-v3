@@ -3,8 +3,8 @@
  * Purpose: Contract/e2e audit pack provider-side untuk surface customer API yang dikonsumsi portal eksternal seperti `raff-panel-2`.
  * Caller: Jest test runner dan gate verifikasi integrasi customer portal.
  * Deps: `routes/public.js`, `lib/services/public-auth-service.js`, `lib/customer-token.js`, Express, HTTP server, dan mock boundary service customer/report/speed/wifi/public.
- * MainFuncs: `createApp`, `startServer`, `createCustomerToken`, suite `public customer API contract`.
- * SideEffects: Menjalankan router HTTP in-memory, memverifikasi JWT customer issuer/audience, tanpa menyentuh database atau jaringan eksternal riil.
+ * MainFuncs: `createApp`, `startServer`, `fetch` (shim retry transport tahan-flake), `createCustomerToken`, suite `public customer API contract`.
+ * SideEffects: Menjalankan router HTTP in-memory via server ephemeral; request dikirim lewat shim `fetch` ber-retry transport (anti flake "fetch failed" saat full-suite --runInBand), tanpa mengubah kontrak; memverifikasi JWT customer issuer/audience, tanpa menyentuh database atau jaringan eksternal riil.
  */
 "use strict";
 
@@ -217,6 +217,60 @@ function createApp() {
     return app;
 }
 
+// ── Transport hardening (BUKAN bagian kontrak) ──────────────────────────────
+// Saat `npm test` (jest --runInBand, ratusan suite serial dalam 1 proses),
+// global fetch (undici) sesekali melempar "TypeError: fetch failed" ke server
+// lokal yang SEHAT — socket keep-alive basi / tekanan GC pada connection pool,
+// bukan bug router. Gejalanya: suite ini hijau 59/59 standalone tapi kadang
+// merah di sebagian full-run (nondeterministik). Kita bungkus fetch dengan
+// retry singkat pada kegagalan TRANSPORT saja; bentuk request & response
+// (kontrak yang diuji) tidak diubah sama sekali.
+const RAW_FETCH = globalThis.fetch.bind(globalThis);
+const FETCH_MAX_ATTEMPTS = 4;
+const FETCH_RETRY_BASE_DELAY_MS = 25;
+
+function isTransientFetchError(error) {
+    if (!error) {
+        return false;
+    }
+    // undici membungkus kegagalan socket sebagai TypeError "fetch failed" + .cause
+    if (error.name === "TypeError" && /fetch failed/i.test(String(error.message))) {
+        return true;
+    }
+    const transientCodes = new Set([
+        "ECONNRESET",
+        "ECONNREFUSED",
+        "EPIPE",
+        "ETIMEDOUT",
+        "UND_ERR_SOCKET",
+        "UND_ERR_CONNECT_TIMEOUT"
+    ]);
+    const causeCode = error.cause && error.cause.code;
+    return transientCodes.has(error.code) || transientCodes.has(causeCode);
+}
+
+// Shadow global `fetch` untuk seluruh file: semua pemanggilan `fetch(...)` di
+// bawah otomatis memakai versi tahan-flake ini (lexical scoping), tanpa perlu
+// menyentuh body test. fetch hanya throw pada kegagalan JARINGAN (bukan status
+// HTTP), jadi retry hanya menyentuh error transport; server test fresh + service
+// di-mock membuat pengulangan request aman.
+async function fetch(input, init) {
+    let lastError;
+    for (let attempt = 1; attempt <= FETCH_MAX_ATTEMPTS; attempt += 1) {
+        try {
+            return await RAW_FETCH(input, init);
+        } catch (error) {
+            lastError = error;
+            if (attempt === FETCH_MAX_ATTEMPTS || !isTransientFetchError(error)) {
+                throw error;
+            }
+            // backoff linear kecil: beri connection pool undici waktu memulihkan socket
+            await new Promise((resolve) => setTimeout(resolve, FETCH_RETRY_BASE_DELAY_MS * attempt));
+        }
+    }
+    throw lastError;
+}
+
 async function startServer(app) {
     const server = http.createServer(app);
     await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -264,6 +318,10 @@ function listTempTestFiles(dirPath) {
         return entry.isDirectory() ? listTempTestFiles(entryPath) : [entryPath];
     });
 }
+
+// Longgarkan timeout default (5s): di bawah beban full-suite, request + retry
+// transport tak boleh keburu timeout dan menyamar jadi kegagalan kontrak.
+jest.setTimeout(20000);
 
 describe("public customer API contract", () => {
     beforeEach(() => {
