@@ -5,18 +5,35 @@ function readView(filename) {
   return fs.readFileSync(path.join(__dirname, '..', 'sb-admin', filename), 'utf8');
 }
 
+// Aset sidebar (CSS/JS) diekstrak dari navbar ke static/ — lihat boundary-log #b126.
+function readStatic(...segments) {
+  return fs.readFileSync(path.join(__dirname, '..', '..', 'static', ...segments), 'utf8');
+}
+
 describe('admin and teknisi shell hardening', () => {
   test('teknisi navbar uses safe landing route and compact mobile drawer hooks', () => {
     const source = readView('_navbar_teknisi.php');
 
+    // Navbar tetap memegang: rute pendaratan aman + markup drawer mobile.
     expect(source).toContain('href="/teknisi-pelanggan"');
     expect(source).not.toContain('href="/"');
-    expect(source).toContain('width: min(78vw, 15rem) !important;');
     expect(source).toContain('class="mobile-sidebar-head d-md-none"');
     expect(source).toContain('id="mobileSidebarClose"');
-    expect(source).toContain('sidebar.querySelectorAll(\'.collapse-item[href], .nav-link[href]:not([data-toggle="collapse"])\')');
-    expect(source).toContain('closeMobileDrawerAndCollapse');
     expect(source).toContain('Navigasi cepat teknisi');
+
+    // CSS/JS sidebar diekstrak ke static/ (boundary #b126) — navbar hanya menautkannya,
+    // JANGAN di-inline lagi. Hook drawer kompakt kini diuji di berkas asetnya.
+    expect(source).toContain("rafAssetUrl('/css/sidebar.css')");
+    expect(source).toContain("rafAssetUrl('/js/sidebar.js')");
+
+    const sidebarCss = readStatic('css', 'sidebar.css');
+    expect(sidebarCss).toContain('width: min(78vw, 15rem) !important;');
+    expect(sidebarCss).toContain('.mobile-sidebar-head {');
+
+    const sidebarJs = readStatic('js', 'sidebar.js');
+    expect(sidebarJs).toContain('sidebar.querySelectorAll(\'.collapse-item[href], .nav-link[href]:not([data-toggle="collapse"])\')');
+    expect(sidebarJs).toContain('closeMobileDrawerAndCollapse');
+    expect(sidebarJs).toContain("getElementById('mobileSidebarClose')");
   });
 
   test('role-aware helper routes admin-like users to admin shell and technicians to teknisi shell', () => {
