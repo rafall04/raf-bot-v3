@@ -212,8 +212,11 @@ function createAdminBroadcastService(overrides = {}) {
         for (let index = 0; index < targetUsers.length; index += 1) {
             const user = targetUsers[index];
             const numbers = buildPhoneTargets(user);
+            // Nama disimpan bersama tiap hasil kirim agar riwayat bisa menampilkan "terkirim/gagal ke SIAPA"
+            // walau pelanggan kelak diubah/dihapus (denormalisasi sengaja — potret saat broadcast).
+            const userName = user?.name || null;
             if (numbers.length === 0) {
-                failureByUserId.push({ user_id: user?.id ?? null, reason: "missing_phone_number" });
+                failureByUserId.push({ user_id: user?.id ?? null, name: userName, reason: "missing_phone_number" });
                 continue;
             }
 
@@ -223,15 +226,17 @@ function createAdminBroadcastService(overrides = {}) {
                 if (result && result.sent === false) {
                     failureByUserId.push({
                         user_id: user?.id ?? null,
+                        name: userName,
                         reason: result.errorCode || "delivery_failed",
                         warning: result.warning || null
                     });
                 } else {
-                    successByUserId.push({ user_id: user?.id ?? null, recipients: result?.recipients || numbers });
+                    successByUserId.push({ user_id: user?.id ?? null, name: userName, recipients: result?.recipients || numbers });
                 }
             } catch (error) {
                 failureByUserId.push({
                     user_id: user?.id ?? null,
+                    name: userName,
                     reason: "send_exception",
                     warning: error.message
                 });
@@ -399,7 +404,8 @@ function createAdminBroadcastService(overrides = {}) {
                     total_failed: failureByUserId.length,
                     force_include_opt_out: forceIncludeOptOut ? 1 : 0,
                     operator: input.operator || "system",
-                    failed_user_ids_json: failureByUserId
+                    failed_user_ids_json: failureByUserId,
+                    sent_user_ids_json: successByUserId
                 });
             });
 

@@ -44,6 +44,50 @@ describe("admin-broadcast.service", () => {
         await expect(emptyTargetService.queueBroadcast({ text: "x", sendToAll: false, selectedUsers: [] }))
             .rejects.toMatchObject({ statusCode: 400 });
     });
+
+    test("queueBroadcast mencatat riwayat: daftar penerima SUKSES & GAGAL beserta nama + alasan", async () => {
+        const insertHistory = jest.fn(() => Promise.resolve("bcast_test"));
+        const sendMessageToMany = jest.fn((numbers) => Promise.resolve({ sent: true, recipients: numbers }));
+        const service = createAdminBroadcastService({
+            hasAuthenticatedSession: () => true,
+            sendMessageToMany,
+            normalizePhoneNumber: (value) => (value ? String(value) : null),
+            historyRepository: { insertHistory },
+            getConfig: () => ({ messageDelayMs: 0, jitterMs: 0 }),
+            wait: () => Promise.resolve()
+        });
+
+        const result = await service.queueBroadcast({
+            text: "Halo ${nama}",
+            mode: "manual",
+            forceIncludeOptOut: true,
+            operator: "raf",
+            selectedUsers: [
+                { id: 1, name: "Budi", phone_number: "08111" },
+                { id: 2, name: "Sinta", phone_number: "" } // tanpa HP → gagal
+            ]
+        });
+        expect(result.status).toBe(202);
+
+        // Tunggu broadcastPromise (fire-and-forget) + recordHistory selesai.
+        for (let i = 0; i < 6; i += 1) {
+            await new Promise((resolve) => setImmediate(resolve));
+        }
+
+        expect(insertHistory).toHaveBeenCalledTimes(1);
+        const entry = insertHistory.mock.calls[0][0];
+        expect(entry.total_sent).toBe(1);
+        expect(entry.total_failed).toBe(1);
+        expect(entry.operator).toBe("raf");
+        // Penerima SUKSES tersimpan dengan nama (jawab "terkirim ke siapa").
+        expect(entry.sent_user_ids_json).toEqual([
+            expect.objectContaining({ user_id: 1, name: "Budi" })
+        ]);
+        // Penerima GAGAL tersimpan dengan nama + alasan.
+        expect(entry.failed_user_ids_json).toEqual([
+            expect.objectContaining({ user_id: 2, name: "Sinta", reason: "missing_phone_number" })
+        ]);
+    });
 });
 
 describe("formatBroadcastMessage — placeholder pembayaran", () => {

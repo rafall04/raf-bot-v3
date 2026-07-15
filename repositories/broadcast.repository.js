@@ -41,7 +41,8 @@ function normalizeRow(row) {
     return {
         ...row,
         force_include_opt_out: row.force_include_opt_out === 1,
-        failed_user_ids: parseJson(row.failed_user_ids_json, [])
+        failed_user_ids: parseJson(row.failed_user_ids_json, []),
+        sent_user_ids: parseJson(row.sent_user_ids_json, [])
     };
 }
 
@@ -103,9 +104,16 @@ function createBroadcastRepository(overrides = {}) {
                 total_failed INTEGER NOT NULL DEFAULT 0,
                 force_include_opt_out INTEGER NOT NULL DEFAULT 0,
                 operator TEXT,
-                failed_user_ids_json TEXT NOT NULL DEFAULT '[]'
+                failed_user_ids_json TEXT NOT NULL DEFAULT '[]',
+                sent_user_ids_json TEXT NOT NULL DEFAULT '[]'
             )
         `);
+        // Migrasi DB lama: tambah kolom daftar penerima SUKSES bila belum ada (dulu hanya daftar GAGAL
+        // yang disimpan). Idempoten — hanya ALTER bila kolom benar-benar hilang.
+        const columns = await all("PRAGMA table_info(broadcast_history)");
+        if (!columns.some((column) => column.name === "sent_user_ids_json")) {
+            await run("ALTER TABLE broadcast_history ADD COLUMN sent_user_ids_json TEXT NOT NULL DEFAULT '[]'");
+        }
         await run("CREATE INDEX IF NOT EXISTS idx_broadcast_history_started ON broadcast_history(started_at)");
         await run("CREATE INDEX IF NOT EXISTS idx_broadcast_history_mode ON broadcast_history(mode)");
         schemaReady = true;
@@ -118,8 +126,8 @@ function createBroadcastRepository(overrides = {}) {
             INSERT INTO broadcast_history (
                 id, started_at, finished_at, mode, filter, template_key,
                 message_preview, total_targets, total_sent, total_failed,
-                force_include_opt_out, operator, failed_user_ids_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                force_include_opt_out, operator, failed_user_ids_json, sent_user_ids_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             id,
             entry.started_at || new Date().toISOString(),
@@ -133,7 +141,8 @@ function createBroadcastRepository(overrides = {}) {
             Number(entry.total_failed) || 0,
             entry.force_include_opt_out ? 1 : 0,
             entry.operator || null,
-            stringifyJson(entry.failed_user_ids_json, [])
+            stringifyJson(entry.failed_user_ids_json, []),
+            stringifyJson(entry.sent_user_ids_json, [])
         ]);
         return id;
     }

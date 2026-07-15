@@ -19,6 +19,14 @@
     let templates = [];               // [{id,label,key}]
     let currentTemplateId = "";       // id template terpilih
     let lastLoadedTemplateText = "";  // teks yang terakhir kita isikan otomatis (deteksi edit manual)
+    let historyRows = [];             // baris riwayat terakhir dimuat (untuk detail penerima per baris)
+
+    // Alasan gagal (dari mesin broadcast) → label ramah untuk ditampilkan ke admin.
+    const FAIL_REASON_LABEL = {
+        missing_phone_number: "Tanpa No HP",
+        delivery_failed: "Gagal terkirim",
+        send_exception: "Error saat kirim"
+    };
 
     const el = (id) => document.getElementById(id);
 
@@ -238,23 +246,77 @@
         }
     }
 
+    function fmtTime(iso) {
+        if (!iso) return "";
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return escapeHtml(iso);
+        return d.toLocaleString("id-ID", {
+            day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"
+        });
+    }
+
+    // Susun daftar penerima (sukses/gagal) untuk modal detail. `kind`: "sent" | "failed".
+    function recipientListHtml(list, kind) {
+        if (!Array.isArray(list) || !list.length) {
+            return '<div class="text-muted">Detail penerima tidak tersimpan untuk broadcast ini (kemungkinan broadcast lama).</div>';
+        }
+        const items = list.map((r) => {
+            const name = (r && r.name) || (r && r.user_id != null ? `ID ${r.user_id}` : "?");
+            let extra = "";
+            if (kind === "failed") {
+                const reason = FAIL_REASON_LABEL[r && r.reason] || (r && r.reason) || "gagal";
+                extra = ` <span style="color:#e74a3b;">— ${escapeHtml(reason)}</span>`;
+            } else if (r && Array.isArray(r.recipients) && r.recipients.length) {
+                extra = ` <span class="text-muted">(${escapeHtml(r.recipients.join(", "))})</span>`;
+            }
+            return `<li style="text-align:left; padding:2px 0;">${escapeHtml(name)}${extra}</li>`;
+        }).join("");
+        return `<ol style="text-align:left; max-height:50vh; overflow:auto; padding-left:1.4rem; margin:0;">${items}</ol>`;
+    }
+
+    function showRecipients(idx, kind) {
+        const row = historyRows[idx];
+        if (!row) return;
+        const list = kind === "failed" ? row.failed_user_ids : row.sent_user_ids;
+        const count = Array.isArray(list) ? list.length : 0;
+        Swal.fire({
+            icon: kind === "failed" ? "error" : "success",
+            title: kind === "failed" ? `Gagal terkirim (${count})` : `Terkirim ke (${count})`,
+            html: recipientListHtml(list, kind),
+            confirmButtonText: "Tutup",
+            width: 540
+        });
+    }
+
     async function loadHistory() {
         const resp = await apiFetch("/api/broadcast/history?limit=20");
         const raw = resp.data && resp.data.data;
         const rows = Array.isArray(raw) ? raw : (raw && raw.items) || [];
+        historyRows = rows;
         const tbody = el("history-tbody");
         if (!rows.length) {
             tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Belum ada riwayat.</td></tr>';
             return;
         }
-        tbody.innerHTML = rows.map((r) => `<tr>
-            <td>${escapeHtml(r.finished_at || r.started_at || "")}</td>
-            <td>${escapeHtml(r.operator || "")}</td>
-            <td>${escapeHtml(r.template_key || "-")}</td>
-            <td class="text-right">${r.total_targets || 0}</td>
-            <td class="text-right text-success">${r.total_sent || 0}</td>
-            <td class="text-right text-danger">${r.total_failed || 0}</td>
-        </tr>`).join("");
+        tbody.innerHTML = rows.map((r, i) => {
+            const sent = r.total_sent || 0;
+            const failed = r.total_failed || 0;
+            // Angka jadi tautan bila >0 → klik untuk lihat SIAPA yang terkirim/gagal.
+            const sentCell = sent > 0
+                ? `<a href="#" class="bc-recipients" data-idx="${i}" data-kind="sent" title="Lihat penerima">${sent}</a>`
+                : "0";
+            const failedCell = failed > 0
+                ? `<a href="#" class="bc-recipients" data-idx="${i}" data-kind="failed" title="Lihat yang gagal">${failed}</a>`
+                : "0";
+            return `<tr>
+                <td>${fmtTime(r.finished_at || r.started_at || "")}</td>
+                <td>${escapeHtml(r.operator || "")}</td>
+                <td>${escapeHtml(r.template_key || "-")}</td>
+                <td class="text-right">${r.total_targets || 0}</td>
+                <td class="text-right text-success">${sentCell}</td>
+                <td class="text-right text-danger">${failedCell}</td>
+            </tr>`;
+        }).join("");
     }
 
     function init() {
@@ -265,6 +327,13 @@
         el("template-select").addEventListener("change", onTemplateChange);
         el("preview-btn").addEventListener("click", doPreview);
         el("send-btn").addEventListener("click", doSend);
+        // Delegasi: klik angka Sukses/Gagal di riwayat → modal daftar penerima.
+        el("history-tbody").addEventListener("click", (ev) => {
+            const link = ev.target.closest(".bc-recipients");
+            if (!link) return;
+            ev.preventDefault();
+            showRecipients(Number(link.dataset.idx), link.dataset.kind);
+        });
         loadCustomers();
         loadTemplates();
         loadHistory();
