@@ -1,8 +1,21 @@
 # Blueprint: State & Diagnosa Modem OLT
 
-> **Status: DESIGN (di atas kertas) — belum diimplementasi.** Disusun 2026-07-15.
 > Dokumen acuan untuk membangun *state modem OLT yang tersimpan* (bukan sekadar log event),
-> untuk dua tujuan sekaligus: **(1) analisa mendalam oleh admin** dan **(2) self-service pelanggan via bot WhatsApp** yang aman.
+> untuk dua tujuan sekaligus: **(1) analisa mendalam oleh admin** dan **(2) self-service pelanggan via bot WhatsApp** yang aman. Disusun 2026-07-15.
+>
+> ## Status implementasi (2026-07-15)
+> **ENGINE CODE-COMPLETE + TERUJI (135 tes hijau), mode SHADOW (gated `config.oltModemState`, default aktif, tak menyentuh deteksi/broadcast LOS):**
+> - ✅ **Fase 1** — `repositories/olt-incident.repository.js` (`olt_state.sqlite`: `olt_incidents` + `olt_modem_state`) + `lib/olt-incident-projector.js` (idempoten, waktu-server, inferensi reboot, reklasifikasi LOS→DG, tag area) + hook di `lib/olt-event-logger.recordOltEventSafe` (feeder syslog+scrape HIOSO).
+> - ✅ **Fase 2** — `lib/olt-state-maintenance.js` (reconcile insiden nyangkut + prune + backfill/rebuild dari `olt_events`), di-wire di `lib/app-runtime.js`.
+> - ✅ **Fase 3** — `lib/olt-modem-diagnostics.js` (metrik uptime/MTBF/MTTR + verdict pola: reboot terjadwal/listrik/LOS/flapping/area + 2 rendering).
+> - ✅ **Fase 4 (inti)** — read API `routes/olt-state.js` (`/api/olt/modem-state|incidents|diagnosis`) + fusi pelanggan `lib/olt-customer-connection.js` (OLT+PPPoE+billing, konservatif, privat).
+>
+> **SISA (langkah berikutnya, building block sudah siap):**
+> - ⏳ Halaman diagnosa per-pelanggan (admin/teknisi) — data sudah query-able via read API.
+> - ⏳ Command WA self-service pelanggan (pakai `buildCustomerConnectionSummary`, wajib scope pengirim + baca cache).
+> - ⏳ ZTE via SNMP `onuStateDetail` → funnel ke projector (kini hanya HIOSO log).
+> - ⏳ Fase 5 aksi (usul tiket modem kronis).
+> - ⏳ **KALIBRASI ambang (§14) dari telemetri shadow NYATA → baru AKTIFKAN konsumen.** Shadow harus jalan dulu kumpulkan data.
 
 ---
 
