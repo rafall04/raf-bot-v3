@@ -4,7 +4,7 @@
 > untuk dua tujuan sekaligus: **(1) analisa mendalam oleh admin** dan **(2) self-service pelanggan via bot WhatsApp** yang aman. Disusun 2026-07-15.
 >
 > ## Status implementasi (2026-07-15)
-> **ENGINE CODE-COMPLETE + TERUJI (135 tes hijau), mode SHADOW (gated `config.oltModemState`, default aktif, tak menyentuh deteksi/broadcast LOS):**
+> **ENGINE CODE-COMPLETE + TERUJI (135 tes hijau) + DEPLOYED DARK 2 BOT prod (commit d0db0db).** Boot backfill: DANDER 468 event / TANJUNG 410 event → state modem; read API terverifikasi (mis. Poskamling RT11 → verdict `frequent_power`, 7× dying-gasp/30hr). Mode SHADOW (gated `config.oltModemState`, default aktif, tak menyentuh deteksi/broadcast LOS):
 > - ✅ **Fase 1** — `repositories/olt-incident.repository.js` (`olt_state.sqlite`: `olt_incidents` + `olt_modem_state`) + `lib/olt-incident-projector.js` (idempoten, waktu-server, inferensi reboot, reklasifikasi LOS→DG, tag area) + hook di `lib/olt-event-logger.recordOltEventSafe` (feeder syslog+scrape HIOSO).
 > - ✅ **Fase 2** — `lib/olt-state-maintenance.js` (reconcile insiden nyangkut + prune + backfill/rebuild dari `olt_events`), di-wire di `lib/app-runtime.js`.
 > - ✅ **Fase 3** — `lib/olt-modem-diagnostics.js` (metrik uptime/MTBF/MTTR + verdict pola: reboot terjadwal/listrik/LOS/flapping/area + 2 rendering).
