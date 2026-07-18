@@ -335,7 +335,9 @@
     "batchPauseMs": 60000,
     "maxPerRun": 0,
     "breakerThreshold": 6,
-    "minGapMs": 0
+    "minGapMs": 0,
+    "validateOnWhatsApp": false,
+    "waRecheckDays": 30
   },
   "paymentRequestDigest": {
     "enabled": false,

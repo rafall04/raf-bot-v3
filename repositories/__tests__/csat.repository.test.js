@@ -112,6 +112,17 @@ describe("csat.repository", () => {
         expect(jun.avg).toBeCloseTo(3, 5);
     });
 
+    test("opt-out survei PERMANEN: set/is/list/clear", async () => {
+        expect(await repo.isSurveyOptedOut(1)).toBe(false);
+        await repo.setSurveyOptout({ user_id: 1, canonical_jid: "628a@s.whatsapp.net", reason: "balas STOP" });
+        expect(await repo.isSurveyOptedOut(1)).toBe(true);
+        const list = await repo.listOptouts();
+        expect(list).toHaveLength(1);
+        expect(list[0].user_id).toBe("1");
+        expect(await repo.clearOptout(1)).toBe(1);
+        expect(await repo.isSurveyOptedOut(1)).toBe(false);
+    });
+
     test("setOptout menghentikan status aktif", async () => {
         const { id } = await repo.upsertPending({ user_id: 10, period: "2026-07" });
         await repo.markSent(id, { sent_at: "2026-07-22 09:30:00", expires_at: "2026-07-25 09:30:00" });

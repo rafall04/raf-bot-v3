@@ -75,6 +75,12 @@ function createCsatRepository(overrides = {}) {
             UNIQUE(user_id, period))`);
         await run(db, "CREATE INDEX IF NOT EXISTS idx_csat_active ON csat_surveys(user_id, status)");
         await run(db, "CREATE INDEX IF NOT EXISTS idx_csat_period ON csat_surveys(period)");
+        // Opt-out survei PERMANEN (pelanggan balas STOP). HANYA survei — tagihan/isolir tak tersentuh.
+        await run(db, `CREATE TABLE IF NOT EXISTS csat_optout (
+            user_id TEXT PRIMARY KEY,
+            canonical_jid TEXT,
+            reason TEXT,
+            opted_out_at TEXT)`);
     }
 
     function getDb() {
@@ -243,6 +249,34 @@ function createCsatRepository(overrides = {}) {
             return all(db,
                 "SELECT name, phone FROM csat_surveys WHERE period=? AND status IN ('sent','rated','done') AND score IS NULL ORDER BY id ASC",
                 [period]);
+        },
+
+        // ── Opt-out survei PERMANEN (survey-scoped; tagihan/isolir TAK terpengaruh) ──
+        async setSurveyOptout({ user_id, canonical_jid = null, reason = "balas STOP" }) {
+            const db = await getDb();
+            await run(db,
+                `INSERT INTO csat_optout (user_id, canonical_jid, reason, opted_out_at)
+                 VALUES (?,?,?,?)
+                 ON CONFLICT(user_id) DO UPDATE SET canonical_jid=excluded.canonical_jid, reason=excluded.reason, opted_out_at=excluded.opted_out_at`,
+                [String(user_id), canonical_jid, reason, now()]);
+        },
+
+        async isSurveyOptedOut(user_id) {
+            if (user_id === undefined || user_id === null) return false;
+            const db = await getDb();
+            const row = await get(db, "SELECT 1 AS ada FROM csat_optout WHERE user_id=? LIMIT 1", [String(user_id)]);
+            return Boolean(row);
+        },
+
+        async listOptouts() {
+            const db = await getDb();
+            return all(db, "SELECT user_id, canonical_jid, reason, opted_out_at FROM csat_optout ORDER BY opted_out_at DESC", []);
+        },
+
+        async clearOptout(user_id) {
+            const db = await getDb();
+            const res = await run(db, "DELETE FROM csat_optout WHERE user_id=?", [String(user_id)]);
+            return res.changes;
         },
 
         async close() {

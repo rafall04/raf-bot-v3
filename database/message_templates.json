@@ -41,7 +41,7 @@
   },
   "rating_survey": {
     "name": "Survei Kepuasan — Ajakan Rating (Cron CSAT)",
-    "template": "{Halo|Hai|Selamat siang} Kak ${nama_pelanggan} 🙏\n\n{Boleh minta waktu sebentar?|Mohon waktunya sebentar ya.|Izin bertanya sebentar, Kak.} Kami dari *${nama_wifi}* {ingin dengar|pengin tahu|penasaran dengan} pengalaman Anda {memakai|pakai} internet kami bulan ini.\n\n{Beri nilai|Kasih nilai|Rating} *1-5* ya, Kak:\n1 = sangat kurang\n5 = sangat puas\n\n{Cukup balas *angkanya* saja|Balas *angkanya* saja ya|Ketik *angka 1-5* aja} 🙏"
+    "template": "{Halo|Hai|Selamat siang} Kak ${nama_pelanggan} 🙏\n\n{Boleh minta waktu sebentar?|Mohon waktunya sebentar ya.|Izin bertanya sebentar, Kak.} Kami dari *${nama_wifi}* {ingin dengar|pengin tahu|penasaran dengan} pengalaman Anda {memakai|pakai} internet kami bulan ini.\n\n{Beri nilai|Kasih nilai|Rating} *1-5* ya, Kak:\n1 = sangat kurang\n5 = sangat puas\n\n{Cukup balas *angkanya* saja|Balas *angkanya* saja ya|Ketik *angka 1-5* aja} 🙏\n\n_{Ketik|Balas} *STOP* {kalau|jika} tak mau {menerima|dapat} survei lagi._"
   },
   "rating_followup_low": {
     "name": "Survei Kepuasan — Tindak Lanjut Skor Rendah",
