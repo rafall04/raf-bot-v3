@@ -363,18 +363,26 @@ module.exports = async (raf, msg, m, options = {}) => {
     // Cek murah: service balik `false` cepat bila pelanggan tak punya survei aktif → pesan
     // lanjut ke pipeline normal (tak pernah membajak pesan sungguhan). Balasan lewat originalReply
     // (jalur sendReply tersanksi, BUKAN sendMessage mentah). Lihat lib/csat/csat-survey-service.js.
-    if (!isOwner && !isTeknisi && canonicalContext.user && global.config?.csatSurvey?.enabled === true) {
-        try {
-            const csatSurvey = require('../lib/csat/csat-survey-service');
-            const handledCsat = await csatSurvey.handleInboundReply({
-                user: canonicalContext.user,
-                text: chats,
-                reply: originalReply,
-                logger: console
-            });
-            if (handledCsat) return;
-        } catch (csatErr) {
-            console.error('[CSAT_REPLY_HOOK_ERROR]', csatErr && csatErr.message);
+    const csatCfg = global.config?.csatSurvey || {};
+    if (csatCfg.enabled === true && canonicalContext.user) {
+        // Normal: HANYA pelanggan non-staf (staf tak disurvei). MODE TES (csatSurvey.testPhone diset):
+        // nomor tes itu diizinkan menembus gerbang staf agar alur bisa diuji end-to-end pada nomor mana pun.
+        const testDigits = csatCfg.testPhone ? String(csatCfg.testPhone).replace(/\D/g, '') : '';
+        const senderDigits = String(canonicalContext.phoneNumber || plainSenderNumber || '').replace(/\D/g, '');
+        const isCsatTestNumber = testDigits.length > 7 && senderDigits.endsWith(testDigits.slice(-9));
+        if (isCsatTestNumber || (!isOwner && !isTeknisi)) {
+            try {
+                const csatSurvey = require('../lib/csat/csat-survey-service');
+                const handledCsat = await csatSurvey.handleInboundReply({
+                    user: canonicalContext.user,
+                    text: chats,
+                    reply: originalReply,
+                    logger: console
+                });
+                if (handledCsat) return;
+            } catch (csatErr) {
+                console.error('[CSAT_REPLY_HOOK_ERROR]', csatErr && csatErr.message);
+            }
         }
     }
 
