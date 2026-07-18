@@ -3,7 +3,7 @@
  * Purpose: Menjadi owner orchestration domain API voucher untuk generate/send voucher, member credential delivery, dan statistik/history voucher API.
  * Caller: `routes/api-voucher-routes.js`.
  * Deps: `repositories/api-voucher.repository.js`, delivery WhatsApp terpusat, template renderer, dan adapter generate voucher/PHP.
- * MainFuncs: `createApiVoucherService`, `listVoucherProfiles`, `generateAndSendVouchers`, `listSentHistory`, `getSentStats`, `sendMemberCredentials`, `resendVoucherCode`.
+ * MainFuncs: `createApiVoucherService`, `listVoucherProfiles`, `generateAndSendVouchers`, `listSentHistory`, `getSentStats`, `sendMemberCredentials`, `resendVoucherCode`, `reissueVoucher`.
  * SideEffects: Membaca katalog voucher, membaca/menulis history pengiriman, memanggil adapter generate voucher/PHP, dan mengirim pesan WhatsApp.
  */
 "use strict";
@@ -17,6 +17,11 @@ function defaultDeps() {
         renderTemplate: null,
         sendMessageToMany: null,
         ensureJid: null,
+        // Generator voucher MikroTik + helper profil/payment untuk "terbitkan ulang" (reissue).
+        getvoucher: null,
+        checkprofvc: null,
+        updateKetPayment: null,
+        updateStatusPayment: null,
         resolveVoucherDeliveryStatus: null,
         buildVoucherSentHistoryEntries: null,
         logger: console
@@ -307,6 +312,62 @@ function createApiVoucherService(overrides = {}) {
                 return { status: 503, body: { status: 503, message: "WhatsApp belum terhubung — kode belum terkirim. Scan ulang QR WhatsApp bot lalu coba lagi. Sementara, salin kode ini & kirim manual.", code } };
             }
             return { status: 200, body: { status: 200, message: "Kode voucher dikirim ulang ke WhatsApp pembeli.", code } };
+        },
+
+        // Terbitkan ULANG voucher untuk transaksi yang SUDAH DIBAYAR tapi voucher-nya GAGAL terbit
+        // (mis. MikroTik down saat callback). Generate voucher BARU via getvoucher, simpan kode +
+        // tandai lunas, lalu kirim ke WA pembeli. NON-IDEMPOTENT: route wajib memvalidasi record
+        // belum punya kode + mengunci per-reff agar klik ganda tak membuat voucher dobel.
+        async reissueVoucher({ reff, amount, sender, namaPaket }) {
+            if (!reff || !sender) {
+                return { status: 400, body: { status: 400, message: "Ref & nomor pembeli diperlukan" } };
+            }
+            if (typeof deps.getvoucher !== "function" || typeof deps.checkprofvc !== "function") {
+                return { status: 500, body: { status: 500, message: "Generator voucher tidak tersedia (dependency belum diinjeksi)." } };
+            }
+            const amt = parseInt(amount, 10) || 0;
+            const prof = deps.checkprofvc(String(amt));
+            if (!prof) {
+                return { status: 422, body: { status: 422, message: "Profil voucher untuk nominal Rp" + amt.toLocaleString("id-ID") + " tidak ada di katalog." } };
+            }
+            let voucherResult;
+            try {
+                voucherResult = await deps.getvoucher(prof, sender, { caller: "api.voucher.reissue" });
+            } catch (err) {
+                return { status: 502, body: { status: 502, message: "Gagal generate voucher: " + (err && err.message ? err.message : "error MikroTik") } };
+            }
+            if (!voucherResult || !voucherResult.ok) {
+                return { status: 502, body: { status: 502, message: "Gagal generate voucher: " + ((voucherResult && voucherResult.message) || "MikroTik menolak permintaan") } };
+            }
+            const code = (voucherResult.data && voucherResult.data.username) || voucherResult.message;
+            // Voucher berhasil dibuat → simpan kode + tandai lunas (record tak lagi "gagal terbit").
+            if (typeof deps.updateKetPayment === "function") deps.updateKetPayment(reff, String(code));
+            if (typeof deps.updateStatusPayment === "function") deps.updateStatusPayment(reff, true);
+            // Kirim ke WA pembeli (best-effort; kode sudah tersimpan & tampil di dashboard walau WA putus).
+            let message = deps.renderTemplate("voucher_purchase_success", {
+                nama_paket: namaPaket || prof,
+                harga: "Rp" + amt.toLocaleString("id-ID"),
+                kode_voucher: code
+            });
+            if (!message || typeof message !== "string" || message.startsWith("Error: Template")) {
+                message = `Kode voucher ${namaPaket || prof} Anda: ${code}`;
+            }
+            let sent = false;
+            try {
+                const delivery = await deps.sendMessageToMany([sender], { text: message });
+                sent = !!(delivery && delivery.sent);
+            } catch (_err) { sent = false; }
+            return {
+                status: 200,
+                body: {
+                    status: 200,
+                    code: String(code),
+                    sent,
+                    message: sent
+                        ? "Voucher diterbitkan ulang & kode dikirim ke WhatsApp pembeli."
+                        : "Voucher diterbitkan ulang (kode tersimpan). WhatsApp belum terhubung — salin kode & kirim manual."
+                }
+            };
         },
 
         async sendMemberCredentials({ userId, phones, notes, createdBy }) {

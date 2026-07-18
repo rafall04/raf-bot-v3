@@ -46,7 +46,7 @@
                         aksi = '<button type="button" class="vc-resend" data-ref="' + esc(x.ref) + '">Kirim ulang</button>';
                     } else if (x.failed) {
                         kode = '<span class="vc-badge-fail">⚠ gagal terbit</span>';
-                        aksi = '<span class="vc-muted">perlu terbitkan ulang</span>';
+                        aksi = '<button type="button" class="vc-reissue" data-ref="' + esc(x.ref) + '">Terbitkan ulang</button>';
                     } else {
                         kode = '<span class="vc-muted">—</span>';
                         aksi = '';
@@ -89,6 +89,24 @@
                         alert(m);
                     })
                     .catch(function () { rs.disabled = false; rs.textContent = orig; alert('Gagal menghubungi server.'); });
+                return;
+            }
+            var ri = e.target.closest && e.target.closest('.vc-reissue');
+            if (ri) {
+                var refI = ri.getAttribute('data-ref');
+                if (!refI) return;
+                if (!window.confirm('Terbitkan ulang voucher untuk transaksi ini?\n\nVoucher BARU akan dibuat di MikroTik. Pastikan voucher lama BENAR-BENAR gagal (cek MikroTik) supaya tidak dobel.')) return;
+                ri.disabled = true; var origI = ri.textContent; ri.textContent = 'Memproses…';
+                fetch('/api/voucher/reissue', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reff: refI }) })
+                    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+                    .then(function (res) {
+                        ri.disabled = false; ri.textContent = origI;
+                        var m = (res.j && res.j.message) || (res.ok ? 'Berhasil.' : 'Gagal.');
+                        if (res.j && res.j.code) m += '\n\nKode: ' + res.j.code;
+                        alert(m);
+                        if (res.ok) location.reload();
+                    })
+                    .catch(function () { ri.disabled = false; ri.textContent = origI; alert('Gagal menghubungi server.'); });
                 return;
             }
         });

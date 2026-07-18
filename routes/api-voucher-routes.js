@@ -13,7 +13,9 @@ const { createApiVoucherService } = require('../services/api-voucher.service');
 const { createVoucherPrintRepository } = require('../repositories/voucher-print.repository');
 const { createVoucherPrintService } = require('../services/voucher-print.service');
 const { createVoucherTrackingRepository } = require('../repositories/voucher-tracking.repository');
-const { addHotspotUsersBatch } = require('../lib/mikrotik');
+const { addHotspotUsersBatch, getvoucher } = require('../lib/mikrotik');
+const { checkprofvc } = require('../lib/voucher');
+const { updateKetPayment, updateStatusPayment } = require('../lib/payment');
 
 function createApiVoucherRouter({
     fs,
@@ -107,6 +109,10 @@ function createApiVoucherRouter({
         renderTemplate,
         sendMessageToMany,
         ensureJid,
+        getvoucher,
+        checkprofvc,
+        updateKetPayment,
+        updateStatusPayment,
         resolveVoucherDeliveryStatus,
         buildVoucherSentHistoryEntries,
         logger: console
@@ -271,6 +277,47 @@ function createApiVoucherRouter({
         } catch (e) {
             console.error('[VOUCHER_RESEND]', e && e.message);
             return res.status(500).json({ status: 500, message: 'Terjadi kesalahan saat kirim ulang.' });
+        }
+    });
+
+    // Kunci per-reff supaya klik "Terbitkan ulang" ganda tak memicu getvoucher dua kali (dobel voucher).
+    const _reissueInFlight = new Set();
+
+    // Terbitkan ULANG voucher untuk transaksi SUDAH DIBAYAR tapi voucher GAGAL terbit (beda dari
+    // resend yang butuh kode SUDAH ada). Generate voucher BARU → simpan kode → kirim WA.
+    // getvoucher non-idempotent → admin konfirmasi di UI + kunci in-flight di sini.
+    router.post('/voucher/reissue', requireStaff, async (req, res) => {
+        const reff = String((req.body && (req.body.reff || req.body.reference_id)) || '').trim();
+        if (!reff) return res.status(400).json({ status: 400, message: 'Ref transaksi kosong.' });
+        if (_reissueInFlight.has(reff)) {
+            return res.status(409).json({ status: 409, message: 'Transaksi ini sedang diterbitkan ulang — tunggu sebentar.' });
+        }
+        _reissueInFlight.add(reff);
+        try {
+            const payments = Array.isArray(global.payment) ? global.payment : [];
+            const rec = payments.find((p) => p && String(p.reffId) === reff);
+            if (!rec) return res.status(404).json({ status: 404, message: 'Transaksi tidak ditemukan.' });
+            if (!['buynowweb', 'buynow'].includes(rec.tag)) {
+                return res.status(400).json({ status: 400, message: 'Bukan transaksi voucher online.' });
+            }
+            if (!rec.status) {
+                return res.status(409).json({ status: 409, message: 'Transaksi belum dibayar — tidak bisa diterbitkan.' });
+            }
+            if (extractVoucherCode(rec.ket)) {
+                return res.status(409).json({ status: 409, message: 'Voucher sudah punya kode. Pakai "Kirim ulang", bukan terbitkan ulang.' });
+            }
+            if (!rec.sender) return res.status(400).json({ status: 400, message: 'Nomor pembeli tidak tercatat.' });
+            const vouchers = Array.isArray(global.voucher) ? global.voucher : [];
+            const amt = parseInt(rec.amount, 10) || 0;
+            const match = vouchers.find((v) => (parseInt(v.hargavc, 10) || 0) === amt);
+            const namaPaket = (match && (match.namavc || match.durasivc || match.prof)) || ('Rp' + amt.toLocaleString('id-ID'));
+            const result = await apiVoucherService.reissueVoucher({ reff, amount: amt, sender: rec.sender, namaPaket });
+            return res.status(result.status).json(result.body);
+        } catch (e) {
+            console.error('[VOUCHER_REISSUE]', e && e.message);
+            return res.status(500).json({ status: 500, message: 'Terjadi kesalahan saat terbitkan ulang.' });
+        } finally {
+            _reissueInFlight.delete(reff);
         }
     });
 

@@ -157,4 +157,50 @@ describe("api-voucher service", () => {
         expect(down.status).toBe(503);
         expect(down.body.code).toBe("abc123");
     });
+
+    test("reissueVoucher generates new voucher, saves code + marks paid, then delivers (200)", async () => {
+        const updateKetPayment = jest.fn();
+        const updateStatusPayment = jest.fn();
+        const sendMessageToMany = jest.fn().mockResolvedValue({ sent: true, recipients: ["6281@s.whatsapp.net"] });
+        const service = createApiVoucherService({
+            renderTemplate: jest.fn(() => "Voucher Text abc999"),
+            sendMessageToMany,
+            ensureJid: jest.fn((value) => `${String(value).replace(/\D/g, "")}@s.whatsapp.net`),
+            getvoucher: jest.fn().mockResolvedValue({ ok: true, data: { username: "abc999" }, message: "OK" }),
+            checkprofvc: jest.fn(() => "Paket-2Jam"),
+            updateKetPayment,
+            updateStatusPayment,
+            logger: { error: jest.fn(), warn: jest.fn(), log: jest.fn() }
+        });
+
+        const ok = await service.reissueVoucher({ reff: "R1", amount: 1000, sender: "081", namaPaket: "Paket 2 Jam" });
+        expect(ok.status).toBe(200);
+        expect(ok.body.code).toBe("abc999");
+        expect(updateKetPayment).toHaveBeenCalledWith("R1", "abc999");
+        expect(updateStatusPayment).toHaveBeenCalledWith("R1", true);
+        expect(sendMessageToMany).toHaveBeenCalledWith(["081"], { text: "Voucher Text abc999" });
+        expect(ok.body.sent).toBe(true);
+    });
+
+    test("reissueVoucher returns 502 and does NOT touch payment/WA when getvoucher fails", async () => {
+        const updateKetPayment = jest.fn();
+        const updateStatusPayment = jest.fn();
+        const sendMessageToMany = jest.fn();
+        const service = createApiVoucherService({
+            renderTemplate: jest.fn(() => "x"),
+            sendMessageToMany,
+            ensureJid: jest.fn((value) => value),
+            getvoucher: jest.fn().mockResolvedValue({ ok: false, message: "Profil Hotspot tidak ditemukan" }),
+            checkprofvc: jest.fn(() => "Paket-2Jam"),
+            updateKetPayment,
+            updateStatusPayment,
+            logger: { error: jest.fn(), warn: jest.fn(), log: jest.fn() }
+        });
+
+        const fail = await service.reissueVoucher({ reff: "R2", amount: 1000, sender: "081", namaPaket: "Paket 2 Jam" });
+        expect(fail.status).toBe(502);
+        expect(updateKetPayment).not.toHaveBeenCalled();
+        expect(updateStatusPayment).not.toHaveBeenCalled();
+        expect(sendMessageToMany).not.toHaveBeenCalled();
+    });
 });
