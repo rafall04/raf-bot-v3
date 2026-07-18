@@ -123,11 +123,12 @@ a{color:inherit;text-decoration:none}
   transition:transform .18s ease,border-color .18s ease,background .18s ease,box-shadow .18s ease;font-family:inherit}
 .pkg:hover{transform:translateY(-3px);border-color:rgba(45,212,191,.42);background:var(--surface-2);box-shadow:var(--shadow)}
 .pkg:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-.pkg-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.pkg-dur{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--accent-ink);background:var(--grad-soft);border:1px solid var(--chip-line);border-radius:999px;padding:5px 10px}
+.pkg-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:2px}
+.pkg-dur{display:inline-flex;align-items:center;gap:5px;flex:none;white-space:nowrap;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--accent-ink);background:var(--grad-soft);border:1px solid var(--chip-line);border-radius:999px;padding:5px 9px}
 .pkg-dur .di{flex:none}
-.pkg-badges{display:inline-flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.pkg-badge{white-space:nowrap}
+.pkg-badges{display:inline-flex;gap:5px;align-items:center;flex-wrap:wrap}
 .pkg-badge{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:4px 9px;white-space:nowrap}
 .pkg-badge.hemat{color:#04231f;background:var(--grad);box-shadow:0 5px 14px -6px rgba(45,212,191,.7)}
 .pkg-badge.feat{color:#fff;background:linear-gradient(135deg,#f59e0b,#f97316);box-shadow:0 6px 14px -6px rgba(245,158,11,.75)}
