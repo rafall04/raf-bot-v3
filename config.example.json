@@ -320,6 +320,12 @@
       "adminQuietMinutes": 15
     }
   },
+  "csatSurvey": {
+    "enabled": false,
+    "responseWindowDays": 3,
+    "commentWindowMinutes": 60,
+    "onlyPaid": true
+  },
   "paymentRequestDigest": {
     "enabled": false,
     "windowMinutes": 30

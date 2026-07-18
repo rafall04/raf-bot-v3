@@ -358,6 +358,26 @@ module.exports = async (raf, msg, m, options = {}) => {
         });
     }
 
+    // ── [SURVEI CSAT] Tangkap balasan survei kepuasan pelanggan (DURABLE, tahan restart). ──
+    // Hanya pelanggan terdaftar & saat fitur aktif (config.csatSurvey.enabled). Non-throwing.
+    // Cek murah: service balik `false` cepat bila pelanggan tak punya survei aktif → pesan
+    // lanjut ke pipeline normal (tak pernah membajak pesan sungguhan). Balasan lewat originalReply
+    // (jalur sendReply tersanksi, BUKAN sendMessage mentah). Lihat lib/csat/csat-survey-service.js.
+    if (!isOwner && !isTeknisi && canonicalContext.user && global.config?.csatSurvey?.enabled === true) {
+        try {
+            const csatSurvey = require('../lib/csat/csat-survey-service');
+            const handledCsat = await csatSurvey.handleInboundReply({
+                user: canonicalContext.user,
+                text: chats,
+                reply: originalReply,
+                logger: console
+            });
+            if (handledCsat) return;
+        } catch (csatErr) {
+            console.error('[CSAT_REPLY_HOOK_ERROR]', csatErr && csatErr.message);
+        }
+    }
+
     const botContext = buildBotContext({
         raf,
         msg,

@@ -39,6 +39,26 @@
     "name": "Notifikasi Isolir",
     "template": "Selamat Pagi Bpk/Ibu ${nama_pelanggan},\n\nDiberitahukan kepada pelanggan bahwa saat ini layanan anda terisolir karena adanya tagihan yang belum terbayarkan untuk periode ${periode}.\n\nMohon segera lakukan pembayaran agar layanan dapat aktif kembali.\n\n💳 Pembayaran via transfer ke:\n${rekening}\n\n*Abaikan pesan ini jika Anda sudah membayar.\n\n\nTerimakasih\nAdmin ${nama_wifi}"
   },
+  "rating_survey": {
+    "name": "Survei Kepuasan — Ajakan Rating (Cron CSAT)",
+    "template": "Halo Kak ${nama_pelanggan} 🙏\n\nBoleh minta waktu sebentar? Kami dari *${nama_wifi}* ingin dengar pengalaman Anda memakai internet kami bulan ini.\n\nBeri nilai *1-5* ya, Kak:\n1 = sangat kurang\n5 = sangat puas\n\nCukup balas *angkanya* saja 🙏"
+  },
+  "rating_followup_low": {
+    "name": "Survei Kepuasan — Tindak Lanjut Skor Rendah",
+    "template": "Terima kasih penilaiannya, Kak 🙏\n\nMohon maaf kalau ada yang kurang nyaman. Boleh cerita sedikit apa kendalanya? Masukan Kakak sangat kami butuhkan untuk perbaikan layanan. 🙏"
+  },
+  "rating_followup_high": {
+    "name": "Survei Kepuasan — Tindak Lanjut Skor Tinggi",
+    "template": "Alhamdulillah, terima kasih Kak 🙏\n\nSenang internetnya terasa nyaman. Kalau ada saran biar layanan kami makin oke, kami siap dengar ya 😊"
+  },
+  "rating_thanks": {
+    "name": "Survei Kepuasan — Terima Kasih",
+    "template": "Terima kasih banyak sudah berbagi, Kak 🙏\n\nSemua masukan Kakak kami catat sebagai bahan evaluasi supaya layanan *${nama_wifi}* makin nyaman. 🙏"
+  },
+  "rating_optout": {
+    "name": "Survei Kepuasan — Berhenti Survei",
+    "template": "Baik Kak, kami tidak akan mengirim survei lagi 🙏\n\nTerima kasih. Kalau sewaktu-waktu butuh bantuan, ketik *menu* ya. 😊"
+  },
   "compensation_applied": {
     "name": "Notifikasi Kompensasi Diberikan",
     "template": "Pelanggan Yth. ${nama_pelanggan},\n\nSebagai bentuk permintaan maaf kami, Anda mendapatkan kompensasi berupa peningkatan kecepatan internet.\n\nDetail Kompensasi:\n- Profil Baru: ${profileBaru}\n- Durasi: ${durasiLengkap}\n- Berlaku hingga: ${tanggalAkhir}\n\nSemoga layanan kami semakin memuaskan.\n\nSalam Hangat,\n*${nama_bot}*"

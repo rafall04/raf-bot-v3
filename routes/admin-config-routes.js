@@ -35,7 +35,9 @@ const CRON_SCHEDULE_FIELDS = [
     'schedule_isolir_notification',
     'schedule_compensation_revert',
     'check_schedule',
-    'schedule_telegram_backup'
+    'schedule_telegram_backup',
+    'schedule_rating_survey',
+    'schedule_rating_digest'
 ];
 
 const CRON_BOOLEAN_FIELDS = [
@@ -52,7 +54,9 @@ const CRON_BOOLEAN_FIELDS = [
     'status_message_sod_applied',
     'status_message_sod_reverted',
     'status_check_schedule',
-    'status_telegram_backup'
+    'status_telegram_backup',
+    'status_rating_survey',
+    'status_rating_digest'
 ];
 
 const CRON_ALLOWED_FIELDS = new Set([

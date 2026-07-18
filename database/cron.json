@@ -20,5 +20,9 @@
   "schedule_telegram_backup": "0 4 * * *",
   "status_telegram_backup": true,
   "schedule_masa_tenggang": "0 9 11 * *",
-  "status_masa_tenggang": true
+  "status_masa_tenggang": true,
+  "schedule_rating_survey": "0 9 22 * *",
+  "status_rating_survey": true,
+  "schedule_rating_digest": "0 9 27 * *",
+  "status_rating_digest": true
 }
