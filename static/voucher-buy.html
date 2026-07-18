@@ -123,10 +123,11 @@ a{color:inherit;text-decoration:none}
   transition:transform .18s ease,border-color .18s ease,background .18s ease,box-shadow .18s ease;font-family:inherit}
 .pkg:hover{transform:translateY(-3px);border-color:rgba(45,212,191,.42);background:var(--surface-2);box-shadow:var(--shadow)}
 .pkg:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-.pkg-dur{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+.pkg-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pkg-dur{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
   color:var(--accent-ink);background:var(--grad-soft);border:1px solid var(--chip-line);border-radius:999px;padding:5px 10px}
 .pkg-dur .di{flex:none}
-.pkg-badges{position:absolute;top:13px;right:13px;display:flex;flex-direction:column;gap:5px;align-items:flex-end;z-index:1}
+.pkg-badges{display:inline-flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .pkg-badge{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:4px 9px;white-space:nowrap}
 .pkg-badge.hemat{color:#04231f;background:var(--grad);box-shadow:0 5px 14px -6px rgba(45,212,191,.7)}
 .pkg-badge.feat{color:#fff;background:linear-gradient(135deg,#f59e0b,#f97316);box-shadow:0 6px 14px -6px rgba(245,158,11,.75)}
@@ -345,9 +346,11 @@ footer{border-top:1px solid var(--line);margin-top:10px}
       <div class="summary"><span class="s-name" id="r-name">-</span><span class="s-price" id="r-price">-</span></div>
       <div class="breakdown" style="margin:6px 0 14px">
         <div class="bd-row"><span>Kirim kode ke</span><span id="r-phone">-</span></div>
-        <div class="bd-row"><span>Total bayar</span><span id="r-total">-</span></div>
+        <div class="bd-row"><span>Harga voucher</span><span id="r-harga">-</span></div>
+        <div class="bd-row"><span>Biaya admin QRIS</span><span id="r-fee">-</span></div>
+        <div class="bd-row"><span>Total bayar</span><b id="r-total">-</b></div>
       </div>
-      <p class="pay-note">Biaya admin QRIS ditambahkan saat pembayaran. Kode QR baru dibuat setelah Anda menekan tombol di bawah — jadi kalau batal di sini, tidak ada transaksi yang terbuat.</p>
+      <p class="pay-note">Total di atas <b>sudah termasuk biaya admin QRIS</b>. Kode QR baru dibuat setelah Anda menekan tombol di bawah — jadi kalau batal di sini, tidak ada transaksi yang terbuat.</p>
       <button class="btn" id="confirmBuy">Buat Kode QR &amp; Bayar <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
       <div id="reviewErr" class="err hidden"></div>
     </div>
@@ -438,6 +441,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
 <script>
 (function(){
   var selected=null, reff=null, pollTimer=null, cdTimer=null, POLL_MS=4000, deadline=0;
+  var QRIS_FEE_RATE=0.007; // biaya admin iPaymu QRIS (0,7%) — ditagihkan ke PEMBELI (feeDirection BUYER). Angka pasti tetap dari iPaymu di halaman QR.
   var $=function(id){ return document.getElementById(id); };
   function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
   function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
@@ -545,8 +549,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
       if(i===hematIdx) badges+='<span class="pkg-badge hemat">Hemat</span>';
       badges=badges?'<span class="pkg-badges">'+badges+'</span>':'';
       return '<button class="pkg" type="button" data-prof="'+encodeURIComponent(v.prof)+'" data-name="'+escAttr(v.namavc||v.prof)+'" data-price="'+price+'">'
-        +badges
-        +'<span class="pkg-dur">'+icon+escAttr(v.durasivc||'')+'</span>'
+        +'<span class="pkg-top"><span class="pkg-dur">'+icon+escAttr(v.durasivc||'')+'</span>'+badges+'</span>'
         +'<span class="pkg-name">'+escAttr(v.namavc||v.prof)+'</span>'
         +'<span class="pkg-price"><span class="cur">Rp</span>'+price.toLocaleString('id-ID')+'</span>'
         +rate
@@ -576,7 +579,12 @@ footer{border-top:1px solid var(--line);margin-top:10px}
     if(d.length<9||d.length>15){ $('formErr').textContent='Masukkan nomor WhatsApp yang valid.'; $('formErr').classList.remove('hidden'); return; }
     $('formErr').classList.add('hidden'); lsSet('vc-phone',d); // simpan utk pembelian berikutnya
     $('r-name').textContent=selected.name; $('r-price').textContent=rupiah(selected.price);
-    $('r-phone').textContent=d; $('r-total').textContent=rupiah(selected.price);
+    $('r-phone').textContent=d;
+    // Tampilkan rincian harga + biaya admin QRIS (ceil, aman: tak pernah kurang dari fee asli iPaymu).
+    var _fee=Math.ceil(selected.price*QRIS_FEE_RATE);
+    $('r-harga').textContent=rupiah(selected.price);
+    $('r-fee').textContent=rupiah(_fee);
+    $('r-total').textContent=rupiah(selected.price+_fee);
     $('reviewErr').classList.add('hidden');
     show('review');
   });
