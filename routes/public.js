@@ -1512,9 +1512,24 @@ router.get('/api/wifi-name', asyncHandler(async (req, res) => {
             if (g.loginUrl) voucherGuide.loginUrl = String(g.loginUrl);
         }
     } catch (_e) { /* abaikan */ }
+    // Nomor tujuan tombol "Laporkan ke Admin" di layar sukses: publicContact publik bila valid,
+    // else nomor BOT sendiri (yang memang dipakai pelanggan chat). Dinormalisasi ke 62xxxx.
+    let reportNumber = '';
+    try {
+        const pc = String((global.config && global.config.publicContact) || '');
+        const pcd = pc.replace(/\D/g, '');
+        if (pcd.length >= 9 && !/x/i.test(pc)) {
+            reportNumber = pcd.charAt(0) === '0' ? '62' + pcd.slice(1) : pcd;
+        } else {
+            const botId = String((global.raf && global.raf.user && global.raf.user.id) || (global.conn && global.conn.user && global.conn.user.id) || '');
+            const bd = botId.split(/[:@]/)[0].replace(/\D/g, '');
+            if (bd.length >= 9) reportNumber = bd;
+        }
+    } catch (_e) { /* abaikan */ }
     const data = Object.assign({}, wifiData,
         contact ? { contact } : {},
-        voucherGuide ? { voucherGuide } : {});
+        voucherGuide ? { voucherGuide } : {},
+        reportNumber ? { reportNumber } : {});
     return sendSuccess(res, data, "Nama WiFi berhasil diambil");
 }));
 

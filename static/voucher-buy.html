@@ -168,12 +168,13 @@ input[type=tel]:focus{border-color:var(--accent);background:var(--focus-bg);box-
 .field-hint svg{flex:none;margin-top:2px;color:var(--accent)}
 .btn{width:100%;background:var(--grad);color:#04231f;border:0;border-radius:13px;padding:16px;font-weight:700;
   font-size:15px;font-family:inherit;cursor:pointer;margin-top:22px;
-  transition:transform .12s ease,filter .18s ease;display:flex;align-items:center;justify-content:center;gap:8px}
+  transition:transform .12s ease,filter .18s ease;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
 .btn:hover{filter:brightness(1.06)}
 .btn:active{transform:scale(.99)}
 .btn:disabled{opacity:.6;cursor:not-allowed}
 .btn-ghost{width:100%;background:var(--surface-2);color:var(--ink);border:1px solid var(--line-2);border-radius:13px;
-  padding:15px;font-weight:600;font-size:15px;font-family:inherit;cursor:pointer;margin-top:14px;transition:background .18s ease,border-color .18s ease}
+  padding:15px;font-weight:600;font-size:15px;font-family:inherit;cursor:pointer;margin-top:14px;transition:background .18s ease,border-color .18s ease;
+  display:flex;align-items:center;justify-content:center;gap:7px;text-decoration:none}
 .btn-ghost:hover{border-color:var(--line-2)}
 
 .pay{text-align:center}
@@ -248,6 +249,16 @@ input[type=tel]:focus{border-color:var(--accent);background:var(--focus-bg);box-
   color:var(--accent-ink);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px}
 .howto-login{margin-top:12px;padding-top:11px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--muted);line-height:1.5}
 .howto-login a{color:var(--accent-ink);font-weight:600;word-break:break-all}
+/* Aksi lanjutan + struk (layar sukses). */
+.result-actions{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+.result-actions .btn,.result-actions .btn-ghost{margin-top:0}
+.receipt{margin-top:16px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px 16px}
+.receipt-h{font-size:12px;font-weight:800;color:var(--ink);letter-spacing:.04em;text-transform:uppercase;padding:12px 0 5px;display:flex;align-items:center;gap:8px}
+.receipt-h svg{color:var(--accent);flex:none}
+.rc-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;font-size:12.5px;color:var(--body);border-top:1px solid var(--line)}
+.rc-row span:last-child,.rc-row b{color:var(--ink);font-weight:600;text-align:right;font-variant-numeric:tabular-nums;word-break:break-word}
+.rc-total b{font-weight:800}
+.rc-paid{color:var(--accent-ink)!important;font-weight:800!important}
 
 .err{background:var(--danger-bg);border:1px solid var(--danger-line);color:var(--danger);border-radius:12px;padding:13px 16px;font-size:14px;margin-top:16px}
 .loading{color:var(--muted);padding:48px 0;text-align:center;font-size:14.5px;flex-basis:100%;width:100%;display:flex;flex-direction:column;align-items:center;gap:14px}
@@ -411,6 +422,21 @@ footer{border-top:1px solid var(--line);margin-top:10px}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-5.9A8.5 8.5 0 1 1 21 11.5Z"/></svg>
           Kode juga dikirim ke WhatsApp Anda
         </div>
+        <div class="result-actions">
+          <a class="btn hidden" id="loginBtn" target="_blank" rel="noopener noreferrer">Lanjutkan Login <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a class="btn-ghost hidden" id="reportBtn" target="_blank" rel="noopener noreferrer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-5.9A8.5 8.5 0 1 1 21 11.5Z"/></svg> Laporkan ke Admin</a>
+        </div>
+        <div class="receipt" id="receipt">
+          <div class="receipt-h"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18l2-1.5L9 21l2-1.5L13 21l2-1.5L17 21l2-1.5V3l-2 1.5L15 3l-2 1.5L11 3 9 4.5 7 3 5 4.5Z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg> Struk Pembayaran</div>
+          <div class="rc-row"><span>No. Transaksi</span><span id="rc-trx">-</span></div>
+          <div class="rc-row"><span>Waktu</span><span id="rc-time">-</span></div>
+          <div class="rc-row"><span>Paket</span><span id="rc-paket">-</span></div>
+          <div class="rc-row"><span>Harga voucher</span><span id="rc-sub">-</span></div>
+          <div class="rc-row"><span>Biaya admin QRIS</span><span id="rc-fee">-</span></div>
+          <div class="rc-row rc-total"><span>Total dibayar</span><b id="rc-total">-</b></div>
+          <div class="rc-row"><span>Metode</span><span>QRIS</span></div>
+          <div class="rc-row"><span>Status</span><span class="rc-paid">LUNAS &#10003;</span></div>
+        </div>
         <div class="howto">
           <div class="howto-h"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 15.8a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg> Cara pakai voucher</div>
           <ol class="howto-steps" id="howtoSteps">
@@ -443,7 +469,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
 
 <script>
 (function(){
-  var selected=null, reff=null, pollTimer=null, cdTimer=null, POLL_MS=4000, deadline=0;
+  var selected=null, reff=null, pollTimer=null, cdTimer=null, POLL_MS=4000, deadline=0, reportNumber='', voucherLoginBase='';
   var QRIS_FEE_RATE=0.007; // biaya admin iPaymu QRIS (0,7%) — ditagihkan ke PEMBELI (feeDirection BUYER). Angka pasti tetap dari iPaymu di halaman QR.
   var $=function(id){ return document.getElementById(id); };
   function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
@@ -522,6 +548,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
   // data.wifiName (bentuk baru) / data string (kompat lama) + data.contact (nomor CS opsional).
   fetch('/api/wifi-name').then(function(r){return r.json();}).then(function(d){
     var data=(d&&d.data)||d||{};
+    reportNumber=String((typeof data==='object'&&data.reportNumber)||''); // nomor "Laporkan ke Admin" (publicContact / nomor bot)
     var name=(typeof data==='object'?(data.wifiName||data.name):(typeof data==='string'?data:null))||(d&&(d.wifiName||d.name));
     if(typeof name==='string'&&name.trim()) $('bizname').textContent=name.trim()+' · Voucher';
     var contact=(typeof data==='object'?(data.contact||data.waNumber||data.phone):'')||'';
@@ -542,6 +569,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
       var lu=guide.loginUrl?String(guide.loginUrl).trim():'';
       if(lu && !/^javascript:/i.test(lu)){
         if(!/^https?:\/\//i.test(lu)) lu='http://'+lu.replace(/^\/+/,'');
+        voucherLoginBase=lu; // dipakai tombol "Lanjutkan Login" (username=password=kode)
         var note=$('howtoLogin');
         if(note){ note.innerHTML='Login tak muncul otomatis? Buka <a href="'+escAttr(lu)+'" target="_blank" rel="noopener noreferrer">'+escAttr(lu)+'</a> di browser.'; note.classList.remove('hidden'); }
       }
@@ -671,6 +699,25 @@ footer{border-top:1px solid var(--line);margin-top:10px}
     if(!ket||/^GAGAL/i.test(ket)){ $('result-ok').classList.add('hidden'); $('result-manual').classList.remove('hidden'); }
     else{
       $('voucherCode').textContent=ket; $('result-manual').classList.add('hidden'); $('result-ok').classList.remove('hidden');
+      // Struk pembayaran (bukti sah) dari record transaksi.
+      $('rc-trx').textContent=String(rec.trxId||rec.reffId||'-');
+      var _dt=new Date(typeof rec.createdAt==='number'?rec.createdAt:Date.parse(rec.createdAt||0));
+      $('rc-time').textContent=isNaN(_dt.getTime())?'-':(_dt.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})+' '+_dt.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}));
+      $('rc-paket').textContent=(selected&&selected.name)||'Voucher WiFi';
+      var _sub=parseInt(rec.subtotal,10)||parseInt(rec.amount,10)||0, _fee=parseInt(rec.fee,10)||0, _tot=parseInt(rec.priceTotal,10)||(_sub+_fee);
+      $('rc-sub').textContent=rupiah(_sub); $('rc-fee').textContent=rupiah(_fee); $('rc-total').textContent=rupiah(_tot);
+      // Lanjutkan Login — username & password = kode voucher (MikroTik hotspot login HTTP-PAP/GET).
+      if(voucherLoginBase){
+        var _lb=voucherLoginBase.replace(/\/+$/,'').replace(/\/login$/i,'');
+        $('loginBtn').href=_lb+'/login?username='+encodeURIComponent(ket)+'&password='+encodeURIComponent(ket);
+        $('loginBtn').classList.remove('hidden');
+      }
+      // Laporkan ke Admin — WA ke nomor CS dengan detail transaksi (bukti + bantuan).
+      if(reportNumber){
+        var _msg='Halo, saya butuh bantuan pembelian voucher WiFi.\nNo. Transaksi: '+(rec.trxId||rec.reffId||'-')+'\nKode: '+ket+'\nPaket: '+((selected&&selected.name)||'-');
+        $('reportBtn').href='https://wa.me/'+reportNumber+'?text='+encodeURIComponent(_msg);
+        $('reportBtn').classList.remove('hidden');
+      }
       // Simpan kode terakhir (untuk recovery bila halaman ditutup/refresh). Reset penanda dismiss.
       lsSet('vc-last', JSON.stringify({ code:ket, name:selected.name, ts:Date.now() }));
       lsSet('vc-last-dismissed','');
