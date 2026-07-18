@@ -41,23 +41,23 @@
   },
   "rating_survey": {
     "name": "Survei Kepuasan — Ajakan Rating (Cron CSAT)",
-    "template": "Halo Kak ${nama_pelanggan} 🙏\n\nBoleh minta waktu sebentar? Kami dari *${nama_wifi}* ingin dengar pengalaman Anda memakai internet kami bulan ini.\n\nBeri nilai *1-5* ya, Kak:\n1 = sangat kurang\n5 = sangat puas\n\nCukup balas *angkanya* saja 🙏"
+    "template": "{Halo|Hai|Selamat siang} Kak ${nama_pelanggan} 🙏\n\n{Boleh minta waktu sebentar?|Mohon waktunya sebentar ya.|Izin bertanya sebentar, Kak.} Kami dari *${nama_wifi}* {ingin dengar|pengin tahu|penasaran dengan} pengalaman Anda {memakai|pakai} internet kami bulan ini.\n\n{Beri nilai|Kasih nilai|Rating} *1-5* ya, Kak:\n1 = sangat kurang\n5 = sangat puas\n\n{Cukup balas *angkanya* saja|Balas *angkanya* saja ya|Ketik *angka 1-5* aja} 🙏"
   },
   "rating_followup_low": {
     "name": "Survei Kepuasan — Tindak Lanjut Skor Rendah",
-    "template": "Terima kasih penilaiannya, Kak 🙏\n\nMohon maaf kalau ada yang kurang nyaman. Boleh cerita sedikit apa kendalanya? Masukan Kakak sangat kami butuhkan untuk perbaikan layanan. 🙏"
+    "template": "{Terima kasih penilaiannya, Kak 🙏|Makasih penilaiannya ya, Kak 🙏|Terima kasih sudah menilai, Kak 🙏}\n\n{Mohon maaf kalau ada yang kurang nyaman.|Maaf ya kalau ada kendala.|Kami minta maaf kalau belum maksimal.} Boleh {cerita sedikit|kasih tahu} apa {kendalanya|masalahnya}? Masukan Kakak {sangat kami butuhkan|sangat berarti|kami butuhkan} untuk perbaikan layanan. 🙏"
   },
   "rating_followup_high": {
     "name": "Survei Kepuasan — Tindak Lanjut Skor Tinggi",
-    "template": "Alhamdulillah, terima kasih Kak 🙏\n\nSenang internetnya terasa nyaman. Kalau ada saran biar layanan kami makin oke, kami siap dengar ya 😊"
+    "template": "{Alhamdulillah, terima kasih Kak 🙏|Wah, terima kasih banyak Kak 🙏|Senang dengarnya, makasih Kak 🙏}\n\n{Kalau ada saran biar layanan kami makin oke, kami siap dengar ya 😊|Ada masukan biar makin mantap? Kami tunggu ya 😊|Kalau ada usulan biar makin nyaman, boleh banget 😊}"
   },
   "rating_thanks": {
     "name": "Survei Kepuasan — Terima Kasih",
-    "template": "Terima kasih banyak sudah berbagi, Kak 🙏\n\nSemua masukan Kakak kami catat sebagai bahan evaluasi supaya layanan *${nama_wifi}* makin nyaman. 🙏"
+    "template": "{Terima kasih banyak sudah berbagi, Kak 🙏|Makasih banyak masukannya, Kak 🙏|Terima kasih atas waktunya, Kak 🙏}\n\n{Semua masukan Kakak kami catat sebagai bahan evaluasi|Masukan Kakak kami catat untuk perbaikan|Kami catat semuanya sebagai bahan evaluasi} supaya layanan *${nama_wifi}* {makin nyaman|makin baik|makin oke}. 🙏"
   },
   "rating_optout": {
     "name": "Survei Kepuasan — Berhenti Survei",
-    "template": "Baik Kak, kami tidak akan mengirim survei lagi 🙏\n\nTerima kasih. Kalau sewaktu-waktu butuh bantuan, ketik *menu* ya. 😊"
+    "template": "{Baik Kak, kami tidak akan mengirim survei lagi 🙏|Siap Kak, survei tidak akan kami kirim lagi 🙏|Oke Kak, kami hentikan survei untuk Anda 🙏}\n\n{Terima kasih.|Makasih ya.} {Kalau sewaktu-waktu butuh bantuan, ketik *menu* ya.|Kalau butuh bantuan, tinggal ketik *menu* ya.} 😊"
   },
   "compensation_applied": {
     "name": "Notifikasi Kompensasi Diberikan",
@@ -252,7 +252,16 @@
     "description": "Dikirim ke pelanggan saat admin memberikan diskon",
     "category": "discount",
     "template": "🎉 *SELAMAT! ANDA MENDAPAT DISKON* 🎉\n\nHalo *${customer_name}*,\n\nKami dengan senang hati memberitahukan bahwa Anda mendapatkan diskon khusus untuk tagihan internet Anda.\n\n📋 *Detail Diskon:*\n• Paket: ${package_name}\n• Harga Normal: ${base_price}\n• Potongan: ${discount_text}\n• *Harga Setelah Diskon: ${final_price}*\n\n📝 *Alasan Diskon:*\n${discount_reason}\n\n⏰ *Berlaku Sampai:*\n${valid_until}\n\nTerima kasih telah menjadi pelanggan setia kami! 🙏\n\n_Pesan ini dikirim otomatis oleh sistem ${company_name}_",
-    "placeholders": ["customer_name", "package_name", "base_price", "discount_text", "final_price", "discount_reason", "valid_until", "company_name"],
+    "placeholders": [
+      "customer_name",
+      "package_name",
+      "base_price",
+      "discount_text",
+      "final_price",
+      "discount_reason",
+      "valid_until",
+      "company_name"
+    ],
     "enabled": true
   },
   "discount_removed": {
@@ -260,7 +269,12 @@
     "description": "Dikirim ke pelanggan saat diskon dihapus",
     "category": "discount",
     "template": "📢 *INFORMASI DISKON* 📢\n\nHalo *${customer_name}*,\n\nKami informasikan bahwa diskon untuk akun Anda telah berakhir.\n\n📋 *Detail:*\n• Paket: ${package_name}\n• Harga Normal: ${package_price}\n\nTagihan bulan depan akan kembali ke harga normal.\n\nTerima kasih atas pengertiannya.\n\n_Pesan ini dikirim otomatis oleh sistem ${company_name}_",
-    "placeholders": ["customer_name", "package_name", "package_price", "company_name"],
+    "placeholders": [
+      "customer_name",
+      "package_name",
+      "package_price",
+      "company_name"
+    ],
     "enabled": true
   },
   "kasbon_approved": {
@@ -268,7 +282,14 @@
     "description": "Dikirim ke teknisi saat kasbon disetujui",
     "category": "kasbon",
     "template": "✅ *KASBON DISETUJUI* ✅\n\nHalo *${technician_name}*,\n\nPengajuan kasbon Anda telah disetujui oleh admin.\n\n💰 *Detail Kasbon:*\n• Nominal: ${kasbon_amount}\n• Keperluan: ${kasbon_reason}\n• Disetujui oleh: ${admin_name}\n• Tanggal: ${current_date}\n\nSilakan ambil dana kasbon sesuai prosedur.\n\n_Pesan ini dikirim otomatis oleh sistem ${company_name}_",
-    "placeholders": ["technician_name", "kasbon_amount", "kasbon_reason", "admin_name", "current_date", "company_name"],
+    "placeholders": [
+      "technician_name",
+      "kasbon_amount",
+      "kasbon_reason",
+      "admin_name",
+      "current_date",
+      "company_name"
+    ],
     "enabled": true
   },
   "kasbon_rejected": {
@@ -276,7 +297,13 @@
     "description": "Dikirim ke teknisi saat kasbon ditolak",
     "category": "kasbon",
     "template": "❌ *KASBON DITOLAK* ❌\n\nHalo *${technician_name}*,\n\nMohon maaf, pengajuan kasbon Anda tidak dapat disetujui.\n\n💰 *Detail Kasbon:*\n• Nominal: ${kasbon_amount}\n• Keperluan: ${kasbon_reason}\n• Alasan Penolakan: ${reject_reason}\n\nSilakan hubungi admin untuk informasi lebih lanjut.\n\n_Pesan ini dikirim otomatis oleh sistem ${company_name}_",
-    "placeholders": ["technician_name", "kasbon_amount", "kasbon_reason", "reject_reason", "company_name"],
+    "placeholders": [
+      "technician_name",
+      "kasbon_amount",
+      "kasbon_reason",
+      "reject_reason",
+      "company_name"
+    ],
     "enabled": true
   },
   "package_changed": {
@@ -284,7 +311,14 @@
     "description": "Dikirim ke pelanggan saat paket diubah",
     "category": "package",
     "template": "📦 *PERUBAHAN PAKET LANGGANAN* 📦\n\nHalo *${customer_name}*,\n\nPaket langganan internet Anda telah diubah.\n\n📋 *Detail Perubahan:*\n• Paket Lama: ${old_package}\n• Paket Baru: ${new_package}\n• Harga Baru: ${new_price}\n• Berlaku Mulai: ${effective_date}\n\nPerubahan akan aktif segera setelah proses selesai.\n\nTerima kasih telah menggunakan layanan kami.\n\n_Pesan ini dikirim otomatis oleh sistem ${company_name}_",
-    "placeholders": ["customer_name", "old_package", "new_package", "new_price", "effective_date", "company_name"],
+    "placeholders": [
+      "customer_name",
+      "old_package",
+      "new_package",
+      "new_price",
+      "effective_date",
+      "company_name"
+    ],
     "enabled": true
   }
 }
