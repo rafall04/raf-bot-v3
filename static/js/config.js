@@ -75,6 +75,8 @@
                 setValue('sync_to_mikrotik', json.data.sync_to_mikrotik ? "true" : "false");
                 setValue('whatsapp_message_delay', json.data.whatsapp_message_delay, '2000');
                 setValue('defaultPPPoEPassword', json.data.defaultPPPoEPassword, '');
+                setValue('voucherGuideSteps', json.data.voucherGuide?.steps || '', '');
+                setValue('voucherLoginUrl', json.data.voucherGuide?.loginUrl || '', '');
                 setValue('welcomeMessageEnabled', json.data.welcomeMessage?.enabled !== false ? "true" : "false");
                 setValue('customerPortalUrl', json.data.welcomeMessage?.customerPortalUrl || json.data.company?.website || json.data.site_url_bot || 'https://rafnet.my.id/customer');
 

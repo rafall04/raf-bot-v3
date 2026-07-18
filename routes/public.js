@@ -1501,7 +1501,20 @@ router.get('/api/wifi-name', asyncHandler(async (req, res) => {
         const digits = raw.replace(/\D/g, '');
         if (digits.length >= 9 && !/x/i.test(raw)) contact = digits;
     } catch (_e) { /* abaikan */ }
-    const data = contact ? Object.assign({}, wifiData, { contact }) : wifiData;
+    // Panduan "Cara pakai voucher" yang bisa dicustom admin (config.voucherGuide.steps/loginUrl).
+    // Bila kosong, field tidak dikirim → halaman beli pakai default HTML-nya.
+    let voucherGuide = null;
+    try {
+        const g = global.config && global.config.voucherGuide;
+        if (g && (g.steps || g.loginUrl)) {
+            voucherGuide = {};
+            if (g.steps) voucherGuide.steps = String(g.steps);
+            if (g.loginUrl) voucherGuide.loginUrl = String(g.loginUrl);
+        }
+    } catch (_e) { /* abaikan */ }
+    const data = Object.assign({}, wifiData,
+        contact ? { contact } : {},
+        voucherGuide ? { voucherGuide } : {});
     return sendSuccess(res, data, "Nama WiFi berhasil diambil");
 }));
 

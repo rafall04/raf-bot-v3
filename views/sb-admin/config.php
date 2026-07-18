@@ -66,6 +66,7 @@
             <li><a class="nav-link" data-pane="pane-psb">Intake PSB</a></li>
             <li><a class="nav-link" data-pane="pane-billing">Penagihan &amp; Isolir</a></li>
             <li><a class="nav-link" data-pane="pane-technical">Teknis</a></li>
+            <li><a class="nav-link" data-pane="pane-payment">Pembayaran</a></li>
             <li><a class="nav-link" data-pane="pane-backup">Backup Telegram</a></li>
             <li><a class="nav-link" data-pane="pane-olt">OLT</a></li>
           </ul>
@@ -156,6 +157,25 @@
                     <input type="text" class="form-control" id="defaultPPPoEPassword" name="defaultPPPoEPassword" />
                     <small class="form-text text-muted">Password default yang akan digunakan untuk PPPoE saat teknisi melakukan PSB (Pasang Baru) tanpa mengisi password secara manual. Jika kosong, sistem akan generate random password.</small>
                   </div>
+              </div>
+            </div>
+
+            <div class="card table-card mb-4">
+              <div class="card-header">
+                <h6>Panduan Pakai Voucher (Halaman Beli Publik)</h6>
+              </div>
+              <div class="card-body">
+                <p class="text-muted" style="font-size:13px">Teks <b>"Cara pakai voucher"</b> yang tampil di halaman beli voucher publik setelah pembayaran berhasil. Kosongkan untuk memakai teks default.</p>
+                <div class="mb-3">
+                  <label for="voucherGuideSteps" class="form-label">Langkah Pakai Voucher</label>
+                  <textarea class="form-control" id="voucherGuideSteps" name="voucherGuideSteps" rows="5" placeholder="Sambungkan HP ke WiFi RAF NET / RAF NET 5G (disarankan RAF NET 5G agar lebih stabil).&#10;Buka browser — halaman login otomatis muncul.&#10;Masukkan kode voucher di atas, lalu tekan Connect."></textarea>
+                  <small class="form-text text-muted"><b>1 langkah per baris.</b> Boleh sebut nama WiFi spesifik &amp; rekomendasi (mis. "disarankan konek ke RAF NET 5G agar lebih stabil"). Kosong = pakai 3 langkah default.</small>
+                </div>
+                <div class="mb-3">
+                  <label for="voucherLoginUrl" class="form-label">URL Login Hotspot (opsional)</label>
+                  <input type="text" class="form-control" id="voucherLoginUrl" name="voucherLoginUrl" placeholder="http://192.168.88.1 atau http://login.rafnet.net" />
+                  <small class="form-text text-muted">Ditampilkan sebagai link "buka URL di browser" kalau halaman login tidak muncul otomatis. Kosong = tidak ditampilkan.</small>
+                </div>
               </div>
             </div>
 
@@ -507,6 +527,69 @@
                     <label for="rx_tolerance">Toleransi Redaman</label>
                     <input type="number" class="form-control" id="rx_tolerance" name="rx_tolerance" />
                   </div>
+
+                  <hr>
+                  <div class="mb-3">
+                    <label for="defaultBulkSSID" class="form-label">Default SSID Bulk</label>
+                    <input type="number" class="form-control" id="defaultBulkSSID" name="defaultBulkSSID" min="1" max="8" />
+                    <small class="form-text text-muted">SSID default yang akan otomatis tercentang saat membuat user baru jika tidak ada SSID yang dipilih. Range: 1-8 (default: 1)</small>
+                  </div>
+                  <div class="mb-3">
+                    <label for="speedOnDemandEnabled" class="form-label">Speed On Demand</label>
+                    <select class="form-control" id="speedOnDemandEnabled" name="speedOnDemandEnabled">
+                      <option value="true">Aktif</option>
+                      <option value="false">Nonaktif</option>
+                    </select>
+                    <small class="form-text text-muted">Aktifkan atau nonaktifkan fitur Speed On Demand untuk pelanggan</small>
+                  </div>
+                  <div class="mb-3">
+                    <label for="showPaymentStatus" class="form-label">Tampilkan Status Pembayaran</label>
+                    <select class="form-control" id="showPaymentStatus" name="showPaymentStatus">
+                      <option value="true">Tampilkan</option>
+                      <option value="false">Sembunyikan</option>
+                    </select>
+                    <small class="form-text text-muted">Tampilkan atau sembunyikan status pembayaran (PAID/UNPAID) di profil pelanggan</small>
+                  </div>
+                  <div class="mb-3">
+                    <label for="showDueDate" class="form-label">Tampilkan Jatuh Tempo</label>
+                    <select class="form-control" id="showDueDate" name="showDueDate">
+                      <option value="true">Tampilkan</option>
+                      <option value="false">Sembunyikan</option>
+                    </select>
+                    <small class="form-text text-muted">Tampilkan atau sembunyikan tanggal jatuh tempo pembayaran di profil pelanggan</small>
+                  </div>
+                  <div class="mb-3">
+                    <label for="customerTrafficUsageEnabled" class="form-label">Traffic Usage Portal Pelanggan</label>
+                    <select class="form-control" id="customerTrafficUsageEnabled" name="customerTrafficUsageEnabled">
+                      <option value="true">Aktif</option>
+                      <option value="false">Nonaktif</option>
+                    </select>
+                    <small class="form-text text-muted">Aktifkan atau nonaktifkan fitur pemakaian trafik harian dan bulanan di portal pelanggan</small>
+                  </div>
+                  <div class="mb-3">
+                    <label for="customerTrafficLiveEnabled" class="form-label">Bandwidth Live Portal Pelanggan</label>
+                    <select class="form-control" id="customerTrafficLiveEnabled" name="customerTrafficLiveEnabled">
+                      <option value="true">Aktif</option>
+                      <option value="false">Nonaktif</option>
+                    </select>
+                    <small class="form-text text-muted">Aktifkan atau nonaktifkan bandwidth live pelanggan. Fitur ini terpisah dari usage harian/bulanan untuk kontrol beban MikroTik yang lebih presisi.</small>
+                  </div>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-end mb-4">
+              <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-technical"><i class="fas fa-save"></i> Simpan Konfigurasi Teknis</button>
+            </div>
+          </div><!-- /#pane-technical -->
+
+          <div class="config-pane" id="pane-payment">
+          <h4 class="dashboard-section-title">Konfigurasi Pembayaran (Payment Gateway)</h4>
+          <div class="card table-card mb-4">
+            <div class="card-header">
+              <h6>Payment Gateway — iPaymu / Tripay / Mayar</h6>
+            </div>
+            <div class="card-body">
+                  <p class="text-muted" style="font-size:13px">Kredensial gateway pembayaran. <b>iPaymu</b> dipakai untuk voucher &amp; topup; <b>Payment Gateway Aktif</b> di bawah menentukan gateway untuk <b>bayar tagihan</b>. Dipisah dari tab Teknis agar tidak tercampur konfigurasi teknis lain.</p>
                   <div class="mb-3">
                     <label for="ipaymuSecret">Secret Ipaymu</label>
                     <input type="text" class="form-control" id="ipaymuSecret" name="ipaymuSecret" />
@@ -575,59 +658,12 @@
                     </select>
                     <small class="form-text text-muted">Sandbox memakai <b>API Key Sandbox</b> di atas. Ganti ke Produksi hanya setelah uji sandbox lolos.</small>
                   </div>
-                  <hr>
-                  <div class="mb-3">
-                    <label for="defaultBulkSSID" class="form-label">Default SSID Bulk</label>
-                    <input type="number" class="form-control" id="defaultBulkSSID" name="defaultBulkSSID" min="1" max="8" />
-                    <small class="form-text text-muted">SSID default yang akan otomatis tercentang saat membuat user baru jika tidak ada SSID yang dipilih. Range: 1-8 (default: 1)</small>
-                  </div>
-                  <div class="mb-3">
-                    <label for="speedOnDemandEnabled" class="form-label">Speed On Demand</label>
-                    <select class="form-control" id="speedOnDemandEnabled" name="speedOnDemandEnabled">
-                      <option value="true">Aktif</option>
-                      <option value="false">Nonaktif</option>
-                    </select>
-                    <small class="form-text text-muted">Aktifkan atau nonaktifkan fitur Speed On Demand untuk pelanggan</small>
-                  </div>
-                  <div class="mb-3">
-                    <label for="showPaymentStatus" class="form-label">Tampilkan Status Pembayaran</label>
-                    <select class="form-control" id="showPaymentStatus" name="showPaymentStatus">
-                      <option value="true">Tampilkan</option>
-                      <option value="false">Sembunyikan</option>
-                    </select>
-                    <small class="form-text text-muted">Tampilkan atau sembunyikan status pembayaran (PAID/UNPAID) di profil pelanggan</small>
-                  </div>
-                  <div class="mb-3">
-                    <label for="showDueDate" class="form-label">Tampilkan Jatuh Tempo</label>
-                    <select class="form-control" id="showDueDate" name="showDueDate">
-                      <option value="true">Tampilkan</option>
-                      <option value="false">Sembunyikan</option>
-                    </select>
-                    <small class="form-text text-muted">Tampilkan atau sembunyikan tanggal jatuh tempo pembayaran di profil pelanggan</small>
-                  </div>
-                  <div class="mb-3">
-                    <label for="customerTrafficUsageEnabled" class="form-label">Traffic Usage Portal Pelanggan</label>
-                    <select class="form-control" id="customerTrafficUsageEnabled" name="customerTrafficUsageEnabled">
-                      <option value="true">Aktif</option>
-                      <option value="false">Nonaktif</option>
-                    </select>
-                    <small class="form-text text-muted">Aktifkan atau nonaktifkan fitur pemakaian trafik harian dan bulanan di portal pelanggan</small>
-                  </div>
-                  <div class="mb-3">
-                    <label for="customerTrafficLiveEnabled" class="form-label">Bandwidth Live Portal Pelanggan</label>
-                    <select class="form-control" id="customerTrafficLiveEnabled" name="customerTrafficLiveEnabled">
-                      <option value="true">Aktif</option>
-                      <option value="false">Nonaktif</option>
-                    </select>
-                    <small class="form-text text-muted">Aktifkan atau nonaktifkan bandwidth live pelanggan. Fitur ini terpisah dari usage harian/bulanan untuk kontrol beban MikroTik yang lebih presisi.</small>
-                  </div>
-              </div>
             </div>
-
-            <div class="d-flex justify-content-end mb-4">
-              <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-technical"><i class="fas fa-save"></i> Simpan Konfigurasi Teknis</button>
-            </div>
-          </div><!-- /#pane-technical -->
+          </div>
+          <div class="d-flex justify-content-end mb-4">
+            <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-payment"><i class="fas fa-save"></i> Simpan Konfigurasi Pembayaran</button>
+          </div>
+          </div><!-- /#pane-payment -->
 
           <div class="config-pane" id="pane-backup">
             <!-- Telegram Backup Configuration -->

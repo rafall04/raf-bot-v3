@@ -413,6 +413,20 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     continue;
                 }
 
+                // Panduan "Cara pakai voucher" di halaman beli publik → objek nested `voucherGuide`.
+                // steps = teks multi-baris (1 langkah/baris); loginUrl opsional (link login hotspot).
+                if (key === 'voucherGuideSteps' || key === 'voucherLoginUrl') {
+                    if (!newMainConfig.voucherGuide) {
+                        newMainConfig.voucherGuide = {};
+                    }
+                    if (key === 'voucherGuideSteps') {
+                        newMainConfig.voucherGuide.steps = String(receivedConfig[key] == null ? '' : receivedConfig[key]);
+                    } else {
+                        newMainConfig.voucherGuide.loginUrl = String(receivedConfig[key] == null ? '' : receivedConfig[key]).trim();
+                    }
+                    continue;
+                }
+
                 // Identitas & Kontak Usaha → dipetakan ke objek nested `company` (dipakai halaman
                 // publik FAQ/Refund/Syarat/Kontak). company_name juga menyinkron `nama` (brand global).
                 if (key === 'company_name' || key === 'company_phone' || key === 'company_email'
@@ -459,6 +473,12 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 finalMainConfig.repairNotif = {
                     ...(currentMainConfig.repairNotif || {}),
                     ...newMainConfig.repairNotif
+                };
+            }
+            if (newMainConfig.voucherGuide) {
+                finalMainConfig.voucherGuide = {
+                    ...(currentMainConfig.voucherGuide || {}),
+                    ...newMainConfig.voucherGuide
                 };
             }
 

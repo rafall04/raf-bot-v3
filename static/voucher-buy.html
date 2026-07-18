@@ -246,6 +246,8 @@ input[type=tel]:focus{border-color:var(--accent);background:var(--focus-bg);box-
 .howto-steps li{display:flex;gap:11px;align-items:flex-start;font-size:13px;color:var(--body);line-height:1.5}
 .hs-n{flex:none;width:20px;height:20px;border-radius:50%;background:var(--grad-soft);border:1px solid var(--chip-line);
   color:var(--accent-ink);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.howto-login{margin-top:12px;padding-top:11px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--muted);line-height:1.5}
+.howto-login a{color:var(--accent-ink);font-weight:600;word-break:break-all}
 
 .err{background:var(--danger-bg);border:1px solid var(--danger-line);color:var(--danger);border-radius:12px;padding:13px 16px;font-size:14px;margin-top:16px}
 .loading{color:var(--muted);padding:48px 0;text-align:center;font-size:14.5px;flex-basis:100%;width:100%;display:flex;flex-direction:column;align-items:center;gap:14px}
@@ -411,11 +413,12 @@ footer{border-top:1px solid var(--line);margin-top:10px}
         </div>
         <div class="howto">
           <div class="howto-h"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 15.8a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg> Cara pakai voucher</div>
-          <ol class="howto-steps">
+          <ol class="howto-steps" id="howtoSteps">
             <li><span class="hs-n">1</span> Sambungkan HP/laptop ke WiFi hotspot.</li>
             <li><span class="hs-n">2</span> Buka browser — halaman login otomatis muncul.</li>
             <li><span class="hs-n">3</span> Masukkan kode voucher di atas, lalu tekan Connect.</li>
           </ol>
+          <div class="howto-login hidden" id="howtoLogin"></div>
         </div>
         <button class="btn" id="buyMore">Beli Voucher Lagi</button>
       </div>
@@ -527,6 +530,21 @@ footer{border-top:1px solid var(--line);margin-top:10px}
       if(digits.charAt(0)==='0') digits='62'+digits.slice(1);
       $('helpLink').href='https://wa.me/'+digits+'?text='+encodeURIComponent('Halo, saya butuh bantuan seputar voucher WiFi.');
       $('helpWrap').classList.remove('hidden');
+    }
+    // Panduan "Cara pakai voucher" bisa dicustom admin (config.voucherGuide). Kosong = default HTML.
+    var guide=(typeof data==='object'&&data.voucherGuide)||null;
+    if(guide){
+      var ol=$('howtoSteps');
+      if(ol&&guide.steps){
+        var steps=String(guide.steps).split('\n').map(function(s){return s.trim();}).filter(Boolean);
+        if(steps.length){ ol.innerHTML=steps.map(function(s,i){return '<li><span class="hs-n">'+(i+1)+'</span> '+escAttr(s)+'</li>';}).join(''); }
+      }
+      var lu=guide.loginUrl?String(guide.loginUrl).trim():'';
+      if(lu && !/^javascript:/i.test(lu)){
+        if(!/^https?:\/\//i.test(lu)) lu='http://'+lu.replace(/^\/+/,'');
+        var note=$('howtoLogin');
+        if(note){ note.innerHTML='Login tak muncul otomatis? Buka <a href="'+escAttr(lu)+'" target="_blank" rel="noopener noreferrer">'+escAttr(lu)+'</a> di browser.'; note.classList.remove('hidden'); }
+      }
     }
   }).catch(function(){});
 
