@@ -142,6 +142,13 @@ function isParentActive($pages, $current) {
         </a>
     </li>
 
+    <li class="nav-item <?php echo isActive('/survei', $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link" href="/survei">
+            <i class="fas fa-fw fa-star"></i>
+            <span>Survei Kepuasan</span>
+        </a>
+    </li>
+
     <hr class="sidebar-divider">
     <div class="sidebar-heading">Operasional</div>
 

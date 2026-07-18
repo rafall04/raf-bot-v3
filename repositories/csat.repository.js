@@ -200,6 +200,25 @@ function createCsatRepository(overrides = {}) {
             };
         },
 
+        /** Tren beberapa periode terakhir (untuk selektor periode + grafik ringkas di halaman admin). */
+        async getTrend({ limit = 12 } = {}) {
+            const db = await getDb();
+            const rows = await all(db,
+                `SELECT period,
+                    SUM(CASE WHEN status IN ('sent','rated','done','optout') THEN 1 ELSE 0 END) AS delivered,
+                    SUM(CASE WHEN score IS NOT NULL THEN 1 ELSE 0 END) AS responded,
+                    AVG(score) AS avg
+                 FROM csat_surveys GROUP BY period ORDER BY period DESC LIMIT ?`,
+                [Math.max(1, Math.min(60, parseInt(limit, 10) || 12))]);
+            return rows.map((r) => ({
+                period: r.period,
+                delivered: r.delivered,
+                responded: r.responded,
+                avg: r.avg !== null ? Math.round(r.avg * 100) / 100 : null,
+                responseRate: r.delivered > 0 ? Math.round((r.responded / r.delivered) * 1000) / 10 : 0,
+            }));
+        },
+
         /** Daftar komentar (untuk rekap/analisa tema). Terurut skor menaik supaya keluhan di atas. */
         async listComments(period, { limit = 200 } = {}) {
             const db = await getDb();

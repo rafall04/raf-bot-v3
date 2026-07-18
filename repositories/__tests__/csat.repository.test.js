@@ -95,6 +95,23 @@ describe("csat.repository", () => {
         expect(nr[0].name).toBe("U4");
     });
 
+    test("getTrend agregat per periode terurut terbaru", async () => {
+        const mk = async (uid, period, score) => {
+            const { id } = await repo.upsertPending({ user_id: uid, period });
+            await repo.markSent(id, { sent_at: "x", expires_at: "9999-12-31 00:00:00" });
+            if (score != null) await repo.recordRating(id, { score, sentiment: "x", rated_at: "x" });
+        };
+        await mk(1, "2026-06", 4);
+        await mk(2, "2026-06", 2);
+        await mk(3, "2026-07", 5);
+        const trend = await repo.getTrend({ limit: 12 });
+        expect(trend.map((t) => t.period)).toEqual(["2026-07", "2026-06"]); // terbaru dulu
+        const jun = trend.find((t) => t.period === "2026-06");
+        expect(jun.delivered).toBe(2);
+        expect(jun.responded).toBe(2);
+        expect(jun.avg).toBeCloseTo(3, 5);
+    });
+
     test("setOptout menghentikan status aktif", async () => {
         const { id } = await repo.upsertPending({ user_id: 10, period: "2026-07" });
         await repo.markSent(id, { sent_at: "2026-07-22 09:30:00", expires_at: "2026-07-25 09:30:00" });

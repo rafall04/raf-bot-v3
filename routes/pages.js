@@ -264,6 +264,11 @@ router.get('/owner', checkRole(['admin', 'owner', 'superadmin']), (req, res) => 
     res.render('sb-admin/owner-cockpit.php');
 });
 
+// Survei Kepuasan (CSAT) - rangkuman rating pelanggan (skor/detractor/komentar/tren). Admin/owner.
+router.get('/survei', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/survei.php');
+});
+
 // Rekap Keuangan page - ADMIN ONLY
 router.get('/rekap-keuangan', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/rekap-keuangan.php');
