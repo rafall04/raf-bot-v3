@@ -177,8 +177,35 @@ jest.mock("../../lib/path-helper", () => ({
 jest.mock("../../lib/services/base-service", () => ({
     getCustomerJids: jest.fn((phoneNumber) => [phoneNumber])
 }));
+// Mesin bukti bayar dimock di batas SERVICE, bukan di dalamnya: gerbang uang punya suitenya sendiri
+// (lib/__tests__/payment-proof-intake-policy.test.js) dan service-nya juga
+// (services/__tests__/payment-proof.service.test.js). Yang diuji di sini adalah tugas ROUTE-nya —
+// mendelegasikan dengan benar dan memetakan keputusan ke status HTTP.
+jest.mock("../../services/payment-proof.service", () => ({
+    getPaymentProofService: jest.fn(() => ({
+        evaluateIntake: jest.fn(),
+        handleIncomingProof: jest.fn()
+    }))
+}));
+// Arahkan tulisan file bukti SOD ke temp-tests supaya suite tidak mengotori static/uploads.
+jest.mock("../../lib/upload-helper", () => ({
+    getUploadDir: jest.fn((category) => {
+        const nodePath = require("path");
+        const nodeFs = require("fs");
+        const dir = nodePath.join(__dirname, "..", "..", "temp-tests", "uploads", category);
+        if (!nodeFs.existsSync(dir)) {
+            nodeFs.mkdirSync(dir, { recursive: true });
+        }
+        return dir;
+    }),
+    getUploadPath: jest.fn((category, filename) => `/static/uploads/${category}/${filename}`),
+    generateFilename: jest.fn((prefix, requestId, originalName) =>
+        `${prefix}-${requestId}-1700000000000${require("path").extname(originalName)}`)
+}));
 
 const router = require("../public");
+const { getPaymentProofService } = require("../../services/payment-proof.service");
+const { ACTION } = require("../../lib/payment-proof-intake-policy");
 const CustomerService = require("../../lib/services/customer-service");
 const ReportService = require("../../lib/services/report-service");
 const SpeedRequestService = require("../../lib/services/speed-request-service");
@@ -747,6 +774,427 @@ describe("public customer API contract", () => {
         } finally {
             await stopServer(server);
         }
+    });
+
+    describe("GET /api/customer/speed-requests/awaiting-proof", () => {
+        function buildAwaitingRequest(overrides = {}) {
+            return {
+                id: "SR-001",
+                userId: global.users[0].id,
+                status: "pending",
+                paymentMethod: "transfer",
+                paymentStatus: "unpaid",
+                requestedPackageName: "Paket 50 Mbps",
+                durationKey: "1_day",
+                price: 20000,
+                createdAt: "2026-07-17T02:00:00.000Z",
+                ...overrides
+            };
+        }
+
+        test("returns null payload when nothing is awaiting proof", async () => {
+            const token = createCustomerToken(global.users[0]);
+            global.speed_requests = [];
+            const app = createApp();
+            const { server, baseUrl } = await startServer(app);
+
+            try {
+                const response = await fetch(`${baseUrl}/api/customer/speed-requests/awaiting-proof`, {
+                    headers: { authorization: `Bearer ${token}` }
+                });
+                const payload = await response.json();
+
+                expect(response.status).toBe(200);
+                expect(payload).toMatchObject({ status: 200, data: null });
+            } finally {
+                await stopServer(server);
+            }
+        });
+
+        test("returns the pending request contract awaiting proof", async () => {
+            const token = createCustomerToken(global.users[0]);
+            global.speed_requests = [buildAwaitingRequest()];
+            const app = createApp();
+            const { server, baseUrl } = await startServer(app);
+
+            try {
+                const response = await fetch(`${baseUrl}/api/customer/speed-requests/awaiting-proof`, {
+                    headers: { authorization: `Bearer ${token}` }
+                });
+                const payload = await response.json();
+
+                expect(response.status).toBe(200);
+                expect(payload.data).toEqual({
+                    id: "SR-001",
+                    requestedPackageName: "Paket 50 Mbps",
+                    durationKey: "1_day",
+                    price: 20000,
+                    paymentMethod: "transfer",
+                    createdAt: "2026-07-17T02:00:00.000Z"
+                });
+            } finally {
+                await stopServer(server);
+            }
+        });
+
+        test("never exposes another customer's pending request", async () => {
+            const token = createCustomerToken(global.users[0]);
+            global.speed_requests = [buildAwaitingRequest({ id: "SR-OTHER", userId: 999 })];
+            const app = createApp();
+            const { server, baseUrl } = await startServer(app);
+
+            try {
+                const response = await fetch(`${baseUrl}/api/customer/speed-requests/awaiting-proof`, {
+                    headers: { authorization: `Bearer ${token}` }
+                });
+                const payload = await response.json();
+
+                expect(payload.data).toBeNull();
+            } finally {
+                await stopServer(server);
+            }
+        });
+
+        // Read dan upload HARUS sepakat soal apa yang "menunggu bukti" — kalau tidak, UI menampilkan
+        // kotak upload untuk permintaan yang POST-nya menolak.
+        test("agrees with the upload endpoint: a proof-bearing request is no longer awaiting", async () => {
+            const token = createCustomerToken(global.users[0]);
+            global.speed_requests = [buildAwaitingRequest({ paymentStatus: "pending" })];
+            const app = createApp();
+            const { server, baseUrl } = await startServer(app);
+
+            try {
+                const readResponse = await fetch(`${baseUrl}/api/customer/speed-requests/awaiting-proof`, {
+                    headers: { authorization: `Bearer ${token}` }
+                });
+                expect((await readResponse.json()).data).toBeNull();
+
+                const form = new FormData();
+                form.append("type", "sod");
+                form.append("proof", new Blob(["x"], { type: "image/jpeg" }), "b.jpg");
+                const uploadResponse = await fetch(`${baseUrl}/api/customer/payment-proof`, {
+                    method: "POST",
+                    headers: { authorization: `Bearer ${token}` },
+                    body: form
+                });
+
+                expect(uploadResponse.status).toBe(404);
+            } finally {
+                await stopServer(server);
+            }
+        });
+    });
+
+    // ── POST /api/customer/payment-proof ────────────────────────────────────
+    // Portal sebelumnya tidak punya jalur bukti bayar sama sekali (hanya WhatsApp), padahal
+    // /api/request-speed sudah menjanjikan "silakan upload bukti pembayaran".
+    describe("POST /api/customer/payment-proof", () => {
+        function buildProofForm({ type = "tagihan", caption, fileType = "image/jpeg", fileName = "bukti.jpg" } = {}) {
+            const form = new FormData();
+            form.append("type", type);
+            if (caption !== undefined) {
+                form.append("caption", caption);
+            }
+            form.append("proof", new Blob(["fake-image-binary"], { type: fileType }), fileName);
+            return form;
+        }
+
+        async function postProof(baseUrl, form, token) {
+            return fetch(`${baseUrl}/api/customer/payment-proof`, {
+                method: "POST",
+                headers: token ? { authorization: `Bearer ${token}` } : {},
+                body: form
+            });
+        }
+
+        function mockProofService({ decision, proofResult } = {}) {
+            const service = {
+                evaluateIntake: jest.fn(async () => decision),
+                handleIncomingProof: jest.fn(async () => proofResult)
+            };
+            getPaymentProofService.mockReturnValue(service);
+            return service;
+        }
+
+        test("rejects unauthenticated upload", async () => {
+            const app = createApp();
+            const { server, baseUrl } = await startServer(app);
+
+            try {
+                const response = await postProof(baseUrl, buildProofForm(), null);
+                expect(response.status).toBe(401);
+            } finally {
+                await stopServer(server);
+            }
+        });
+
+        test("rejects unknown proof type", async () => {
+            const token = createCustomerToken(global.users[0]);
+            const app = createApp();
+            const { server, baseUrl } = await startServer(app);
+
+            try {
+                const response = await postProof(baseUrl, buildProofForm({ type: "voucher" }), token);
+                const payload = await response.json();
+
+                expect(response.status).toBe(400);
+                expect(payload.message).toMatch(/jenis bukti tidak valid/i);
+            } finally {
+                await stopServer(server);
+            }
+        });
+
+        test("rejects non-image, non-pdf uploads", async () => {
+            const token = createCustomerToken(global.users[0]);
+            const app = createApp();
+            const { server, baseUrl } = await startServer(app);
+
+            try {
+                const form = buildProofForm({ fileType: "text/html", fileName: "evil.html" });
+                const response = await postProof(baseUrl, form, token);
+
+                expect(response.status).toBe(400);
+            } finally {
+                await stopServer(server);
+            }
+        });
+
+        // GERBANG UANG — inti alur tagihan. Pelanggan tanpa tunggakan tidak punya dasar mengklaim
+        // "pembayaran", jadi tidak boleh ada record yang tercipta.
+        test("tagihan: rejects with 409 and creates no record when there is nothing to settle", async () => {
+            const token = createCustomerToken(global.users[0]);
+            const service = mockProofService({
+                decision: {
+                    action: ACTION.NEUTRAL,
+                    reason: "tak-ada-tagihan",
+                    advance: false,
+                    billing: { outstanding: 0 },
+                    ackText: "Tidak ada tagihan yang perlu dilunasi."
+                }
+            });
+            const app = createApp();
+            const { server, baseUrl } = await startServer(app);
+
+            try {
+                const response = await postProof(baseUrl, buildProofForm({ caption: "" }), token);
+                const payload = await response.json();
+
+                expect(response.status).toBe(409);
+                expect(payload.message).toMatch(/tidak ada tagihan/i);
+                expect(service.handleIncomingProof).not.toHaveBeenCalled();
+            } finally {
+                await stopServer(server);
+            }
+        });
+
+        // "Nol tagihan" dan "tagihan tak terbaca" adalah dua hal berbeda — yang kedua fail-closed.
+        test("tagihan: fails closed with 503 when the bill snapshot is unreadable", async () => {
+            const token = createCustomerToken(global.users[0]);
+            const service = mockProofService({
+                decision: {
+                    action: ACTION.NEUTRAL,
+                    reason: "tagihan-tak-diketahui",
+                    advance: false,
+                    billing: null,
+                    ackText: "Kami belum bisa membaca tagihan Anda."
+                }
+            });
+            const app = createApp();
+            const { server, baseUrl } = await startServer(app);
+
+            try {
+                const response = await postProof(baseUrl, buildProofForm(), token);
+
+                expect(response.status).toBe(503);
+                expect(service.handleIncomingProof).not.toHaveBeenCalled();
+            } finally {
+                await stopServer(server);
+            }
+        });
+
+        test("tagihan: routes complaint-flavoured captions to 422 without claiming payment", async () => {
+            const token = createCustomerToken(global.users[0]);
+            const service = mockProofService({
+                decision: {
+                    action: ACTION.COMPLAINT,
+                    reason: "caption-keluhan",
+                    advance: false,
+                    billing: { outstanding: 150000 },
+                    ackText: "Kalau mau lapor gangguan, ketik lapor ya."
+                }
+            });
+            const app = createApp();
+            const { server, baseUrl } = await startServer(app);
+
+            try {
+                const response = await postProof(baseUrl, buildProofForm({ caption: "internet mati" }), token);
+                const payload = await response.json();
+
+                expect(response.status).toBe(422);
+                expect(payload.message).toMatch(/lapor/i);
+                expect(service.handleIncomingProof).not.toHaveBeenCalled();
+            } finally {
+                await stopServer(server);
+            }
+        });
+
+        // Caption HARUS diteruskan apa adanya: gerbang uang mensyaratkan niat bayar-di-muka
+        // dikatakan pelanggan. Caption sintetis dari portal akan membobol gerbang itu.
+        test("tagihan: forwards the customer caption verbatim and reuses the billing snapshot", async () => {
+            const token = createCustomerToken(global.users[0]);
+            const billing = { outstanding: 150000, periodMonth: 4, periodYear: 2026 };
+            const service = mockProofService({
+                decision: {
+                    action: ACTION.CAPTURE,
+                    reason: "ada-tagihan",
+                    advance: false,
+                    billing,
+                    ackText: null
+                },
+                proofResult: {
+                    record: { id: "BP-260717-A1B2", status: "pending" },
+                    billing,
+                    ackText: "Bukti kamu sudah kami terima."
+                }
+            });
+            const app = createApp();
+            const { server, baseUrl } = await startServer(app);
+
+            try {
+                const response = await postProof(baseUrl, buildProofForm({ caption: "sudah transfer pagi ini" }), token);
+                const payload = await response.json();
+
+                expect(response.status).toBe(201);
+                expect(payload).toMatchObject({
+                    status: 201,
+                    message: "Bukti kamu sudah kami terima.",
+                    data: { id: "BP-260717-A1B2", status: "pending", type: "tagihan" }
+                });
+
+                expect(service.evaluateIntake).toHaveBeenCalledWith(expect.objectContaining({
+                    caption: "sudah transfer pagi ini",
+                    adminActive: false,
+                    signalReady: true,
+                    recentComplaint: false
+                }));
+                expect(service.handleIncomingProof).toHaveBeenCalledWith(expect.objectContaining({
+                    caption: "sudah transfer pagi ini",
+                    messageType: "imageMessage",
+                    billing, // snapshot dipakai ulang, bukan diquery ulang
+                    intakeReason: "ada-tagihan",
+                    advance: false,
+                    buffer: expect.any(Buffer)
+                }));
+            } finally {
+                await stopServer(server);
+            }
+        });
+
+        test("tagihan: maps a PDF upload to documentMessage", async () => {
+            const token = createCustomerToken(global.users[0]);
+            const billing = { outstanding: 150000 };
+            const service = mockProofService({
+                decision: { action: ACTION.CAPTURE, reason: "ada-tagihan", advance: false, billing, ackText: null },
+                proofResult: { record: { id: "BP-260717-C3D4", status: "pending" }, billing, ackText: "ok" }
+            });
+            const app = createApp();
+            const { server, baseUrl } = await startServer(app);
+
+            try {
+                const form = buildProofForm({ caption: "bukti tf", fileType: "application/pdf", fileName: "bukti.pdf" });
+                const response = await postProof(baseUrl, form, token);
+
+                expect(response.status).toBe(201);
+                expect(service.handleIncomingProof).toHaveBeenCalledWith(expect.objectContaining({
+                    messageType: "documentMessage"
+                }));
+            } finally {
+                await stopServer(server);
+            }
+        });
+
+        test("sod: rejects when the customer has no pending speed request awaiting payment", async () => {
+            const token = createCustomerToken(global.users[0]);
+            global.speed_requests = [];
+            const app = createApp();
+            const { server, baseUrl } = await startServer(app);
+
+            try {
+                const response = await postProof(baseUrl, buildProofForm({ type: "sod" }), token);
+                const payload = await response.json();
+
+                expect(response.status).toBe(404);
+                expect(payload.message).toMatch(/tidak ada permintaan speed on demand/i);
+            } finally {
+                await stopServer(server);
+            }
+        });
+
+        // IDOR: speed_requests.userId hidup di ruang id global.users, sama dengan req.customer.id.
+        // Request milik pelanggan lain tidak boleh bisa disentuh.
+        test("sod: refuses to attach proof to another customer's speed request", async () => {
+            const token = createCustomerToken(global.users[0]);
+            global.speed_requests = [{
+                id: "SR-OTHER",
+                userId: 999, // pelanggan lain
+                status: "pending",
+                paymentMethod: "transfer",
+                paymentStatus: "unpaid",
+                requestedPackageName: "Paket 50 Mbps",
+                durationKey: "1_hari",
+                price: 20000
+            }];
+            const app = createApp();
+            const { server, baseUrl } = await startServer(app);
+
+            try {
+                const response = await postProof(baseUrl, buildProofForm({ type: "sod" }), token);
+
+                expect(response.status).toBe(404);
+                expect(global.speed_requests[0].paymentProof).toBeUndefined();
+                expect(global.speed_requests[0].paymentStatus).toBe("unpaid");
+            } finally {
+                await stopServer(server);
+            }
+        });
+
+        test("sod: attaches proof to the customer's own request and flips payment status to pending", async () => {
+            const token = createCustomerToken(global.users[0]);
+            global.speed_requests = [{
+                id: "SR-001",
+                userId: global.users[0].id,
+                userName: "Budi",
+                status: "pending",
+                paymentMethod: "transfer",
+                paymentStatus: "unpaid",
+                requestedPackageName: "Paket 50 Mbps",
+                durationKey: "1_hari",
+                price: 20000
+            }];
+            const app = createApp();
+            const { server, baseUrl } = await startServer(app);
+
+            try {
+                const form = buildProofForm({ type: "sod", caption: "sudah transfer" });
+                const response = await postProof(baseUrl, form, token);
+                const payload = await response.json();
+
+                expect(response.status).toBe(201);
+                expect(payload).toMatchObject({
+                    status: 201,
+                    data: { id: "SR-001", status: "pending", type: "sod" }
+                });
+
+                const request = global.speed_requests[0];
+                expect(request.paymentStatus).toBe("pending");
+                expect(request.paymentNotes).toBe("sudah transfer");
+                // status permintaan TIDAK ikut berubah — verifikasi tetap wewenang admin
+                expect(request.status).toBe("pending");
+                expect(request.paymentProof).toBe("/static/uploads/speed-requests/payment-SR-001-1700000000000.jpg");
+            } finally {
+                await stopServer(server);
+            }
+        });
     });
 
     test("POST /api/customer/reports/upload-photo accepts multipart upload and returns photo contract", async () => {

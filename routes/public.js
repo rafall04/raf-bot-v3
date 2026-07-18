@@ -238,6 +238,51 @@ const wifiWriteRateLimiter = rateLimit({
     }
 });
 
+// Bukti bayar: lebih ketat dari WiFi write — tiap request menulis file DAN mengirim notifikasi WA ke
+// admin, jadi penyalahgunaannya membebani orang, bukan cuma server. Key-nya berprefix sendiri supaya
+// kuota bukti bayar tidak dihabiskan oleh operasi WiFi (dan sebaliknya).
+const paymentProofRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 menit
+    max: 5, // 5 upload per 15 menit per customer
+    message: {
+        status: 429,
+        message: 'Terlalu banyak upload bukti pembayaran. Silakan coba lagi dalam 15 menit.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => `payment_proof_customer_${req.customer?.id || 'unknown'}`
+});
+
+// memoryStorage — BUKAN diskStorage seperti handleReportPhotoUpload. handleIncomingProof() menuntut
+// Buffer (dipakai untuk fs.writeFileSync di repository sekaligus dikirim ulang sebagai media WA ke
+// admin), dan alur tagihan bisa berakhir non-CAPTURE — kalau file terlanjur ditulis ke disk, setiap
+// jalur tolak harus ingat unlink. Buffer membuat kelas bug itu tidak ada.
+const paymentProofUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: function (req, file, cb) {
+        // Alur tagihan menerima PDF (payment-proof.service memetakan documentMessage → .pdf), jadi
+        // filter image-only milik upload laporan tidak bisa dipakai apa adanya di sini.
+        const isImage = file.mimetype.startsWith('image/');
+        const isPdf = file.mimetype === 'application/pdf';
+        if (!isImage && !isPdf) {
+            return cb(new Error('Hanya file gambar atau PDF yang diperbolehkan'), false);
+        }
+        return cb(null, true);
+    }
+});
+
+function handlePaymentProofUpload(req, res, next) {
+    paymentProofUpload.single('proof')(req, res, (error) => {
+        if (!error) {
+            return next();
+        }
+        // Ubah error Multer (termasuk LIMIT_FILE_SIZE) jadi 400 yang rapi alih-alih melemparnya ke
+        // error handler global — pola yang sama dengan handleReportPhotoUpload.
+        return sendError(res, error.message || 'File bukti tidak valid', 400);
+    });
+}
+
 // --- Router Setup ---
 
 // Middleware is now applied globally in index.js
@@ -396,6 +441,148 @@ router.post('/api/login', loginValidation, asyncHandler(async (req, res) => {
 
 
 // --- Customer Authenticated Routes ---
+
+// Petakan keputusan gerbang uang → status HTTP. "Nol tagihan" dan "tagihan tak terbaca" TIDAK boleh
+// dilebur jadi satu kode: yang pertama jawaban pasti (409), yang kedua kita memang tidak tahu (503,
+// fail-closed) — persis alasan intake-policy memisahkan keduanya di step 3 vs step 6.
+function paymentProofRejectionStatus(reason) {
+    switch (reason) {
+        case 'tak-ada-tagihan':
+            return 409;
+        case 'tagihan-tak-diketahui':
+        case 'sinyal-belum-siap':
+            return 503;
+        case 'caption-keluhan':
+        case 'keluhan-baru':
+            return 422;
+        default:
+            return 409;
+    }
+}
+
+async function handleTagihanPaymentProof(req, res, customer, caption) {
+    const { getPaymentProofService } = require('../services/payment-proof.service');
+    const { ACTION } = require('../lib/payment-proof-intake-policy');
+    const service = getPaymentProofService();
+
+    // Upload lewat portal adalah pernyataan niat yang EKSPLISIT, jadi sinyal khas chat tidak berlaku:
+    // adminActive/recentComplaint hanya bermakna untuk foto tak diminta yang masuk ke WhatsApp.
+    // Yang tetap kita hormati adalah gerbang uangnya (step 6) — itu justru inti alur ini.
+    const decision = await service.evaluateIntake({
+        user: customer,
+        caption,
+        adminActive: false,
+        signalReady: true,
+        recentComplaint: false
+    });
+
+    if (decision.action !== ACTION.CAPTURE) {
+        return sendError(
+            res,
+            decision.ackText || "Bukti pembayaran tidak dapat diproses saat ini.",
+            paymentProofRejectionStatus(decision.reason)
+        );
+    }
+
+    // handleIncomingProof memakai JID ini sebagai target notifikasi hasil konfirmasi. Harus lewat
+    // getCustomerJids: phone_number bisa berisi banyak nomor dipisah '|', dan getCustomerJid() pada
+    // string seperti itu menormalkan keseluruhannya jadi nomor sampah.
+    const BaseService = require('../lib/services/base-service');
+    const [canonicalSender] = BaseService.getCustomerJids(customer.phone_number);
+    if (!canonicalSender) {
+        return sendError(res, "Nomor WhatsApp Anda belum terdaftar. Hubungi admin terlebih dahulu.", 422);
+    }
+
+    const { record, ackText } = await service.handleIncomingProof({
+        user: customer,
+        canonicalSender,
+        pushname: customer.name,
+        messageType: req.file.mimetype === 'application/pdf' ? 'documentMessage' : 'imageMessage',
+        buffer: req.file.buffer,
+        caption,
+        billing: decision.billing, // pakai ulang snapshot: gerbang & record berdiri di angka yang sama
+        intakeReason: decision.reason,
+        advance: decision.advance
+    });
+
+    return sendSuccess(res, {
+        id: record.id,
+        status: record.status,
+        type: 'tagihan'
+    }, ackText, 201);
+}
+
+// Satu-satunya definisi "permintaan SOD yang menunggu bukti bayar". Dipakai bersama oleh endpoint
+// baca dan endpoint upload — kalau keduanya punya filter sendiri, UI bisa menampilkan kotak upload
+// untuk permintaan yang justru ditolak POST-nya (atau sebaliknya).
+//
+// KEPEMILIKAN: speed_requests.userId hidup di ruang id global.users — ruang yang SAMA dengan
+// req.customer.id. JANGAN tiru routes/speed-requests.js:110 (`request.userId === req.user.id`):
+// req.user berasal dari accounts.json (staf), sekuens id berbeda yang nilainya bisa bertabrakan.
+// Bentuk di bawah mengikuti cek yang sudah dipakai speed-request-service.js:180.
+function findSpeedRequestAwaitingProof(customerId) {
+    return (global.speed_requests || []).find((item) =>
+        String(item.userId) === String(customerId) &&
+        item.status === 'pending' &&
+        ['cash', 'transfer'].includes(item.paymentMethod) &&
+        item.paymentStatus === 'unpaid'
+    ) || null;
+}
+
+async function handleSodPaymentProof(req, res, customer, caption) {
+    const { getUploadDir, getUploadPath, generateFilename } = require('../lib/upload-helper');
+
+    const pendingRequest = findSpeedRequestAwaitingProof(customer.id);
+
+    if (!pendingRequest) {
+        return sendError(res, "Tidak ada permintaan Speed On Demand yang menunggu bukti pembayaran.", 404);
+    }
+
+    const extension = req.file.mimetype === 'application/pdf' ? '.pdf' : '.jpg';
+    // Nama file diturunkan dari requestId + timestamp, bukan dari req.file.originalname yang dikirim
+    // klien. Konvensi path memakai getUploadDir/getUploadPath — pasangan yang konsisten. Handler
+    // WhatsApp (speed-payment-handler.js:103) menulis ke static/uploads/ tapi menyimpan '/uploads/...',
+    // sehingga URL tersimpannya 404; jangan ikut pola itu.
+    const filename = generateFilename('payment', pendingRequest.id, `proof${extension}`);
+    fs.writeFileSync(path.join(getUploadDir('speed-requests'), filename), req.file.buffer);
+
+    const requestIndex = global.speed_requests.findIndex((item) => item.id === pendingRequest.id);
+    const request = global.speed_requests[requestIndex];
+    const now = new Date().toISOString();
+
+    request.paymentProof = getUploadPath('speed-requests', filename);
+    request.paymentStatus = 'pending'; // menunggu verifikasi admin; request.status tidak disentuh
+    request.paymentNotes = caption || 'Upload via portal';
+    request.paymentDate = now;
+    request.updatedAt = now;
+    saveSpeedRequests();
+
+    // Notif admin best-effort — kegagalan kirim tidak boleh menggagalkan bukti yang sudah tercatat.
+    if (hasAuthenticatedSession() && Array.isArray(global.config.ownerNumber)) {
+        try {
+            const notifMessage = renderResponseTemplate('routes_speed_payment_proof_owner_notification', {
+                customerName: request.userName || customer.name,
+                requestedPackage: request.requestedPackageName,
+                duration: String(request.durationKey || '').replace('_', ' '),
+                price: `Rp ${Number(request.price || 0).toLocaleString('id-ID')}`,
+                paymentMethod: request.paymentMethod,
+                paymentNotes: request.paymentNotes || '-'
+            });
+            const delivery = await sendMessageToMany(global.config.ownerNumber, { text: notifMessage });
+            if (!delivery.sent) {
+                console.error('[PAYMENT_PROOF_SOD_NOTIF_ERROR]', delivery.errorCode || 'SEND_FAILED');
+            }
+        } catch (error) {
+            console.error('[PAYMENT_PROOF_SOD_NOTIF_ERROR]', error.message);
+        }
+    }
+
+    return sendSuccess(res, {
+        id: request.id,
+        status: request.paymentStatus,
+        type: 'sod'
+    }, "Bukti pembayaran berhasil diupload. Menunggu verifikasi admin.", 201);
+}
 
 const customerApiRouter = express.Router();
 customerApiRouter.use(ensureCustomerAuthenticated);
@@ -631,9 +818,58 @@ customerApiRouter.put('/wifi/update', wifiWriteRateLimiter, asyncHandler(async (
 
 customerApiRouter.post('/wifi/reboot', wifiWriteRateLimiter, asyncHandler(async (req, res) => {
     const customer = req.customer;
-    
+
     const result = await WifiService.rebootCustomerRouter(customer, req);
     return sendSuccess(res, result, result.message || "Perintah reboot berhasil dikirim");
+}));
+
+// Permintaan SOD yang menunggu bukti bayar. formatSpeedRequest() tidak membawa paymentStatus/
+// paymentMethod, jadi /speed-requests/history tidak bisa menjawab ini — dan /active hanya melihat
+// status 'active'. Portal butuh tahu ini supaya pelanggan yang menutup tab masih punya jalan kembali
+// untuk mengunggah bukti.
+customerApiRouter.get('/speed-requests/awaiting-proof', asyncHandler(async (req, res) => {
+    const pending = findSpeedRequestAwaitingProof(req.customer.id);
+
+    if (!pending) {
+        return sendSuccess(res, null, "Tidak ada permintaan yang menunggu bukti pembayaran.");
+    }
+
+    return sendSuccess(res, {
+        id: pending.id,
+        requestedPackageName: pending.requestedPackageName,
+        durationKey: pending.durationKey,
+        price: pending.price,
+        paymentMethod: pending.paymentMethod,
+        createdAt: pending.createdAt
+    }, "Permintaan menunggu bukti pembayaran.");
+}));
+
+// --- BUKTI BAYAR PELANGGAN (portal) ---
+// Sebelum ini pelanggan HANYA bisa mengirim bukti lewat chat WhatsApp; portal tidak punya jalur sama
+// sekali, padahal /api/request-speed sudah menjanjikan "silakan upload bukti pembayaran". Satu endpoint
+// melayani dua alur lewat `type` — keduanya mendelegasikan ke mesin yang sudah ada, BUKAN menyalin
+// aturannya (khususnya gerbang uang di payment-proof-intake-policy).
+customerApiRouter.post('/payment-proof', paymentProofRateLimiter, handlePaymentProofUpload, asyncHandler(async (req, res) => {
+    const customer = req.customer;
+    const type = String(req.body.type || '').trim().toLowerCase();
+
+    if (!['tagihan', 'sod'].includes(type)) {
+        return sendError(res, "Jenis bukti tidak valid. Gunakan 'tagihan' atau 'sod'.", 400);
+    }
+    if (!req.file || !req.file.buffer || !req.file.buffer.length) {
+        return sendError(res, "File bukti harus diupload.", 400);
+    }
+
+    // Caption diteruskan APA ADANYA. Jangan pernah mengarang caption bernuansa "bayar" di sini:
+    // gerbang uang (intake-policy step 6) sengaja mensyaratkan niat bayar-di-muka DIKATAKAN pelanggan,
+    // bukan diterka sistem. Caption sintetis akan membuat setiap pelanggan nol-tagihan lolos jadi
+    // "pembayaran di muka" — persis lubang yang gerbang itu tutup.
+    const caption = String(req.body.caption || '').trim();
+
+    if (type === 'sod') {
+        return handleSodPaymentProof(req, res, customer, caption);
+    }
+    return handleTagihanPaymentProof(req, res, customer, caption);
 }));
 
 router.post('/api/customer/login', customerLoginValidation, asyncHandler(handleCustomerLogin));
