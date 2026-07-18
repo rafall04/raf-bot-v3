@@ -328,6 +328,15 @@
     "alertDetractor": true,
     "detractorMaxScore": 2
   },
+  "broadcastGuard": {
+    "enabled": false,
+    "jitterMaxExtraMs": 4000,
+    "batchSize": 25,
+    "batchPauseMs": 60000,
+    "maxPerRun": 0,
+    "breakerThreshold": 6,
+    "minGapMs": 0
+  },
   "paymentRequestDigest": {
     "enabled": false,
     "windowMinutes": 30
