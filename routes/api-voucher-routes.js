@@ -42,6 +42,17 @@ function createApiVoucherRouter({
             return next();
         };
 
+    // Ambil kode voucher dari field `ket` payment. buynowweb: "<kode>"; buynow: "Voucher: <kode>";
+    // gagal terbit: "GAGAL voucher: ...". Kembalikan null bila belum ada kode nyata.
+    function extractVoucherCode(ket) {
+        if (!ket || typeof ket !== 'string') return null;
+        const t = ket.trim();
+        if (!t || /^GAGAL/i.test(t)) return null;
+        const m = t.match(/^Voucher:\s*(.+)$/i);
+        const code = (m ? m[1] : t).trim();
+        return code || null;
+    }
+
     function getRuntime() {
         return global.__appRuntime || null;
     }
@@ -217,7 +228,9 @@ function createApiVoucherRouter({
                 }
                 const pkg = nameByPrice[String(amt)] || ('Rp' + amt.toLocaleString('id-ID'));
                 byPkg[pkg] = (byPkg[pkg] || 0) + 1;
-                recent.push({ paket: pkg, amount: amt, ts: (ts && !isNaN(ts)) ? ts : null, tag: p.tag });
+                const _code = extractVoucherCode(p.ket);
+                const _failed = !_code && typeof p.ket === 'string' && /^GAGAL/i.test(p.ket.trim());
+                recent.push({ paket: pkg, amount: amt, ts: (ts && !isNaN(ts)) ? ts : null, tag: p.tag, code: _code, ref: p.reffId || null, failed: !!_failed });
             });
             const topPackages = Object.keys(byPkg).map((k) => ({ name: k, count: byPkg[k] })).sort((a, b) => b.count - a.count).slice(0, 5);
             recent.sort((a, b) => (b.ts || 0) - (a.ts || 0));
@@ -228,6 +241,36 @@ function createApiVoucherRouter({
         } catch (e) {
             console.error('[VOUCHER_SALES_STATS]', e.message);
             return res.status(500).json({ error: 'Gagal menghitung statistik penjualan.' });
+        }
+    });
+
+    // Kirim ULANG kode voucher yang SUDAH terbit ke nomor pembeli (recovery: pelanggan kehilangan
+    // kode / WA sempat putus). TIDAK menerbitkan voucher baru — hanya kirim ulang kode tersimpan.
+    // Never-throw; delivery-service yang cek koneksi WA & normalisasi nomor→JID.
+    router.post('/voucher/resend', requireStaff, async (req, res) => {
+        try {
+            const reff = String((req.body && (req.body.reff || req.body.reference_id)) || '').trim();
+            if (!reff) return res.status(400).json({ status: 400, message: 'Ref transaksi kosong.' });
+            const payments = Array.isArray(global.payment) ? global.payment : [];
+            const rec = payments.find((p) => p && String(p.reffId) === reff);
+            if (!rec) return res.status(404).json({ status: 404, message: 'Transaksi tidak ditemukan.' });
+            if (!['buynowweb', 'buynow'].includes(rec.tag)) {
+                return res.status(400).json({ status: 400, message: 'Bukan transaksi voucher online.' });
+            }
+            const code = extractVoucherCode(rec.ket);
+            if (!code) {
+                return res.status(409).json({ status: 409, message: 'Kode belum ada (voucher gagal terbit / belum dibayar). Perlu diterbitkan ulang, bukan sekadar kirim ulang.' });
+            }
+            if (!rec.sender) return res.status(400).json({ status: 400, message: 'Nomor pembeli tidak tercatat.' });
+            const vouchers = Array.isArray(global.voucher) ? global.voucher : [];
+            const amt = parseInt(rec.amount, 10) || 0;
+            const match = vouchers.find((v) => (parseInt(v.hargavc, 10) || 0) === amt);
+            const namaPaket = (match && (match.namavc || match.durasivc || match.prof)) || ('Rp' + amt.toLocaleString('id-ID'));
+            const result = await apiVoucherService.resendVoucherCode({ phone: rec.sender, code, namaPaket, amount: amt });
+            return res.status(result.status).json(result.body);
+        } catch (e) {
+            console.error('[VOUCHER_RESEND]', e && e.message);
+            return res.status(500).json({ status: 500, message: 'Terjadi kesalahan saat kirim ulang.' });
         }
     });
 

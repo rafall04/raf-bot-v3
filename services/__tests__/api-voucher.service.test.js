@@ -136,4 +136,25 @@ describe("api-voucher service", () => {
         expect(result.status).toBe(200);
         expect(result.body.sentTo).toEqual(["081"]);
     });
+
+    test("resendVoucherCode re-sends existing code via delivery owner (200) and reports WA-down (503 + code)", async () => {
+        const sendMessageToMany = jest.fn().mockResolvedValue({ sent: true, recipients: ["6281@s.whatsapp.net"] });
+        const service = createApiVoucherService({
+            renderTemplate: jest.fn(() => "Kode voucher Paket 2 Jam: abc123"),
+            sendMessageToMany,
+            ensureJid: jest.fn((value) => `${String(value).replace(/\D/g, "")}@s.whatsapp.net`),
+            logger: { error: jest.fn(), warn: jest.fn(), log: jest.fn() }
+        });
+
+        const ok = await service.resendVoucherCode({ phone: "081", code: "abc123", namaPaket: "Paket 2 Jam", amount: 1000 });
+        expect(sendMessageToMany).toHaveBeenCalledWith(["081"], { text: "Kode voucher Paket 2 Jam: abc123" });
+        expect(ok.status).toBe(200);
+        expect(ok.body.code).toBe("abc123");
+
+        // WA belum terhubung → 503 + kode tetap dikembalikan agar admin bisa kirim manual.
+        sendMessageToMany.mockResolvedValueOnce({ sent: false, errorCode: "WHATSAPP_NOT_CONNECTED" });
+        const down = await service.resendVoucherCode({ phone: "081", code: "abc123", namaPaket: "Paket 2 Jam", amount: 1000 });
+        expect(down.status).toBe(503);
+        expect(down.body.code).toBe("abc123");
+    });
 });

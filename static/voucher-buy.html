@@ -206,6 +206,12 @@ input[type=tel]:focus{border-color:var(--accent);background:var(--focus-bg);box-
   padding:11px 16px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:border-color .16s ease,color .16s ease}
 .check-btn:hover{border-color:var(--chip-line);color:var(--accent-ink)}
 .check-btn:disabled{opacity:.6;cursor:not-allowed}
+.qr-dl-wrap{text-align:center}
+.dl-btn{display:inline-flex;align-items:center;gap:7px;margin:12px auto 0;background:var(--surface-2);color:var(--ink);border:1px solid var(--line-2);border-radius:11px;
+  padding:10px 18px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:border-color .16s ease,color .16s ease}
+.dl-btn:hover{border-color:var(--chip-line);color:var(--accent-ink)}
+.dl-btn:disabled{opacity:.6;cursor:progress}
+.dl-btn svg{opacity:.9}
 
 .done{text-align:center}
 .seal{width:64px;height:64px;border-radius:50%;background:var(--grad);color:#04231f;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
@@ -332,6 +338,21 @@ footer{border-top:1px solid var(--line);margin-top:10px}
     </div>
   </section>
 
+  <!-- review: konfirmasi harga + nomor SEBELUM transaksi/QR dibuat -->
+  <section id="view-review" class="hidden">
+    <button class="back" id="backForm">← Ubah nomor</button>
+    <div class="panel" style="margin-top:12px">
+      <div class="summary"><span class="s-name" id="r-name">-</span><span class="s-price" id="r-price">-</span></div>
+      <div class="breakdown" style="margin:6px 0 14px">
+        <div class="bd-row"><span>Kirim kode ke</span><span id="r-phone">-</span></div>
+        <div class="bd-row"><span>Total bayar</span><span id="r-total">-</span></div>
+      </div>
+      <p class="pay-note">Biaya admin QRIS ditambahkan saat pembayaran. Kode QR baru dibuat setelah Anda menekan tombol di bawah — jadi kalau batal di sini, tidak ada transaksi yang terbuat.</p>
+      <button class="btn" id="confirmBuy">Buat Kode QR &amp; Bayar <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      <div id="reviewErr" class="err hidden"></div>
+    </div>
+  </section>
+
   <!-- payment -->
   <section id="view-pay" class="hidden">
     <button class="back" id="cancelPay">← Batalkan</button>
@@ -339,8 +360,13 @@ footer{border-top:1px solid var(--line);margin-top:10px}
       <div class="summary"><span class="s-name" id="p-name">-</span><span class="s-price" id="p-price">-</span></div>
       <div class="qr-frame">
         <span class="corner c1"></span><span class="corner c2"></span><span class="corner c3"></span><span class="corner c4"></span>
-        <span class="scan"></span>
         <img id="qrimg" alt="QRIS" src="">
+      </div>
+      <div class="qr-dl-wrap">
+        <button id="qrdl" class="dl-btn" type="button" aria-label="Download kode QR QRIS">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0 4-4m-4 4-4-4M5 20h14"/></svg>
+          Download QR
+        </button>
       </div>
       <div class="pay-total">
         <div class="breakdown hidden" id="breakdown">
@@ -427,7 +453,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
   });
 
   function show(view){
-    ['catalog','form','pay','result'].forEach(function(v){ $('view-'+v).classList.add('hidden'); });
+    ['catalog','form','review','pay','result'].forEach(function(v){ $('view-'+v).classList.add('hidden'); });
     var sec=$('view-'+view); sec.classList.remove('hidden');
     sec.classList.remove('reveal'); void sec.offsetWidth; sec.classList.add('reveal');
     window.scrollTo(0,0);
@@ -543,11 +569,25 @@ footer{border-top:1px solid var(--line);margin-top:10px}
   // Validasi & rapikan input nomor: hanya digit (buang spasi/+/huruf saat mengetik).
   $('phone').addEventListener('input',function(){ var d=this.value.replace(/[^\d]/g,''); if(this.value!==d) this.value=d; });
 
+  // Langkah 1: validasi nomor lalu tampilkan REVIEW. Transaksi/QR BELUM dibuat di sini
+  // (anti-spam: pelanggan yang batal tidak membuat transaksi iPaymu orphan).
   $('buyBtn').addEventListener('click',function(){
     var d=digitsOf($('phone').value);
     if(d.length<9||d.length>15){ $('formErr').textContent='Masukkan nomor WhatsApp yang valid.'; $('formErr').classList.remove('hidden'); return; }
     $('formErr').classList.add('hidden'); lsSet('vc-phone',d); // simpan utk pembelian berikutnya
-    $('buyBtn').disabled=true; $('buyBtn').textContent='Memproses…';
+    $('r-name').textContent=selected.name; $('r-price').textContent=rupiah(selected.price);
+    $('r-phone').textContent=d; $('r-total').textContent=rupiah(selected.price);
+    $('reviewErr').classList.add('hidden');
+    show('review');
+  });
+  $('backForm').addEventListener('click',function(){ show('form'); $('phone').focus(); });
+
+  // Langkah 2: konfirmasi → BARU buat transaksi iPaymu + QR.
+  $('confirmBuy').addEventListener('click',function(){
+    var d=digitsOf($('phone').value);
+    if(d.length<9||d.length>15){ show('form'); $('phone').focus(); return; }
+    $('reviewErr').classList.add('hidden');
+    $('confirmBuy').disabled=true; $('confirmBuy').textContent='Memproses…';
     var email=d+'@voucher.rafnet.local';
     fetch('/app/buy/'+selected.prof+'?phone='+encodeURIComponent(d)+'&email='+encodeURIComponent(email))
       .then(function(r){return r.json();})
@@ -555,8 +595,8 @@ footer{border-top:1px solid var(--line);margin-top:10px}
         if(!res||res.status!==200||!res.data) throw new Error((res&&res.message)||'Gagal membuat transaksi.');
         reff=res.data; startPayment();
       })
-      .catch(function(err){ $('formErr').textContent=err.message||'Gagal membuat transaksi. Coba lagi.'; $('formErr').classList.remove('hidden'); })
-      .finally(function(){ $('buyBtn').disabled=false; $('buyBtn').innerHTML='Lanjut ke Pembayaran <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'; });
+      .catch(function(err){ $('reviewErr').textContent=err.message||'Gagal membuat transaksi. Coba lagi.'; $('reviewErr').classList.remove('hidden'); })
+      .finally(function(){ $('confirmBuy').disabled=false; $('confirmBuy').innerHTML='Buat Kode QR &amp; Bayar <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'; });
   });
 
   function startPayment(){
@@ -623,6 +663,20 @@ footer{border-top:1px solid var(--line);margin-top:10px}
   });
 
   $('cancelPay').addEventListener('click',function(){ clearTimeout(pollTimer); clearInterval(cdTimer); show('catalog'); });
+  $('qrdl').addEventListener('click',function(){
+    if(!reff) return;
+    var btn=this, orig=btn.innerHTML; btn.disabled=true;
+    fetch('/app/qr/'+encodeURIComponent(reff)+'?dl='+Date.now())
+      .then(function(r){ if(!r.ok) throw 0; return r.blob(); })
+      .then(function(b){
+        var u=URL.createObjectURL(b), a=document.createElement('a');
+        a.href=u; a.download='voucher-qris-'+reff+'.png';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(u); },2000);
+      })
+      .catch(function(){ window.open('/app/qr/'+encodeURIComponent(reff),'_blank'); })
+      .finally(function(){ btn.disabled=false; btn.innerHTML=orig; });
+  });
   $('buyMore').addEventListener('click',function(){ reff=null; show('catalog'); });
   $('buyMore2').addEventListener('click',function(){ reff=null; show('catalog'); });
 })();

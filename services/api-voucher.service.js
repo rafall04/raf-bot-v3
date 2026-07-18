@@ -3,7 +3,7 @@
  * Purpose: Menjadi owner orchestration domain API voucher untuk generate/send voucher, member credential delivery, dan statistik/history voucher API.
  * Caller: `routes/api-voucher-routes.js`.
  * Deps: `repositories/api-voucher.repository.js`, delivery WhatsApp terpusat, template renderer, dan adapter generate voucher/PHP.
- * MainFuncs: `createApiVoucherService`, `listVoucherProfiles`, `generateAndSendVouchers`, `listSentHistory`, `getSentStats`, `sendMemberCredentials`.
+ * MainFuncs: `createApiVoucherService`, `listVoucherProfiles`, `generateAndSendVouchers`, `listSentHistory`, `getSentStats`, `sendMemberCredentials`, `resendVoucherCode`.
  * SideEffects: Membaca katalog voucher, membaca/menulis history pengiriman, memanggil adapter generate voucher/PHP, dan mengirim pesan WhatsApp.
  */
 "use strict";
@@ -279,6 +279,34 @@ function createApiVoucherService(overrides = {}) {
                     ...stats
                 }
             };
+        },
+
+        // Kirim ULANG kode voucher yang SUDAH terbit ke nomor pembeli (recovery). TIDAK menerbitkan
+        // voucher baru — hanya mengirim ulang kode tersimpan. Router yang mencari record + kode;
+        // service yang render template + kirim (owner WA-send). Never-throw.
+        async resendVoucherCode({ phone, code, namaPaket, amount }) {
+            if (!phone || !code) {
+                return { status: 400, body: { status: 400, message: "Nomor & kode voucher diperlukan" } };
+            }
+            const harga = "Rp" + (parseInt(amount, 10) || 0).toLocaleString("id-ID");
+            let message = deps.renderTemplate("voucher_purchase_success", {
+                nama_paket: namaPaket || "Voucher",
+                harga,
+                kode_voucher: code
+            });
+            if (!message || typeof message !== "string" || message.startsWith("Error: Template")) {
+                message = `Kode voucher ${namaPaket || ""} Anda: ${code}`;
+            }
+            let delivery;
+            try {
+                delivery = await deps.sendMessageToMany([phone], { text: message });
+            } catch (_err) {
+                return { status: 502, body: { status: 502, message: "Gagal mengirim (WhatsApp error). Coba lagi.", code } };
+            }
+            if (!delivery || !delivery.sent) {
+                return { status: 503, body: { status: 503, message: "WhatsApp belum terhubung — kode belum terkirim. Scan ulang QR WhatsApp bot lalu coba lagi. Sementara, salin kode ini & kirim manual.", code } };
+            }
+            return { status: 200, body: { status: 200, message: "Kode voucher dikirim ulang ke WhatsApp pembeli.", code } };
         },
 
         async sendMemberCredentials({ userId, phones, notes, createdBy }) {
