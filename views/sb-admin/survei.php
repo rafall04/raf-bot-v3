@@ -35,6 +35,7 @@
             </div>
             <div class="text-sm-right mt-2 mt-sm-0">
               <button id="csat-run" class="btn btn-sm btn-success shadow-sm mr-1"><i class="fas fa-paper-plane fa-sm mr-1"></i>Kirim Survei Sekarang</button>
+              <button id="csat-recover" class="btn btn-sm btn-outline-warning shadow-sm mr-1" title="Tangkap ulang balasan pelanggan yang sempat terlewat saat pengiriman berlangsung"><i class="fas fa-undo fa-sm mr-1"></i>Pulihkan Terlewat</button>
               <label class="small text-muted mb-0 mr-1 ml-1" for="csat-period">Periode</label>
               <select id="csat-period" class="form-control form-control-sm d-inline-block" style="width:auto"></select>
               <button id="csat-refresh" class="btn btn-sm btn-outline-secondary shadow-sm ml-1"><i class="fas fa-sync fa-sm"></i></button>

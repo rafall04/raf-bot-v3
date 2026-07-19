@@ -59,6 +59,10 @@
     "name": "Survei Kepuasan — Berhenti Survei",
     "template": "{Baik Kak, kami tidak akan mengirim survei lagi 🙏|Siap Kak, survei tidak akan kami kirim lagi 🙏|Oke Kak, kami hentikan survei untuk Anda 🙏}\n\n{Terima kasih.|Makasih ya.} {Kalau sewaktu-waktu butuh bantuan, ketik *menu* ya.|Kalau butuh bantuan, tinggal ketik *menu* ya.} 😊"
   },
+  "rating_reprompt": {
+    "name": "Survei Kepuasan — Ingatkan Beri Angka (balasan ambigu)",
+    "template": "{Makasih Kak 🙏|Terima kasih Kak 🙏|Siap Kak 🙏}\n\n{Boleh dibantu kasih|Mohon beri|Kasih} *nilai 1-5* untuk layanan internetnya ya?\n1 = sangat kurang\n5 = sangat puas\n\n{Cukup balas *angkanya* saja|Balas *angkanya* aja ya|Ketik *angka 1-5* aja} 🙏"
+  },
   "compensation_applied": {
     "name": "Notifikasi Kompensasi Diberikan",
     "template": "Pelanggan Yth. ${nama_pelanggan},\n\nSebagai bentuk permintaan maaf kami, Anda mendapatkan kompensasi berupa peningkatan kecepatan internet.\n\nDetail Kompensasi:\n- Profil Baru: ${profileBaru}\n- Durasi: ${durasiLengkap}\n- Berlaku hingga: ${tanggalAkhir}\n\nSemoga layanan kami semakin memuaskan.\n\nSalam Hangat,\n*${nama_bot}*"

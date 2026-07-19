@@ -161,6 +161,22 @@
             .catch(function () { window.alert("Gagal menghubungi server."); btnRun.disabled = false; btnRun.innerHTML = orig; });
     });
 
+    var btnRecover = document.getElementById("csat-recover");
+    if (btnRecover) btnRecover.addEventListener("click", function () {
+        if (!window.confirm("Pulihkan balasan survei yang sempat terlewat?\n\nBot akan menangkap ulang rating dari pesan pelanggan yang belum tercatat, mengirim balasan susulan, dan meng-alert detractor. Ber-jeda anti-ban.")) return;
+        var orig = btnRecover.innerHTML;
+        btnRecover.disabled = true;
+        btnRecover.innerHTML = '<i class="fas fa-spinner fa-spin fa-sm mr-1"></i>Memulihkan...';
+        fetch("/api/owner/csat/recover", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ period: elPeriod ? elPeriod.value : undefined }) })
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+                window.alert((j && j.message) || (j && j.success ? "Pemulihan mulai berjalan." : "Gagal memulai pemulihan."));
+                btnRecover.disabled = false; btnRecover.innerHTML = orig;
+                setTimeout(function () { load(elPeriod ? elPeriod.value : null); }, 5000);
+            })
+            .catch(function () { window.alert("Gagal menghubungi server."); btnRecover.disabled = false; btnRecover.innerHTML = orig; });
+    });
+
     var btnSave = document.getElementById("csat-settings-save");
     if (btnSave) btnSave.addEventListener("click", function () {
         var g = function (id) { return document.getElementById(id); };

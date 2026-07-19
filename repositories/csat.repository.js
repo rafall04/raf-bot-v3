@@ -8,9 +8,9 @@
  * Caller: lib/csat/csat-survey-service.js (tangkap balasan + rekap), lib/cron/jobs/rating-survey.js
  *   (kirim survei + digest).
  * Deps: `sqlite3` (lazy/inject), `../lib/env-config` (getDatabasePath -> csat_test.sqlite saat test).
- * MainFuncs: createCsatRepository -> upsertPending, markStatusByJidBatch, markSent, markUndelivered,
+ * MainFuncs: createCsatRepository -> upsertPending, markSent, markUndelivered, noteReminded,
  *   getActiveByUserId, hasSurveyForPeriod, recordRating, recordComment, setOptout, finalizeExpired,
- *   getReport, listComments, listNonResponders, listDetractors, close.
+ *   getReport, listComments, listNonResponders, listDetractors, listLostForRecovery, close.
  * SideEffects: Membuat/menulis csat.sqlite (1 tabel: csat_surveys).
  */
 "use strict";
@@ -127,10 +127,29 @@ function createCsatRepository(overrides = {}) {
                 [sent_at, expires_at, now(), id]);
         },
 
-        /** Tandai GAGAL KIRIM (status 'undelivered') supaya tak masuk denominator response-rate. */
+        /**
+         * Tandai GAGAL KIRIM (status 'undelivered') supaya tak masuk denominator response-rate.
+         * Menyentuh baris 'pending' MAUPUN 'sent' yang BELUM berskor (sejak markSent kini dipanggil
+         * di awal siklus, baris yang gagal kirim total sudah terlanjur 'sent' → perlu di-revert),
+         * tapi TIDAK menyentuh yang sudah 'rated'/'done' (pelanggan sempat membalas di tengah kirim).
+         */
         async markUndelivered(id) {
             const db = await getDb();
-            await run(db, "UPDATE csat_surveys SET status='undelivered', updated_at=? WHERE id=? AND status='pending'", [now(), id]);
+            await run(db, "UPDATE csat_surveys SET status='undelivered', updated_at=? WHERE id=? AND status IN ('pending','sent') AND score IS NULL", [now(), id]);
+        },
+
+        /** Catat bahwa pelanggan sudah di-nudge sekali (anti re-prompt berulang saat balasan ambigu). */
+        async noteReminded(id, at) {
+            const db = await getDb();
+            await run(db, "UPDATE csat_surveys SET reminded_at=?, updated_at=? WHERE id=?", [at || now(), now(), id]);
+        },
+
+        /** Survei terkirim tapi belum berskor — kandidat pemulihan balasan yang sempat bocor. */
+        async listLostForRecovery(period) {
+            const db = await getDb();
+            return all(db,
+                "SELECT id, user_id, canonical_jid, phone, name, sent_at FROM csat_surveys WHERE period=? AND status='sent' AND score IS NULL ORDER BY id ASC",
+                [period]);
         },
 
         /**

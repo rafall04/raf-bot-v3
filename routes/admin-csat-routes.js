@@ -1,9 +1,12 @@
 /**
  * Header Doc
- * Purpose: Route ringkasan Survei Kepuasan (CSAT) — GET /api/owner/csat?period=YYYY-MM mengembalikan
- *   rekap satu periode (report + tren 12 bulan + detractor + komentar + non-responder) dari
- *   csat.repository via csat-survey-service.getRepository() (singleton, hindari koneksi SQLite ganda).
- *   READ-ONLY, admin/owner. Menyokong halaman web `/survei`.
+ * Purpose: Route Survei Kepuasan (CSAT) untuk admin/owner, menyokong halaman `/survei`:
+ *   GET  /api/owner/csat?period=YYYY-MM  → rekap periode (report + tren 12 bln + detractor + komentar
+ *        + non-responder + optout + enabled + settings) dari csat.repository via getRepository().
+ *   POST /api/owner/csat/run       → kirim survei SEKARANG (fire-and-forget, dedup per-periode).
+ *   POST /api/owner/csat/recover   → pulihkan balasan yang sempat bocor (replay handleInboundReply).
+ *   POST /api/owner/csat/settings  → simpan setelan survei + anti-ban (merge config.json + live).
+ *   Semua via getRepository() singleton (hindari koneksi SQLite ganda).
  * Caller: routes/admin-router.js (registerAdminCsatRoutes).
  * Deps: Express router, ensureAuthenticatedStaff (di-inject), lib/csat/csat-survey-service (getRepository),
  *   lib/error-handler.asyncHandler.
@@ -86,6 +89,28 @@ function registerAdminCsatRoutes(router, deps = {}) {
             .then((r) => console.log(`[CSAT_MANUAL_RUN] selesai oleh ${req.user && req.user.username}: ${JSON.stringify(r && { surveys: r.surveys, sent: r.sent, skipped: r.skipped })}`))
             .catch((e) => console.error("[CSAT_MANUAL_RUN_ERR]", e && e.message));
         res.json({ success: true, message: "Survei mulai dikirim ke pelanggan yang layak. Pengiriman ber-jeda (anti-ban) — hasil muncul di halaman ini beberapa menit lagi." });
+    }));
+
+    // PEMULIHAN balasan survei yang sempat bocor (pelanggan membalas selama jendela kirim ber-jeda
+    // sebelum baris ditandai 'sent'). Baca inbound mentah → putar ulang lewat handleInboundReply
+    // (rating tercatat + WA susulan + alert detractor + opt-out). In-process (butuh koneksi WA),
+    // fire-and-forget, ber-jeda anti-ban. Idempoten: sekali dipulihkan status ≠ 'sent' → tak diulang.
+    router.post("/api/owner/csat/recover", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const role = req.user && String(req.user.role || "").toLowerCase();
+        if (req.user && !CSAT_ROLES.includes(role)) {
+            return res.status(403).json({ success: false, message: "Pemulihan survei khusus admin/owner." });
+        }
+        const period = /^\d{4}-\d{2}$/.test(String((req.body && req.body.period) || "")) ? String(req.body.period) : currentPeriod();
+        const dryRun = Boolean(req.body && (req.body.dryRun === true || req.body.dryRun === "true"));
+        const { recoverLostResponders } = require("../lib/csat/csat-recovery");
+        if (dryRun) {
+            const r = await recoverLostResponders({ period, dryRun: true });
+            return res.json({ success: true, dryRun: true, data: r, message: `Rencana: ${r.plan.length} balasan akan dipulihkan (belum dieksekusi).` });
+        }
+        recoverLostResponders({ period })
+            .then((r) => console.log(`[CSAT_RECOVERY] dipicu ${req.user && req.user.username}: ${JSON.stringify(r)}`))
+            .catch((e) => console.error("[CSAT_RECOVERY_ERR]", e && e.message));
+        res.json({ success: true, message: "Pemulihan balasan yang terlewat mulai berjalan (ber-jeda anti-ban). Hasil muncul di halaman ini beberapa menit lagi." });
     }));
 
     // Simpan setelan survei + anti-ban ke config.json (MERGE, bukan replace) + update config LIVE
