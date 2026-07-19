@@ -16,7 +16,7 @@
 
 const { deleteUserState } = require("../conversation-handler");
 const { renderResponseTemplate } = require("../template-helpers");
-const { isAffirmative, isDecline, isResolvedAnswer, isUnresolvedAnswer } = require("../../../lib/affirmative-parser");
+const { isAffirmative, isCleanRebootConsent, isDecline, isResolvedAnswer, isUnresolvedAnswer } = require("../../../lib/affirmative-parser");
 
 /**
  * Step REBOOTFU_OFFER — pelanggan menjawab tawaran "boleh saya nyalakan ulang modemnya?".
@@ -25,9 +25,20 @@ const { isAffirmative, isDecline, isResolvedAnswer, isUnresolvedAnswer } = requi
 async function handleRebootOffer(userState, userReply, reply, sender) {
     const { executeRebootAndSchedule } = require("../../../lib/reboot-followup-service");
 
-    // Penolakan diperiksa lebih dulu: "ga usah" mengandung kata yang bisa terbaca afirmatif.
-    if (isDecline(userReply) || !isAffirmative(userReply)) {
+    // Reboot HANYA pada persetujuan BERSIH (isCleanRebootConsent) — bukan sekadar mengandung kata
+    // afirmatif. Ini menutup akar "ketik siap malah reboot": pesan seperti "bisa cek tagihan?" atau
+    // "siap kak makasih" kebetulan lolos isAffirmative lama, padahal BUKAN jawaban tawaran reboot.
+    if (!isCleanRebootConsent(userReply)) {
         deleteUserState(sender);
+        // Afirmasi ambigu (ada kata afirmatif tapi juga muatan lain) → jangan reboot, arahkan.
+        if (!isDecline(userReply) && isAffirmative(userReply)) {
+            return reply(
+                renderResponseTemplate(
+                    "rebootfu_offer_unclear",
+                    "Baik Kak 🙏 Kalau memang mau modemnya saya *nyalakan ulang*, cukup balas *ya*. Untuk kebutuhan lain silakan ketik ulang atau *menu* ya."
+                )
+            );
+        }
         return reply(
             renderResponseTemplate(
                 "rebootfu_offer_declined",

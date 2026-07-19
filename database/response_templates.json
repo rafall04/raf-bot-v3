@@ -4807,6 +4807,21 @@
     "category": "koneksi",
     "template": "Baik Kak, tidak jadi saya nyalakan ulang. Kalau nanti berubah pikiran, balas saja *cek koneksi* ya 🙏"
   },
+  "rebootfu_offer_unclear": {
+    "name": "Reboot Berbantu: Jawaban Ambigu (bukan konsen bersih)",
+    "category": "koneksi",
+    "template": "Baik Kak 🙏 Kalau memang mau modemnya saya *nyalakan ulang*, cukup balas *ya*. Untuk kebutuhan lain silakan ketik ulang atau *menu* ya."
+  },
+  "other_reboot_unclear": {
+    "name": "Konfirmasi Reboot: Jawaban Ambigu (bukan konsen bersih)",
+    "category": "other_state",
+    "template": "Baik Kak 🙏 Kalau memang mau modemnya dinyalakan ulang, cukup balas *ya*. Untuk kebutuhan lain silakan ketik ulang atau *menu* ya."
+  },
+  "reboot_gate_area": {
+    "name": "Reboot Ditahan: Gangguan Area",
+    "category": "koneksi",
+    "template": "Saat ini terdeteksi *gangguan area* Kak 🙏 Menyalakan ulang modem tidak akan membantu karena kendalanya ada di jaringan kami, bukan di modem Anda. Tim teknisi sedang menanganinya — mohon ditunggu ya."
+  },
   "rebootfu_started": {
     "name": "Reboot Berbantu: Reboot Dimulai",
     "category": "koneksi",

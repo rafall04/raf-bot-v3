@@ -70,10 +70,12 @@ async function handleConfirmCancelTicket(userState, userReply, reply, sender, gl
 }
 
 async function handleConfirmReboot(userState, userReply, reply, sender, _global) {
-    // Exact-match dulu menolak "Ok mas" / "ya ka" / "Siap" — hanya 17% balasan afirmatif nyata
-    // yang lolos (diukur dari korpus chat prod). Parser toleran-sapaan menggantikannya.
-    const { isAffirmative } = require("../../../lib/affirmative-parser");
-    if (isAffirmative(userReply)) {
+    // Reboot memutus koneksi seisi rumah → HANYA jalan pada persetujuan BERSIH. Dulu pakai
+    // isAffirmative yang terlalu longgar (token "bisa/tolong/siap/mau") sehingga pesan lain
+    // ("bisa cek tagihan?", "siap kak makasih") ikut memicu reboot. isCleanRebootConsent menuntut
+    // SELURUH kata = afirmasi/sapaan/aksi-reboot & tanpa tanda tanya.
+    const { isAffirmative, isCleanRebootConsent, isDecline } = require("../../../lib/affirmative-parser");
+    if (isCleanRebootConsent(userReply)) {
         const { targetUser } = userState;
         reply(renderResponseTemplate("other_reboot_processing", { customerName: targetUser.name }));
 
@@ -107,9 +109,17 @@ async function handleConfirmReboot(userState, userReply, reply, sender, _global)
         }
 
         deleteUserState(sender);
-    } else if (["batal", "cancel", "ga jadi", "gak jadi"].includes(userReply)) {
+    } else if (isDecline(userReply) || ["batal", "cancel", "ga jadi", "gak jadi"].includes(String(userReply || "").toLowerCase().trim())) {
         deleteUserState(sender);
         reply(renderResponseTemplate("other_cancelled"));
+    } else if (isAffirmative(userReply)) {
+        // Afirmasi AMBIGU (ada kata afirmatif + muatan lain, mis. "siap kak makasih",
+        // "bisa cek tagihan?") → JANGAN reboot. Lepaskan konfirmasi & arahkan pelanggan.
+        deleteUserState(sender);
+        reply(renderResponseTemplate(
+            "other_reboot_unclear",
+            "Baik Kak 🙏 Kalau memang mau modemnya dinyalakan ulang, cukup balas *ya*. Untuk kebutuhan lain silakan ketik ulang atau *menu* ya."
+        ));
     } else {
         reply(renderResponseTemplate("other_reboot_confirm_invalid"));
     }

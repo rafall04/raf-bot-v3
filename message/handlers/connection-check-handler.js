@@ -33,6 +33,7 @@ const { getActivePPPoEUsers } = require('../../lib/mikrotik');
 const { getSSIDInfo } = require('../../lib/wifi');
 const { renderResponseTemplate } = require('./template-helpers');
 const { resolveCustomerPath } = require('../../lib/customer-path-resolver');
+const { hasConnectivityComplaintSignal } = require('../../lib/loose-intent-matcher');
 
 // Cache daftar PPPoE aktif sebentar supaya burst "cek koneksi" tidak menghajar MikroTik.
 // addrByUser dipakai seksi upstream (map username → IP remote utk pemetaan jalur).
@@ -333,6 +334,15 @@ async function buildRebootOffer({ user, resolved, lineStatus, areaOutage, offlin
             return '';
         }
 
+        // M2 — jalur AKTIF (online) tapi pelanggan TIDAK menyebut keluhan (cuma cek status:
+        // "cek koneksi", "status internet") → JANGAN tawari reboot; tak ada gejala yang perlu
+        // diperbaiki. Menutup "cuma cek malah disuruh reboot" + memutus rantai "ok/siap → reboot
+        // modem sehat". Jalur TERPUTUS (offline) tetap ditawari — putusnya itu sendiri buktinya.
+        if (lineStatus === 'online' && !hasConnectivityComplaintSignal(customerText || '')) {
+            console.log('[REBOOTFU] Tawaran reboot dilewati (jalur sehat, pelanggan tak mengeluh).');
+            return '';
+        }
+
         // State WAJIB di-key JID kanonik, bukan @lid (lihat lib/jid-utils).
         const stateKey = resolved && resolved.canonicalJid;
         if (!stateKey) {
@@ -490,8 +500,9 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
 
     // Tawaran reboot berbantu HANYA saat reboot masuk akal: jalur AKTIF tanpa bukti gangguan jaringan
     // (HEALTHY/INCONCLUSIVE), atau jalur TERPUTUS (pola PPPoE hang klasik). Saat justru JARINGAN yang
-    // sakit (UPSTREAM_ISSUE/POSSIBLE_UPSTREAM), reboot tak menolong & menyesatkan → jangan ditawarkan
-    // (dan jangan set state REBOOTFU). Gate internal reboot tetap punya kata akhir untuk sisanya.
+    // sakit (UPSTREAM_ISSUE/POSSIBLE_UPSTREAM), reboot tak menolong & menyesatkan → jangan ditawarkan.
+    // (Penyaringan "jalur sehat tapi pelanggan cuma cek status, tak mengeluh" ada DI DALAM
+    // buildRebootOffer/M2 — di sini tetap dipanggil supaya jalur "sudah restart sendiri" tetap jalan.)
     const rebootEligible =
         lineStatus === 'offline' ||
         (lineStatus === 'online' && (verdict === 'HEALTHY' || verdict === 'INCONCLUSIVE'));
@@ -567,6 +578,7 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
 
 module.exports = {
     handleCekKoneksi,
+    resolveLineStatus, // dipakai reboot-modem-handler utk gerbang gangguan-area (M3)
     // Test-only: reset cache in-memori (PPP-active + laporan upstream) agar test deterministik.
     _resetCachesForTest() {
         activeCache = { at: 0, routerId: null, set: null, addrByUser: null };

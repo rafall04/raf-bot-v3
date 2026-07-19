@@ -70,6 +70,26 @@ async function handleRebootModem({ sender, stateSender, entities, isOwner, isTek
         ));
     }
 
+    // M3 — GERBANG KEAMANAN untuk permintaan reboot PELANGGAN (owner/teknisi tetap jalur langsung):
+    // saat terdeteksi GANGGUAN AREA, menyalakan ulang satu modem tak menolong (kendalanya di
+    // jaringan, bukan modem) dan hanya bikin pelanggan makin lama offline. Jalur cek-koneksi sudah
+    // punya gerbang ini; dulu jalur perintah eksplisit ini melewatinya. Never-throw: gagal cek → lanjut.
+    if (!(isOwner || isTeknisi)) {
+        try {
+            const { resolveLineStatus } = require('./connection-check-handler');
+            const { areaOutage } = await resolveLineStatus({ user, userList: users, routerId: null });
+            if (areaOutage) {
+                console.log(`[REBOOT_MODEM] Permintaan reboot ditahan: gangguan area (pelanggan ${user.name || user.id}).`);
+                return reply(renderResponseTemplate(
+                    'reboot_gate_area',
+                    'Saat ini terdeteksi *gangguan area* Kak 🙏 Menyalakan ulang modem tidak akan membantu karena kendalanya ada di jaringan kami, bukan di modem Anda. Tim teknisi sedang menanganinya — mohon ditunggu ya.'
+                ));
+            }
+        } catch (gateErr) {
+            console.error('[REBOOT_MODEM] Cek gangguan area gagal (lanjut ke konfirmasi):', gateErr && gateErr.message);
+        }
+    }
+
     // Memulai percakapan konfirmasi menggunakan setUserState untuk auto-cleanup.
     // featureScope dicatat agar handler konfirmasi memakai gate fitur yang benar:
     // owner/teknisi -> adminReboot, pelanggan -> customerReboot.
