@@ -34,7 +34,8 @@
               <p class="mb-0 text-muted small">Rangkuman rating &amp; masukan pelanggan per bulan.</p>
             </div>
             <div class="text-sm-right mt-2 mt-sm-0">
-              <label class="small text-muted mb-0 mr-1" for="csat-period">Periode</label>
+              <button id="csat-run" class="btn btn-sm btn-success shadow-sm mr-1"><i class="fas fa-paper-plane fa-sm mr-1"></i>Kirim Survei Sekarang</button>
+              <label class="small text-muted mb-0 mr-1 ml-1" for="csat-period">Periode</label>
               <select id="csat-period" class="form-control form-control-sm d-inline-block" style="width:auto"></select>
               <button id="csat-refresh" class="btn btn-sm btn-outline-secondary shadow-sm ml-1"><i class="fas fa-sync fa-sm"></i></button>
               <div class="text-muted small mt-1" id="csat-meta">memuat…</div>

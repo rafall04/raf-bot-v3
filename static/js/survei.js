@@ -61,7 +61,7 @@
             tile("Menjawab", num(r.responded), (r.responseRate != null ? r.responseRate + "% response" : ""), "info") +
             tile("Rata-rata skor", avgTxt, null, avgAccent) +
             tile("Perlu perhatian", num((d.detractors || []).length), "skor ≤ 2", (d.detractors || []).length > 0 ? "bad" : "good") +
-            tile("Minta stop", num(r.optout), null, "neutral");
+            tile("Opt-out survei", num((d.optouts || []).length), "berhenti disurvei", "neutral");
 
         // Distribution
         var distHtml = '<div class="card shadow mb-3"><div class="card-header py-2"><b>📊 Sebaran skor</b></div>' +
@@ -99,7 +99,7 @@
 
         elContent.innerHTML = distHtml + detrHtml + cmtHtml + nrHtml + trHtml;
 
-        if (elMeta) elMeta.textContent = "Periode " + esc(d.period) + " · diperbarui " + new Date().toLocaleTimeString("id-ID");
+        if (elMeta) elMeta.textContent = "Periode " + esc(d.period) + " · fitur " + (d.enabled ? "AKTIF" : "NONAKTIF") + " · diperbarui " + new Date().toLocaleTimeString("id-ID");
         fillPeriodSelector(d.trend, d.period);
     }
 
@@ -132,5 +132,22 @@
     var btn = document.getElementById("csat-refresh");
     if (btn) btn.addEventListener("click", function () { load(elPeriod ? elPeriod.value : null); });
     if (elPeriod) elPeriod.addEventListener("change", function () { load(elPeriod.value); });
+
+    var btnRun = document.getElementById("csat-run");
+    if (btnRun) btnRun.addEventListener("click", function () {
+        if (!window.confirm("Kirim survei kepuasan SEKARANG ke semua pelanggan yang layak (kecuali opt-out / belum bayar / infra / sudah disurvei bulan ini)?\n\nPengiriman ber-jeda anti-ban, butuh beberapa menit.")) return;
+        var orig = btnRun.innerHTML;
+        btnRun.disabled = true;
+        btnRun.innerHTML = '<i class="fas fa-spinner fa-spin fa-sm mr-1"></i>Memulai...';
+        fetch("/api/owner/csat/run", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: "{}" })
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+                window.alert((j && j.message) || (j && j.success ? "Survei mulai dikirim." : "Gagal memulai survei."));
+                btnRun.disabled = false; btnRun.innerHTML = orig;
+                setTimeout(function () { load(elPeriod ? elPeriod.value : null); }, 4000);
+            })
+            .catch(function () { window.alert("Gagal menghubungi server."); btnRun.disabled = false; btnRun.innerHTML = orig; });
+    });
+
     load();
 })();

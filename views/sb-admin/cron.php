@@ -170,6 +170,25 @@
                                     <label for="status_telegram_backup" class="form-label">Aktifkan Cron Backup Telegram</label>
                                     <small class="form-text text-muted">Backup otomatis hanya berjalan jika integrasi Telegram aktif di Setting Admin dan cron backup ini juga aktif.</small>
                                 </div>
+                                <hr>
+                                <div class="mb-3">
+                                    <label for="schedule_rating_survey" class="form-label">⭐ Jadwal Survei Kepuasan (CSAT)</label>
+                                    <input type="text" class="form-control" id="schedule_rating_survey" name="schedule_rating_survey" placeholder="0 9 22 * * (Default: tgl 22 jam 09:00)" />
+                                    <small class="form-text text-muted">Kapan survei rating dikirim ke pelanggan. Format: menit jam tanggal bulan hari. Awali # untuk nonaktif. Butuh fitur survei aktif.</small>
+                                </div>
+                                <div class="mb-3">
+                                    <input type="checkbox" name="status_rating_survey" id="status_rating_survey">
+                                    <label for="status_rating_survey" class="form-label">Enable / Disable Jadwal Survei Kepuasan</label>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="schedule_rating_digest" class="form-label">📊 Jadwal Rekap Survei ke Owner</label>
+                                    <input type="text" class="form-control" id="schedule_rating_digest" name="schedule_rating_digest" placeholder="0 9 27 * * (Default: tgl 27 jam 09:00)" />
+                                    <small class="form-text text-muted">Kapan ringkasan hasil survei dikirim ke owner/admin via WhatsApp.</small>
+                                </div>
+                                <div class="mb-3">
+                                    <input type="checkbox" name="status_rating_digest" id="status_rating_digest">
+                                    <label for="status_rating_digest" class="form-label">Enable / Disable Rekap Survei ke Owner</label>
+                                </div>
                                 <button type="submit" class="btn btn-primary">Simpan</button>
                             </form>
                         </div>
@@ -254,6 +273,10 @@
                     document.getElementById("status_check_schedule").checked = result.data.status_check_schedule !== false;
                     document.getElementById("schedule_telegram_backup").value = result.data.schedule_telegram_backup || "0 4 * * *";
                     document.getElementById("status_telegram_backup").checked = result.data.status_telegram_backup === true;
+                    document.getElementById("schedule_rating_survey").value = result.data.schedule_rating_survey || "0 9 22 * *";
+                    document.getElementById("status_rating_survey").checked = result.data.status_rating_survey === true;
+                    document.getElementById("schedule_rating_digest").value = result.data.schedule_rating_digest || "0 9 27 * *";
+                    document.getElementById("status_rating_digest").checked = result.data.status_rating_digest === true;
                 } else {
                     console.error("No data found in the response:", result);
                      Swal.fire({
@@ -298,7 +321,11 @@
                 check_schedule: document.getElementById("check_schedule").value.trim(),
                 status_check_schedule: document.getElementById("status_check_schedule").checked,
                 schedule_telegram_backup: document.getElementById("schedule_telegram_backup").value.trim(),
-                status_telegram_backup: document.getElementById("status_telegram_backup").checked
+                status_telegram_backup: document.getElementById("status_telegram_backup").checked,
+                schedule_rating_survey: document.getElementById("schedule_rating_survey").value.trim(),
+                status_rating_survey: document.getElementById("status_rating_survey").checked,
+                schedule_rating_digest: document.getElementById("schedule_rating_digest").value.trim(),
+                status_rating_digest: document.getElementById("status_rating_digest").checked
             };
 
             try {
