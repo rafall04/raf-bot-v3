@@ -872,6 +872,96 @@ customerApiRouter.post('/payment-proof', paymentProofRateLimiter, handlePaymentP
     return handleTagihanPaymentProof(req, res, customer, caption);
 }));
 
+// --- RIWAYAT untuk portal pelanggan (NextJS) ---
+// Read-only. Keduanya memakai req.customer (dari ensureCustomerAuthenticated),
+// jadi pelanggan hanya bisa melihat riwayatnya sendiri.
+function runCustomerReadQuery(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        if (!global.db || typeof global.db.all !== 'function') {
+            reject(new Error('Database belum siap'));
+            return;
+        }
+        global.db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows || [])));
+    });
+}
+
+// Riwayat tagihan/pembayaran pelanggan (dari payment_history).
+customerApiRouter.get('/billing-history', asyncHandler(async (req, res) => {
+    const rows = await runCustomerReadQuery(
+        `SELECT id, amount_due, amount_paid, amount_remaining, payment_method,
+                is_partial, period_month, period_year, notes, created_at
+           FROM payment_history
+          WHERE user_id = ?
+          ORDER BY datetime(created_at) DESC, id DESC
+          LIMIT 100`,
+        [req.customer.id]
+    );
+
+    const data = rows.map((row) => ({
+        id: row.id,
+        periodMonth: row.period_month,
+        periodYear: row.period_year,
+        amountDue: row.amount_due,
+        amountPaid: row.amount_paid,
+        amountRemaining: row.amount_remaining,
+        paymentMethod: row.payment_method || null,
+        isPartial: !!row.is_partial,
+        status: row.amount_remaining && row.amount_remaining > 0 ? 'partial' : 'paid',
+        notes: row.notes || null,
+        createdAt: row.created_at
+    }));
+
+    return sendSuccess(res, data, "Riwayat tagihan berhasil diambil");
+}));
+
+// Riwayat perubahan WiFi (nama & sandi).
+// SECURITY: nilai password WiFi TIDAK PERNAH dikembalikan ke klien — hanya fakta
+// bahwa sandi diubah. Nama SSID lama/baru boleh ditampilkan (bukan rahasia).
+customerApiRouter.get('/wifi/change-history', asyncHandler(async (req, res) => {
+    const { getWifiChangeLogs } = require('../lib/wifi-logger');
+    const result = await getWifiChangeLogs({ userId: req.customer.id, limit: 100 });
+    const logs = Array.isArray(result && result.logs) ? result.logs : [];
+
+    const SOURCE_LABEL = {
+        web_admin: 'Admin', web_technician: 'Teknisi', web_customer: 'Portal Pelanggan',
+        wa_bot: 'WhatsApp', api: 'Sistem'
+    };
+    const TYPE_LABEL = {
+        ssid_name: 'Nama WiFi', password: 'Kata Sandi WiFi',
+        both: 'Nama & Sandi WiFi', transmit_power: 'Daya Pancar'
+    };
+
+    const data = logs.map((log) => {
+        const type = log.changeType;
+        const firstSsid = log.changes && Array.isArray(log.changes.ssidEntries)
+            ? log.changes.ssidEntries[0]
+            : null;
+        let description;
+        if (type === 'ssid_name') {
+            description = firstSsid ? `Nama WiFi diubah menjadi "${firstSsid.newValue}"` : 'Nama WiFi diperbarui';
+        } else if (type === 'password') {
+            description = 'Kata sandi WiFi diperbarui';
+        } else if (type === 'both') {
+            description = firstSsid ? `Nama WiFi menjadi "${firstSsid.newValue}" & kata sandi diperbarui` : 'Nama & kata sandi WiFi diperbarui';
+        } else if (type === 'transmit_power') {
+            description = `Daya pancar diubah ke ${(log.changes && log.changes.newTransmitPower) || '-'}`;
+        } else {
+            description = 'Perubahan WiFi';
+        }
+        return {
+            id: log.id,
+            timestamp: log.timestamp,
+            type,
+            typeLabel: TYPE_LABEL[type] || 'Perubahan WiFi',
+            description,
+            source: log.changeSource,
+            sourceLabel: SOURCE_LABEL[log.changeSource] || log.changeSource
+        };
+    });
+
+    return sendSuccess(res, data, "Riwayat perubahan WiFi berhasil diambil");
+}));
+
 router.post('/api/customer/login', customerLoginValidation, asyncHandler(handleCustomerLogin));
 
 router.use('/api/customer', customerApiRouter);
