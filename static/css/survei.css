@@ -7,12 +7,14 @@
    Caller  : views/sb-admin/survei.php (<link>), diisi static/js/survei.js.
    ============================================================ */
 
+/* Warna surface & teks memakai TOKEN SEMANTIK (--surface/--ink/--muted/--line) → ikut
+   mode gelap otomatis. JANGAN kembalikan ke --white/--slate-900 (fixed → gelap-di-gelap). */
 .csat-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 1rem; }
 
 .csat-tile {
-    --csat-accent: var(--slate-400);
-    background: var(--white);
-    border: 1px solid var(--slate-200);
+    --csat-accent: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--line);
     border-left: 4px solid var(--csat-accent);
     border-radius: var(--radius-lg, 12px);
     padding: .9rem 1.1rem;
@@ -22,26 +24,27 @@
 .csat-tile--info    { --csat-accent: var(--color-info); }
 .csat-tile--mid     { --csat-accent: var(--color-warning); }
 .csat-tile--bad     { --csat-accent: var(--color-danger); }
-.csat-tile--neutral { --csat-accent: var(--slate-400); }
-.csat-tile__val { font-size: 1.7rem; font-weight: 800; color: var(--slate-900); line-height: 1.1; }
-.csat-tile__val small { font-size: .9rem; font-weight: 600; color: var(--slate-400); }
-.csat-tile__label { font-size: .7rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--slate-400); margin-top: .25rem; }
-.csat-tile__sub { font-size: .78rem; color: var(--slate-400); margin-top: .15rem; }
+.csat-tile--neutral { --csat-accent: var(--muted); }
+.csat-tile__val { font-size: 1.7rem; font-weight: 800; color: var(--ink); line-height: 1.1; }
+.csat-tile__val small { font-size: .9rem; font-weight: 600; color: var(--muted); }
+.csat-tile__label { font-size: .7rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-top: .25rem; }
+.csat-tile__sub { font-size: .78rem; color: var(--muted); margin-top: .15rem; }
 
 .csat-dist__row { display: flex; align-items: center; gap: .6rem; margin: .4rem 0; }
-.csat-dist__label { width: 34px; font-weight: 700; font-size: .82rem; color: var(--slate-900); }
-.csat-dist__bar { flex: 1 1 auto; height: 12px; background: var(--slate-200); border-radius: var(--radius-pill, 999px); overflow: hidden; }
+.csat-dist__label { width: 34px; font-weight: 700; font-size: .82rem; color: var(--ink); }
+.csat-dist__bar { flex: 1 1 auto; height: 12px; background: var(--surface-2); border-radius: var(--radius-pill, 999px); overflow: hidden; }
 .csat-dist__fill { display: block; height: 100%; border-radius: inherit; min-width: 2px; }
 .csat-dist__fill--good { background: var(--color-success); }
 .csat-dist__fill--mid  { background: var(--color-warning); }
 .csat-dist__fill--bad  { background: var(--color-danger); }
-.csat-dist__n { width: 32px; text-align: right; font-weight: 700; font-size: .82rem; color: var(--slate-900); }
+.csat-dist__n { width: 32px; text-align: right; font-weight: 700; font-size: .82rem; color: var(--ink); }
 
 .csat-badge { display: inline-block; padding: .1rem .45rem; border-radius: var(--radius-pill, 999px); font-size: .78rem; font-weight: 700; }
 .csat-badge--good { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 15%, transparent); }
 .csat-badge--mid  { color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 15%, transparent); }
 .csat-badge--bad  { color: var(--color-danger);  background: color-mix(in srgb, var(--color-danger) 15%, transparent); }
 
-.csat-table th { font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--slate-400); border-top: 0; }
-.csat-table td { vertical-align: middle; color: var(--slate-900); }
-.csat-na { color: var(--slate-400); font-style: italic; }
+.csat-table th { font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-top: 0; }
+.csat-table td { vertical-align: middle; color: var(--ink); }
+.csat-table td small, .csat-table .text-muted { color: var(--muted) !important; }
+.csat-na { color: var(--muted); font-style: italic; }

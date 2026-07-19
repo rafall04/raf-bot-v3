@@ -4,8 +4,9 @@
    Purely presentational — does not touch IDs, JS, or markup behaviour.
    ============================================================ */
 
-/* Primitif desain bersama (skala indigo/slate/semantic/radius). */
-@import url('/css/tokens.css');
+/* Primitif + token semantik sadar-mode bersama. ?v di-bump saat tokens.css berubah
+   (@import tak ikut cache-bust rafAssetUrl → tanpa bump bisa BASI di CF). */
+@import url('/css/tokens.css?v=2');
 
 :root {
     /* Token semantik teknisi → dipetakan ke primitif di tokens.css.
