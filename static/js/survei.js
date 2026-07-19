@@ -101,6 +101,18 @@
 
         if (elMeta) elMeta.textContent = "Periode " + esc(d.period) + " · fitur " + (d.enabled ? "AKTIF" : "NONAKTIF") + " · diperbarui " + new Date().toLocaleTimeString("id-ID");
         fillPeriodSelector(d.trend, d.period);
+        fillSettings(d.settings);
+    }
+
+    function fillSettings(s) {
+        if (!s) return;
+        var cs = s.csatSurvey || {}, bg = s.broadcastGuard || {};
+        function chk(id, v) { var e = document.getElementById(id); if (e) e.checked = !!v; }
+        function val(id, v) { var e = document.getElementById(id); if (e && document.activeElement !== e) e.value = (v == null ? "" : v); }
+        chk("set-csat-enabled", cs.enabled); chk("set-csat-onlyPaid", cs.onlyPaid); chk("set-csat-alert", cs.alertDetractor);
+        val("set-csat-maxscore", cs.detractorMaxScore);
+        chk("set-bg-enabled", bg.enabled); chk("set-bg-validate", bg.validateOnWhatsApp);
+        val("set-bg-jitter", bg.jitterMaxExtraMs); val("set-bg-batch", bg.batchSize); val("set-bg-pause", bg.batchPauseMs); val("set-bg-breaker", bg.breakerThreshold);
     }
 
     function fillPeriodSelector(trend, current) {
@@ -147,6 +159,38 @@
                 setTimeout(function () { load(elPeriod ? elPeriod.value : null); }, 4000);
             })
             .catch(function () { window.alert("Gagal menghubungi server."); btnRun.disabled = false; btnRun.innerHTML = orig; });
+    });
+
+    var btnSave = document.getElementById("csat-settings-save");
+    if (btnSave) btnSave.addEventListener("click", function () {
+        var g = function (id) { return document.getElementById(id); };
+        var payload = {
+            csatSurvey: {
+                enabled: g("set-csat-enabled").checked,
+                onlyPaid: g("set-csat-onlyPaid").checked,
+                alertDetractor: g("set-csat-alert").checked,
+                detractorMaxScore: Number(g("set-csat-maxscore").value) || 2
+            },
+            broadcastGuard: {
+                enabled: g("set-bg-enabled").checked,
+                validateOnWhatsApp: g("set-bg-validate").checked,
+                jitterMaxExtraMs: Number(g("set-bg-jitter").value) || 0,
+                batchSize: Number(g("set-bg-batch").value) || 0,
+                batchPauseMs: Number(g("set-bg-pause").value) || 0,
+                breakerThreshold: Number(g("set-bg-breaker").value) || 0
+            }
+        };
+        var msg = g("csat-settings-msg");
+        if (msg) { msg.textContent = "Menyimpan…"; msg.className = "small ml-2 text-muted"; }
+        btnSave.disabled = true;
+        fetch("/api/owner/csat/settings", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+                btnSave.disabled = false;
+                if (msg) { msg.textContent = (j && j.message) || (j && j.success ? "Tersimpan." : "Gagal menyimpan."); msg.className = "small ml-2 " + (j && j.success ? "text-success" : "text-danger"); }
+                setTimeout(function () { load(elPeriod ? elPeriod.value : null); }, 900);
+            })
+            .catch(function () { btnSave.disabled = false; if (msg) { msg.textContent = "Gagal menghubungi server."; msg.className = "small ml-2 text-danger"; } });
     });
 
     load();

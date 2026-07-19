@@ -42,6 +42,39 @@
             </div>
           </div>
 
+          <div class="card shadow mb-3">
+            <div class="card-header py-2" style="cursor:pointer" onclick="var b=document.getElementById('csat-settings-body'); if(b) b.classList.toggle('d-none');">
+              <b>⚙️ Pengaturan Survei &amp; Anti-ban</b> <small class="text-muted">— klik untuk buka/tutup</small>
+            </div>
+            <div id="csat-settings-body" class="card-body d-none">
+              <div class="row">
+                <div class="col-md-6 mb-2">
+                  <h6 class="text-muted small text-uppercase">Survei Kepuasan</h6>
+                  <div class="custom-control custom-switch mb-2"><input type="checkbox" class="custom-control-input" id="set-csat-enabled"><label class="custom-control-label" for="set-csat-enabled">Fitur survei aktif</label></div>
+                  <div class="custom-control custom-switch mb-2"><input type="checkbox" class="custom-control-input" id="set-csat-onlyPaid"><label class="custom-control-label" for="set-csat-onlyPaid">Hanya pelanggan sudah bayar</label></div>
+                  <div class="custom-control custom-switch mb-2"><input type="checkbox" class="custom-control-input" id="set-csat-alert"><label class="custom-control-label" for="set-csat-alert">Alert detractor real-time ke owner</label></div>
+                  <label class="small mb-0">Ambang detractor (skor ≤)</label>
+                  <input type="number" min="1" max="5" class="form-control form-control-sm" id="set-csat-maxscore" style="width:90px">
+                </div>
+                <div class="col-md-6 mb-2">
+                  <h6 class="text-muted small text-uppercase">Anti-ban Broadcast</h6>
+                  <div class="custom-control custom-switch mb-2"><input type="checkbox" class="custom-control-input" id="set-bg-enabled"><label class="custom-control-label" for="set-bg-enabled">Guard anti-ban aktif</label></div>
+                  <div class="custom-control custom-switch mb-2"><input type="checkbox" class="custom-control-input" id="set-bg-validate"><label class="custom-control-label" for="set-bg-validate">Validasi nomor onWhatsApp sebelum kirim</label></div>
+                  <div class="form-row">
+                    <div class="col"><label class="small mb-0">Jitter maks (ms)</label><input type="number" min="0" class="form-control form-control-sm" id="set-bg-jitter"></div>
+                    <div class="col"><label class="small mb-0">Ukuran batch</label><input type="number" min="0" class="form-control form-control-sm" id="set-bg-batch"></div>
+                  </div>
+                  <div class="form-row mt-1">
+                    <div class="col"><label class="small mb-0">Jeda batch (ms)</label><input type="number" min="0" class="form-control form-control-sm" id="set-bg-pause"></div>
+                    <div class="col"><label class="small mb-0">Ambang breaker</label><input type="number" min="0" class="form-control form-control-sm" id="set-bg-breaker"></div>
+                  </div>
+                </div>
+              </div>
+              <button id="csat-settings-save" class="btn btn-sm btn-primary mt-2"><i class="fas fa-save fa-sm mr-1"></i>Simpan Setelan</button>
+              <span id="csat-settings-msg" class="small ml-2"></span>
+            </div>
+          </div>
+
           <div id="csat-summary" class="csat-tiles mb-3">
             <div class="csat-na">Memuat rangkuman…</div>
           </div>

@@ -12,10 +12,35 @@
  */
 "use strict";
 
+const fs = require("fs");
+const path = require("path");
 const { asyncHandler } = require("../lib/error-handler");
 const csatService = require("../lib/csat/csat-survey-service");
 
 const CSAT_ROLES = ["owner", "admin", "superadmin"];
+
+function readCsatSettings(c = {}) {
+    const cs = c.csatSurvey || {};
+    const bg = c.broadcastGuard || {};
+    const nOr = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : d);
+    return {
+        csatSurvey: {
+            enabled: cs.enabled === true,
+            onlyPaid: cs.onlyPaid !== false,
+            alertDetractor: cs.alertDetractor !== false,
+            detractorMaxScore: nOr(cs.detractorMaxScore, 2),
+        },
+        broadcastGuard: {
+            enabled: bg.enabled === true,
+            validateOnWhatsApp: bg.validateOnWhatsApp === true,
+            jitterMaxExtraMs: nOr(bg.jitterMaxExtraMs, 4000),
+            batchSize: nOr(bg.batchSize, 25),
+            batchPauseMs: nOr(bg.batchPauseMs, 60000),
+            breakerThreshold: nOr(bg.breakerThreshold, 6),
+            minGapMs: nOr(bg.minGapMs, 0),
+        },
+    };
+}
 
 function currentPeriod() {
     const d = new Date();
@@ -41,7 +66,8 @@ function registerAdminCsatRoutes(router, deps = {}) {
             repo.listOptouts(),
         ]);
         const enabled = Boolean(global.config && global.config.csatSurvey && global.config.csatSurvey.enabled === true);
-        res.json({ success: true, data: { period, enabled, report, trend, detractors, comments, nonResponders, optouts } });
+        const settings = readCsatSettings(global.config || {});
+        res.json({ success: true, data: { period, enabled, settings, report, trend, detractors, comments, nonResponders, optouts } });
     }));
 
     // Kirim survei SEKARANG (manual) ke semua pelanggan layak — fire-and-forget (pengiriman ber-jeda
@@ -60,6 +86,45 @@ function registerAdminCsatRoutes(router, deps = {}) {
             .then((r) => console.log(`[CSAT_MANUAL_RUN] selesai oleh ${req.user && req.user.username}: ${JSON.stringify(r && { surveys: r.surveys, sent: r.sent, skipped: r.skipped })}`))
             .catch((e) => console.error("[CSAT_MANUAL_RUN_ERR]", e && e.message));
         res.json({ success: true, message: "Survei mulai dikirim ke pelanggan yang layak. Pengiriman ber-jeda (anti-ban) — hasil muncul di halaman ini beberapa menit lagi." });
+    }));
+
+    // Simpan setelan survei + anti-ban ke config.json (MERGE, bukan replace) + update config LIVE
+    // tanpa restart (cron/hook/guard baca global.config saat runtime).
+    router.post("/api/owner/csat/settings", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const role = req.user && String(req.user.role || "").toLowerCase();
+        if (req.user && !CSAT_ROLES.includes(role)) {
+            return res.status(403).json({ success: false, message: "Setelan survei khusus admin/owner." });
+        }
+        const body = req.body || {};
+        const b = (v) => v === true || v === "true" || v === "on" || v === 1 || v === "1";
+        const clampNum = (v, d, min, max) => {
+            let n = Number(v);
+            if (!Number.isFinite(n)) n = d;
+            if (min !== undefined) n = Math.max(min, n);
+            if (max !== undefined) n = Math.min(max, n);
+            return n;
+        };
+        const cfgPath = path.join(__dirname, "..", "config.json");
+        const cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
+        cfg.csatSurvey = cfg.csatSurvey || {};
+        cfg.broadcastGuard = cfg.broadcastGuard || {};
+        const cs = body.csatSurvey || {};
+        if ("enabled" in cs) cfg.csatSurvey.enabled = b(cs.enabled);
+        if ("onlyPaid" in cs) cfg.csatSurvey.onlyPaid = b(cs.onlyPaid);
+        if ("alertDetractor" in cs) cfg.csatSurvey.alertDetractor = b(cs.alertDetractor);
+        if ("detractorMaxScore" in cs) cfg.csatSurvey.detractorMaxScore = clampNum(cs.detractorMaxScore, 2, 1, 5);
+        const bg = body.broadcastGuard || {};
+        if ("enabled" in bg) cfg.broadcastGuard.enabled = b(bg.enabled);
+        if ("validateOnWhatsApp" in bg) cfg.broadcastGuard.validateOnWhatsApp = b(bg.validateOnWhatsApp);
+        if ("jitterMaxExtraMs" in bg) cfg.broadcastGuard.jitterMaxExtraMs = clampNum(bg.jitterMaxExtraMs, 4000, 0);
+        if ("batchSize" in bg) cfg.broadcastGuard.batchSize = clampNum(bg.batchSize, 25, 0);
+        if ("batchPauseMs" in bg) cfg.broadcastGuard.batchPauseMs = clampNum(bg.batchPauseMs, 60000, 0);
+        if ("breakerThreshold" in bg) cfg.broadcastGuard.breakerThreshold = clampNum(bg.breakerThreshold, 6, 0);
+        if ("minGapMs" in bg) cfg.broadcastGuard.minGapMs = clampNum(bg.minGapMs, 0, 0);
+        fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+        if (global.config) { global.config.csatSurvey = cfg.csatSurvey; global.config.broadcastGuard = cfg.broadcastGuard; }
+        console.log(`[CSAT_SETTINGS] disimpan oleh ${req.user && req.user.username}: csatSurvey.enabled=${cfg.csatSurvey.enabled} broadcastGuard.enabled=${cfg.broadcastGuard.enabled} validateOnWhatsApp=${cfg.broadcastGuard.validateOnWhatsApp}`);
+        res.json({ success: true, message: "Setelan disimpan & langsung aktif.", data: readCsatSettings(cfg) });
     }));
 }
 
