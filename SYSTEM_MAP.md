@@ -249,6 +249,7 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 - [Fitur 2026-07-19 (CSAT web-managed: jadwal survei/digest di halaman Cron + tombol "Kirim Survei Sekarang" /survei → POST `/api/owner/csat/run` + kartu settings survei/anti-ban)](docs/boundary-log.md#b159)
 - [Fix 2026-07-19 (CSAT celah balasan bocor → rating hilang + reboot salah picu: markSent di FASE 1 bukan akhir siklus + `isBareAck` ack-swallow anti-reboot saat survei aktif + pemulihan `lib/csat/csat-recovery` replay `inbound_messages` via POST `/api/owner/csat/recover`+dryRun; GOTCHA detractor-alert tak ber-log `[WA_CRITICAL]`=cek terpisah)](docs/boundary-log.md#b160)
 - [Fix 2026-07-19 (CS miss deteksi cek-koneksi + keamanan reboot: kosakata korpus loose-matcher + REBOOT_MODEM 5→30 kw + isCleanRebootConsent BLOCKLIST anti "siap→reboot" + M2 tak nawari reboot saat sehat/tanpa keluhan + M3 gerbang area pd reboot eksplisit)](docs/boundary-log.md#b161)
+- [Fix 2026-07-19 (UI dark-mode: token SEMANTIK sadar-mode di tokens.css (--surface/--ink/--muted/--line, light :root → flip body.tk-dark) + @import tokens.css?v cache-bust + migrasi survei.css/owner-cockpit.css + guard scripts/check-theme-tokens.js "npm run check:theme" menangkap primitif-tetap; akar "halaman baru gelap-di-gelap")](docs/boundary-log.md#b162)
 
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.
