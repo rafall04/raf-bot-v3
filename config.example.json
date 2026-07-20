@@ -198,6 +198,9 @@
     "adminUrl": "",
     "adminQuietMinutes": 15
   },
+  "packageRequestWa": {
+    "enabled": true
+  },
   "voucherSaleNotif": {
     "enabled": false
   },

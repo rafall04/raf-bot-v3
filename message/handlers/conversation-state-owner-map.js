@@ -73,6 +73,7 @@ const CONVERSATION_STATE_PREFIX_OWNER_MAP = {
     WANSW_: "wan-switch",
     OPERJALUR_: "oper-jalur",
     PAYPROOF_: "payment-proof",
+    PKGREQ_: "package-request",
     REBOOTFU_: "reboot-followup"
 };
 

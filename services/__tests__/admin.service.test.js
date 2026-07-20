@@ -203,4 +203,97 @@ describe("admin.service", () => {
         expect(result.status).toBe(200);
         expect(repository.updateUserSubscription).toHaveBeenCalledWith(21, "Biz");
     });
+
+    test("cancel → batalkan diam-diam: pelanggan TIDAK dinotif, teknisi dinotif, subscription tak berubah", async () => {
+        const request = {
+            id: "REQ-5", userId: 22, requestedPackageName: "Biz", requestedById: 32,
+            currentPackageName: "Basic", status: "pending"
+        };
+        const repository = {
+            findPackageChangeRequestIndexById: jest.fn().mockReturnValue(0),
+            getPackageChangeRequests: jest.fn().mockReturnValue([request]),
+            getUserById: jest.fn().mockReturnValue({ id: 22, name: "User D", pppoe_username: "ppp-d", subscription: "Basic", phone_number: "08123" }),
+            getPackageByName: jest.fn().mockReturnValue({ name: "Biz", profile: "biz-20m" }),
+            getConfig: jest.fn().mockReturnValue({}),
+            updateUserSubscription: jest.fn(),
+            syncUserSubscriptionCache: jest.fn(),
+            replacePackageChangeRequest: jest.fn(),
+            persistPackageChangeRequests: jest.fn(),
+            getAccountById: jest.fn().mockReturnValue({ id: 32, name: "Teknisi D", phone_number: "08999" })
+        };
+        const sendCritical = jest.fn().mockResolvedValue({ delivered: true });
+        const service = createAdminService({
+            repository,
+            withLock: jest.fn(async (_key, handler) => handler()),
+            isMikrotikSyncEnabled: jest.fn().mockReturnValue(false),
+            logActivity: jest.fn().mockResolvedValue(true),
+            sendCritical
+        });
+
+        const result = await service.approvePackageChange(
+            { requestId: "REQ-5", action: "cancel", notes: "duplikat" },
+            { id: 1, username: "admin", role: "admin" }
+        );
+
+        expect(result.status).toBe(200);
+        expect(result.action).toBe("cancel");
+        expect(result.customerNotified).toBe(false);
+        // Subscription TIDAK berubah pada cancel (bukan approve).
+        expect(repository.updateUserSubscription).not.toHaveBeenCalled();
+        // HANYA teknisi yang dinotif — pelanggan tidak disentuh.
+        expect(sendCritical).toHaveBeenCalledTimes(1);
+        expect(sendCritical.mock.calls[0][2].label).toBe("package_change_approval_teknisi");
+        expect(request.status).toBe("cancelled_by_admin");
+    });
+
+    test("listPendingPackageChangeRequests → hanya pending, urut FIFO (terlama dulu)", async () => {
+        const repository = {
+            cancelExpiredPackageChangeRequests: jest.fn().mockReturnValue(false),
+            persistPackageChangeRequests: jest.fn(),
+            getPackageChangeRequests: jest.fn().mockReturnValue([
+                { id: "A", status: "approved", createdAt: "2026-04-19T10:00:00.000Z" },
+                { id: "B", status: "pending", createdAt: "2026-04-21T10:00:00.000Z" },
+                { id: "C", status: "pending", createdAt: "2026-04-20T10:00:00.000Z" }
+            ])
+        };
+        const service = createAdminService({ repository });
+
+        const res = await service.listPendingPackageChangeRequests({ id: 1, username: "admin", role: "admin" });
+
+        expect(res.data.map((r) => r.id)).toEqual(["C", "B"]); // FIFO: C lebih lama → nomor 1
+    });
+
+    test("requestPackageChange → notif ke admin accounts.json (getAdminJids) ∪ ownerNumber, dedup by nomor", async () => {
+        const repository = {
+            getUserById: jest.fn().mockReturnValue({ id: 10, name: "U", subscription: "Basic", phone_number: "0812" }),
+            getPackageByName: jest.fn().mockReturnValue({ name: "Pro", price: 100000 }),
+            cancelExpiredPackageChangeRequests: jest.fn().mockReturnValue(false),
+            findPendingPackageChangeRequestByUserId: jest.fn().mockReturnValue(null),
+            createPackageChangeRequestRecord: jest.fn().mockReturnValue({ id: "REQ-N", status: "pending" }),
+            appendPackageChangeRequest: jest.fn(),
+            persistPackageChangeRequests: jest.fn(),
+            getOwnerNumbers: jest.fn().mockReturnValue(["6281111111111", "6289999999999"])
+        };
+        const sendMessageToMany = jest.fn();
+        const service = createAdminService({
+            repository,
+            withLock: jest.fn(async (_key, handler) => handler()),
+            getAdminJids: jest.fn().mockReturnValue(["6281111111111@s.whatsapp.net", "6282222222222@s.whatsapp.net"]),
+            sendMessageToMany
+        });
+
+        await service.requestPackageChange(
+            { userId: 10, newPackageName: "Pro", notes: "" },
+            { id: 1, username: "tek", role: "teknisi", name: "Tek" }
+        );
+
+        expect(sendMessageToMany).toHaveBeenCalledTimes(1);
+        const [recipients] = sendMessageToMany.mock.calls[0];
+        // Admin (2) ∪ owner (6281111111111 duplikat, 6289999999999) → dedup.
+        expect(recipients).toEqual([
+            "6281111111111@s.whatsapp.net",
+            "6282222222222@s.whatsapp.net",
+            "6289999999999@s.whatsapp.net"
+        ]);
+    });
 });

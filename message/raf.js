@@ -743,6 +743,37 @@ module.exports = async (raf, msg, m, options = {}) => {
             }
         }
 
+        // ── Keputusan ADMIN atas REQUEST GANTI PAKET, langsung dari WhatsApp ──
+        // Teknisi/admin mengajukan ganti paket lewat web → admin dapat notif ber–Request ID → admin
+        // membalas notif itu (*ok* / *tolak <alasan>* / *batalkan*), mengetik *ok req_pkg_…*, atau
+        // *request paket* untuk melihat antrian. Tanpa hook ini approval HANYA bisa lewat portal.
+        // DITARUH SEBELUM hook bukti-bayar: handler paket hanya meng-klaim balasan-quote yang teks
+        // ter-quote-nya memuat id `req_pkg_…` (+ kode eksplisit + `request paket`) — sisanya dilepas
+        // apa adanya ke bukti-bayar, jadi tak ada yang saling membajak. Gate peran presisi
+        // (accounts.json); non-admin & perintah tanpa sasaran → handled:false senyap. Lanjutan
+        // (`ya`/angka) dirutekan `routeConversationState` lewat state `PKGREQ_*` (owner "package-request").
+        if (typeof chats === 'string' && chats.trim() !== ''
+            && !userState?.step
+            && (runtimeGlobalScope?.config?.packageRequestWa?.enabled !== false)) {
+            try {
+                const { handlePackageRequestAdminDecision } = require('./handlers/package-request-admin-handler');
+                const decision = await handlePackageRequestAdminDecision({
+                    chats,
+                    msg,
+                    sender,
+                    plainSenderNumber,
+                    stateSender,
+                    pushname,
+                    accounts,
+                    reply,
+                    setUserState
+                });
+                if (decision && decision.handled) return;
+            } catch (pkgAdminErr) {
+                console.error('[PACKAGE_REQUEST_ADMIN_TRIGGER_ERROR]', pkgAdminErr.message);
+            }
+        }
+
         // ── Keputusan ADMIN atas bukti pembayaran, langsung dari WhatsApp ──
         // Pasangan dari hook di atas: pelanggan kirim foto → admin dapat notif bergambar → admin
         // membalas notif itu (*ok* / *tolak <alasan>*), mengetik *terima 1* / *bukti*, atau sekadar

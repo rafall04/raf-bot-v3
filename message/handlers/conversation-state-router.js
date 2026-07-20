@@ -2,7 +2,7 @@
  * Header Doc
  * Purpose: Router state percakapan untuk mendispatch `state.step` aktif ke owner domain tunggal.
  * Caller: `message/raf.js`.
- * Deps: Owner map state dan state domain handlers (termasuk `payment-proof` untuk step `PAYPROOF_*`).
+ * Deps: Owner map state dan state domain handlers (termasuk `payment-proof` untuk `PAYPROOF_*` dan `package-request` untuk `PKGREQ_*`).
  * MainFuncs: `routeConversationState`.
  * SideEffects: Tidak ada langsung; mendelegasikan side effect ke owner domain yang dipanggil.
  */
@@ -20,6 +20,7 @@ const { handlePsbScheduleConversationState } = require("./state-domains/psb-sche
 const { handleWanSwitchConversationState } = require("./state-domains/wan-switch.state");
 const { handleOperJalurConversationState } = require("./state-domains/oper-jalur.state");
 const { handlePaymentProofAdminState } = require("./state-domains/payment-proof-admin.state");
+const { handlePackageRequestAdminState } = require("./state-domains/package-request-admin.state");
 const { handleNetworkAssetConversationState } = require("./state-domains/network-asset.state");
 
 async function routeConversationState(context) {
@@ -67,6 +68,9 @@ async function routeConversationState(context) {
     }
     if (owner === "payment-proof") {
         return { owner, ...(await handlePaymentProofAdminState(domainContext)) };
+    }
+    if (owner === "package-request") {
+        return { owner, ...(await handlePackageRequestAdminState(domainContext)) };
     }
     if (owner === "network-asset") {
         return { owner, ...(await handleNetworkAssetConversationState(domainContext)) };

@@ -2,9 +2,9 @@
  * Header Doc
  * Purpose: Service admin untuk memisahkan business logic package change, reload users cache, dan listing admin dari router HTTP.
  * Caller: `controllers/admin.controller.js`.
- * Deps: `repositories/admin.repository`, `lib/error-handler`, adapter MikroTik, activity logger, delivery WhatsApp, dan template-service.
- * MainFuncs: `createAdminService`, `requestPackageChange`, `approvePackageChange`, `listPackageChangeRequests`, `reloadUsersCache`.
- * SideEffects: Menulis SQLite/JSON via repository, sinkronisasi MikroTik, activity log, dan notifikasi WhatsApp.
+ * Deps: `repositories/admin.repository`, `lib/error-handler`, adapter MikroTik, activity logger, delivery WhatsApp, `lib/admin-recipients` (getAdminJids), dan template-service.
+ * MainFuncs: `createAdminService`, `requestPackageChange`, `approvePackageChange` (aksi approve|reject|cancel), `listPackageChangeRequests`, `listPendingPackageChangeRequests`, `reloadUsersCache`.
+ * SideEffects: Menulis SQLite/JSON via repository, sinkronisasi MikroTik, activity log, dan notifikasi WhatsApp. Notif request paket dikirim ke admin accounts.json (getAdminJids) ∪ config.ownerNumber; aksi cancel TIDAK menyentuh pelanggan.
  */
 "use strict";
 
@@ -14,6 +14,7 @@ const { withLock } = require("../lib/request-lock");
 const { logActivity } = require("../lib/activity-logger");
 const { sendMessage, sendMessageToMany } = require("../lib/whatsapp-delivery-service");
 const { sendCritical } = require("../lib/whatsapp-critical-delivery");
+const { getAdminJids } = require("../lib/admin-recipients");
 const { renderCategoryTemplate } = require("../lib/template-service");
 const {
     updatePPPoEProfile,
@@ -63,6 +64,27 @@ function normalizeTechnicianJid(phoneNumber) {
 }
 
 /**
+ * Gabungkan penerima notifikasi request paket dari DUA sumber lalu dedup by nomor:
+ *   1) admin accounts.json (getAdminJids) — INI yang wajib, karena hanya mereka yang boleh
+ *      membalas ok / tolak / batal di WhatsApp (gate handler pakai accounts.json).
+ *   2) config.ownerNumber — dipertahankan agar tak ada regresi, TAPI di prod sering placeholder
+ *      `62xxxxxxxxxx` (lihat header lib/admin-recipients.js), jadi tak bisa jadi satu-satunya sumber.
+ * Mengembalikan array JID kanonik unik. Nomor < 10 digit dibuang.
+ */
+function mergeStaffRecipients(adminJids, ownerNumbers) {
+    const seen = new Set();
+    const out = [];
+    for (const raw of [...(adminJids || []), ...(ownerNumbers || [])]) {
+        let digits = String(raw || "").replace(/@.*$/, "").replace(/\D/g, "");
+        if (digits.startsWith("0")) digits = `62${digits.slice(1)}`;
+        if (digits.length < 10 || seen.has(digits)) continue;
+        seen.add(digits);
+        out.push(`${digits}@s.whatsapp.net`);
+    }
+    return out;
+}
+
+/**
  * Kirim notifikasi terjamin (sendCritical) secara best-effort: TIDAK pernah throw,
  * supaya kegagalan kirim tidak menggagalkan approval yang sudah commit ke DB/MikroTik.
  * Fallback ke deps.sendMessage hanya bila sendCritical tak tersedia (mis. test lama).
@@ -86,6 +108,7 @@ function defaultDeps() {
         sendMessage,
         sendMessageToMany,
         sendCritical,
+        getAdminJids,
         updatePPPoEProfile,
         deleteActivePPPoEUser,
         assertMikrotikResult,
@@ -126,6 +149,23 @@ function createAdminService(overrides = {}) {
                 data: [...deps.repository.getPackageChangeRequests()].sort(
                     (left, right) => new Date(right.createdAt) - new Date(left.createdAt)
                 )
+            };
+        },
+
+        // Antrian yang masih PENDING saja — dipakai jalur keputusan admin lewat WhatsApp
+        // (message/handlers/package-request-admin-handler) untuk menomori & me-resolve pilihan.
+        async listPendingPackageChangeRequests(actorCtx) {
+            requireAdminRole(actorCtx);
+            // Buang request kedaluwarsa (>7 hari) lebih dulu supaya antrian WA tak menampilkan yang basi.
+            if (deps.repository.cancelExpiredPackageChangeRequests()) {
+                deps.repository.persistPackageChangeRequests();
+            }
+            return {
+                status: 200,
+                data: deps.repository.getPackageChangeRequests()
+                    .filter((item) => item.status === "pending")
+                    // FIFO: yang paling lama menunggu tampil paling atas (nomor 1).
+                    .sort((left, right) => new Date(left.createdAt) - new Date(right.createdAt))
             };
         },
 
@@ -200,8 +240,14 @@ function createAdminService(overrides = {}) {
                     deps.repository.appendPackageChangeRequest(newRequest);
                     deps.repository.persistPackageChangeRequests();
 
-                    const ownerNumbers = deps.repository.getOwnerNumbers();
-                    if (ownerNumbers.length > 0) {
+                    // Penerima = admin accounts.json (yang BOLEH membalas ok/tolak/batal di WA) digabung
+                    // dengan config.ownerNumber (kompat lama). Dulu HANYA ownerNumber → di prod sering
+                    // placeholder sehingga notif tak sampai & tak ada yang bisa memproses via WA.
+                    const recipients = mergeStaffRecipients(
+                        typeof deps.getAdminJids === "function" ? deps.getAdminJids() : [],
+                        deps.repository.getOwnerNumbers()
+                    );
+                    if (recipients.length > 0) {
                         const formattedPrice = new Intl.NumberFormat("id-ID", {
                             style: "currency",
                             currency: "IDR",
@@ -222,7 +268,7 @@ function createAdminService(overrides = {}) {
                             createdAt: new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
                         });
 
-                        await deps.sendMessageToMany(ownerNumbers, { text: messageToOwner });
+                        await deps.sendMessageToMany(recipients, { text: messageToOwner });
                     }
 
                     return {
@@ -253,10 +299,10 @@ function createAdminService(overrides = {}) {
                 );
             }
 
-            if (!["approve", "reject"].includes(input.action)) {
+            if (!["approve", "reject", "cancel"].includes(input.action)) {
                 throw createError(
                     ErrorTypes.VALIDATION_ERROR,
-                    "Aksi tidak valid. Gunakan 'approve' atau 'reject'.",
+                    "Aksi tidak valid. Gunakan 'approve', 'reject', atau 'cancel'.",
                     400
                 );
             }
@@ -386,7 +432,7 @@ function createAdminService(overrides = {}) {
                             packageName: request.requestedPackageName,
                             syncMessageSection: request.sync_message ? `${request.sync_message}\n\n` : ""
                         });
-                    } else {
+                    } else if (input.action === "reject") {
                         request.status = "rejected";
                         const user = deps.repository.getUserById(request.userId);
                         const userName = user ? user.name : "Pelanggan";
@@ -395,6 +441,11 @@ function createAdminService(overrides = {}) {
                             packageName: request.requestedPackageName,
                             reason: input.notes || "Ditolak oleh admin."
                         });
+                    } else {
+                        // cancel = batalkan DIAM-DIAM (teknisi salah input / duplikat). Pelanggan TIDAK
+                        // pernah dikirimi pesan apa pun — notificationMessage sengaja dibiarkan kosong
+                        // supaya blok notifikasi pelanggan di bawah dilewati. Hanya teknisi yang diberi tahu.
+                        request.status = "cancelled_by_admin";
                     }
 
                     request.updatedAt = new Date().toISOString();
@@ -408,7 +459,8 @@ function createAdminService(overrides = {}) {
                     // MikroTik sudah commit di atas, jadi kegagalan kirim TIDAK boleh
                     // menggagalkan approval (jangan throw — sendCritical sendiri tidak throw).
                     const customer = deps.repository.getUserById(request.userId);
-                    if (customer && customer.phone_number) {
+                    // notificationMessage kosong HANYA pada aksi cancel → pelanggan tidak disentuh.
+                    if (notificationMessage && customer && customer.phone_number) {
                         const phoneNumbers = customer.phone_number
                             .split("|")
                             .map((item) => item.trim())
@@ -418,9 +470,12 @@ function createAdminService(overrides = {}) {
                         }
                     }
 
+                    const statusTextMap = { approve: "DISETUJUI", reject: "DITOLAK", cancel: "DIBATALKAN" };
+                    const verbMap = { approve: "setujui", reject: "tolak", cancel: "batalkan" };
+
                     const technician = deps.repository.getAccountById(request.requestedById);
                     if (technician && technician.phone_number) {
-                        const statusText = input.action === "approve" ? "DISETUJUI" : "DITOLAK";
+                        const statusText = statusTextMap[input.action];
                         const technicianMessage = renderResponseTemplate("admin_service_package_change_technician_result", {
                             statusText,
                             technicianName: technician.name || technician.username,
@@ -428,8 +483,8 @@ function createAdminService(overrides = {}) {
                             customerName: customer ? customer.name : "N/A",
                             currentPackage: request.currentPackageName,
                             newPackage: request.requestedPackageName,
-                            rejectionSection: input.action === "reject" && input.notes
-                                ? `\nAlasan Penolakan:\n${input.notes}\n`
+                            rejectionSection: input.notes && (input.action === "reject" || input.action === "cancel")
+                                ? `\n${input.action === "cancel" ? "Alasan Pembatalan" : "Alasan Penolakan"}:\n${input.notes}\n`
                                 : "",
                             processedAt: new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }),
                             processedBy: actorCtx.username
@@ -440,7 +495,10 @@ function createAdminService(overrides = {}) {
 
                     return {
                         status: 200,
-                        message: `Permintaan berhasil di-${input.action === "approve" ? "setujui" : "tolak"}.`,
+                        message: `Permintaan berhasil di-${verbMap[input.action]}.`,
+                        action: input.action,
+                        request,
+                        customerNotified: Boolean(notificationMessage),
                         sync_policy: request.sync_policy,
                         sync_status: request.sync_status,
                         sync_message: request.sync_message

@@ -2157,7 +2157,7 @@
   "admin_service_package_change_owner_request": {
     "name": "Admin Service: Request Ubah Paket ke Owner",
     "category": "routes_outbound",
-    "template": "*Permintaan Perubahan Paket Baru*\n\n${requesterRole} *${requesterName}* telah mengajukan permintaan perubahan paket untuk pelanggan:\n\nPelanggan: ${customerName}\nTelepon: ${customerPhone}\n\nPerubahan Paket:\n- Paket Saat Ini: ${currentPackage}\n- Paket Baru: ${newPackage}\n- Harga: ${price}\n\n${notesSection}Request ID: ${requestId}\nWaktu: ${createdAt}\n\n_Mohon segera ditinjau dan diproses di panel admin._",
+    "template": "*Permintaan Perubahan Paket Baru*\n\n${requesterRole} *${requesterName}* telah mengajukan permintaan perubahan paket untuk pelanggan:\n\nPelanggan: ${customerName}\nTelepon: ${customerPhone}\n\nPerubahan Paket:\n- Paket Saat Ini: ${currentPackage}\n- Paket Baru: ${newPackage}\n- Harga: ${price}\n\n${notesSection}Request ID: ${requestId}\nWaktu: ${createdAt}\n\n_Balas pesan ini untuk memproses:_\n✅ ketik *ok* untuk MENYETUJUI\n🚫 ketik *tolak <alasan>* untuk MENOLAK\n🗑️ ketik *batalkan* untuk MEMBATALKAN (pelanggan tak diberi tahu)\n\n_Atau proses lewat panel admin._",
     "placeholders": [
       "requesterRole",
       "requesterName",
@@ -2206,6 +2206,132 @@
       "processedAt",
       "processedBy"
     ]
+  },
+  "package_request_admin_list": {
+    "name": "Request Paket - Antrian (ke Admin)",
+    "category": "package",
+    "template": "📦 *ANTRIAN REQUEST GANTI PAKET* (${total})\n\n${daftar}\n\nBalas *angka* untuk memilih (mis. *1*), atau langsung *ok 1* / *tolak 2 <alasan>* / *batalkan 3*.",
+    "placeholders": [
+      "total",
+      "daftar"
+    ]
+  },
+  "package_request_admin_list_empty": {
+    "name": "Request Paket - Antrian Kosong (ke Admin)",
+    "category": "package",
+    "template": "✅ Tidak ada request ganti paket yang menunggu. Bersih!"
+  },
+  "package_request_admin_confirm_prompt": {
+    "name": "Request Paket - Prompt Setujui (ke Admin)",
+    "category": "package",
+    "template": "📦 *Setujui perubahan paket?*\n\n${nama}\n${paketLama} → *${paketBaru}* (${harga})\n\nBalas *ya* untuk SETUJUI & terapkan ke MikroTik, atau *tolak <alasan>* / *batalkan*.",
+    "placeholders": [
+      "nama",
+      "paketLama",
+      "paketBaru",
+      "harga",
+      "kode"
+    ]
+  },
+  "package_request_admin_reject_prompt": {
+    "name": "Request Paket - Prompt Tolak (ke Admin)",
+    "category": "package",
+    "template": "🚫 *Tolak request paket*\n\n${nama} → ${paketBaru}\n\nBalas *ya* untuk menolak, atau ketik *alasannya* langsung. Pelanggan akan diberi tahu.",
+    "placeholders": [
+      "nama",
+      "paketBaru",
+      "kode"
+    ]
+  },
+  "package_request_admin_cancel_prompt": {
+    "name": "Request Paket - Prompt Batalkan Diam-diam (ke Admin)",
+    "category": "package",
+    "template": "🗑️ *Batalkan request paket*\n\n${nama} → ${paketBaru}\n\nIni MEMBATALKAN request TANPA memberi tahu pelanggan (pakai bila teknisi salah input / duplikat).\nBalas *ya* untuk batalkan, atau *ga jadi* untuk keluar.",
+    "placeholders": [
+      "nama",
+      "paketBaru",
+      "kode"
+    ]
+  },
+  "package_request_admin_approve_ok": {
+    "name": "Request Paket - Disetujui Berhasil (ke Admin)",
+    "category": "package",
+    "template": "✅ *Paket diganti*\n\n${nama} sekarang di paket *${paketBaru}*.\n${syncSection}Pelanggan & teknisi sudah diberi tahu.\n\nSisa antrian: ${sisa} request.",
+    "placeholders": [
+      "nama",
+      "paketBaru",
+      "syncSection",
+      "sisa"
+    ]
+  },
+  "package_request_admin_reject_ok": {
+    "name": "Request Paket - Ditolak Berhasil (ke Admin)",
+    "category": "package",
+    "template": "🚫 Request paket *${nama}* → ${paketBaru} *ditolak*.\nAlasan: ${alasan}\n\nPelanggan & teknisi sudah diberi tahu.\n\nSisa antrian: ${sisa} request.",
+    "placeholders": [
+      "nama",
+      "paketBaru",
+      "alasan",
+      "sisa"
+    ]
+  },
+  "package_request_admin_cancel_ok": {
+    "name": "Request Paket - Dibatalkan Diam-diam (ke Admin)",
+    "category": "package",
+    "template": "🗑️ Request paket *${nama}* → ${paketBaru} *dibatalkan* (pelanggan TIDAK diberi tahu).\nTeknisi pengaju sudah diberi tahu.\n\nSisa antrian: ${sisa} request.",
+    "placeholders": [
+      "nama",
+      "paketBaru",
+      "sisa"
+    ]
+  },
+  "package_request_admin_not_found": {
+    "name": "Request Paket - Tidak Ditemukan (ke Admin)",
+    "category": "package",
+    "template": "❌ Request *${kode}* tidak ditemukan. Ketik *request paket* untuk melihat antrian.",
+    "placeholders": [
+      "kode"
+    ]
+  },
+  "package_request_admin_already_processed": {
+    "name": "Request Paket - Sudah Diproses (ke Admin)",
+    "category": "package",
+    "template": "ℹ️ Request *${kode}* sudah diproses sebelumnya (status: ${status}).",
+    "placeholders": [
+      "kode",
+      "status"
+    ]
+  },
+  "package_request_admin_mikrotik_failed": {
+    "name": "Request Paket - Gagal Sinkron MikroTik (ke Admin)",
+    "category": "package",
+    "template": "⚠️ Gagal menerapkan ke MikroTik untuk *${kode}*: ${pesan}\n\nPaket TIDAK diubah & request tetap menunggu — coba lagi atau proses lewat panel admin.",
+    "placeholders": [
+      "kode",
+      "pesan"
+    ]
+  },
+  "package_request_admin_error": {
+    "name": "Request Paket - Gagal Proses (ke Admin)",
+    "category": "package",
+    "template": "⚠️ Gagal memproses request *${kode}*: ${pesan}.\nRequest tetap menunggu — coba lagi atau proses lewat panel admin.",
+    "placeholders": [
+      "kode",
+      "pesan"
+    ]
+  },
+  "package_request_admin_invalid_choice": {
+    "name": "Request Paket - Pilihan Tidak Valid (ke Admin)",
+    "category": "package",
+    "template": "Pilihan tidak valid. Balas angka *1*–*${total}*, atau *batal*.",
+    "placeholders": [
+      "total"
+    ]
+  },
+  "package_request_admin_need_yes": {
+    "name": "Request Paket - Butuh Ya (ke Admin)",
+    "category": "package",
+    "template": "Balas *ya* untuk lanjut, *tolak <alasan>* untuk menolak, *batalkan* untuk membatalkan diam-diam, atau *ga jadi* untuk keluar."
   },
   "report_notification_new_ticket": {
     "name": "Report Notification: Tiket Baru ke Tim",

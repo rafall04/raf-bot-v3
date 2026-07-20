@@ -21,5 +21,7 @@ describe("conversation state owner map", () => {
         expect(CONVERSATION_STATE_OWNER_MAP.AWAITING_COMPLETION_PHOTOS).toBe("teknisi");
         expect(CONVERSATION_STATE_OWNER_MAP.ASK_VOUCHER_CHOICE).toBe("payment");
         expect(resolveConversationStateOwner("AGENT_VOUCHER_PURCHASE_PICK_PACKAGE")).toBe("agent-voucher");
+        expect(resolveConversationStateOwner("PAYPROOF_SELECT")).toBe("payment-proof");
+        expect(resolveConversationStateOwner("PKGREQ_SELECT")).toBe("package-request");
     });
 });
