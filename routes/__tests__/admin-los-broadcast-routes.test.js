@@ -163,7 +163,7 @@ describe("normalizeLosConfig", () => {
         expect(c.enabled).toBe(false);
         expect(c.confirmationWindowMs).toBe(180000); // 3 menit
         expect(c.clusterThreshold).toBe(3);
-        expect(c.notifyCustomer).toMatchObject({ enabled: false, delayMs: 3600000, onlyIfStillDown: true });
+        expect(c.notifyCustomer).toMatchObject({ enabled: false, delayMs: 600000, onlyIfStillDown: true });
     });
     test("enabled menerima string 'true'", () => {
         expect(normalizeLosConfig({ enabled: "true" }).enabled).toBe(true);
@@ -199,14 +199,46 @@ describe("normalizeLosConfig", () => {
         expect(normalizeLosConfig({ autoTicketPriority: "banana" }).autoTicket.priority).toBe("HIGH");
     });
     test("verifyViaScrape: default ON + shape lengkap saat input kosong", () => {
-        expect(normalizeLosConfig({}).verifyViaScrape).toEqual({ enabled: true, maxPages: 20, timeWindowMinutes: 15 });
+        expect(normalizeLosConfig({}).verifyViaScrape).toEqual({
+            enabled: true, maxPages: 20, timeWindowMinutes: 15,
+            areaOutage: { enabled: true, dgClusterThreshold: 5, windowSeconds: 10 },
+        });
     });
     test("verifyViaScrape: field flat form (enabled/maxPages/window) + clamp", () => {
         const c = normalizeLosConfig({ verifyEnabled: "false", verifyMaxPages: 999, verifyTimeWindowMinutes: 1 });
-        expect(c.verifyViaScrape).toEqual({ enabled: false, maxPages: 40, timeWindowMinutes: 3 });
+        expect(c.verifyViaScrape).toEqual({
+            enabled: false, maxPages: 40, timeWindowMinutes: 3,
+            areaOutage: { enabled: true, dgClusterThreshold: 5, windowSeconds: 10 },
+        });
     });
     test("verifyViaScrape: objek bersarang config lama tidak ke-drop saat re-normalisasi", () => {
         const c = normalizeLosConfig({ verifyViaScrape: { enabled: false, maxPages: 30, timeWindowMinutes: 20 } });
-        expect(c.verifyViaScrape).toEqual({ enabled: false, maxPages: 30, timeWindowMinutes: 20 });
+        expect(c.verifyViaScrape).toEqual({
+            enabled: false, maxPages: 30, timeWindowMinutes: 20,
+            areaOutage: { enabled: true, dgClusterThreshold: 5, windowSeconds: 10 },
+        });
+    });
+    test("areaOutage: field flat form (enabled/threshold/window) + clamp", () => {
+        const c = normalizeLosConfig({ verifyAreaOutageEnabled: "false", verifyAreaDgThreshold: 999, verifyAreaWindowSeconds: 3 });
+        expect(c.verifyViaScrape.areaOutage).toEqual({ enabled: false, dgClusterThreshold: 200, windowSeconds: 3 });
+    });
+    test("areaOutage: nested config lama tidak ke-drop saat re-normalisasi", () => {
+        const c = normalizeLosConfig({ verifyViaScrape: { areaOutage: { enabled: true, dgClusterThreshold: 8, windowSeconds: 15 } } });
+        expect(c.verifyViaScrape.areaOutage).toEqual({ enabled: true, dgClusterThreshold: 8, windowSeconds: 15 });
+    });
+    test("notifyCustomer: recovery template + notifyOnRecovery dinormalisasi (tak ke-drop)", () => {
+        const c = normalizeLosConfig({
+            notifyCustomerEnabled: "true",
+            customerNotifyOnRecovery: "false",
+            customerRecoveryTemplate: "Sudah normal {customer_name}",
+        });
+        expect(c.notifyCustomer.notifyOnRecovery).toBe(false);
+        expect(c.notifyCustomer.recoveryMessageTemplate).toBe("Sudah normal {customer_name}");
+    });
+    test("current (config tersimpan) jadi fallback: Save tanpa notifyCustomer tak menonaktifkannya", () => {
+        const current = { notifyCustomer: { enabled: true, delayMs: 600000, messageTemplate: "Halo" } };
+        const c = normalizeLosConfig({ enabled: true }, current);
+        expect(c.notifyCustomer.enabled).toBe(true);        // tak ke-reset ke false
+        expect(c.notifyCustomer.messageTemplate).toBe("Halo");
     });
 });

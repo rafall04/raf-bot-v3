@@ -37,34 +37,41 @@ function normalizePriority(v) {
     return p === "MEDIUM" ? "MEDIUM" : "HIGH";
 }
 
-function normalizeLosConfig(input = {}) {
+function normalizeLosConfig(input = {}, current = {}) {
+    const cur = current || {};
     const confirmationWindowMinutes = clampNumber(input.confirmationWindowMinutes, 1, 60, 3);
     const clusterFlushSeconds = clampNumber(input.clusterFlushSeconds, 1, 300, 20);
     const rebroadcastCooldownMinutes = clampNumber(input.rebroadcastCooldownMinutes, 1, 720, 30);
     const recoveryConfirmSeconds = clampNumber(input.recoveryConfirmSeconds, 5, 600, 60);
     const recoveryClusterFlushSeconds = clampNumber(input.recoveryClusterFlushSeconds, 1, 300, 20);
-    // Notifikasi pelanggan terjadwal setelah teknisi (default 60 menit).
-    const nc = input.notifyCustomer || {};
-    const customerDelayMinutes = clampNumber(
-        input.customerNotifyDelayMinutes != null ? input.customerNotifyDelayMinutes : nc.delayMinutes,
-        1, 1440, 60
-    );
+    // Blok bersarang menerima field flat dari form ATAU objek bersarang dari config yang SUDAH ADA
+    // (current) — supaya Save dari UI yang tak mengirim field ini TIDAK menghapus/menonaktifkannya
+    // (pelajaran autoTicket: normalizeLosConfig menulis-ulang seluruh oltLosBroadcast).
+    const nc = input.notifyCustomer || cur.notifyCustomer || {};
     const ncDefault = DEFAULTS.notifyCustomer || {};
-    // Auto-tiket dari LOS terkonfirmasi. Terima field flat dari form (autoTicket*) ATAU
-    // objek bersarang (autoTicket) dari config yang sudah ada — supaya save dari UI tak
-    // menghapus blok ini (dulu ke-drop karena tak ternormalisasi → tiket auto ikut mati).
-    const at = input.autoTicket || {};
+    // undefined (bukan null) saat absen: Number(null)=0 lolos Number.isFinite → clamp ke min,
+    // sedangkan Number(undefined)=NaN → clampNumber pakai fallback default. (GOTCHA klasik.)
+    const curNcDelayMin = (cur.notifyCustomer && Number.isFinite(cur.notifyCustomer.delayMs))
+        ? Math.round(cur.notifyCustomer.delayMs / 60000) : undefined;
+    const customerDelayMinutes = clampNumber(
+        input.customerNotifyDelayMinutes != null ? input.customerNotifyDelayMinutes
+            : (nc.delayMinutes != null ? nc.delayMinutes : curNcDelayMin),
+        1, 1440, Math.round((ncDefault.delayMs || 600000) / 60000)
+    );
+    const at = input.autoTicket || cur.autoTicket || {};
     const atDefault = DEFAULTS.autoTicket || {};
     // Verifikasi via scrape web log OLT (anti salah-vonis mati-listrik). Terima flat (verify*)
     // atau nested (verifyViaScrape) — WAJIB dinormalisasi agar tak ke-drop saat admin Simpan.
-    const vs = input.verifyViaScrape || {};
+    const vs = input.verifyViaScrape || cur.verifyViaScrape || {};
     const vsDefault = DEFAULTS.verifyViaScrape || {};
+    const ao = vs.areaOutage || {};
+    const aoDefault = vsDefault.areaOutage || {};
     return {
         enabled: asBool(input.enabled),
         // Grup alarm OLT (grup khusus). notifyTeknisi default true (perilaku lama).
         notifyGroup: asBool(input.notifyGroup),
-        groupId: input.groupId != null ? String(input.groupId).trim() : (DEFAULTS.groupId || ""),
-        notifyTeknisi: input.notifyTeknisi != null ? asBool(input.notifyTeknisi) : (DEFAULTS.notifyTeknisi !== false),
+        groupId: input.groupId != null ? String(input.groupId).trim() : (cur.groupId != null ? String(cur.groupId).trim() : (DEFAULTS.groupId || "")),
+        notifyTeknisi: input.notifyTeknisi != null ? asBool(input.notifyTeknisi) : (cur.notifyTeknisi != null ? asBool(cur.notifyTeknisi) : (DEFAULTS.notifyTeknisi !== false)),
         // Notif PULIH ke grup/teknisi saat ONU kembali online (menutup alarm yang tergantung).
         notifyRecovery: asBool(input.notifyRecovery),
         recoveryConfirmMs: Math.round(recoveryConfirmSeconds * 1000),
@@ -85,6 +92,16 @@ function normalizeLosConfig(input = {}) {
                 input.verifyMaxPages != null ? input.verifyMaxPages : vs.maxPages, 3, 40, vsDefault.maxPages || 20)),
             timeWindowMinutes: Math.round(clampNumber(
                 input.verifyTimeWindowMinutes != null ? input.verifyTimeWindowMinutes : vs.timeWindowMinutes, 3, 120, vsDefault.timeWindowMinutes || 15)),
+            // GERBANG MATI-LISTRIK-AREA (dibaca broadcaster + verifier). Dinormalisasi agar tak ke-drop.
+            areaOutage: {
+                enabled: input.verifyAreaOutageEnabled != null
+                    ? asBool(input.verifyAreaOutageEnabled)
+                    : (ao.enabled != null ? asBool(ao.enabled) : (aoDefault.enabled !== false)),
+                dgClusterThreshold: Math.round(clampNumber(
+                    input.verifyAreaDgThreshold != null ? input.verifyAreaDgThreshold : ao.dgClusterThreshold, 2, 200, aoDefault.dgClusterThreshold || 5)),
+                windowSeconds: Math.round(clampNumber(
+                    input.verifyAreaWindowSeconds != null ? input.verifyAreaWindowSeconds : ao.windowSeconds, 1, 120, aoDefault.windowSeconds || 10)),
+            },
         },
         confidenceThreshold: clampNumber(input.confidenceThreshold, 0, 1, DEFAULTS.confidenceThreshold),
         confirmationWindowMs: Math.round(confirmationWindowMinutes * 60 * 1000),
@@ -99,6 +116,12 @@ function normalizeLosConfig(input = {}) {
                 : (nc.onlyIfStillDown !== false),
             messageTemplate: (input.customerMessageTemplate != null ? input.customerMessageTemplate : nc.messageTemplate)
                 || ncDefault.messageTemplate || "",
+            // Kabari pelanggan saat PULIH (hanya yang tadi dikabari saat gangguan).
+            notifyOnRecovery: input.customerNotifyOnRecovery != null
+                ? asBool(input.customerNotifyOnRecovery)
+                : (nc.notifyOnRecovery !== false),
+            recoveryMessageTemplate: (input.customerRecoveryTemplate != null ? input.customerRecoveryTemplate : nc.recoveryMessageTemplate)
+                || ncDefault.recoveryMessageTemplate || "",
         },
     };
 }
@@ -129,12 +152,23 @@ function decorateForView(cfg) {
             enabled: (vs.enabled != null ? vs.enabled : vsDefault.enabled) !== false,
             maxPages: vs.maxPages != null ? vs.maxPages : (vsDefault.maxPages || 20),
             timeWindowMinutes: vs.timeWindowMinutes != null ? vs.timeWindowMinutes : (vsDefault.timeWindowMinutes || 15),
+            areaOutage: (() => {
+                const ao = vs.areaOutage || {};
+                const aoDefault = vsDefault.areaOutage || {};
+                return {
+                    enabled: (ao.enabled != null ? ao.enabled : aoDefault.enabled) !== false,
+                    dgClusterThreshold: ao.dgClusterThreshold != null ? ao.dgClusterThreshold : (aoDefault.dgClusterThreshold || 5),
+                    windowSeconds: ao.windowSeconds != null ? ao.windowSeconds : (aoDefault.windowSeconds || 10),
+                };
+            })(),
         },
         notifyCustomer: {
             enabled: nc.enabled === true,
             onlyIfStillDown: nc.onlyIfStillDown !== false,
-            delayMinutes: Math.round((nc.delayMs || ncDefault.delayMs || 3600000) / 60000),
+            delayMinutes: Math.round((nc.delayMs || ncDefault.delayMs || 600000) / 60000),
             messageTemplate: nc.messageTemplate || ncDefault.messageTemplate || "",
+            notifyOnRecovery: (nc.notifyOnRecovery != null ? nc.notifyOnRecovery : ncDefault.notifyOnRecovery) !== false,
+            recoveryMessageTemplate: nc.recoveryMessageTemplate || ncDefault.recoveryMessageTemplate || "",
         },
     };
 }
@@ -172,8 +206,10 @@ function registerAdminLosBroadcastRoutes(router, deps = {}) {
         if (!isPrivileged(req) && req.user) {
             return res.status(403).json({ status: 403, message: "Akses ditolak." });
         }
-        const normalized = normalizeLosConfig(req.body || {});
         const cfg = readConfig();
+        // Lewatkan config TERSIMPAN sebagai fallback → Save dari UI yang tak mengirim sub-blok
+        // (notifyCustomer/verifyViaScrape/autoTicket) tidak menghapus/menonaktifkannya.
+        const normalized = normalizeLosConfig(req.body || {}, cfg.oltLosBroadcast || {});
         cfg.oltLosBroadcast = normalized;
         writeConfig(cfg);
         setRuntimeConfig(cfg);
