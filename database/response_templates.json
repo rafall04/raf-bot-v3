@@ -4618,7 +4618,7 @@
   "auto_outage_initial_question": {
     "name": "Auto Outage: Pertanyaan Awal",
     "category": "auto_outage",
-    "template": "Halo ${nama}, sistem kami mendeteksi koneksi PPPoE ${pppoe_username} tidak aktif sejak ${offline_since}. Apakah ada kendala pada WiFi-nya? Balas 1/AMAN jika aman, atau 2/ADA KENDALA jika butuh bantuan."
+    "template": "Halo ${nama}, sistem kami mendeteksi koneksi internet Anda tidak aktif sejak ${offline_since}. Apakah ada kendala pada WiFi-nya? Balas 1/AMAN jika aman, atau 2/ADA KENDALA jika butuh bantuan."
   },
   "auto_outage_detail_prompt": {
     "name": "Auto Outage: Minta Detail Kendala",

@@ -78,10 +78,12 @@ function createAutoOutageConversationService(overrides = {}) {
     }
 
     async function startConversation({ user = {}, state = {}, rule = {} } = {}) {
-        const fallback = rule.template_initial || "Halo ${nama}, sistem kami mendeteksi koneksi WiFi/PPPoE tidak aktif. Apakah ada kendala pada WiFi-nya? Balas AMAN atau ADA KENDALA.";
+        const fallback = rule.template_initial || "Halo ${nama}, sistem kami mendeteksi koneksi internet Anda tidak aktif. Apakah ada kendala pada WiFi-nya? Balas 1/AMAN jika aman, atau 2/ADA KENDALA jika butuh bantuan.";
+        // JANGAN oper pppoe_username ke pesan PELANGGAN — nama PPPoE = identitas internal, bocor = fatal
+        // (lihat memori customer-facing-no-internal-ids). Tetap disimpan di conversation/state/tiket
+        // (internal) di bawah. Tidak dioper ke render = admin tak bisa re-leak lewat edit template.
         const text = render(deps, "auto_outage_initial_question", fallback, {
             nama: user.name || "",
-            pppoe_username: user.pppoe_username || state.pppoe_username || "",
             offline_since: state.offline_since || ""
         });
         const conversation = await deps.repository.createConversation({

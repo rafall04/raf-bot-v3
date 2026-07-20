@@ -141,4 +141,37 @@ describe("auto-outage-conversation.service", () => {
             closed_reason: "customer_declined_ticket"
         }));
     });
+
+    test("startConversation TIDAK membocorkan pppoe ke pelanggan (walau template memuat placeholder)", async () => {
+        const repository = {
+            createConversation: jest.fn().mockResolvedValue({ id: "conv-9", status: "waiting_initial" }),
+            upsertStates: jest.fn().mockResolvedValue([])
+        };
+        const sendMessage = jest.fn().mockResolvedValue({ ok: true });
+        let capturedData = null;
+        const service = createAutoOutageConversationService({
+            repository,
+            sendMessage,
+            // Simulasikan template STORED yang (nakal) masih memuat ${pppoe_username}:
+            renderResponseTemplate: (_key, _fallback, data) => {
+                capturedData = data;
+                return `Halo ${data.nama}, koneksi PPPoE ${data.pppoe_username} tidak aktif sejak ${data.offline_since}.`;
+            }
+        });
+
+        await service.startConversation({
+            user: { id: "7", name: "Komari", phone_number: "6287811561418", pppoe_username: "komari-tandingoro@rafcybernet" },
+            state: { id: "state-9", offline_since: "kemarin" }
+        });
+
+        // Service TIDAK mengoper pppoe_username ke data render pesan pelanggan.
+        expect(capturedData).not.toHaveProperty("pppoe_username");
+        // Maka teks terkirim TIDAK memuat nama pppoe, walau template pakai ${pppoe_username}.
+        const sentText = sendMessage.mock.calls[0][1].text;
+        expect(sentText).not.toMatch(/komari-tandingoro@rafcybernet/i);
+        // Tapi pppoe_username TETAP disimpan internal (untuk tiket/diagnostik).
+        expect(repository.createConversation).toHaveBeenCalledWith(expect.objectContaining({
+            pppoe_username: "komari-tandingoro@rafcybernet"
+        }));
+    });
 });
