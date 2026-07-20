@@ -2618,7 +2618,7 @@ test("GET /api/customer/wifi/connected-devices returns grouped device payload", 
             expect(payload).toEqual({
                 status: 200,
                 message: "Nama WiFi berhasil diambil",
-                data: { wifiName: "RAF NET" }
+                data: { wifiName: "RAF NET", waConnected: false }
             });
         } finally {
             await stopServer(server);

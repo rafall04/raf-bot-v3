@@ -1616,10 +1616,15 @@ router.get('/api/wifi-name', asyncHandler(async (req, res) => {
             if (bd.length >= 9) reportNumber = bd;
         }
     } catch (_e) { /* abaikan */ }
+    // Status koneksi WA bot: bila bukan 'open', kode voucher TIDAK bisa dikirim via WA.
+    // Halaman beli publik pakai flag ini untuk tak menjanjikan pengiriman WhatsApp.
+    let waConnected = false;
+    try { waConnected = (global.whatsappConnectionState === 'open'); } catch (_e) { /* abaikan */ }
     const data = Object.assign({}, wifiData,
         contact ? { contact } : {},
         voucherGuide ? { voucherGuide } : {},
-        reportNumber ? { reportNumber } : {});
+        reportNumber ? { reportNumber } : {},
+        { waConnected });
     return sendSuccess(res, data, "Nama WiFi berhasil diambil");
 }));
 

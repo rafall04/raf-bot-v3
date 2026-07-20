@@ -326,11 +326,11 @@ footer{border-top:1px solid var(--line);margin-top:10px}
     </div>
     <p class="eyebrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M13 2 4.5 13H11l-1 9 8.5-11H12l1-9Z"/></svg> Hotspot · Prabayar</p>
     <h1 class="h1">Voucher WiFi, <span class="hl">terbit seketika.</span></h1>
-    <p class="sub">Pilih durasi, bayar lewat QRIS atau e-wallet, dan kode voucher langsung tampil di layar sekaligus dikirim ke WhatsApp Anda.</p>
+    <p class="sub" id="heroSub">Pilih durasi, bayar lewat QRIS atau e-wallet, dan kode voucher langsung tampil di layar sekaligus dikirim ke WhatsApp Anda.</p>
     <div class="chips">
       <span class="chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M20 20v.01M17 20v.01M20 17v.01"/></svg> QRIS &amp; e-wallet</span>
       <span class="chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2 4.5 13H11l-1 9 8.5-11H12l1-9Z"/></svg> Voucher otomatis</span>
-      <span class="chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-5.9A8.5 8.5 0 1 1 21 11.5Z"/></svg> Kode via WhatsApp</span>
+      <span class="chip" id="chipWa"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-5.9A8.5 8.5 0 1 1 21 11.5Z"/></svg> Kode via WhatsApp</span>
     </div>
     <div class="sec-head"><h2>Pilih paket</h2><span class="hint">Bayar sekali, langsung aktif</span></div>
     <div id="catalog" class="grid"><div class="loading"><span class="spin"></span> Memuat paket…</div></div>
@@ -346,7 +346,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
         <span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-5.9A8.5 8.5 0 1 1 21 11.5Z"/></svg></span>
         <input type="tel" id="phone" inputmode="numeric" placeholder="0812xxxxxxxx" autocomplete="tel">
       </div>
-      <div class="field-hint"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg> Kode voucher dikirim ke nomor ini. Pastikan benar &amp; aktif di WhatsApp.</div>
+      <div class="field-hint"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg> <span id="phoneHintTxt">Kode voucher dikirim ke nomor ini. Pastikan benar &amp; aktif di WhatsApp.</span></div>
       <button class="btn" id="buyBtn">Lanjut ke Pembayaran <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
       <div id="formErr" class="err hidden"></div>
     </div>
@@ -358,7 +358,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
     <div class="panel" style="margin-top:12px">
       <div class="summary"><span class="s-name" id="r-name">-</span><span class="s-price" id="r-price">-</span></div>
       <div class="breakdown" style="margin:6px auto 14px">
-        <div class="bd-row"><span>Kirim kode ke</span><span id="r-phone">-</span></div>
+        <div class="bd-row"><span id="rPhoneLabel">Kirim kode ke</span><span id="r-phone">-</span></div>
         <div class="bd-row"><span>Harga voucher</span><span id="r-harga">-</span></div>
         <div class="bd-row"><span>Biaya admin QRIS</span><span id="r-fee">-</span></div>
         <div class="bd-row"><span>Total bayar</span><b id="r-total">-</b></div>
@@ -451,7 +451,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
       <div id="result-manual" class="hidden done">
         <div class="seal" style="background:linear-gradient(135deg,#38bdf8,#22d3ee)"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
         <h2>Pembayaran diterima</h2>
-        <p>Voucher sedang diproses dan akan dikirim ke WhatsApp Anda sesaat lagi. Jika belum masuk dalam beberapa menit, silakan hubungi admin.</p>
+        <p id="manualNote">Voucher sedang diproses dan akan dikirim ke WhatsApp Anda sesaat lagi. Jika belum masuk dalam beberapa menit, silakan hubungi admin.</p>
         <button class="btn-ghost" id="buyMore2">Selesai</button>
       </div>
     </div>
@@ -544,10 +544,31 @@ footer{border-top:1px solid var(--line);margin-top:10px}
     try{ var o=JSON.parse(lsGet('vc-last')||'{}'); if(o&&o.code) lsSet('vc-last-dismissed',o.code); }catch(e){}
   });
 
+  // Sesuaikan copy "kirim ke WhatsApp": bila WA bot TIDAK terhubung (mis. sesi belum di-scan),
+  // kode voucher tak bisa dikirim via WA — jangan janjikan pengiriman, arahkan pelanggan
+  // menyimpan/screenshot kode dari layar. Otomatis balik normal saat WA tersambung.
+  function applyWaMode(on){
+    try{
+      var sub=$('heroSub'); if(sub) sub.textContent = on
+        ? 'Pilih durasi, bayar lewat QRIS atau e-wallet, dan kode voucher langsung tampil di layar sekaligus dikirim ke WhatsApp Anda.'
+        : 'Pilih durasi, bayar lewat QRIS atau e-wallet, dan kode voucher langsung tampil di layar. Simpan atau screenshot kodenya sebagai bukti.';
+      var chip=$('chipWa'); if(chip) chip.classList.toggle('hidden', !on);
+      var ph=$('phoneHintTxt'); if(ph) ph.textContent = on
+        ? 'Kode voucher dikirim ke nomor ini. Pastikan benar & aktif di WhatsApp.'
+        : 'Kode langsung tampil di layar setelah bayar — simpan/screenshot kodenya. Nomor dipakai untuk catatan & bantuan admin.';
+      var rl=$('rPhoneLabel'); if(rl) rl.textContent = on ? 'Kirim kode ke' : 'Nomor';
+      var sn=$('sentNote'); if(sn) sn.classList.toggle('hidden', !on);
+      var mn=$('manualNote'); if(mn) mn.textContent = on
+        ? 'Voucher sedang diproses dan akan dikirim ke WhatsApp Anda sesaat lagi. Jika belum masuk dalam beberapa menit, silakan hubungi admin.'
+        : 'Voucher sedang diproses dan akan tampil di halaman ini sesaat lagi. Jika belum muncul dalam beberapa menit, screenshot bukti bayar & hubungi admin.';
+    }catch(_e){}
+  }
+
   // Personalisasi nama brand + link bantuan (best-effort). wifi-name kini bisa balikkan
   // data.wifiName (bentuk baru) / data string (kompat lama) + data.contact (nomor CS opsional).
   fetch('/api/wifi-name').then(function(r){return r.json();}).then(function(d){
     var data=(d&&d.data)||d||{};
+    applyWaMode(!(typeof data==='object' && data.waConnected===false)); // false eksplisit = WA bot terputus → sembunyikan janji kirim-WA
     reportNumber=String((typeof data==='object'&&data.reportNumber)||''); // nomor "Laporkan ke Admin" (publicContact / nomor bot)
     var name=(typeof data==='object'?(data.wifiName||data.name):(typeof data==='string'?data:null))||(d&&(d.wifiName||d.name));
     if(typeof name==='string'&&name.trim()) $('bizname').textContent=name.trim()+' · Voucher';
