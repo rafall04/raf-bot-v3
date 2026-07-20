@@ -2174,17 +2174,17 @@
   "admin_service_package_change_customer_approved": {
     "name": "Admin Service: Ubah Paket Disetujui ke Customer",
     "category": "routes_outbound",
-    "template": "*Permintaan Perubahan Paket Disetujui*\n\nHalo ${customerName},\nPermintaan Anda untuk mengubah layanan ke paket *${packageName}* telah disetujui.\n\n${syncMessageSection}Terima kasih.",
+    "template": "*Perubahan Paket Berhasil* ✅\n\nHalo ${customerName},\nPaket internet Anda sekarang *${packageName}*${priceLine} dan sudah aktif. 🎉\n\nJika kecepatan belum terasa berubah, coba matikan router ±1 menit lalu nyalakan lagi ya. Terima kasih sudah berlangganan 🙏",
     "placeholders": [
       "customerName",
       "packageName",
-      "syncMessageSection"
+      "priceLine"
     ]
   },
   "admin_service_package_change_customer_rejected": {
     "name": "Admin Service: Ubah Paket Ditolak ke Customer",
     "category": "routes_outbound",
-    "template": "*Permintaan Perubahan Paket Ditolak*\n\nHalo ${customerName},\nMohon maaf, permintaan Anda untuk mengubah layanan ke paket *${packageName}* saat ini belum dapat kami setujui.\n\nAlasan: ${reason}\n\nSilakan hubungi admin untuk informasi lebih lanjut.",
+    "template": "Halo ${customerName} 🙏\n\nMohon maaf, permintaan ganti paket ke *${packageName}* belum dapat kami proses saat ini.\n\nAlasan: ${reason}\n\nAda yang ingin ditanyakan? Balas pesan ini ya, kami bantu. Terima kasih 😊",
     "placeholders": [
       "customerName",
       "packageName",
@@ -2194,7 +2194,7 @@
   "admin_service_package_change_technician_result": {
     "name": "Admin Service: Hasil Ubah Paket ke Teknisi",
     "category": "routes_outbound",
-    "template": "*Permintaan Perubahan Paket ${statusText}*\n\nHalo ${technicianName},\n\nPermintaan perubahan paket yang Anda ajukan telah *${statusText}* oleh admin.\n\nDetail Permintaan:\n- Request ID: ${requestId}\n- Pelanggan: ${customerName}\n- Paket Lama: ${currentPackage}\n- Paket Baru: ${newPackage}\n${rejectionSection}\nWaktu Diproses: ${processedAt}\nDiproses Oleh: ${processedBy}",
+    "template": "📦 *Update Request Paket — ${statusText}*\n\nHai ${technicianName} 👋\nPengajuan ganti paket yang kamu ajukan sudah *${statusText}* oleh admin.\n\n👤 Pelanggan: ${customerName}\n📶 ${currentPackage} → *${newPackage}*\n${rejectionSection}🕐 ${processedAt} • oleh ${processedBy}\n🆔 ${requestId}\n\nMakasih sudah bantu proses ya 🙏",
     "placeholders": [
       "statusText",
       "technicianName",

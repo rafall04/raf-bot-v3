@@ -427,10 +427,15 @@ function createAdminService(overrides = {}) {
                             console.error("[ACTIVITY_LOG_ERROR] Failed to log package change:", error);
                         }
 
+                        // PENTING: pesan ke PELANGGAN TIDAK boleh memuat detail internal — nama PPPoE,
+                        // nama profil MikroTik, atau jargon "Profile MikroTik". `sync_message` memuat
+                        // pppoe_username (lihat mikrotikSync di atas) dan hanya untuk audit/admin, JANGAN
+                        // dikirim ke pelanggan. Cukup nama paket + harga yang ramah.
+                        const approvedPriceNum = Number(requestedPackage.price) || 0;
                         notificationMessage = renderResponseTemplate("admin_service_package_change_customer_approved", {
                             customerName: user.name,
                             packageName: request.requestedPackageName,
-                            syncMessageSection: request.sync_message ? `${request.sync_message}\n\n` : ""
+                            priceLine: approvedPriceNum > 0 ? ` (Rp ${approvedPriceNum.toLocaleString("id-ID")}/bulan)` : ""
                         });
                     } else if (input.action === "reject") {
                         request.status = "rejected";

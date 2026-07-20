@@ -296,4 +296,54 @@ describe("admin.service", () => {
             "6289999999999@s.whatsapp.net"
         ]);
     });
+
+    test("approve TIDAK membocorkan pppoe/profil ke pelanggan (pesan approved tanpa syncMessageSection)", async () => {
+        const { renderCategoryTemplate } = require("../../lib/template-service");
+        renderCategoryTemplate.mockClear();
+
+        const request = {
+            id: "REQ-LEAK", userId: 25, requestedPackageName: "PAKET-110K", requestedById: 33,
+            currentPackageName: "PAKET-165K", status: "pending"
+        };
+        const repository = {
+            findPackageChangeRequestIndexById: jest.fn().mockReturnValue(0),
+            getPackageChangeRequests: jest.fn().mockReturnValue([request]),
+            getUserById: jest.fn().mockReturnValue({ id: 25, name: "Komari", pppoe_username: "komari-tandingoro@rafcybernet", subscription: "PAKET-165K", phone_number: "0812" }),
+            getPackageByName: jest.fn().mockReturnValue({ name: "PAKET-110K", price: 110000, profile: "16Mbps" }),
+            getConfig: jest.fn().mockReturnValue({}),
+            updateUserSubscription: jest.fn(),
+            syncUserSubscriptionCache: jest.fn(),
+            replacePackageChangeRequest: jest.fn(),
+            persistPackageChangeRequests: jest.fn(),
+            getAccountById: jest.fn().mockReturnValue(null)
+        };
+        const service = createAdminService({
+            repository,
+            withLock: jest.fn(async (_k, h) => h()),
+            isMikrotikSyncEnabled: jest.fn().mockReturnValue(true), // sync ON → sync_message memuat pppoe
+            updatePPPoEProfile: jest.fn().mockResolvedValue({ ok: true }),
+            assertMikrotikResult: jest.fn((v) => v),
+            deleteActivePPPoEUser: jest.fn().mockResolvedValue({ ok: true }),
+            logActivity: jest.fn().mockResolvedValue(true),
+            sendCritical: jest.fn().mockResolvedValue({ delivered: true })
+        });
+
+        await service.approvePackageChange(
+            { requestId: "REQ-LEAK", action: "approve", notes: "" },
+            { id: 1, username: "raf", role: "admin" }
+        );
+
+        const call = renderCategoryTemplate.mock.calls.find((c) => c[1] === "admin_service_package_change_customer_approved");
+        expect(call).toBeDefined();
+        const data = call[2] || {};
+        // Jalur bocor lama mengirim `syncMessageSection` (berisi pppoe + profil) ke PELANGGAN.
+        expect(data).not.toHaveProperty("syncMessageSection");
+        const blob = JSON.stringify(data);
+        expect(blob).not.toMatch(/pppoe/i);
+        expect(blob).not.toMatch(/@rafcybernet/i);
+        expect(blob).not.toMatch(/16Mbps/i);
+        expect(blob).not.toMatch(/Profile MikroTik/i);
+        // sync_message internal tetap boleh ada di request (audit), tapi TIDAK dikirim ke pelanggan.
+        expect(request.sync_message).toMatch(/pppoe|komari|16Mbps/i);
+    });
 });
