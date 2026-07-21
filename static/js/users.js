@@ -435,7 +435,9 @@
         }
 
 
-        function handleGeolocationErrorUserModal(error, contextMessage, displayTarget, fallbackLat, fallbackLng, mapUpdaterFn) {
+        // `mapViewFn` SENGAJA hanya boleh menggeser tampilan peta (bukan penulis input lat/lng) —
+        // kegagalan GPS tak boleh berubah jadi koordinat pelanggan. Lihat catatan di bawah.
+        function handleGeolocationErrorUserModal(error, contextMessage, displayTarget, fallbackLat, fallbackLng, mapViewFn) {
             console.warn(`${contextMessage} - Error Code: ${error.code}, Message: ${error.message}`);
             let errorText = `<b>${contextMessage}</b><br/>`;
             switch(error.code) {
@@ -452,9 +454,14 @@
                     errorText += `Kesalahan (Code: ${error.code || 'N/A'}). Cek koneksi & HTTPS.`;
                     break;
             }
-            if (fallbackLat && fallbackLng && mapUpdaterFn) {
-                 errorText += "<br/>Menampilkan lokasi default.";
-                 mapUpdaterFn(L.latLng(fallbackLat, fallbackLng), false);
+            // HANYA geser TAMPILAN peta — JANGAN menulis input lat/lng.
+            // Dulu baris ini memanggil updateMarkerAndInputsUser, sehingga koordinat DEFAULT
+            // (-7.24139, 111.83833) ikut TERSIMPAN sebagai lokasi rumah pelanggan setiap kali
+            // admin menekan Simpan dengan izin GPS ditolak — walau dia cuma mengubah nomor HP.
+            // Itulah sebab puluhan pelanggan menumpuk di satu titik yang sama PERSIS.
+            if (fallbackLat && fallbackLng && mapViewFn) {
+                 errorText += "<br/>Peta digeser ke lokasi default. <b>Koordinat pelanggan TIDAK diubah</b> — klik peta atau geser marker bila memang ingin menandai lokasi.";
+                 mapViewFn(L.latLng(fallbackLat, fallbackLng));
             }
             displayTarget(errorText, 'danger', true); // Use modal for geolocation errors
         }
@@ -566,6 +573,15 @@
                 }
             }
 
+            // Geser TAMPILAN peta saja — tanpa marker, tanpa menyentuh input lat/lng.
+            // ATURAN: koordinat pelanggan HANYA boleh berubah karena tindakan SENGAJA admin —
+            // klik peta, geser marker, atau tombol GPS yang BERHASIL. Inisialisasi otomatis dan
+            // kegagalan GPS tidak boleh menulis apa pun, karena admin sering menyimpan form untuk
+            // urusan lain (ubah No HP, tandai lunas) dan tak sadar koordinatnya ikut tertimpa.
+            function moveMapViewOnly(latlng) {
+                if (mapInstance) mapInstance.setView(latlng, mapInstance.getZoom());
+            }
+
             if (initialLat && initialLng && !isNaN(parseFloat(initialLat)) && !isNaN(parseFloat(initialLng))) {
                  updateMarkerAndInputsUser(L.latLng(parseFloat(initialLat), parseFloat(initialLng)), false);
             }
@@ -588,13 +604,13 @@
                                 navigator.geolocation.getCurrentPosition(
                                     (position) => processSuccessfulGeolocationUserModal(position, "Tombol GPS", displayGlobalUserMessage, updateMarkerAndInputsUser, container, originalIconHTML),
                                     (error) => {
-                                        handleGeolocationErrorUserModal(error, "Gagal dari Tombol GPS", displayGlobalUserMessage, defaultLat, defaultLng, updateMarkerAndInputsUser);
+                                        handleGeolocationErrorUserModal(error, "Gagal dari Tombol GPS", displayGlobalUserMessage, defaultLat, defaultLng, moveMapViewOnly);
                                         container.innerHTML = originalIconHTML;
                                     },
                                     geolocationOptions
                                 );
                             } else {
-                                handleGeolocationErrorUserModal({code: -1, message: "Browser tidak mendukung geolokasi."}, "Gagal dari Tombol GPS", displayGlobalUserMessage, defaultLat, defaultLng, updateMarkerAndInputsUser);
+                                handleGeolocationErrorUserModal({code: -1, message: "Browser tidak mendukung geolokasi."}, "Gagal dari Tombol GPS", displayGlobalUserMessage, defaultLat, defaultLng, moveMapViewOnly);
                                 container.innerHTML = originalIconHTML;
                             }
                         });
@@ -607,10 +623,12 @@
                  // Attempting to get initial GPS location
                  if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
-                        (position) => processSuccessfulGeolocationUserModal(position, "Inisialisasi Peta", displayGlobalUserMessage, updateMarkerAndInputsUser),
+                        // Inisialisasi = geser tampilan saja. Lokasi ADMIN bukan lokasi rumah pelanggan;
+                        // dulu ini menuliskannya ke input sehingga ikut tersimpan bila form disubmit.
+                        (position) => processSuccessfulGeolocationUserModal(position, "Inisialisasi Peta", displayGlobalUserMessage, moveMapViewOnly),
                         (error) => {
                             if (!markerInstance) {
-                                handleGeolocationErrorUserModal(error, "Gagal Inisialisasi Peta", displayGlobalUserMessage, defaultLat, defaultLng, updateMarkerAndInputsUser);
+                                handleGeolocationErrorUserModal(error, "Gagal Inisialisasi Peta", displayGlobalUserMessage, defaultLat, defaultLng, moveMapViewOnly);
                             } else {
                                 // GPS initialization failed, but marker exists from initial data
                             }
@@ -618,7 +636,7 @@
                         geolocationOptions
                     );
                 } else if (!markerInstance) {
-                     handleGeolocationErrorUserModal({code: -1, message: "Browser tidak mendukung geolokasi."}, "Gagal Inisialisasi Peta", displayGlobalUserMessage, defaultLat, defaultLng, updateMarkerAndInputsUser);
+                     handleGeolocationErrorUserModal({code: -1, message: "Browser tidak mendukung geolokasi."}, "Gagal Inisialisasi Peta", displayGlobalUserMessage, defaultLat, defaultLng, moveMapViewOnly);
                 }
             }
 
