@@ -133,6 +133,56 @@ describe('raf-router.test.js - Main Router Integration', () => {
         });
     });
 
+    // Gerbang perintah peta jaringan (#ODC/#ODP/#ISI/#JALUR/bantuan aset).
+    // Dulu nomor yang belum terdaftar sebagai staf hanya DIDIAMKAN — teknisi menyimpulkan botnya
+    // rusak lalu berhenti mencoba. Itu penyebab paling mungkin peta 2 bot masih 0 ODC / 0 ODP.
+    describe('Gerbang perintah aset', () => {
+        const teksBalasan = (raf) => raf.sendMessage.mock.calls.map((c) => JSON.stringify(c[1])).join(' | ');
+
+        it('nomor BUKAN petugas yang mengetik #ODP diberi tahu, bukan didiamkan', async () => {
+            global.accounts = [];
+
+            const m = {
+                key: { remoteJid: sender, fromMe: false, id: 'ASET1' },
+                message: { conversation: '#ODP Balen 1' },
+                pushName: 'Orang Luar'
+            };
+            await rafRouter(raf, m, { messages: [m], type: 'notify' });
+
+            expect(teksBalasan(raf)).toMatch(/belum terdaftar/i);
+        });
+
+        it('kalimat pelanggan biasa "odp saya mati" TIDAK dijawab pesan petugas', async () => {
+            global.accounts = [];
+            const { getIntentFromKeywords } = require('../../lib/wifi_template_handler');
+            getIntentFromKeywords.mockReturnValue(null);
+
+            const m = {
+                key: { remoteJid: sender, fromMe: false, id: 'ASET2' },
+                message: { conversation: 'odp saya mati' },
+                pushName: 'Pelanggan'
+            };
+            await rafRouter(raf, m, { messages: [m], type: 'notify' });
+
+            expect(teksBalasan(raf)).not.toMatch(/belum terdaftar/i);
+        });
+
+        it('petugas terdaftar yang mengetik "bantuan aset" mendapat kartu perintah', async () => {
+            global.accounts = [{ id: 9, username: 'davin', name: 'DAVIN', role: 'teknisi', phone_number: '628123456789' }];
+
+            const m = {
+                key: { remoteJid: sender, fromMe: false, id: 'ASET3' },
+                message: { conversation: 'bantuan aset' },
+                pushName: 'DAVIN'
+            };
+            await rafRouter(raf, m, { messages: [m], type: 'notify' });
+
+            const balasan = teksBalasan(raf);
+            expect(balasan).toMatch(/PETA JARINGAN/i);
+            expect(balasan).toMatch(/#JALUR/);
+        });
+    });
+
     describe('Role Guard', () => {
         it('should prevent non-teknisi from accessing teknisi restricted intents', async () => {
             const { getIntentFromKeywords } = require('../../lib/wifi_template_handler');

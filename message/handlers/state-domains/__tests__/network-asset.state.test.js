@@ -23,6 +23,7 @@ const {
     startFillSession,
     startLocationSession,
     startRouteSession,
+    showAssetHelp,
     inspectOdp,
     handleNetworkAssetConversationState,
     STEP_COLLECT,
@@ -407,6 +408,77 @@ describe("petakan aset baru — pagar yang tetap berlaku", () => {
 
         expect(h.assetService.createAsset).not.toHaveBeenCalled();
         expect(h.getState().step).toBe(STEP_COLLECT);
+    });
+});
+
+// ── Kartu bantuan: satu-satunya tempat perintah aset "terlihat" ──
+// Peta 2 bot kosong (0 ODC, 0 ODP) padahal wizardnya sudah lama hidup — perintah yang tak pernah
+// muncul di menu/template/tutorial sama saja dengan tidak ada.
+describe("bantuan aset — kartu perintah + papan progres", () => {
+    function bantuanHarness(assets, users, jalur = []) {
+        const h = harness({
+            getAssets: () => assets,
+            routeService: { getAllRoutes: jest.fn(async () => jalur), getRoute: jest.fn(async () => null), saveRoute: jest.fn() }
+        });
+        if (users) h.base.getUsers = () => users;
+        return h;
+    }
+
+    test("menyebut SEMUA perintah, termasuk yang baru", async () => {
+        const h = bantuanHarness([ODC_BALEN, ODP_BALEN]);
+        await showAssetHelp(h.base);
+
+        const kartu = lastReply(h);
+        ["#ODC", "#ODP", "#ISI", "#JALUR", "#LOKASI", "odp <nama>"].forEach((cmd) => expect(kartu).toContain(cmd));
+    });
+
+    test("menampilkan progres nyata — pekerjaan tanpa ujung yang terlihat tak akan dikerjakan", async () => {
+        const users = [
+            { id: 1, name: "A", connected_odp_id: "ODP-BALEN-002" },
+            { id: 2, name: "B", connected_odp_id: "" },
+            { id: 3, name: "C", connected_odp_id: "" }
+        ];
+        const h = bantuanHarness([ODC_BALEN, ODP_BALEN], users, [{ key: "x" }]);
+        await showAssetHelp(h.base);
+
+        const kartu = lastReply(h);
+        expect(kartu).toContain("*1* ODC");
+        expect(kartu).toContain("*1* ODP");
+        expect(kartu).toContain("*1/3*"); // tersambung/total
+        expect(kartu).toContain("jalur terekam *1*");
+    });
+
+    test("peta KOSONG → menunjuk langkah pertama (#ODC), bukan menyodorkan semua pilihan", async () => {
+        const h = bantuanHarness([], []);
+        await showAssetHelp(h.base);
+
+        expect(lastReply(h)).toContain("Mulai dari *#ODC");
+    });
+
+    test("sudah ada ODP tapi masih ada pelanggan menggantung → menunjuk #ISI + jumlah sisanya", async () => {
+        const users = [{ id: 1, name: "A", connected_odp_id: "" }, { id: 2, name: "B", connected_odp_id: "" }];
+        const h = bantuanHarness([ODC_BALEN, ODP_BALEN], users);
+        await showAssetHelp(h.base);
+
+        expect(lastReply(h)).toContain("*2* pelanggan belum punya ODP");
+        expect(lastReply(h)).toContain("#ISI");
+    });
+
+    test("kegagalan routeService tak menjatuhkan kartu (jalur dianggap 0)", async () => {
+        const h = harness({
+            getAssets: () => [ODC_BALEN],
+            routeService: { getAllRoutes: jest.fn(async () => { throw new Error("db mati"); }) }
+        });
+        await showAssetHelp(h.base);
+
+        expect(lastReply(h)).toContain("jalur terekam *0*");
+    });
+
+    test("pesan 'tak ketemu' ikut menunjukkan jalan ke kartu", async () => {
+        const h = harness();
+        await startFillSession({ ...h.base, chats: "#ISI Tidak Ada" });
+
+        expect(lastReply(h)).toContain("bantuan aset");
     });
 });
 

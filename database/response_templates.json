@@ -5245,5 +5245,10 @@
     "name": "Bukti Bayar - Ack Darurat (gerbang gagal)",
     "category": "payment",
     "template": "Foto kamu sudah kami terima ✅. Admin akan segera mengeceknya ya 🙏"
+  },
+  "aset_bukan_petugas": {
+    "name": "Perintah Aset — Bukan Petugas",
+    "template": "🔒 Perintah peta jaringan khusus *petugas*.\n\nNomor ini belum terdaftar — minta admin mendaftarkan nomor kamu dulu, baru perintahnya bisa dipakai.",
+    "category": "system"
   }
 }

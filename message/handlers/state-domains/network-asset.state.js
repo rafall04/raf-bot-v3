@@ -13,6 +13,11 @@
  *            `#JALUR <nama ODP>`            → REKAM BENTUK JALUR kabel ODC→ODP: kirim share lokasi di
  *                                             tiap BELOKAN, lalu `SELESAI`. Peta berhenti menggambar
  *                                             garis lurus dan mulai mengikuti jalan.
+ *            `bantuan aset` / `#ASET`       → KARTU PERINTAH + papan progres (berapa ODC/ODP/pelanggan
+ *                                             tersambung/jalur) + satu langkah berikutnya yang ditunjuk.
+ *                                             Perintah di atas NOL kemunculan di menu/template/tutorial;
+ *                                             yang tak pernah terlihat tak akan dipakai — dan itulah
+ *                                             dugaan terkuat kenapa peta 2 bot masih 0 ODC / 0 ODP.
  *
  *          KENAPA JALUR DIREKAM DARI LAPANGAN: bentuk jalur cuma diketahui orang yang menarik kabelnya,
  *          dan dia memegang HP di bawah tiang — bukan mouse di depan komputer. Titik yang dibutuhkan
@@ -30,7 +35,7 @@
  *          kalau daftar dinomori ulang, teknisi yang mengetik "2" bisa menyambungkan orang yang salah.
  * Caller: `conversation-state-router` (owner "network-asset", prefix step `ASSET_`) + trigger
  *         `startNetworkAssetSession` / `startFillSession` / `startLocationSession` / `startRouteSession`
- *         / `inspectOdp` dari `message/raf.js`.
+ *         / `showAssetHelp` / `inspectOdp` dari `message/raf.js`.
  * Deps (inject): `reply`/`downloadMedia` (delivery boundary), `setUserState`/`deleteUserState`,
  *        `lib/network-assets-service` (SATU pemilik aturan aset — sama dgn route web),
  *        `lib/network-route-service` (SATU pemilik aturan jalur — sama dgn `/api/map/waypoints`),
@@ -38,7 +43,7 @@
  *        hitung-ulang port ikut jalan otomatis (TIDAK ADA jalur tulis kedua),
  *        `lib/affirmative-parser` (JANGAN pakai daftar cocok-persis).
  * MainFuncs: `startNetworkAssetSession`, `startFillSession`, `startLocationSession`, `startRouteSession`,
- *            `inspectOdp`, `handleNetworkAssetConversationState`.
+ *            `showAssetHelp`, `inspectOdp`, `handleNetworkAssetConversationState`.
  * SideEffects: Tulis `database/network_assets.json` (via service, di bawah lock), tabel
  *              `connection_waypoints` (via network-route-service), UPDATE pelanggan (via usersService),
  *              foto ke `uploads/network-assets/...`, kirim WA. NEVER-THROW.
@@ -72,6 +77,9 @@ const TRIGGER_RE = /^\s*#(odc|odp)\b\s*(.*)$/i;
 const FILL_RE = /^\s*#isi\b\s*(.*)$/i;
 const LOC_RE = /^\s*#lokasi\b\s*(.*)$/i;
 const ROUTE_RE = /^\s*#jalur\b\s*(.*)$/i;
+// Kartu bantuan. Perintah paling bagus pun tak berguna kalau tak pernah dilihat: seluruh perintah
+// aset ini NOL kemunculan di menu, template, maupun tutorial — hanya ada di kode.
+const HELP_RE = /^\s*(?:#aset\b|(?:bantuan|panduan|menu|perintah)\s+(?:aset|odp|odc|jaringan|peta)\b)/i;
 // Cek hunian: TANPA `#` → tak bentrok dgn wizard. Hanya staf yang bisa memicunya (gate di raf.js).
 const INSPECT_RE = /^\s*(?:cek\s+)?odp\s+(.+)$/i;
 
@@ -99,6 +107,7 @@ function withDeps(context) {
         routeService: context.routeService || require("../../../lib/network-route-service"),
         usersService: context.usersService || global.__apiUsersService,
         getUsers: context.getUsers || (() => (Array.isArray(global.users) ? global.users : [])),
+        getAssets: context.getAssets || (() => (Array.isArray(global.networkAssets) ? global.networkAssets : [])),
         uploadsBaseDir: context.uploadsBaseDir || path.join(__dirname, "..", "..", "..", "uploads")
     };
 }
@@ -133,6 +142,10 @@ function defaultCapacity(assetService) {
 function jarak(m) {
     return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m} m`;
 }
+
+// Ditempel di pesan-pesan "salah ketik" / "tak ketemu": justru di saat gagal itulah teknisi butuh
+// tahu daftar perintahnya, dan di situ pula selama ini mereka ditinggal tanpa petunjuk.
+const HINT_HELP = `\n\n_Daftar perintah: ketik *bantuan aset*_`;
 
 function parseNumbers(text) {
     return String(text).trim().split(/[,\s]+/).map((n) => parseInt(n, 10)).filter((n) => Number.isFinite(n));
@@ -483,7 +496,7 @@ async function startFillSession(context) {
 
     const nama = String(m[1] || "").trim();
     if (!nama) {
-        await safeReply(reply, `Ketik *#ISI <nama ODP>* — misal: *#ISI Balen 1*`, logger);
+        await safeReply(reply, `Ketik *#ISI <nama ODP>* — misal: *#ISI Balen 1*${HINT_HELP}`, logger);
         return { started: true };
     }
 
@@ -491,7 +504,7 @@ async function startFillSession(context) {
     try { cocok = assetService.findAssetsByName(nama, "ODP") || []; } catch (_e) { cocok = []; }
 
     if (cocok.length === 0) {
-        await safeReply(reply, `❌ ODP "${nama}" tak ketemu.\nPetakan dulu: *#ODP ${nama}* (share lokasi di depan boks-nya).`, logger);
+        await safeReply(reply, `❌ ODP "${nama}" tak ketemu.\nPetakan dulu: *#ODP ${nama}* (share lokasi di depan boks-nya).${HINT_HELP}`, logger);
         return { started: true };
     }
 
@@ -518,13 +531,13 @@ async function startLocationSession(context) {
 
     const q = String(m[1] || "").trim();
     if (!q) {
-        await safeReply(reply, `Ketik *#LOKASI <nama atau HP pelanggan>* — misal: *#LOKASI budi*`, logger);
+        await safeReply(reply, `Ketik *#LOKASI <nama atau HP pelanggan>* — misal: *#LOKASI budi*${HINT_HELP}`, logger);
         return { started: true };
     }
 
     const cocok = searchCustomers(q, getUsers());
     if (cocok.length === 0) {
-        await safeReply(reply, `❌ Pelanggan "${q}" tak ketemu. Coba nama lain atau nomor HP-nya.`, logger);
+        await safeReply(reply, `❌ Pelanggan "${q}" tak ketemu. Coba nama lain atau nomor HP-nya.${HINT_HELP}`, logger);
         return { started: true };
     }
 
@@ -546,6 +559,68 @@ async function startLocationSession(context) {
     setUserState(stateSender, { step: STEP_LOC_WAIT, _scope: "teknisi", context: ctx });
     await safeReply(reply, `📍 Share lokasi rumah *${ctx.custName}* (berdiri di depan rumahnya).\n*BATAL* untuk batal.`, logger);
     return { started: true };
+}
+
+// ══════════════════ KARTU BANTUAN (`bantuan aset` / `#ASET`) ══════════════════
+// Peta 2 bot KOSONG (0 ODC, 0 ODP) padahal wizard WA-nya sudah lama hidup. Sebabnya berturut-turut
+// selalu sama: PINTUNYA TAK TERJANGKAU — dulu teknisi 403 di halaman aset, lalu endpoint jalur tak
+// ada, dan sepanjang itu perintah-perintahnya NOL kemunculan di menu/template/tutorial. Kartu ini
+// menutup lubang ketiga: satu tempat yang menyebut semua perintah + posisi pekerjaan saat ini.
+//
+// Angkanya IKUT DITAMPILKAN dengan sengaja: pekerjaan tanpa ujung yang terlihat tak akan dikerjakan.
+// "0 ODC · 0 ODP · 0/154 tersambung" memberi tahu di mana berhenti, dan langkah berikutnya ditunjuk
+// eksplisit supaya teknisi tak perlu memilih sendiri.
+
+function ringkasProgres(context) {
+    const { getUsers, getAssets } = context;
+    let assets = [];
+    try { assets = getAssets() || []; } catch (_e) { assets = []; }
+
+    const odc = assets.filter((a) => a && a.type === "ODC").length;
+    const odp = assets.filter((a) => a && a.type === "ODP").length;
+
+    const users = getUsers() || [];
+    const tersambung = users.filter((u) => u && String(u.connected_odp_id || "").trim()).length;
+
+    return { odc, odp, total: users.length, tersambung, sisa: Math.max(0, users.length - tersambung) };
+}
+
+/** Langkah BERIKUTNYA ditunjuk satu saja — teknisi tak perlu memilih (lihat prinsip SDM newbie). */
+function langkahBerikut(p, jalur) {
+    if (!p.odc) return `Mulai dari *#ODC <nama>* — berdiri di depan boks ODC-nya, kirim nama + share lokasi.`;
+    if (!p.odp) return `Lanjut *#ODP <nama>* — berdiri di depan boks ODP, induk ODC dipilihkan bot.`;
+    if (p.sisa) return `Masih *${p.sisa}* pelanggan belum punya ODP → *#ISI <nama ODP>* (boleh balas nama/HP, tak butuh GPS).`;
+    if (!jalur) return `Semua pelanggan sudah ber-ODP. Sekarang rekam bentuk jalurnya: *#JALUR <nama ODP>*.`;
+    return `Peta sudah tertata. Cek sewaktu-waktu dengan *odp <nama>*.`;
+}
+
+async function showAssetHelp(context) {
+    context = withDeps(context);
+    const { reply, routeService, logger = console } = context;
+
+    const p = ringkasProgres(context);
+    let jalur = 0;
+    try { jalur = (await routeService.getAllRoutes()).length; } catch (_e) { jalur = 0; }
+
+    const lines = [
+        `🗺️ *PETA JARINGAN — perintah petugas*`,
+        ``,
+        `📊 *${p.odc}* ODC · *${p.odp}* ODP · pelanggan tersambung *${p.tersambung}/${p.total}* · jalur terekam *${jalur}*`,
+        ``,
+        `*#ODC <nama>* — daftarkan ODC (nama + share lokasi)`,
+        `*#ODP <nama>* — daftarkan ODP (induk ODC otomatis)`,
+        `*#ISI <nama ODP>* — sambungkan pelanggan ke ODP`,
+        `*#JALUR <nama ODP>* — rekam jalur kabel: share lokasi tiap *belokan*`,
+        `*#LOKASI <nama/HP>* — simpan titik rumah pelanggan`,
+        `*odp <nama>* — cek isi ODP (3/8, siapa saja, link peta)`,
+        ``,
+        `👉 ${langkahBerikut(p, jalur)}`,
+        ``,
+        `_Nama yang sudah ada = perbaikan, bukan duplikat. Ketik *BATAL* kapan saja untuk berhenti._`
+    ];
+
+    await safeReply(reply, lines.join("\n"), logger);
+    return { handled: true };
 }
 
 // ══════════════════ REKAM JALUR KABEL (`#JALUR <nama ODP>`) ══════════════════
@@ -645,7 +720,7 @@ async function startRouteSession(context) {
 
     const nama = String(m[1] || "").trim();
     if (!nama) {
-        await safeReply(reply, `Ketik *#JALUR <nama ODP>* — misal: *#JALUR Balen 1*\nBot merekam jalur kabel dari induk ODC ke ODP itu.`, logger);
+        await safeReply(reply, `Ketik *#JALUR <nama ODP>* — misal: *#JALUR Balen 1*\nBot merekam jalur kabel dari induk ODC ke ODP itu.${HINT_HELP}`, logger);
         return { started: true };
     }
 
@@ -653,7 +728,7 @@ async function startRouteSession(context) {
     try { cocok = assetService.findAssetsByName(nama, "ODP") || []; } catch (_e) { cocok = []; }
 
     if (cocok.length === 0) {
-        await safeReply(reply, `❌ ODP "${nama}" tak ketemu.\nPetakan dulu: *#ODP ${nama}*`, logger);
+        await safeReply(reply, `❌ ODP "${nama}" tak ketemu.\nPetakan dulu: *#ODP ${nama}*${HINT_HELP}`, logger);
         return { started: true };
     }
     if (cocok.length > 1) {
@@ -679,7 +754,7 @@ async function inspectOdp(context) {
     try { cocok = assetService.findAssetsByName(nama, "ODP") || []; } catch (_e) { cocok = []; }
 
     if (cocok.length === 0) {
-        await safeReply(reply, `❌ ODP "${nama}" tak ketemu.\nPetakan: *#ODP ${nama}*`, logger);
+        await safeReply(reply, `❌ ODP "${nama}" tak ketemu.\nPetakan: *#ODP ${nama}*${HINT_HELP}`, logger);
         return { handled: true };
     }
     if (cocok.length > 1) {
@@ -1120,6 +1195,7 @@ module.exports = {
     startFillSession,
     startLocationSession,
     startRouteSession,
+    showAssetHelp,
     inspectOdp,
     handleNetworkAssetConversationState,
     searchCustomers,
@@ -1127,6 +1203,7 @@ module.exports = {
     FILL_RE,
     LOC_RE,
     ROUTE_RE,
+    HELP_RE,
     INSPECT_RE,
     ASSET_STEPS,
     STEP_COLLECT,

@@ -257,6 +257,8 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 
 - [Feat 2026-07-21 (Peta berhenti berbohong — JALUR kabel ikut jalan: `lib/network-route-service` (BARU, pemilik tunggal validasi titik + panjang garis) + `GET/POST/DELETE /api/map/waypoints` **+ `/all`** yang selama ini TAK PERNAH ADA meski klien sudah memanggilnya (404 ditelan `if(response.ok)` → semua garis diam-diam lurus); WA `#JALUR <ODP>` rekam belokan lewat share lokasi (step `ASSET_ROUTE_*`, ujung ODC/ODP diambil dari aset); garis lurus kini PUTUS-PUTUS = belum dipetakan; kabel drop pelanggan→ODP tak di-route (`routeDropCable`); GOTCHA `DONE_RE` longgar bikin "sudah sampai mana ya" = SELESAI)](docs/boundary-log.md#b166)
 
+- [Feat 2026-07-21 (Kartu `bantuan aset` + gagal-senyap ditutup: `showAssetHelp` di `network-asset.state` (HELP_RE `bantuan/panduan/menu/perintah`+`aset/odp/jaringan/peta`, `#ASET`) = daftar perintah + papan progres hidup (`N ODC · N ODP · tersambung X/Y · jalur Z`) + SATU langkah berikutnya yang ditunjuk; `HINT_HELP` di 6 pesan gagal; `raf.js` kini MENJAWAB nomor tak-terdaftar yang mengetik perintah ber-`#` (template `aset_bukan_petugas`) — `odp <nama>` tanpa `#` tetap senyap; akar: perintah aset nol kemunculan di menu/template/tutorial → peta 2 bot 0 ODC/0 ODP)](docs/boundary-log.md#b167)
+
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.
 - Lokasi final semua secret `.env` atau token tidak ditrace dari isi file pada pemetaan ini.

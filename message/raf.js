@@ -574,11 +574,12 @@ module.exports = async (raf, msg, m, options = {}) => {
         // oleh routeConversationState (owner "network-asset", prefix step ASSET_).
         // Gate: akun staf (sama seperti #jadwal) + config `networkAssets.waIntake.enabled` (default ON).
         // NON-THROWING: gagal di sini tak boleh menjatuhkan pesan lain.
-        // 5 perintah menata jaringan, semuanya khusus STAF:
+        // 6 perintah menata jaringan, semuanya khusus STAF:
         //   #ODC/#ODP <nama>   → petakan (nama SUDAH ADA = edit, bukan duplikat)
         //   #ISI <nama ODP>    → sambungkan pelanggan ke ODP (terima nomor ATAU nama → tak butuh GPS)
         //   #LOKASI <pelanggan>→ simpan titik GPS pelanggan
         //   #JALUR <nama ODP>  → rekam BENTUK jalur kabel ODC→ODP (share lokasi tiap belokan)
+        //   bantuan aset       → KARTU perintah + papan progres (satu-satunya tempat semuanya terlihat)
         //   odp <nama>         → cek hunian (3/8, siapa saja, link peta) — TANPA '#', jadi tak bentrok
         // Non-staf yang kebetulan mengetik "odp ..." → resolveAuthorizedStaff null → jatuh ke alur normal.
         try {
@@ -587,7 +588,8 @@ module.exports = async (raf, msg, m, options = {}) => {
             const aset = require('./handlers/state-domains/network-asset.state');
             const teksAset = String(chats || '');
             const cocokAset = aset.TRIGGER_RE.test(teksAset) || aset.FILL_RE.test(teksAset)
-                || aset.LOC_RE.test(teksAset) || aset.ROUTE_RE.test(teksAset) || aset.INSPECT_RE.test(teksAset);
+                || aset.LOC_RE.test(teksAset) || aset.ROUTE_RE.test(teksAset)
+                || aset.HELP_RE.test(teksAset) || aset.INSPECT_RE.test(teksAset);
 
             if (asetAktif && type !== 'imageMessage' && cocokAset) {
                 const { resolveAuthorizedStaff } = require('./handlers/psb-group-intake');
@@ -603,7 +605,26 @@ module.exports = async (raf, msg, m, options = {}) => {
                     else if (aset.FILL_RE.test(teksAset)) await aset.startFillSession(ctxAset);
                     else if (aset.LOC_RE.test(teksAset)) await aset.startLocationSession(ctxAset);
                     else if (aset.ROUTE_RE.test(teksAset)) await aset.startRouteSession(ctxAset);
+                    else if (aset.HELP_RE.test(teksAset)) await aset.showAssetHelp(ctxAset);
                     else await aset.inspectOdp(ctxAset);
+                    return;
+                }
+
+                // GAGAL-SENYAP DITUTUP. Sebelumnya nomor yang belum terdaftar sebagai staf hanya
+                // "didiamkan" — teknisi menyimpulkan botnya rusak lalu berhenti mencoba, dan tak ada
+                // satu pun jejak kenapa. Hanya untuk perintah ber-`#` + kartu bantuan (niat petugas
+                // sudah jelas); `odp <nama>` tanpa `#` TETAP senyap supaya kalimat pelanggan biasa
+                // ("odp saya mati") tak dijawab dengan pesan petugas.
+                const perintahJelas = aset.TRIGGER_RE.test(teksAset) || aset.FILL_RE.test(teksAset)
+                    || aset.LOC_RE.test(teksAset) || aset.ROUTE_RE.test(teksAset) || aset.HELP_RE.test(teksAset);
+                if (perintahJelas) {
+                    console.warn('[ASET_TRIGGER_DITOLAK] nomor belum terdaftar sebagai petugas:', plainSenderNumber);
+                    const { renderResponseTemplate } = require('./handlers/template-helpers');
+                    await reply(renderResponseTemplate(
+                        'aset_bukan_petugas',
+                        '🔒 Perintah peta jaringan khusus *petugas*.\n\nNomor ini belum terdaftar — minta admin mendaftarkan nomor kamu dulu, baru perintahnya bisa dipakai.',
+                        {}
+                    ));
                     return;
                 }
             }
