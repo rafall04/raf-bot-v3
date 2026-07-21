@@ -520,17 +520,34 @@ const createCustomerStatusIcon = (status) => {
             customerMarkersLayer.addTo(map); 
             linesLayer.addTo(map);
             
-            // Hybrid base layer = satellite + labels overlay (place names, roads, jalan).
-            // Esri's reference layers are sparse in rural Indonesia, so we use CARTO's
-            // labels-only tiles (OSM-based, transparent PNGs, world coverage incl. rural ID).
-            // light_only_labels = white labels w/ dark outline → readable on satellite.
+            // ── Hybrid = citra satelit + JALAN ──
+            // DULU: overlay `voyager_only_labels`. Diukur di area layanan (Tanjungharjo, z16/17/18)
+            // ubinnya HANYA 116 byte = PNG kosong — jadi hybrid tak pernah menggambar apa pun, tak ada
+            // jalan MAUPUN nama jalan. Lapisan referensi Esri (World_Transportation /
+            // World_Boundaries_and_Places) juga kosong di sini (872 byte). Tak ada satu pun overlay
+            // "jalan-saja" gratis yang punya data di pedesaan ini.
+            //
+            // SOLUSINYA: pakai peta OSM UTUH (jalan+nama+sungai, 8–17 KB di sini = jelas berisi) tapi
+            // dipasang di pane sendiri dengan `mix-blend-mode: multiply` → latar putih OSM hilang
+            // (putih × X = X) dan yang tersisa hanya garis gelap jalan + teksnya di atas citra.
+            // Dibandingkan visual dgn opacity polos: opacity membuat citra pudar keabu-abuan,
+            // multiply mempertahankan warna citra.
+            //
+            // Blend dipasang di PANE, bukan di `.leaflet-tile` — `admin-theme.css` mengunci
+            // `.leaflet-tile { mix-blend-mode: normal !important }` untuk mode gelap.
+            map.createPane('hybridRoads');
+            const hybridRoadsPane = map.getPane('hybridRoads');
+            hybridRoadsPane.style.zIndex = 250; // di atas tilePane (200), di bawah overlayPane (400)
+            hybridRoadsPane.style.mixBlendMode = 'multiply';
+            hybridRoadsPane.style.pointerEvents = 'none';
+
             const hybridLabelsLayer = L.tileLayer(
-                'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png',
+                'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                 {
-                    subdomains: 'abcd',
-                    maxZoom: 19, maxNativeZoom: 19,
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-                    pane: 'overlayPane'
+                    maxZoom: satelliteMaxZoom, maxNativeZoom: 18,
+                    opacity: 0.9,
+                    pane: 'hybridRoads',
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 }
             );
             const hybridLayer = L.layerGroup([

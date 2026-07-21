@@ -290,15 +290,25 @@
 
             networkMarkersLayer.addTo(map); customerMarkersLayer.addTo(map); linesLayer.addTo(map);
 
-            // Hybrid = satellite + CARTO labels overlay (OSM-based, good Indonesia coverage,
-            // unlike Esri's sparse reference layers in rural ID).
+            // Hybrid = citra satelit + JALAN. Overlay `voyager_only_labels` yang lama TERUKUR KOSONG
+            // (116 byte = PNG hampa) di area layanan, begitu pula lapisan referensi Esri — teknisi
+            // melihat citra tanpa satu pun jalan. Peta OSM utuh dipasang di pane sendiri dengan
+            // `mix-blend-mode: multiply`: latar putihnya hilang, tinggal garis jalan + namanya.
+            // Sama persis dengan /map-viewer admin — jangan sampai dua peta ini berbeda perilaku.
+            map.createPane('hybridRoads');
+            const hybridRoadsPane = map.getPane('hybridRoads');
+            hybridRoadsPane.style.zIndex = 250;
+            hybridRoadsPane.style.mixBlendMode = 'multiply';
+            hybridRoadsPane.style.pointerEvents = 'none';
+
             const hybridLayer = L.layerGroup([
                 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                     maxZoom: satelliteMaxZoom, maxNativeZoom: 18, attribution: 'Tiles &copy; Esri'
                 }),
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
-                    subdomains: 'abcd', maxZoom: 19, maxNativeZoom: 19,
-                    attribution: '&copy; OSM &copy; CARTO', pane: 'overlayPane'
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: satelliteMaxZoom, maxNativeZoom: 18, opacity: 0.9,
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                    pane: 'hybridRoads'
                 })
             ]);
 
