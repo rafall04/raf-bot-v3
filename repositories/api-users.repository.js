@@ -27,7 +27,7 @@ const USER_INSERT_COLUMNS = [
     "subscription", "subscription_price", "payment_due_date",
     "pppoe_username", "pppoe_password", "device_id",
     "username", "password",
-    "latitude", "longitude", "maps_url",
+    "latitude", "longitude", "maps_url", "location_source", "location_updated_at",
     "connected_odp_id", "odc", "odp", "olt",
     "bulk", "paid", "is_paid", "send_invoice", "notify_outage", "auto_isolir",
     "is_corporate", "corporate_name", "corporate_address", "corporate_npwp",

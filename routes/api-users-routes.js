@@ -297,6 +297,70 @@ router.post('/users/:id/send-welcome', ensureAdmin, async (req, res) => {
     }
 });
 
+// POST /api/users/:id/location — set TITIK RUMAH pelanggan lewat gerbang presisi bersama.
+// Body: { input } (pin/koordinat/link Maps) ATAU { latitude, longitude }, + { confirm: true } utk simpan.
+// Tanpa `confirm` endpoint hanya MENILAI dan mengembalikan pratinjau: titik LAMA, jarak geser, tetangga
+// & ODP terdekat, plus peringatan. Jadi web memakai gerbang yang PERSIS SAMA dengan wizard WA —
+// aturan presisinya satu, tak ada jalur pintas yang lolos pemeriksaan.
+router.post('/users/:id/location', ensureAdmin, asyncHandler(async (req, res) => {
+    const locationService = require('../lib/customer-location-service');
+    const user = apiUsersRepository.findUserById(req.params.id);
+    if (!user) {
+        throw createError('Pelanggan tidak ditemukan.', ErrorTypes.NOT_FOUND);
+    }
+
+    let point = null;
+    if (req.body && req.body.input) {
+        const parsed = locationService.parseCoordinateInput(req.body.input);
+        if (parsed && parsed.error) {
+            return res.status(400).json({ status: 400, message: parsed.error });
+        }
+        point = parsed;
+    } else if (req.body && req.body.latitude !== undefined && req.body.longitude !== undefined) {
+        point = { lat: parseFloat(req.body.latitude), lng: parseFloat(req.body.longitude) };
+    }
+    if (!point) {
+        return res.status(400).json({
+            status: 400,
+            message: 'Titik tidak terbaca. Tempel koordinat "lat, lng" atau link Google Maps, atau klik di peta.'
+        });
+    }
+
+    const verdict = locationService.evaluateLocationCandidate({
+        point,
+        customer: user,
+        users: apiUsersRepository.getUsersSnapshot(),
+        assets: (() => {
+            try { return require('../lib/network-assets-service').listAssets({ type: 'ODP' }) || []; }
+            catch (_e) { return []; }
+        })(),
+        nowMs: Date.now()
+    });
+
+    if (verdict.blocked) {
+        return res.status(400).json({ status: 400, message: verdict.blockReason, verdict });
+    }
+
+    // Pratinjau dulu — halaman menampilkan titik LAMA vs BARU + peringatan, baru user menekan Simpan.
+    if (req.body.confirm !== true && req.body.confirm !== 'true') {
+        return res.status(200).json({ status: 200, message: 'Pratinjau titik', preview: true, verdict });
+    }
+
+    const result = await apiUsersService.updateUserById({
+        id: user.id,
+        userData: {
+            latitude: verdict.point.lat,
+            longitude: verdict.point.lng,
+            maps_url: locationService.buildMapsUrl(verdict.point.lat, verdict.point.lng),
+            location_source: locationService.LOCATION_SOURCES.ADMIN_WEB,
+            location_updated_at: new Date().toISOString()
+        },
+        actor: { id: req.user?.id, username: req.user?.username, name: req.user?.name || req.user?.username, role: req.user?.role },
+        requestMeta: { ipAddress: req.ip, userAgent: req.get('user-agent') }
+    });
+    return res.status(result.status).json({ ...result.body, verdict });
+}));
+
  // POST /api/users/bulk-change-profile - Bulk change MikroTik profile for users with specific package
 // IMPORTANT: This route MUST be defined BEFORE /users/:id to avoid route conflict
 // Also updates the package configuration to sync the new profile

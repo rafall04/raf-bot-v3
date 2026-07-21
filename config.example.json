@@ -185,6 +185,9 @@
     "kecamatan": "",
     "dusunList": []
   },
+  "customerLocationSelfService": {
+    "enabled": false
+  },
   "networkAssets": {
     "waIntake": { "enabled": true },
     "defaultOdpCapacity": 8,

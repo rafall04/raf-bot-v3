@@ -259,6 +259,9 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 
 - [Feat 2026-07-21 (Kartu `bantuan aset` + gagal-senyap ditutup: `showAssetHelp` di `network-asset.state` (HELP_RE `bantuan/panduan/menu/perintah`+`aset/odp/jaringan/peta`, `#ASET`) = daftar perintah + papan progres hidup (`N ODC · N ODP · tersambung X/Y · jalur Z`) + SATU langkah berikutnya yang ditunjuk; `HINT_HELP` di 6 pesan gagal; `raf.js` kini MENJAWAB nomor tak-terdaftar yang mengetik perintah ber-`#` (template `aset_bukan_petugas`) — `odp <nama>` tanpa `#` tetap senyap; akar: perintah aset nol kemunculan di menu/template/tutorial → peta 2 bot 0 ODC/0 ODP)](docs/boundary-log.md#b167)
 
+- [Fix 2026-07-21 (Panel pelanggan: kegagalan/inisialisasi GPS tak lagi menstempel koordinat — `handleGeolocationErrorUserModal` kini hanya menggeser TAMPILAN (`moveMapViewOnly`), input lat/lng hanya ditulis oleh tindakan sengaja (klik peta/geser marker/tombol GPS berhasil); akar 92 pelanggan menumpuk di titik default `-7.24139,111.83833`; kena `static/js/users.js` + `teknisi-pelanggan.js`)](docs/boundary-log.md#b165)
+- [Feat 2026-07-21 (Titik lokasi pelanggan — 3 jalur 1 gerbang: `lib/customer-location-service` (BARU, murni) + `state-domains/customer-location.state` (`CUSTLOC_`, `lokasi <nama>`/borongan, teruskan pin/tempel link Maps, TITIK LAMA selalu ditampilkan sebelum menimpa) + `POST /api/users/:id/location` (pratinjau lalu confirm) + modal titik di halaman users + pin-dari-pelanggan (gate `customerLocationSelfService`, default OFF) + migrasi v8 `location_source`/`location_updated_at`)](docs/boundary-log.md#b166)
+
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.
 - Lokasi final semua secret `.env` atau token tidak ditrace dari isi file pada pemetaan ini.

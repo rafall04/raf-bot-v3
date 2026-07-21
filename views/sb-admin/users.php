@@ -699,6 +699,32 @@ Header Doc
         </div>
     </div>
 
+    <!-- Titik Lokasi Pelanggan — titik LAMA selalu ditampilkan sebelum ditimpa -->
+    <div class="modal fade" id="lokasiModal" data-backdrop="static" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-map-pin"></i> Titik Lokasi — <span id="lokasi_nama"></span></h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="lokasi_lama" class="alert alert-secondary py-2 mb-3" style="font-size:.9rem;"></div>
+                    <div class="mb-2">
+                        <label for="lokasi_input" class="form-label">Titik baru</label>
+                        <textarea class="form-control form-control-sm" id="lokasi_input" rows="2" placeholder="Tempel di sini: -7.195085, 111.890908  atau  https://maps.google.com/?q=..."></textarea>
+                        <small class="form-text text-muted">Tempel <b>koordinat</b> atau <b>link Google Maps</b> yang dikirim pelanggan. Link pendek (maps.app.goo.gl) buka dulu di HP, lalu salin link panjang/koordinatnya.</small>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="lokasi_cek"><i class="fas fa-search-location"></i> Cek titik</button>
+                    <div id="lokasi_hasil" class="mt-3"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Tutup</button>
+                    <button type="button" class="btn btn-success btn-sm" id="lokasi_simpan" disabled><i class="fas fa-save"></i> Simpan titik</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="credentialsModal" data-backdrop="static" tabindex="-1">
         <div class="modal-dialog">
             <form class="modal-content" id="credentialsForm">

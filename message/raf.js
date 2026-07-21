@@ -675,6 +675,29 @@ module.exports = async (raf, msg, m, options = {}) => {
             console.error('[PSB_DM_TRIGGER_ERROR]', psbDmErr.message);
         }
 
+        // ── Trigger wizard TITIK LOKASI pelanggan via DM staf ──
+        // `lokasi` (borongan: daftar yang belum punya titik) atau `lokasi <nama>` (cari) → buka sesi
+        // (step CUSTLOC_PICK); lanjutannya dirutekan routeConversationState (owner "customer-location").
+        // Ditaruh SEBELUM handleActiveTicketLocationUpdate, tapi HANYA memicu pada perintah TEKS —
+        // pesan lokasi mentah tetap milik alur tiket `otw [ID]`, tak ada yang dibajak.
+        try {
+            const { isCustomerLocationTrigger, parseLocationCommand } = require('./handlers/state-domains/customer-location.state');
+            if (type !== 'imageMessage' && isCustomerLocationTrigger(chats)) {
+                const { resolveAuthorizedStaff } = require('./handlers/psb-group-intake');
+                const locStaff = resolveAuthorizedStaff({ participant: optionalJid || sender, plainPhone: plainSenderNumber, accounts, allowedRoles: ['teknisi', 'admin', 'owner'] });
+                if (locStaff) {
+                    const { startCustomerLocationSession } = require('./handlers/state-domains/customer-location.state');
+                    await startCustomerLocationSession({
+                        query: parseLocationCommand(chats).query,
+                        staff: locStaff, stateSender, reply, setUserState
+                    });
+                    return;
+                }
+            }
+        } catch (custLocErr) {
+            console.error('[CUSTLOC_TRIGGER_ERROR]', custLocErr.message);
+        }
+
         const activeTicketLocationResult = await handleActiveTicketLocationUpdate({
             sender,
             type,
@@ -686,6 +709,31 @@ module.exports = async (raf, msg, m, options = {}) => {
                 await reply(activeTicketLocationResult.message);
             }
             return;
+        }
+
+        // ── Pin lokasi dari PELANGGAN → tawarkan simpan sebagai titik rumahnya ──
+        // Sumber koordinat paling akurat (dikirim pelanggan dari rumahnya sendiri) & nol kerja teknisi.
+        // Ditaruh SESUDAH alur tiket supaya share-lokasi untuk `otw [ID]` tetap milik tiket, dan hanya
+        // untuk pengirim NON-staf yang sedang tak punya percakapan aktif. Gate config, default OFF.
+        try {
+            const selfLocCfg = (global.config && global.config.customerLocationSelfService) || {};
+            const isLoc = type === 'locationMessage' || type === 'liveLocationMessage';
+            if (selfLocCfg.enabled === true && isLoc && !isTeknisi && !isOwner && !userState?.step) {
+                const loc = type === 'locationMessage' ? msg.message?.locationMessage : msg.message?.liveLocationMessage;
+                const { findUserByPhone } = require('./handlers/utils');
+                const pelanggan = findUserByPhone(plainSenderNumber);
+                if (pelanggan && loc && loc.degreesLatitude && loc.degreesLongitude) {
+                    const { offerSelfLocation } = require('./handlers/state-domains/customer-location.state');
+                    const offered = await offerSelfLocation({
+                        customer: pelanggan,
+                        point: { lat: loc.degreesLatitude, lng: loc.degreesLongitude },
+                        stateSender, reply, setUserState
+                    });
+                    if (offered && offered.offered) return;
+                }
+            }
+        } catch (selfLocErr) {
+            console.error('[CUSTLOC_SELF_ERROR]', selfLocErr.message);
         }
 
         const isInManagedWifiInputState = userState?.step && userState.step.startsWith('ASK_NEW_');

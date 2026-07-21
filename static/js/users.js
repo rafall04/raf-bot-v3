@@ -1273,6 +1273,84 @@
             }
         });
 
+        // ── Titik lokasi pelanggan ────────────────────────────────────────────────────────────
+        // Gerbangnya ada di SERVER (`POST /api/users/:id/location`), sama persis dengan wizard WA:
+        // halaman ini hanya menampilkan. "Cek titik" = pratinjau (tanpa confirm) → server balas titik
+        // LAMA, jarak geser, tetangga/ODP terdekat, dan peringatan. Simpan baru dikirim setelah dilihat.
+        let lokasiTargetId = null;
+        let lokasiInputTerakhir = null;
+
+        $(document).on('click', '.btn-set-lokasi', function() {
+            const b = $(this);
+            lokasiTargetId = b.data('id');
+            lokasiInputTerakhir = null;
+            $('#lokasi_nama').text(b.data('name') || '');
+            $('#lokasi_input').val('');
+            $('#lokasi_hasil').empty();
+            $('#lokasi_simpan').prop('disabled', true);
+
+            const lat = b.data('lat'), lng = b.data('lng');
+            if (lat && lng) {
+                const sumber = b.data('source') ? ` · sumber: <b>${b.data('source')}</b>` : '';
+                const kapan = b.data('updated') ? ` · ${String(b.data('updated')).slice(0, 10)}` : '';
+                $('#lokasi_lama').removeClass('alert-warning').addClass('alert-secondary').html(
+                    `<b>📌 Titik LAMA tersimpan:</b> ${lat}, ${lng}${sumber}${kapan}<br/>`
+                    + `<a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" rel="noopener">Buka di Maps</a>`
+                    + `<br/><span class="text-danger">Titik baru akan menimpa titik ini.</span>`
+                );
+            } else {
+                $('#lokasi_lama').removeClass('alert-secondary').addClass('alert-warning')
+                    .html('<b>Belum ada titik sama sekali</b> untuk pelanggan ini.');
+            }
+            $('#lokasiModal').modal('show');
+        });
+
+        $(document).on('click', '#lokasi_cek', function() {
+            const input = $('#lokasi_input').val();
+            if (!input || !lokasiTargetId) return;
+            const btn = $(this).prop('disabled', true);
+            $.ajax({
+                url: `/api/users/${lokasiTargetId}/location`, method: 'POST',
+                contentType: 'application/json', data: JSON.stringify({ input })
+            }).done(function(res) {
+                const v = res.verdict || {};
+                lokasiInputTerakhir = input;
+                let html = `<div class="alert alert-info py-2 mb-2" style="font-size:.9rem;">`
+                    + `<b>🆕 Titik baru:</b> ${v.point.lat}, ${v.point.lng} — `
+                    + `<a href="${v.mapsUrl}" target="_blank" rel="noopener">buka di Maps</a>`;
+                if (v.previous) html += `<br/><b>↔️ Bergeser</b> ${v.previous.distanceM} m dari titik lama.`;
+                if (v.nearestCustomer) html += `<br/>📏 ${v.nearestCustomer.meters} m dari rumah ${v.nearestCustomer.name}`;
+                if (v.nearestAsset) html += ` · ${v.nearestAsset.meters} m dari ${v.nearestAsset.name}`;
+                html += `</div>`;
+                (v.warnings || []).forEach(w => {
+                    html += `<div class="alert alert-warning py-2 mb-2" style="font-size:.9rem;">⚠️ ${w.message}</div>`;
+                });
+                $('#lokasi_hasil').html(html);
+                $('#lokasi_simpan').prop('disabled', false);
+            }).fail(function(xhr) {
+                lokasiInputTerakhir = null;
+                $('#lokasi_simpan').prop('disabled', true);
+                const m = (xhr.responseJSON && xhr.responseJSON.message) || 'Titik tidak terbaca.';
+                $('#lokasi_hasil').html(`<div class="alert alert-danger py-2" style="font-size:.9rem;">⛔ ${m}</div>`);
+            }).always(function() { btn.prop('disabled', false); });
+        });
+
+        $(document).on('click', '#lokasi_simpan', function() {
+            if (!lokasiTargetId || !lokasiInputTerakhir) return;
+            const btn = $(this).prop('disabled', true);
+            $.ajax({
+                url: `/api/users/${lokasiTargetId}/location`, method: 'POST',
+                contentType: 'application/json', data: JSON.stringify({ input: lokasiInputTerakhir, confirm: true })
+            }).done(function() {
+                $('#lokasiModal').modal('hide');
+                Swal.fire({ icon: 'success', title: 'Titik tersimpan', timer: 1500, showConfirmButton: false });
+                if (typeof dataTableInstance !== 'undefined' && dataTableInstance) dataTableInstance.ajax.reload(null, false);
+            }).fail(function(xhr) {
+                const m = (xhr.responseJSON && xhr.responseJSON.message) || 'Gagal menyimpan titik.';
+                Swal.fire({ icon: 'error', title: 'Gagal', text: m });
+            }).always(function() { btn.prop('disabled', false); });
+        });
+
         $(document).on('click', '.btn-edit', function() {
             const id = $(this).data('id');
             const device_id = $(this).data('device_id') || "";
@@ -1785,7 +1863,23 @@
                     { data: 'phone_number', render: (data) => data ? data.split("|").join(", ") : '' },
                     { data: 'device_id' },
                     { data: 'address' },
-                    { data: null, render: (data, type, row) => (row.latitude && row.longitude) ? `${parseFloat(row.latitude).toFixed(4)}, ${parseFloat(row.longitude).toFixed(4)}` : 'N/A' },
+                    // Kolom TITIK: sekaligus jadi tombol. Sel yang kosong bukan lagi "N/A" pasif —
+                    // dia ajakan bertindak, karena mengisi titik adalah pekerjaan yang memang menumpuk.
+                    {
+                        data: null,
+                        render: (data, type, row) => {
+                            const punya = row.latitude && row.longitude;
+                            const label = punya
+                                ? `${parseFloat(row.latitude).toFixed(4)}, ${parseFloat(row.longitude).toFixed(4)}`
+                                : '❌ belum ada';
+                            const sumber = row.location_source ? ` title="sumber: ${row.location_source}"` : '';
+                            return `<button type="button" class="btn btn-sm ${punya ? 'btn-outline-secondary' : 'btn-outline-warning'} btn-set-lokasi"`
+                                + ` data-id="${row.id}" data-name="${(row.name || '').replace(/"/g, '&quot;')}"`
+                                + ` data-lat="${row.latitude || ''}" data-lng="${row.longitude || ''}"`
+                                + ` data-source="${row.location_source || ''}" data-updated="${row.location_updated_at || ''}"${sumber}>`
+                                + `<i class="fas fa-map-pin"></i> ${label}</button>`;
+                        }
+                    },
                     {
                         data: 'connected_odp_id',
                         defaultContent: '',
