@@ -409,6 +409,24 @@ describe("panduan PSB (tutorial)", () => {
         expect(t).toMatch(/menyusul|dicicil/i);
         expect(t).toMatch(/checklist/i);
     });
+
+    // Panduan WA harus SELALU menggambarkan format yang benar-benar diminta wizard — panduan basi
+    // lebih buruk daripada tak ada panduan (teknisi mengikuti contoh yang lalu ditolak bot).
+    test("panduan WA menjelaskan format TERBARU: RT/RW, dusun bernomor, alamat otomatis, label modem, cari", () => {
+        const t = psbTutorialText();
+        expect(t).toMatch(/RT\/RW/);
+        expect(t).toContain("14/2");
+        expect(t).toMatch(/balas \*angka\*/i);          // dusun dipilih bernomor
+        expect(t).toMatch(/Alamat:/);                    // jalan keluar alamat bebas
+        expect(t).toMatch(/alamat lengkap \(Dusun\+RT\/RW\+Desa\+Kec\)/i);
+        expect(t).toMatch(/cari /);                      // pencarian modem bekas
+        expect(t).toMatch(/BEKAS/);
+        expect(t).toMatch(/TERPAKAI/);
+    });
+
+    test("template caption yang dikirim bot memuat baris RT/RW", () => {
+        expect(psbTutorialText()).toMatch(/RT\/RW: \(mis\. 14\/2\)/);
+    });
 });
 
 describe("PSB Fase C/2 — link ke jadwal (#PSB PSB-<n>)", () => {

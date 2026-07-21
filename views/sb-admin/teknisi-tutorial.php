@@ -50,7 +50,7 @@
                         <section class="flow f-psb" id="tut-psb">
                             <span class="flow-tag">Pasang Baru</span>
                             <h2>PSB — Daftarkan Pelanggan Baru</h2>
-                            <p class="flow-sub">Bot yang membuat data pelanggan, membuat akun PPPoE di MikroTik, dan menyetel modem — otomatis. Tugasmu: kirim dokumen &amp; <b>cocokkan modem</b>. Kamu tidak perlu mengetik username/password teknis apa pun.</p>
+                            <p class="flow-sub">Bot yang membuat data pelanggan, membuat akun PPPoE di MikroTik, merakit alamat, dan menyetel modem — otomatis. Tugasmu: kirim dokumen &amp; <b>cocokkan modem</b>. Kamu tidak perlu mengetik username/password teknis, maupun alamat lengkap.</p>
 
                             <ol class="steps">
                                 <li>
@@ -60,6 +60,8 @@
                                         <div class="bt">📷 Foto KTP — isi caption:</div>
                                         <pre><b>#PSB</b>
 Nama: Budi Santoso
+Dusun: Ngitik
+RT/RW: 14/2
 Paket: PAKET-110K
 WiFi: BudiNet
 Sandi: budi12345
@@ -67,12 +69,15 @@ HP: 08123456789</pre>
                                     </div>
                                     <ul class="plain">
                                         <li><b>Nama</b> — nama pelanggan (bukan hasil scan KTP; kamu ketik sendiri).</li>
+                                        <li><b>Dusun</b> — dusun <b>tempat modem dipasang</b>, bukan alamat di KTP (bisa beda). Bot menampilkan <b>daftar bernomor</b> dusun — cukup <b>balas angkanya</b>, tak usah mengetik.</li>
+                                        <li><b>RT/RW</b> — cukup <code class="kbd">14/2</code>. Boleh juga <code class="kbd">RT 14 RW 2</code> atau <code class="kbd">014/002</code> — bot yang merapikan.</li>
                                         <li><b>Paket</b> — sesuai daftar paket. Boleh nama paket (<code class="kbd">PAKET-110K</code>) atau kecepatannya (<code class="kbd">16Mbps</code>). Kalau paket tak dikenal, bot akan memberi tahu.</li>
                                         <li><b>WiFi</b> — nama WiFi (SSID) yang diminta pelanggan.</li>
                                         <li><b>Sandi</b> — sandi WiFi, <b>minimal 8 karakter</b>.</li>
-                                        <li><b>HP</b> — nomor WhatsApp pelanggan (9–15 digit). Ke sinilah pesan selamat datang dikirim.</li>
+                                        <li><b>HP</b> — nomor WhatsApp pelanggan (9–15 digit). Ke sinilah pesan selamat datang dikirim. Kalau lebih dari satu nomor, pisah pakai <code class="kbd">|</code> — nomor pertama jadi nomor utama.</li>
                                     </ul>
-                                    <div class="note tip"><span class="ic">💡</span><span>Kalau ada data yang salah/kurang, bot menolak dan menyebutkan bagian mana yang perlu diperbaiki. Perbaiki captionnya lalu kirim ulang.</span></div>
+                                    <div class="note tip"><span class="ic">🏠</span><span><b>Alamat lengkap tidak perlu diketik.</b> Dari Dusun + RT/RW, bot merakit sendiri: <code class="kbd">Dsn. Ngitik RT 014 RW 002 Ds. Tanjungharjo Kec. Kapas</code>. Kalau rumahnya di luar pola itu (mis. beda desa), tulis <code class="kbd">Alamat: &lt;alamat lengkap&gt;</code> — alamat itu dipakai apa adanya dan RT/RW jadi tak wajib.</span></div>
+                                    <div class="note tip"><span class="ic">💡</span><span>Data <b>boleh dicicil</b> dan <b>urutannya bebas</b>. Caption boleh cuma <code class="kbd">#PSB</code> dulu, sisanya menyusul per pesan (mis. kirim <code class="kbd">Dusun: Ngitik</code> saja). Tiap kali kamu kirim, bot menampilkan checklist ✅/⬜ dan menagih yang masih kurang.</span></div>
                                 </li>
 
                                 <li>
@@ -91,7 +96,16 @@ HP: 08123456789</pre>
                                     <p class="step-d">Bot membaca <b>modem yang baru terpasang</b> dari sistem dan menampilkan <b>nomor seri (SN)</b> + tipe modem. <b>Lihat stiker di badan modem</b> di depanmu — apakah SN-nya sama?</p>
                                     <span class="cmd" data-copy="YA">YA</span>
                                     <p class="step-d">Kalau <b>cocok</b> → ketik <code class="kbd">YA</code>. Bot langsung menyetel modem itu.</p>
-                                    <div class="note tip"><span class="ic">🔀</span><span>Kalau <b>tidak cocok</b>: balas <code class="kbd">TIDAK</code> → bot mengirim <b>daftar bernomor</b> modem yang baru online → balas <b>angka</b> modem yang serinya sama dengan stiker. Kamu tidak perlu mengetik SN-nya.</span></div>
+                                    <div class="note tip"><span class="ic">🔀</span><span>Kalau <b>tidak cocok</b>: balas <code class="kbd">TIDAK</code> → bot mengirim <b>daftar bernomor</b> modem → balas <b>angka</b> modem yang serinya sama dengan stiker. Kamu tidak perlu mengetik SN-nya.</span></div>
+
+                                    <p class="step-d">Tiap modem di daftar sudah <b>diberi label sendiri oleh bot</b> — kamu tak perlu tahu modem itu bekas siapa:</p>
+                                    <ul class="plain">
+                                        <li><b>🆕 BARU</b> — modem polos, belum pernah dipakai pelanggan.</li>
+                                        <li><b>♻️ BEKAS &lt;nama&gt;</b> — modem copotan dari pelanggan yang sudah berhenti. <b>Boleh dipakai.</b></li>
+                                        <li><b>⛔ TERPAKAI</b> — modem itu <b>masih melayani pelanggan lain</b>. Bot <b>menolak</b> memakainya, dan itu memang benar: kalau dipaksa, internet pelanggan tersebut mati. Cek ulang stiker modemmu.</li>
+                                    </ul>
+
+                                    <div class="note tip"><span class="ic">🔎</span><span><b>Pasang modem bekas/copotan?</b> Modem bekas <b>tidak muncul</b> di daftar "modem baru" — dia harus dicari. Ketik <code class="kbd">cari 8EBEB1</code> (4–6 digit terakhir SN di stiker) atau <code class="kbd">cari wimpi</code> (nama pemilik lama modem itu). Salah ketik aman — paling-paling hasilnya "tak ketemu", tidak ada yang berubah.</span></div>
                                     <div class="note warn"><span class="ic">⚠️</span><span>Kalau modem belum muncul (baru dinyalakan): tunggu ±1 menit lalu balas <code class="kbd">REFRESH</code>. Modem <b>harus menyala &amp; terhubung ke jaringan</b> agar serinya terbaca sistem.</span></div>
                                 </li>
 
@@ -183,11 +197,19 @@ HP: 08123456789</pre>
                             </details>
                             <details class="qa">
                                 <summary>PSB: SN modem tidak muncul / bot bilang belum terbaca</summary>
-                                <div class="qa-body">Modem harus sudah menyala dan terhubung ke jaringan agar serinya terbaca sistem. Tunggu ±1 menit setelah modem dinyalakan, lalu balas <code class="kbd">REFRESH</code>. Kalau tetap tidak muncul, cek koneksi fiber/kabel modem.</div>
+                                <div class="qa-body">Modem harus sudah menyala dan terhubung ke jaringan agar serinya terbaca sistem. Tunggu ±1 menit setelah modem dinyalakan, lalu balas <code class="kbd">REFRESH</code>. Kalau tetap tidak muncul, cek koneksi fiber/kabel modem. <b>Kalau yang kamu pasang modem bekas/copotan</b>, dia memang tidak akan muncul di daftar "modem baru" — cari saja: <code class="kbd">cari &lt;4 digit SN&gt;</code> atau <code class="kbd">cari &lt;nama pemilik lama&gt;</code>.</div>
                             </details>
                             <details class="qa">
                                 <summary>PSB: modem yang terbaca beda dengan yang di lokasi</summary>
-                                <div class="qa-body">Balas <code class="kbd">TIDAK</code>. Bot akan mengirim daftar bernomor modem yang baru online — cocokkan serinya dengan stiker modem, lalu balas angkanya. Kamu tidak perlu mengetik nomor seri.</div>
+                                <div class="qa-body">Balas <code class="kbd">TIDAK</code>. Bot akan mengirim daftar bernomor modem — cocokkan serinya dengan stiker modem, lalu balas angkanya. Kamu tidak perlu mengetik nomor seri.</div>
+                            </details>
+                            <details class="qa">
+                                <summary>PSB: bot menolak modemku — "masih dipakai pelanggan lain"</summary>
+                                <div class="qa-body">Artinya modem dengan SN itu <b>masih melayani pelanggan yang aktif</b>. Ini penjagaan yang disengaja: kalau diteruskan, PPPoE &amp; WiFi pelanggan tersebut akan tertimpa dan internetnya mati. <b>Cek ulang stiker modem</b> (angka mirip itu gampang tertukar) lalu balas <code class="kbd">TIDAK</code> untuk pilih dari daftar. Kalau kamu yakin modem itu memang sudah dicopot dari pelanggan lama, minta <b>admin</b> melepas tautannya dulu di panel — tidak bisa dipaksa dari WhatsApp.</div>
+                            </details>
+                            <details class="qa">
+                                <summary>PSB: dusunnya tidak ada di daftar / alamat perlu ditulis lengkap</summary>
+                                <div class="qa-body">Kalau dusun yang kamu butuhkan belum ada di daftar bernomor, ketik saja manual (<code class="kbd">Dusun: Sumberrejo</code>) dan beri tahu admin supaya ditambahkan ke daftar. Untuk rumah di luar pola desa/kecamatan area (mis. beda desa), tulis <code class="kbd">Alamat: &lt;alamat lengkap&gt;</code> — alamat itu dipakai apa adanya dan RT/RW tak lagi wajib.</div>
                             </details>
                             <details class="qa">
                                 <summary>Perbaikan: pelanggan tidak menerima kode OTP</summary>
@@ -206,9 +228,10 @@ HP: 08123456789</pre>
                                 <table>
                                     <thead><tr><th>Perintah</th><th>Fungsi</th></tr></thead>
                                     <tbody>
-                                        <tr><td class="k">#PSB + foto KTP</td><td>Mulai daftar pelanggan baru (caption: Nama/Paket/WiFi/Sandi/HP)</td></tr>
+                                        <tr><td class="k">#PSB + foto KTP</td><td>Mulai daftar pelanggan baru (caption: Nama/Dusun/RT-RW/Paket/WiFi/Sandi/HP)</td></tr>
                                         <tr><td class="k">YA / TIDAK / angka</td><td>Konfirmasi modem PSB — cocok / pilih dari daftar</td></tr>
                                         <tr><td class="k">REFRESH</td><td>Baca ulang modem bila belum terdeteksi</td></tr>
+                                        <tr><td class="k">cari [SN/nama]</td><td>Cari modem <b>bekas/copotan</b> — 4–6 digit SN, atau nama pemilik lamanya</td></tr>
                                         <tr><td class="k r">list tiket</td><td>Lihat tiket gangguan yang menunggu</td></tr>
                                         <tr><td class="k r">proses [ID]</td><td>Ambil / mulai kerjakan tiket</td></tr>
                                         <tr><td class="k r">otw [ID]</td><td>Tandai berangkat (lalu share lokasi)</td></tr>
