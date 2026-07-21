@@ -195,6 +195,14 @@ async function main() {
     const parsed = parseMapExport(isi, berkas);
     console.log(`Format terbaca: ${parsed.format} — ${parsed.points.length} titik, ${parsed.lines.length} garis.`);
 
+    // Ekspor Daftar Tersimpan bisa memuat pin yang koordinatnya TIDAK ikut (link pendek goo.gl).
+    // Ini harus kelihatan: kalau didiamkan, pin itu hilang senyap dan peta terlihat "sudah lengkap".
+    if ((parsed.noCoord || []).length) {
+        console.log(`\n⚠️  ${parsed.noCoord.length} pin TANPA koordinat di berkas ini (link pendek / tanpa titik):`);
+        parsed.noCoord.forEach((n) => console.log(`     - ${n.name}`));
+        console.log(`   Buka pin itu di Google Maps, salin koordinatnya, lalu petakan lewat WA: *#ODP <nama>*`);
+    }
+
     const token = mintToken(botDir);
     const daftar = await api(baseUrl, token, "GET", "/api/map/network-assets");
     if (daftar.status !== 200) throw new Error(`Gagal membaca aset dari bot (HTTP ${daftar.status}). Bot jalan di ${baseUrl}?`);
