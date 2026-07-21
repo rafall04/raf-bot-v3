@@ -2,7 +2,8 @@
  * Header Doc
  * Purpose: Registrar route admin untuk template pesan, pengumuman, berita, WiFi templates, dan broadcast.
  * Caller: `routes/admin-router.js`.
- * Deps: Router Express, middleware auth staf, template service/manager, runtime repositories, persist JSON, dan service content admin.
+ * Deps: Router Express, middleware auth staf, template service/manager, `lib/template-usage-scanner`
+ *       (laporan kesehatan + peringatan slot), runtime repositories, persist JSON, dan service content admin.
  * MainFuncs: `registerAdminContentRoutes`, `buildAdminEditorAudit`.
  * SideEffects: Menulis templates, announcements, news, WiFi templates, dan memicu broadcast WhatsApp async.
  */
@@ -172,33 +173,63 @@ function registerAdminContentRoutes(router, deps) {
                 return res.status(400).json({ status: 400, message: "Invalid template data structure provided." });
             }
 
-            templateService.saveCategory("notificationTemplates", notificationTemplates);
-            templateService.saveCategory("wifiMenuTemplates", wifiMenuTemplates);
-            templateService.saveCategory("responseTemplates", responseTemplates);
-            if (commandTemplates && typeof commandTemplates === "object") templateService.saveCategory("commandTemplates", commandTemplates);
-            if (errorTemplates && typeof errorTemplates === "object") templateService.saveCategory("errorTemplates", errorTemplates);
-            if (successTemplates && typeof successTemplates === "object") templateService.saveCategory("successTemplates", successTemplates);
-            if (systemTemplates && typeof systemTemplates === "object") templateService.saveCategory("systemTemplates", systemTemplates);
-            if (menuTemplates && typeof menuTemplates === "object") templateService.saveCategory("menuTemplates", menuTemplates);
-            if (reportTemplates && typeof reportTemplates === "object") templateService.saveCategory("reportTemplates", reportTemplates);
+            // Simpanan yang menghapus sebagian besar kategori ditolak (lihat saveCategory).
+            // `?allowMassDeletion=1` untuk penghapusan yang memang disengaja.
+            const saveOptions = {
+                allowMassDeletion: req.query.allowMassDeletion === "1" || req.body.allowMassDeletion === true
+            };
+
+            templateService.saveCategory("notificationTemplates", notificationTemplates, saveOptions);
+            templateService.saveCategory("wifiMenuTemplates", wifiMenuTemplates, saveOptions);
+            templateService.saveCategory("responseTemplates", responseTemplates, saveOptions);
+            if (commandTemplates && typeof commandTemplates === "object") templateService.saveCategory("commandTemplates", commandTemplates, saveOptions);
+            if (errorTemplates && typeof errorTemplates === "object") templateService.saveCategory("errorTemplates", errorTemplates, saveOptions);
+            if (successTemplates && typeof successTemplates === "object") templateService.saveCategory("successTemplates", successTemplates, saveOptions);
+            if (systemTemplates && typeof systemTemplates === "object") templateService.saveCategory("systemTemplates", systemTemplates, saveOptions);
+            if (menuTemplates && typeof menuTemplates === "object") templateService.saveCategory("menuTemplates", menuTemplates, saveOptions);
+            if (reportTemplates && typeof reportTemplates === "object") templateService.saveCategory("reportTemplates", reportTemplates, saveOptions);
 
             templateService.loadAllCategories();
             templateManager.reloadTemplates();
-            res.status(200).json({ status: 200, message: "All message templates saved successfully. Cache reloads automatically." });
+
+            // Peringatan slot bersifat ADVISORY, bukan penolakan: repo punya beberapa signature
+            // render berbeda sehingga daftar slot yang "dikenal" tak 100% bisa disimpulkan statis.
+            // Menolak keras akan salah-tolak edit yang sah; menampilkan peringatan tidak.
+            let warnings = [];
+            try {
+                const { buildHealthReport } = require("../lib/template-usage-scanner");
+                warnings = buildHealthReport(templatesCache.responseTemplates || {}).unknownSlots;
+            } catch (_error) { /* peringatan opsional */ }
+
+            res.status(200).json({
+                status: 200,
+                message: "All message templates saved successfully. Cache reloads automatically.",
+                warnings
+            });
         } catch (error) {
+            if (error.code === "TEMPLATE_MASS_DELETION") {
+                console.warn("[API_TEMPLATES_POST_BLOCKED]", error.message);
+                return res.status(409).json({ status: 409, message: error.message });
+            }
             console.error("[API_TEMPLATES_POST_ERROR]", error);
             res.status(500).json({ status: 500, message: "Failed to save one or more message template files." });
         }
     });
 
-    router.get("/api/templates/diagnostics", ensureAuthenticatedStaff, (_req, res) => {
+    // `?health=1` menambahkan laporan key yatim / hilang / slot tak dikenal (memindai source,
+    // hasilnya di-cache 5 menit). `?force=1` memaksa pindai ulang.
+    router.get("/api/templates/diagnostics", ensureAuthenticatedStaff, (req, res) => {
         try {
             templateService.loadAllCategories();
+            const withHealth = req.query.health === "1" || req.query.health === "true";
             res.status(200).json({
                 status: 200,
                 message: "Template diagnostics loaded successfully.",
                 data: {
-                    ...templateService.getDiagnostics(),
+                    ...templateService.getDiagnostics({
+                        health: withHealth,
+                        force: req.query.force === "1"
+                    }),
                     adminEditorAudit: buildAdminEditorAudit(templatesCache)
                 }
             });

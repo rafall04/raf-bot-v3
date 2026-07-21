@@ -2,7 +2,7 @@
  * Header Doc
  * Purpose: Menangani state perubahan nama WiFi berbasis managed conversation state.
  * Caller: `conversation-state-handler.js`.
- * Deps: `lib/wifi`, `lib/wifi-logger`, dan `conversation-handler`.
+ * Deps: `lib/wifi`, `lib/wifi-logger`, `conversation-handler`, dan `lib/affirmative-parser`.
  * MainFuncs: `handleSelectChangeMode`, `handleSelectSsidToChange`, `handleAskNewName`, `handleAskNewNameBulkAuto`, `handleConfirmGantiNamaBulk`.
  * SideEffects: Mengubah nama SSID, menulis log perubahan WiFi, dan membersihkan state.
  */
@@ -11,6 +11,7 @@ const { setSSIDName, updateWifiSettings } = require('../../../lib/wifi');
 const { logWifiChange } = require('../../../lib/wifi-logger');
 const { deleteUserState, format } = require('../conversation-handler');
 const { formatWifiSsidInfo } = require('../../../lib/wifi-ssid-summary');
+const { isAffirmative } = require('../../../lib/affirmative-parser');
 
 function renderResponseTemplate(key, fallback, data = {}) {
     const rendered = format(key, data);
@@ -243,7 +244,9 @@ async function handleAskNewNameBulkAuto(userState, chats, reply, sender, global,
 }
 
 async function handleConfirmGantiNamaBulk(userState, userReply, reply, sender, _global, _axios) {
-    if (!['ya', 'ok', 'lanjut', 'iya', 'y'].includes(userReply)) {
+    // Ganti nama bisa diulang, jadi cukup afirmasi longgar: "Ok mas" / "ya ka" / "siap" harus lolos.
+    // Exact-match sebelumnya menolak mayoritas balasan nyata pelanggan.
+    if (!isAffirmative(userReply)) {
         return reply(renderResponseTemplate('convo_balasan_ya_tidak', "Mohon balas *'ya'* untuk melanjutkan atau ketik *'batal'* untuk membatalkan."));
     }
 

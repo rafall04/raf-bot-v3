@@ -14,6 +14,11 @@ const { hasActiveReport } = require('../../lib/report-helper');
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
 const { createCustomerReportTicket } = require('../../lib/report-orchestration-service');
 const { notifyNewReport } = require('../../lib/report-notification-service');
+const { isCleanConsent, isDecline } = require('../../lib/affirmative-parser');
+
+// Kata yang wajar muncul saat pelanggan menyetujui pembuatan tiket, jadi tak boleh dianggap
+// "muatan lain" oleh blocklist konsen yang disusun dari sudut pandang reboot.
+const TICKET_CONSENT_ON_TOPIC = ['lapor', 'laporan', 'keluhan', 'komplain'];
 
 function getReportStateId(sender, stateKey) {
     return stateKey || sender;
@@ -504,9 +509,11 @@ async function handleMatiConfirmation({ sender, response, reply }) {
 
     const answer = response.toLowerCase().trim();
 
-    if (answer === 'ya' || answer === 'y' || answer === 'yes' || answer.includes('lanjut')) {
+    // Membuat tiket menurunkan teknisi → konsen KETAT, tapi menerima bahasa pelanggan sungguhan
+    // ("Ok mas", "ya ka", "siap"). Exact-match sebelumnya menolak mayoritas balasan nyata.
+    if (isCleanConsent(answer, { onTopic: TICKET_CONSENT_ON_TOPIC })) {
         return await createReportTicket({ sender, state, reply });
-    } else if (answer === 'tidak' || answer === 'no' || answer === 'n' || answer.includes('batal')) {
+    } else if (answer === 'tidak' || answer === 'no' || answer === 'n' || answer.includes('batal') || isDecline(answer)) {
         deleteUserState(sender);
         return {
             success: true,

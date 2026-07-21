@@ -116,7 +116,7 @@ const { handleTransferSaldo, handleCancelTopup } = require('./handlers/saldo-han
 const { handleAccessManagement } = require('./handlers/access-management-handler');
 const { handleCekTagihan } = require('./handlers/billing-management-handler');
 const { handleCheckPackage, handleComplaint, handleServiceInfo } = require('./handlers/customer-handler');
-const { handleUbahPaket, handleRequestSpeedBoost } = require('./handlers/package-management-handler');
+const { handleUbahPaket } = require('./handlers/package-management-handler');
 const { handleGantiPowerWifi } = require('./handlers/wifi-power-handler');
 const { handleRebootModem } = require('./handlers/reboot-modem-handler');
 const { handleCekWifi } = require('./handlers/wifi-check-handler');
@@ -1059,7 +1059,6 @@ module.exports = async (raf, msg, m, options = {}) => {
             handleComplaint,
             handleServiceInfo,
             handleUbahPaket,
-            handleRequestSpeedBoost,
             processLidVerification,
             repositories: domainRepositories,
             ...domainHandlers,

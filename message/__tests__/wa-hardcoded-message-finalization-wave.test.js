@@ -176,8 +176,10 @@ const finalizationKeys = [
     "other_power_failed",
     "other_power_confirm_invalid",
     "other_choice_invalid",
+    // `other_sod_payment_success` DIHAPUS bersama jalur SOD legacy: isinya rekening dummy hardcode
+    // (BCA 1234567890 dst.) yang mengarahkan pelanggan transfer ke rekening tak ada. Alur SOD kini
+    // di `state-domains/speed-boost.state.js` dengan rekening dari `config.bankAccounts`.
     "other_sod_confirm",
-    "other_sod_payment_success",
     "other_sod_cancelled",
     "other_package_confirm",
     "other_package_success",

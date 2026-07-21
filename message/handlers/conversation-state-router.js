@@ -23,6 +23,7 @@ const { handleOperJalurConversationState } = require("./state-domains/oper-jalur
 const { handlePaymentProofAdminState } = require("./state-domains/payment-proof-admin.state");
 const { handlePackageRequestAdminState } = require("./state-domains/package-request-admin.state");
 const { handleNetworkAssetConversationState } = require("./state-domains/network-asset.state");
+const { handleSpeedBoostConversationState } = require("./state-domains/speed-boost.state");
 
 async function routeConversationState(context) {
     const stateStep = context.stateStep || context.userState?.step || context.smartReportState?.step || context.teknisiState?.step || null;
@@ -78,6 +79,9 @@ async function routeConversationState(context) {
     }
     if (owner === "network-asset") {
         return { owner, ...(await handleNetworkAssetConversationState(domainContext)) };
+    }
+    if (owner === "speed-boost") {
+        return { owner, ...(await handleSpeedBoostConversationState(domainContext)) };
     }
 
     return { handled: false, owner };

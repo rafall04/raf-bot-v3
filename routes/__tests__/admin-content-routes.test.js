@@ -185,11 +185,14 @@ describe('registerAdminContentRoutes', () => {
     const response = await invokeRoute(router, 'post', '/api/templates', { body: payload });
 
     expect(response.statusCode).toBe(200);
-    expect(deps.templateService.saveCategory).toHaveBeenCalledWith('notificationTemplates', payload.notificationTemplates);
-    expect(deps.templateService.saveCategory).toHaveBeenCalledWith('wifiMenuTemplates', payload.wifiMenuTemplates);
-    expect(deps.templateService.saveCategory).toHaveBeenCalledWith('responseTemplates', payload.responseTemplates);
-    expect(deps.templateService.saveCategory).toHaveBeenCalledWith('menuTemplates', payload.menuTemplates);
-    expect(deps.templateService.saveCategory).toHaveBeenCalledWith('reportTemplates', payload.reportTemplates);
+    // Argumen ketiga = opsi simpan; `allowMassDeletion:false` menjaga pengaman penghapusan massal
+    // tetap aktif untuk simpanan biasa dari editor admin.
+    const saveOptions = { allowMassDeletion: false };
+    expect(deps.templateService.saveCategory).toHaveBeenCalledWith('notificationTemplates', payload.notificationTemplates, saveOptions);
+    expect(deps.templateService.saveCategory).toHaveBeenCalledWith('wifiMenuTemplates', payload.wifiMenuTemplates, saveOptions);
+    expect(deps.templateService.saveCategory).toHaveBeenCalledWith('responseTemplates', payload.responseTemplates, saveOptions);
+    expect(deps.templateService.saveCategory).toHaveBeenCalledWith('menuTemplates', payload.menuTemplates, saveOptions);
+    expect(deps.templateService.saveCategory).toHaveBeenCalledWith('reportTemplates', payload.reportTemplates, saveOptions);
     expect(deps.templateService.loadAllCategories).toHaveBeenCalled();
     expect(deps.templateManager.reloadTemplates).toHaveBeenCalled();
   });

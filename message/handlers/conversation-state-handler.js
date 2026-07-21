@@ -35,8 +35,6 @@ const {
     handleConfirmCancelTicket,
     handleConfirmReboot,
     handleAwaitingComplaint,
-    handleSelectSodChoice,
-    handleConfirmSodChoice,
     handleAskPackageChoice,
     handleConfirmPackageChoice
 } = require('./states/other-state-handler');
@@ -167,13 +165,8 @@ async function handleConversationState(params) {
             return handleAwaitingComplaint(userState, chats, reply, sender, pushname);
         }
 
-        case 'SELECT_SOD_CHOICE': {
-            return handleSelectSodChoice(userState, userReply, reply, convertRupiah);
-        }
-
-        case 'CONFIRM_SOD_CHOICE': {
-            return handleConfirmSodChoice(userState, userReply, reply, sender, global);
-        }
+        // Step SELECT_SOD_CHOICE / CONFIRM_SOD_CHOICE dihapus — Speed on Demand kini dimiliki
+        // `state-domains/speed-boost.state.js` (step `SODB_*`, dirutekan conversation-state-router).
 
         case 'ASK_PACKAGE_CHOICE': {
             return handleAskPackageChoice(userState, userReply, reply, convertRupiah);

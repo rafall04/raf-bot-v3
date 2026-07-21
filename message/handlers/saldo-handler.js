@@ -2,7 +2,7 @@
  * Header Doc
  * Purpose: Menangani command saldo pelanggan termasuk cek saldo, transfer, dan riwayat transaksi.
  * Caller: Router bot WhatsApp pada intent saldo.
- * Deps: `../../lib/saldo-manager`, `../../lib/logger`, `../../lib/jid-utils`, `../../lib/whatsapp-delivery-service`, dan `../../lib/whatsapp-gateway`.
+ * Deps: `../../lib/saldo-manager`, `../../lib/logger`, `../../lib/jid-utils`, `../../lib/whatsapp-delivery-service`, `../../lib/whatsapp-gateway`, dan `../../lib/affirmative-parser`.
  * MainFuncs: `handleCekSaldo`, `handleTransferSaldo`, dan helper resolusi sender.
  * SideEffects: Membaca/memperbarui saldo dan mengirim notifikasi transfer masuk ke penerima.
  */
@@ -13,6 +13,7 @@ const { resolveCanonicalCustomerContext, normalizePhoneToJid, maskPhoneNumber: _
 const { getSocket } = require('../../lib/whatsapp-gateway');
 const { renderResponseTemplate } = require('./template-helpers');
 const { getUserState, setUserState, deleteUserState } = require('./conversation-handler');
+const { isCleanConsent, isDecline } = require('../../lib/affirmative-parser');
 
 // Batas minimum transfer (rupiah). Hindari spam ledger dengan transfer 1 rupiah.
 const MIN_TRANSFER_AMOUNT = 1000;
@@ -346,7 +347,7 @@ async function handleTransferConfirmState({ sender, chats, reply }) {
 
     const response = String(chats || '').toLowerCase().trim();
 
-    if (['batal', 'cancel', 'tidak', 'no', 'ga jadi', 'gak jadi'].includes(response)) {
+    if (['batal', 'cancel', 'tidak', 'no', 'ga jadi', 'gak jadi'].includes(response) || isDecline(response)) {
         deleteUserState(sender);
         await reply(renderResponseTemplate(
             'saldo_transfer_cancelled',
@@ -355,7 +356,10 @@ async function handleTransferConfirmState({ sender, chats, reply }) {
         return { handled: true };
     }
 
-    if (!['ya', 'iya', 'y', 'ok', 'lanjut', 'yes'].includes(response)) {
+    // Konfirmasi UANG: pakai konsen KETAT, bukan `isAffirmative` yang longgar. "ya" harus berdiri
+    // sendiri — "ya tapi tagihanku berapa?" tidak boleh mengeksekusi transfer. `onTopic` memuat
+    // kata alur ini supaya "ok transfer aja" tetap lolos (blocker default menganggapnya muatan lain).
+    if (!isCleanConsent(response, { onTopic: ['transfer', 'tf', 'saldo'] })) {
         await reply(renderResponseTemplate(
             'saldo_transfer_confirm_prompt_invalid',
             "Balas *ya* untuk lanjut atau *batal* untuk membatalkan."

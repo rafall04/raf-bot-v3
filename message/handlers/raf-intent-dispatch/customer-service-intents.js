@@ -2,7 +2,7 @@
  * Header Doc
  * Purpose: Skeleton handler map untuk intent layanan pelanggan seperti tagihan, paket, keluhan, dan speed boost.
  * Caller: `message/handlers/raf-intent-dispatch/index.js` dan composer dispatcher intent.
- * Deps: Tidak ada; placeholder refactor tahap skeleton.
+ * Deps: lazy `../state-domains/speed-boost.state` (startSpeedBoost); sisanya via context injection.
  * MainFuncs: `CUSTOMER_SERVICE_INTENT_HANDLERS`, `handleCekTagihanIntent`, `handleCekKoneksiIntent`, `handleUbahPaketIntent`, `handleRequestSpeedBoostIntent`.
  * SideEffects: Tidak ada.
  */
@@ -75,32 +75,16 @@ async function handleUbahPaketIntent(context) {
     });
 }
 
+// Speed on Demand kini dimiliki state domain `speed-boost.state` (step `SODB_*`). Jalur lama
+// (`handleRequestSpeedBoost` → step SOD di other-state-handler) memakai harga ad-hoc dan mengirim
+// instruksi transfer berisi rekening DUMMY hardcode; jalur baru mengambil harga dari matriks dan
+// rekening dari `config.bankAccounts`. Pelanggan diresolusi lewat `findUserWithLidSupport` supaya
+// pengirim `@lid` tetap dikenali.
 async function handleRequestSpeedBoostIntent(context) {
-    const {
-        handleRequestSpeedBoost,
-        sender,
-        stateSender,
-        plainSenderNumber,
-        pushname,
-        reply,
-        mess,
-        global,
-        temp,
-        msg,
-        raf
-    } = context;
-    await handleRequestSpeedBoost({
-        sender,
-        stateSender,
-        plainSenderNumber,
-        pushname,
-        reply,
-        mess,
-        global,
-        temp,
-        msg,
-        raf
-    });
+    const { startSpeedBoost } = require("../state-domains/speed-boost.state");
+    const { findUserWithLidSupport, global, msg, plainSenderNumber, raf } = context;
+    const user = await findUserWithLidSupport(global.users, msg, plainSenderNumber, raf);
+    return startSpeedBoost({ ...context, user });
 }
 
 async function handleCekStatusSpeedIntent(context) {

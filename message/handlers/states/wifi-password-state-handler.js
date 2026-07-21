@@ -2,7 +2,7 @@
  * Header Doc
  * Purpose: Menangani state perubahan kata sandi WiFi berbasis managed conversation state.
  * Caller: `conversation-state-handler.js`.
- * Deps: `lib/wifi`, `lib/wifi-logger`, dan `conversation-handler`.
+ * Deps: `lib/wifi`, `lib/wifi-logger`, `conversation-handler`, dan `lib/affirmative-parser`.
  * MainFuncs: `handleSelectPasswordMode`, `handleSelectSsidPassword`, `handleAskNewPassword`, `handleAskNewPasswordBulk`, `handleAskNewPasswordBulkAuto`, `handleConfirmGantiSandi`, `handleConfirmGantiSandiBulk`.
  * SideEffects: Mengubah password SSID, menulis log perubahan WiFi, dan membersihkan state.
  */
@@ -11,6 +11,7 @@ const { setPassword, updateWifiSettings } = require('../../../lib/wifi');
 const { logWifiChange } = require('../../../lib/wifi-logger');
 const { deleteUserState, format } = require('../conversation-handler');
 const { formatWifiSsidInfo } = require('../../../lib/wifi-ssid-summary');
+const { isAffirmative } = require('../../../lib/affirmative-parser');
 
 function renderResponseTemplate(key, fallback, data = {}) {
     const rendered = format(key, data);
@@ -307,7 +308,8 @@ async function handleAskNewPasswordBulkAuto(userState, chats, reply, sender, glo
 async function handleConfirmGantiSandi(userState, userReply, reply, sender, _global, _axios) {
     const response = userReply.toLowerCase().trim();
 
-    if (!['ya', 'ok', 'lanjut', 'iya', 'y'].includes(response)) {
+    // Ganti sandi bisa diulang, jadi cukup afirmasi longgar (lihat catatan di jalur ganti nama).
+    if (!isAffirmative(response)) {
         return reply(renderResponseTemplate('convo_balasan_ya_tidak', "Mohon balas *'ya'* untuk melanjutkan atau ketik *'batal'* untuk membatalkan."));
     }
 
@@ -362,7 +364,8 @@ async function handleConfirmGantiSandi(userState, userReply, reply, sender, _glo
 async function handleConfirmGantiSandiBulk(userState, userReply, reply, sender, _global, _axios) {
     const response = userReply.toLowerCase().trim();
 
-    if (!['ya', 'ok', 'lanjut', 'iya', 'y'].includes(response)) {
+    // Ganti sandi bisa diulang, jadi cukup afirmasi longgar (lihat catatan di jalur ganti nama).
+    if (!isAffirmative(response)) {
         return reply(renderResponseTemplate('convo_balasan_ya_tidak', "Mohon balas *'ya'* untuk melanjutkan atau ketik *'batal'* untuk membatalkan."));
     }
 

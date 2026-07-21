@@ -2,7 +2,7 @@
  * Header Doc
  * Purpose: Mengelola percakapan WhatsApp auto outage, triage jawaban pelanggan, media, dan konfirmasi tiket.
  * Caller: `message/handlers/state-domains/auto-outage-state-handler.js`, `routes/admin-auto-outage-routes.js`.
- * Deps: `repositories/auto-outage.repository.js`, response template helper, WhatsApp delivery service, ticket/report orchestration service.
+ * Deps: `repositories/auto-outage.repository.js`, response template helper, WhatsApp delivery service, ticket/report orchestration service, `lib/affirmative-parser`.
  * MainFuncs: `createAutoOutageConversationService`, `startConversation`, `handleCustomerReply`, `sendTicketConfirmation`, `finalizeTicketDecision`.
  * SideEffects: Mengirim WhatsApp, menyimpan conversation state, dan membuat tiket setelah konfirmasi pelanggan.
  */
@@ -16,6 +16,8 @@ function optionalRequire(path, exportName, fallback) {
         return fallback;
     }
 }
+
+const { isCleanConsent, isDecline } = require("../lib/affirmative-parser");
 
 function defaultDeps() {
     return {
@@ -56,12 +58,20 @@ function classifyTriage(text) {
     return "lainnya";
 }
 
+// Membuat tiket = menurunkan teknisi, jadi pakai konsen KETAT: "ya" harus berdiri sendiri, bukan
+// menumpang di kalimat lain ("ya tapi tagihanku gimana?"). `onTopic` memuat kata alur ini supaya
+// "ya lapor aja" tetap lolos — tanpa itu blocker default menganggapnya muatan lain.
+const TICKET_CONSENT_ON_TOPIC = ["lapor", "laporan", "keluhan", "komplain"];
+
 function wantsTicket(text) {
-    return ["ya", "y", "iya", "ajukan", "buat tiket", "mau"].includes(normalizeReply(text));
+    const value = normalizeReply(text);
+    if (["ajukan", "buat tiket", "mau"].includes(value)) return true;
+    return isCleanConsent(text, { onTopic: TICKET_CONSENT_ON_TOPIC });
 }
 
 function declinesTicket(text) {
-    return ["tidak", "tdk", "no", "n", "jangan", "belum"].includes(normalizeReply(text));
+    if (["tidak", "tdk", "no", "n", "jangan", "belum"].includes(normalizeReply(text))) return true;
+    return isDecline(text);
 }
 
 function render(deps, key, fallback, data) {

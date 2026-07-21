@@ -126,7 +126,19 @@ function replyWifiPasswordFailed(reply, renderResponseTemplate, error) {
     return reply(renderWithFallback(
         renderResponseTemplate,
         "convo_ganti_sandi_failed",
-        `Maaf, gagal mengubah kata sandi WiFi. Error: ${error.message}`,
+        "Maaf, gagal mengubah kata sandi WiFi. Silakan coba lagi atau hubungi admin.",
+        { error_message: error.message }
+    ));
+}
+
+// Kembaran `replyWifiPasswordFailed` untuk jalur ganti NAMA. Dulu dua jalur nama membalas
+// string hardcode berisi `error.message` mentah — tak bisa diedit admin dan membocorkan
+// pesan galat internal (GenieACS/perangkat) ke pelanggan.
+function replyWifiNameFailed(reply, renderResponseTemplate, error) {
+    return reply(renderWithFallback(
+        renderResponseTemplate,
+        "wifi_name_change_error",
+        "❌ Maaf, gagal mengubah nama WiFi. Silakan coba lagi atau hubungi admin.",
         { error_message: error.message }
     ));
 }
@@ -301,7 +313,7 @@ function createWifiManagementService(overrides = {}) {
         } catch (error) {
             console.error("[SINGLE_NAME_CHANGE] Error:", error);
             deleteUserState(stateKey);
-            return reply(`❌ Maaf, gagal mengubah nama WiFi. Silakan coba lagi atau hubungi admin.\n\nError: ${error.message}`);
+            return replyWifiNameFailed(reply, renderResponseTemplate, error);
         }
     }
 
@@ -346,7 +358,7 @@ function createWifiManagementService(overrides = {}) {
         } catch (error) {
             console.error("[BULK_AUTO_NAME_CHANGE] Error:", error);
             deleteUserState(stateKey);
-            return reply(`❌ Maaf, gagal mengubah nama WiFi. Silakan coba lagi atau hubungi admin.\n\nError: ${error.message}`);
+            return replyWifiNameFailed(reply, renderResponseTemplate, error);
         }
     }
 

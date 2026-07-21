@@ -7,6 +7,11 @@
 
 const { getUserState, deleteUserState } = require('./conversation-handler');
 const { createCustomerReportTicket } = require('../../lib/report-orchestration-service');
+const { isCleanConsent } = require('../../lib/affirmative-parser');
+
+// Kata yang wajar muncul saat pelanggan menyetujui pembuatan tiket, jadi tak boleh dianggap
+// "muatan lain" oleh blocklist konsen yang disusun dari sudut pandang reboot.
+const TICKET_CONSENT_ON_TOPIC = ['lapor', 'laporan', 'keluhan', 'komplain'];
 
 /**
  * Create ticket directly without menu
@@ -40,7 +45,9 @@ async function handleDirectConfirmation({ sender, response, reply: _reply }) {
 
     const answer = response.toLowerCase().trim();
 
-    if (answer === 'ya' || answer === 'y' || answer === 'yes') {
+    // Dulu exact-match 'ya'/'y'/'yes' — bahkan "iya" dan "ok" pun tertolak. Membuat tiket
+    // menurunkan teknisi, jadi tetap konsen KETAT, hanya kini menerima bahasa pelanggan sungguhan.
+    if (isCleanConsent(answer, { onTopic: TICKET_CONSENT_ON_TOPIC })) {
         const ticketId = await createDirectTicket({
             user: state.userData,
             issueType: 'MATI',

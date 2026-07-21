@@ -75,7 +75,8 @@ const CONVERSATION_STATE_PREFIX_OWNER_MAP = {
     OPERJALUR_: "oper-jalur",
     PAYPROOF_: "payment-proof",
     PKGREQ_: "package-request",
-    REBOOTFU_: "reboot-followup"
+    REBOOTFU_: "reboot-followup",
+    SODB_: "speed-boost" // Speed on Demand pelanggan (menggantikan step SOD legacy di other-state-handler)
 };
 
 function resolveConversationStateOwner(step) {

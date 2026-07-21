@@ -86,7 +86,7 @@
   },
   "convo_ganti_sandi_failed": {
     "name": "Percakapan: Ganti Sandi - Gagal",
-    "template": "❌ Maaf, gagal mengubah kata sandi WiFi. Silakan coba lagi atau hubungi admin.\n\nError: ${error_message}",
+    "template": "⚠️ Maaf Kak, ada kendala teknis saat mengubah kata sandi WiFi. Mohon pastikan modem dalam keadaan menyala, lalu coba lagi beberapa saat. Kalau masih gagal, silakan hubungi Admin ya 🙏",
     "category": "wifi"
   },
   "convo_ganti_sandi_too_short": {
@@ -1414,17 +1414,6 @@
       "packageName",
       "durationText",
       "priceText"
-    ]
-  },
-  "other_sod_payment_success": {
-    "name": "Other State: SOD Payment",
-    "category": "other_state",
-    "template": "*PESANAN SPEED ON DEMAND BERHASIL!*\n\n*Detail Pesanan:*\n- Paket: ${packageName}\n- Durasi: ${durationDays} Hari\n- Harga: ${priceText}\n- Kode: ${paymentCode}\n\n*CARA PEMBAYARAN:*\n\n1. *Transfer Bank:*\n- BCA: 1234567890\n- Mandiri: 9876543210\n- BRI: 0987654321\n\n2. *E-Wallet:*\n- DANA: 08123456789\n- OVO: 08123456789\n- GoPay: 08123456789\n\n*Catatan Penting:*\n- Sertakan kode ${paymentCode} saat transfer\n- Kirim bukti transfer ke admin\n- Paket aktif setelah pembayaran dikonfirmasi\n\nTerima kasih!",
-    "placeholders": [
-      "packageName",
-      "durationDays",
-      "priceText",
-      "paymentCode"
     ]
   },
   "other_sod_cancelled": {
@@ -3293,7 +3282,7 @@
   "wifi_password_change_error": {
     "name": "WiFi Password State: Error Ganti Sandi",
     "category": "wifi",
-    "template": "❌ Maaf, gagal mengubah kata sandi WiFi. Silakan coba lagi atau hubungi admin.\n\nError: ${error_message}"
+    "template": "⚠️ Maaf Kak, ada kendala teknis saat mengubah kata sandi WiFi. Mohon pastikan modem dalam keadaan menyala, lalu coba lagi beberapa saat. Kalau masih gagal, silakan hubungi Admin ya 🙏"
   },
   "wifi_password_confirm_technical_error": {
     "name": "WiFi Password Confirm: Error Teknis",
@@ -3313,7 +3302,7 @@
   "wifi_name_change_error": {
     "name": "WiFi Name State: Error Ganti Nama",
     "category": "wifi",
-    "template": "❌ Maaf, gagal mengubah nama WiFi. Silakan coba lagi atau hubungi admin.\n\nError: ${error_message}"
+    "template": "⚠️ Maaf Kak, ada kendala teknis saat mengubah nama WiFi. Mohon pastikan modem dalam keadaan menyala, lalu coba lagi beberapa saat. Kalau masih gagal, silakan hubungi Admin ya 🙏"
   },
   "general_step_applying_power": {
     "name": "General Step: Sedang Mengatur Power WiFi",
@@ -4283,7 +4272,7 @@
   "speed_boost_validation_missing_pppoe": {
     "name": "Speed Boost: Validasi PPPoE Kosong",
     "category": "speed",
-    "template": "Akun PPPoE Anda belum diatur. Hubungi admin."
+    "template": "Maaf Kak, layanan Anda belum siap untuk fitur ini. Silakan hubungi Admin untuk dibantu ya 🙏"
   },
   "speed_boost_validation_failed": {
     "name": "Speed Boost: Validasi Gagal",
@@ -5250,5 +5239,180 @@
     "name": "Perintah Aset — Bukan Petugas",
     "template": "🔒 Perintah peta jaringan khusus *petugas*.\n\nNomor ini belum terdaftar — minta admin mendaftarkan nomor kamu dulu, baru perintahnya bisa dipakai.",
     "category": "system"
+  },
+  "saldo_transfer_confirm_prompt": {
+    "name": "Saldo: Konfirmasi Transfer",
+    "template": "🔒 *Konfirmasi Transfer*\n\nKe: ${target_label}\nJumlah: ${jumlah}\nSisa saldo setelah transfer: ${sisa_saldo}\n\nBalas *ya* untuk lanjut atau *batal* untuk batal.",
+    "category": "saldo"
+  },
+  "saldo_transfer_confirm_prompt_invalid": {
+    "name": "Saldo: Konfirmasi Transfer Tidak Dikenali",
+    "template": "Balas *ya* untuk lanjut atau *batal* untuk membatalkan.",
+    "category": "saldo"
+  },
+  "saldo_transfer_amount_too_small": {
+    "name": "Saldo: Nominal Transfer Di Bawah Minimal",
+    "template": "❌ Minimal transfer Rp ${min_amount}.",
+    "category": "saldo"
+  },
+  "saldo_transfer_self_blocked": {
+    "name": "Saldo: Transfer Ke Nomor Sendiri Ditolak",
+    "template": "❌ Tidak bisa transfer ke nomor sendiri.",
+    "category": "saldo"
+  },
+  "saldo_transfer_target_not_registered": {
+    "name": "Saldo: Nomor Tujuan Belum Terdaftar",
+    "template": "❌ Nomor ${target_number} belum terdaftar di sistem. Pastikan nomor tujuan sudah pernah daftar/topup di bot ini.",
+    "category": "saldo"
+  },
+  "access_no_primary_phone": {
+    "name": "Akses: Nomor Utama Belum Lengkap",
+    "template": "❌ Data nomor utama pelanggan belum lengkap. Silakan hubungi admin.",
+    "category": "access"
+  },
+  "dispatch_tutorial_teknisi": {
+    "name": "Dispatch: Panduan Teknisi",
+    "template": "📖 *PANDUAN TEKNISI*\n\n━━━ *PSB (Pasang Baru)* ━━━\nJapri bot area kamu:\n1. Foto KTP + caption `#PSB` (Nama/Dusun/RT-RW/Paket/WiFi/Sandi/HP)\n   • *Dusun* → balas *angka* dari daftar yang bot tampilkan\n   • *RT/RW* cukup `14/2` — alamat lengkap dirakit bot\n2. Kirim foto rumah\n3. Share lokasi rumah\n4. Bot tampilkan SN modem → balas *YA* (cocok) / *TIDAK* (pilih angka)\n   • Modem *bekas/copotan* tak muncul di daftar → ketik `cari <4 digit SN>` atau `cari <nama pemilik lama>`\n   • Label: 🆕 BARU · ♻️ BEKAS (boleh) · ⛔ TERPAKAI = modem pelanggan lain, DITOLAK — cek ulang stiker\n5. Selesai — pelanggan online\n\n💡 Panduan PSB lengkap: ketik *panduan psb*\n\n━━━ *PERBAIKAN (Tiket)* ━━━\n1. *list tiket* — lihat tiket\n2. *proses [ID]* — ambil tiket\n3. *otw [ID]* + share lokasi\n4. *sampai [ID]* — pelanggan dapat OTP\n5. *verifikasi [ID] [OTP]*\n6. Kirim min. 2 foto → *done*\n7. Ketik catatan perbaikan\n8. *selesai [ID]* — tutup tiket\n\n💡 Ketik *batal* untuk membatalkan proses.",
+    "category": "admin"
+  },
+  "smart_report_handler_speedtest_invalid": {
+    "name": "Smart Report Handler: Angka Speedtest Tidak Valid",
+    "template": "⚠️ Angka speedtest tidak valid. Coba kirim ulang hasil speedtest, contoh: \"speedtest 5 mbps\".",
+    "category": "report"
+  },
+  "smart_report_handler_speedtest_unrealistic": {
+    "name": "Smart Report Handler: Angka Speedtest Tidak Masuk Akal",
+    "template": "⚠️ Angka ${speed} Mbps terlalu tinggi untuk paket ${packageSpeed} Mbps. Coba kirim ulang hasil speedtest yang benar.",
+    "category": "report"
+  },
+  "steering_drift_alert": {
+    "name": "Drift Steering Terdeteksi - Alert Admin",
+    "template": "⚠️ *Drift Steering Terdeteksi*\n\nPeta pool (jaring pengaman resolver jalur) tak lagi cocok dengan address-list live di router:\n${detail}\n\nResolver tetap presisi memakai profil live (freedns/lokaldns); ini hanya JARING PENGAMAN saat router tak terbaca.\nTindakan: samakan `DEFAULT_PATH_POOLS`/`config.upstreamMonitor.pathPools` dengan address-list, atau kembalikan address-list.",
+    "category": "monitoring"
+  },
+  "saldo_transfer_cancelled": {
+    "name": "Saldo: Transfer Dibatalkan",
+    "template": "Transfer dibatalkan.",
+    "category": "saldo"
+  },
+  "sodb_disabled": {
+    "name": "SOD: Fitur Belum Aktif",
+    "template": "Maaf Kak, layanan *Speed on Demand* belum tersedia saat ini 🙏",
+    "category": "speed"
+  },
+  "sodb_not_customer": {
+    "name": "SOD: Bukan Pelanggan",
+    "template": "Maaf, nomor Anda belum terdaftar sebagai pelanggan. Silakan hubungi Admin ya 🙏",
+    "category": "speed"
+  },
+  "sodb_no_packages": {
+    "name": "SOD: Tidak Ada Pilihan Paket",
+    "template": "Belum ada pilihan Speed on Demand untuk paket *${paket_sekarang}* saat ini Kak 🙏",
+    "category": "speed"
+  },
+  "sodb_package_item": {
+    "name": "SOD: Baris Item Paket",
+    "template": "*${nomor}.* ${paket} (${profil})",
+    "category": "speed"
+  },
+  "sodb_package_list": {
+    "name": "SOD: Daftar Paket",
+    "template": "⚡ *Speed on Demand*\n\nPaket Anda sekarang: *${paket_sekarang}*\n\nPilih paket yang ingin dipakai sementara:\n\n${daftar_paket}\n\nBalas *nomor* pilihan, atau *batal* untuk membatalkan.",
+    "category": "speed"
+  },
+  "sodb_duration_item": {
+    "name": "SOD: Baris Item Durasi",
+    "template": "*${nomor}.* ${durasi} — ${harga}",
+    "category": "speed"
+  },
+  "sodb_duration_list": {
+    "name": "SOD: Daftar Durasi",
+    "template": "⏱️ *Berapa lama?*\n\nPaket pilihan: *${paket}*\n\n${daftar_durasi}\n\nBalas *nomor* pilihan, atau *batal*.",
+    "category": "speed"
+  },
+  "sodb_no_duration": {
+    "name": "SOD: Harga Durasi Belum Diatur",
+    "template": "Maaf Kak, harga untuk paket *${paket}* belum diatur. Silakan hubungi Admin ya 🙏",
+    "category": "speed"
+  },
+  "sodb_payment_item": {
+    "name": "SOD: Baris Item Metode Bayar",
+    "template": "*${nomor}.* ${metode}",
+    "category": "speed"
+  },
+  "sodb_payment_list": {
+    "name": "SOD: Daftar Metode Bayar",
+    "template": "💳 *Metode pembayaran*\n\nTotal: *${total}*\n\n${daftar_metode}\n\nBalas *nomor* pilihan, atau *batal*.",
+    "category": "speed"
+  },
+  "sodb_no_payment_method": {
+    "name": "SOD: Metode Bayar Belum Diatur",
+    "template": "Maaf Kak, metode pembayaran belum diatur. Silakan hubungi Admin ya 🙏",
+    "category": "speed"
+  },
+  "sodb_invalid_choice": {
+    "name": "SOD: Pilihan Tidak Dikenali",
+    "template": "Pilihan tidak dikenali. Balas angka *1–${maks_pilihan}*, atau *batal*.",
+    "category": "speed"
+  },
+  "sodb_confirm": {
+    "name": "SOD: Konfirmasi Pesanan",
+    "template": "📋 *Cek pesanan Anda*\n\nPaket sekarang: ${paket_sekarang}\nJadi: *${paket}*\nDurasi: *${durasi}*\nBiaya: *${harga}*\nBayar: *${metode}*\n\nSudah benar? Balas *ya* untuk memesan, atau *batal*.",
+    "category": "speed"
+  },
+  "sodb_confirm_invalid": {
+    "name": "SOD: Konfirmasi Tidak Dikenali",
+    "template": "Balas *ya* untuk memesan, atau *batal* untuk membatalkan ya Kak 🙏",
+    "category": "speed"
+  },
+  "sodb_cancelled": {
+    "name": "SOD: Pesanan Dibatalkan",
+    "template": "Baik Kak, pesanan dibatalkan 🙏",
+    "category": "speed"
+  },
+  "sodb_create_failed": {
+    "name": "SOD: Gagal Mencatat Pesanan",
+    "template": "Maaf Kak, pesanan gagal dicatat. Silakan coba lagi atau hubungi Admin ya 🙏",
+    "category": "speed"
+  },
+  "sodb_success": {
+    "name": "SOD: Pesanan Diterima",
+    "template": "✅ *Pesanan diterima!*\n\nPaket: *${paket}*\nDurasi: *${durasi}*\nBiaya: *${harga}*\n\nPesanan Anda menunggu konfirmasi Admin.",
+    "category": "speed"
+  },
+  "sodb_pay_transfer": {
+    "name": "SOD: Instruksi Transfer",
+    "template": "\n\n🏦 *Transfer ke:*\n${rekening}\n\nNominal: *${nominal}*\nSetelah transfer, kirim foto buktinya ke chat ini ya 🙏",
+    "category": "speed"
+  },
+  "sodb_pay_transfer_no_account": {
+    "name": "SOD: Rekening Belum Diatur",
+    "template": "\n\nRekening pembayaran belum diatur. Silakan hubungi Admin untuk cara pembayarannya ya 🙏",
+    "category": "speed"
+  },
+  "sodb_pay_cash": {
+    "name": "SOD: Instruksi Bayar Tunai",
+    "template": "\n\n💵 Pembayaran tunai — silakan bayar ke petugas kami saat penagihan berikutnya.",
+    "category": "speed"
+  },
+  "sodb_pay_double_billing": {
+    "name": "SOD: Instruksi Tagihan Ganda",
+    "template": "\n\n🧾 Biaya akan ditambahkan ke tagihan bulan depan.",
+    "category": "speed"
+  },
+  "sodb_admin_new_request": {
+    "name": "SOD: Pesanan Baru - Notifikasi Admin",
+    "template": "⚡ *Pesanan Speed on Demand baru*\n\n${nama} (${nomor})\n${paket_sekarang} → *${paket}*\nDurasi: ${durasi}\nBiaya: ${harga}\nBayar: ${metode}\n\nKode: ${kode}",
+    "category": "speed"
+  },
+  "sodb_start_error": {
+    "name": "SOD: Gagal Menyiapkan",
+    "template": "Maaf Kak, ada kendala saat menyiapkan Speed on Demand. Coba lagi sebentar lagi ya 🙏",
+    "category": "speed"
+  },
+  "sodb_state_error": {
+    "name": "SOD: Kendala Di Tengah Alur",
+    "template": "Maaf Kak, ada kendala. Pesanan dibatalkan — silakan coba lagi ya 🙏",
+    "category": "speed"
   }
 }

@@ -3,7 +3,7 @@
  * Purpose: Menangani state konfirmasi miscellaneous seperti cancel tiket, reboot, power, dan pilihan paket.
  * Caller: `conversation-state-handler.js`.
  * Deps: `conversation-handler`, `ticket-workflow`, `lib/wifi`, dan `lib/template-service`.
- * MainFuncs: `handleConfirmCancelTicket`, `handleConfirmReboot`, `handleSelectSodChoice`, `handleConfirmSodChoice`, `handleAskPackageChoice`, `handleConfirmPackageChoice`.
+ * MainFuncs: `handleConfirmCancelTicket`, `handleConfirmReboot`, `handleAwaitingComplaint`, `handleAskPackageChoice`, `handleConfirmPackageChoice`.
  * SideEffects: Mengirim reply berbasis responseTemplates, memanggil operasi tiket/WiFi, dan membersihkan state.
  */
 
@@ -11,6 +11,7 @@ const { deleteUserState } = require("../conversation-handler");
 const { cancelTicket } = require("../../../lib/ticket-workflow");
 const { rebootRouter } = require("../../../lib/wifi");
 const { renderCategoryTemplate } = require("../../../lib/template-service");
+const { isAffirmative, isCleanConsent, isCleanRebootConsent, isDecline } = require("../../../lib/affirmative-parser");
 
 function renderResponseTemplate(key, data = {}) {
     const result = renderCategoryTemplate("responseTemplates", key, data);
@@ -18,7 +19,9 @@ function renderResponseTemplate(key, data = {}) {
 }
 
 async function handleConfirmCancelTicket(userState, userReply, reply, sender, global, pushname) {
-    if (["ya", "ok", "lanjut", "iya", "y"].includes(userReply)) {
+    // Membatalkan tiket menutup laporan pelanggan, jadi pakai konsen KETAT — "ya" tak boleh
+    // menumpang kalimat lain. `onTopic` memuat kata alur ini supaya "ya batalkan tiketnya" lolos.
+    if (isCleanConsent(userReply, { onTopic: ["tiket", "lapor", "laporan", "keluhan"] })) {
         const { ticketIdToCancel } = userState;
         try {
             const { ticket } = cancelTicket({
@@ -74,7 +77,6 @@ async function handleConfirmReboot(userState, userReply, reply, sender, _global)
     // isAffirmative yang terlalu longgar (token "bisa/tolong/siap/mau") sehingga pesan lain
     // ("bisa cek tagihan?", "siap kak makasih") ikut memicu reboot. isCleanRebootConsent menuntut
     // SELURUH kata = afirmasi/sapaan/aksi-reboot & tanpa tanda tanya.
-    const { isAffirmative, isCleanRebootConsent, isDecline } = require("../../../lib/affirmative-parser");
     if (isCleanRebootConsent(userReply)) {
         const { targetUser } = userState;
         reply(renderResponseTemplate("other_reboot_processing", { customerName: targetUser.name }));
@@ -151,44 +153,12 @@ async function handleAwaitingComplaint(userState, chats, reply, sender, pushname
     }));
 }
 
-async function handleSelectSodChoice(userState, userReply, reply, convertRupiah) {
-    const chosenIndex = parseInt(userReply, 10);
-    const selectedOption = userState.options.find((opt) => opt.index === chosenIndex);
-
-    if (!selectedOption) {
-        return reply(renderResponseTemplate("other_choice_invalid", { maxChoice: userState.options.length }));
-    }
-
-    userState.selectedOption = selectedOption;
-    userState.step = "CONFIRM_SOD_CHOICE";
-
-    const durationText = selectedOption.duration === 1 ? "1 Hari" : `${selectedOption.duration} Hari`;
-
-    return reply(renderResponseTemplate("other_sod_confirm", {
-        packageName: selectedOption.package.name,
-        durationText,
-        priceText: convertRupiah.convert(selectedOption.price)
-    }));
-}
-
-async function handleConfirmSodChoice(userState, userReply, reply, sender, _global) {
-    if (["ya", "ok", "lanjut", "iya", "y"].includes(userReply)) {
-        const { selectedOption } = userState;
-        const paymentCode = `SOD${Date.now().toString().slice(-6)}`;
-
-        reply(renderResponseTemplate("other_sod_payment_success", {
-            packageName: selectedOption.package.name,
-            durationDays: selectedOption.duration,
-            priceText: selectedOption.price,
-            paymentCode
-        }));
-        deleteUserState(sender);
-        return;
-    }
-
-    reply(renderResponseTemplate("other_sod_cancelled"));
-    deleteUserState(sender);
-}
+// CATATAN: `handleSelectSodChoice` / `handleConfirmSodChoice` (step SELECT_SOD_CHOICE &
+// CONFIRM_SOD_CHOICE) DIHAPUS. Speed on Demand kini dimiliki `state-domains/speed-boost.state.js`
+// (step `SODB_*`). Jalur lama memakai harga ad-hoc dan mengirim template
+// `other_sod_payment_success` yang berisi REKENING DUMMY hardcode (BCA 1234567890 dst.) —
+// pelanggan diarahkan transfer ke rekening yang tidak ada. Jalur baru mengambil harga dari
+// matriks dan rekening dari `config.bankAccounts`.
 
 async function handleAskPackageChoice(userState, userReply, reply, convertRupiah) {
     const chosenIndex = parseInt(userReply, 10);
@@ -211,7 +181,8 @@ async function handleAskPackageChoice(userState, userReply, reply, convertRupiah
 }
 
 async function handleConfirmPackageChoice(userState, userReply, reply, sender, _global) {
-    if (["ya", "ok", "lanjut", "iya", "y"].includes(userReply)) {
+    // Ganti paket mengubah tagihan bulanan, jadi konsen KETAT seperti alur uang lain.
+    if (isCleanConsent(userReply, { onTopic: ["paket", "upgrade", "downgrade"] })) {
         const { user, selectedPackage } = userState;
 
         reply(renderResponseTemplate("other_package_success", {
@@ -231,8 +202,6 @@ module.exports = {
     handleConfirmCancelTicket,
     handleConfirmReboot,
     handleAwaitingComplaint,
-    handleSelectSodChoice,
-    handleConfirmSodChoice,
     handleAskPackageChoice,
     handleConfirmPackageChoice
 };
