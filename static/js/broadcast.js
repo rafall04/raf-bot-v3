@@ -365,6 +365,24 @@
         if (clearBtn) clearBtn.addEventListener("click", onManualClear);
 
         await Promise.all([fetchUsers(), fetchTemplates()]);
+
+        // Datang dari peta jaringan: `/broadcast?mode=odp&target=<id>` langsung memilihkan sasaran.
+        // Sengaja BERHENTI di layar tulis pesan — mengirim langsung dari satu klik di peta terlalu
+        // mudah meleset, dan pesan ke pelanggan tak bisa ditarik kembali.
+        const q = new URLSearchParams(window.location.search);
+        const modeAwal = q.get("mode");
+        const targetAwal = q.get("target");
+        if (modeAwal && Array.from(getModeEl().options).some((o) => o.value === modeAwal)) {
+            getModeEl().value = modeAwal;
+            onModeChange();
+            if (targetAwal) {
+                const filterEl = getFilterEl();
+                if (filterEl && Array.from(filterEl.options).some((o) => o.value === targetAwal)) {
+                    filterEl.value = targetAwal;
+                }
+            }
+        }
+
         loadHistory();
     });
 })();

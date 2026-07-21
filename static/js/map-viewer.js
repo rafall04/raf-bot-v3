@@ -17,7 +17,12 @@
         // Global config untuk routing
         let globalConfig = null;
 
-        let allOdcData = [];
+        // SATU sumber kebenaran penyaringan. Sebelumnya kotak centang legenda menambah/menghapus marker
+// LANGSUNG tanpa mencatat apa pun, sehingga pilihannya lenyap diam-diam tiap auto-refresh 30 detik
+// atau tiap tombol Quick Filter ditekan — kotak tetap tercentang, peta berkata lain.
+const filterState = window.MapFilterCore.buatFilterState();
+
+let allOdcData = [];
         let allNetworkAssetsData = [];
         let allCustomerData = [];
         let activePppoeUsersMap = new Map();
@@ -105,7 +110,15 @@ const createBaseIcon = (faClassName, colorClass, customAnchor = null) => {
     });
 };
         
-const createAssetIcon = (asset) => {
+/**
+ * Ikon aset. Untuk ODP, `info` (opsional) membuat boks itu MELAPORKAN DIRINYA tanpa perlu diklik:
+ *   - lencana hunian `3/8` (kuning bila hampir penuh, merah bila penuh) → saat pasang baru, ODP yang
+ *     masih bersisa langsung kelihatan tanpa membuka satu per satu.
+ *   - cincin merah berdenyut bila MAYORITAS penghuninya offline → itu jawaban atas pertanyaan
+ *     pertama tiap laporan gangguan: "ODP-nya, atau cuma rumah orang itu?".
+ * Tanpa `info`, perilakunya sama persis seperti sebelumnya.
+ */
+const createAssetIcon = (asset, info = null) => {
     let iconClass, colorClass;
     if (asset.type === 'ODC') {
         iconClass = 'fa-server';
@@ -114,7 +127,34 @@ const createAssetIcon = (asset) => {
         iconClass = 'fa-network-wired';
         colorClass = 'icon-odp';
     }
-    return createBaseIcon(iconClass, colorClass);
+    if (!info) return createBaseIcon(iconClass, colorClass);
+
+    const hunian = info.hunian;
+    const kelasHunian = hunian.penuh ? 'odp-badge-penuh' : (hunian.hampirPenuh ? 'odp-badge-hampir' : '');
+    const badge = hunian.kapasitas || hunian.terpakai
+        ? `<span class="odp-badge ${kelasHunian}">${hunian.teks}</span>`
+        : '';
+    const curiga = info.sehat && info.sehat.curiga ? ' odp-curiga' : '';
+
+    return L.divIcon({
+        html: `<div class="custom-div-icon ${colorClass}${curiga}"><i class="fas ${iconClass}"></i>${badge}</div>`,
+        className: 'leaflet-div-icon',
+        iconSize: [ICON_WIDTH, ICON_HEIGHT],
+        iconAnchor: [ICON_WIDTH / 2, ICON_HEIGHT / 2],
+        popupAnchor: [0, -ICON_HEIGHT / 2]
+    });
+};
+
+/** Status online tiap pelanggan sebuah ODP — dipakai ikon MAUPUN popup, jadi hitungannya satu. */
+const kesehatanOdp = (odpId, customers, activeMap, pppoeGagal) => {
+    const anggota = (customers || []).filter((c) => String(c.connected_odp_id) === String(odpId));
+    const daftar = anggota.map((c) => {
+        let status = 'unknown';
+        if (c.pppoe_username) status = activeMap && activeMap.has(c.pppoe_username) ? 'online' : 'offline';
+        if (pppoeGagal && c.pppoe_username) status = 'unknown'; // daftar sesi gagal dibaca = BUTA, bukan mati
+        return { id: c.id, name: c.name, status };
+    });
+    return { anggota, daftar, sehat: window.MapFilterCore.hitungKesehatanOdp(daftar) };
 };
 
 const myLocationIcon = createBaseIcon('fa-street-view', 'icon-customer-unknown'); 
@@ -951,147 +991,83 @@ function redrawMarkers(markerType) {
 
         function applyFilters() {
             if (!map) return;
-            console.log("[ApplyFilters] Menerapkan filter. ODCs selected:", selectedOdcIds.size, "ODPs:", selectedOdpIds.size, "Customers:", selectedCustomerIds.size);
+            const Core = window.MapFilterCore;
 
             networkMarkersLayer.clearLayers();
             customerMarkersLayer.clearLayers();
             linesLayer.clearLayers();
 
+            // Dikumpulkan supaya GARIS memakai kebenaran yang sama dengan MARKER — dulu garis diuji
+            // dengan daftar pilihan saja, jadi bisa tergambar menuju ODP yang sedang disembunyikan.
+            const odcTampil = new Set();
+            const odpTampil = new Set();
+            const pelangganTampil = new Set();
+
             odcMarkers.forEach(marker => {
-                if (selectedOdcIds.has(String(marker.assetData.id))) {
-                    networkMarkersLayer.addLayer(marker);
-                    // Also ensure tooltip visibility is correctly applied
-                    if (marker.getTooltip()) {
-                        marker.getTooltip().setOpacity(labelVisibility.odc ? 1 : 0);
-                    }
-                }
+                if (!Core.bolehTampilAset(filterState, marker.assetData, selectedOdcIds)) return;
+                odcTampil.add(String(marker.assetData.id));
+                networkMarkersLayer.addLayer(marker);
+                if (marker.getTooltip()) marker.getTooltip().setOpacity(labelVisibility.odc ? 1 : 0);
             });
 
             odpMarkers.forEach(marker => {
-                if (selectedOdpIds.has(String(marker.assetData.id))) {
-                    networkMarkersLayer.addLayer(marker);
-                     // Also ensure tooltip visibility is correctly applied
-                    if (marker.getTooltip()) {
-                        marker.getTooltip().setOpacity(labelVisibility.odp ? 1 : 0);
-                    }
-                }
+                if (!Core.bolehTampilAset(filterState, marker.assetData, selectedOdpIds)) return;
+                odpTampil.add(String(marker.assetData.id));
+                networkMarkersLayer.addLayer(marker);
+                if (marker.getTooltip()) marker.getTooltip().setOpacity(labelVisibility.odp ? 1 : 0);
             });
 
             customerMarkers.forEach(marker => {
-                if (selectedCustomerIds.has(String(marker.customerData.id))) {
-                    customerMarkersLayer.addLayer(marker);
-                     // Also ensure tooltip visibility is correctly applied
-                    if (marker.getTooltip()) {
-                        marker.getTooltip().setOpacity(labelVisibility.customer ? 1 : 0);
-                    }
-                }
+                const id = String(marker.customerData.id);
+                if (!Core.bolehTampilPelanggan(filterState, marker.customerOnlineStatus, id, selectedCustomerIds)) return;
+                pelangganTampil.add(id);
+                customerMarkersLayer.addLayer(marker);
+                if (marker.getTooltip()) marker.getTooltip().setOpacity(labelVisibility.customer ? 1 : 0);
             });
 
             odpToOdcLines.forEach(line => {
-                if (line.connectedEntities &&
-                    selectedOdcIds.has(String(line.connectedEntities.odcId)) &&
-                    selectedOdpIds.has(String(line.connectedEntities.odpId))) {
-                    linesLayer.addLayer(line);
-                }
+                const e = line.connectedEntities;
+                if (e && odcTampil.has(String(e.odcId)) && odpTampil.has(String(e.odpId))) linesLayer.addLayer(line);
             });
 
             customerToOdpLines.forEach(line => {
-                 if (line.connectedEntities &&
-                    selectedCustomerIds.has(String(line.connectedEntities.customerId)) &&
-                    selectedOdpIds.has(String(line.connectedEntities.odpId))) {
-                    linesLayer.addLayer(line);
-                }
+                const e = line.connectedEntities;
+                if (e && pelangganTampil.has(String(e.customerId)) && odpTampil.has(String(e.odpId))) linesLayer.addLayer(line);
             });
-            console.log("[ApplyFilters] Filter diterapkan.");
+
             updateLegendCounters();
+            sinkronkanKontrolFilter();
         }
-        
+
+        /** Legenda & tombol quick filter SELALU menggambarkan state, bukan sebaliknya. */
+        function sinkronkanKontrolFilter() {
+            window.MapFilterCore.KATEGORI.forEach((cat) => {
+                const box = document.getElementById(`legend-toggle-${cat}`);
+                if (box) box.checked = !!filterState.kategori[cat];
+            });
+            currentQuickFilter = filterState.quick;
+            updateFilterButtons();
+        }
+
         // Apply Quick Filter
         function applyQuickFilter(filter) {
             if (!map) return;
-            
-            currentQuickFilter = filter;
-            
-            // Update button active state
-            updateFilterButtons();
-            
-            // Apply filter logic
-            switch(filter) {
-                case 'all':
-                    // Show all
-                    selectedOdcIds.clear();
-                    selectedOdpIds.clear();
-                    selectedCustomerIds.clear();
-                    allNetworkAssetsData.forEach(asset => {
-                        if (asset.type === 'ODC') selectedOdcIds.add(String(asset.id));
-                        else if (asset.type === 'ODP') selectedOdpIds.add(String(asset.id));
-                    });
-                    allCustomerData.forEach(customer => {
-                        selectedCustomerIds.add(String(customer.id));
-                    });
-                    break;
-                    
-                case 'online':
-                    // Show only online customers
-                    selectedOdcIds.clear();
-                    selectedOdpIds.clear();
-                    selectedCustomerIds.clear();
-                    customerMarkers.forEach(marker => {
-                        if (marker.customerOnlineStatus === 'online') {
-                            selectedCustomerIds.add(String(marker.customerData.id));
-                        }
-                    });
-                    break;
-                    
-                case 'offline':
-                    // Show only offline customers
-                    selectedOdcIds.clear();
-                    selectedOdpIds.clear();
-                    selectedCustomerIds.clear();
-                    customerMarkers.forEach(marker => {
-                        if (marker.customerOnlineStatus === 'offline') {
-                            selectedCustomerIds.add(String(marker.customerData.id));
-                        }
-                    });
-                    break;
-                    
-                case 'assets':
-                    // Show only network assets (ODC & ODP)
-                    selectedOdcIds.clear();
-                    selectedOdpIds.clear();
-                    selectedCustomerIds.clear();
-                    allNetworkAssetsData.forEach(asset => {
-                        if (asset.type === 'ODC') selectedOdcIds.add(String(asset.id));
-                        else if (asset.type === 'ODP') selectedOdpIds.add(String(asset.id));
-                    });
-                    break;
-                    
-                case 'customers':
-                    // Show only customers
-                    selectedOdcIds.clear();
-                    selectedOdpIds.clear();
-                    selectedCustomerIds.clear();
-                    allCustomerData.forEach(customer => {
-                        selectedCustomerIds.add(String(customer.id));
-                    });
-                    break;
-            }
-            
-            // Apply filters
+
+            // Quick Filter kini PRASETEL KATEGORI, bukan penulis daftar pilihan. Dampak terpenting:
+            // "Online"/"Offline" tak lagi menghapus ODC/ODP dari peta — dulu memilih Offline membuat
+            // boks induknya ikut lenyap, padahal justru pola "3 dari 4 di ODP ini mati" yang dicari.
+            window.MapFilterCore.terapkanQuickFilter(filterState, filter);
+
             applyFilters();
             updateConnectionMonitoring();
-            
-            // Show message
+
             const filterLabels = {
-                'all': 'Semua',
-                'online': 'Online',
-                'offline': 'Offline',
-                'assets': 'Aset Jaringan',
-                'customers': 'Pelanggan'
+                'all': 'Semua', 'online': 'Online', 'offline': 'Offline',
+                'assets': 'Aset Jaringan', 'customers': 'Pelanggan', 'custom': 'Kustom'
             };
-            displayGlobalMapMessage(`Filter: ${filterLabels[filter]}`, 'info', 2000);
+            displayGlobalMapMessage(`Filter: ${filterLabels[filterState.quick] || filterState.quick}`, 'info', 2000);
         }
-        
+
         function updateFilterButtons() {
             $('.quick-filter-btn').removeClass('active');
             $(`.quick-filter-btn[data-filter="${currentQuickFilter}"]`).addClass('active');
@@ -1210,53 +1186,13 @@ function redrawMarkers(markerType) {
         
         function toggleLayerVisibility(category, visible) {
             if (!map) return;
-            
-            switch(category) {
-                case 'odc':
-                    odcMarkers.forEach(marker => {
-                        if (visible) {
-                            if (selectedOdcIds.has(String(marker.assetData.id))) {
-                                networkMarkersLayer.addLayer(marker);
-                            }
-                        } else {
-                            networkMarkersLayer.removeLayer(marker);
-                        }
-                    });
-                    break;
-                case 'odp':
-                    odpMarkers.forEach(marker => {
-                        if (visible) {
-                            if (selectedOdpIds.has(String(marker.assetData.id))) {
-                                networkMarkersLayer.addLayer(marker);
-                            }
-                        } else {
-                            networkMarkersLayer.removeLayer(marker);
-                        }
-                    });
-                    break;
-                case 'online':
-                case 'offline':
-                case 'unknown':
-                    customerMarkers.forEach(marker => {
-                        const status = marker.customerOnlineStatus || 'unknown';
-                        const shouldShow = (category === 'online' && status === 'online') ||
-                                         (category === 'offline' && status === 'offline') ||
-                                         (category === 'unknown' && status === 'unknown');
-                        
-                        if (shouldShow) {
-                            if (visible) {
-                                if (selectedCustomerIds.has(String(marker.customerData.id))) {
-                                    customerMarkersLayer.addLayer(marker);
-                                }
-                            } else {
-                                customerMarkersLayer.removeLayer(marker);
-                            }
-                        }
-                    });
-                    break;
-            }
+            // DULU: menambah/menghapus marker langsung dari layer tanpa mencatat apa pun, sehingga
+            // pilihan ini hilang senyap pada refresh berikutnya. SEKARANG: menulis ke state bersama
+            // lalu peta digambar ulang — hasilnya bertahan melewati auto-refresh & quick filter.
+            window.MapFilterCore.setelKategori(filterState, category, visible);
+            applyFilters();
         }
-        
+
         function updateLegendCounters() {
             legendCounters.odc = odcMarkers.length;
             legendCounters.odp = odpMarkers.length;
@@ -1909,7 +1845,13 @@ function redrawMarkers(markerType) {
                         let plotLng = parseFloat(asset.longitude);
                         if (isNaN(plotLat) || isNaN(plotLng)) { console.warn("Koordinat tidak valid:", asset); return; }
 
-                        let iconToUse = createAssetIcon(asset);
+                        const infoOdp = asset.type === 'ODP'
+                            ? (() => {
+                                const k = kesehatanOdp(asset.id, allCustomerData, activePppoeUsersMap, initialPppoeLoadFailed);
+                                return { ...k, hunian: window.MapFilterCore.ringkasHunian(k.anggota.length, asset.capacity_ports) };
+                            })()
+                            : null;
+                        let iconToUse = createAssetIcon(asset, infoOdp);
 
                         if (asset.type === 'ODP' && asset.parent_odc_id) {
                             const parentOdc = allOdcData.find(o => o.id == asset.parent_odc_id);
@@ -1939,6 +1881,16 @@ function redrawMarkers(markerType) {
                                          (asset.address ? `<p>Alamat: ${asset.address}</p>` : '') +
                                          `<p>Kapasitas: ${asset.capacity_ports || 'N/A'} Port / Status: ${portsUsedDisplay}</p>`;
 
+                        // VONIS DULUAN, daftar belakangan. Yang dicari orang saat membuka popup ODP
+                        // bukan daftar nama — melainkan "ini ODP-nya atau bukan".
+                        if (infoOdp) {
+                            const s = infoOdp.sehat;
+                            const kalimat = window.MapFilterCore.ringkasKesehatan(s);
+                            const warna = s.curiga ? 'danger' : (s.offline ? 'warning' : 'success');
+                            popupContent += `<div class="alert alert-${warna} py-1 px-2 mb-2" style="font-size:0.85em;">`
+                                + `<i class="fas ${s.curiga ? 'fa-exclamation-triangle' : 'fa-heartbeat'}"></i> ${kalimat}</div>`;
+                        }
+
                         const originalLocKey = `${parseFloat(asset.latitude).toFixed(5)},${parseFloat(asset.longitude).toFixed(5)}`;
                         const coLocatedAssets = (assetsByLocation.get(originalLocKey) || []).filter(a => a.id !== asset.id);
                         if (coLocatedAssets.length > 0) {
@@ -1967,8 +1919,27 @@ function redrawMarkers(markerType) {
                                 if (parent && parent.latitude != null && parent.longitude != null) {
                                     const dist = haversineDistance({ latitude: parseFloat(asset.latitude), longitude: parseFloat(asset.longitude) }, { latitude: parseFloat(parent.latitude), longitude: parseFloat(parent.longitude) });
                                     if (!isNaN(dist)) popupContent += `<p>Jarak ke ODC Induk: ${dist.toFixed(0)} meter</p>`;
+
+                                    // Panjang JALUR (kalau sudah direkam) — inilah perkiraan kebutuhan
+                                    // kabel yang sebenarnya; jarak lurus di atas selalu lebih pendek.
+                                    const jalur = manualRouteCache ? manualRouteCache.get(manualRouteKey('odc-odp', parent.id, asset.id)) : null;
+                                    if (jalur && jalur.meters) {
+                                        popupContent += `<p><i class="fas fa-route text-primary"></i> Jalur kabel terekam: <strong>${jalur.meters} m</strong> (${jalur.points.length} titik)</p>`;
+                                    } else {
+                                        popupContent += `<p class="text-muted small"><i class="fas fa-route"></i> Jalur kabel belum direkam — WhatsApp: <code>#JALUR ${asset.name || ''}</code></p>`;
+                                    }
                                 }
                             }
+                            // Dari melihat langsung ke MENGABARI: broadcast mode `odp` sudah lama ada di
+                            // service, tapi tak ada pintunya dari peta — padahal urutan alaminya persis
+                            // begini (lihat ODP merah → kabari penghuninya). Berhenti di layar tulis
+                            // pesan, tidak mengirim dari peta.
+                            if (infoOdp && infoOdp.anggota.length) {
+                                popupContent += `<a href="/broadcast?mode=odp&target=${encodeURIComponent(asset.id)}" `
+                                    + `class="btn btn-sm btn-outline-primary btn-block mt-1" style="font-size:0.8em;">`
+                                    + `<i class="fas fa-bullhorn"></i> Beri tahu ${infoOdp.anggota.length} pelanggan ODP ini</a>`;
+                            }
+
                             const connectedCustomers = allCustomerData.filter(cust => String(cust.connected_odp_id) === String(asset.id));
                             if (connectedCustomers.length > 0) {
                                 popupContent += `<hr class="my-1"><p class="mb-1"><strong><i class="fas fa-users"></i> Pelanggan Terhubung (${connectedCustomers.length}):</strong></p><ul class="list-unstyled ml-3 mb-1" style="font-size:0.85em;">`;
@@ -3511,7 +3482,8 @@ function redrawMarkers(markerType) {
                 }
                 const data = await response.json();
                 const rows = (data && data.data && Array.isArray(data.data.routes)) ? data.data.routes : [];
-                manualRouteCache = new Map(rows.map(r => [r.key, r.points]));
+                // Simpan METER juga: panjang jalur = perkiraan kebutuhan kabel, dipakai popup ODP.
+                manualRouteCache = new Map(rows.map(r => [r.key, { points: r.points, meters: r.meters || 0 }]));
                 console.log(`[WAYPOINTS] ${manualRouteCache.size} jalur manual dimuat.`);
             } catch (error) {
                 console.warn('[WAYPOINTS] Gagal memuat jalur manual:', error);
@@ -3531,8 +3503,9 @@ function redrawMarkers(markerType) {
             const straight = [[start.lat, start.lng], [end.lat, end.lng]];
 
             const cached = manualRouteCache ? manualRouteCache.get(manualRouteKey(connectionType, sourceId, targetId)) : null;
-            if (Array.isArray(cached) && cached.length >= 2) {
-                return { coordinates: cached, source: 'manual' };
+            const titikManual = cached && Array.isArray(cached.points) ? cached.points : null;
+            if (titikManual && titikManual.length >= 2) {
+                return { coordinates: titikManual, source: 'manual' };
             }
 
             if (options.allowRouting === false) return { coordinates: straight, source: 'straight' };

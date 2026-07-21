@@ -570,6 +570,7 @@ require_once __DIR__ . '/_asset.php';
     <!-- Map Routing Helper -->
     <script src="/js/map-routing-helper.js?v=<?php echo time(); ?>"></script>
 
+    <script src="/js/map-filter-core.js?v=<?php echo time(); ?>"></script>
     <script src="/js/map-viewer.js?v=<?php echo time(); ?>"></script>
 </body>
 </html>

@@ -46,6 +46,34 @@
         });
         const odcIcon = createFaIcon('fa-server', 'icon-odc');
         const odpIcon = createFaIcon('fa-network-wired', 'icon-odp');
+
+        /**
+         * Ikon ODP yang MELAPORKAN DIRI: lencana hunian (3/8) + cincin merah bila mayoritas
+         * penghuninya offline. Teknisi di lapangan adalah orang yang paling sering bertanya
+         * "ini ODP-nya atau rumahnya?" — jawabannya sekarang terlihat sebelum marker diklik.
+         */
+        const buatIkonOdp = (info) => {
+            const h = info.hunian;
+            const kelas = h.penuh ? 'odp-badge-penuh' : (h.hampirPenuh ? 'odp-badge-hampir' : '');
+            const badge = (h.kapasitas || h.terpakai) ? `<span class="odp-badge ${kelas}">${h.teks}</span>` : '';
+            const curiga = info.sehat && info.sehat.curiga ? ' odp-curiga' : '';
+            return L.divIcon({
+                html: `<div class="custom-div-icon icon-odp${curiga}"><i class="fas fa-network-wired"></i>${badge}</div>`,
+                className: 'leaflet-div-icon', iconSize: [28, 28], iconAnchor: [14, 28], popupAnchor: [0, -28]
+            });
+        };
+
+        /** Hitungan status penghuni satu ODP — dipakai ikon MAUPUN popup supaya angkanya satu sumber. */
+        const kesehatanOdpTeknisi = (odpId) => {
+            const anggota = allCustomerData.filter((c) => String(c.connected_odp_id) === String(odpId));
+            const daftar = anggota.map((c) => {
+                let status = 'unknown';
+                if (c.pppoe_username) status = activePppoeUsersMap.has(c.pppoe_username) ? 'online' : 'offline';
+                if (initialPppoeLoadFailed && c.pppoe_username) status = 'unknown';
+                return { id: c.id, status };
+            });
+            return { anggota, sehat: window.MapFilterCore.hitungKesehatanOdp(daftar) };
+        };
         const myLocationIconTechnicianPage = createFaIcon('fa-street-view', 'icon-my-location');
         const createCustomerStatusIcon = (status) => {
             let colorClass = 'icon-customer-unknown';
@@ -455,7 +483,13 @@
                 let plotLng = parseFloat(asset.longitude);
                 if (isNaN(plotLat) || isNaN(plotLng)) { console.warn("Koordinat aset tidak valid:", asset); return; }
 
-                let iconToUse = asset.type === 'ODC' ? odcIcon : odpIcon;
+                const infoOdpTek = asset.type === 'ODP'
+                    ? (() => {
+                        const k = kesehatanOdpTeknisi(asset.id);
+                        return { ...k, hunian: window.MapFilterCore.ringkasHunian(k.anggota.length, asset.capacity_ports) };
+                    })()
+                    : null;
+                let iconToUse = asset.type === 'ODC' ? odcIcon : buatIkonOdp(infoOdpTek);
 
                 if (asset.type === 'ODP' && asset.parent_odc_id) {
                     const parentOdc = allOdcDataTechnicianPage.find(o => o.id == asset.parent_odc_id);
@@ -483,6 +517,14 @@
                                  (asset.address ? `<p>Alamat: ${asset.address}</p>` : '') +
                                  `<p>Kapasitas: ${asset.capacity_ports || 'N/A'} Port</p>` +
                                  `<p>Status Port: ${portsUsedDisplay}</p>`;
+
+                if (infoOdpTek) {
+                    const sh = infoOdpTek.sehat;
+                    const warna = sh.curiga ? 'danger' : (sh.offline ? 'warning' : 'success');
+                    popupContent += `<div class="alert alert-${warna} py-1 px-2 mb-2" style="font-size:0.85em;">`
+                        + `<i class="fas ${sh.curiga ? 'fa-exclamation-triangle' : 'fa-heartbeat'}"></i> `
+                        + `${window.MapFilterCore.ringkasKesehatan(sh)}</div>`;
+                }
 
                 const originalLocKey = `${parseFloat(asset.latitude).toFixed(5)},${parseFloat(asset.longitude).toFixed(5)}`;
                 const coLocatedAssets = (assetsByLocation.get(originalLocKey) || []).filter(a => a.id !== asset.id);
