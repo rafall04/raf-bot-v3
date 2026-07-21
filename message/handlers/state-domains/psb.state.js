@@ -2,18 +2,23 @@
  * Header Doc
  * Purpose: State domain wizard PSB via DM teknisi (per-bot area) — bagian Fase 2 [[psb-simplification-plan]].
  *          Alur SLOT-FILLING: teknisi DM `#PSB` + foto KTP (data caption OPSIONAL) → bot kumpulkan
- *          data (Nama/Dusun/Paket/WiFi/Sandi/HP — boleh dicicil per pesan) + foto rumah + share lokasi
+ *          data (Nama/Dusun/RT-RW/Paket/WiFi/Sandi/HP — boleh dicicil per pesan) + foto rumah + share lokasi
  *          URUTAN BEBAS, tampilkan checklist & nagih yg kurang → begitu lengkap bot BACA modem (recency
  *          `_registered`) → tampilkan RINGKASAN data + username PPPoE rakitan + SN utk diverifikasi teknisi
  *          (YA/TIDAK/pilih-nomor) → HANYA setelah YA: buat pelanggan + secret PPPoE + push PPPoE+WiFi ke
  *          modem + welcome → ringkasan ke grup PSB. Konfirmasi = gate verifikasi sebelum sentuh apa pun.
  *          Username PPPoE dirakit bot dari Nama + Dusun jadi `<nama>-<dusun>@<realm>` (teknisi tak ketik
- *          format-nya), password pakai `config.defaultPPPoEPassword` (bukan acak).
+ *          format-nya), password pakai `config.defaultPPPoEPassword` (bukan acak). ALAMAT juga dirakit bot
+ *          (`Dsn. X RT 014 RW 002 Ds. Y Kec. Z`) — teknisi hanya mengetik RT/RW, karena cuma itu yang khas
+ *          per rumah; dusun dipilih dari daftar bernomor (`psbIntake.dusunList`) supaya ejaannya konsisten
+ *          (dusun ikut jadi bagian username PPPoE yang permanen). `dusun` disimpan sebagai KOLOM tersendiri.
  * Caller: `message/handlers/conversation-state-router.js` (owner "psb") + trigger `startPsbSession` dari
  *         `message/raf.js` (jalur DM teknisi).
  * Deps (via context/inject, patuh invariant [[raf-invariants]]): `reply` (delivery boundary), `downloadMedia`
  *        (`lib/whatsapp.adapter`), `setUserState/deleteUserState` (`conversation-handler`), `findRecentPsbCandidates`
- *        (`lib/psb-genieacs-service`), `fetchDeviceCapability` (`lib/wifi-bulk-reconcile` — SSID sadar-band:
+ *        (`lib/psb-genieacs-service`), `modemProvenance` (`lib/psb-modem-provenance` — label 🆕BARU /
+ *        ♻️BEKAS <pemilik lama> / ⛔TERPAKAI + GERBANG: modem yang masih melayani pelanggan lain TAK
+ *        boleh ditimpa), `fetchDeviceCapability` (`lib/wifi-bulk-reconcile` — SSID sadar-band:
  *        2.4G index 1 selalu, 5G index 5 hanya bila modem dual-band), `usersService` (`global.__apiUsersService`),
  *        `getConfig`, `packages`, `sendGroupSummary`. Require langsung: `./psb-caption-parser`, `fs`, `path`.
  * MainFuncs: `startPsbSession(context)`, `handlePsbConversationState(context)`.
@@ -26,12 +31,13 @@
 
 const fs = require("fs");
 const path = require("path");
-const { extractPsbFields, validatePsbData } = require("../psb-caption-parser");
+const { extractPsbFields, validatePsbData, composeAddress, titleCaseDusun, normalizeRtRw } = require("../psb-caption-parser");
 
 // Field data PSB yang dikumpulkan wizard (label utk checklist + urutan tampil).
 const PSB_DATA_FIELDS = [
     { key: "nama", label: "Nama" },
     { key: "dusun", label: "Dusun" },
+    { key: "rt_rw", label: "RT/RW" },
     { key: "paket", label: "Paket" },
     { key: "wifi_ssid", label: "WiFi" },
     { key: "wifi_password", label: "Sandi" },
@@ -50,6 +56,7 @@ const PSB_TEMPLATE = [
     "#PSB",
     "Nama: (nama pelanggan)",
     "Dusun: (lokasi PASANG, bukan alamat KTP)",
+    "RT/RW: (mis. 14/2)",
     "Paket: ",
     "WiFi: (nama wifi)",
     "Sandi: (min. 8 karakter)",
@@ -85,6 +92,8 @@ function psbTutorialText() {
         "*2) Lengkapi data* — URUTAN BEBAS, boleh dicicil. Ketik (sekaligus atau satu-satu):",
         PSB_TEMPLATE,
         "⚠️ *Dusun* = lokasi rumah DIPASANG, bukan alamat di KTP (bisa beda kota).",
+        "💡 *Dusun* bisa dipilih dengan balas *angka* dari daftar yang bot tampilkan.",
+        "💡 *RT/RW* cukup `14/2` — alamat lengkapnya bot yang merakit.",
         "💡 *HP boleh >1:* pisah pakai | (mis. 0812xxx|0813yyy). Nomor PERTAMA = utama.",
         "",
         "*3) Kirim foto rumah + share lokasi* (kapan saja, urutan bebas).",
@@ -95,11 +104,13 @@ function psbTutorialText() {
         "• SN cocok → balas *YA*",
         "• Beda → balas *TIDAK* (bot kasih daftar, balas *angka*)",
         "• Belum kebaca → nyalakan modem, balas *REFRESH*",
+        "• *Modem bekas/copotan* (tak muncul di daftar) → ketik `cari 8EBEB1` (4-6 digit SN) atau `cari wimpi` (nama pemilik lama)",
+        "ℹ️ Bot menandai tiap modem: 🆕 BARU · ♻️ BEKAS <nama> · ⛔ TERPAKAI (modem pelanggan lain — ditolak, jangan dipaksa)",
         "",
         "*5) Cek ringkasan → balas *YA**",
         "Bot buat pelanggan + set modem + kirim welcome. Tak ada yang ditulis sebelum kamu balas YA.",
         "",
-        "🤖 *Otomatis (tak usah ketik):* username PPPoE (Nama+Dusun), password, WiFi 2.4GHz (+5GHz bila dual-band).",
+        "🤖 *Otomatis (tak usah ketik):* username PPPoE (Nama+Dusun), password, alamat lengkap (Dusun+RT/RW+Desa+Kec), WiFi 2.4GHz (+5GHz bila dual-band).",
         "Batal kapan saja: ketik *BATAL*.",
         "",
         "▶️ *Mulai sekarang:* kirim *#psb* + foto KTP.",
@@ -120,6 +131,8 @@ function withPsbDeps(context) {
     return {
         ...context,
         findRecentPsbCandidates: context.findRecentPsbCandidates || require("../../../lib/psb-genieacs-service").findRecentPsbCandidates,
+        modemProvenance: context.modemProvenance || require("../../../lib/psb-modem-provenance"),
+        findPsbCandidatesByHint: context.findPsbCandidatesByHint || require("../../../lib/psb-genieacs-service").findPsbCandidatesByHint,
         fetchDeviceCapability: context.fetchDeviceCapability || require("../../../lib/wifi-bulk-reconcile").fetchDeviceCapability,
         scheduleService: context.scheduleService || require("../../../lib/psb-schedule-service"),
         usersService: context.usersService || global.__apiUsersService,
@@ -170,6 +183,40 @@ function buildPppoeUsername(nama, dusun, realm, existingUsers) {
     return candidate;
 }
 
+// Daftar dusun per area dari config (`psbIntake.dusunList`) — disajikan sebagai PILIHAN BERNOMOR.
+// Alasan: dusun ikut jadi bagian username PPPoE yang PERMANEN, jadi salah ketik di sini menetap
+// selamanya (`ngitik` vs `ngitk` = dua "dusun" berbeda saat dikelompokkan). Daftar kosong = teknisi
+// mengetik bebas (perilaku lama, tetap didukung).
+function dusunOptions(context) {
+    const cfg = (((context.getConfig && context.getConfig()) || global.config || {}).psbIntake) || {};
+    return Array.isArray(cfg.dusunList)
+        ? cfg.dusunList.map((d) => String(d || "").trim()).filter(Boolean)
+        : [];
+}
+
+function dusunPickerText(options) {
+    if (!options.length) return "";
+    return "   Pilih dusun (balas *angka*): " + options.map((d, i) => `${i + 1}.${d}`).join(" ");
+}
+
+// Alamat pelanggan: `alamat` bebas dari teknisi menang; selain itu DIRAKIT dari dusun + RT/RW +
+// desa/kecamatan area (config). Teknisi tak pernah mengetik alamat lengkap — hanya RT/RW yang
+// khas per rumah. RT/RW dinormalisasi ulang di sini agar alamat tetap benar walau `rt`/`rw`
+// pecahannya belum sempat tersimpan di state (mis. alur pre-fill jadwal papan).
+function buildCustomerAddress(context, data) {
+    const override = String(data.alamat || "").trim();
+    if (override) return override;
+
+    const cfg = (((context.getConfig && context.getConfig()) || global.config || {}).psbIntake) || {};
+    let rt = data.rt;
+    let rw = data.rw;
+    if ((!rt || !rw) && data.rt_rw) {
+        const parsed = normalizeRtRw(data.rt_rw);
+        if (parsed) { rt = parsed.rt; rw = parsed.rw; }
+    }
+    return composeAddress({ dusun: data.dusun, rt, rw, desa: cfg.desa, kecamatan: cfg.kecamatan });
+}
+
 function fieldMark(status) {
     if (status === "ok") return "✅";
     if (status === "short" || status === "unknown" || status === "invalid") return "⚠️";
@@ -178,10 +225,17 @@ function fieldMark(status) {
 
 // Checklist slot-filling: status tiap field data (dari validatePsbData) + foto rumah + lokasi.
 // Data boleh dikirim dicicil & urutan bebas; bot nagih yang masih ⬜/⚠️.
-const FIELD_HINT = { dusun: "(lokasi pasang, bukan KTP)", wifi_ssid: "(nama wifi)", wifi_password: "(min 8 huruf)", hp: "(nomor WA; >1 pisah |)" };
-function collectChecklistText(ctx, v) {
+const FIELD_HINT = {
+    dusun: "(lokasi pasang, bukan KTP)",
+    rt_rw: "(mis. 14/2)",
+    wifi_ssid: "(nama wifi)",
+    wifi_password: "(min 8 huruf)",
+    hp: "(nomor WA; >1 pisah |)"
+};
+function collectChecklistText(context, ctx, v) {
     const s = (v && v.status) || {};
-    const dataLines = PSB_DATA_FIELDS.map((f) => {
+    const options = dusunOptions(context);
+    const dataLines = PSB_DATA_FIELDS.flatMap((f) => {
         const st = s[f.key];
         const val = ctx.data[f.key];
         let tail = "";
@@ -193,14 +247,22 @@ function collectChecklistText(ctx, v) {
         } else if (FIELD_HINT[f.key]) {
             tail = ` ${FIELD_HINT[f.key]}`;
         }
-        return `${fieldMark(st)} ${f.label}${tail}`;
+        const line = `${fieldMark(st)} ${f.label}${tail}`;
+        // Daftar dusun hanya disodorkan saat dusun masih kosong — begitu terisi, jangan ramaikan layar.
+        if (f.key === "dusun" && !val && options.length) return [line, dusunPickerText(options)];
+        return [line];
     });
+
+    // Pratinjau alamat rakitan — teknisi bisa lihat hasilnya tanpa mengetik alamat sama sekali.
+    const alamat = buildCustomerAddress(context, ctx.data);
+
     return [
         `📋 *PSB* — lengkapi (urutan BEBAS):`,
         ...dataLines,
         `${ctx.ktpSaved ? "✅" : "⬜"} Foto KTP`,
         `${ctx.rumahSaved ? "✅" : "⬜"} Foto rumah`,
         `${ctx.lokasi ? "✅" : "⬜"} Share lokasi`,
+        ...(alamat ? [``, `🏠 Alamat (otomatis): ${alamat}`] : []),
         ``,
         `➡️ Kirim yang masih ⬜/⚠️. Data boleh dicicil (mis. \`Dusun: Krajan\`). *BATAL* untuk batal.`
     ].join("\n");
@@ -244,7 +306,7 @@ async function startLinkedSession(context, scheduleId) {
     if (rec.status === "batal") { await safeReply(reply, `ℹ️ Jadwal ${rec.ref} sudah *dibatalkan*.`, logger); return { started: false }; }
 
     const pkgs = packages || global.packages || [];
-    const seed = { nama: rec.name || "", dusun: rec.dusun || "", paket: rec.paket || "", wifi_ssid: "", wifi_password: "", hp: rec.phone_number || "" };
+    const seed = { nama: rec.name || "", dusun: rec.dusun || "", rt_rw: "", paket: rec.paket || "", wifi_ssid: "", wifi_password: "", hp: rec.phone_number || "" };
     const now = new Date(nowMs);
     const tempId = `PSBDM_${now.getTime()}_${Math.random().toString(36).slice(2, 8)}`;
     const dir = path.join(uploadsBaseDir, "psb", String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, "0"), tempId);
@@ -253,7 +315,7 @@ async function startLinkedSession(context, scheduleId) {
     const lokasi = (rec.latitude != null && rec.longitude != null) ? { lat: rec.latitude, lng: rec.longitude } : null;
 
     const ctx = { data: seed, staff, tempId, dir, ktpSaved, rumahSaved, lokasi, scheduleId: rec.id };
-    const v = validatePsbData(ctx.data, { packages: pkgs, requireDusun: true });
+    const v = validatePsbData(ctx.data, { packages: pkgs, requireDusun: true, requireRtRw: true });
     if (v.ok) ctx.data = v.data;
     setUserState(stateSender, { step: STEP_COLLECT, _scope: "teknisi", context: ctx });
 
@@ -262,7 +324,7 @@ async function startLinkedSession(context, scheduleId) {
         await safeReply(reply, `🔗 *${rec.ref}* — data & 3 bukti dari jadwal dipakai (nol ketik ulang).\n${filled}\n\nLanjut cari modem…`, logger);
         await detectAndAskConfirm(context, ctx);
     } else {
-        await safeReply(reply, `🔗 *${rec.ref}* — data & foto jadwal dipakai. Lengkapi sisanya (biasanya *WiFi* & *Sandi*):\n${filled}\n\n${collectChecklistText(ctx, v)}`, logger);
+        await safeReply(reply, `🔗 *${rec.ref}* — data & foto jadwal dipakai. Lengkapi sisanya (biasanya *WiFi* & *Sandi*):\n${filled}\n\n${collectChecklistText(context, ctx, v)}`, logger);
     }
     return { started: true, linked: rec.ref };
 }
@@ -286,7 +348,7 @@ async function startPsbSession(context) {
     // Slot-filling: sesi DIMULAI dari `#PSB` + foto KTP. Data (Nama/Dusun/dst) boleh KOSONG di caption
     // ini dan disusul kemudian — dikumpulkan urutan BEBAS di STEP_COLLECT. TIDAK ditolak walau minim.
     const pkgs = packages || global.packages || [];
-    const seed = { nama: "", dusun: "", paket: "", wifi_ssid: "", wifi_password: "", hp: "", ...extractPsbFields(caption) };
+    const seed = { nama: "", dusun: "", rt_rw: "", paket: "", wifi_ssid: "", wifi_password: "", hp: "", ...extractPsbFields(caption) };
 
     const now = new Date(nowMs);
     const tempId = `PSBDM_${now.getTime()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -307,8 +369,8 @@ async function startPsbSession(context) {
     const ctx = { data: seed, staff, tempId, dir, ktpSaved, rumahSaved: false, lokasi: null };
     setUserState(stateSender, { step: STEP_COLLECT, _scope: "teknisi", context: ctx });
 
-    const v = validatePsbData(ctx.data, { packages: pkgs, requireDusun: true });
-    await safeReply(reply, `✅ Foto KTP diterima.\n\n${collectChecklistText(ctx, v)}`, logger);
+    const v = validatePsbData(ctx.data, { packages: pkgs, requireDusun: true, requireRtRw: true });
+    await safeReply(reply, `✅ Foto KTP diterima.\n\n${collectChecklistText(context, ctx, v)}`, logger);
     return { started: true };
 }
 
@@ -337,6 +399,7 @@ function resolveNearestOdp(context, ctx) {
 function customerRecapLines(ctx) {
     const lines = [
         `👤 ${ctx.data.nama} · Dusun ${ctx.data.dusun}`,
+        ...(ctx.address ? [`🏠 ${ctx.address}`] : []),
         `🔑 PPPoE: \`${ctx.pppoeUsername}\``,
         `📦 ${ctx.data.paket} · 📶 ${ctx.data.wifi_ssid} / ${ctx.data.wifi_password}`,
         `📱 ${ctx.data.hp}`
@@ -352,6 +415,59 @@ function customerRecapLines(ctx) {
     return lines;
 }
 
+// Tempelkan hasil klasifikasi asal-usul ke tiap kandidat (`candidate.provenance`).
+// Sesi PPPoE aktif dibaca SEKALI untuk semua kandidat (satu panggilan router, bukan per modem).
+// NEVER-THROW: gagal klasifikasi tak boleh menjatuhkan wizard — kandidat tanpa `provenance`
+// diperlakukan sebagai "tak diketahui" oleh gerbang di bawah.
+async function annotateCandidates(context, candidates) {
+    const list = Array.isArray(candidates) ? candidates : [];
+    if (!list.length) return list;
+    const prov = context.modemProvenance;
+    if (!prov) return list;
+
+    try {
+        const provDeps = { logger: context.logger, oltRepository: context.oltRepository };
+        const activeUsernames = await prov.loadActivePppoeUsernames(provDeps);
+        const users = context.getUsers ? context.getUsers() : (global.users || []);
+        const out = [];
+        for (const c of list) {
+            let provenance = null;
+            try {
+                provenance = await prov.describeCandidate(c, { users, activeUsernames }, provDeps);
+            } catch (e) { context.logger?.error?.("[PSB_DM] klasifikasi modem gagal:", e.message); }
+            out.push({ ...c, provenance });
+        }
+        return out;
+    } catch (e) {
+        context.logger?.error?.("[PSB_DM] anotasi kandidat gagal:", e.message);
+        return list;
+    }
+}
+
+// Label asal-usul untuk ditempel di baris modem. Kosong bila klasifikasi tak tersedia.
+function provBadge(context, candidate) {
+    const prov = context.modemProvenance;
+    if (!prov || !candidate || !candidate.provenance) return "";
+    const badge = prov.candidateBadge(candidate.provenance);
+    return badge ? ` · ${badge}` : "";
+}
+
+// GERBANG: boleh tidaknya modem ini dipakai. Mengembalikan pesan penolakan, atau null bila boleh.
+// Sengaja gagal-tertutup untuk status `terpakai`; modem tanpa klasifikasi TETAP boleh (klasifikasi
+// adalah lapisan pengaman tambahan, bukan syarat — jangan sampai router mati = PSB mati).
+function assignmentBlockReason(candidate) {
+    const p = candidate && candidate.provenance;
+    if (!p || p.assignable !== false) return null;
+    const siapa = p.ownerName ? `*${p.ownerName}*` : "pelanggan lain";
+    return [
+        `⛔ Modem SN \`${snText(candidate.serialNumber)}\` *masih dipakai* ${siapa}.`,
+        p.reason ? `Alasan: ${p.reason}.` : null,
+        `Kalau dipakai sekarang, PPPoE & WiFi ${siapa} akan tertimpa dan internetnya mati.`,
+        ``,
+        `👉 Cek ulang stiker modem, lalu balas *TIDAK* untuk pilih dari daftar — atau *BATAL*.`
+    ].filter(Boolean).join("\n");
+}
+
 // ── Deteksi modem + minta konfirmasi (BELUM push apa pun) ──
 async function detectAndAskConfirm(context, ctx) {
     const { reply, setUserState, stateSender, findRecentPsbCandidates, getConfig, nowMs = Date.now(), logger = console } = context;
@@ -364,6 +480,9 @@ async function detectAndAskConfirm(context, ctx) {
     ctx.pppoeUsername = buildPppoeUsername(ctx.data.nama, ctx.data.dusun, cfg.pppoeRealm, global.users || []);
     ctx.pppoePassword = fullCfg.defaultPPPoEPassword || "rafnet123";
 
+    // Alamat dirakit SEKALI di sini agar yang dilihat teknisi di layar konfirmasi = yang disimpan.
+    ctx.address = buildCustomerAddress(context, ctx.data);
+
     // ODP terdekat (yang masih ada sisa port) dari titik rumah → tampil di layar konfirmasi, ikut
     // di-YA-kan teknisi bersama SN modem. Nol langkah tambahan, tapi tetap ADA mata manusia.
     ctx.odp = resolveNearestOdp(context, ctx);
@@ -374,12 +493,20 @@ async function detectAndAskConfirm(context, ctx) {
         if (res && res.ok) candidates = res.data || [];
     } catch (e) { logger?.error?.("[PSB_DM] deteksi modem gagal:", e.message); }
 
+    // ASAL-USUL tiap kandidat: modem polos, modem copotan (bekas siapa), atau MASIH dipakai orang.
+    // Ini yang membuat teknisi tak perlu tahu modem itu bekas siapa — dan yang mencegah modem
+    // pelanggan hidup ikut tertimpa kalau stikernya salah dibaca.
+    candidates = await annotateCandidates(context, candidates);
+
     if (candidates.length === 0) {
         setUserState(stateSender, { step: STEP_CONFIRM, _scope: "teknisi", context: { ...ctx, candidate: null, candidates: [] } });
         await safeReply(reply, [
             ...customerRecapLines(ctx),
             ``,
-            `⚠️ Data siap, tapi *belum ada modem baru terbaca* di ACS (window ${windowMinutes} mnt). Pastikan modem nyala & terhubung, lalu balas *REFRESH*. Atau *BATAL*.`
+            `⚠️ Data siap, tapi *belum ada modem baru terbaca* di ACS (window ${windowMinutes} mnt).`,
+            `• Modem baru dinyalakan? tunggu sebentar lalu balas *REFRESH*`,
+            `• *Modem bekas/copotan?* dia tak muncul di daftar "baru" — ketik \`cari <4 digit SN>\` atau \`cari <nama pemilik lama>\``,
+            `• Batalkan: *BATAL*`
         ].join("\n"), logger);
         return;
     }
@@ -389,16 +516,68 @@ async function detectAndAskConfirm(context, ctx) {
     await safeReply(reply, [
         `📋 *CEK DULU sebelum dieksekusi:*`,
         ...customerRecapLines(ctx),
-        `📡 Modem: SN \`${snText(top.serialNumber)}\` · ${top.model} · reg ${minutesAgo(top.registeredDate, nowMs)}`,
+        `📡 Modem: SN \`${snText(top.serialNumber)}\` · ${top.model} · reg ${minutesAgo(top.registeredDate, nowMs)}${provBadge(context, top)}`,
+        ...(assignmentBlockReason(top) ? [``, assignmentBlockReason(top)] : []),
         ``,
         `Semua BENAR & modem cocok stiker? Balas *YA* (eksekusi) · *TIDAK* (ganti modem) · *BATAL*`
     ].join("\n"), logger);
 }
 
-function candidateListText(candidates, nowMs) {
+// Perintah pencarian modem: "cari <kata>" (juga "search"/"modem"). null bila bukan perintah cari.
+function parseSearchHint(text) {
+    const m = String(text || "").trim().match(/^(?:cari|search|modem)\s+(.{2,})$/i);
+    return m ? m[1].trim() : null;
+}
+
+// Jalur CARI — dipakai saat daftar otomatis kosong atau modem yang benar tak muncul di situ.
+// Ini penting khusus untuk modem COPOTAN: dia tak ikut "baru terdeteksi" (registrasinya ke ACS
+// sudah lama), jadi satu-satunya cara menemukannya adalah dicari — lewat potongan SN di stiker,
+// atau lewat nama/PPPoE pemilik lamanya yang masih tertulis di dalam modem.
+async function searchAndList(context, ctx, hint) {
+    const { reply, setUserState, stateSender, findPsbCandidatesByHint, nowMs = Date.now(), logger = console } = context;
+
+    let found = [];
+    try {
+        const res = await findPsbCandidatesByHint({ hint, limit: 10 });
+        if (res && res.ok) found = res.data || [];
+        else if (res && res.message) logger?.warn?.(`[PSB_DM] cari modem gagal: ${res.message}`);
+    } catch (e) { logger?.error?.("[PSB_DM] cari modem gagal:", e.message); }
+
+    if (!found.length) {
+        await safeReply(reply, [
+            `🔎 Tak ada modem cocok "*${hint}*".`,
+            `Coba potongan *SN* dari stiker (4 digit terakhir cukup), atau *nama pemilik lama* modem.`,
+            `Kalau modem baru saja dinyalakan, balas *REFRESH*. Batal: *BATAL*.`
+        ].join("\n"), logger);
+        return;
+    }
+
+    const annotated = await annotateCandidates(context, found);
+    setUserState(stateSender, { step: STEP_PICK, _scope: "teknisi", context: { ...ctx, candidates: annotated } });
+    await safeReply(reply, `🔎 Hasil cari "*${hint}*":\n${candidateListText(context, annotated, nowMs)}`, logger);
+}
+
+function candidateListText(context, candidates, nowMs) {
     const nums = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
-    const lines = candidates.slice(0, 10).map((c, i) => `${nums[i] || (i + 1) + "."} SN \`${snText(c.serialNumber)}\` · ${c.model} · reg ${minutesAgo(c.registeredDate, nowMs)}`);
+    const lines = candidates.slice(0, 10).map((c, i) =>
+        `${nums[i] || (i + 1) + "."} SN \`${snText(c.serialNumber)}\` · ${c.model} · reg ${minutesAgo(c.registeredDate, nowMs)}${provBadge(context, c)}`);
     return `Pilih modem yang cocok dgn stiker (balas *angka*), atau *REFRESH* / *BATAL*:\n${lines.join("\n")}`;
+}
+
+// Baca kapabilitas band modem dari GenieACS → indeks SSID yang wajar dikelola pelanggan.
+// Mengembalikan `null` bila TAK TERBACA — sengaja tidak menebak, supaya pemanggil bisa
+// membedakan "modem single-band" dari "belum kebaca" (dua hal yang beda jauh akibatnya).
+async function readBandCapability(fetchDeviceCapability, deviceId, operation, logger) {
+    if (!deviceId || typeof fetchDeviceCapability !== "function") return null;
+    try {
+        const cap = await fetchDeviceCapability(deviceId, { operation });
+        if (cap && cap.found && Array.isArray(cap.expectedBulk) && cap.expectedBulk.length > 0) {
+            return { indices: cap.expectedBulk.map((i) => String(i)), label: cap.has5G ? "2.4GHz + 5GHz" : "2.4GHz" };
+        }
+    } catch (e) {
+        logger?.error?.("[PSB_DM] deteksi band modem gagal:", e.message);
+    }
+    return null;
 }
 
 // ── Provisioning FINAL (dipanggil hanya setelah YA / pilih nomor) ──
@@ -416,20 +595,15 @@ async function provision(context, ctx, candidate) {
     // HANYA bila modem punya (deviceHas5G). Jadi WiFi di-set ke band yang BENAR-BENAR ada: modem
     // dual-band → set 2.4G+5G (satu nama/sandi), single-band → cukup 2.4G (tak nembak index 5 yg gaib).
     // Best-effort: deteksi gagal → fallback default config. Reuse helper bulk-diff (1 sumber kebenaran).
-    let ssidIndices = String(psbCfg.defaultSsidIndices || cfg.defaultBulkSSID || "1").split(",").map((s) => s.trim()).filter(Boolean);
-    let bandLabel = "";
-    let bandDetected = false;
-    if (candidate && candidate.deviceId && typeof fetchDeviceCapability === "function") {
-        try {
-            const cap = await fetchDeviceCapability(candidate.deviceId, { operation: "psb.dm.ssidCapability" });
-            if (cap && cap.found && Array.isArray(cap.expectedBulk) && cap.expectedBulk.length > 0) {
-                ssidIndices = cap.expectedBulk;
-                bandDetected = true;
-                bandLabel = cap.has5G ? "2.4GHz + 5GHz" : "2.4GHz";
-            } else {
-                logger?.warn?.(`[PSB_DM] band modem ${candidate.deviceId} tak terbaca — pakai default SSID [${ssidIndices.join(",")}]`);
-            }
-        } catch (e) { logger?.error?.("[PSB_DM] deteksi band modem gagal:", e.message); }
+    const fallbackIndices = String(psbCfg.defaultSsidIndices || cfg.defaultBulkSSID || "1").split(",").map((s) => s.trim()).filter(Boolean);
+    const firstRead = await readBandCapability(
+        fetchDeviceCapability, candidate && candidate.deviceId, "psb.dm.ssidCapability", logger
+    );
+    let ssidIndices = firstRead ? firstRead.indices : fallbackIndices;
+    let bandLabel = firstRead ? firstRead.label : "";
+    let bandDetected = !!firstRead;
+    if (!firstRead && candidate && candidate.deviceId) {
+        logger?.warn?.(`[PSB_DM] band modem ${candidate.deviceId} belum terbaca — pakai default SSID [${ssidIndices.join(",")}], dicoba lagi setelah push`);
     }
 
     let result;
@@ -438,6 +612,14 @@ async function provision(context, ctx, candidate) {
             userData: {
                 name: ctx.data.nama,
                 phone_number: ctx.data.hp,
+                // ALAMAT — dirakit bot dari dusun + RT/RW + desa/kecamatan area (atau alamat bebas
+                // yang diketik teknisi). Dulu kolom ini SELALU null untuk pelanggan hasil wizard,
+                // padahal catatan insiden OLT ikut menyalin alamat → laporan gangguan beralamat kosong.
+                address: ctx.address || buildCustomerAddress(context, ctx.data) || undefined,
+                // DUSUN sebagai kolom tersendiri, bukan sekadar terselip di dalam username PPPoE.
+                // Tanpa ini dusun tak bisa dipakai mengelompokkan (broadcast per dusun, gangguan
+                // area, pemetaan ODP) karena pelanggan lama pun tak berpola `<nama>-<dusun>@`.
+                dusun: ctx.data.dusun ? titleCaseDusun(ctx.data.dusun) : undefined,
                 subscription: ctx.data.paket,
                 pppoe_username: pppoeUser,
                 pppoe_password: pppoePass,
@@ -517,12 +699,58 @@ async function provision(context, ctx, candidate) {
     const dc = body.device_config || { attempted: false, ok: false, message: null };
     const pushFailed = body.warning === "device_config_failed" || Boolean(dc.attempted && !dc.ok);
     const pushOk = Boolean(dc.attempted && dc.ok);
+
+    // ── Deteksi band yang GAGAL jangan mengendap jadi "fakta" ──
+    // Modem yang baru semenit terdaftar di ACS sering belum selesai ditelusuri, sehingga WLAN 5GHz
+    // tak terlihat dan `bulk` tersimpan ["1"]. Akibatnya nyata: saat pelanggan minta ganti nama/sandi
+    // WiFi, band 5GHz TAK ikut berubah — dan pada modem BEKAS, WiFi pemilik lama bisa tetap hidup di
+    // sana. Push barusan memicu refresh parameter, jadi baca ULANG sekali: bila ternyata dual-band,
+    // betulkan `bulk` DAN dorong WiFi ke indeks yang belum tersentuh. Best-effort, never-throw.
+    if (!bandDetected && pushOk && newUserId && candidate && candidate.deviceId) {
+        const secondRead = await readBandCapability(
+            fetchDeviceCapability, candidate.deviceId, "psb.dm.ssidCapability.retry", logger
+        );
+        if (secondRead) {
+            const missing = secondRead.indices.filter((i) => !ssidIndices.includes(i));
+            bandDetected = true;
+            bandLabel = secondRead.label;
+            ssidIndices = secondRead.indices;
+            try {
+                await usersService.updateUserById({
+                    id: newUserId,
+                    userData: { bulk: secondRead.indices },
+                    actor: { id: ctx.staff.id, username: ctx.staff.username, name: ctx.staff.name || ctx.staff.username, role: ctx.staff.role },
+                    requestMeta: { ipAddress: "wa-dm-psb", userAgent: "psb-dm-wizard" }
+                });
+                logger?.log?.(`[PSB_DM] bulk dikoreksi ke [${secondRead.indices.join(",")}] setelah band terbaca`);
+            } catch (e) { logger?.error?.("[PSB_DM] koreksi bulk gagal:", e.message); }
+
+            if (missing.length && ctx.data.wifi_ssid && ctx.data.wifi_password) {
+                try {
+                    const { updatePsbDeviceConfig: pushDeviceConfig } = require("../../../lib/genieacs-helper");
+                    const extra = await pushDeviceConfig(candidate.deviceId, {
+                        wifiSSID: ctx.data.wifi_ssid,
+                        wifiPassword: ctx.data.wifi_password,
+                        ssidIndices: missing
+                    }, { context: { caller: "psb.dm.bandRetry", deviceId: candidate.deviceId } });
+                    if (!extra || !extra.ok) {
+                        logger?.warn?.(`[PSB_DM] push WiFi band tambahan gagal: ${extra && extra.message}`);
+                    }
+                } catch (e) { logger?.error?.("[PSB_DM] push WiFi band tambahan gagal:", e.message); }
+            }
+        }
+    }
     // Password PPPoE TAK ditampilkan ke teknisi (akses admin). WiFi tetap tampil (kredensial pelanggan).
     const credLines = [
         `PPPoE: \`${pppoeUser}\``,
         `WiFi: ${ctx.data.wifi_ssid} / ${ctx.data.wifi_password}`
     ];
-    const snLine = candidate ? `Modem: SN \`${snText(candidate.serialNumber)}\` (${candidate.model})` : "Modem: (tak ada device terpilih)";
+    // Asal-usul modem ikut dicatat di balasan — jejak "modem ini bekas siapa" berguna saat menelusuri
+    // keluhan belakangan (mis. WiFi lama masih nyangkut di band yang tak ikut ter-push).
+    const bekasNote = candidate && candidate.provenance && candidate.provenance.state === "bekas"
+        ? ` — ♻️ bekas ${candidate.provenance.ownerName || candidate.provenance.previousPppoe || "pelanggan lama"}`
+        : "";
+    const snLine = candidate ? `Modem: SN \`${snText(candidate.serialNumber)}\` (${candidate.model})${bekasNote}` : "Modem: (tak ada device terpilih)";
 
     let replyLines;
     if (pushFailed) {
@@ -617,20 +845,29 @@ async function handlePsbConversationState(context) {
                 ctx.lokasi = { lat: loc.degreesLatitude, lng: loc.degreesLongitude };
             }
         } else {
-            // Teks → ambil field yang ada, MERGE ke data terkumpul (boleh dicicil / dikoreksi ulang).
-            const fields = extractPsbFields(text);
-            for (const [k, val] of Object.entries(fields)) { if (val) ctx.data[k] = val; }
+            // Balasan ANGKA POLOS = memilih dusun dari daftar bernomor — hanya berlaku selagi dusun
+            // masih kosong. Di luar itu angka polos tetap bukan perintah apa pun (seperti sebelumnya),
+            // jadi tak ada risiko menabrak slot lain.
+            const options = dusunOptions(context);
+            const pick = /^\d{1,2}$/.test(text) ? parseInt(text, 10) : NaN;
+            if (!ctx.data.dusun && options.length && pick >= 1 && pick <= options.length) {
+                ctx.data.dusun = options[pick - 1];
+            } else {
+                // Teks → ambil field yang ada, MERGE ke data terkumpul (boleh dicicil / dikoreksi ulang).
+                const fields = extractPsbFields(text);
+                for (const [k, val] of Object.entries(fields)) { if (val) ctx.data[k] = val; }
+            }
         }
 
         // Cek kelengkapan tiap pesan. Bila lengkap → adopsi nilai ternormalisasi (paket resolved, hp joined).
-        const v = validatePsbData(ctx.data, { packages: pkgs, requireDusun: true });
+        const v = validatePsbData(ctx.data, { packages: pkgs, requireDusun: true, requireRtRw: true });
         if (v.ok) ctx.data = v.data;
         setUserState(stateSender, { step: STEP_COLLECT, _scope: "teknisi", context: ctx });
 
         if (v.ok && ctx.ktpSaved && ctx.rumahSaved && ctx.lokasi) {
             await detectAndAskConfirm(context, ctx);
         } else {
-            await safeReply(reply, collectChecklistText(ctx, v), logger);
+            await safeReply(reply, collectChecklistText(context, ctx, v), logger);
         }
         return { handled: true };
     }
@@ -639,29 +876,40 @@ async function handlePsbConversationState(context) {
     if (stateStep === STEP_CONFIRM) {
         if (["ya", "yes", "ok", "oke", "cocok", "y"].includes(lower)) {
             if (!ctx.candidate) { await safeReply(reply, "Belum ada modem terbaca. Balas *REFRESH* setelah modem online.", logger); return { handled: true }; }
+            // GERBANG: modem yang masih melayani pelanggan lain TIDAK boleh ditimpa. Tak ada opsi paksa dari WA.
+            const blocked = assignmentBlockReason(ctx.candidate);
+            if (blocked) { await safeReply(reply, blocked, logger); return { handled: true }; }
             await provision(context, ctx, ctx.candidate);
             return { handled: true };
         }
         if (["tidak", "beda", "no", "n", "salah"].includes(lower)) {
             if (!ctx.candidates || ctx.candidates.length === 0) { await safeReply(reply, "Tak ada kandidat lain. Balas *REFRESH* atau *BATAL*.", logger); return { handled: true }; }
             setUserState(stateSender, { step: STEP_PICK, _scope: "teknisi", context: ctx });
-            await safeReply(reply, candidateListText(ctx.candidates, nowMs), logger);
+            await safeReply(reply, candidateListText(context, ctx.candidates, nowMs), logger);
             return { handled: true };
         }
         if (lower === "refresh") { await detectAndAskConfirm(context, ctx); return { handled: true }; }
-        await safeReply(reply, "Balas *YA* (cocok) · *TIDAK* (pilih dari daftar) · *REFRESH* · *BATAL*.", logger);
+        const hint = parseSearchHint(text);
+        if (hint) { await searchAndList(context, ctx, hint); return { handled: true }; }
+        await safeReply(reply, "Balas *YA* (cocok) · *TIDAK* (pilih dari daftar) · *REFRESH* · `cari <SN/nama>` · *BATAL*.", logger);
         return { handled: true };
     }
 
     // ── Fase pilih nomor modem ──
     if (stateStep === STEP_PICK) {
         if (lower === "refresh") { await detectAndAskConfirm(context, ctx); return { handled: true }; }
+        const pickHint = parseSearchHint(text);
+        if (pickHint) { await searchAndList(context, ctx, pickHint); return { handled: true }; }
         const n = parseInt(text, 10);
         if (Number.isInteger(n) && n >= 1 && n <= (ctx.candidates || []).length) {
-            await provision(context, ctx, ctx.candidates[n - 1]);
+            const picked = ctx.candidates[n - 1];
+            // Gerbang yang sama berlaku di jalur pilih-nomor — jangan cuma dijaga di jalur YA.
+            const blocked = assignmentBlockReason(picked);
+            if (blocked) { await safeReply(reply, blocked, logger); return { handled: true }; }
+            await provision(context, ctx, picked);
             return { handled: true };
         }
-        await safeReply(reply, candidateListText(ctx.candidates || [], nowMs), logger);
+        await safeReply(reply, candidateListText(context, ctx.candidates || [], nowMs), logger);
         return { handled: true };
     }
 

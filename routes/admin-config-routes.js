@@ -181,7 +181,14 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     groupId: (mainConfig.psbIntake && mainConfig.psbIntake.groupId) || '',
                     allowedRoles: (mainConfig.psbIntake && mainConfig.psbIntake.allowedRoles) || ['teknisi', 'admin', 'owner'],
                     recencyWindowMinutes: (mainConfig.psbIntake && mainConfig.psbIntake.recencyWindowMinutes) || 120,
-                    freeInstallMonth: !!(mainConfig.psbIntake && mainConfig.psbIntake.freeInstallMonth)
+                    freeInstallMonth: !!(mainConfig.psbIntake && mainConfig.psbIntake.freeInstallMonth),
+                    // Alamat pelanggan dirakit bot: `Dsn. <dusun> RT/RW Ds. <desa> Kec. <kecamatan>`.
+                    // dusunList = pilihan bernomor di wizard WA (ejaan konsisten → username PPPoE konsisten).
+                    desa: (mainConfig.psbIntake && mainConfig.psbIntake.desa) || '',
+                    kecamatan: (mainConfig.psbIntake && mainConfig.psbIntake.kecamatan) || '',
+                    dusunList: (mainConfig.psbIntake && Array.isArray(mainConfig.psbIntake.dusunList))
+                        ? mainConfig.psbIntake.dusunList
+                        : []
                 },
                 repairNotif: {
                     enabled: !!(mainConfig.repairNotif && mainConfig.repairNotif.enabled),
@@ -377,7 +384,9 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
 
                 // Intake PSB Grup → objek nested `psbIntake`. allowedRoles tidak diedit dari UI
                 // (dipertahankan dari config lama saat merge). Feature-flag default OFF.
-                if (key === 'psbIntakeEnabled' || key === 'psbIntakeGroupId' || key === 'psbIntakeRecency' || key === 'psbIntakeFreeInstallMonth') {
+                if (key === 'psbIntakeEnabled' || key === 'psbIntakeGroupId' || key === 'psbIntakeRecency'
+                    || key === 'psbIntakeFreeInstallMonth' || key === 'psbIntakeDesa'
+                    || key === 'psbIntakeKecamatan' || key === 'psbIntakeDusunList') {
                     if (!newMainConfig.psbIntake) {
                         newMainConfig.psbIntake = {};
                     }
@@ -387,6 +396,24 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                         newMainConfig.psbIntake.groupId = String(receivedConfig[key] || '').trim();
                     } else if (key === 'psbIntakeFreeInstallMonth') {
                         newMainConfig.psbIntake.freeInstallMonth = receivedConfig[key] === 'true';
+                    } else if (key === 'psbIntakeDesa') {
+                        newMainConfig.psbIntake.desa = String(receivedConfig[key] || '').trim();
+                    } else if (key === 'psbIntakeKecamatan') {
+                        newMainConfig.psbIntake.kecamatan = String(receivedConfig[key] || '').trim();
+                    } else if (key === 'psbIntakeDusunList') {
+                        // Dikirim sebagai teks dipisah koma/baris baru → array bersih & unik (urutan dipertahankan,
+                        // karena NOMOR pilihan di WA mengikuti urutan daftar ini).
+                        const seen = new Set();
+                        newMainConfig.psbIntake.dusunList = String(receivedConfig[key] || '')
+                            .split(/[,\n]/)
+                            .map((s) => s.trim())
+                            .filter((s) => {
+                                if (!s) return false;
+                                const k = s.toLowerCase();
+                                if (seen.has(k)) return false;
+                                seen.add(k);
+                                return true;
+                            });
                     } else {
                         const n = parseInt(receivedConfig[key], 10);
                         newMainConfig.psbIntake.recencyWindowMinutes = (Number.isFinite(n) && n > 0) ? Math.min(1440, Math.max(5, n)) : 120;

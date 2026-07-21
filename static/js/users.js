@@ -1314,6 +1314,7 @@
             updatePhoneAddButtonState('edit_number_container');
 
             $('#editModal #edit_address').val($(this).data('address'));
+            $('#editModal #edit_dusun').val($(this).data('dusun') || '');
             $('#editModal #edit_subscription').val($(this).data('subscription')).trigger('change');
             $('#editModal #edit_paid').prop("checked", initialPaidStatusForEdit);
             $('#editModal #edit_send_invoice').prop("checked", $(this).data('send_invoice') || false);
@@ -1897,7 +1898,7 @@
                             // MODIFIED: All action buttons within a single flex container for horizontal layout
                             let actionButtonsHtml = `
                                 <div class="device-action-group">
-                                    <button class="btn btn-info btn-sm btn-edit" data-id="${row.id}" data-name="${row.name || ''}" data-phone_number="${row.phone_number || ''}" data-device_id="${deviceIdForActions}" data-address="${row.address || ''}" data-subscription="${row.subscription || ''}" data-paid="${row.paid || false}" data-send_invoice="${row.send_invoice || false}" data-notify_outage="${row.notify_outage !== false && row.notify_outage !== 0 ? 'true' : 'false'}" data-account_type="${String(row.account_type || 'pelanggan').toLowerCase() === 'infrastruktur' ? 'infrastruktur' : 'pelanggan'}" data-pppoe_username="${row.pppoe_username || ''}" data-pppoe_password="${row.pppoe_password || ''}" data-latitude="${row.latitude || ''}" data-longitude="${row.longitude || ''}" data-connected_odp_id="${row.connected_odp_id || ''}" data-bulk='${JSON.stringify(Array.isArray(row.bulk) ? row.bulk : (typeof row.bulk === 'string' ? JSON.parse(row.bulk) : []))}' data-toggle="modal" data-target="#editModal" title="Edit User"><i class="fas fa-edit"></i></button>
+                                    <button class="btn btn-info btn-sm btn-edit" data-id="${row.id}" data-name="${row.name || ''}" data-phone_number="${row.phone_number || ''}" data-device_id="${deviceIdForActions}" data-address="${row.address || ''}" data-dusun="${row.dusun || ''}" data-subscription="${row.subscription || ''}" data-paid="${row.paid || false}" data-send_invoice="${row.send_invoice || false}" data-notify_outage="${row.notify_outage !== false && row.notify_outage !== 0 ? 'true' : 'false'}" data-account_type="${String(row.account_type || 'pelanggan').toLowerCase() === 'infrastruktur' ? 'infrastruktur' : 'pelanggan'}" data-pppoe_username="${row.pppoe_username || ''}" data-pppoe_password="${row.pppoe_password || ''}" data-latitude="${row.latitude || ''}" data-longitude="${row.longitude || ''}" data-connected_odp_id="${row.connected_odp_id || ''}" data-bulk='${JSON.stringify(Array.isArray(row.bulk) ? row.bulk : (typeof row.bulk === 'string' ? JSON.parse(row.bulk) : []))}' data-toggle="modal" data-target="#editModal" title="Edit User"><i class="fas fa-edit"></i></button>
                                     <button class="btn btn-dark btn-sm btn-manage-credentials" data-id="${row.id}" data-username="${row.username || ''}" data-toggle="modal" data-target="#credentialsModal" title="Kelola Kredensial"><i class="fas fa-key"></i></button>`;
 
                             // Tombol kirim pesan "selamat datang" (hanya bila pelanggan sudah punya No HP)

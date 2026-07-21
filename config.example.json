@@ -179,7 +179,10 @@
     "allowedRoles": ["teknisi", "admin", "owner"],
     "recencyWindowMinutes": 120,
     "pppoeRealm": "rafcybernet",
-    "freeInstallMonth": false
+    "freeInstallMonth": false,
+    "desa": "",
+    "kecamatan": "",
+    "dusunList": []
   },
   "networkAssets": {
     "waIntake": { "enabled": true },

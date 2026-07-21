@@ -91,3 +91,80 @@ describe("parsePsbCaption", () => {
         expect(r.data.marketing).toBe("Pak Broker");
     });
 });
+
+// ── RT/RW & perakit alamat ──────────────────────────────────────────────────────────────
+const { normalizeRtRw, composeAddress, titleCaseDusun, validatePsbData } = require("../psb-caption-parser");
+
+describe("normalizeRtRw", () => {
+    test("terima berbagai gaya ketikan teknisi → selalu 3 digit", () => {
+        expect(normalizeRtRw("14/2")).toEqual({ rt: "014", rw: "002" });
+        expect(normalizeRtRw("014/002")).toEqual({ rt: "014", rw: "002" });
+        expect(normalizeRtRw("RT 14 RW 2")).toEqual({ rt: "014", rw: "002" });
+        expect(normalizeRtRw("rt14rw2")).toEqual({ rt: "014", rw: "002" });
+        expect(normalizeRtRw("14-2")).toEqual({ rt: "014", rw: "002" });
+        expect(normalizeRtRw("14 2")).toEqual({ rt: "014", rw: "002" });
+        expect(normalizeRtRw("rt.5 rw.1")).toEqual({ rt: "005", rw: "001" });
+    });
+
+    test("satu angka saja / kosong → null (JANGAN tebak yang hilang)", () => {
+        expect(normalizeRtRw("14")).toBeNull();
+        expect(normalizeRtRw("RT 14")).toBeNull();
+        expect(normalizeRtRw("")).toBeNull();
+        expect(normalizeRtRw(null)).toBeNull();
+        expect(normalizeRtRw("dua belas")).toBeNull();
+    });
+});
+
+describe("composeAddress", () => {
+    test("format persis seperti data alamat existing", () => {
+        expect(composeAddress({ dusun: "ngitik", rt: "014", rw: "002", desa: "Tanjungharjo", kecamatan: "Kapas" }))
+            .toBe("Dsn. Ngitik RT 014 RW 002 Ds. Tanjungharjo Kec. Kapas");
+    });
+
+    test("bagian yang kosong dilewati — alamat parsial tetap lebih berguna daripada kosong", () => {
+        expect(composeAddress({ dusun: "Karang", desa: "Tanjungharjo", kecamatan: "Kapas" }))
+            .toBe("Dsn. Karang Ds. Tanjungharjo Kec. Kapas");
+        expect(composeAddress({ dusun: "Krajan" })).toBe("Dsn. Krajan");
+        expect(composeAddress({})).toBe("");
+    });
+
+    test("titleCaseDusun rapikan ejaan untuk alamat", () => {
+        expect(titleCaseDusun("ngitik")).toBe("Ngitik");
+        expect(titleCaseDusun("SUMBER  rejo")).toBe("Sumber Rejo");
+    });
+});
+
+describe("validatePsbData requireRtRw", () => {
+    const base = { nama: "Budi", dusun: "Krajan", paket: "PAKET-110K", wifi_ssid: "BudiNet", wifi_password: "budi12345", hp: "08123456789" };
+
+    test("wizard: RT/RW wajib & dinormalisasi ke data", () => {
+        const kurang = validatePsbData(base, { packages: PACKAGES, requireDusun: true, requireRtRw: true });
+        expect(kurang.ok).toBe(false);
+        expect(kurang.status.rt_rw).toBe("missing");
+
+        const lengkap = validatePsbData({ ...base, rt_rw: "14/2" }, { packages: PACKAGES, requireDusun: true, requireRtRw: true });
+        expect(lengkap.ok).toBe(true);
+        expect(lengkap.data.rt_rw).toBe("014/002");
+        expect(lengkap.data.rt).toBe("014");
+        expect(lengkap.data.rw).toBe("002");
+    });
+
+    test("RT/RW ngawur → invalid + pesan mencontohkan format", () => {
+        const r = validatePsbData({ ...base, rt_rw: "sebelas" }, { packages: PACKAGES, requireDusun: true, requireRtRw: true });
+        expect(r.ok).toBe(false);
+        expect(r.status.rt_rw).toBe("invalid");
+        expect(r.errors.join(" ")).toMatch(/14\/2/);
+    });
+
+    test("alamat bebas diisi → RT/RW tak lagi wajib", () => {
+        const r = validatePsbData({ ...base, alamat: "Jl. Raya 12" }, { packages: PACKAGES, requireDusun: true, requireRtRw: true });
+        expect(r.ok).toBe(true);
+        expect(r.status.rt_rw).toBe("optional");
+    });
+
+    test("jalur grup (requireRtRw:false) tak terpengaruh", () => {
+        const r = validatePsbData(base, { packages: PACKAGES });
+        expect(r.ok).toBe(true);
+        expect(r.status.rt_rw).toBe("optional");
+    });
+});

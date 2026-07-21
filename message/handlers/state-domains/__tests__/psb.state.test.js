@@ -13,6 +13,12 @@ const fs = require("fs");
 const path = require("path");
 const { startPsbSession, handlePsbConversationState, buildPppoeUsername, isPsbTutorialTrigger, psbTutorialText, parsePsbScheduleRef } = require("../psb.state");
 
+// Push susulan WiFi (koreksi band) menyentuh GenieACS → di-mock supaya test tak menembak ACS nyata.
+jest.mock("../../../../lib/genieacs-helper", () => ({
+    updatePsbDeviceConfig: jest.fn(async () => ({ ok: true, message: "ok" }))
+}), { virtual: false });
+const { updatePsbDeviceConfig: mockPushDevice } = require("../../../../lib/genieacs-helper");
+
 const TMP = path.join(os.tmpdir(), `psb-dm-test-${Date.now()}`);
 const PACKAGES = [{ name: "PAKET-110K", profile: "16Mbps" }];
 const STAFF = { id: 3, username: "davin", name: "Davin", role: "teknisi" };
@@ -21,7 +27,7 @@ const CANDIDATES = [
     { deviceId: "dev-A", serialNumber: "48575443AAAA0001", model: "HG8145V5", currentPPPUsername: "tes@hw", registeredDate: "2026-07-04T10:05:00.000Z", registeredTimestamp: Date.parse("2026-07-04T10:05:00.000Z") },
     { deviceId: "dev-B", serialNumber: "48575443BBBB0002", model: "HS8346R5", currentPPPUsername: "old@x", registeredDate: "2026-07-04T09:40:00.000Z", registeredTimestamp: Date.parse("2026-07-04T09:40:00.000Z") }
 ];
-const CAPTION = "#PSB\nNama: Budi Santoso\nDusun: Krajan\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789";
+const CAPTION = "#PSB\nNama: Budi Santoso\nDusun: Krajan\nRT/RW: 14/2\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789";
 
 function harness(overrides = {}) {
     let state = null;
@@ -44,6 +50,14 @@ function harness(overrides = {}) {
             getScheduleSummary: jest.fn(async () => ({ terpasang_bulan_ini: 7, belum_kepasang: 3 }))
         },
         usersService: { upsertUserFromAdminPanel: upsert },
+        // Klasifikasi asal-usul modem pakai modul ASLI, tapi dua sumber I/O-nya distub:
+        // sesi PPPoE MikroTik & riwayat OLT. Tanpa ini tiap test menembak router sungguhan (~6 dtk).
+        modemProvenance: {
+            ...require("../../../../lib/psb-modem-provenance"),
+            loadActivePppoeUsernames: jest.fn(async () => new Set())
+        },
+        oltRepository: { getModemStateByPppoe: jest.fn(async () => null) },
+        getUsers: () => global.users || [],
         getConfig: () => ({ psbIntake: { enabled: true, groupId: "grp@g.us", recencyWindowMinutes: 120 }, defaultBulkSSID: "1" }),
         packages: PACKAGES,
         uploadsBaseDir: TMP,
@@ -183,7 +197,7 @@ describe("psb.state wizard DM", () => {
 
     test("dusun tetap WAJIB: tak ke konfirmasi tanpa dusun walau field lain + foto + lokasi lengkap", async () => {
         const h = harness();
-        const cap = "#PSB\nNama: Budi Santoso\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789"; // tanpa dusun
+        const cap = "#PSB\nNama: Budi Santoso\nRT/RW: 14/2\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789"; // tanpa dusun
         await startPsbSession({ ...h.base, type: "imageMessage", caption: cap, msg: imageMsg(cap), staff: STAFF });
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "imageMessage", msg: imageMsg() });
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "locationMessage", msg: locMsg() });
@@ -204,14 +218,14 @@ describe("psb.state wizard DM", () => {
         expect(h.getState().step).toBe("PSB_COLLECT_DOCS"); // data belum ada → belum baca modem
         expect(h.base.findRecentPsbCandidates).not.toHaveBeenCalled();
         // data dikirim TERAKHIR (sekaligus)
-        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "Nama: Budi Santoso\nDusun: Krajan\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789" });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "Nama: Budi Santoso\nDusun: Krajan\nRT/RW: 14/2\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789" });
         expect(h.getState().step).toBe("PSB_CONFIRM_MODEM");
     });
 
     test("slot-filling: data DICICIL beberapa pesan → digabung", async () => {
         const h = harness();
         await startPsbSession({ ...h.base, type: "imageMessage", caption: "#PSB\nNama: Budi Santoso", msg: imageMsg("#PSB\nNama: Budi Santoso"), staff: STAFF });
-        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "Dusun: Krajan" });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "Dusun: Krajan\nRT/RW: 14/2" });
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "Paket: PAKET-110K\nWiFi: BudiNet" });
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "Sandi: budi12345\nHP: 08123456789" });
         expect(h.getState().context.data.dusun).toBe("Krajan");
@@ -288,7 +302,7 @@ describe("psb.state wizard DM", () => {
     });
 
     test("HP multi-nomor → diteruskan ke create sbg phone_number pipe (628a|628b)", async () => {
-        const cap = "#PSB\nNama: Budi Santoso\nDusun: Krajan\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789|6285700000002";
+        const cap = "#PSB\nNama: Budi Santoso\nDusun: Krajan\nRT/RW: 14/2\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789|6285700000002";
         const h = harness();
         await startPsbSession({ ...h.base, type: "imageMessage", caption: cap, msg: imageMsg(cap), staff: STAFF });
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "imageMessage", msg: imageMsg() });
@@ -438,7 +452,7 @@ describe("PSB Fase C/2 — link ke jadwal (#PSB PSB-<n>)", () => {
         const h = harness({ scheduleService: { getScheduleById: jest.fn(async () => SCHED), markScheduleInstalled: markInstalled, findOpenScheduleForInstall: jest.fn(async () => null), recordWalkInInstall: jest.fn(), getScheduleSummary: jest.fn(async () => ({ terpasang_bulan_ini: 3, belum_kepasang: 1 })) } });
         await startPsbSession({ ...h.base, type: "conversation", caption: "#PSB PSB-12", chats: "#PSB PSB-12", msg: {}, staff: STAFF });
         // lengkapi WiFi → melengkapi data → deteksi modem → STEP_CONFIRM
-        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "WiFi: RumahBudi\nSandi: rahasia123" });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "WiFi: RumahBudi\nSandi: rahasia123\nRT/RW: 14/2" });
         expect(h.getState().step).toBe("PSB_CONFIRM_MODEM");
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
         // link EKSPLISIT via ctx.scheduleId → auto-match & walk-in TAK dipakai
@@ -460,5 +474,208 @@ describe("PSB Fase C/2 — link ke jadwal (#PSB PSB-<n>)", () => {
         const r = await startPsbSession({ ...h.base, type: "conversation", caption: "#PSB PSB-12", chats: "#PSB PSB-12", msg: {}, staff: STAFF });
         expect(r.started).toBe(false);
         expect(h.base.reply.mock.calls.map((c) => c[0]).join("\n")).toMatch(/sudah \*terpasang\*/i);
+    });
+});
+
+// ── Alamat & dusun (P1): teknisi hanya mengetik RT/RW, sisanya dirakit bot ──
+describe("PSB alamat & dusun", () => {
+    const AREA_CFG = () => ({
+        psbIntake: {
+            enabled: true, groupId: "grp@g.us", recencyWindowMinutes: 120,
+            desa: "Tanjungharjo", kecamatan: "Kapas", dusunList: ["Krajan", "Ngitik", "Karang"]
+        },
+        defaultBulkSSID: "1"
+    });
+    const replies = (h) => h.base.reply.mock.calls.map((c) => c[0]).join("\n");
+
+    test("alamat DIRAKIT (Dsn+RT/RW+Ds+Kec) & dusun ikut terkirim sbg kolom sendiri", async () => {
+        const h = harness({ getConfig: AREA_CFG });
+        await reachConfirm(h);
+        // Yang dilihat teknisi di layar konfirmasi = yang akan disimpan.
+        expect(replies(h)).toMatch(/Dsn\. Krajan RT 014 RW 002 Ds\. Tanjungharjo Kec\. Kapas/);
+
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        const arg = h.base.usersService.upsertUserFromAdminPanel.mock.calls[0][0];
+        expect(arg.userData.address).toBe("Dsn. Krajan RT 014 RW 002 Ds. Tanjungharjo Kec. Kapas");
+        expect(arg.userData.dusun).toBe("Krajan");
+    });
+
+    test("RT/RW WAJIB: data lain + foto + lokasi lengkap pun belum masuk konfirmasi", async () => {
+        const h = harness({ getConfig: AREA_CFG });
+        const cap = "#PSB\nNama: Budi Santoso\nDusun: Krajan\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789";
+        await startPsbSession({ ...h.base, type: "imageMessage", caption: cap, msg: imageMsg(cap), staff: STAFF });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "imageMessage", msg: imageMsg() });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "locationMessage", msg: locMsg() });
+        expect(h.getState().step).toBe("PSB_COLLECT_DOCS");
+
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "RT/RW: 14/2" });
+        expect(h.getState().step).toBe("PSB_CONFIRM_MODEM");
+    });
+
+    test("dusun dipilih dgn balas ANGKA dari daftar config (ejaan konsisten utk username PPPoE)", async () => {
+        const h = harness({ getConfig: AREA_CFG });
+        const cap = "#PSB\nNama: Budi Santoso\nRT/RW: 14/2\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789";
+        await startPsbSession({ ...h.base, type: "imageMessage", caption: cap, msg: imageMsg(cap), staff: STAFF });
+        expect(replies(h)).toMatch(/1\.Krajan/);
+
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "2" });
+        expect(h.getState().context.data.dusun).toBe("Ngitik");
+    });
+
+    test("angka polos DIABAIKAN saat dusun sudah terisi (tak menabrak slot lain)", async () => {
+        const h = harness({ getConfig: AREA_CFG });
+        await startPsbSession({ ...h.base, type: "imageMessage", caption: CAPTION, msg: imageMsg(CAPTION), staff: STAFF });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "3" });
+        expect(h.getState().context.data.dusun).toBe("Krajan");
+    });
+
+    test("Alamat bebas MENGGANTIKAN alamat rakitan & membuat RT/RW tak wajib", async () => {
+        const h = harness({ getConfig: AREA_CFG });
+        const cap = "#PSB\nNama: Budi Santoso\nDusun: Krajan\nAlamat: Jl. Raya Kapas 12, Bojonegoro\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789";
+        await startPsbSession({ ...h.base, type: "imageMessage", caption: cap, msg: imageMsg(cap), staff: STAFF });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "imageMessage", msg: imageMsg() });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "locationMessage", msg: locMsg() });
+        expect(h.getState().step).toBe("PSB_CONFIRM_MODEM");
+
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        const arg = h.base.usersService.upsertUserFromAdminPanel.mock.calls[0][0];
+        expect(arg.userData.address).toBe("Jl. Raya Kapas 12, Bojonegoro");
+    });
+
+    test("tanpa dusunList di config → dusun tetap boleh diketik bebas (perilaku lama)", async () => {
+        const h = harness();
+        await reachConfirm(h);
+        expect(h.getState().step).toBe("PSB_CONFIRM_MODEM");
+        expect(h.getState().context.data.dusun).toBe("Krajan");
+    });
+});
+
+// ── Gerbang modem copotan: modem yang masih melayani orang TIDAK boleh ditimpa ──
+describe("PSB gerbang asal-usul modem", () => {
+    const replies = (h) => h.base.reply.mock.calls.map((c) => c[0]).join("\n");
+
+    test("modem masih tertaut pelanggan → ditandai TERPAKAI & YA DITOLAK (tanpa provisioning)", async () => {
+        global.users = [{ id: 5, name: "Budi", device_id: "dev-A", pppoe_username: "budi@rafcybernet" }];
+        const h = harness();
+        await reachConfirm(h);
+        expect(replies(h)).toMatch(/TERPAKAI/);
+
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        expect(h.base.usersService.upsertUserFromAdminPanel).not.toHaveBeenCalled();
+        expect(replies(h)).toMatch(/masih dipakai/i);
+        expect(replies(h)).toMatch(/Budi/);
+    });
+
+    test("gerbang berlaku juga di jalur pilih-nomor (bukan cuma jalur YA)", async () => {
+        global.users = [{ id: 6, name: "Sari", device_id: "dev-B", pppoe_username: "sari@rafcybernet" }];
+        const h = harness();
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "TIDAK" });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "2" });
+        expect(h.base.usersService.upsertUserFromAdminPanel).not.toHaveBeenCalled();
+        expect(replies(h)).toMatch(/masih dipakai/i);
+    });
+
+    test("modem copotan → label ♻️ BEKAS + nama pemilik lama dari riwayat OLT", async () => {
+        const h = harness({
+            oltRepository: { getModemStateByPppoe: jest.fn(async (p) => (p === "old@x" ? { customer_name: "Wimpi Sayekti" } : null)) }
+        });
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "TIDAK" });
+        expect(replies(h)).toMatch(/BEKAS Wimpi Sayekti/);
+        // Modem polos tetap ditandai BARU.
+        expect(replies(h)).toMatch(/🆕 BARU/);
+    });
+
+    test("CARI: modem copotan yang tak muncul di daftar 'baru' ketemu lewat nama pemilik lama", async () => {
+        const copotan = { deviceId: "dev-C", serialNumber: "48575443FFD52EAD", model: "HG8145V5", currentPPPUsername: "wimpi_sayekti-ngitik@rafcybernet", registeredDate: "2025-08-01T00:00:00.000Z" };
+        const findPsbCandidatesByHint = jest.fn(async ({ hint }) => ({ ok: true, data: hint === "wimpi" ? [copotan] : [] }));
+        const h = harness({
+            findRecentPsbCandidates: jest.fn(async () => ({ ok: true, data: [] })), // daftar "baru" KOSONG
+            findPsbCandidatesByHint,
+            oltRepository: { getModemStateByPppoe: jest.fn(async () => ({ customer_name: "Wimpi Sayekti" })) }
+        });
+        await reachConfirm(h);
+        // Layar kosong harus MENGAJARI jalan keluarnya, bukan buntu.
+        expect(replies(h)).toMatch(/cari <4 digit SN>/);
+
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "cari wimpi" });
+        expect(findPsbCandidatesByHint).toHaveBeenCalledWith(expect.objectContaining({ hint: "wimpi" }));
+        expect(h.getState().step).toBe("PSB_PICK_MODEM");
+        expect(replies(h)).toMatch(/BEKAS Wimpi Sayekti/);
+
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "1" });
+        const arg = h.base.usersService.upsertUserFromAdminPanel.mock.calls[0][0];
+        expect(arg.userData.device_id).toBe("dev-C");
+    });
+
+    test("CARI tak ketemu → pesan jujur, state tetap, tak ada yang ditulis", async () => {
+        const h = harness({ findPsbCandidatesByHint: jest.fn(async () => ({ ok: true, data: [] })) });
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "cari zzz999" });
+        expect(replies(h)).toMatch(/Tak ada modem cocok/i);
+        expect(h.base.usersService.upsertUserFromAdminPanel).not.toHaveBeenCalled();
+        expect(h.getState().step).toBe("PSB_CONFIRM_MODEM");
+    });
+
+    test("modem copotan BOLEH dipakai — provisioning jalan & jejak 'bekas' ikut dicatat", async () => {
+        const h = harness({
+            findRecentPsbCandidates: jest.fn(async () => ({ ok: true, data: [CANDIDATES[1]] })),
+            oltRepository: { getModemStateByPppoe: jest.fn(async () => ({ customer_name: "Wimpi Sayekti" })) }
+        });
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        expect(h.base.usersService.upsertUserFromAdminPanel).toHaveBeenCalled();
+        expect(replies(h)).toMatch(/bekas Wimpi Sayekti/i);
+    });
+});
+
+// ── P1b: hasil deteksi band yang GAGAL tak boleh mengendap jadi "fakta" ──
+describe("PSB koreksi band setelah push", () => {
+    test("band gagal saat push → terbaca setelah push → bulk dikoreksi + WiFi band tambahan didorong", async () => {
+        let panggilan = 0;
+        const fetchDeviceCapability = jest.fn(async () => {
+            panggilan += 1;
+            // Modem baru semenit terdaftar di ACS: pembacaan PERTAMA belum lihat WLAN 5GHz.
+            return panggilan === 1
+                ? { found: false }
+                : { found: true, has5G: true, expectedBulk: ["1", "5"] };
+        });
+        const updateUserById = jest.fn(async () => ({ status: 200, body: {} }));
+        const upsert = jest.fn(async () => ({ status: 201, body: { data: { id: 99 }, device_config: { attempted: true, ok: true } } }));
+        const h = harness({
+            fetchDeviceCapability,
+            usersService: { upsertUserFromAdminPanel: upsert, updateUserById }
+        });
+        mockPushDevice.mockClear();
+
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+
+        // Push pertama hanya index 1 (fallback), lalu dikoreksi.
+        expect(upsert.mock.calls[0][0].userData.ssid_indices).toEqual(["1"]);
+        expect(fetchDeviceCapability).toHaveBeenCalledTimes(2);
+        expect(updateUserById).toHaveBeenCalledWith(expect.objectContaining({
+            id: 99,
+            userData: { bulk: ["1", "5"] }
+        }));
+        // Hanya band yang BELUM tersentuh yang didorong susulan (index 5), bukan mengulang index 1.
+        expect(mockPushDevice).toHaveBeenCalledWith("dev-A", expect.objectContaining({ ssidIndices: ["5"] }), expect.anything());
+    });
+
+    test("band tetap tak terbaca setelah push → TIDAK menulis tebakan bulk apa pun", async () => {
+        const fetchDeviceCapability = jest.fn(async () => ({ found: false }));
+        const updateUserById = jest.fn(async () => ({ status: 200, body: {} }));
+        const upsert = jest.fn(async () => ({ status: 201, body: { data: { id: 99 }, device_config: { attempted: true, ok: true } } }));
+        const h = harness({ fetchDeviceCapability, usersService: { upsertUserFromAdminPanel: upsert, updateUserById } });
+        mockPushDevice.mockClear();
+
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+
+        expect(updateUserById).not.toHaveBeenCalled();
+        expect(mockPushDevice).not.toHaveBeenCalled();
+        // Teknisi tetap diberi tahu jujur bahwa band tak terbaca.
+        expect(h.base.reply.mock.calls.map((c) => c[0]).join("\n")).toMatch(/Band modem tak terbaca/i);
     });
 });

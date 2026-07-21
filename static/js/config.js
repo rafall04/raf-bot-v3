@@ -84,6 +84,10 @@
                 setValue('psbIntakeEnabled', json.data.psbIntake?.enabled === true ? "true" : "false");
                 setValue('psbIntakeRecency', json.data.psbIntake?.recencyWindowMinutes || '', '120');
                 setValue('psbIntakeFreeInstallMonth', json.data.psbIntake?.freeInstallMonth === true ? "true" : "false");
+                // Alamat pelanggan dirakit bot dari dusun + RT/RW + desa/kecamatan area.
+                setValue('psbIntakeDesa', json.data.psbIntake?.desa || '', '');
+                setValue('psbIntakeKecamatan', json.data.psbIntake?.kecamatan || '', '');
+                setValue('psbIntakeDusunList', (json.data.psbIntake?.dusunList || []).join(', '), '');
                 (function () {
                     var sel = document.getElementById('psbIntakeGroupId');
                     var gid = (json.data.psbIntake && json.data.psbIntake.groupId) || '';

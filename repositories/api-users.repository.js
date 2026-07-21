@@ -23,7 +23,7 @@ function defaultDeps() {
 // TERBUANG tanpa error — data tampak utuh di snapshot in-memory lalu RAIB saat bot restart
 // (users di-reload dari SQLite). Menambah field baru cukup di sini; tak ada lagi kolom hilang senyap.
 const USER_INSERT_COLUMNS = [
-    "id", "name", "phone_number", "address",
+    "id", "name", "phone_number", "address", "dusun",
     "subscription", "subscription_price", "payment_due_date",
     "pppoe_username", "pppoe_password", "device_id",
     "username", "password",

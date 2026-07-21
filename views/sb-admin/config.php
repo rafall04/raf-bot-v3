@@ -284,6 +284,24 @@
                   <small class="form-text text-muted">Bot menganggap "modem baru dipasang" = modem yang registrasi ke GenieACS dalam N menit terakhir (default 120). Perbesar bila ACS sering telat inform.</small>
                 </div>
                 <div class="mb-3">
+                  <label for="psbIntakeDusunList">Daftar Dusun (pilihan bernomor di WA)</label>
+                  <textarea class="form-control" id="psbIntakeDusunList" name="psbIntakeDusunList" rows="3" placeholder="Ngitik, Karang, Krajan"></textarea>
+                  <small class="form-text text-muted">Pisah dengan <b>koma</b> atau <b>baris baru</b>. Teknisi memilih dusun dengan <b>balas angka</b> — urutan di sini = nomor pilihannya. Ini penting: dusun ikut jadi bagian <b>username PPPoE yang permanen</b>, jadi salah ketik (<code>ngitik</code> vs <code>ngitk</code>) menetap selamanya. Kosongkan bila ingin teknisi mengetik dusun bebas.</small>
+                </div>
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label for="psbIntakeDesa">Desa</label>
+                    <input type="text" class="form-control" id="psbIntakeDesa" name="psbIntakeDesa" placeholder="Tanjungharjo" />
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label for="psbIntakeKecamatan">Kecamatan</label>
+                    <input type="text" class="form-control" id="psbIntakeKecamatan" name="psbIntakeKecamatan" placeholder="Kapas" />
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <small class="form-text text-muted">Desa &amp; Kecamatan dipakai bot untuk <b>merakit alamat pelanggan</b>: <code>Dsn. Ngitik RT 014 RW 002 Ds. Tanjungharjo Kec. Kapas</code>. Teknisi hanya mengetik <b>RT/RW</b> (mis. <code>14/2</code>) — sisanya otomatis.</small>
+                </div>
+                <div class="mb-3">
                   <label for="psbIntakeFreeInstallMonth">Gratis Bulan Pemasangan (otomatis saat PSB selesai)</label>
                   <select class="form-control" id="psbIntakeFreeInstallMonth" name="psbIntakeFreeInstallMonth">
                       <option value="false">Nonaktif</option>
