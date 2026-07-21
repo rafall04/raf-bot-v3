@@ -22,12 +22,15 @@ const {
     startNetworkAssetSession,
     startFillSession,
     startLocationSession,
+    startRouteSession,
     inspectOdp,
     handleNetworkAssetConversationState,
     STEP_COLLECT,
     STEP_CONFIRM,
     STEP_ATTACH,
-    STEP_PICK_PARENT
+    STEP_PICK_PARENT,
+    STEP_ROUTE_WAIT,
+    STEP_ROUTE_REPLACE
 } = require("../network-asset.state");
 
 const TMP = path.join(os.tmpdir(), `aset-test-${Date.now()}`);
@@ -404,5 +407,124 @@ describe("petakan aset baru — pagar yang tetap berlaku", () => {
 
         expect(h.assetService.createAsset).not.toHaveBeenCalled();
         expect(h.getState().step).toBe(STEP_COLLECT);
+    });
+});
+
+// ── #JALUR: merekam BENTUK jalur kabel dari lapangan ──
+// Peta menggambar ODC→ODP sebagai garis lurus karena tak ada yang pernah memberi tahu bentuknya.
+// Yang tahu cuma orang yang menarik kabelnya — dan dia memegang HP, bukan mouse.
+describe("#JALUR — rekam jalur kabel ODC→ODP dari lapangan", () => {
+    function jalurHarness(routeOverrides = {}) {
+        const routeService = {
+            getRoute: jest.fn(async () => null),
+            saveRoute: jest.fn(async (input) => ({ count: input.points.length, meters: 412 })),
+            ...routeOverrides
+        };
+        return { h: harness({ routeService }), routeService };
+    }
+
+    test("membuka mode rekam dan meminta share lokasi TIAP BELOKAN (bukan tiap tiang)", async () => {
+        const { h } = jalurHarness();
+        await startRouteSession({ ...h.base, chats: "#JALUR Balen 2" });
+
+        expect(h.getState().step).toBe(STEP_ROUTE_WAIT);
+        const teks = lastReply(h);
+        expect(teks).toContain("BELOKAN");
+        expect(teks).toContain("tiap tiang"); // "Tak perlu tiap tiang" — jangan sampai dituntut tiap tiang
+        expect(teks).toContain("SELESAI");
+    });
+
+    test("SELESAI menyimpan jalur dgn titik ODC di depan & ODP di belakang — ujung tak perlu dipin ulang", async () => {
+        const { h, routeService } = jalurHarness();
+        await startRouteSession({ ...h.base, chats: "#JALUR Balen 2" });
+        await lanjut(h, { type: "locationMessage", msg: locMsg(-7.2504, 111.8402) });
+        await lanjut(h, { type: "locationMessage", msg: locMsg(-7.2506, 111.8405) });
+        await lanjut(h, { chats: "selesai" });
+
+        expect(routeService.saveRoute).toHaveBeenCalledTimes(1);
+        const dikirim = routeService.saveRoute.mock.calls[0][0];
+        expect(dikirim.connectionType).toBe("odc-odp");
+        expect(dikirim.sourceId).toBe("ODC-BALEN-001");
+        expect(dikirim.targetId).toBe("ODP-BALEN-002");
+        expect(dikirim.points).toHaveLength(4); // ODC + 2 belokan + ODP
+        expect(dikirim.points[0]).toEqual([ODC_BALEN.latitude, ODC_BALEN.longitude]);
+        expect(dikirim.points.at(-1)).toEqual([ODP_BALEN.latitude, ODP_BALEN.longitude]);
+        expect(h.getState()).toBeNull(); // sesi ditutup
+        expect(lastReply(h)).toContain("Jalur tersimpan");
+    });
+
+    test("SELESAI tanpa satu pun belokan TIDAK menyimpan — jalur lurus tak perlu direkam", async () => {
+        const { h, routeService } = jalurHarness();
+        await startRouteSession({ ...h.base, chats: "#JALUR Balen 2" });
+        await lanjut(h, { chats: "selesai" });
+
+        expect(routeService.saveRoute).not.toHaveBeenCalled();
+        expect(h.getState().step).toBe(STEP_ROUTE_WAIT); // tetap di mode rekam, bukan gagal senyap
+        expect(lastReply(h)).toContain("Belum ada titik");
+    });
+
+    test("HAPUS membuang titik terakhir — salah pin itu kejadian normal di lapangan", async () => {
+        const { h, routeService } = jalurHarness();
+        await startRouteSession({ ...h.base, chats: "#JALUR Balen 2" });
+        await lanjut(h, { type: "locationMessage", msg: locMsg(-7.2504, 111.8402) });
+        await lanjut(h, { type: "locationMessage", msg: locMsg(-7.2599, 111.8999) }); // salah pin
+        await lanjut(h, { chats: "hapus" });
+        await lanjut(h, { chats: "selesai" });
+
+        const dikirim = routeService.saveRoute.mock.calls[0][0];
+        expect(dikirim.points).toHaveLength(3); // ODC + 1 belokan (yang salah dibuang) + ODP
+        expect(dikirim.points).not.toContainEqual([-7.2599, 111.8999]);
+    });
+
+    test("ULANG mengosongkan titik tanpa keluar dari mode rekam", async () => {
+        const { h, routeService } = jalurHarness();
+        await startRouteSession({ ...h.base, chats: "#JALUR Balen 2" });
+        await lanjut(h, { type: "locationMessage", msg: locMsg(-7.2504, 111.8402) });
+        await lanjut(h, { chats: "ulang" });
+        await lanjut(h, { type: "locationMessage", msg: locMsg(-7.2507, 111.8408) });
+        await lanjut(h, { chats: "selesai" });
+
+        const dikirim = routeService.saveRoute.mock.calls[0][0];
+        expect(dikirim.points).toHaveLength(3);
+        expect(dikirim.points).not.toContainEqual([-7.2504, 111.8402]);
+    });
+
+    test("jalur yang SUDAH ADA tidak ditimpa diam-diam — harus diiyakan dulu", async () => {
+        const { h, routeService } = jalurHarness({
+            getRoute: jest.fn(async () => ({ points: [[-7.25, 111.84], [-7.2501, 111.8401]], meters: 200 }))
+        });
+        await startRouteSession({ ...h.base, chats: "#JALUR Balen 2" });
+
+        expect(h.getState().step).toBe(STEP_ROUTE_REPLACE);
+        expect(lastReply(h)).toContain("sudah punya jalur");
+
+        await lanjut(h, { chats: "ya" });
+        expect(h.getState().step).toBe(STEP_ROUTE_WAIT);
+        expect(routeService.saveRoute).not.toHaveBeenCalled(); // baru merekam, belum menyimpan
+    });
+
+    test("ODP tanpa induk ODC ditolak dengan ARAHAN, bukan sekadar error", async () => {
+        const { routeService } = jalurHarness();
+        const hLepas = harness({
+            routeService,
+            assetService: {
+                findAssetsByName: jest.fn(() => [{ id: "ODP-LEPAS", type: "ODP", name: "Lepas", latitude: -7.25, longitude: 111.84, parent_odc_id: "" }])
+            }
+        });
+
+        await startRouteSession({ ...hLepas.base, chats: "#JALUR Lepas" });
+
+        expect(routeService.saveRoute).not.toHaveBeenCalled();
+        expect(lastReply(hLepas)).toContain("#ODP Lepas");
+    });
+
+    test("teks biasa saat merekam → diingatkan cara kirim titik + jumlah yang sudah masuk", async () => {
+        const { h } = jalurHarness();
+        await startRouteSession({ ...h.base, chats: "#JALUR Balen 2" });
+        await lanjut(h, { type: "locationMessage", msg: locMsg(-7.2504, 111.8402) });
+        await lanjut(h, { chats: "sudah sampai mana ya" });
+
+        expect(lastReply(h)).toContain("share lokasi");
+        expect(lastReply(h)).toContain("1 titik");
     });
 });

@@ -255,6 +255,8 @@ dan dibaca ulang setiap sesi tanpa perlu. Buka HANYA entri yang relevan dengan y
 
 - [Feat 2026-07-21 (PSB alamat/dusun + modem copotan: wizard minta RT/RW saja lalu RAKIT alamat `Dsn X RT/RW Ds Y Kec Z` (`composeAddress`/`normalizeRtRw` di `psb-caption-parser`), dusun jadi PILIHAN BERNOMOR (`psbIntake.dusunList`) + KOLOM `users.dusun` (migrasi v7 + whitelist INSERT); `lib/psb-modem-provenance` (BARU) label 🆕BARU/♻️BEKAS<pemilik lama dari riwayat OLT>/⛔TERPAKAI + GERBANG tolak modem bersesi PPPoE aktif / masih tertaut pelanggan; `findPsbCandidatesByHint` + perintah `cari <SN/nama>`; koreksi `bulk` pasca-push saat band belum kebaca)](docs/boundary-log.md#b165)
 
+- [Feat 2026-07-21 (Peta berhenti berbohong — JALUR kabel ikut jalan: `lib/network-route-service` (BARU, pemilik tunggal validasi titik + panjang garis) + `GET/POST/DELETE /api/map/waypoints` **+ `/all`** yang selama ini TAK PERNAH ADA meski klien sudah memanggilnya (404 ditelan `if(response.ok)` → semua garis diam-diam lurus); WA `#JALUR <ODP>` rekam belokan lewat share lokasi (step `ASSET_ROUTE_*`, ujung ODC/ODP diambil dari aset); garis lurus kini PUTUS-PUTUS = belum dipetakan; kabel drop pelanggan→ODP tak di-route (`routeDropCable`); GOTCHA `DONE_RE` longgar bikin "sudah sampai mana ya" = SELESAI)](docs/boundary-log.md#b166)
+
 ## Unknown / Not found
 - Peta rinci untuk subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` tidak diminta pada tugas ini.
 - Lokasi final semua secret `.env` atau token tidak ditrace dari isi file pada pemetaan ini.

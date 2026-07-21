@@ -574,10 +574,11 @@ module.exports = async (raf, msg, m, options = {}) => {
         // oleh routeConversationState (owner "network-asset", prefix step ASSET_).
         // Gate: akun staf (sama seperti #jadwal) + config `networkAssets.waIntake.enabled` (default ON).
         // NON-THROWING: gagal di sini tak boleh menjatuhkan pesan lain.
-        // 4 perintah menata jaringan, semuanya khusus STAF:
+        // 5 perintah menata jaringan, semuanya khusus STAF:
         //   #ODC/#ODP <nama>   → petakan (nama SUDAH ADA = edit, bukan duplikat)
         //   #ISI <nama ODP>    → sambungkan pelanggan ke ODP (terima nomor ATAU nama → tak butuh GPS)
         //   #LOKASI <pelanggan>→ simpan titik GPS pelanggan
+        //   #JALUR <nama ODP>  → rekam BENTUK jalur kabel ODC→ODP (share lokasi tiap belokan)
         //   odp <nama>         → cek hunian (3/8, siapa saja, link peta) — TANPA '#', jadi tak bentrok
         // Non-staf yang kebetulan mengetik "odp ..." → resolveAuthorizedStaff null → jatuh ke alur normal.
         try {
@@ -586,7 +587,7 @@ module.exports = async (raf, msg, m, options = {}) => {
             const aset = require('./handlers/state-domains/network-asset.state');
             const teksAset = String(chats || '');
             const cocokAset = aset.TRIGGER_RE.test(teksAset) || aset.FILL_RE.test(teksAset)
-                || aset.LOC_RE.test(teksAset) || aset.INSPECT_RE.test(teksAset);
+                || aset.LOC_RE.test(teksAset) || aset.ROUTE_RE.test(teksAset) || aset.INSPECT_RE.test(teksAset);
 
             if (asetAktif && type !== 'imageMessage' && cocokAset) {
                 const { resolveAuthorizedStaff } = require('./handlers/psb-group-intake');
@@ -601,6 +602,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                     if (aset.TRIGGER_RE.test(teksAset)) await aset.startNetworkAssetSession(ctxAset);
                     else if (aset.FILL_RE.test(teksAset)) await aset.startFillSession(ctxAset);
                     else if (aset.LOC_RE.test(teksAset)) await aset.startLocationSession(ctxAset);
+                    else if (aset.ROUTE_RE.test(teksAset)) await aset.startRouteSession(ctxAset);
                     else await aset.inspectOdp(ctxAset);
                     return;
                 }

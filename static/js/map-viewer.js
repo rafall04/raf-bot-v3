@@ -1802,6 +1802,10 @@ function redrawMarkers(markerType) {
             let pppoeStatusLoadedSuccessfully = false;
 
             try {
+                // Jalur manual dimuat SEKALI di depan — sesudah ini penggambaran garis tak menyentuh
+                // jaringan lagi (dulu: satu permintaan per koneksi, berurutan, tiap peta dibuka).
+                await preloadManualRoutes();
+
                 await fetchActivePppoeUsers();
                 pppoeStatusLoadedSuccessfully = !initialPppoeLoadFailed;
 
@@ -2011,58 +2015,24 @@ function redrawMarkers(markerType) {
                                 routingProfile = window.globalConfig.openRouteService.profiles?.odcToOdp || 'driving-car';
                             }
                             
-                            // PRIORITAS 1: Cek waypoint manual terlebih dahulu
-                            let routeCoordinates;
-                            try {
-                                const waypointResponse = await fetch(`/api/map/waypoints?connectionType=odc-odp&sourceId=${parentOdcMarker.assetData.id}&targetId=${odpAsset.id}`, {
-                                    credentials: 'include'
-                                });
-                                
-                                if (waypointResponse.ok) {
-                                    const waypointData = await waypointResponse.json();
-                                    if (waypointData.status === 200 && waypointData.data && waypointData.data.waypoints && waypointData.data.waypoints.length >= 2) {
-                                        routeCoordinates = waypointData.data.waypoints;
-                                        console.log(`[WAYPOINTS_MANUAL] ODP-ODC: ${odpAsset.name} → ODC-${parentOdcMarker.assetData.id} (${routeCoordinates.length} points manual)`);
-                                    }
-                                }
-                            } catch (waypointError) {
-                                console.warn(`[WAYPOINTS_ERROR] ODP-ODC: ${odpAsset.name} → ODC-${parentOdcMarker.assetData.id}:`, waypointError);
-                            }
-                            
-                            // PRIORITAS 2: Jika tidak ada waypoint manual, gunakan routing API
-                            if (!routeCoordinates || routeCoordinates.length < 2) {
-                                try {
-                                    routeCoordinates = await getRouteCoordinates(
-                                        startLatLng.lat,
-                                        startLatLng.lng,
-                                        endLatLng.lat,
-                                        endLatLng.lng,
-                                        routingProfile
-                                    );
-                                    
-                                    // Log jika routing berhasil (hanya untuk debugging, bisa di-disable)
-                                    if (routeCoordinates && routeCoordinates.length > 2) {
-                                        console.log(`[ROUTING_SUCCESS] ODP-ODC: ${odpAsset.name} → ODC-${parentOdcMarker.assetData.id} (${routeCoordinates.length} points)`);
-                                    } else {
-                                        console.warn(`[ROUTING_FALLBACK] ODP-ODC: ${odpAsset.name} → ODC-${parentOdcMarker.assetData.id} (straight line, ${routeCoordinates?.length || 0} points)`);
-                                    }
-                                } catch (error) {
-                                    console.error(`[ROUTING_ERROR] ODP-ODC: ${odpAsset.name} → ODC-${parentOdcMarker.assetData.id}:`, error);
-                                    // Fallback ke straight line jika routing gagal
-                                    routeCoordinates = [
-                                        [startLatLng.lat, startLatLng.lng],
-                                        [endLatLng.lat, endLatLng.lng]
-                                    ];
-                                }
-                            }
-                            
+                            // Jalur manual (rekaman lapangan) → routing API → garis lurus "belum dipetakan".
+                            const odcOdpRoute = await resolveConnectionRoute(
+                                'odc-odp', parentOdcMarker.assetData.id, odpAsset.id,
+                                { lat: startLatLng.lat, lng: startLatLng.lng },
+                                { lat: endLatLng.lat, lng: endLatLng.lng },
+                                { profile: routingProfile }
+                            );
+                            const routeCoordinates = odcOdpRoute.coordinates;
+                            const odcOdpHint = routeStyleHint(odcOdpRoute.source);
+
                             // Create elegant animated line dengan route coordinates - Multi-layer untuk depth effect
                             // Base layer - subtle shadow untuk depth
                             const baseLine = L.polyline(routeCoordinates, {
                                 color: '#ff7800',
                                 weight: 4,
                                 opacity: 0.12,
-                                className: 'connection-line-base'
+                                className: 'connection-line-base',
+                                ...odcOdpHint
                             });
                             baseLine.connectedEntities = { odcId: parentOdcMarker.assetData.id, odpId: odpAsset.id };
                             odpToOdcLines.push(baseLine);
@@ -2077,7 +2047,8 @@ function redrawMarkers(markerType) {
                                 delay: 6000, // Slow, elegant animation
                                 dashArray: [35, 55], // Long dashes for elegant look
                                 pulseColor: '#ffaa44', // Soft orange pulse (lighter than line)
-                                hardwareAccelerated: true
+                                hardwareAccelerated: true,
+                                ...odcOdpHint
                             });
                             line.connectedEntities = { odcId: parentOdcMarker.assetData.id, odpId: odpAsset.id };
                             odpToOdcLines.push(line);
@@ -2467,51 +2438,23 @@ function redrawMarkers(markerType) {
                                     routingProfile = window.globalConfig.openRouteService.profiles?.customerToOdp || 'foot-walking';
                                 }
                                 
-                                // PRIORITAS 1: Cek waypoint manual terlebih dahulu
-                                let customerToOdpRouteCoordinates;
-                                try {
-                                    const waypointResponse = await fetch(`/api/map/waypoints?connectionType=customer-odp&sourceId=${customer.id}&targetId=${odpAsset.id}`, {
-                                        credentials: 'include'
-                                    });
-                                    
-                                    if (waypointResponse.ok) {
-                                        const waypointData = await waypointResponse.json();
-                                        if (waypointData.status === 200 && waypointData.data && waypointData.data.waypoints && waypointData.data.waypoints.length >= 2) {
-                                            customerToOdpRouteCoordinates = waypointData.data.waypoints;
-                                            console.log(`[WAYPOINTS_MANUAL] Customer-ODP: ${customer.name || customer.id} → ${odpAsset.name} (${customerToOdpRouteCoordinates.length} points manual)`);
-                                        }
-                                    }
-                                } catch (waypointError) {
-                                    console.warn(`[WAYPOINTS_ERROR] Customer-ODP: ${customer.name || customer.id} → ${odpAsset.name}:`, waypointError);
-                                }
-                                
-                                // PRIORITAS 2: Jika tidak ada waypoint manual, gunakan routing API
-                                if (!customerToOdpRouteCoordinates || customerToOdpRouteCoordinates.length < 2) {
-                                    try {
-                                        customerToOdpRouteCoordinates = await getRouteCoordinates(
-                                            lat,
-                                            lng,
-                                            odpMarker.getLatLng().lat,
-                                            odpMarker.getLatLng().lng,
-                                            routingProfile
-                                        );
-                                        
-                                        // Log jika routing berhasil (hanya untuk debugging, bisa di-disable)
-                                        if (customerToOdpRouteCoordinates && customerToOdpRouteCoordinates.length > 2) {
-                                            console.log(`[ROUTING_SUCCESS] Customer-ODP: ${customer.name || customer.id} → ${odpAsset.name} (${customerToOdpRouteCoordinates.length} points)`);
-                                        } else {
-                                            console.warn(`[ROUTING_FALLBACK] Customer-ODP: ${customer.name || customer.id} → ${odpAsset.name} (straight line, ${customerToOdpRouteCoordinates?.length || 0} points)`);
-                                        }
-                                    } catch (error) {
-                                        console.error(`[ROUTING_ERROR] Customer-ODP: ${customer.name || customer.id} → ${odpAsset.name}:`, error);
-                                        // Fallback ke straight line jika routing gagal
-                                        customerToOdpRouteCoordinates = [
-                                            [lat, lng],
-                                            [odpMarker.getLatLng().lat, odpMarker.getLatLng().lng]
-                                        ];
-                                    }
-                                }
-                                
+                                // KABEL DROP TIDAK DI-ROUTE. Drop ODP→rumah cuma puluhan meter dan memotong
+                                // pekarangan; dipaksa memutar lewat jalan justru LEBIH salah daripada garis
+                                // lurus. Router mengikuti jalan kendaraan, kabel mengikuti tiang.
+                                // Nyalakan sadar-risiko lewat `openRouteService.routeDropCable = true`.
+                                const routeDropCable = !!(typeof window !== 'undefined' && window.globalConfig
+                                    && window.globalConfig.openRouteService
+                                    && window.globalConfig.openRouteService.routeDropCable === true);
+
+                                const custRoute = await resolveConnectionRoute(
+                                    'customer-odp', customer.id, odpAsset.id,
+                                    { lat: lat, lng: lng },
+                                    { lat: odpMarker.getLatLng().lat, lng: odpMarker.getLatLng().lng },
+                                    { profile: routingProfile, allowRouting: routeDropCable }
+                                );
+                                const customerToOdpRouteCoordinates = custRoute.coordinates;
+                                const custHint = routeStyleHint(custRoute.source);
+
                                 if (onlineStatus === 'online') {
                                     // Elegant multi-layer animated line untuk online customers
                                     // Base layer - subtle glow
@@ -2519,7 +2462,8 @@ function redrawMarkers(markerType) {
                                         color: '#28a745',
                                         weight: 5,
                                         opacity: 0.15,
-                                        className: 'connection-line-glow'
+                                        className: 'connection-line-glow',
+                                        ...custHint
                                     });
                                     baseGlow.connectedEntities = { customerId: customer.id, odpId: odpAsset.id };
                                     customerToOdpLines.push(baseGlow);
@@ -2534,7 +2478,8 @@ function redrawMarkers(markerType) {
                                         delay: 7000, // Slow, elegant animation
                                         dashArray: [40, 60], // Long dashes for elegant look
                                         pulseColor: '#4ade80', // Soft green pulse (lighter)
-                                        hardwareAccelerated: true
+                                        hardwareAccelerated: true,
+                                        ...custHint
                                     });
                                     lineDots.connectedEntities = { customerId: customer.id, odpId: odpAsset.id };
                                     customerToOdpLines.push(lineDots);
@@ -2550,7 +2495,8 @@ function redrawMarkers(markerType) {
                                         color: lineColor,
                                         weight: 4,
                                         opacity: 0.1,
-                                        className: 'connection-line-shadow'
+                                        className: 'connection-line-shadow',
+                                        ...custHint
                                     });
                                     baseShadow.connectedEntities = { customerId: customer.id, odpId: odpAsset.id };
                                     customerToOdpLines.push(baseShadow);
@@ -2566,7 +2512,8 @@ function redrawMarkers(markerType) {
                                         delay: 8000, // Very slow, elegant animation
                                         dashArray: [45, 65], // Long dashes for elegant look
                                         pulseColor: pulseColor, // Soft pulse color
-                                        hardwareAccelerated: true
+                                        hardwareAccelerated: true,
+                                        ...custHint
                                     });
                                     offlineLine.connectedEntities = { customerId: customer.id, odpId: odpAsset.id };
                                     customerToOdpLines.push(offlineLine);
@@ -3525,7 +3472,71 @@ function redrawMarkers(markerType) {
         // ============================================
         // Waypoint Editor Functions
         // ============================================
-        
+
+        // Cache SEMUA jalur manual, diambil SEKALI per muat peta. Sebelumnya tiap koneksi memanggil
+        // `/api/map/waypoints` sendiri di dalam loop ber-await — 100 ODP = 100 permintaan berurutan
+        // setiap kali peta dibuka.
+        let manualRouteCache = null;
+
+        function manualRouteKey(connectionType, sourceId, targetId) {
+            return `${String(connectionType).toLowerCase()}|${sourceId}|${targetId}`;
+        }
+
+        async function preloadManualRoutes() {
+            try {
+                const response = await fetch('/api/map/waypoints/all', { credentials: 'include' });
+                if (!response.ok) {
+                    // Jangan diam: dulu 404 endpoint ini ditelan `if (response.ok)` tanpa cabang else,
+                    // sehingga SEMUA garis diam-diam jatuh ke garis lurus tanpa seorang pun tahu.
+                    console.warn(`[WAYPOINTS] Gagal memuat jalur manual (HTTP ${response.status}) — garis memakai routing/lurus.`);
+                    manualRouteCache = new Map();
+                    return manualRouteCache;
+                }
+                const data = await response.json();
+                const rows = (data && data.data && Array.isArray(data.data.routes)) ? data.data.routes : [];
+                manualRouteCache = new Map(rows.map(r => [r.key, r.points]));
+                console.log(`[WAYPOINTS] ${manualRouteCache.size} jalur manual dimuat.`);
+            } catch (error) {
+                console.warn('[WAYPOINTS] Gagal memuat jalur manual:', error);
+                manualRouteCache = new Map();
+            }
+            return manualRouteCache;
+        }
+
+        /**
+         * Bentuk garis untuk satu koneksi, dengan urutan kepercayaan:
+         *   1. JALUR MANUAL  — direkam manusia (web/`#JALUR` WA). Ini kebenaran.
+         *   2. ROUTING API   — tebakan mesin yang mengikuti jalan (kalau dinyalakan).
+         *   3. GARIS LURUS   — BELUM DIPETAKAN. Dikembalikan dengan tanda `straight` supaya bisa
+         *                      digambar putus-putus: garis lurus yang menyamar jadi jalur = peta bohong.
+         */
+        async function resolveConnectionRoute(connectionType, sourceId, targetId, start, end, options = {}) {
+            const straight = [[start.lat, start.lng], [end.lat, end.lng]];
+
+            const cached = manualRouteCache ? manualRouteCache.get(manualRouteKey(connectionType, sourceId, targetId)) : null;
+            if (Array.isArray(cached) && cached.length >= 2) {
+                return { coordinates: cached, source: 'manual' };
+            }
+
+            if (options.allowRouting === false) return { coordinates: straight, source: 'straight' };
+
+            try {
+                const coordinates = await getRouteCoordinates(start.lat, start.lng, end.lat, end.lng, options.profile);
+                // 2 titik = routing tak menghasilkan apa-apa (mati / gagal) → jujur: itu garis lurus.
+                if (Array.isArray(coordinates) && coordinates.length > 2) {
+                    return { coordinates, source: 'routing' };
+                }
+            } catch (error) {
+                console.error(`[ROUTING_ERROR] ${connectionType}: ${sourceId} → ${targetId}:`, error);
+            }
+            return { coordinates: straight, source: 'straight' };
+        }
+
+        /** Garis lurus (= belum dipetakan) digambar putus-putus tipis, bukan seperti jalur sungguhan. */
+        function routeStyleHint(source) {
+            return source === 'straight' ? { dashArray: '6, 10', opacity: 0.45 } : {};
+        }
+
         /**
          * Start editing waypoints for a connection
          */

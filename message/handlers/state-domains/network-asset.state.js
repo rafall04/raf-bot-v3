@@ -10,6 +10,14 @@
  *            `odp <nama>` / `cek odp <nama>`→ cek hunian: 3/8, siapa saja, link peta (tanpa buka laptop).
  *            `#LOKASI <nama/HP>`            → simpan titik GPS pelanggan (menutup pelanggan lama yang
  *                                             tak punya koordinat sama sekali).
+ *            `#JALUR <nama ODP>`            → REKAM BENTUK JALUR kabel ODC→ODP: kirim share lokasi di
+ *                                             tiap BELOKAN, lalu `SELESAI`. Peta berhenti menggambar
+ *                                             garis lurus dan mulai mengikuti jalan.
+ *
+ *          KENAPA JALUR DIREKAM DARI LAPANGAN: bentuk jalur cuma diketahui orang yang menarik kabelnya,
+ *          dan dia memegang HP di bawah tiang — bukan mouse di depan komputer. Titik yang dibutuhkan
+ *          adalah SUDUT, bukan tiap tiang: 3–6 belokan sudah membuat garis mengikuti jalan, sedangkan
+ *          menuntut tiap tiang membuat fiturnya ditinggalkan.
  *
  *          KENAPA ALURNYA PER-ODP, BUKAN PER-PELANGGAN: di lapangan teknisi berdiri di depan SATU boks
  *          dan bisa MENELUSURI kabel yang keluar dari situ. Jadi pertanyaan alaminya "ODP ini isinya
@@ -21,17 +29,19 @@
  *          Nomor usulan TIDAK PERNAH digeser setelah ada yang tersambung (yang sudah jadi ditandai ✅) —
  *          kalau daftar dinomori ulang, teknisi yang mengetik "2" bisa menyambungkan orang yang salah.
  * Caller: `conversation-state-router` (owner "network-asset", prefix step `ASSET_`) + trigger
- *         `startNetworkAssetSession` / `startFillSession` / `startLocationSession` / `inspectOdp`
- *         dari `message/raf.js`.
+ *         `startNetworkAssetSession` / `startFillSession` / `startLocationSession` / `startRouteSession`
+ *         / `inspectOdp` dari `message/raf.js`.
  * Deps (inject): `reply`/`downloadMedia` (delivery boundary), `setUserState`/`deleteUserState`,
  *        `lib/network-assets-service` (SATU pemilik aturan aset — sama dgn route web),
+ *        `lib/network-route-service` (SATU pemilik aturan jalur — sama dgn `/api/map/waypoints`),
  *        `usersService` (`global.__apiUsersService`) untuk menulis pelanggan → validasi kapasitas ODP +
  *        hitung-ulang port ikut jalan otomatis (TIDAK ADA jalur tulis kedua),
  *        `lib/affirmative-parser` (JANGAN pakai daftar cocok-persis).
- * MainFuncs: `startNetworkAssetSession`, `startFillSession`, `startLocationSession`, `inspectOdp`,
- *            `handleNetworkAssetConversationState`.
- * SideEffects: Tulis `database/network_assets.json` (via service, di bawah lock), UPDATE pelanggan
- *              (via usersService), foto ke `uploads/network-assets/...`, kirim WA. NEVER-THROW.
+ * MainFuncs: `startNetworkAssetSession`, `startFillSession`, `startLocationSession`, `startRouteSession`,
+ *            `inspectOdp`, `handleNetworkAssetConversationState`.
+ * SideEffects: Tulis `database/network_assets.json` (via service, di bawah lock), tabel
+ *              `connection_waypoints` (via network-route-service), UPDATE pelanggan (via usersService),
+ *              foto ke `uploads/network-assets/...`, kirim WA. NEVER-THROW.
  */
 "use strict";
 
@@ -47,22 +57,35 @@ const STEP_PICK_CUSTOMER = "ASSET_PICK_CUSTOMER";
 const STEP_PICK_ODP = "ASSET_PICK_ODP";
 const STEP_LOC_WAIT = "ASSET_LOC_WAIT";
 const STEP_LOC_PICK = "ASSET_LOC_PICK";
+const STEP_ROUTE_WAIT = "ASSET_ROUTE_WAIT";
+const STEP_ROUTE_REPLACE = "ASSET_ROUTE_REPLACE";
 
 const ASSET_STEPS = new Set([
     STEP_COLLECT, STEP_CONFIRM, STEP_PICK_PARENT,
     STEP_ATTACH, STEP_PICK_CUSTOMER, STEP_PICK_ODP,
-    STEP_LOC_WAIT, STEP_LOC_PICK
+    STEP_LOC_WAIT, STEP_LOC_PICK,
+    STEP_ROUTE_WAIT, STEP_ROUTE_REPLACE
 ]);
 
 // `#` wajib (sama spt #PSB/#jadwal) supaya kata "odp" di kalimat biasa tak membuka wizard.
 const TRIGGER_RE = /^\s*#(odc|odp)\b\s*(.*)$/i;
 const FILL_RE = /^\s*#isi\b\s*(.*)$/i;
 const LOC_RE = /^\s*#lokasi\b\s*(.*)$/i;
+const ROUTE_RE = /^\s*#jalur\b\s*(.*)$/i;
 // Cek hunian: TANPA `#` → tak bentrok dgn wizard. Hanya staf yang bisa memicunya (gate di raf.js).
 const INSPECT_RE = /^\s*(?:cek\s+)?odp\s+(.+)$/i;
 
 const CANCEL_RE = /^\s*(batal|cancel|ga\s*jadi|gajadi)\s*$/i;
 const DONE_RE = /^\s*(selesai|sudah|cukup|udah|kelar)\b/i;
+// Rekam jalur: "salah pin" itu kejadian normal di lapangan (tangan kepencet, sinyal meleset).
+//
+// PERINTAHNYA HARUS SATU PESAN UTUH, bukan awalan kata. `DONE_RE` yang longgar membuat
+// "sudah sampai mana ya" terbaca sebagai SELESAI → jalur setengah jadi tersimpan diam-diam.
+// Sambil menyusuri jalur teknisi memang mengetik kalimat biasa, jadi di sinilah kelonggaran itu
+// paling berbahaya. Bandingkan dgn pelajaran dialek: "sudah tak bayar" = *saya sudah bayar*.
+const ROUTE_DONE_RE = /^\s*(selesai|sudah|udah|kelar|cukup|beres)\s*[.!]*$/i;
+const UNDO_RE = /^\s*(hapus|undo)\s*[.!]*$/i;
+const RESTART_RE = /^\s*(ulang|ulangi|reset)\s*[.!]*$/i;
 const FILL_CMD_RE = /^\s*isi\b/i;
 const ALL_RE = /^\s*(semua|semuanya|all)\s*$/i;
 // Nomor urut daftar SELALU 1–2 digit (daftar dibatasi 10). Dibatasi ketat supaya "08211112222"
@@ -73,6 +96,7 @@ function withDeps(context) {
     return {
         ...context,
         assetService: context.assetService || require("../../../lib/network-assets-service"),
+        routeService: context.routeService || require("../../../lib/network-route-service"),
         usersService: context.usersService || global.__apiUsersService,
         getUsers: context.getUsers || (() => (Array.isArray(global.users) ? global.users : [])),
         uploadsBaseDir: context.uploadsBaseDir || path.join(__dirname, "..", "..", "..", "uploads")
@@ -524,6 +548,124 @@ async function startLocationSession(context) {
     return { started: true };
 }
 
+// ══════════════════ REKAM JALUR KABEL (`#JALUR <nama ODP>`) ══════════════════
+// Peta menggambar ODC→ODP sebagai GARIS LURUS karena tak ada yang pernah memberi tahu bentuk
+// jalurnya. Yang tahu bentuk itu cuma orang yang menarik kabelnya — dan dia ada di lapangan
+// dengan HP, bukan di depan komputer. Maka: rekam dengan share lokasi di tiap BELOKAN.
+//
+// TAK PERLU TIAP TIANG. Yang membuat garis "ikut jalan" adalah sudut, bukan kerapatan titik;
+// 3–6 belokan sudah cukup, dan menuntut tiap tiang justru membuat teknisi berhenti memakainya.
+
+/** Titik aset yang benar-benar terisi — `0` = belum diset (lihat parseCoord di network-assets-service). */
+function assetPoint(asset) {
+    if (!asset) return null;
+    const lat = Number(asset.latitude);
+    const lng = Number(asset.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat === 0 || lng === 0) return null;
+    return [lat, lng];
+}
+
+function routeIntroText(ctx, lurusMeter) {
+    return [
+        `🧵 *Rekam jalur kabel*`,
+        `${ctx.odcName} → *${ctx.odpName}*${lurusMeter ? ` _(garis lurus ${jarak(lurusMeter)})_` : ""}`,
+        ``,
+        `Susuri kabelnya dari ODC. Tiap ketemu *BELOKAN*, kirim *share lokasi*.`,
+        `_Tak perlu tiap tiang — cukup tiap belok._`,
+        ``,
+        `*SELESAI* kalau sudah · *HAPUS* buang titik terakhir · *ULANG* dari nol · *BATAL*`
+    ].join("\n");
+}
+
+async function enterRouteRecording(context, ctx) {
+    const { stateSender, setUserState, reply, assetService, logger = console } = context;
+    ctx.points = [];
+    setUserState(stateSender, { step: STEP_ROUTE_WAIT, _scope: "teknisi", context: ctx });
+
+    let lurus = 0;
+    try {
+        lurus = Math.round(assetService.haversineMeters(ctx.odcPoint[0], ctx.odcPoint[1], ctx.odpPoint[0], ctx.odpPoint[1]));
+    } catch (_e) { lurus = 0; }
+
+    await safeReply(reply, routeIntroText(ctx, lurus), logger);
+    return { started: true };
+}
+
+/** Siapkan konteks jalur dari sebuah ODP (induk ODC diambil otomatis — teknisi cukup sebut ODP-nya). */
+async function prepareRouteForOdp(context, odp) {
+    const { reply, assetService, routeService, staff, stateSender, setUserState, logger = console } = context;
+
+    const odpPoint = assetPoint(odp);
+    if (!odpPoint) {
+        await safeReply(reply, `❌ *${odp.name}* belum punya titik GPS.\nPetakan dulu: *#ODP ${odp.name}* → kirim share lokasi.`, logger);
+        return { started: true };
+    }
+
+    const parentId = String(odp.parent_odc_id || "").trim();
+    const odc = parentId ? assetService.findAssetById(parentId) : null;
+    const odcPoint = assetPoint(odc);
+    if (!odc || !odcPoint) {
+        await safeReply(reply, [
+            `❌ *${odp.name}* belum punya induk ODC ber-titik, jadi jalurnya belum bisa direkam.`,
+            `Atur dulu: *#ODP ${odp.name}* → kirim share lokasi (bot memilihkan induk terdekat).`
+        ].join("\n"), logger);
+        return { started: true };
+    }
+
+    const ctx = {
+        mode: "jalur",
+        staff,
+        odpId: odp.id, odpName: odp.name, odpPoint,
+        odcId: odc.id, odcName: odc.name, odcPoint,
+        points: []
+    };
+
+    // Jalur yang sudah ada TIDAK ditimpa diam-diam: menimpa = menghapus pekerjaan orang lain.
+    let lama = null;
+    try { lama = await routeService.getRoute("odc-odp", odc.id, odp.id); } catch (_e) { lama = null; }
+    if (lama) {
+        setUserState(stateSender, { step: STEP_ROUTE_REPLACE, _scope: "teknisi", context: ctx });
+        await safeReply(reply, [
+            `ℹ️ *${odp.name}* sudah punya jalur: ${lama.points.length} titik · ±${jarak(lama.meters)}.`,
+            ``,
+            `Rekam ulang? balas *YA* (jalur lama diganti) · *BATAL*`
+        ].join("\n"), logger);
+        return { started: true };
+    }
+
+    return enterRouteRecording(context, ctx);
+}
+
+async function startRouteSession(context) {
+    context = withDeps(context);
+    const { chats, reply, assetService, stateSender, setUserState, staff, logger = console } = context;
+
+    const m = ROUTE_RE.exec(String(chats || ""));
+    if (!m) return { started: false };
+
+    const nama = String(m[1] || "").trim();
+    if (!nama) {
+        await safeReply(reply, `Ketik *#JALUR <nama ODP>* — misal: *#JALUR Balen 1*\nBot merekam jalur kabel dari induk ODC ke ODP itu.`, logger);
+        return { started: true };
+    }
+
+    let cocok = [];
+    try { cocok = assetService.findAssetsByName(nama, "ODP") || []; } catch (_e) { cocok = []; }
+
+    if (cocok.length === 0) {
+        await safeReply(reply, `❌ ODP "${nama}" tak ketemu.\nPetakan dulu: *#ODP ${nama}*`, logger);
+        return { started: true };
+    }
+    if (cocok.length > 1) {
+        const ctx = { mode: "jalur", staff, pickMode: "route", assetChoices: cocok.map((a) => ({ id: a.id, name: a.name })) };
+        setUserState(stateSender, { step: STEP_PICK_ODP, _scope: "teknisi", context: ctx });
+        await safeReply(reply, listPickerText(`Ada ${cocok.length} ODP mirip "${nama}". Yang mana?`, ctx.assetChoices, (a) => `${a.name} (${a.id})`), logger);
+        return { started: true };
+    }
+
+    return prepareRouteForOdp(context, cocok[0]);
+}
+
 // ══ ONE-SHOT: `odp <nama>` / `cek odp <nama>` — hunian + siapa saja + link peta ══
 async function inspectOdp(context) {
     context = withDeps(context);
@@ -575,7 +717,7 @@ async function handleNetworkAssetConversationState(context) {
     context = withDeps(context);
     const {
         stateStep, teknisiState, userState, type, msg, chats, reply, downloadMedia,
-        setUserState, deleteUserState, stateSender, assetService, getUsers, logger = console
+        setUserState, deleteUserState, stateSender, assetService, routeService, getUsers, logger = console
     } = context;
 
     if (!ASSET_STEPS.has(stateStep)) return { handled: false };
@@ -649,6 +791,99 @@ async function handleNetworkAssetConversationState(context) {
         return { handled: true };
     }
 
+    // ── #JALUR: jalur lama sudah ada — timpa hanya kalau diiyakan ──
+    if (stateStep === STEP_ROUTE_REPLACE) {
+        if (!isAffirmative(text)) {
+            await safeReply(reply, `Balas *YA* untuk merekam ulang jalur *${ctx.odpName}*, atau *BATAL*.`, logger);
+            return { handled: true };
+        }
+        return enterRouteRecording(context, ctx);
+    }
+
+    // ── #JALUR: rekam belokan (share lokasi berkali-kali) ──
+    if (stateStep === STEP_ROUTE_WAIT) {
+        const titik = ctx.points || [];
+
+        if (RESTART_RE.test(text)) {
+            ctx.points = [];
+            setUserState(stateSender, { step: STEP_ROUTE_WAIT, _scope: "teknisi", context: ctx });
+            await safeReply(reply, `🔄 Titik dikosongkan. Mulai lagi dari belokan pertama.`, logger);
+            return { handled: true };
+        }
+
+        if (UNDO_RE.test(text)) {
+            const dibuang = titik.pop();
+            setUserState(stateSender, { step: STEP_ROUTE_WAIT, _scope: "teknisi", context: ctx });
+            await safeReply(reply, dibuang
+                ? `↩️ Titik terakhir dibuang. Sisa ${titik.length} titik.`
+                : `Belum ada titik untuk dibuang.`, logger);
+            return { handled: true };
+        }
+
+        if (ROUTE_DONE_RE.test(text)) {
+            if (!titik.length) {
+                await safeReply(reply, [
+                    `Belum ada titik belokan yang direkam.`,
+                    `Kalau jalurnya memang lurus dari ODC ke ODP, tak perlu direkam — ketik *BATAL*.`,
+                    `Kalau ada belokan, kirim *share lokasi* sambil berdiri di belokannya.`
+                ].join("\n"), logger);
+                return { handled: true };
+            }
+
+            // Jalur utuh = titik ODC + semua belokan + titik ODP. Teknisi tak perlu memin ulang
+            // kedua ujungnya — keduanya sudah tersimpan sebagai aset.
+            const points = [ctx.odcPoint, ...titik, ctx.odpPoint];
+            let hasil;
+            try {
+                hasil = await routeService.saveRoute({
+                    connectionType: "odc-odp",
+                    sourceId: ctx.odcId,
+                    targetId: ctx.odpId,
+                    points,
+                    actor: (ctx.staff && (ctx.staff.username || ctx.staff.name)) || "wa"
+                });
+            } catch (e) {
+                logger?.error?.("[ASET] gagal simpan jalur:", e.message);
+                await safeReply(reply, `❌ Gagal menyimpan jalur: ${e.message}\nCoba ketik *SELESAI* lagi.`, logger);
+                return { handled: true };
+            }
+
+            let lurus = 0;
+            try {
+                lurus = Math.round(assetService.haversineMeters(ctx.odcPoint[0], ctx.odcPoint[1], ctx.odpPoint[0], ctx.odpPoint[1]));
+            } catch (_e) { lurus = 0; }
+
+            deleteUserState(stateSender);
+            await safeReply(reply, [
+                `✅ *Jalur tersimpan.*`,
+                `${ctx.odcName} → *${ctx.odpName}*`,
+                `${hasil.count} titik · kabel ±${jarak(hasil.meters)}${lurus ? ` _(garis lurus ${jarak(lurus)})_` : ""}`,
+                ``,
+                `Peta sekarang mengikuti jalur ini, bukan garis lurus.`
+            ].join("\n"), logger);
+            return { handled: true };
+        }
+
+        const loc = extractLocation(type, msg);
+        if (!loc) {
+            await safeReply(reply, [
+                `Kirim *share lokasi* (bukan teks) sambil berdiri di belokan jalur.`,
+                `Sudah ${titik.length} titik direkam · *SELESAI* · *HAPUS* · *ULANG* · *BATAL*`
+            ].join("\n"), logger);
+            return { handled: true };
+        }
+
+        const sebelum = titik.length ? titik[titik.length - 1] : ctx.odcPoint;
+        let selisih = 0;
+        try { selisih = Math.round(assetService.haversineMeters(sebelum[0], sebelum[1], loc.lat, loc.lng)); } catch (_e) { selisih = 0; }
+
+        titik.push([loc.lat, loc.lng]);
+        ctx.points = titik;
+        setUserState(stateSender, { step: STEP_ROUTE_WAIT, _scope: "teknisi", context: ctx });
+        await safeReply(reply, `📍 Titik ${titik.length} tersimpan${selisih ? ` (+${jarak(selisih)})` : ""}. Lanjut ke belokan berikutnya, atau *SELESAI*.`, logger);
+        return { handled: true };
+    }
+
     // ── Pilih ODP (dari daftar bernomor) — untuk #ISI atau EDIT ──
     if (stateStep === STEP_PICK_ODP) {
         const n = parseInt(text, 10);
@@ -666,6 +901,7 @@ async function handleNetworkAssetConversationState(context) {
         }
 
         if (ctx.pickMode === "fill") return enterAttach(context, ctx, asset);
+        if (ctx.pickMode === "route") return prepareRouteForOdp(context, asset);
 
         ctx.editing = asset.id;
         ctx.name = asset.name;
@@ -883,12 +1119,14 @@ module.exports = {
     startNetworkAssetSession,
     startFillSession,
     startLocationSession,
+    startRouteSession,
     inspectOdp,
     handleNetworkAssetConversationState,
     searchCustomers,
     TRIGGER_RE,
     FILL_RE,
     LOC_RE,
+    ROUTE_RE,
     INSPECT_RE,
     ASSET_STEPS,
     STEP_COLLECT,
@@ -898,5 +1136,7 @@ module.exports = {
     STEP_PICK_CUSTOMER,
     STEP_PICK_ODP,
     STEP_LOC_WAIT,
-    STEP_LOC_PICK
+    STEP_LOC_PICK,
+    STEP_ROUTE_WAIT,
+    STEP_ROUTE_REPLACE
 };

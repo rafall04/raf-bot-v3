@@ -164,6 +164,7 @@
     "timeout": 5000,
     "cacheDuration": 86400000,
     "defaultProfile": "driving-car",
+    "routeDropCable": false,
     "profiles": {
       "odcToOdp": "driving-car",
       "customerToOdp": "foot-walking"

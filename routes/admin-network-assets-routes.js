@@ -1,14 +1,17 @@
 /**
  * Header Doc
- * Purpose: Registrar route admin untuk aset jaringan (ODC/ODP) dan route peta.
+ * Purpose: Registrar route admin untuk aset jaringan (ODC/ODP), JALUR kabel (waypoint), dan route peta.
  *          Controller TIPIS: seluruh aturan (ID, normalisasi tipe, kapasitas, hitung-ulang port) dimiliki
- *          `lib/network-assets-service` — SATU jalur pembuatan yang sama dipakai wizard WA `#ODC`/`#ODP`,
- *          supaya web dan WA tak pernah diam-diam berbeda aturan.
+ *          `lib/network-assets-service`, aturan titik/panjang jalur dimiliki `lib/network-route-service`
+ *          — SATU jalur pembuatan yang sama dipakai wizard WA `#ODC`/`#ODP`/`#JALUR`, supaya web dan WA
+ *          tak pernah diam-diam berbeda aturan.
  * Caller: `routes/admin-router.js`.
  * Deps: Router Express, `ensureAuthenticatedStaff` + `ensureAdmin` (api-route-helpers), repository runtime,
- *       persistence assets (lock/save), `lib/network-assets-service`, `lib/routing-service`.
+ *       persistence assets (lock/save), `lib/network-assets-service`, `lib/network-route-service`,
+ *       `lib/routing-service`.
  * MainFuncs: `registerAdminNetworkAssetsRoutes`.
- * SideEffects: Menulis `database/network_assets.json` (di bawah file-lock) + state runtime.
+ * SideEffects: Menulis `database/network_assets.json` (di bawah file-lock), tabel `connection_waypoints`
+ *              (via network-route-service), + state runtime.
  */
 "use strict";
 
@@ -23,6 +26,9 @@ function registerAdminNetworkAssetsRoutes(router, deps) {
         runtime,
         updateNetworkAssetsWithLock
     } = deps;
+
+    // Di-inject supaya test bisa memasang repo palsu tanpa menyentuh SQLite.
+    const routeService = deps.routeService || require("../lib/network-route-service");
 
     // BACA: seluruh staf (teknisi butuh peta). TULIS: admin saja — teknisi memetakan lewat wizard WA
     // `#ODC`/`#ODP` (kanal yang memang mereka pakai di lapangan), bukan lewat HTTP.
@@ -142,6 +148,79 @@ function registerAdminNetworkAssetsRoutes(router, deps) {
             res.status(500).json({ status: 500, message: `Gagal menyusun usulan ODP: ${error.message}` });
         }
     });
+
+    // ══════════════════ JALUR KABEL (waypoint) ══════════════════
+    // Peta selalu menggambar GARIS LURUS bukan karena fiturnya belum ada: editor waypoint di
+    // `static/js/map-viewer.js` sudah lengkap dan sudah memanggil `/api/map/waypoints`, tabel
+    // `connection_waypoints` + repository-nya juga sudah ada — HANYA lapisan HTTP ini yang hilang,
+    // dan 404-nya ditelan diam-diam oleh klien (`if (response.ok)` tanpa cabang else) sehingga
+    // garis diam-diam jatuh ke routing API → garis lurus, tanpa seorang pun mengeluh.
+    //
+    // BACA: seluruh staf (teknisi butuh melihat jalur). TULIS: admin — teknisi merekam jalur dari
+    // lapangan lewat wizard WA `#JALUR` (kanal yang memang mereka pakai), bukan lewat HTTP.
+    // Aturan titik/panjang dimiliki `lib/network-route-service` — SATU jalur tulis untuk web & WA.
+
+    router.get("/api/map/waypoints", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const { connectionType, sourceId, targetId } = req.query;
+        try {
+            const jalur = await routeService.getRoute(connectionType, sourceId, targetId);
+            res.status(200).json({
+                status: 200,
+                message: jalur ? "Jalur ditemukan." : "Belum ada jalur manual untuk koneksi ini.",
+                // `waypoints` = nama yang sudah dipakai klien peta; jangan diubah tanpa mengubah klien.
+                data: {
+                    waypoints: jalur ? jalur.points : [],
+                    count: jalur ? jalur.points.length : 0,
+                    meters: jalur ? jalur.meters : 0
+                }
+            });
+        } catch (error) {
+            res.status(400).json({ status: 400, message: error.message });
+        }
+    }));
+
+    /**
+     * SEMUA jalur sekaligus. Klien dulu memanggil endpoint per-koneksi di dalam loop ber-`await` —
+     * 100 ODP = 100 permintaan berurutan setiap kali peta dibuka.
+     */
+    router.get("/api/map/waypoints/all", ensureAuthenticatedStaff, asyncHandler(async (_req, res) => {
+        const routes = await routeService.getAllRoutes();
+        res.status(200).json({
+            status: 200,
+            message: `${routes.length} jalur dimuat.`,
+            data: { routes, total: routes.length }
+        });
+    }));
+
+    router.post("/api/map/waypoints", ensureAuthenticatedStaff, ensureAdmin, rateLimit("map-waypoints", 60, 60000), asyncHandler(async (req, res) => {
+        const { connectionType, sourceId, targetId, waypoints } = req.body || {};
+        try {
+            const hasil = await routeService.saveRoute({
+                connectionType,
+                sourceId,
+                targetId,
+                points: waypoints,
+                actor: (req.user && (req.user.name || req.user.username)) || "web"
+            });
+            res.status(200).json({
+                status: 200,
+                message: `Jalur tersimpan: ${hasil.count} titik, ±${hasil.meters} m.`,
+                data: { count: hasil.count, meters: hasil.meters }
+            });
+        } catch (error) {
+            res.status(400).json({ status: 400, message: error.message });
+        }
+    }));
+
+    router.delete("/api/map/waypoints", ensureAuthenticatedStaff, ensureAdmin, asyncHandler(async (req, res) => {
+        const { connectionType, sourceId, targetId } = req.query;
+        try {
+            await routeService.deleteRoute(connectionType, sourceId, targetId);
+            res.status(200).json({ status: 200, message: "Jalur manual dihapus. Garis kembali lurus (belum dipetakan)." });
+        } catch (error) {
+            res.status(400).json({ status: 400, message: error.message });
+        }
+    }));
 
     router.post("/api/map/route", ensureAuthenticatedStaff, rateLimit("map-route", 30, 60000), asyncHandler(async (req, res) => {
         try {
