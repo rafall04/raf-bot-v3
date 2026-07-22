@@ -3,49 +3,65 @@ name: system-map-sync
 description: Jaga SYSTEM_MAP.md tetap sinkron dengan kode. WAJIB pakai skill ini setiap kali kamu mengubah alur lintas-fitur atau lintas-layer di RAF Bot V2 — menambah/memindah/menghapus route, handler, service, atau repository; mengubah jalur trigger→controller→service→repo→DB; memindahkan kepemilikan (ownership) sebuah domain ke owner baru; mengganti lokasi file DB; atau mengubah boundary integrasi eksternal. Picu skill ini SETELAH perubahan semacam itu meskipun user tidak menyebut dokumentasi, karena SYSTEM_MAP.md adalah peta kanonik yang dibaca sebelum tracing — entri basi menyesatkan pekerjaan berikutnya. Tidak perlu untuk perubahan yang murni lokal di dalam satu fungsi/file tanpa mengubah flow atau ownership.
 ---
 
-# Sinkronisasi SYSTEM_MAP.md
+# Sinkronisasi SYSTEM_MAP.md + boundary-log
 
-`SYSTEM_MAP.md` (di root) + `CLAUDE.md` adalah **satu-satunya panduan kanonik** proyek ini. Aturan di `CLAUDE.md`: _"Keep it in sync when you change a flow."_ Skill ini memastikan itu benar-benar terjadi, dan menyeragamkan caranya.
+Pembagian peran tiga dokumen (jangan dicampur):
 
-**Kenapa penting:** agent/dev berikutnya membaca `SYSTEM_MAP.md` sebelum menyentuh logika lintas-fitur. Kalau peta menyebut owner/flow/path yang sudah berubah, mereka menelusuri tempat yang salah dan bisa membuat _shadow ownership_ (dua tempat mengaku memiliki domain yang sama). Dulu sudah pernah ada masalah file-rule basi (path tak ada lagi) — jangan ulangi.
+- **`SYSTEM_MAP.md`** — peta KEADAAN SEKARANG: flow, lokasi DB, integrasi, plus **indeks satu-baris** ke sejarah boundary. Dibaca tiap sesi → wajib tetap ringkas.
+- **`docs/boundary-log.md`** — CHANGELOG kepemilikan per-fitur. Ditulis sekali per perubahan, dibaca hanya per-anchor. Di sinilah detail tinggal.
+- **`CLAUDE.md`** — aturan & invariant, bukan peta.
+
+**Kenapa penting:** agent/dev berikutnya membaca peta sebelum menyentuh logika lintas-fitur. Peta yang menyebut owner/flow/path usang membuatnya menelusuri tempat yang salah dan bisa menciptakan _shadow ownership_ (dua tempat mengaku memiliki domain yang sama). Dan indeks pernah MEMBUSUK balik jadi paragraf-paragraf ratusan kata + anchor dobel (b128, b166) karena entri ditulis langsung di peta — disiplin di bawah ini yang mencegahnya kambuh.
 
 ## Kapan WAJIB update
 
-Update `SYSTEM_MAP.md` kalau perubahanmu termasuk salah satu:
+Update kalau perubahanmu termasuk salah satu:
 
 - Menambah / memindah / menghapus **route, handler, service, atau repository** yang mengubah siapa menangani apa.
 - Mengubah **jalur** trigger→controller→service→repo→DB (mis. handler kini lewat service baru).
-- Memindahkan kepemilikan domain ke **owner baru** (pola refactor boundary repo ini), atau menjadikan path lama sebagai stub `410` / fallback non-aktif.
+- Memindahkan kepemilikan domain ke **owner baru**, atau menjadikan path lama stub `410` / fallback non-aktif.
 - Menambah/menghapus **integrasi eksternal** atau mengubah boundary-nya (MikroTik, iPaymu, GenieACS, SNMP/OLT, Telegram, Socket.IO, Cloudflare Tunnel).
 - Mengubah **lokasi/penambahan file DB** (SQLite domain baru, JSON store baru) atau resolver path-nya.
 
-Kalau perubahanmu murni di dalam satu fungsi/file tanpa mengubah flow atau ownership, **tidak perlu** menyentuh peta.
+Perubahan murni di dalam satu fungsi/file tanpa mengubah flow atau ownership → **tidak perlu** menyentuh peta.
 
-## Bagian mana yang diperbarui
+## Bagian SYSTEM_MAP.md yang diperbarui
 
-Buka `SYSTEM_MAP.md` dan ubah hanya bagian yang relevan:
+Ubah hanya bagian yang relevan: **Core Logic Flow** (urutan jalur berubah), **DB Config / Locations** (file DB baru/pindah), **Integrasi Eksternal**, **Direktori Inti**, dan **Header Doc** puncak file bila dependensinya berubah. Perubahan ownership dicatat sebagai entri boundary — lihat di bawah, ini yang paling sering kamu lakukan.
 
-- **Core Logic Flow** (WhatsApp / HTTP-API) — kalau urutan trigger→controller→service→repo→DB berubah.
-- **DB Config / Locations** — kalau ada file DB baru/pindah atau perubahan resolver path.
-- **Integrasi Eksternal** — kalau ada integrasi baru/berubah.
-- **Direktori Inti** — kalau ada direktori peran baru.
-- **Boundary Refactor Baru** — **log berjalan kepemilikan refactor.** Hampir semua perubahan ownership/boundary dicatat di sini sebagai satu butir baru. Inilah bagian yang paling sering kamu sentuh.
+## Cara mencatat perubahan boundary (2 langkah, keduanya wajib)
 
-## Cara menulis entri "Boundary Refactor Baru"
+**Langkah 1 — badan entri → `docs/boundary-log.md`, append di AKHIR file:**
 
-Ikuti gaya butir yang sudah ada: sebutkan **file owner**, **apa yang dipindah/dimiliki sekarang**, dan **status path lama** (stub `410` / fallback / dihapus). Bahasa Indonesia, padat, faktual.
+1. Cari nomor tertinggi: `grep -o 'id="b[0-9]*"' docs/boundary-log.md | sort -V | tail -1` → nomor entri barumu = itu + 1. Anchor `<a id="bNNN"></a>` **wajib unik** — jangan pernah memakai ulang nomor.
+2. Heading `### Feat|Fix YYYY-MM-DD (judul singkat yang berdiri sendiri)` — heading ini dipakai apa adanya sebagai teks link di indeks, jadi tulis jelas tanpa perlu konteks.
+3. Badan **maksimal 8 baris bullet**: file **owner** + apa yang kini dimilikinya, **status path lama** (`410` stub / fallback / dihapus), **config gate**, **tes**. Baris AKAR/GOTCHA hanya bila benar-benar non-obvious. Entri panjang adalah alasan file ini dulu harus dipisah — jangan ulangi.
 
-**Contoh pola:**
-Input: Ekstrak logika voucher dari `routes/admin.js` ke service+repository baru, path lama dimatikan.
-Output entri:
+**Langkah 2 — indeks → `SYSTEM_MAP.md` seksi "Boundary Refactor Baru (indeks)":**
 
-> `routes/api-voucher-routes.js` + `services/api-voucher.service.js` + `repositories/api-voucher.repository.js`: owner aktif domain voucher API untuk profile read-model, generate/send voucher, dan member-credential delivery; route mendelegasikan flow GET/POST utama ke service/repository owner, sementara helper file/PHP/delivery lama tetap dipakai sebagai adapter di bawah owner baru.
+SATU baris di urutan paling akhir, teks link = heading entri:
 
-Catat juga bila kamu **menetralkan** path lama (mis. _"path legacy di `routes/admin.js` kini hanya menyisakan stub `410` agar tidak terjadi shadow ownership"_), supaya pembaca tahu sumber kebenaran tunggalnya.
+```
+- [Feat 2026-07-25 (Voucher: rekap penjualan harian ke grup owner)](docs/boundary-log.md#b173)
+```
 
-## Disiplin & verifikasi
+**JANGAN** menulis ringkasan fitur / daftar file / gotcha di baris indeks — semua itu milik badan entri. Pembaca yang butuh konteks membuka entrinya.
 
-- **Jangan duplikasi.** Panduan durable hanya di `SYSTEM_MAP.md` atau `CLAUDE.md` — jangan menghidupkan lagi file rule terpisah yang gampang basi.
-- **Header Doc** di puncak `SYSTEM_MAP.md` (`Purpose`/`Caller`/`Deps`/...) ikut diperbarui kalau dependensinya berubah.
-- **Verifikasi setiap path yang kamu tulis benar-benar ada** (file/fungsi/flag) sebelum commit — entri yang menyebut path tak-ada justru lebih menyesatkan daripada tidak ada entri.
-- Pastikan perubahan peta **konsisten** dengan invariant di `CLAUDE.md`; untuk jalur berisiko (saldo/WA/JID/template/state) cek juga skill `raf-invariants`.
+**Contoh badan entri (Langkah 1):**
+
+```markdown
+<a id="b173"></a>
+
+### Feat 2026-07-25 (Voucher: rekap penjualan harian ke grup owner)
+
+- **Owner:** `lib/cron/jobs/voucher-daily-recap.js` (BARU) + `repositories/voucher.repository.getDailySales`.
+- **Status path lama:** rekap manual di `menuowner` tetap ada (paritas); tak ada path yang dimatikan.
+- **Gate:** `config.voucherRecap.enabled` (default OFF). **Tes:** cron job 4, repo 2.
+```
+
+## Verifikasi sebelum commit
+
+1. **Jalankan guard:** `node scripts/check-boundary-index.js` — memastikan anchor unik, link indeks valid dua arah, dan baris indeks tetap ringkas. Guard yang sama jalan di `npm test` (`scripts/__tests__/boundary-index.test.js`), jadi indeks rusak = suite merah.
+2. **Verifikasi setiap path yang kamu tulis benar-benar ada** (file/fungsi/flag) — entri yang menyebut path tak-ada lebih menyesatkan daripada tidak ada entri.
+3. **Jangan duplikasi.** Panduan durable hanya di `CLAUDE.md` / `SYSTEM_MAP.md` (+ sejarah di `boundary-log.md`) — jangan menghidupkan file rule terpisah yang gampang basi.
+4. Untuk jalur berisiko (saldo/WA/JID/template/state) cek juga skill `raf-invariants`.
