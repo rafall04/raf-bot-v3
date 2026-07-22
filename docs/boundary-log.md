@@ -919,3 +919,13 @@
 - **CLAUDE.md:** + tabel "where a rule lives" (rules→map→changelog→skill→hook→guard-test, satu rule satu lapis) + playbook "standard path" tambah fitur (7 langkah) + seksi Git dibetulkan (branch lokal kini `main` tracking `raf-bot-v3/main`; `clean-main` tiada) + konvensi indent dibetulkan 2→4 space (ikut `.prettierrc.json`).
 - **Konvensi (kini tertulis di 3 tempat yang saling menunjuk):** nomor entri baru = tertinggi + 1, badan ≤8 baris di log, indeks SATU baris — SYSTEM_MAP intro + skill `system-map-sync` + guard.
 - **PELAJARAN:** aturan pemisahan peta/changelog membusuk justru lewat jalur patuh-prosedur — skill yang tak ikut diupdate saat split terus mengajarkan pola lama. Saat memindah kepemilikan dokumen, audit juga SEMUA instruksi yang menunjuk ke sana.
+
+<a id="b174"></a>
+### Feat 2026-07-22 (Otomasi anti-basi dokumen: guard docs↔kode + pre-push gate + hook diperluas + guard tema masuk npm test)
+
+- **Owner:** `scripts/check-docs-sync.js` (BARU) + `scripts/__tests__/docs-sync.test.js` — 3 cek: path yang disebut CLAUDE.md / SYSTEM_MAP (non-indeks) / skills harus ADA; tiap `getDatabasePath('X')` literal terdokumentasi di SYSTEM_MAP; tiap gate langsung `config.<key>.enabled` ter-contoh di config.example.json. + `scripts/__tests__/theme-tokens.test.js` (guard tema kini otomatis di `npm test`; `check-theme-tokens.js` di-refactor export `scan()`).
+- **Pre-push gate:** `.githooks/pre-push` (boundary-index + docs-sync + theme, ~2 dtk) di-wire OTOMATIS oleh `scripts/setup-githooks.js` via postinstall `package.json` (idempoten, hormati hooksPath lain, no-op senyap di salinan non-git seperti prod).
+- **Hook `.claude/hooks/invariant-lint.js` diperluas:** warning Header Doc hilang (layer backend) + pengingat entri boundary saat file BARU muncul di layer owner (routes/services/repositories/message-handlers/lib-services/cron-jobs; rate-limit 30 mnt/file via marker os.tmpdir).
+- **Temuan guard yang langsung dibetulkan:** SYSTEM_MAP menyebut `legacy-wifi-state-handler.js` yang sudah tiada; 8 DB tanpa dokumentasi (saldo/broadcast/voucher/olt_events/olt_state/psb_schedule/monitoring_metrics/isolir_audit → seksi DB); gate `steeringDriftMonitor` absen dari config.example.json (+default OFF).
+- **CLAUDE.md:** + seksi "UI & theme conventions" (token semantik / `body.tk-dark` / `_head.php` / `rafAssetUrl` / CSS eksternal / gotcha php-express — sebelumnya hanya hidup di memory agent, tak ada di panduan repo) + baris "Pre-push gate" di tabel enforcement.
+- **Tes:** docs-sync 1, theme-tokens 1; smoke hook manual (run-1 warning+reminder, run-2 reminder tersuppress rate-limit).

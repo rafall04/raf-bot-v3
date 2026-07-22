@@ -22,8 +22,9 @@ RAF Bot V2 is a single-process **monolithic Node.js app for ISP / RTRW-Net opera
 | Current-state map | `SYSTEM_MAP.md` | Flows, DB locations, integrations, one-line boundary index |
 | Ownership history | `docs/boundary-log.md` | Append-only changelog; read per-anchor only |
 | Pre-flight checklists | skills `raf-invariants`, `system-map-sync` (`.claude/skills/`) | Step-by-step procedure for risky paths / map sync |
-| Early warning | `.claude/hooks/invariant-lint.js` (PostToolUse, non-blocking) | Heuristic warnings right after an edit (Baileys import, raw `sendMessage`, saldo amount 0, hardcoded text, `process.env`) |
-| Hard enforcement | guard tests — `message/__tests__/wa-forbidden-imports.test.js`, `message/__tests__/response-template-key-integrity.test.js`, `scripts/__tests__/boundary-index.test.js`, `npm run check:theme` | Violation = red suite; guards scan the repo, never a manual list |
+| Early warning | `.claude/hooks/invariant-lint.js` (PostToolUse, non-blocking) | Heuristic warnings right after an edit (Baileys import, raw `sendMessage`, saldo amount 0, hardcoded text, `process.env`, missing Header Doc) + boundary-entry reminder when a NEW file appears in an owner layer |
+| Hard enforcement | guard tests in `npm test` — `message/__tests__/wa-forbidden-imports.test.js`, `message/__tests__/response-template-key-integrity.test.js`, `scripts/__tests__/boundary-index.test.js`, `scripts/__tests__/docs-sync.test.js`, `scripts/__tests__/theme-tokens.test.js` | Violation = red suite; guards scan the repo, never a manual list |
+| Pre-push gate | `.githooks/pre-push` — auto-wired by `npm install` (postinstall → `scripts/setup-githooks.js`) | Fast checkers (boundary index, docs↔code sync, theme tokens) run before every push; emergency bypass: `git push --no-verify` |
 
 A durable rule lives in **one** layer (usually this file); skills/hook/tests point back to it. Same guidance written twice with different wording is how docs rot.
 
@@ -108,6 +109,13 @@ Every shipped feature here follows the same shape (the boundary log is 170+ repe
 - **Concurrency guard per sender.** Wrap message processing with `isProcessing`/`setProcessing`/`clearProcessing` (`lib/state-manager.js`); always `clearProcessing` in a `finally`.
 - **Keep route handlers thin** — DB/business logic belongs in services/repositories, and Express controllers use the central `asyncHandler` (`lib/error-handler.js`) + global error middleware instead of repeating try-catch. Files: kebab-case; classes PascalCase; functions/vars camelCase; constants UPPER_SNAKE; 4-space indent (per `.prettierrc.json` / `.editorconfig` — style is Prettier's job, don't hand-fight it).
 
+## UI & theme conventions (web admin/teknisi)
+
+- **Semantic tokens only in page CSS.** Backgrounds/text/borders use the mode-aware tokens from `static/css/tokens.css` — `--surface`/`--surface-2`/`--canvas` (bg), `--ink`/`--ink-soft`/`--muted` (text), `--line` (border). Dark mode = `body.tk-dark` flips those tokens; fixed primitives (`var(--white)`, `var(--slate-900)`) do **not** flip and are the root cause of every "dark-on-dark page" bug. Guarded by `scripts/check-theme-tokens.js` (runs in `npm test` and pre-push).
+- **New pages join the shared head.** Admin/teknisi `.php` pages include the shared partial `views/sb-admin/_head.php` and load assets via `rafAssetUrl()` (`views/sb-admin/_asset.php`, filemtime cache-bust) — never a hand-written `<head>` or a bare `<link>` tag.
+- **Keep CSS/JS external** in `static/css` / `static/js`, not inline `<style>/<script>` blocks in `.php` (the big pages were deliberately externalized — don't regress).
+- **Pages render through PHP CLI (`php-express`):** `$_SERVER['REQUEST_URI']` and `$_COOKIE` are **not available** — the route arrives via argv and role-specific sidebars are separate per-role includes. Don't write page logic that depends on either.
+
 ## Standards learned the hard way
 
 Each rule below exists because the bug already happened. Don't relax one because it looks trivial.
@@ -125,6 +133,7 @@ Each rule below exists because the bug already happened. Don't relax one because
 
 - **Trunk is `raf-bot-v3/main`; the local working branch is `main` and tracks it directly.** (The `clean-main` local branch from the v2→v3 transition is gone — ignore stale references to it.)
 - **Never `git add -A`.** Parallel agents and worktrees share this checkout; a blanket add once swept an unrelated payment refactor into a reboot-fix commit and pushed it. Stage the files you touched, by name.
+- **Every push runs the fast doc guards** via `.githooks/pre-push` (boundary index, docs↔code sync, theme tokens — ~2s). If it blocks you, the docs are genuinely out of sync — fix them; `git push --no-verify` is for emergencies only.
 - **Production is NOT a git repo.** `/root/bot/raf-dander-v3` and `/root/bot/raf-tanjungharjo-v3` are file copies (`pscp`), so `git status` cannot tell you what is live. Deploy from a git blob (`git cat-file blob HEAD:<path>`) to guarantee LF, `node --check` before `pm2 restart` (PM2 fork keeps running the old code until restart, so a syntax error is still recoverable), and back the target files up first.
 - **`config.json` and `database/*.json` are merge-key, never overwrite.** Production customises templates and config; a blanket copy destroys that.
 - **Make drift visible:** `scripts/prod-drift-check.js` classifies every runtime file as identical / CRLF-only / behind / **real drift** (content never committed — i.e. a hand-edit on the server that the next deploy will erase) / missing / extra. Run it before and after a deploy. Prod files are CRLF from the original Windows install; the tool normalises before comparing, so ignore that bucket.

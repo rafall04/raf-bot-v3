@@ -9,6 +9,7 @@
   "scripts": {
     "start": "nodemon index.js",
     "start:prod": "node index.js",
+    "postinstall": "node scripts/setup-githooks.js",
     "auto-commit": "node auto-commit.js",
     "dev": "nodemon index.js",
     "test": "jest --runInBand",

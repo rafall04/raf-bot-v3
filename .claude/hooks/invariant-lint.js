@@ -4,10 +4,12 @@
  * Purpose: Hook PostToolUse RAF Bot V2 — beri peringatan dini (non-blocking) ketika file .js
  *          yang baru diedit menyentuh footgun invariant proyek (import Baileys langsung,
  *          socket WA mentah di message layer, saldo amount 0, teks user-facing hardcoded,
- *          akses process.env langsung). Opsional menjalankan ESLint pada file teredit.
+ *          akses process.env langsung, Header Doc hilang). Juga MENGINGATKAN entri boundary
+ *          saat file BARU muncul di layer owner (routes/services/repositories/handlers/cron),
+ *          di-rate-limit 30 menit per file supaya tidak berisik. Opsional ESLint file teredit.
  * Caller: Claude Code hook runner (didaftarkan di .claude/settings.json -> hooks.PostToolUse).
- * Deps: Node core (fs, path, child_process). Read-only terhadap source — tidak mengubah file.
- * MainFuncs: main(), collectWarnings(), runEslint().
+ * Deps: Node core (fs, path, os, child_process). Read-only terhadap source — tidak mengubah file.
+ * MainFuncs: main(), collectWarnings(), boundaryReminder(), runEslint().
  * SideEffects: Membaca file teredit; (opsional) spawn ESLint read-only; tulis additionalContext ke stdout.
  *
  * Catatan:
@@ -21,6 +23,7 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
@@ -112,7 +115,64 @@ function collectWarnings(rel, content) {
         );
     }
 
+    // 6) Header Doc hilang di layer backend (konvensi repo: Purpose/Caller/Deps/MainFuncs/SideEffects).
+    //    static/ dikecualikan — banyak file front-end legacy tanpa header; jangan berisik di sana.
+    if (/^(lib|routes|services|repositories|message|controllers|scripts)\//.test(rel)) {
+        if (!/(^|\n)\s*\*?\s*-?\s*Purpose\s*:/.test(content.slice(0, 2500))) {
+            warnings.push(
+                'Tidak ada Header Doc di puncak file (blok Purpose/Caller/Deps/MainFuncs/SideEffects). ' +
+                    'Konvensi repo — tambahkan saat menyentuh file ini. (CLAUDE.md > Invariants)'
+            );
+        }
+    }
+
     return warnings;
+}
+
+// Layer yang perubahannya hampir selalu = perubahan ownership → butuh entri boundary.
+const OWNER_LAYERS = ['routes/', 'services/', 'repositories/', 'message/handlers/', 'lib/services/', 'lib/cron/jobs/'];
+const REMINDER_TTL_MS = 30 * 60 * 1000;
+
+/**
+ * Ingatkan entri boundary saat file BARU (untracked/baru di-stage) muncul di layer owner.
+ * Rate-limit per file via marker di os.tmpdir() supaya edit beruntun tidak menumpuk pengingat.
+ * @param {string} rel
+ * @param {string} absPath
+ * @returns {string} pesan pengingat, atau '' bila tidak relevan / masih dalam jendela rate-limit
+ */
+function boundaryReminder(rel, absPath) {
+    if (!OWNER_LAYERS.some((l) => rel.startsWith(l))) return '';
+    let statusLine = '';
+    try {
+        const res = spawnSync('git', ['status', '--porcelain', '--', absPath], {
+            cwd: REPO_ROOT,
+            encoding: 'utf8',
+            timeout: 5000,
+            windowsHide: true
+        });
+        statusLine = (res.stdout || '').trim();
+    } catch (_err) {
+        return '';
+    }
+    if (!statusLine.startsWith('??') && !statusLine.startsWith('A ')) return '';
+
+    const marker = path.join(os.tmpdir(), 'raf-hook-boundary-' + rel.replace(/[^a-z0-9]/gi, '_'));
+    try {
+        const st = fs.statSync(marker);
+        if (Date.now() - st.mtimeMs < REMINDER_TTL_MS) return '';
+    } catch (_err) {
+        /* marker belum ada → lanjut */
+    }
+    try {
+        fs.writeFileSync(marker, String(Date.now()));
+    } catch (_err) {
+        /* gagal tulis marker tidak fatal */
+    }
+    return (
+        `File BARU di layer owner: ${rel} — kemungkinan besar ini perubahan ownership/flow. ` +
+        'Sebelum selesai: entri boundary (<8 baris) di docs/boundary-log.md + SATU baris indeks di SYSTEM_MAP.md ' +
+        '(prosedur: skill system-map-sync; verifikasi: node scripts/check-boundary-index.js).'
+    );
 }
 
 /**
@@ -177,11 +237,15 @@ function main() {
     }
 
     const warnings = isTestFile(rel) ? [] : collectWarnings(rel, content);
+    const reminder = isTestFile(rel) ? '' : boundaryReminder(rel, absPath);
     const eslintOut = runEslint(absPath);
 
     const parts = [];
     if (warnings.length) {
         parts.push(`Invariant RAF Bot — periksa ${rel}:\n` + warnings.map((w) => `  • ${w}`).join('\n'));
+    }
+    if (reminder) {
+        parts.push(reminder);
     }
     if (eslintOut) {
         parts.push(`ESLint ${rel}:\n${eslintOut}`);

@@ -6,9 +6,10 @@
  *          background/color/border. Primitif tetap TIDAK ikut mode gelap (body.tk-dark) → teks gelap di
  *          latar gelap = akar bug "tiap halaman baru selalu gelap". Halaman WAJIB pakai token SEMANTIK
  *          sadar-mode: --surface/--surface-2/--canvas (bg), --ink/--ink-soft/--muted (teks), --line (border).
- * Caller: manual (`npm run check:theme`) atau CI/pre-commit. Exit 1 bila ada pelanggaran.
+ * Caller: `npm run check:theme` / `npm test` (via scripts/__tests__/theme-tokens.test.js) / hook pre-push.
+ *         Exit 1 bila ada pelanggaran.
  * Deps: fs, path (tanpa dependensi eksternal).
- * MainFuncs: scan() — kembalikan daftar pelanggaran; dijalankan langsung saat `node scripts/check-theme-tokens.js`.
+ * MainFuncs: scan() — kembalikan daftar pelanggaran (di-export); main() CLI.
  * SideEffects: hanya baca file + cetak laporan.
  */
 "use strict";
@@ -52,13 +53,19 @@ function scan() {
     return violations;
 }
 
-const violations = scan();
-if (!violations.length) {
-    console.log("✓ [theme-tokens] Semua CSS halaman memakai token semantik — dark-mode aman.");
-    process.exit(0);
+function main() {
+    const violations = scan();
+    if (!violations.length) {
+        console.log("✓ [theme-tokens] Semua CSS halaman memakai token semantik — dark-mode aman.");
+        process.exit(0);
+    }
+    console.error(`✗ [theme-tokens] ${violations.length} pemakaian primitif TETAP untuk surface/teks/border (rawan gelap-di-gelap):`);
+    for (const v of violations) console.error(`  static/css/${v.file}:${v.line}  ${v.text}`);
+    console.error(`\n→ ${SUGGEST}`);
+    console.error("  (Kalau file ini memang fondasi pemetaan token, tambahkan ke ALLOW di scripts/check-theme-tokens.js.)");
+    process.exit(1);
 }
-console.error(`✗ [theme-tokens] ${violations.length} pemakaian primitif TETAP untuk surface/teks/border (rawan gelap-di-gelap):`);
-for (const v of violations) console.error(`  static/css/${v.file}:${v.line}  ${v.text}`);
-console.error(`\n→ ${SUGGEST}`);
-console.error("  (Kalau file ini memang fondasi pemetaan token, tambahkan ke ALLOW di scripts/check-theme-tokens.js.)");
-process.exit(1);
+
+module.exports = { scan, SUGGEST };
+
+if (require.main === module) main();

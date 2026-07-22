@@ -1,0 +1,15 @@
+#!/bin/sh
+# Header Doc
+# Purpose: Guard cepat pra-push RAF Bot V2 (<3 dtk total) — integritas indeks boundary,
+#          sinkron docs<->kode (path/DB/gate), dan token tema. Menangkap dokumen/guard yang
+#          lupa di-update SEBELUM sampai ke trunk, tanpa menunggu full jest.
+# Caller: git push (via core.hooksPath=.githooks, di-set otomatis oleh scripts/setup-githooks.js
+#         yang dipanggil postinstall). Bypass darurat: git push --no-verify.
+# Deps: node di PATH + scripts/check-*.js.
+# SideEffects: tidak ada; read-only, exit 1 membatalkan push.
+
+echo "[pre-push] guard cepat: boundary-index + docs-sync + theme-tokens"
+node scripts/check-boundary-index.js || exit 1
+node scripts/check-docs-sync.js || exit 1
+node scripts/check-theme-tokens.js || exit 1
+echo "[pre-push] semua guard hijau."

@@ -21,7 +21,7 @@ Aplikasi monolit Node.js untuk operasional ISP/RTRW-Net yang menggabungkan bot W
 - Entry Runtime: `index.js` memuat composition root dan memakai wrapper `lib/app-runtime.js`, `lib/http-app.js`, `lib/routes-registry.js`, `lib/whatsapp-bootstrap.js`, dan `lib/whatsapp-gateway.js` untuk menahan coupling bootstrap serta kontrak runtime WA.
 - Bot Layer: `message/raf.js` sebagai router/interceptor; logika domain dipindah ke `message/handlers/*.js`.
 - Web/API Layer: `routes/*.js` sebagai controller HTTP tipis; beberapa file adalah factory sub-router (`api-*.js`) dan admin sekarang masuk lewat komposer `routes/admin-router.js` yang memasang registrar domain sebelum fallback ke `routes/admin.js`.
-- Service/Business Layer: `lib/*.js` dan `lib/services/*` memuat aturan bisnis, adaptor integrasi, state machine tiket, auth, template, dan monitoring; `message/handlers/legacy-teknisi-state-handler.js` dan `message/handlers/legacy-wifi-state-handler.js` menjadi boundary transisi state legacy sebelum dispatcher intent, sementara `lib/whatsapp-gateway.js`, `lib/whatsapp.adapter.js`, `lib/whatsapp-delivery-service.js`, `lib/whatsapp-bootstrap.js`, dan `message/handlers/reply-runtime.js` kini menjadi boundary runtime/delivery WA untuk approval/admin/voucher/speed flow, helper cron, service notifikasi utama, route status/network, legacy step handler aktif, monitoring/runtime observability, serta reconnect lifecycle tunggal.
+- Service/Business Layer: `lib/*.js` dan `lib/services/*` memuat aturan bisnis, adaptor integrasi, state machine tiket, auth, template, dan monitoring; `message/handlers/legacy-teknisi-state-handler.js` menjadi boundary transisi state legacy sebelum dispatcher intent (state WiFi legacy sudah pindah ke `message/handlers/states/*.js`), sementara `lib/whatsapp-gateway.js`, `lib/whatsapp.adapter.js`, `lib/whatsapp-delivery-service.js`, `lib/whatsapp-bootstrap.js`, dan `message/handlers/reply-runtime.js` kini menjadi boundary runtime/delivery WA untuk approval/admin/voucher/speed flow, helper cron, service notifikasi utama, route status/network, legacy step handler aktif, monitoring/runtime observability, serta reconnect lifecycle tunggal.
 - Repository/Data Layer: `lib/database.js` sebagai compatibility facade di atas helper internal JSON/waypoint/network-assets, `lib/psb-database.js`, logger SQLite terpisah, file JSON `database/*.json`, serta `repositories/*.repository.js` yang mulai menjadi owner persistence per bounded context.
 - Config Layer: `config/*.json`, `config.json`, `.env`, dan resolver `lib/env-config.js`.
 
@@ -56,6 +56,14 @@ Aplikasi monolit Node.js untuk operasional ISP/RTRW-Net yang menggabungkan bot W
 - Antrian bukti pembayaran: `database/payment_proofs.json` (metadata bukti transfer status pending/confirmed/rejected) + file bukti di `temp/payment_proofs/<id>.<jpg|pdf>`. Owner `repositories/payment-proof.repository.js` (berkunci `withLock`, baca-dari-disk tiap panggil); bukan di-bootstrap `lib/database.js`.
 - Tindak lanjut reboot modem: `database/reboot-followups.json` (`reboot-followups_test.json` saat `NODE_ENV=test`) — antrian pekerjaan `{id,jid,deviceId,pppoeUsername,remoteAddr,dueAt,attempts,status}`. Owner `lib/reboot-followup-store.js`; dipindai tiap tick oleh `lib/reboot-followup-service.js` sehingga pekerjaan **selamat dari `pm2 restart`** (tak ada timer in-memory yang perlu dibangun ulang). Gate `config.rebootAssist.enabled`. Bukan di-bootstrap `lib/database.js`.
 - Digest notifikasi anti-spam: `database/notification-digest.json` (`*_test.json` saat test) — bucket per (penerima, kind) `{recipient, kind, windowUntil, pending[]}`. Owner `lib/notification-digest.js`; dipindai tiap tick sehingga selamat dari `pm2 restart`. Gate `config.paymentRequestDigest.enabled`. Bukan di-bootstrap `lib/database.js`.
+- Saldo pelanggan: `database/saldo.sqlite` — owner modul `lib/saldo/*` lewat koneksi singleton `lib/saldo/shared.js`; SEMUA mutasi wajib `withSaldoWriteLock` (anti double-spend).
+- Riwayat broadcast: `database/broadcast.sqlite` — owner `repositories/broadcast.repository.js` (riwayat kirim + `sent_user_ids_json` daftar penerima).
+- Penjualan/tracking voucher: `database/voucher.sqlite` — owner `repositories/voucher-tracking.repository.js`; rekonsiliasi `lib/cron/jobs/voucher-reconcile.js`.
+- Log kejadian OLT durable: `database/olt_events.sqlite` — owner `lib/olt-event-logger.js` (dedup ber-STATE); dibaca halaman `/olt-log`, LOS broadcaster, dan gerbang mati-listrik CCTV.
+- State modem OLT (Event→Insiden→Verdict): `database/olt_state.sqlite` — proyeksi `lib/olt-incident-projector.js`; read API `/api/olt/modem-state` + `/api/olt/diagnosis`; gate `config.oltModemState`.
+- Papan PSB terjadwal: `database/psb_schedule.sqlite` — owner `lib/psb-schedule-service.js` (lifecycle menunggu→ditugaskan→terpasang→batal, ref `PSB-<n>`).
+- Metrik monitoring: `database/monitoring_metrics.sqlite` — owner `lib/monitoring-service.js`.
+- Audit isolir: `database/isolir_audit.sqlite` — owner `lib/services/isolir-audit-repository.js`.
 - Watcher data aktif: minimal `announcements.json` dan `news.json` untuk reload runtime.
 - Lokasi fallback legacy: `config.json` dipakai bila resolver env-aware gagal load config.
 
@@ -265,6 +273,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Feat 2026-07-21 (Titik lokasi pelanggan: satu gerbang untuk WA teknisi, web admin, dan pin pelanggan)](docs/boundary-log.md#b171)
 - [Fix 2026-07-21 (Panel pelanggan: gagal-GPS tak lagi menstempel koordinat default)](docs/boundary-log.md#b172)
 - [Fix 2026-07-22 (Penataan rules: indeks boundary diregenerasi + guard integritas + sapu rule-sprawl)](docs/boundary-log.md#b173)
+- [Feat 2026-07-22 (Otomasi anti-basi dokumen: guard docs↔kode + pre-push gate + hook diperluas + guard tema masuk npm test)](docs/boundary-log.md#b174)
 
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.

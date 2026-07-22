@@ -502,6 +502,9 @@
     "poolLists": ["freedns", "lokaldns"],
     "reconcileIntervalSeconds": 60
   },
+  "steeringDriftMonitor": {
+    "enabled": false
+  },
   "publicSite": {
     "enabled": false,
     "host": "0.0.0.0",
