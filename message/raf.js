@@ -271,6 +271,34 @@ module.exports = async (raf, msg, m, options = {}) => {
         } catch (psbGroupErr) {
             console.error('[PSB_GROUP_INTAKE_ERROR]', psbGroupErr.message);
         }
+
+        // ── Keuangan pribadi via GRUP — "keluar/masuk <nominal> ..." atau "uang ..." ──
+        // Dipakai di grup khusus (biasanya grup berisi pemilik saja) alih-alih chat langsung:
+        // DM pemilik sudah penuh notifikasi jalur upstream/monitoring, sehingga balasan dompet
+        // tenggelam di antaranya. Grup memisahkan dua aliran itu.
+        // SCOPED KETAT seperti intake PSB: hanya grup yang dikonfigurasi, dan di dalam grup itu
+        // pun hanya pesan dari PEMILIK yang dilayani — anggota lain diabaikan diam-diam.
+        // NON-THROWING: bug di sini tak boleh menjatuhkan loop pesan.
+        try {
+            const pfCfg = (global.config && global.config.personalFinance) || {};
+            const pf = require('./handlers/personal-finance-wa');
+            if (pfCfg.enabled === true && pfCfg.groupId && from === pfCfg.groupId
+                && type !== 'imageMessage' && pf.TRIGGER_RE.test(String(chats || ''))) {
+                const pfParticipant = getOptionalJid(msg, sender);
+                const pfPlainPhone = pfParticipant
+                    ? String(pfParticipant).split('@')[0]
+                    : (typeof sender === 'string' ? sender.split('@')[0] : '');
+                if (pf.resolvePersonalFinanceOwner({ participant: pfParticipant, plainPhone: pfPlainPhone, config: global.config })) {
+                    await pf.handlePersonalFinanceCommand({
+                        chats,
+                        reply: (teks) => sendReply({ recipient: from, text: teks, quoted: msg }),
+                        config: global.config
+                    });
+                }
+            }
+        } catch (pfGroupErr) {
+            console.error('[PF_GROUP_ERROR]', pfGroupErr.message);
+        }
         return;
     }
 
@@ -653,7 +681,12 @@ module.exports = async (raf, msg, m, options = {}) => {
         try {
             const pfCfg = (global.config && global.config.personalFinance) || {};
             const pf = require('./handlers/personal-finance-wa');
-            if (pfCfg.enabled === true && type !== 'imageMessage' && pf.TRIGGER_RE.test(String(chats || ''))) {
+            // Kalau `groupId` dikonfigurasi, dompet HANYA dilayani di grup itu — DM sengaja
+            // dimatikan. Alasannya bukan keamanan tapi kebisingan: DM pemilik adalah saluran
+            // notifikasi upstream/monitoring, dan balasan dompet tenggelam di antaranya.
+            // Kosongkan `groupId` untuk kembali memakai DM.
+            const pfLewatDm = !pfCfg.groupId;
+            if (pfCfg.enabled === true && pfLewatDm && type !== 'imageMessage' && pf.TRIGGER_RE.test(String(chats || ''))) {
                 const pemilik = pf.resolvePersonalFinanceOwner({
                     participant: optionalJid || sender,
                     plainPhone: plainSenderNumber,

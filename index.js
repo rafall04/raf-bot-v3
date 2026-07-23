@@ -215,7 +215,17 @@ app.use('/api/auth/otp/request', authLimiter);
 // (Cloudflare) dan endpointnya ada di PUBLIC_PATHS, jadi tanpa ini hanya globalLimiter yang
 // menahan — 300 permintaan/15 menit = ribuan tebakan sandi per hari terhadap satu-satunya
 // pintu ke data keuangan pribadi.
-app.use('/api/keuangan-pribadi/login', authLimiter);
+//
+// TAPI dilewati selama kredensial BELUM disiapkan. Pada keadaan itu endpoint selalu membalas
+// 503 "belum disiapkan", dan 503 termasuk gagal sehingga IKUT MEMAKAN JATAH — pemilik yang
+// baru membuka halaman beberapa kali langsung terkunci 15 menit padahal belum sekali pun
+// menyentuh sandi (dilaporkan 2026-07-23). Selagi belum ada kredensial memang tak ada yang
+// bisa ditebak, jadi tak ada yang perlu direm; globalLimiter tetap berlaku.
+app.use('/api/keuangan-pribadi/login', (req, res, next) => {
+    const { hasCredential } = require('./lib/personal-finance-auth');
+    if (!hasCredential()) return next();
+    return authLimiter(req, res, next);
+});
 registerRoutes(app, runtime);
 
 // --- VIEW ENGINE AND PHP SETUP ---
