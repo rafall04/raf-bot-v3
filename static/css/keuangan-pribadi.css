@@ -113,17 +113,19 @@ html.tk-dark-pending {
     font-size: 0.875rem;
 }
 
-/* Latar TETAP --surface-2 (membalik di mode gelap); status disampaikan lewat border + warna
-   teks beraksen. Memakai --color-*-soft sebagai latar akan menabrak teks --ink yang membalik
-   → putih di atas pastel putih saat mode gelap. */
+/* Latar TETAP --surface-2 (membalik di mode gelap). Status disampaikan lewat GARIS TEPI,
+   bukan warna teks: teksnya tetap --ink (kontras 17.8).
+   Dulu teksnya --color-danger — hanya 3.44 di mode terang dan 3.94 di gelap, gagal AA.
+   Ini justru kotak yang paling penting terbaca: di situlah pesan galat muncul.
+   Memakai --color-*-soft sebagai latar juga salah — pastel TETAP yang tak ikut membalik. */
 .kp-alert[data-tone="error"] {
     border-color: var(--color-danger);
-    color: var(--color-danger);
+    border-left: 4px solid var(--color-danger);
 }
 
 .kp-alert[data-tone="ok"] {
     border-color: var(--color-success);
-    color: var(--color-success);
+    border-left: 4px solid var(--color-success);
 }
 
 /* ── Kartu ringkasan ───────────────────────────────────────────────────────── */
@@ -528,6 +530,32 @@ html.tk-dark-pending {
 /* ── Panel ganti sandi ─────────────────────────────────────────────────────── */
 .kp-sandi {
     border-color: var(--indigo-600);
+}
+
+.kp-grup {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.kp-grup .form-control {
+    flex: 1 1 16rem;
+    min-width: 0;
+    background: var(--surface-2);
+    color: var(--ink);
+    border: 1px solid var(--line);
+}
+
+.kp-grup__simpan {
+    width: auto;
+    min-width: 9rem;
+}
+
+.kp-pisah {
+    border: 0;
+    border-top: 1px solid var(--line);
+    margin: 1.2rem 0 1rem;
 }
 
 .kp-sandi__aksi {

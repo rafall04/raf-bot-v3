@@ -469,6 +469,72 @@
     var batalSandi = document.getElementById("kp-sandi-batal");
     if (batalSandi) batalSandi.addEventListener("click", tutupPanelSandi);
 
+    // ── Pemilih grup WhatsApp ───────────────────────────────────────────────────
+    var grupPilih = document.getElementById("kp-grup-pilih");
+    var grupMuat = document.getElementById("kp-grup-muat");
+    var grupSimpan = document.getElementById("kp-grup-simpan");
+
+    function muatDaftarGrup() {
+        if (!grupMuat) return;
+        grupMuat.disabled = true;
+        var teksAsli = grupMuat.textContent;
+        grupMuat.textContent = "Memuat…";
+        ambilJson("/api/keuangan-pribadi/grup")
+            .then(function (j) {
+                var terpilih = j.terpilih || "";
+                grupPilih.innerHTML =
+                    '<option value="">— tidak ada / pakai DM —</option>' +
+                    (j.data || [])
+                        .map(function (g) {
+                            return '<option value="' + esc(g.id) + '">' + esc(g.subject) + " (" + g.size + " anggota)</option>";
+                        })
+                        .join("");
+                // Grup tersimpan mungkin tak ada di daftar (bot dikeluarkan dari grup itu).
+                // Pasang opsinya sendiri supaya pilihan lama tetap terlihat, bukan hilang senyap.
+                if (terpilih && !Array.prototype.some.call(grupPilih.options, function (o) { return o.value === terpilih; })) {
+                    var o = document.createElement("option");
+                    o.value = terpilih;
+                    o.textContent = terpilih + " (tersimpan — bot tidak lagi di grup ini?)";
+                    grupPilih.appendChild(o);
+                }
+                grupPilih.value = terpilih;
+                if (j.waSiap === false) {
+                    pesan(j.message || "WhatsApp belum terkoneksi — daftar grup tak bisa dimuat.", "error");
+                } else {
+                    pesan((j.data || []).length + " grup dimuat.", "ok");
+                }
+            })
+            .catch(function (e) {
+                pesan(e.message, "error");
+            })
+            .finally(function () {
+                grupMuat.disabled = false;
+                grupMuat.textContent = teksAsli;
+            });
+    }
+
+    if (grupMuat) grupMuat.addEventListener("click", muatDaftarGrup);
+
+    if (grupSimpan) {
+        grupSimpan.addEventListener("click", function () {
+            grupSimpan.disabled = true;
+            ambilJson("/api/keuangan-pribadi/grup", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ groupId: grupPilih ? grupPilih.value : "" })
+            })
+                .then(function (j) {
+                    pesan(j.message || "Grup disimpan.", "ok");
+                })
+                .catch(function (e) {
+                    pesan(e.message, "error");
+                })
+                .finally(function () {
+                    grupSimpan.disabled = false;
+                });
+        });
+    }
+
     if (formSandi) {
         formSandi.addEventListener("submit", function (ev) {
             ev.preventDefault();

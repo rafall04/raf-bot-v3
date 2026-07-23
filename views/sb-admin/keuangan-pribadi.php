@@ -52,7 +52,7 @@
       <button type="button" id="tkThemeToggle" class="kp-ikonbtn" title="Ganti mode terang/gelap" aria-label="Ganti mode terang/gelap">
         <i class="fas fa-moon"></i>
       </button>
-      <button type="button" id="kp-ganti-sandi" class="kp-keluar" title="Ganti sandi dompet">Sandi</button>
+      <button type="button" id="kp-ganti-sandi" class="kp-keluar" title="Pengaturan dompet: grup WhatsApp &amp; sandi">Pengaturan</button>
       <button type="button" id="kp-logout" class="kp-keluar" title="Keluar dari dompet">Keluar</button>
     </div>
   </header>
@@ -63,6 +63,26 @@
     <!-- Ganti sandi. Sengaja form dengan input type=password, BUKAN prompt(): prompt
          menampilkan sandi sebagai teks polos dan tak bisa dipakai pengelola sandi. -->
     <section class="kp-card kp-card--full kp-sandi" id="kp-panel-sandi" hidden>
+      <!-- Grup WhatsApp. Setelan ini sengaja di SINI, bukan di /config admin: seluruh
+           desain dompet memisahkan diri dari panel admin, dan kalau ikut di /config,
+           admin lain bisa memindahkan grup lalu fitur ini diam tanpa pemiliknya tahu. -->
+      <h2 class="kp-card__title">Grup WhatsApp</h2>
+      <div class="kp-grup">
+        <select id="kp-grup-pilih" class="form-control form-control-sm">
+          <option value="">— tidak ada / pakai DM —</option>
+        </select>
+        <button type="button" class="kp-keluar" id="kp-grup-muat">Muat Grup</button>
+        <button type="button" class="kp-btn kp-grup__simpan" id="kp-grup-simpan">Simpan grup</button>
+      </div>
+      <p class="kp-hint">
+        Pilih grup khusus supaya perintah dompet dilayani <b>di grup itu</b>, bukan di DM —
+        DM bot sudah penuh notifikasi jalur upstream sehingga balasan dompet tenggelam.
+        Klik <b>Muat Grup</b> (bot harus online), pilih, lalu Simpan. Kosongkan untuk kembali ke DM.
+        Di dalam grup pun hanya pesan dari nomor Anda yang dilayani.
+      </p>
+
+      <hr class="kp-pisah">
+
       <h2 class="kp-card__title">Ganti sandi dompet</h2>
       <form id="kp-form-sandi" class="kp-form" autocomplete="off">
         <input type="text" id="kp-sandi-user" autocomplete="username" hidden aria-hidden="true" tabindex="-1">

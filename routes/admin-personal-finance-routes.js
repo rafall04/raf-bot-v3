@@ -280,6 +280,73 @@ function registerAdminPersonalFinanceRoutes(router, deps = {}) {
         })
     );
 
+    // ── Pemilih grup WhatsApp ───────────────────────────────────────────────────
+    // Sengaja DI SINI, bukan di halaman /config admin. Seluruh desain dompet ini memisahkan
+    // diri dari panel admin; kalau setelannya ikut di /config, admin lain bisa memindahkan
+    // grup dan mematikan fitur ini tanpa pemiliknya tahu. (Ia tak bisa MEMBACA data —
+    // gerbang pemilik tetap menutup — tapi bisa membuatnya diam.)
+    router.get(
+        "/api/keuangan-pribadi/grup",
+        gate,
+        asyncHandler(async (_req, res) => {
+            const adapter = require("../lib/whatsapp.adapter");
+            const terpilih = ((getConfig() || {}).personalFinance || {}).groupId || "";
+            try {
+                res.json({ success: true, data: await adapter.getGroups(), terpilih, waSiap: true });
+            } catch (e) {
+                // WA belum tersambung BUKAN kegagalan endpoint ini: pilihan yang tersimpan
+                // tetap harus terlihat. Membalas 503 polos membuat halaman tak bisa
+                // menampilkan grup yang sedang aktif justru saat bot sedang bermasalah —
+                // persis saat orang ingin memeriksanya.
+                res.json({
+                    success: true,
+                    data: [],
+                    terpilih,
+                    waSiap: false,
+                    message: e.message || "WhatsApp belum terkoneksi — daftar grup tak bisa dimuat."
+                });
+            }
+        })
+    );
+
+    router.put(
+        "/api/keuangan-pribadi/grup",
+        gate,
+        asyncHandler(async (req, res) => {
+            const groupId = String((req.body || {}).groupId || "").trim();
+            if (groupId && !/@g\.us$/.test(groupId)) {
+                return res.status(400).json({ success: false, message: "JID grup harus berakhiran @g.us." });
+            }
+
+            const fs = require("fs");
+            const path = require("path");
+            const configPath = path.join(__dirname, "..", "config.json");
+
+            // Baca-ubah-tulis: HANYA menyentuh personalFinance.groupId. config.json memuat
+            // kredensial gateway, template, dan puluhan setelan lain — menulis ulang dari
+            // objek in-memory berisiko menjatuhkan key yang tak dikenal kode ini.
+            const isi = JSON.parse(fs.readFileSync(configPath, "utf8"));
+            if (!isi.personalFinance) isi.personalFinance = {};
+            isi.personalFinance.groupId = groupId;
+            fs.writeFileSync(configPath, JSON.stringify(isi, null, 2), "utf8");
+
+            // Terapkan ke runtime supaya berlaku TANPA restart bot.
+            const cfg = getConfig();
+            if (cfg) {
+                if (!cfg.personalFinance) cfg.personalFinance = {};
+                cfg.personalFinance.groupId = groupId;
+            }
+
+            res.json({
+                success: true,
+                data: { groupId },
+                message: groupId
+                    ? "Grup disimpan. Perintah dompet kini dilayani di grup itu (DM dimatikan)."
+                    : "Grup dikosongkan. Perintah dompet kembali dilayani lewat DM."
+            });
+        })
+    );
+
     // ── Ganti sandi dompet (butuh sesi AKTIF + sandi lama) ──────────────────────
     router.post(
         "/api/keuangan-pribadi/ganti-sandi",
