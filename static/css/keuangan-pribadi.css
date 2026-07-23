@@ -1,0 +1,314 @@
+/**
+ * Header Doc
+ * Purpose: Gaya halaman /keuangan-pribadi (dompet pribadi pemilik) — kartu ringkasan, form catat
+ *          cepat, rincian kategori, tabel catatan. HANYA memakai token SEMANTIK sadar-mode
+ *          (--surface/--ink/--line/…) supaya ikut membalik di body.tk-dark; primitif tetap
+ *          (var(--white)/var(--slate-900)) dilarang di sini dan ditegakkan scripts/check-theme-tokens.js.
+ * Caller: views/sb-admin/keuangan-pribadi.php.
+ * Deps: static/css/tokens.css (token semantik + radius).
+ */
+
+.kp-periode {
+    display: flex;
+    align-items: center;
+}
+
+.kp-input-bulan {
+    width: auto;
+    min-width: 10rem;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+}
+
+.kp-alert {
+    margin-bottom: 1rem;
+    padding: 0.65rem 0.9rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink);
+    font-size: 0.875rem;
+}
+
+.kp-alert[data-tone="error"] {
+    border-color: var(--color-danger);
+    background: var(--color-danger-soft);
+}
+
+.kp-alert[data-tone="ok"] {
+    border-color: var(--color-success);
+    background: var(--color-success-soft);
+}
+
+/* ── Kartu ringkasan ───────────────────────────────────────────────────────── */
+.kp-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.85rem;
+    margin-bottom: 1.1rem;
+}
+
+.kp-stat {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.kp-stat__label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+}
+
+.kp-stat__value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.kp-stat--in {
+    border-left-color: var(--color-success);
+}
+
+.kp-stat--out {
+    border-left-color: var(--color-danger);
+}
+
+.kp-stat--net {
+    border-left-color: var(--color-info);
+}
+
+.kp-stat--today {
+    border-left-color: var(--color-warning);
+}
+
+.kp-stat--net .kp-stat__value[data-negatif="1"] {
+    color: var(--color-danger);
+}
+
+/* ── Kartu isi ─────────────────────────────────────────────────────────────── */
+.kp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+    gap: 0.85rem;
+    margin-bottom: 0.85rem;
+}
+
+.kp-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.1rem 1.15rem;
+}
+
+.kp-card__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 0.85rem;
+}
+
+.kp-empty {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin: 0;
+    padding: 0.6rem 0;
+    text-align: center;
+}
+
+/* ── Form catat cepat ──────────────────────────────────────────────────────── */
+.kp-form__row {
+    display: flex;
+    gap: 0.6rem;
+    margin-bottom: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.kp-field {
+    flex: 1 1 8rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.kp-field--wide {
+    flex: 2 1 12rem;
+}
+
+.kp-field--kind {
+    flex: 0 1 7rem;
+}
+
+.kp-field label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    margin: 0;
+}
+
+.kp-field .form-control {
+    background: var(--surface-2);
+    color: var(--ink);
+    border: 1px solid var(--line);
+}
+
+.kp-field .form-control::placeholder {
+    color: var(--muted);
+}
+
+.kp-btn {
+    width: 100%;
+    padding: 0.5rem 0.9rem;
+    border: 1px solid var(--color-info);
+    border-radius: var(--radius-sm);
+    background: var(--color-info-soft);
+    color: var(--ink);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+}
+
+.kp-btn:disabled {
+    opacity: 0.6;
+    cursor: progress;
+}
+
+.kp-hint {
+    margin: 0.6rem 0 0;
+    font-size: 0.76rem;
+    color: var(--muted);
+}
+
+.kp-hint code {
+    background: var(--surface-2);
+    color: var(--ink-soft);
+    border-radius: var(--radius-sm);
+    padding: 0.05rem 0.3rem;
+}
+
+/* ── Rincian kategori ──────────────────────────────────────────────────────── */
+.kp-kat {
+    margin-bottom: 0.7rem;
+}
+
+.kp-kat__head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    color: var(--ink);
+    margin-bottom: 0.25rem;
+}
+
+.kp-kat__nilai {
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+}
+
+.kp-kat__bar {
+    height: 6px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-2);
+    overflow: hidden;
+}
+
+.kp-kat__fill {
+    height: 100%;
+    background: var(--color-danger);
+    border-radius: var(--radius-pill);
+}
+
+/* ── Tabel catatan ─────────────────────────────────────────────────────────── */
+.kp-card--full {
+    margin-bottom: 1.2rem;
+}
+
+.kp-tabel-wrap {
+    overflow-x: auto;
+}
+
+.kp-tabel {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    color: var(--ink);
+}
+
+.kp-tabel th,
+.kp-tabel td {
+    padding: 0.5rem 0.6rem;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.kp-tabel th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.kp-num {
+    text-align: right;
+}
+
+.kp-tabel td.kp-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.kp-badge {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.72rem;
+    font-weight: 600;
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+}
+
+.kp-badge--in {
+    border-color: var(--color-success);
+    background: var(--color-success-soft);
+}
+
+.kp-badge--out {
+    border-color: var(--color-danger);
+    background: var(--color-danger-soft);
+}
+
+.kp-hapus {
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0.15rem 0.45rem;
+    font-size: 0.78rem;
+}
+
+.kp-hapus:hover {
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+}
+
+@media (max-width: 575.98px) {
+    .kp-stat__value {
+        font-size: 1.15rem;
+    }
+
+    .kp-field--kind {
+        flex: 1 1 6rem;
+    }
+}

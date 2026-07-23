@@ -514,5 +514,13 @@
     "enabled": false,
     "siteKey": "ISI_TURNSTILE_SITE_KEY",
     "secretKey": "ISI_TURNSTILE_SECRET_KEY"
+  },
+  "personalFinance": {
+    "_catatan": "Dompet PRIBADI pemilik yang menumpang nomor bot. Terpisah total dari saldo pelanggan (DB sendiri: personal_finance.sqlite). Kepemilikan sengaja TIDAK memakai ownerNumber/role admin supaya menambah admin bisnis tak ikut membuka dompet pribadi.",
+    "enabled": false,
+    "ownerJids": ["62xxxxxxxxxx@s.whatsapp.net"],
+    "ownerLids": [],
+    "webUsers": [],
+    "categories": {}
   }
 }

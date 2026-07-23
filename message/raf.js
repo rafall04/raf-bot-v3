@@ -632,6 +632,35 @@ module.exports = async (raf, msg, m, options = {}) => {
             console.error('[ASET_TRIGGER_ERROR]', asetErr.message);
         }
 
+        // ── Perintah KEUANGAN PRIBADI owner — teks "#U ..." ──
+        // Dompet PRIBADI pemilik yang menumpang nomor bot bisnis. Terisolasi penuh dari saldo
+        // pelanggan: DB sendiri (personal_finance.sqlite), tak menyentuh lib/saldo, tak menulis
+        // activity_logs. Gate: config `personalFinance.enabled` (default OFF) + daftar pemilik
+        // TERPISAH (`personalFinance.ownerJids`, bukan `ownerNumber`) — supaya menambah admin
+        // bisnis tak pernah ikut membuka dompet pribadi.
+        //
+        // BEDA SENGAJA dari gerbang aset di atas: bukan-pemilik yang mengetik "#U" TIDAK diberi
+        // tahu apa pun, dia jatuh ke alur normal. Membalas "khusus pemilik" akan membocorkan ke
+        // pelanggan bahwa ada dompet pribadi di nomor ini — persis yang harus dihindari.
+        // NON-THROWING: gagal di sini tak boleh menjatuhkan pesan lain.
+        try {
+            const pfCfg = (global.config && global.config.personalFinance) || {};
+            const pf = require('./handlers/personal-finance-wa');
+            if (pfCfg.enabled === true && type !== 'imageMessage' && pf.TRIGGER_RE.test(String(chats || ''))) {
+                const pemilik = pf.resolvePersonalFinanceOwner({
+                    participant: optionalJid || sender,
+                    plainPhone: plainSenderNumber,
+                    config: global.config
+                });
+                if (pemilik) {
+                    await pf.handlePersonalFinanceCommand({ chats, reply, config: global.config });
+                    return;
+                }
+            }
+        } catch (pfErr) {
+            console.error('[PF_TRIGGER_ERROR]', pfErr.message);
+        }
+
         // ── Perintah assignment papan PSB (Fase B/2 [[psb-papan-terjadwal]]) — "ambil/tugaskan/papan psb" ──
         // One-shot (TANPA state): teknisi AMBIL, admin TUGASKAN, semua staf lihat PAPAN. Pakai core
         // assignSchedule + builder DM/notif yang SAMA dgn web. Gated (feature ON + akun staf) + NON-THROWING.

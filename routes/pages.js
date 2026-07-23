@@ -264,6 +264,23 @@ router.get('/owner', checkRole(['admin', 'owner', 'superadmin']), (req, res) => 
     res.render('sb-admin/owner-cockpit.php');
 });
 
+// Keuangan Pribadi - dompet PRIBADI pemilik yang menumpang instance ini.
+// SENGAJA BUKAN checkRole: di accounts.json role `owner` tidak ada dan kedua akun admin tak
+// terbedakan, jadi gate berbasis role akan membuka dompet pribadi untuk admin lain. Gate =
+// allowlist username `config.personalFinance.webUsers` (gagal-tertutup bila kosong/fitur OFF).
+// WAJIB terdaftar SEBELUM handler generik '/:type' di bawah — handler itu merender
+// views/sb-admin/<type>.php TANPA cek role sama sekali. Halaman ini pun tidak menyisipkan
+// data dari server: seluruh angka diambil via API yang punya gate sendiri (berlapis).
+router.get('/keuangan-pribadi', (req, res) => {
+    const { isPersonalFinanceWebUser } = require('./admin-personal-finance-routes');
+    if (!isPersonalFinanceWebUser(req.user, global.config)) {
+        // 404, BUKAN 403 — dan itu disengaja. "Akses ditolak" memberi tahu admin lain bahwa
+        // ada halaman keuangan pribadi di sini; 404 tidak membocorkan apa pun.
+        return res.status(404).render('sb-admin/404.php');
+    }
+    return res.render('sb-admin/keuangan-pribadi.php');
+});
+
 // Survei Kepuasan (CSAT) - rangkuman rating pelanggan (skor/detractor/komentar/tren). Admin/owner.
 router.get('/survei', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/survei.php');

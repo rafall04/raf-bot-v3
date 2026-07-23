@@ -64,6 +64,7 @@ Aplikasi monolit Node.js untuk operasional ISP/RTRW-Net yang menggabungkan bot W
 - Papan PSB terjadwal: `database/psb_schedule.sqlite` — owner `lib/psb-schedule-service.js` (lifecycle menunggu→ditugaskan→terpasang→batal, ref `PSB-<n>`).
 - Metrik monitoring: `database/monitoring_metrics.sqlite` — owner `lib/monitoring-service.js`.
 - Audit isolir: `database/isolir_audit.sqlite` — owner `lib/services/isolir-audit-repository.js`.
+- Keuangan PRIBADI owner: `database/personal_finance.sqlite` (tabel `pf_entries` — 1 baris = 1 catatan masuk/keluar + kategori + asal `wa`/`web`). Owner `repositories/personal-finance.repository.js`; ditulis perintah WA `#U` (`message/handlers/personal-finance-wa.js`) & halaman `/keuangan-pribadi` (`routes/admin-personal-finance-routes.js`); gate `config.personalFinance.enabled` (default OFF) + allowlist pemilik terpisah (`ownerJids`/`webUsers`, BUKAN `ownerNumber`/role). Path via `getDatabasePath('personal_finance.sqlite')`. **Bukan** saldo pelanggan dan SENGAJA di luar backup Telegram grup. Bukan di-bootstrap `lib/database.js`.
 - Watcher data aktif: minimal `announcements.json` dan `news.json` untuk reload runtime.
 - Lokasi fallback legacy: `config.json` dipakai bila resolver env-aware gagal load config.
 
@@ -274,6 +275,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-07-21 (Panel pelanggan: gagal-GPS tak lagi menstempel koordinat default)](docs/boundary-log.md#b172)
 - [Fix 2026-07-22 (Penataan rules: indeks boundary diregenerasi + guard integritas + sapu rule-sprawl)](docs/boundary-log.md#b173)
 - [Feat 2026-07-22 (Otomasi anti-basi dokumen: guard docs↔kode + pre-push gate + hook diperluas + guard tema masuk npm test)](docs/boundary-log.md#b174)
+- [Feat 2026-07-23 (Keuangan pribadi owner menumpang nomor bot — domain terisolasi penuh)](docs/boundary-log.md#b175)
 
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.

@@ -929,3 +929,14 @@
 - **Temuan guard yang langsung dibetulkan:** SYSTEM_MAP menyebut `legacy-wifi-state-handler.js` yang sudah tiada; 8 DB tanpa dokumentasi (saldo/broadcast/voucher/olt_events/olt_state/psb_schedule/monitoring_metrics/isolir_audit → seksi DB); gate `steeringDriftMonitor` absen dari config.example.json (+default OFF).
 - **CLAUDE.md:** + seksi "UI & theme conventions" (token semantik / `body.tk-dark` / `_head.php` / `rafAssetUrl` / CSS eksternal / gotcha php-express — sebelumnya hanya hidup di memory agent, tak ada di panduan repo) + baris "Pre-push gate" di tabel enforcement.
 - **Tes:** docs-sync 1, theme-tokens 1; smoke hook manual (run-1 warning+reminder, run-2 reminder tersuppress rate-limit).
+
+<a id="b175"></a>
+### Feat 2026-07-23 (Keuangan pribadi owner menumpang nomor bot — domain terisolasi penuh)
+
+- **Owner:** `repositories/personal-finance.repository.js` (BARU, `database/personal_finance.sqlite`, tabel `pf_entries`) + `lib/personal-finance-service.js` (parser nominal `50rb`/`2jt`/`50.000` + perintah + perakit laporan, fungsi murni) + `message/handlers/personal-finance-wa.js` (perintah `#U`) + `routes/admin-personal-finance-routes.js` (`/api/keuangan-pribadi/*`) + halaman `/keuangan-pribadi`.
+- **Isolasi dari saldo pelanggan (alasan utama desain):** DB terpisah, kosakata terpisah (`entry`, bukan `saldo`), tak menyentuh `lib/saldo`, tak menulis `activity_logs`. `personal_finance.sqlite` SENGAJA di luar allowlist `lib/telegram-backup.js` — tujuan backup itu GRUP multi-anggota.
+- **Kepemilikan TIDAK memakai `ownerNumber` maupun role:** daftar terpisah `config.personalFinance.ownerJids` (WA) + `webUsers` (halaman). Sebabnya konkret: di `accounts.json` role `owner` tidak ada dan 2 akun admin tak terbedakan → gate berbasis role akan membuka dompet pribadi untuk admin lain.
+- **Gate:** `config.personalFinance.enabled` default **OFF**; allowlist kosong ⇒ 403/404 untuk semua (deploy gelap). Non-pemilik yang mengetik `#U` **didiamkan** (jatuh ke alur normal) — membalas "khusus pemilik" membocorkan keberadaan dompet ke pelanggan. Halaman balas **404, bukan 403**, dengan alasan yang sama.
+- **Status path lama:** tidak ada — domain baru, tak menggantikan apa pun.
+- **Tes:** 47 (parser nominal/kategori/perintah, gate kepemilikan termasuk penolakan `@lid` tak terdaftar + penolakan `ownerNumber`, repository CRUD/rekap/batas periode/tolak nominal ≤0).
+- **PELAJARAN:** `routes/pages.js` punya handler generik `/:type` yang merender `views/sb-admin/<type>.php` **tanpa cek role sama sekali** — halaman baru yang sensitif WAJIB terdaftar eksplisit di atasnya DAN tak menyisipkan data dari server.

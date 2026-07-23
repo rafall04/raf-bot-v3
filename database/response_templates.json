@@ -5414,5 +5414,45 @@
     "name": "SOD: Kendala Di Tengah Alur",
     "template": "Maaf Kak, ada kendala. Pesanan dibatalkan — silakan coba lagi ya 🙏",
     "category": "speed"
+  },
+  "pf_bantuan": {
+    "name": "Keuangan Pribadi - Bantuan",
+    "category": "personal_finance",
+    "template": "💰 *CATATAN KEUANGAN PRIBADI*\n\nCatat cepat:\n• *#U keluar 50rb bensin*\n• *#U masuk 2jt gaji*\n\nLihat rekap:\n• *#U lapor* — hari ini\n• *#U bulan* — bulan ini\n• *#U bulan 2026-06* — bulan tertentu\n\nSalah catat:\n• *#U hapus 12* — hapus catatan nomor 12\n\nNominal bebas: 50rb, 2jt, 1,5jt, 50.000."
+  },
+  "pf_tidak_dikenali": {
+    "name": "Keuangan Pribadi - Perintah Tidak Dikenali",
+    "category": "personal_finance",
+    "template": "⚠️ ${alasan}\n\nContoh: *#U keluar 50rb bensin*\nKetik *#U* untuk daftar perintah."
+  },
+  "pf_catat_keluar": {
+    "name": "Keuangan Pribadi - Catat Pengeluaran",
+    "category": "personal_finance",
+    "template": "✅ Tercatat *keluar* ${nominal}\n📂 Kategori: ${kategori}\n📝 ${catatan}\n\nHari ini: masuk ${masukRp} · keluar ${keluarRp} · selisih ${selisihRp}\n_Salah? balas *#U hapus ${id}*_"
+  },
+  "pf_catat_masuk": {
+    "name": "Keuangan Pribadi - Catat Pemasukan",
+    "category": "personal_finance",
+    "template": "✅ Tercatat *masuk* ${nominal}\n📂 Kategori: ${kategori}\n📝 ${catatan}\n\nHari ini: masuk ${masukRp} · keluar ${keluarRp} · selisih ${selisihRp}\n_Salah? balas *#U hapus ${id}*_"
+  },
+  "pf_hapus_ok": {
+    "name": "Keuangan Pribadi - Hapus Berhasil",
+    "category": "personal_finance",
+    "template": "🗑️ Catatan ${id} dihapus (${nominal} — ${catatan})."
+  },
+  "pf_hapus_gagal": {
+    "name": "Keuangan Pribadi - Hapus Gagal",
+    "category": "personal_finance",
+    "template": "⚠️ Catatan nomor ${id} tidak ditemukan."
+  },
+  "pf_laporan_harian": {
+    "name": "Keuangan Pribadi - Laporan Harian",
+    "category": "personal_finance",
+    "template": "📅 *LAPORAN HARI INI* (${tanggal})\n\n⬇️ Masuk: ${masukRp}\n⬆️ Keluar: ${keluarRp}\n💵 Selisih: ${selisihRp}\n\n*Catatan:*\n${daftarCatatan}"
+  },
+  "pf_laporan_bulanan": {
+    "name": "Keuangan Pribadi - Laporan Bulanan",
+    "category": "personal_finance",
+    "template": "🗓️ *LAPORAN BULAN ${bulan}*\n\n⬇️ Masuk: ${masukRp}\n⬆️ Keluar: ${keluarRp}\n💵 Selisih: ${selisihRp}\n📊 ${jumlahCatatan} catatan\n\n*Pengeluaran per kategori:*\n${rincianKategori}"
   }
 }
