@@ -143,7 +143,7 @@ const {
 const { resolveAgentContext, dispatchIntent } = require('./handlers/raf-intent-dispatch');
 
 // Library imports
-const { normalizeJid: _normalizeJid, normalizeJidForSaldo: _normalizeJidForSaldo, findUserWithLidSupport, normalizePhoneNumber: _normalizePhoneNumber, normalizePhoneToJid: _normalizePhoneToJid, extractSenderInfo, processLidVerification, buildCanonicalContext } = require('../lib/jid-utils');
+const { normalizeJid: _normalizeJid, normalizeJidForSaldo: _normalizeJidForSaldo, findUserWithLidSupport, normalizePhoneNumber: _normalizePhoneNumber, normalizePhoneToJid: _normalizePhoneToJid, extractSenderInfo, getPreferredPlainSenderNumber, processLidVerification, buildCanonicalContext } = require('../lib/jid-utils');
 const agentTransactionManager = require('../lib/agent-transaction-manager');
 const agentManager = require('../lib/agent-manager');
 const { getReportsUploadsPath, getTeknisiUploadsPathByTicket } = require('../lib/path-helper');
@@ -284,16 +284,35 @@ module.exports = async (raf, msg, m, options = {}) => {
             const pf = require('./handlers/personal-finance-wa');
             if (pfCfg.enabled === true && pfCfg.groupId && from === pfCfg.groupId
                 && type !== 'imageMessage' && pf.TRIGGER_RE.test(String(chats || ''))) {
-                const pfParticipant = getOptionalJid(msg, sender);
-                const pfPlainPhone = pfParticipant
-                    ? String(pfParticipant).split('@')[0]
-                    : (typeof sender === 'string' ? sender.split('@')[0] : '');
+                // JANGAN pakai getOptionalJid di sini — helper itu berorientasi DM (membaca
+                // `remoteJidAlt`), sedangkan grup menaruh pengirim di `participant`/
+                // `participantAlt`. Di grup ia mengembalikan null untuk pengirim @lid, dan
+                // gerbang ini menolak pemiliknya sendiri tanpa jejak apa pun.
+                const pfInfo = extractSenderInfo(msg, true);
+                const pfPlainPhone = pfInfo.phoneNumber
+                    || getPreferredPlainSenderNumber(msg, sender)
+                    || '';
+                const pfParticipant = pfInfo.participant
+                    || (pfPlainPhone ? `${pfPlainPhone}@s.whatsapp.net` : (msg.key && msg.key.participant) || sender);
+
                 if (pf.resolvePersonalFinanceOwner({ participant: pfParticipant, plainPhone: pfPlainPhone, config: global.config })) {
                     await pf.handlePersonalFinanceCommand({
                         chats,
                         reply: (teks) => sendReply({ recipient: from, text: teks, quoted: msg }),
                         config: global.config
                     });
+                } else {
+                    // GAGAL-SENYAP DITUTUP (pelajaran yang sama dengan gerbang aset di bawah):
+                    // perintah dompet di grup yang BENAR tapi pengirimnya tak dikenali dulu
+                    // hilang tanpa jejak — mustahil didiagnosis. Catat identitas mentahnya
+                    // supaya `ownerLids` bisa diisi bila WhatsApp hanya memberi @lid.
+                    console.warn('[PF_GRUP_BUKAN_PEMILIK]',
+                        'participant=', pfParticipant,
+                        'plainPhone=', pfPlainPhone,
+                        'keyParticipant=', (msg.key && msg.key.participant) || '-',
+                        'participantAlt=', (msg.key && msg.key.participantAlt) || '-',
+                        'metode=', pfInfo.method,
+                        'isLid=', pfInfo.isLid);
                 }
             }
         } catch (pfGroupErr) {

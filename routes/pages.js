@@ -271,26 +271,56 @@ router.get('/owner', checkRole(['admin', 'owner', 'superadmin']), (req, res) => 
 // WAJIB terdaftar SEBELUM handler generik '/:type' di bawah — handler itu merender
 // views/sb-admin/<type>.php TANPA cek role sama sekali. Halaman ini pun tidak menyisipkan
 // data dari server: seluruh angka diambil via API yang punya penjaga sesi sendiri (berlapis).
+// `no-store` pada KEDUA halaman dompet, dan itu bukan sekadar kerapian:
+//  1) Tanpa itu browser menyimpan halaman login di bfcache, sehingga menekan tombol
+//     BACK memunculkan form login lagi padahal sesinya masih hidup — persis keluhan
+//     "keluar dari browser malah kembali ke halaman login".
+//  2) Halaman dompet memuat angka keuangan pribadi; tak boleh mengendap di cache
+//     browser atau perantara mana pun.
+function noStore(res) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+}
+
 router.get('/keuangan-pribadi/login', (req, res) => {
     const cfg = (global.config && global.config.personalFinance) || {};
     if (cfg.enabled !== true) return res.status(404).render('sb-admin/404.php');
 
+    noStore(res);
     const pfAuth = require('../lib/personal-finance-auth');
     // Sudah punya sesi sah → tak perlu form login lagi.
     if (pfAuth.resolveSession(req)) return res.redirect('/keuangan-pribadi');
     return res.render('sb-admin/keuangan-pribadi-login.php');
 });
 
-router.get('/keuangan-pribadi', (req, res) => {
+// Dompet dipecah per fungsi (dulu satu halaman panjang yang menumpuk semuanya). Semua
+// berbagi gerbang yang sama; hanya berkas view-nya berbeda.
+const KP_HALAMAN = {
+    '': 'keuangan-pribadi.php',                       // Ringkasan
+    catatan: 'keuangan-pribadi-catatan.php',
+    anggaran: 'keuangan-pribadi-anggaran.php',
+    panduan: 'keuangan-pribadi-panduan.php',
+    pengaturan: 'keuangan-pribadi-pengaturan.php'
+};
+
+function renderKeuanganPribadi(req, res, slug) {
     const cfg = (global.config && global.config.personalFinance) || {};
     // 404, BUKAN 403 — disengaja. "Akses ditolak" memberi tahu orang lain bahwa ada halaman
     // keuangan pribadi di sini; 404 tidak membocorkan apa pun.
     if (cfg.enabled !== true) return res.status(404).render('sb-admin/404.php');
 
+    const view = KP_HALAMAN[slug];
+    if (!view) return res.status(404).render('sb-admin/404.php');
+
+    noStore(res);
     const pfAuth = require('../lib/personal-finance-auth');
     if (!pfAuth.resolveSession(req)) return res.redirect('/keuangan-pribadi/login');
-    return res.render('sb-admin/keuangan-pribadi.php');
-});
+    return res.render(`sb-admin/${view}`);
+}
+
+router.get('/keuangan-pribadi', (req, res) => renderKeuanganPribadi(req, res, ''));
+router.get('/keuangan-pribadi/:slug', (req, res) => renderKeuanganPribadi(req, res, String(req.params.slug || '')));
 
 // Survei Kepuasan (CSAT) - rangkuman rating pelanggan (skor/detractor/komentar/tren). Admin/owner.
 router.get('/survei', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {

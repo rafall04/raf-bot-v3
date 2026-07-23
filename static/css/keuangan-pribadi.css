@@ -1,139 +1,390 @@
 /**
  * Header Doc
- * Purpose: Gaya halaman /keuangan-pribadi (dompet pribadi pemilik) — kartu ringkasan, form catat
- *          cepat, rincian kategori, tabel catatan. HANYA memakai token SEMANTIK sadar-mode
- *          (--surface/--ink/--line/…) supaya ikut membalik di body.tk-dark; primitif tetap
- *          (var(--white)/var(--slate-900)) dilarang di sini dan ditegakkan scripts/check-theme-tokens.js.
- * Caller: views/sb-admin/keuangan-pribadi.php.
- * Deps: static/css/tokens.css (token semantik + radius).
+ * Purpose: Gaya SELURUH halaman dompet keuangan pribadi (login, ringkasan, catatan, anggaran,
+ *          panduan, pengaturan). Ditulis ulang 2026-07-23 setelah versi pertama menumpuk semua
+ *          fitur di satu halaman dan terasa sesak: sekarang tiap fungsi punya halaman sendiri
+ *          dengan kerangka + tab bersama.
+ *          HANYA token SEMANTIK sadar-mode (--surface/--ink/--line/…) supaya ikut membalik di
+ *          body.tk-dark. Ditegakkan scripts/check-theme-tokens.js.
+ *          CATATAN KONTRAS: `--color-*-soft` adalah pastel TETAP yang tak membalik, dan
+ *          `--color-danger` sebagai TEKS hanya ~3.8 di atas permukaan terang (gagal AA). Status
+ *          karena itu disampaikan lewat GARIS/BORDER, bukan warna teks.
+ * Caller: `views/sb-admin/_kp-shell.php` dan seluruh `keuangan-pribadi*.php`.
+ * Deps: `static/css/tokens.css`.
  */
 
-/* ── Shell mandiri (tanpa sidebar/topbar admin) ────────────────────────────── */
-/* Anti-FOUC: keuangan-pribadi-theme.js menandai <html> sebelum <body> ada, supaya
-   tak ada kedipan putih sebelum body.tk-dark terpasang. */
+/* ══ Dasar ══════════════════════════════════════════════════════════════════ */
+.kp {
+    background: var(--canvas);
+    color: var(--ink);
+    min-height: 100vh;
+    margin: 0;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+}
+
 html.tk-dark-pending {
     background: var(--dark-canvas);
 }
 
-.kp-page {
-    background: var(--canvas);
-    color: var(--ink);
-    min-height: 100vh;
+.kp *,
+.kp *::before,
+.kp *::after {
+    box-sizing: border-box;
 }
 
-.kp-topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
-    padding: 0.9rem 1.25rem;
+/* WAJIB. Atribut `hidden` hanya memberi `display:none` dari UA stylesheet, dan itu KALAH
+   oleh `display:flex/inline-flex` yang kita pasang di kelas. Akibatnya elemen ber-`hidden`
+   (rentang tanggal saat mode bulan, tombol "Hapus filter", kotak alert) tetap terlihat.
+   Ditemukan saat merender halaman, bukan lewat tes. */
+.kp [hidden] {
+    display: none !important;
+}
+
+/* ══ Header + tab ═══════════════════════════════════════════════════════════ */
+.kp-head {
     background: var(--surface);
     border-bottom: 1px solid var(--line);
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 20;
 }
 
-.kp-topbar__kiri {
+.kp-head__bar {
+    max-width: 68rem;
+    margin: 0 auto;
+    padding: 0.75rem 1rem;
     display: flex;
     align-items: center;
-    gap: 0.7rem;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.kp-head__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
     min-width: 0;
 }
 
-.kp-topbar__ikon {
-    font-size: 1.4rem;
-    line-height: 1;
+.kp-head__logo {
+    width: 2.15rem;
+    height: 2.15rem;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-sm);
+    background: var(--indigo-600);
+    color: var(--on-accent);
+    font-size: 0.95rem;
 }
 
-.kp-topbar__judul {
-    font-size: 1.05rem;
+.kp-head__teks {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.kp-head__teks strong {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.25;
+}
+
+.kp-head__teks small {
+    font-size: 0.76rem;
+    color: var(--ink-soft);
+}
+
+.kp-tab {
+    max-width: 68rem;
+    margin: 0 auto;
+    padding: 0 0.5rem;
+    display: flex;
+    gap: 0.15rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.kp-tab::-webkit-scrollbar {
+    display: none;
+}
+
+.kp-tab__item {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 0.8rem 0.7rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+}
+
+.kp-tab__item:hover {
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.kp-tab__item.is-aktif {
+    color: var(--ink);
+    font-weight: 700;
+    border-bottom-color: var(--indigo-600);
+}
+
+/* ══ Kerangka isi ═══════════════════════════════════════════════════════════ */
+.kp-main {
+    max-width: 68rem;
+    margin: 0 auto;
+    padding: 1.1rem 1rem 3rem;
+}
+
+.kp-judul {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 0.15rem;
+}
+
+.kp-sub {
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    margin: 0 0 1.1rem;
+}
+
+.kp-kartu {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 1.1rem 1.15rem;
+    margin-bottom: 0.9rem;
+}
+
+.kp-kartu__kepala {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.9rem;
+}
+
+.kp-kartu__judul {
+    font-size: 0.92rem;
     font-weight: 700;
     color: var(--ink);
     margin: 0;
 }
 
-.kp-topbar__sub {
-    font-size: 0.76rem;
+.kp-kartu__meta {
+    font-size: 0.78rem;
     color: var(--ink-soft);
+}
+
+.kp-kosong {
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 1.2rem 0;
     margin: 0;
 }
 
-.kp-topbar__kanan {
+.kp-petunjuk {
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    margin: 0.7rem 0 0;
+}
+
+.kp-petunjuk code,
+.kp-kode {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: var(--surface-2);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 0.05rem 0.32rem;
+    font-size: 0.9em;
+}
+
+/* ══ Pemberitahuan ══════════════════════════════════════════════════════════ */
+/* Warna dibawa GARIS KIRI, bukan teks: --color-danger sebagai teks hanya 3.44 di mode
+   terang — dan ini justru kotak yang paling penting terbaca. */
+.kp-alert {
+    margin-bottom: 1rem;
+    padding: 0.7rem 0.95rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink);
+    font-size: 0.86rem;
+}
+
+.kp-alert[data-tone="error"] {
+    border-color: var(--color-danger);
+}
+
+.kp-alert[data-tone="ok"] {
+    border-color: var(--color-success);
+}
+
+/* ══ Toolbar periode ════════════════════════════════════════════════════════ */
+.kp-toolbar {
     display: flex;
+    gap: 0.5rem;
     align-items: center;
-    gap: 0.45rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.kp-toolbar__isi {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
     flex-wrap: wrap;
 }
 
-.kp-topbar__label {
-    font-size: 0.76rem;
+.kp-sep {
     color: var(--ink-soft);
-    margin: 0;
 }
 
-.kp-ikonbtn {
-    padding: 0.25rem 0.55rem;
-    font-size: 0.85rem;
+/* ══ Kontrol form ═══════════════════════════════════════════════════════════ */
+.kp-input,
+.kp-pilih {
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 0.4rem 0.6rem;
+    font-size: 0.86rem;
+    font-family: inherit;
+    min-height: 2.25rem;
+    max-width: 100%;
+}
+
+.kp-input:focus,
+.kp-pilih:focus {
+    outline: 2px solid var(--indigo-600);
+    outline-offset: 1px;
+}
+
+.kp-input::placeholder {
+    color: var(--muted);
+}
+
+.kp-label {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    margin: 0 0 0.25rem;
+    font-weight: 600;
+}
+
+.kp-medan {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.kp-baris {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.7rem;
+}
+
+.kp-baris > .kp-medan {
+    flex: 1 1 9rem;
+}
+
+.kp-baris > .kp-medan--lebar {
+    flex: 2 1 14rem;
+}
+
+.kp-baris > .kp-medan--sempit {
+    flex: 0 1 7.5rem;
+}
+
+/* ══ Tombol ═════════════════════════════════════════════════════════════════ */
+/* --indigo-600 (brand), BUKAN --color-info: putih di atas #3b82f6 hanya 3.68 dan gagal
+   AA untuk teks 14px; di atas #4f46e5 jadi 6.29. */
+.kp-tombol {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    min-height: 2.4rem;
+    border: 1px solid var(--indigo-600);
+    border-radius: var(--radius-sm);
+    background: var(--indigo-600);
+    color: var(--on-accent);
+    font: inherit;
+    font-size: 0.86rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.kp-tombol:hover:not(:disabled) {
+    filter: brightness(1.08);
+    color: var(--on-accent);
+    text-decoration: none;
+}
+
+.kp-tombol:disabled {
+    opacity: 0.6;
+    cursor: progress;
+}
+
+.kp-tombol--halus {
+    background: var(--surface);
+    color: var(--ink);
+    border-color: var(--line);
+}
+
+.kp-tombol--halus:hover:not(:disabled) {
+    color: var(--ink);
+    border-color: var(--ink-soft);
+    filter: none;
+}
+
+.kp-tombol--penuh {
+    width: 100%;
+}
+
+.kp-ikon {
+    display: inline-grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--ink-soft);
     cursor: pointer;
-    line-height: 1.4;
+    font-size: 0.9rem;
 }
 
-.kp-ikonbtn:hover {
+.kp-ikon:hover {
     color: var(--ink);
     border-color: var(--ink-soft);
 }
 
-.kp-main {
-    max-width: 78rem;
-    margin: 0 auto;
-    padding: 1.1rem 1.25rem 2rem;
-}
-
-.kp-input-bulan {
-    width: auto;
-    min-width: 10rem;
-    background: var(--surface);
-    color: var(--ink);
-    border: 1px solid var(--line);
-}
-
-.kp-alert {
-    margin-bottom: 1rem;
-    padding: 0.65rem 0.9rem;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--line);
-    background: var(--surface-2);
-    color: var(--ink);
-    font-size: 0.875rem;
-}
-
-/* Latar TETAP --surface-2 (membalik di mode gelap). Status disampaikan lewat GARIS TEPI,
-   bukan warna teks: teksnya tetap --ink (kontras 17.8).
-   Dulu teksnya --color-danger — hanya 3.44 di mode terang dan 3.94 di gelap, gagal AA.
-   Ini justru kotak yang paling penting terbaca: di situlah pesan galat muncul.
-   Memakai --color-*-soft sebagai latar juga salah — pastel TETAP yang tak ikut membalik. */
-.kp-alert[data-tone="error"] {
-    border-color: var(--color-danger);
-    border-left: 4px solid var(--color-danger);
-}
-
-.kp-alert[data-tone="ok"] {
-    border-color: var(--color-success);
-    border-left: 4px solid var(--color-success);
-}
-
-/* ── Kartu ringkasan ───────────────────────────────────────────────────────── */
-.kp-stats {
+/* ══ Kartu statistik ════════════════════════════════════════════════════════ */
+.kp-stat-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-    gap: 0.85rem;
-    margin-bottom: 1.1rem;
+    grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+    gap: 0.7rem;
+    margin-bottom: 0.9rem;
 }
 
 .kp-stat {
@@ -144,7 +395,7 @@ html.tk-dark-pending {
     padding: 0.85rem 1rem;
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
+    gap: 0.2rem;
 }
 
 .kp-stat__label {
@@ -152,43 +403,41 @@ html.tk-dark-pending {
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--ink-soft);
+    font-weight: 600;
 }
 
-.kp-stat__value {
-    font-size: 1.35rem;
+.kp-stat__nilai {
+    font-size: 1.3rem;
     font-weight: 700;
     color: var(--ink);
     font-variant-numeric: tabular-nums;
+    line-height: 1.2;
 }
 
-.kp-stat--in {
+.kp-stat--masuk {
     border-left-color: var(--color-success);
 }
 
-.kp-stat--out {
+.kp-stat--keluar {
     border-left-color: var(--color-danger);
 }
 
-.kp-stat--net {
-    border-left-color: var(--color-info);
+.kp-stat--saldo {
+    border-left-color: var(--indigo-600);
 }
 
-.kp-stat--today {
+.kp-stat--hari {
     border-left-color: var(--color-warning);
 }
 
-/* Selisih negatif: angkanya TETAP --ink (kontras 17.8). Sebelumnya diwarnai --color-danger,
-   tapi merah #ef4444 di atas permukaan terang cuma 3.76 — dan pada 18.4px tebal ia belum
-   tergolong "teks besar" (ambang 18.66px), jadi ambang yang berlaku 4.5 dan itu gagal.
-   Sinyal defisit dipindah ke GARIS kartu + tanda minus yang sudah ada di angkanya. */
-.kp-stat--net:has(.kp-stat__value[data-negatif="1"]) {
+/* Defisit ditandai GARIS kartu, bukan angka merah (18.4px tebal masih di bawah ambang
+   "teks besar" WCAG 18.66px → ambang 4.5 berlaku, dan merah cuma 3.76). */
+.kp-stat--saldo:has(.kp-stat__nilai[data-negatif="1"]) {
     border-left-color: var(--color-danger);
 }
 
-/* Badge tren vs periode pembanding. Warnanya mengikuti `data-arah` yang ditentukan server
-   (pengeluaran naik = buruk), bukan dari arah panah — supaya tak ada logika ganda. */
 .kp-tren {
-    font-size: 0.68rem;
+    font-size: 0.7rem;
     color: var(--ink-soft);
     font-variant-numeric: tabular-nums;
 }
@@ -197,230 +446,12 @@ html.tk-dark-pending {
     color: var(--color-success);
 }
 
-/* Merah #ef4444 di atas permukaan terang hanya ~3.8 — untuk teks kecil ini dipertegas
-   dengan tebal, dan warnanya dipakai sebagai penekanan, bukan satu-satunya pembeda
-   (panah ▲/▼ tetap membawa maknanya). */
 .kp-tren[data-arah="buruk"] {
     color: var(--ink);
     font-weight: 700;
 }
 
-.kp-input-mode {
-    width: auto;
-    min-width: 8.5rem;
-    background: var(--surface);
-    color: var(--ink);
-    border: 1px solid var(--line);
-}
-
-.kp-rentang {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-}
-
-.kp-rentang .form-control {
-    width: auto;
-    background: var(--surface);
-    color: var(--ink);
-    border: 1px solid var(--line);
-}
-
-.kp-rentang__sep {
-    color: var(--ink-soft);
-}
-
-/* ── Kartu isi ─────────────────────────────────────────────────────────────── */
-.kp-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
-    gap: 0.85rem;
-    margin-bottom: 0.85rem;
-}
-
-.kp-card {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    padding: 1rem 1.1rem 1.15rem;
-}
-
-.kp-card__title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--ink);
-    margin: 0 0 0.85rem;
-}
-
-.kp-empty {
-    color: var(--ink-soft);
-    font-size: 0.85rem;
-    margin: 0;
-    padding: 0.6rem 0;
-    text-align: center;
-}
-
-/* ── Form catat cepat ──────────────────────────────────────────────────────── */
-.kp-form__row {
-    display: flex;
-    gap: 0.6rem;
-    margin-bottom: 0.6rem;
-    flex-wrap: wrap;
-}
-
-.kp-field {
-    flex: 1 1 8rem;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.kp-field--wide {
-    flex: 2 1 12rem;
-}
-
-.kp-field--kind {
-    flex: 0 1 7rem;
-}
-
-.kp-field label {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--ink-soft);
-    margin: 0;
-}
-
-.kp-field .form-control {
-    background: var(--surface-2);
-    color: var(--ink);
-    border: 1px solid var(--line);
-}
-
-.kp-field .form-control::placeholder {
-    color: var(--ink-soft);
-}
-
-/* Isian pekat + --on-accent. Sebelumnya latar --color-info-soft (pastel TETAP) dipadu teks
-   --ink (membalik) → di mode gelap jadi putih-di-atas-putih, tombolnya hilang.
-   Warnanya --indigo-600 (brand aplikasi), BUKAN --color-info: putih di atas #3b82f6 hanya
-   3.68 (gagal WCAG AA 4.5 untuk teks 14px), di atas #4f46e5 jadi 6.29. */
-.kp-btn {
-    width: 100%;
-    padding: 0.5rem 0.9rem;
-    border: 1px solid var(--indigo-600);
-    border-radius: var(--radius-sm);
-    background: var(--indigo-600);
-    color: var(--on-accent);
-    font-weight: 600;
-    font-size: 0.875rem;
-    cursor: pointer;
-}
-
-.kp-btn:hover:not(:disabled) {
-    filter: brightness(1.08);
-}
-
-.kp-btn:disabled {
-    opacity: 0.6;
-    cursor: progress;
-}
-
-.kp-hint {
-    margin: 0.6rem 0 0;
-    font-size: 0.76rem;
-    color: var(--ink-soft);
-}
-
-.kp-hint code {
-    background: var(--surface-2);
-    color: var(--ink-soft);
-    border-radius: var(--radius-sm);
-    padding: 0.05rem 0.3rem;
-}
-
-/* ── Rincian kategori ──────────────────────────────────────────────────────── */
-.kp-kat {
-    margin-bottom: 0.7rem;
-}
-
-.kp-kat__head {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.82rem;
-    color: var(--ink);
-    margin-bottom: 0.25rem;
-}
-
-.kp-kat__nilai {
-    color: var(--ink-soft);
-    font-variant-numeric: tabular-nums;
-}
-
-.kp-kat__bar {
-    height: 6px;
-    border-radius: var(--radius-pill);
-    background: var(--surface-2);
-    overflow: hidden;
-}
-
-.kp-kat__fill {
-    height: 100%;
-    background: var(--color-danger);
-    border-radius: var(--radius-pill);
-}
-
-/* Lewat pagu: ditandai teks berlabel + garis, bukan warna saja — buta warna tetap terbaca. */
-.kp-kat--lewat .kp-kat__bar {
-    outline: 1px solid var(--color-danger);
-}
-
-.kp-kat__lewat {
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--ink);
-    border: 1px solid var(--color-danger);
-    border-radius: var(--radius-pill);
-    padding: 0 0.35rem;
-    margin-left: 0.3rem;
-}
-
-.kp-kat__nilai small {
-    color: var(--ink-soft);
-}
-
-/* ── Kepala kartu (judul + meta di kanan) ──────────────────────────────────── */
-.kp-card__head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-bottom: 0.85rem;
-}
-
-.kp-card__head .kp-card__title {
-    margin-bottom: 0;
-}
-
-.kp-harian__meta {
-    display: flex;
-    gap: 0.9rem;
-    font-size: 0.78rem;
-    color: var(--ink-soft);
-    flex-wrap: wrap;
-}
-
-/* --ink + tebal, BUKAN --color-danger: merah #ef4444 di atas permukaan terang hanya 3.76
-   (gagal AA). Penanda hari terboros tetap terbaca lewat garis merah di batangnya. */
-.kp-harian__puncak {
-    color: var(--ink);
-    font-weight: 700;
-}
-
-/* ── Grafik batang per hari ────────────────────────────────────────────────── */
+/* ══ Grafik harian ══════════════════════════════════════════════════════════ */
 .kp-harian {
     display: flex;
     align-items: flex-end;
@@ -451,18 +482,17 @@ html.tk-dark-pending {
     overflow: hidden;
 }
 
-.kp-hari__out,
-.kp-hari__in {
+.kp-hari__masuk,
+.kp-hari__keluar {
     width: 45%;
     border-radius: 2px 2px 0 0;
-    min-height: 0;
 }
 
-.kp-hari__out {
+.kp-hari__keluar {
     background: var(--color-danger);
 }
 
-.kp-hari__in {
+.kp-hari__masuk {
     background: var(--color-success);
 }
 
@@ -482,107 +512,59 @@ html.tk-dark-pending {
     font-weight: 700;
 }
 
-/* ── Bar filter ────────────────────────────────────────────────────────────── */
-.kp-filter {
+/* ══ Kategori & anggaran ════════════════════════════════════════════════════ */
+.kp-kat {
+    margin-bottom: 0.75rem;
+}
+
+.kp-kat__kepala {
     display: flex;
-    gap: 0.6rem;
-    align-items: flex-end;
-    flex-wrap: wrap;
-    margin-bottom: 0.85rem;
-    padding-bottom: 0.85rem;
-    border-bottom: 1px solid var(--line);
-}
-
-.kp-filter__item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    min-width: 0;
-}
-
-.kp-filter__item label {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--ink-soft);
-    margin: 0;
-}
-
-.kp-filter__item .form-control {
-    background: var(--surface-2);
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.83rem;
     color: var(--ink);
-    border: 1px solid var(--line);
-    min-width: 8rem;
+    margin-bottom: 0.28rem;
 }
 
-.kp-filter__item--cari {
-    flex: 1 1 12rem;
-}
-
-.kp-filter__item--cari .form-control {
-    width: 100%;
-}
-
-.kp-filter__reset {
-    margin-bottom: 1px;
-}
-
-/* ── Panel ganti sandi ─────────────────────────────────────────────────────── */
-.kp-sandi {
-    border-color: var(--indigo-600);
-}
-
-.kp-grup {
-    display: flex;
-    gap: 0.6rem;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.kp-grup .form-control {
-    flex: 1 1 16rem;
-    min-width: 0;
-    background: var(--surface-2);
-    color: var(--ink);
-    border: 1px solid var(--line);
-}
-
-.kp-grup__simpan {
-    width: auto;
-    min-width: 9rem;
-}
-
-.kp-pisah {
-    border: 0;
-    border-top: 1px solid var(--line);
-    margin: 1.2rem 0 1rem;
-}
-
-.kp-sandi__aksi {
-    display: flex;
-    gap: 0.6rem;
-    align-items: center;
-}
-
-.kp-sandi__simpan {
-    width: auto;
-    min-width: 12rem;
-}
-
-.kp-subtotal {
-    margin: 0;
-    font-size: 0.8rem;
+.kp-kat__nilai {
     color: var(--ink-soft);
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
-/* ── Tabel catatan ─────────────────────────────────────────────────────────── */
-.kp-card--full {
-    margin-bottom: 1.2rem;
+.kp-kat__bar {
+    height: 7px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-2);
+    overflow: hidden;
 }
 
-.kp-tabel-wrap {
+.kp-kat__isi {
+    height: 100%;
+    background: var(--color-danger);
+    border-radius: var(--radius-pill);
+}
+
+.kp-kat--lewat .kp-kat__bar {
+    outline: 1px solid var(--color-danger);
+}
+
+.kp-tanda-lewat {
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--ink);
+    border: 1px solid var(--color-danger);
+    border-radius: var(--radius-pill);
+    padding: 0 0.35rem;
+    margin-left: 0.3rem;
+    white-space: nowrap;
+}
+
+/* ══ Tabel ══════════════════════════════════════════════════════════════════ */
+.kp-tabel-bungkus {
     overflow-x: auto;
+    margin: 0 -0.15rem;
 }
 
 .kp-tabel {
@@ -594,47 +576,44 @@ html.tk-dark-pending {
 
 .kp-tabel th,
 .kp-tabel td {
-    padding: 0.5rem 0.6rem;
+    padding: 0.55rem 0.6rem;
     border-bottom: 1px solid var(--line);
     text-align: left;
     white-space: nowrap;
 }
 
 .kp-tabel th {
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: var(--ink-soft);
     font-weight: 600;
 }
 
-.kp-num {
-    text-align: right;
+.kp-tabel tbody tr:last-child td {
+    border-bottom: 0;
 }
 
-.kp-tabel td.kp-num {
+.kp-angka {
     text-align: right;
     font-variant-numeric: tabular-nums;
 }
 
 .kp-badge {
     display: inline-block;
-    padding: 0.1rem 0.45rem;
+    padding: 0.08rem 0.45rem;
     border-radius: var(--radius-pill);
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     font-weight: 600;
     border: 1px solid var(--line);
     color: var(--ink);
 }
 
-/* Status dibawa BORDER saja, teksnya --ink. Bukan latar pastel (tak membalik di mode gelap),
-   dan bukan teks berwarna: --color-success (#10b981) di atas putih hanya 2.54 — gagal AA.
-   Kata "masuk"/"keluar" sudah tertulis di badge, jadi warna cukup jadi penegas. */
-.kp-badge--in {
+.kp-badge--masuk {
     border-color: var(--color-success);
 }
 
-.kp-badge--out {
+.kp-badge--keluar {
     border-color: var(--color-danger);
 }
 
@@ -645,202 +624,135 @@ html.tk-dark-pending {
     color: var(--ink-soft);
     cursor: pointer;
     padding: 0.15rem 0.45rem;
-    font-size: 0.78rem;
+    font-size: 0.8rem;
+    min-height: 1.9rem;
 }
 
 .kp-hapus:hover {
     border-color: var(--color-danger);
-    color: var(--color-danger);
-}
-
-/* ── Halaman login terpisah ────────────────────────────────────────────────── */
-.kp-login-body {
-    background: var(--canvas);
     color: var(--ink);
-    min-height: 100vh;
 }
 
-.kp-login-wrap {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1.25rem;
-}
-
-.kp-login-card {
-    width: 100%;
-    max-width: 23rem;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    padding: 2rem 1.6rem 1.8rem;
-    text-align: center;
-}
-
-.kp-login-ikon {
-    font-size: 2rem;
-    line-height: 1;
-    margin-bottom: 0.6rem;
-}
-
-.kp-login-judul {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--ink);
-    margin: 0 0 0.3rem;
-}
-
-/* --ink-soft, bukan --muted: --muted (slate-400) di atas kartu putih hanya 2.56 — terlalu
-   tipis untuk kalimat yang justru penting dibaca ("akun admin tidak berlaku di sini"). */
-.kp-login-sub {
-    font-size: 0.8rem;
-    color: var(--ink-soft);
-    margin: 0 0 1.3rem;
-}
-
-.kp-login-card .kp-field {
-    text-align: left;
-    margin-bottom: 0.8rem;
-}
-
-.kp-login-btn {
-    margin-top: 0.4rem;
-}
-
-/* ── Tombol keluar ─────────────────────────────────────────────────────────── */
-.kp-keluar {
-    margin-left: 0.6rem;
-    padding: 0.2rem 0.7rem;
-    font-size: 0.78rem;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    background: var(--surface);
-    color: var(--ink-soft);
-    cursor: pointer;
-}
-
-.kp-keluar:hover {
-    border-color: var(--color-danger);
-    color: var(--color-danger);
-}
-
-/* ── Panel tutorial ────────────────────────────────────────────────────────── */
-.kp-tutorial {
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    padding: 0.75rem 1rem;
-    margin-bottom: 1rem;
-}
-
-.kp-tutorial__judul {
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: var(--ink);
-    cursor: pointer;
-    list-style: none;
-}
-
-.kp-tutorial__judul::-webkit-details-marker {
-    display: none;
-}
-
-.kp-tutorial__judul::before {
-    content: "▸ ";
-    color: var(--ink-soft);
-}
-
-.kp-tutorial[open] .kp-tutorial__judul::before {
-    content: "▾ ";
-}
-
-.kp-tutorial__isi {
+/* ══ Panduan ════════════════════════════════════════════════════════════════ */
+.kp-panduan {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
-    gap: 1.2rem;
-    margin-top: 0.9rem;
-    padding-top: 0.9rem;
-    border-top: 1px solid var(--line);
-}
-
-.kp-tutorial__kolom h3 {
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--ink-soft);
-    margin: 0 0 0.5rem;
-}
-
-.kp-tutorial__catatan {
-    font-size: 0.78rem;
-    color: var(--ink-soft);
-    margin: 0 0 0.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: 1.4rem;
 }
 
 .kp-cmd {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: 0.83rem;
 }
 
 .kp-cmd dt {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-weight: 600;
     color: var(--ink);
-    background: var(--surface);
+    background: var(--surface-2);
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
-    padding: 0.12rem 0.4rem;
+    padding: 0.15rem 0.45rem;
     display: inline-block;
-    margin-top: 0.4rem;
+    margin-top: 0.55rem;
 }
 
 .kp-cmd dd {
-    margin: 0.15rem 0 0;
+    margin: 0.2rem 0 0;
     color: var(--ink-soft);
-    font-size: 0.8rem;
-}
-
-.kp-tutorial__list {
-    margin: 0;
-    padding-left: 1.1rem;
     font-size: 0.82rem;
+}
+
+.kp-daftar {
+    margin: 0;
+    padding-left: 1.15rem;
+    font-size: 0.85rem;
     color: var(--ink-soft);
 }
 
-.kp-tutorial__list li {
-    margin-bottom: 0.45rem;
+.kp-daftar li {
+    margin-bottom: 0.55rem;
 }
 
-.kp-tutorial__list b {
+.kp-daftar b {
     color: var(--ink);
 }
 
-.kp-tutorial code {
+/* ══ Halaman login ══════════════════════════════════════════════════════════ */
+.kp-login {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 1.25rem;
+}
+
+.kp-login__kartu {
+    width: 100%;
+    max-width: 23rem;
     background: var(--surface);
-    color: var(--ink);
     border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    padding: 0.02rem 0.28rem;
+    border-radius: var(--radius-lg);
+    padding: 2rem 1.6rem 1.75rem;
+    text-align: center;
 }
 
+.kp-login__logo {
+    width: 3rem;
+    height: 3rem;
+    margin: 0 auto 0.85rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--indigo-600);
+    color: var(--on-accent);
+    font-size: 1.15rem;
+}
+
+.kp-login__judul {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 0.3rem;
+}
+
+.kp-login__sub {
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    margin: 0 0 1.35rem;
+}
+
+.kp-login__kartu .kp-medan {
+    text-align: left;
+    margin-bottom: 0.8rem;
+}
+
+.kp-login__kartu .kp-input {
+    width: 100%;
+}
+
+/* ══ Layar kecil ════════════════════════════════════════════════════════════ */
 @media (max-width: 575.98px) {
-    .kp-stat__value {
+    .kp-stat__nilai {
         font-size: 1.15rem;
     }
 
-    .kp-field--kind {
-        flex: 1 1 6rem;
+    .kp-main {
+        padding: 0.9rem 0.75rem 3rem;
     }
 
-    /* Sasaran sentuh ~44px di layar sentuh (default 39px terlalu mepet untuk jempol). */
-    .kp-btn,
-    .kp-keluar,
-    .kp-ikonbtn {
+    .kp-kartu {
+        padding: 0.95rem 0.9rem;
+    }
+
+    /* Sasaran sentuh nyaman untuk jempol. */
+    .kp-tombol,
+    .kp-ikon,
+    .kp-input,
+    .kp-pilih {
         min-height: 44px;
     }
 
-    .kp-topbar {
-        position: static; /* layar pendek: jangan boroskan tinggi utk header lengket */
+    .kp-tab__item {
+        padding: 0.55rem 0.65rem 0.65rem;
     }
 }
