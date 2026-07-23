@@ -14,7 +14,7 @@
 "use strict";
 
 const { asyncHandler } = require("../lib/error-handler");
-const { parseAmount, todayStr, monthRange, buildReportData } = require("../lib/personal-finance-service");
+const { parseAmount, todayStr, monthRange, buildReportData, inferCategory } = require("../lib/personal-finance-service");
 
 let repoSingleton = null;
 function getRepo() {
@@ -122,10 +122,15 @@ function registerAdminPersonalFinanceRoutes(router, deps = {}) {
             }
 
             const ts = /^\d{4}-\d{2}-\d{2}$/.test(String(body.tanggal || "")) ? `${body.tanggal} 12:00:00` : undefined;
+            // Kategori ditebak dari catatan bila form tak mengirimnya — halaman memang menjanjikan
+            // "kategori ditebak otomatis", dan tanpa ini SEMUA catatan web jatuh ke "lain".
+            const category =
+                String(body.category || "").trim() ||
+                inferCategory(body.note, ((getConfig() || {}).personalFinance || {}).categories);
             const entry = await getRepo().addEntry({
                 kind,
                 amount,
-                category: body.category,
+                category,
                 note: body.note,
                 source: "web",
                 ts
