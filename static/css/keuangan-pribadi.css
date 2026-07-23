@@ -8,9 +8,91 @@
  * Deps: static/css/tokens.css (token semantik + radius).
  */
 
-.kp-periode {
+/* ── Shell mandiri (tanpa sidebar/topbar admin) ────────────────────────────── */
+/* Anti-FOUC: keuangan-pribadi-theme.js menandai <html> sebelum <body> ada, supaya
+   tak ada kedipan putih sebelum body.tk-dark terpasang. */
+html.tk-dark-pending {
+    background: var(--dark-canvas);
+}
+
+.kp-page {
+    background: var(--canvas);
+    color: var(--ink);
+    min-height: 100vh;
+}
+
+.kp-topbar {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 0.9rem 1.25rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.kp-topbar__kiri {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-width: 0;
+}
+
+.kp-topbar__ikon {
+    font-size: 1.4rem;
+    line-height: 1;
+}
+
+.kp-topbar__judul {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0;
+}
+
+.kp-topbar__sub {
+    font-size: 0.76rem;
+    color: var(--ink-soft);
+    margin: 0;
+}
+
+.kp-topbar__kanan {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+
+.kp-topbar__label {
+    font-size: 0.76rem;
+    color: var(--ink-soft);
+    margin: 0;
+}
+
+.kp-ikonbtn {
+    padding: 0.25rem 0.55rem;
+    font-size: 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--ink-soft);
+    cursor: pointer;
+    line-height: 1.4;
+}
+
+.kp-ikonbtn:hover {
+    color: var(--ink);
+    border-color: var(--ink-soft);
+}
+
+.kp-main {
+    max-width: 78rem;
+    margin: 0 auto;
+    padding: 1.1rem 1.25rem 2rem;
 }
 
 .kp-input-bulan {
@@ -31,14 +113,17 @@
     font-size: 0.875rem;
 }
 
+/* Latar TETAP --surface-2 (membalik di mode gelap); status disampaikan lewat border + warna
+   teks beraksen. Memakai --color-*-soft sebagai latar akan menabrak teks --ink yang membalik
+   → putih di atas pastel putih saat mode gelap. */
 .kp-alert[data-tone="error"] {
     border-color: var(--color-danger);
-    background: var(--color-danger-soft);
+    color: var(--color-danger);
 }
 
 .kp-alert[data-tone="ok"] {
     border-color: var(--color-success);
-    background: var(--color-success-soft);
+    color: var(--color-success);
 }
 
 /* ── Kartu ringkasan ───────────────────────────────────────────────────────── */
@@ -64,7 +149,7 @@
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--muted);
+    color: var(--ink-soft);
 }
 
 .kp-stat__value {
@@ -117,7 +202,7 @@
 }
 
 .kp-empty {
-    color: var(--muted);
+    color: var(--ink-soft);
     font-size: 0.85rem;
     margin: 0;
     padding: 0.6rem 0;
@@ -152,7 +237,7 @@
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    color: var(--muted);
+    color: var(--ink-soft);
     margin: 0;
 }
 
@@ -163,19 +248,27 @@
 }
 
 .kp-field .form-control::placeholder {
-    color: var(--muted);
+    color: var(--ink-soft);
 }
 
+/* Isian pekat + --on-accent. Sebelumnya latar --color-info-soft (pastel TETAP) dipadu teks
+   --ink (membalik) → di mode gelap jadi putih-di-atas-putih, tombolnya hilang.
+   Warnanya --indigo-600 (brand aplikasi), BUKAN --color-info: putih di atas #3b82f6 hanya
+   3.68 (gagal WCAG AA 4.5 untuk teks 14px), di atas #4f46e5 jadi 6.29. */
 .kp-btn {
     width: 100%;
     padding: 0.5rem 0.9rem;
-    border: 1px solid var(--color-info);
+    border: 1px solid var(--indigo-600);
     border-radius: var(--radius-sm);
-    background: var(--color-info-soft);
-    color: var(--ink);
+    background: var(--indigo-600);
+    color: var(--on-accent);
     font-weight: 600;
     font-size: 0.875rem;
     cursor: pointer;
+}
+
+.kp-btn:hover:not(:disabled) {
+    filter: brightness(1.08);
 }
 
 .kp-btn:disabled {
@@ -186,7 +279,7 @@
 .kp-hint {
     margin: 0.6rem 0 0;
     font-size: 0.76rem;
-    color: var(--muted);
+    color: var(--ink-soft);
 }
 
 .kp-hint code {
@@ -255,7 +348,7 @@
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    color: var(--muted);
+    color: var(--ink-soft);
     font-weight: 600;
 }
 
@@ -275,24 +368,25 @@
     font-size: 0.72rem;
     font-weight: 600;
     border: 1px solid var(--line);
-    color: var(--ink-soft);
+    color: var(--ink);
 }
 
+/* Status dibawa BORDER saja, teksnya --ink. Bukan latar pastel (tak membalik di mode gelap),
+   dan bukan teks berwarna: --color-success (#10b981) di atas putih hanya 2.54 — gagal AA.
+   Kata "masuk"/"keluar" sudah tertulis di badge, jadi warna cukup jadi penegas. */
 .kp-badge--in {
     border-color: var(--color-success);
-    background: var(--color-success-soft);
 }
 
 .kp-badge--out {
     border-color: var(--color-danger);
-    background: var(--color-danger-soft);
 }
 
 .kp-hapus {
     background: none;
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
-    color: var(--muted);
+    color: var(--ink-soft);
     cursor: pointer;
     padding: 0.15rem 0.45rem;
     font-size: 0.78rem;
@@ -341,9 +435,11 @@
     margin: 0 0 0.3rem;
 }
 
+/* --ink-soft, bukan --muted: --muted (slate-400) di atas kartu putih hanya 2.56 — terlalu
+   tipis untuk kalimat yang justru penting dibaca ("akun admin tidak berlaku di sini"). */
 .kp-login-sub {
     font-size: 0.8rem;
-    color: var(--muted);
+    color: var(--ink-soft);
     margin: 0 0 1.3rem;
 }
 
@@ -364,7 +460,7 @@
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
     background: var(--surface);
-    color: var(--muted);
+    color: var(--ink-soft);
     cursor: pointer;
 }
 
@@ -396,7 +492,7 @@
 
 .kp-tutorial__judul::before {
     content: "▸ ";
-    color: var(--muted);
+    color: var(--ink-soft);
 }
 
 .kp-tutorial[open] .kp-tutorial__judul::before {
@@ -416,13 +512,13 @@
     font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--muted);
+    color: var(--ink-soft);
     margin: 0 0 0.5rem;
 }
 
 .kp-tutorial__catatan {
     font-size: 0.78rem;
-    color: var(--muted);
+    color: var(--ink-soft);
     margin: 0 0 0.5rem;
 }
 
@@ -479,5 +575,16 @@
 
     .kp-field--kind {
         flex: 1 1 6rem;
+    }
+
+    /* Sasaran sentuh ~44px di layar sentuh (default 39px terlalu mepet untuk jempol). */
+    .kp-btn,
+    .kp-keluar,
+    .kp-ikonbtn {
+        min-height: 44px;
+    }
+
+    .kp-topbar {
+        position: static; /* layar pendek: jangan boroskan tinggi utk header lengket */
     }
 }

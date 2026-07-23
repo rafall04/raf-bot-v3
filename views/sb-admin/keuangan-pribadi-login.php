@@ -21,6 +21,7 @@
     include __DIR__ . '/_head.php';
     ?>
     <link rel="stylesheet" href="<?php echo function_exists('rafAssetUrl') ? rafAssetUrl('/css/keuangan-pribadi.css') : '/css/keuangan-pribadi.css'; ?>">
+    <script src="<?php echo function_exists('rafAssetUrl') ? rafAssetUrl('/js/keuangan-pribadi-theme.js') : '/js/keuangan-pribadi-theme.js'; ?>"></script>
 </head>
 <body class="kp-login-body">
   <main class="kp-login-wrap">

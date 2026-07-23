@@ -35,7 +35,12 @@
     --slate-600: #475569;
     --slate-900: #0f172a;
 
-    /* ── Warna semantik (+ tint lembut) ────────────────────── */
+    /* ── Warna semantik (+ tint lembut) ──────────────────────
+       PERINGATAN: varian `-soft` adalah pastel near-white TETAP — TIDAK ikut membalik di
+       body.tk-dark. Aman sebagai latar HANYA bila teks di atasnya juga warna tetap yang
+       gelap. Memasangkannya dengan --ink/--ink-soft (yang membalik) menghasilkan teks
+       putih di atas pastel putih saat mode gelap — praktis tak terbaca. Untuk panel
+       berstatus, lebih aman: latar --surface-2 (membalik) + border & teks --color-<status>. */
     --color-success: #10b981;
     --color-success-soft: #ecfdf5;
     --color-info: #3b82f6;
@@ -44,6 +49,12 @@
     --color-warning-soft: #fffbeb;
     --color-danger: #ef4444;
     --color-danger-soft: #fef2f2;
+
+    /* Teks/ikon DI ATAS isian beraksen pekat (--color-info/-success/-danger/-warning).
+       Sengaja TIDAK membalik: latarnya pun tak membalik, jadi kontrasnya sama baiknya di
+       mode terang maupun gelap. Tanpa token ini, halaman terpaksa menulis var(--white)
+       yang dilarang guard tema — atau memakai --ink yang justru menghilang di mode gelap. */
+    --on-accent: #ffffff;
 
     /* ── Shade aksen status (dipakai pada mode gelap admin) ── */
     --emerald-300: #6ee7b7;
