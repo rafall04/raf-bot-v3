@@ -38,8 +38,17 @@
       </div>
     </div>
     <div class="kp-topbar__kanan">
-      <label for="kp-bulan" class="kp-topbar__label">Periode</label>
+      <select id="kp-mode" class="form-control form-control-sm kp-input-mode" aria-label="Mode periode">
+        <option value="bulan">Per bulan</option>
+        <option value="rentang">Rentang tanggal</option>
+      </select>
       <input type="month" id="kp-bulan" class="form-control form-control-sm kp-input-bulan">
+      <span id="kp-rentang" class="kp-rentang" hidden>
+        <input type="date" id="kp-dari" class="form-control form-control-sm" aria-label="Dari tanggal">
+        <span class="kp-rentang__sep">–</span>
+        <input type="date" id="kp-sampai" class="form-control form-control-sm" aria-label="Sampai tanggal">
+      </span>
+      <a href="#" id="kp-ekspor" class="kp-ikonbtn" title="Unduh CSV sesuai filter" download>CSV</a>
       <button type="button" id="tkThemeToggle" class="kp-ikonbtn" title="Ganti mode terang/gelap" aria-label="Ganti mode terang/gelap">
         <i class="fas fa-moon"></i>
       </button>
@@ -87,14 +96,17 @@
       <div class="kp-stat kp-stat--in">
         <span class="kp-stat__label">Pemasukan</span>
         <span class="kp-stat__value" id="kp-masuk">—</span>
+        <span class="kp-tren" id="kp-tren-masuk"></span>
       </div>
       <div class="kp-stat kp-stat--out">
         <span class="kp-stat__label">Pengeluaran</span>
         <span class="kp-stat__value" id="kp-keluar">—</span>
+        <span class="kp-tren" id="kp-tren-keluar"></span>
       </div>
       <div class="kp-stat kp-stat--net">
         <span class="kp-stat__label">Selisih</span>
         <span class="kp-stat__value" id="kp-selisih">—</span>
+        <span class="kp-tren" id="kp-tren-selisih"></span>
       </div>
       <div class="kp-stat kp-stat--today">
         <span class="kp-stat__label">Hari ini (keluar)</span>
@@ -149,12 +161,19 @@
         </form>
       </section>
 
-      <!-- Rincian kategori -->
+      <!-- Rincian kategori + anggaran -->
       <section class="kp-card">
-        <h2 class="kp-card__title">Pengeluaran per kategori</h2>
+        <div class="kp-card__head">
+          <h2 class="kp-card__title">Pengeluaran per kategori</h2>
+          <button type="button" id="kp-atur-pagu" class="kp-keluar">Atur anggaran</button>
+        </div>
         <div id="kp-kategori" class="kp-kategori">
           <p class="kp-empty">Memuat…</p>
         </div>
+        <p class="kp-hint" id="kp-pagu-hint" hidden>
+          Klik <b>Atur anggaran</b> untuk menetapkan pagu bulanan tiap kategori. Pagu berlaku
+          terus, tak perlu disetel ulang tiap bulan.
+        </p>
       </section>
     </div>
 

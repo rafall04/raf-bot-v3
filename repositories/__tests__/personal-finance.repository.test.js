@@ -139,6 +139,48 @@ describe("personal-finance.repository", () => {
         });
     });
 
+    describe("pagu (anggaran) kategori", () => {
+        test("set lalu baca", async () => {
+            await repo.setBudget("transport", 500000);
+            await repo.setBudget("makan", 1000000);
+            expect(await repo.listBudgets()).toEqual({ transport: 500000, makan: 1000000 });
+        });
+
+        test("set ulang menimpa, bukan menggandakan", async () => {
+            await repo.setBudget("transport", 500000);
+            await repo.setBudget("transport", 750000);
+            expect(await repo.listBudgets()).toEqual({ transport: 750000 });
+        });
+
+        // "tak dianggarkan" dan "dianggarkan nol" akan tampil sama membingungkan di UI,
+        // jadi nominal <= 0 berarti HAPUS.
+        test("nominal <= 0 menghapus pagu, bukan menyimpan nol", async () => {
+            await repo.setBudget("transport", 500000);
+            expect(await repo.setBudget("transport", 0)).toMatchObject({ dihapus: true });
+            expect(await repo.listBudgets()).toEqual({});
+
+            await repo.setBudget("makan", 100000);
+            await repo.setBudget("makan", -5);
+            expect(await repo.listBudgets()).toEqual({});
+        });
+
+        test("kategori dinormalkan huruf kecil + trim", async () => {
+            await repo.setBudget("  TransPort ", 300000);
+            expect(await repo.listBudgets()).toEqual({ transport: 300000 });
+        });
+
+        test("kategori kosong ditolak", async () => {
+            await expect(repo.setBudget("", 1000)).rejects.toThrow(/kategori/i);
+        });
+
+        test("pagu terpisah dari catatan — menghapus catatan tak menghapus pagu", async () => {
+            await repo.setBudget("transport", 500000);
+            const e = await repo.addEntry({ kind: "out", amount: 50000, category: "transport" });
+            await repo.deleteEntry(e.id);
+            expect(await repo.listBudgets()).toEqual({ transport: 500000 });
+        });
+    });
+
     describe("dailyTotals", () => {
         test("mengelompokkan per tanggal dan jenis", async () => {
             await repo.addEntry({ kind: "out", amount: 50000, ts: "2026-07-02 08:00:00" });

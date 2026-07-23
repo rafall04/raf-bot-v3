@@ -175,8 +175,57 @@ html.tk-dark-pending {
     border-left-color: var(--color-warning);
 }
 
-.kp-stat--net .kp-stat__value[data-negatif="1"] {
-    color: var(--color-danger);
+/* Selisih negatif: angkanya TETAP --ink (kontras 17.8). Sebelumnya diwarnai --color-danger,
+   tapi merah #ef4444 di atas permukaan terang cuma 3.76 — dan pada 18.4px tebal ia belum
+   tergolong "teks besar" (ambang 18.66px), jadi ambang yang berlaku 4.5 dan itu gagal.
+   Sinyal defisit dipindah ke GARIS kartu + tanda minus yang sudah ada di angkanya. */
+.kp-stat--net:has(.kp-stat__value[data-negatif="1"]) {
+    border-left-color: var(--color-danger);
+}
+
+/* Badge tren vs periode pembanding. Warnanya mengikuti `data-arah` yang ditentukan server
+   (pengeluaran naik = buruk), bukan dari arah panah — supaya tak ada logika ganda. */
+.kp-tren {
+    font-size: 0.68rem;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+}
+
+.kp-tren[data-arah="baik"] {
+    color: var(--color-success);
+}
+
+/* Merah #ef4444 di atas permukaan terang hanya ~3.8 — untuk teks kecil ini dipertegas
+   dengan tebal, dan warnanya dipakai sebagai penekanan, bukan satu-satunya pembeda
+   (panah ▲/▼ tetap membawa maknanya). */
+.kp-tren[data-arah="buruk"] {
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.kp-input-mode {
+    width: auto;
+    min-width: 8.5rem;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+}
+
+.kp-rentang {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.kp-rentang .form-control {
+    width: auto;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+}
+
+.kp-rentang__sep {
+    color: var(--ink-soft);
 }
 
 /* ── Kartu isi ─────────────────────────────────────────────────────────────── */
@@ -318,6 +367,26 @@ html.tk-dark-pending {
     height: 100%;
     background: var(--color-danger);
     border-radius: var(--radius-pill);
+}
+
+/* Lewat pagu: ditandai teks berlabel + garis, bukan warna saja — buta warna tetap terbaca. */
+.kp-kat--lewat .kp-kat__bar {
+    outline: 1px solid var(--color-danger);
+}
+
+.kp-kat__lewat {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--ink);
+    border: 1px solid var(--color-danger);
+    border-radius: var(--radius-pill);
+    padding: 0 0.35rem;
+    margin-left: 0.3rem;
+}
+
+.kp-kat__nilai small {
+    color: var(--ink-soft);
 }
 
 /* ── Kepala kartu (judul + meta di kanan) ──────────────────────────────────── */

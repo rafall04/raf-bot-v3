@@ -19,6 +19,9 @@ const {
     parseAmount,
     todayStr,
     monthRange,
+    previousRange,
+    hitungTren,
+    toCsv,
     buildReportData,
     buildDailySeries,
     inferCategory
@@ -141,10 +144,37 @@ function registerAdminPersonalFinanceRoutes(router, deps = {}) {
             const perHari = buildDailySeries(harian, rentang.from, rentang.to);
             const puncak = perHari.reduce((a, b) => (b.keluar > (a ? a.keluar : -1) ? b : a), null);
 
+            // Periode pembanding + pagu kategori (dua-duanya opsional bagi UI).
+            const sebelum = previousRange(rentang.from, rentang.to);
+            const [rekapSebelum, pagu] = await Promise.all([
+                sebelum ? getRepo().summary({ from: sebelum.from, to: sebelum.to }) : Promise.resolve(null),
+                getRepo().listBudgets()
+            ]);
+
+            const dasar = buildReportData(rekap, []);
+            // Sisipkan pagu ke rincian kategori pengeluaran supaya UI tak perlu menjodohkan sendiri.
+            const perKategoriKeluar = dasar.perKategoriKeluar.map((r) => {
+                const batas = Number(pagu[r.category] || 0);
+                return {
+                    ...r,
+                    pagu: batas,
+                    persenPagu: batas > 0 ? Math.round((r.total / batas) * 100) : null,
+                    lewatPagu: batas > 0 && r.total > batas
+                };
+            });
+            // Kategori yang DIANGGARKAN tapi belum ada pengeluarannya tetap ditampilkan —
+            // pagu yang tak pernah terlihat sama saja dengan tak ada.
+            for (const [kat, batas] of Object.entries(pagu)) {
+                if (!perKategoriKeluar.some((r) => r.category === kat)) {
+                    perKategoriKeluar.push({ category: kat, total: 0, jumlah: 0, pagu: batas, persenPagu: 0, lewatPagu: false });
+                }
+            }
+
             res.json({
                 success: true,
                 data: {
-                    ...buildReportData(rekap, []),
+                    ...dasar,
+                    perKategoriKeluar,
                     periode: rentang,
                     hariIni: {
                         tanggal: hariIni,
@@ -154,7 +184,18 @@ function registerAdminPersonalFinanceRoutes(router, deps = {}) {
                     },
                     perHari,
                     hariTerboros: puncak && puncak.keluar > 0 ? puncak : null,
-                    rataKeluarPerHari: perHari.length ? Math.round(rekap.keluar / perHari.length) : 0
+                    rataKeluarPerHari: perHari.length ? Math.round(rekap.keluar / perHari.length) : 0,
+                    pagu,
+                    banding: sebelum
+                        ? {
+                              periode: sebelum,
+                              masuk: hitungTren(rekap.masuk, rekapSebelum.masuk),
+                              // Pengeluaran NAIK = memburuk — arah nilainya dibalik di sini,
+                              // bukan di UI, supaya WA/web/ekspor menafsirkannya sama.
+                              keluar: hitungTren(rekap.keluar, rekapSebelum.keluar, true),
+                              selisih: hitungTren(rekap.selisih, rekapSebelum.selisih)
+                          }
+                        : null
                 }
             });
         })
@@ -236,6 +277,62 @@ function registerAdminPersonalFinanceRoutes(router, deps = {}) {
                 ts
             });
             res.json({ success: true, data: entry });
+        })
+    );
+
+    // ── Pagu (anggaran) per kategori ────────────────────────────────────────────
+    router.get(
+        "/api/keuangan-pribadi/pagu",
+        gate,
+        asyncHandler(async (_req, res) => {
+            res.json({ success: true, data: await getRepo().listBudgets() });
+        })
+    );
+
+    router.put(
+        "/api/keuangan-pribadi/pagu",
+        gate,
+        asyncHandler(async (req, res) => {
+            const body = req.body || {};
+            const kategori = String(body.category || "").trim();
+            if (!kategori) {
+                return res.status(400).json({ success: false, message: "Kategori wajib diisi." });
+            }
+            // Terima "500rb" persis seperti nominal di tempat lain — satu penerjemah, semua permukaan.
+            const nominal =
+                body.amount === "" || body.amount == null
+                    ? 0
+                    : typeof body.amount === "number"
+                      ? Math.round(body.amount)
+                      : parseAmount(body.amount) || 0;
+
+            const hasil = await getRepo().setBudget(kategori, nominal);
+            res.json({ success: true, data: hasil });
+        })
+    );
+
+    // ── Ekspor CSV (menghormati filter yang sedang aktif) ───────────────────────
+    router.get(
+        "/api/keuangan-pribadi/ekspor",
+        gate,
+        asyncHandler(async (req, res) => {
+            const rentang = resolveRange(req.query);
+            const rows = await getRepo().listEntries({
+                from: rentang.from,
+                to: rentang.to,
+                kind: req.query.kind,
+                category: req.query.category,
+                search: req.query.search,
+                limit: 500
+            });
+
+            const namaBerkas = `keuangan-pribadi_${rentang.from}_sd_${rentang.to}.csv`;
+            res.setHeader("Content-Type", "text/csv; charset=utf-8");
+            res.setHeader("Content-Disposition", `attachment; filename="${namaBerkas}"`);
+            // Berkas ini isinya data keuangan pribadi — jangan sampai tersimpan di cache
+            // perantara mana pun.
+            res.setHeader("Cache-Control", "no-store");
+            res.send(toCsv(rows));
         })
     );
 

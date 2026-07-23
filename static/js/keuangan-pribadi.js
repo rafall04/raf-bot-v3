@@ -84,6 +84,22 @@
         });
     }
 
+    // Badge tren vs periode pembanding. `membaik` sudah dihitung server (pengeluaran naik =
+    // memburuk), jadi warna di sini tinggal mengikuti — tak ada logika arah yang digandakan.
+    function renderTren(id, t, labelPeriode) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        if (!t || t.arah === "tetap" || (!t.sebelumnya && !t.sekarang)) {
+            el.textContent = "";
+            el.removeAttribute("data-arah");
+            return;
+        }
+        var panah = t.arah === "naik" ? "▲" : "▼";
+        var teks = t.persen == null ? "baru" : Math.abs(t.persen) + "%";
+        el.textContent = panah + " " + teks + " vs " + (labelPeriode || "sebelumnya");
+        el.setAttribute("data-arah", t.membaik === null ? "netral" : t.membaik ? "baik" : "buruk");
+    }
+
     function renderRingkasan(d) {
         elMasuk.textContent = rupiah(d.masuk);
         elKeluar.textContent = rupiah(d.keluar);
@@ -91,32 +107,82 @@
         elSelisih.setAttribute("data-negatif", Number(d.selisih) < 0 ? "1" : "0");
         elHariIni.textContent = rupiah(d.hariIni ? d.hariIni.keluar : 0);
 
+        var label = d.banding && d.banding.periode ? d.banding.periode.label : null;
+        renderTren("kp-tren-masuk", d.banding && d.banding.masuk, label);
+        renderTren("kp-tren-keluar", d.banding && d.banding.keluar, label);
+        renderTren("kp-tren-selisih", d.banding && d.banding.selisih, label);
+
         var kat = d.perKategoriKeluar || [];
+        var hint = document.getElementById("kp-pagu-hint");
+        if (hint) hint.hidden = kat.some(function (k) { return k.pagu > 0; });
+
         if (!kat.length) {
             elKategori.innerHTML = '<p class="kp-empty">Belum ada pengeluaran di periode ini.</p>';
             return;
         }
-        var maks = kat[0].total || 1;
+        var maks = kat.reduce(function (m, k) { return Math.max(m, k.total, k.pagu || 0); }, 0) || 1;
         elKategori.innerHTML = kat
             .map(function (k) {
-                var pct = Math.max(2, Math.round((k.total / maks) * 100));
+                // Ada pagu → bar diukur terhadap PAGU (itu yang ingin dilihat: sudah berapa
+                // persen terpakai). Tanpa pagu → diukur terhadap kategori terbesar.
+                var adaPagu = k.pagu > 0;
+                var pct = adaPagu
+                    ? Math.min(100, Math.max(2, Math.round((k.total / k.pagu) * 100)))
+                    : Math.max(2, Math.round((k.total / maks) * 100));
+                var kanan = adaPagu
+                    ? rupiah(k.total) + " / " + rupiah(k.pagu)
+                    : rupiah(k.total);
                 return (
-                    '<div class="kp-kat">' +
-                    '<div class="kp-kat__head"><span>' +
-                    esc(k.category) +
-                    " <small>(" +
-                    k.jumlah +
-                    "x)</small></span>" +
-                    '<span class="kp-kat__nilai">' +
-                    rupiah(k.total) +
+                    '<div class="kp-kat' + (k.lewatPagu ? " kp-kat--lewat" : "") + '">' +
+                    '<div class="kp-kat__head"><span>' + esc(k.category) +
+                    " <small>(" + k.jumlah + "x)</small>" +
+                    (k.lewatPagu ? ' <b class="kp-kat__lewat">lewat pagu</b>' : "") +
+                    "</span>" +
+                    '<span class="kp-kat__nilai">' + kanan +
+                    (adaPagu ? ' <small>' + k.persenPagu + "%</small>" : "") +
                     "</span></div>" +
-                    '<div class="kp-kat__bar"><div class="kp-kat__fill" style="width:' +
-                    pct +
-                    '%"></div></div>' +
+                    '<div class="kp-kat__bar"><div class="kp-kat__fill" style="width:' + pct + '%"></div></div>' +
                     "</div>"
                 );
             })
             .join("");
+    }
+
+    // Atur pagu lewat prompt beruntun — sengaja sederhana: ini dipakai sesekali oleh satu
+    // orang, tak sepadan dengan biaya modal + form tersendiri.
+    function aturPagu(kategoriTersedia, paguSekarang) {
+        var daftar = (kategoriTersedia || []).slice();
+        Object.keys(paguSekarang || {}).forEach(function (k) {
+            if (daftar.indexOf(k) === -1) daftar.push(k);
+        });
+        if (!daftar.length) {
+            pesan("Belum ada kategori. Catat dulu beberapa pengeluaran.", "error");
+            return;
+        }
+        var kat = window.prompt("Kategori mana?\n\n" + daftar.join(", "), daftar[0]);
+        if (!kat) return;
+        kat = kat.trim().toLowerCase();
+        if (daftar.indexOf(kat) === -1 && !window.confirm('Kategori "' + kat + '" belum pernah dipakai. Tetap atur pagunya?')) return;
+
+        var sekarang = (paguSekarang || {})[kat];
+        var nilaiBaru = window.prompt(
+            'Pagu bulanan untuk "' + kat + '"\n(boleh 500rb / 1jt / 500000; kosongkan untuk menghapus pagu)',
+            sekarang ? String(sekarang) : ""
+        );
+        if (nilaiBaru === null) return;
+
+        ambilJson("/api/keuangan-pribadi/pagu", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ category: kat, amount: nilaiBaru })
+        })
+            .then(function (j) {
+                pesan(j.data.dihapus ? "Pagu " + kat + " dihapus." : "Pagu " + kat + " = " + rupiah(j.data.amount), "ok");
+                muat();
+            })
+            .catch(function (e) {
+                pesan(e.message, "error");
+            });
     }
 
     // Deret batang per hari. Skala relatif terhadap hari terboros, dengan tinggi minimum
@@ -217,15 +283,41 @@
         return el ? String(el.value || "").trim() : "";
     }
 
+    // Query periode: mode "bulan" → ?month=, mode "rentang" → ?from=&to=.
+    function queryPeriode() {
+        var mode = nilai("kp-mode") || "bulan";
+        if (mode === "rentang") {
+            var dari = nilai("kp-dari");
+            var sampai = nilai("kp-sampai");
+            if (dari && sampai) {
+                // Tanggal terbalik dibetulkan diam-diam, bukan dijadikan galat — pemakai
+                // jelas maksudnya rentang di antara dua tanggal itu.
+                if (dari > sampai) { var t = dari; dari = sampai; sampai = t; }
+                return "?from=" + encodeURIComponent(dari) + "&to=" + encodeURIComponent(sampai);
+            }
+        }
+        return "?month=" + encodeURIComponent(elBulan.value || bulanIni());
+    }
+
+    function queryFilter() {
+        var q = "";
+        if (nilai("kp-f-jenis")) q += "&kind=" + encodeURIComponent(nilai("kp-f-jenis"));
+        if (nilai("kp-f-kategori")) q += "&category=" + encodeURIComponent(nilai("kp-f-kategori"));
+        if (nilai("kp-f-cari")) q += "&search=" + encodeURIComponent(nilai("kp-f-cari"));
+        return q;
+    }
+
+    var paguTerakhir = {};
+    var kategoriTerakhir = [];
+
     function muat() {
-        var bulan = elBulan.value || bulanIni();
-        var q = "?month=" + encodeURIComponent(bulan);
+        var q = queryPeriode();
         // Filter hanya diikutkan ke daftar catatan; ringkasan + grafik harian tetap
         // menggambarkan SELURUH periode (lihat catatan di markup).
-        var qFilter = q;
-        if (nilai("kp-f-jenis")) qFilter += "&kind=" + encodeURIComponent(nilai("kp-f-jenis"));
-        if (nilai("kp-f-kategori")) qFilter += "&category=" + encodeURIComponent(nilai("kp-f-kategori"));
-        if (nilai("kp-f-cari")) qFilter += "&search=" + encodeURIComponent(nilai("kp-f-cari"));
+        var qFilter = q + queryFilter();
+
+        var elEkspor = document.getElementById("kp-ekspor");
+        if (elEkspor) elEkspor.setAttribute("href", "/api/keuangan-pribadi/ekspor" + qFilter);
 
         Promise.all([
             ambilJson("/api/keuangan-pribadi/ringkasan" + q),
@@ -234,9 +326,11 @@
             .then(function (hasil) {
                 var r = hasil[0].data || {};
                 var c = hasil[1] || {};
+                paguTerakhir = r.pagu || {};
+                kategoriTerakhir = c.kategoriTersedia || [];
                 renderRingkasan(r);
                 renderHarian(r.perHari, r.hariTerboros, r.rataKeluarPerHari);
-                isiKategori(c.kategoriTersedia);
+                isiKategori(kategoriTerakhir);
                 renderSubtotal(c.terfilter);
                 renderCatatan(c.data || []);
             })
@@ -298,6 +392,34 @@
     });
 
     elBulan.addEventListener("change", muat);
+
+    // Mode periode: bulan ↔ rentang tanggal.
+    var elMode = document.getElementById("kp-mode");
+    var elRentang = document.getElementById("kp-rentang");
+    var elDari = document.getElementById("kp-dari");
+    var elSampai = document.getElementById("kp-sampai");
+    function terapkanMode() {
+        var rentang = elMode && elMode.value === "rentang";
+        if (elRentang) elRentang.hidden = !rentang;
+        elBulan.hidden = rentang;
+        if (rentang && elDari && !elDari.value) {
+            // Prefill dari bulan yang sedang dilihat supaya tak langsung kosong-melompong.
+            var ym = elBulan.value || bulanIni();
+            elDari.value = ym + "-01";
+            elSampai.value = hariIni();
+        }
+        muat();
+    }
+    if (elMode) elMode.addEventListener("change", terapkanMode);
+    if (elDari) elDari.addEventListener("change", muat);
+    if (elSampai) elSampai.addEventListener("change", muat);
+
+    var elAturPagu = document.getElementById("kp-atur-pagu");
+    if (elAturPagu) {
+        elAturPagu.addEventListener("click", function () {
+            aturPagu(kategoriTerakhir, paguTerakhir);
+        });
+    }
 
     var fJenis = document.getElementById("kp-f-jenis");
     var fKategori = document.getElementById("kp-f-kategori");

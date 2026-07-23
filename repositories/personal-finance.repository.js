@@ -29,7 +29,14 @@ const SCHEMA_SQL = [
         created_at TEXT NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS idx_pf_tanggal ON pf_entries (tanggal)`,
-    `CREATE INDEX IF NOT EXISTS idx_pf_kind_tanggal ON pf_entries (kind, tanggal)`
+    `CREATE INDEX IF NOT EXISTS idx_pf_kind_tanggal ON pf_entries (kind, tanggal)`,
+    // Pagu BULANAN per kategori — berlaku terus (bukan per-bulan), supaya tak perlu
+    // menyetel ulang tiap bulan. Pagu 0/dihapus = kategori itu tak dianggarkan.
+    `CREATE TABLE IF NOT EXISTS pf_budgets (
+        category TEXT PRIMARY KEY,
+        amount INTEGER NOT NULL CHECK (amount > 0),
+        updated_at TEXT NOT NULL
+    )`
 ];
 
 function defaultDeps() {
@@ -165,6 +172,39 @@ function createPersonalFinanceRepository(overrides = {}) {
                     [ts, tanggal, kind, amount, category, note, source, nowLocalStamp()]
                 );
                 return { id: res.lastID, ts, tanggal, kind, amount, category, note, source };
+            });
+        },
+
+        /** Semua pagu kategori sebagai objek `{ kategori: nominal }`. */
+        async listBudgets() {
+            const rows = await withDb((db) => all(db, `SELECT category, amount FROM pf_budgets ORDER BY category ASC`));
+            const peta = {};
+            for (const r of rows) peta[r.category] = Number(r.amount || 0);
+            return peta;
+        },
+
+        /**
+         * Set/hapus pagu satu kategori. Nominal <= 0 berarti HAPUS pagu (bukan simpan nol) —
+         * "tak dianggarkan" dan "dianggarkan nol" akan tampil sama membingungkan di UI.
+         */
+        async setBudget(category, amount) {
+            const kat = String(category || "").trim().toLowerCase();
+            if (!kat) throw new Error("kategori wajib diisi");
+            const nominal = Number(amount);
+
+            return withDb(async (db) => {
+                if (!Number.isFinite(nominal) || nominal <= 0) {
+                    await run(db, `DELETE FROM pf_budgets WHERE category = ?`, [kat]);
+                    return { category: kat, amount: 0, dihapus: true };
+                }
+                const bulat = Math.round(nominal);
+                await run(
+                    db,
+                    `INSERT INTO pf_budgets (category, amount, updated_at) VALUES (?, ?, ?)
+                     ON CONFLICT(category) DO UPDATE SET amount = excluded.amount, updated_at = excluded.updated_at`,
+                    [kat, bulat, nowLocalStamp()]
+                );
+                return { category: kat, amount: bulat, dihapus: false };
             });
         },
 
