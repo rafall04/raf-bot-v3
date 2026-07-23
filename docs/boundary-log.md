@@ -962,3 +962,14 @@
 - **Gate:** `config.businessExpense.enabled` default **OFF** + `groupId` + `ownerJids` TERPISAH. Per-instance penuh: Dander & Tanjungharjo punya grup + ledger sendiri, tak saling bergantung. Dipasang di 2 titik `raf.js` (blok grup + jalur `fromMe`), pola sama dengan dompet.
 - **Tes:** 22 — termasuk jaminan tiap hasil `inferKategoriKas` ADA di `EXPENSE_CATEGORIES` (kategori di luar daftar ditolak `createExpense`, jadi tebakan meleset = pencatatan GAGAL), baris dibatalkan tak ikut dihitung, dan `kas` bukan lagi pemicu dompet pribadi. Plus uji end-to-end DB sungguhan.
 - **PELAJARAN:** sebelum membangun "pencatatan X via WA", cari dulu siapa yang SUDAH memiliki angka X. Di repo ini `/pengeluaran` sudah ada — menumpanginya jauh lebih murah daripada merekonsiliasi dua ledger selamanya.
+
+<a id="b178"></a>
+### Fix 2026-07-23 (Backup lokal dompet pribadi — menutup risiko kehilangan permanen)
+
+- **Owner:** `lib/personal-finance-backup.js` (BARU — salin/pangkas/pulih) + `lib/cron/jobs/personal-finance-backup.js` (BARU — jadwal, default tiap 6 jam, override `config.personalFinance.backupSchedule`), didaftarkan di `lib/cron.js`.
+- **Kenapa ada:** `personal_finance.sqlite` SENGAJA di luar allowlist backup Telegram (#b175 — tujuan backup itu GRUP multi-anggota). Konsekuensi yang tak disadari: TAK ADA salinan sama sekali, jadi satu kesalahan = hilang permanen. Terbukti hari ini — catatan pemilik terhapus oleh skrip pembersih data uji dan tak ada apa pun untuk memulihkannya (dipulihkan manual dari jejak `strings` + nominal yang dikonfirmasi pemilik).
+- **Salinan TIDAK PERNAH meninggalkan server** (`backups/keuangan-pribadi/`, mode 0600, simpan 30 terakhir) — itu syarat yang mempertahankan alasan pengecualian aslinya. Kredensial (`personal_finance_auth.json`) ikut disalin: memulihkan catatan tapi kehilangan sandi tetap mengunci pemiliknya di luar.
+- **Memakai `hotBackupSqlite`**, bukan `fs.copyFile` — menyalin file mentah saat ada transaksi berjalan bisa menghasilkan berkas rusak.
+- **Bug yang ditemukan saat menguji fungsi ini sendiri:** `pulihkanDari` mengambil salinan pengaman lebih dulu, tapi stempel hanya beresolusi DETIK — salinan pengaman (DB kosong) MENIMPA backup yang sedang dipulihkan, lalu yang dikembalikan justru DB kosong itu. Ditutup dengan nama unik ber-counter.
+- **Tes:** 6, termasuk siklus penuh backup→hapus→pulih, tabrakan nama dalam detik yang sama, dan `basename()` yang menahan `../../config.json` jadi sumber pemulihan.
+- **PELAJARAN:** mengeluarkan sesuatu dari jalur backup bersama adalah keputusan yang BENAR untuk privasi, tapi wajib diikuti jalur backup penggantinya. "Tidak ikut backup grup" tak boleh diam-diam berarti "tidak dibackup sama sekali".
