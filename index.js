@@ -211,6 +211,11 @@ app.use('/api/login', authLimiter);
 app.use('/api/customer/login', authLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/otp/request', authLimiter);
+// Login dompet keuangan pribadi. WAJIB ikut authLimiter: halamannya terbuka di internet
+// (Cloudflare) dan endpointnya ada di PUBLIC_PATHS, jadi tanpa ini hanya globalLimiter yang
+// menahan — 300 permintaan/15 menit = ribuan tebakan sandi per hari terhadap satu-satunya
+// pintu ke data keuangan pribadi.
+app.use('/api/keuangan-pribadi/login', authLimiter);
 registerRoutes(app, runtime);
 
 // --- VIEW ENGINE AND PHP SETUP ---
