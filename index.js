@@ -226,6 +226,10 @@ app.use('/api/keuangan-pribadi/login', (req, res, next) => {
     if (!hasCredential()) return next();
     return authLimiter(req, res, next);
 });
+// Ganti sandi juga MEMVERIFIKASI sandi (yang lama), jadi ikut direm. Sesi yang sah tidak
+// membuatnya aman: sesi curian + tebakan sandi lama tak terbatas = pemilik bisa dikunci
+// keluar dari dompetnya sendiri.
+app.use('/api/keuangan-pribadi/ganti-sandi', authLimiter);
 registerRoutes(app, runtime);
 
 // --- VIEW ENGINE AND PHP SETUP ---

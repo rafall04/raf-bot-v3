@@ -52,12 +52,41 @@
       <button type="button" id="tkThemeToggle" class="kp-ikonbtn" title="Ganti mode terang/gelap" aria-label="Ganti mode terang/gelap">
         <i class="fas fa-moon"></i>
       </button>
+      <button type="button" id="kp-ganti-sandi" class="kp-keluar" title="Ganti sandi dompet">Sandi</button>
       <button type="button" id="kp-logout" class="kp-keluar" title="Keluar dari dompet">Keluar</button>
     </div>
   </header>
 
   <main class="kp-main">
     <div id="kp-alert" class="kp-alert" hidden></div>
+
+    <!-- Ganti sandi. Sengaja form dengan input type=password, BUKAN prompt(): prompt
+         menampilkan sandi sebagai teks polos dan tak bisa dipakai pengelola sandi. -->
+    <section class="kp-card kp-card--full kp-sandi" id="kp-panel-sandi" hidden>
+      <h2 class="kp-card__title">Ganti sandi dompet</h2>
+      <form id="kp-form-sandi" class="kp-form" autocomplete="off">
+        <input type="text" id="kp-sandi-user" autocomplete="username" hidden aria-hidden="true" tabindex="-1">
+        <div class="kp-form__row">
+          <div class="kp-field">
+            <label for="kp-sandi-lama">Sandi sekarang</label>
+            <input type="password" id="kp-sandi-lama" class="form-control form-control-sm" autocomplete="current-password" required>
+          </div>
+          <div class="kp-field">
+            <label for="kp-sandi-baru">Sandi baru</label>
+            <input type="password" id="kp-sandi-baru" class="form-control form-control-sm" autocomplete="new-password" minlength="8" required>
+          </div>
+          <div class="kp-field">
+            <label for="kp-sandi-ulang">Ulangi sandi baru</label>
+            <input type="password" id="kp-sandi-ulang" class="form-control form-control-sm" autocomplete="new-password" minlength="8" required>
+          </div>
+        </div>
+        <div class="kp-sandi__aksi">
+          <button type="submit" class="kp-btn kp-sandi__simpan" id="kp-sandi-submit">Simpan sandi baru</button>
+          <button type="button" class="kp-keluar" id="kp-sandi-batal">Batal</button>
+        </div>
+        <p class="kp-hint">Minimal 8 karakter. Setelah diganti, perangkat lain yang masih terbuka otomatis keluar — perangkat ini tetap masuk.</p>
+      </form>
+    </section>
 
     <!-- Tutorial: sengaja di ATAS dan terbuka secara default. Fitur ini dipakai sesekali,
          jadi panduannya harus terlihat tanpa dicari. Bisa ditutup, dan pilihannya diingat. -->

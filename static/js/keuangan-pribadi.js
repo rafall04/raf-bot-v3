@@ -437,6 +437,75 @@
         });
     }
 
+    // ── Ganti sandi ─────────────────────────────────────────────────────────────
+    var panelSandi = document.getElementById("kp-panel-sandi");
+    var formSandi = document.getElementById("kp-form-sandi");
+    var tombolSandi = document.getElementById("kp-ganti-sandi");
+
+    function tutupPanelSandi() {
+        if (!panelSandi) return;
+        panelSandi.hidden = true;
+        if (formSandi) formSandi.reset();
+    }
+
+    if (tombolSandi && panelSandi) {
+        tombolSandi.addEventListener("click", function () {
+            panelSandi.hidden = !panelSandi.hidden;
+            if (!panelSandi.hidden) {
+                // Isi username tersembunyi supaya pengelola sandi tahu entri mana yang
+                // diperbarui — tanpa ini banyak pengelola menyimpan entri baru terpisah.
+                fetch("/api/keuangan-pribadi/sesi")
+                    .then(function (r) { return r.json(); })
+                    .then(function (j) {
+                        var u = document.getElementById("kp-sandi-user");
+                        if (u && j && j.data) u.value = j.data.username || "";
+                    })
+                    .catch(function () { /* tak fatal */ });
+                document.getElementById("kp-sandi-lama").focus();
+            }
+        });
+    }
+
+    var batalSandi = document.getElementById("kp-sandi-batal");
+    if (batalSandi) batalSandi.addEventListener("click", tutupPanelSandi);
+
+    if (formSandi) {
+        formSandi.addEventListener("submit", function (ev) {
+            ev.preventDefault();
+            var lama = document.getElementById("kp-sandi-lama").value;
+            var baru = document.getElementById("kp-sandi-baru").value;
+            var ulang = document.getElementById("kp-sandi-ulang").value;
+
+            // Dicek di sini DULU supaya salah ketik tidak membakar jatah percobaan di server.
+            if (baru !== ulang) {
+                pesan("Sandi baru dan ulangannya tidak sama.", "error");
+                return;
+            }
+            if (baru.length < 8) {
+                pesan("Sandi baru minimal 8 karakter.", "error");
+                return;
+            }
+
+            var tombol = document.getElementById("kp-sandi-submit");
+            tombol.disabled = true;
+            ambilJson("/api/keuangan-pribadi/ganti-sandi", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sandiLama: lama, sandiBaru: baru })
+            })
+                .then(function (j) {
+                    pesan(j.message || "Sandi diganti.", "ok");
+                    tutupPanelSandi();
+                })
+                .catch(function (e) {
+                    pesan(e.message, "error");
+                })
+                .finally(function () {
+                    tombol.disabled = false;
+                });
+        });
+    }
+
     var elLogout = document.getElementById("kp-logout");
     if (elLogout) {
         elLogout.addEventListener("click", function () {

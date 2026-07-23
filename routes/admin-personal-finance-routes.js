@@ -280,6 +280,43 @@ function registerAdminPersonalFinanceRoutes(router, deps = {}) {
         })
     );
 
+    // ── Ganti sandi dompet (butuh sesi AKTIF + sandi lama) ──────────────────────
+    router.post(
+        "/api/keuangan-pribadi/ganti-sandi",
+        gate,
+        asyncHandler(async (req, res) => {
+            const { sandiLama, sandiBaru } = req.body || {};
+            const username = req.pfUser.username;
+
+            // Sesi yang sah saja TIDAK cukup: kalau browser tertinggal terbuka, siapa pun
+            // bisa mengunci pemilik keluar dari dompetnya sendiri. Sandi lama wajib.
+            // 403, BUKAN 401. Di sini sesinya SAH — yang salah cuma sandi yang diketik.
+            // Frontend memperlakukan 401 sebagai "sesi habis" dan melempar ke halaman masuk,
+            // jadi memakai 401 akan menendang pemilik keluar hanya karena salah ketik.
+            if (!(await pfAuth.verifyCredential(username, sandiLama))) {
+                return res.status(403).json({ success: false, message: "Sandi sekarang salah." });
+            }
+            if (String(sandiBaru || "").length < 8) {
+                return res.status(400).json({ success: false, message: "Sandi baru minimal 8 karakter." });
+            }
+            if (String(sandiBaru) === String(sandiLama)) {
+                return res.status(400).json({ success: false, message: "Sandi baru sama dengan yang lama." });
+            }
+
+            // Rotasi rahasia sesi → SEMUA sesi lain (perangkat lain) langsung logout, karena
+            // ganti sandi biasanya dilakukan justru saat curiga sandi lama bocor. Perangkat
+            // yang sedang dipakai diberi cookie baru supaya tak ikut terlempar keluar.
+            await pfAuth.setCredential(username, sandiBaru, { rotateSecret: true });
+            res.cookie(pfAuth.COOKIE_NAME, pfAuth.issueSessionToken(username), {
+                httpOnly: true,
+                sameSite: "lax",
+                path: "/",
+                maxAge: 8 * 60 * 60 * 1000
+            });
+            res.json({ success: true, message: "Sandi diganti. Perangkat lain otomatis keluar." });
+        })
+    );
+
     // ── Pagu (anggaran) per kategori ────────────────────────────────────────────
     router.get(
         "/api/keuangan-pribadi/pagu",

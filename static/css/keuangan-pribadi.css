@@ -525,6 +525,22 @@ html.tk-dark-pending {
     margin-bottom: 1px;
 }
 
+/* ── Panel ganti sandi ─────────────────────────────────────────────────────── */
+.kp-sandi {
+    border-color: var(--indigo-600);
+}
+
+.kp-sandi__aksi {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+}
+
+.kp-sandi__simpan {
+    width: auto;
+    min-width: 12rem;
+}
+
 .kp-subtotal {
     margin: 0;
     font-size: 0.8rem;
