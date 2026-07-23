@@ -102,6 +102,20 @@
       </div>
     </div>
 
+    <!-- Pengeluaran per hari -->
+    <section class="kp-card kp-card--full">
+      <div class="kp-card__head">
+        <h2 class="kp-card__title">Pengeluaran per hari</h2>
+        <div class="kp-harian__meta">
+          <span>Rata-rata <b id="kp-rata">—</b>/hari</span>
+          <span id="kp-terboros" class="kp-harian__puncak"></span>
+        </div>
+      </div>
+      <div class="kp-harian" id="kp-harian">
+        <p class="kp-empty">Memuat…</p>
+      </div>
+    </section>
+
     <div class="kp-grid">
       <!-- Catat cepat -->
       <section class="kp-card">
@@ -146,7 +160,37 @@
 
     <!-- Daftar catatan -->
     <section class="kp-card kp-card--full">
-      <h2 class="kp-card__title">Catatan periode ini</h2>
+      <div class="kp-card__head">
+        <h2 class="kp-card__title">Catatan periode ini</h2>
+        <p class="kp-subtotal" id="kp-subtotal"></p>
+      </div>
+
+      <!-- Filter: sengaja hanya memengaruhi TABEL ini, bukan kartu ringkasan di atas.
+           Kalau filter ikut mengubah kartu, angka "Pemasukan/Pengeluaran" berubah makna
+           diam-diam dan pemakai bisa salah baca kondisi keuangannya. Subtotal khusus
+           hasil filter ditampilkan di atas. -->
+      <div class="kp-filter" role="group" aria-label="Saring catatan">
+        <div class="kp-filter__item">
+          <label for="kp-f-jenis">Jenis</label>
+          <select id="kp-f-jenis" class="form-control form-control-sm">
+            <option value="">Semua</option>
+            <option value="out">Keluar</option>
+            <option value="in">Masuk</option>
+          </select>
+        </div>
+        <div class="kp-filter__item">
+          <label for="kp-f-kategori">Kategori</label>
+          <select id="kp-f-kategori" class="form-control form-control-sm">
+            <option value="">Semua</option>
+          </select>
+        </div>
+        <div class="kp-filter__item kp-filter__item--cari">
+          <label for="kp-f-cari">Cari</label>
+          <input type="search" id="kp-f-cari" class="form-control form-control-sm" placeholder="bensin, warung, gaji…">
+        </div>
+        <button type="button" id="kp-f-reset" class="kp-keluar kp-filter__reset" hidden>Hapus filter</button>
+      </div>
+
       <div class="kp-tabel-wrap">
         <table class="kp-tabel">
           <thead>

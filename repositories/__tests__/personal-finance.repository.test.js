@@ -101,4 +101,65 @@ describe("personal-finance.repository", () => {
         const e = await repo.addEntry({ kind: "out", amount: 5000 });
         expect(e.category).toBe("lain");
     });
+
+    describe("filter daftar catatan", () => {
+        beforeEach(async () => {
+            await repo.addEntry({ kind: "out", amount: 50000, category: "transport", note: "bensin motor", ts: "2026-07-02 08:00:00" });
+            await repo.addEntry({ kind: "out", amount: 25000, category: "makan", note: "warung padang", ts: "2026-07-02 12:00:00" });
+            await repo.addEntry({ kind: "in", amount: 2000000, category: "gaji", note: "gaji juli", ts: "2026-07-01 09:00:00" });
+        });
+
+        test("saring per jenis", async () => {
+            expect(await repo.listEntries({ kind: "out" })).toHaveLength(2);
+            expect(await repo.listEntries({ kind: "in" })).toHaveLength(1);
+        });
+
+        test("saring per kategori (tak peka huruf besar-kecil)", async () => {
+            expect(await repo.listEntries({ category: "TRANSPORT" })).toHaveLength(1);
+            expect(await repo.listEntries({ category: "tak-ada" })).toHaveLength(0);
+        });
+
+        test("cari mencakup catatan DAN kategori", async () => {
+            expect(await repo.listEntries({ search: "bensin" })).toHaveLength(1); // dari note
+            expect(await repo.listEntries({ search: "makan" })).toHaveLength(1); // dari category
+            expect(await repo.listEntries({ search: "WARUNG" })).toHaveLength(1); // tak peka huruf
+        });
+
+        // `%` milik pemakai harus dicari harfiah, bukan jadi wildcard yang mengembalikan semua.
+        test("wildcard LIKE dari pemakai di-escape", async () => {
+            expect(await repo.listEntries({ search: "%" })).toHaveLength(0);
+            expect(await repo.listEntries({ search: "_" })).toHaveLength(0);
+            await repo.addEntry({ kind: "out", amount: 1000, note: "diskon 50%" });
+            expect(await repo.listEntries({ search: "50%" })).toHaveLength(1);
+        });
+
+        test("filter bisa digabung", async () => {
+            expect(await repo.listEntries({ kind: "out", search: "bensin" })).toHaveLength(1);
+            expect(await repo.listEntries({ kind: "in", search: "bensin" })).toHaveLength(0);
+        });
+    });
+
+    describe("dailyTotals", () => {
+        test("mengelompokkan per tanggal dan jenis", async () => {
+            await repo.addEntry({ kind: "out", amount: 50000, ts: "2026-07-02 08:00:00" });
+            await repo.addEntry({ kind: "out", amount: 25000, ts: "2026-07-02 19:00:00" });
+            await repo.addEntry({ kind: "in", amount: 2000000, ts: "2026-07-05 09:00:00" });
+
+            const rows = await repo.dailyTotals({ from: "2026-07-01", to: "2026-07-31" });
+            const keluar02 = rows.find((r) => r.tanggal === "2026-07-02" && r.kind === "out");
+            expect(keluar02.total).toBe(75000);
+            expect(keluar02.jumlah).toBe(2);
+            expect(rows.find((r) => r.tanggal === "2026-07-05" && r.kind === "in").total).toBe(2000000);
+            // Hanya tanggal yang PUNYA catatan — hari kosong diisi buildDailySeries.
+            expect(rows.every((r) => ["2026-07-02", "2026-07-05"].includes(r.tanggal))).toBe(true);
+        });
+
+        test("menghormati batas periode", async () => {
+            await repo.addEntry({ kind: "out", amount: 1000, ts: "2026-06-30 23:00:00" });
+            await repo.addEntry({ kind: "out", amount: 2000, ts: "2026-07-01 01:00:00" });
+            const rows = await repo.dailyTotals({ from: "2026-07-01", to: "2026-07-31" });
+            expect(rows).toHaveLength(1);
+            expect(rows[0].tanggal).toBe("2026-07-01");
+        });
+    });
 });

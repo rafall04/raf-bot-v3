@@ -119,9 +119,78 @@
             .join("");
     }
 
+    // Deret batang per hari. Skala relatif terhadap hari terboros, dengan tinggi minimum
+    // supaya hari yang ADA isinya tak tampak nol; hari kosong benar-benar 0 (tak berbatang).
+    function renderHarian(perHari, terboros, rata) {
+        var elHarian = document.getElementById("kp-harian");
+        var elRata = document.getElementById("kp-rata");
+        var elTerboros = document.getElementById("kp-terboros");
+        if (!elHarian) return;
+
+        if (elRata) elRata.textContent = rupiah(rata);
+        if (elTerboros) {
+            elTerboros.textContent = terboros
+                ? "Terboros: " + terboros.tanggal.slice(8) + "/" + terboros.tanggal.slice(5, 7) + " (" + rupiah(terboros.keluar) + ")"
+                : "";
+        }
+
+        if (!perHari || !perHari.length) {
+            elHarian.innerHTML = '<p class="kp-empty">Belum ada catatan di periode ini.</p>';
+            return;
+        }
+        var maks = perHari.reduce(function (m, d) { return Math.max(m, d.keluar, d.masuk); }, 0);
+        if (!maks) {
+            elHarian.innerHTML = '<p class="kp-empty">Belum ada catatan di periode ini.</p>';
+            return;
+        }
+
+        elHarian.innerHTML = perHari
+            .map(function (d) {
+                var tk = d.keluar ? Math.max(4, Math.round((d.keluar / maks) * 100)) : 0;
+                var tm = d.masuk ? Math.max(4, Math.round((d.masuk / maks) * 100)) : 0;
+                var puncak = terboros && d.tanggal === terboros.tanggal;
+                var judul = d.tanggal + " — keluar " + rupiah(d.keluar) + ", masuk " + rupiah(d.masuk);
+                return (
+                    '<div class="kp-hari' + (puncak ? " kp-hari--puncak" : "") + '" title="' + esc(judul) + '">' +
+                    '<div class="kp-hari__batang">' +
+                    '<span class="kp-hari__in" style="height:' + tm + '%"></span>' +
+                    '<span class="kp-hari__out" style="height:' + tk + '%"></span>' +
+                    "</div>" +
+                    '<span class="kp-hari__label">' + d.hari + "</span>" +
+                    "</div>"
+                );
+            })
+            .join("");
+    }
+
+    function renderSubtotal(t) {
+        var el = document.getElementById("kp-subtotal");
+        var reset = document.getElementById("kp-f-reset");
+        if (!el) return;
+        if (!t || !t.aktif) {
+            el.textContent = "";
+            if (reset) reset.hidden = true;
+            return;
+        }
+        el.textContent =
+            t.jumlah + " catatan terpilih · keluar " + rupiah(t.keluar) + " · masuk " + rupiah(t.masuk);
+        if (reset) reset.hidden = false;
+    }
+
+    function isiKategori(daftar) {
+        var sel = document.getElementById("kp-f-kategori");
+        if (!sel) return;
+        var terpilih = sel.value;
+        sel.innerHTML =
+            '<option value="">Semua</option>' +
+            (daftar || []).map(function (k) { return '<option value="' + esc(k) + '">' + esc(k) + "</option>"; }).join("");
+        // Pertahankan pilihan pemakai walau daftar di-render ulang setiap muat.
+        if (terpilih && (daftar || []).indexOf(terpilih) !== -1) sel.value = terpilih;
+    }
+
     function renderCatatan(rows) {
         if (!rows.length) {
-            elRows.innerHTML = '<tr><td colspan="7" class="kp-empty">Belum ada catatan di periode ini.</td></tr>';
+            elRows.innerHTML = '<tr><td colspan="7" class="kp-empty">Tidak ada catatan yang cocok.</td></tr>';
             return;
         }
         elRows.innerHTML = rows
@@ -143,21 +212,45 @@
             .join("");
     }
 
+    function nilai(id) {
+        var el = document.getElementById(id);
+        return el ? String(el.value || "").trim() : "";
+    }
+
     function muat() {
         var bulan = elBulan.value || bulanIni();
         var q = "?month=" + encodeURIComponent(bulan);
+        // Filter hanya diikutkan ke daftar catatan; ringkasan + grafik harian tetap
+        // menggambarkan SELURUH periode (lihat catatan di markup).
+        var qFilter = q;
+        if (nilai("kp-f-jenis")) qFilter += "&kind=" + encodeURIComponent(nilai("kp-f-jenis"));
+        if (nilai("kp-f-kategori")) qFilter += "&category=" + encodeURIComponent(nilai("kp-f-kategori"));
+        if (nilai("kp-f-cari")) qFilter += "&search=" + encodeURIComponent(nilai("kp-f-cari"));
+
         Promise.all([
             ambilJson("/api/keuangan-pribadi/ringkasan" + q),
-            ambilJson("/api/keuangan-pribadi/catatan" + q)
+            ambilJson("/api/keuangan-pribadi/catatan" + qFilter)
         ])
             .then(function (hasil) {
-                renderRingkasan(hasil[0].data || {});
-                renderCatatan(hasil[1].data || []);
+                var r = hasil[0].data || {};
+                var c = hasil[1] || {};
+                renderRingkasan(r);
+                renderHarian(r.perHari, r.hariTerboros, r.rataKeluarPerHari);
+                isiKategori(c.kategoriTersedia);
+                renderSubtotal(c.terfilter);
+                renderCatatan(c.data || []);
             })
             .catch(function (e) {
                 pesan(e.message, "error");
                 elRows.innerHTML = '<tr><td colspan="7" class="kp-empty">Gagal memuat.</td></tr>';
             });
+    }
+
+    // Ketikan pencarian ditunda 300 ms — tanpa itu setiap huruf memicu satu permintaan.
+    var timerCari = null;
+    function muatTertunda() {
+        clearTimeout(timerCari);
+        timerCari = setTimeout(muat, 300);
     }
 
     elForm.addEventListener("submit", function (ev) {
@@ -205,6 +298,22 @@
     });
 
     elBulan.addEventListener("change", muat);
+
+    var fJenis = document.getElementById("kp-f-jenis");
+    var fKategori = document.getElementById("kp-f-kategori");
+    var fCari = document.getElementById("kp-f-cari");
+    var fReset = document.getElementById("kp-f-reset");
+    if (fJenis) fJenis.addEventListener("change", muat);
+    if (fKategori) fKategori.addEventListener("change", muat);
+    if (fCari) fCari.addEventListener("input", muatTertunda);
+    if (fReset) {
+        fReset.addEventListener("click", function () {
+            if (fJenis) fJenis.value = "";
+            if (fKategori) fKategori.value = "";
+            if (fCari) fCari.value = "";
+            muat();
+        });
+    }
 
     var elLogout = document.getElementById("kp-logout");
     if (elLogout) {

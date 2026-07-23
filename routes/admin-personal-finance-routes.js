@@ -15,7 +15,14 @@
 "use strict";
 
 const { asyncHandler } = require("../lib/error-handler");
-const { parseAmount, todayStr, monthRange, buildReportData, inferCategory } = require("../lib/personal-finance-service");
+const {
+    parseAmount,
+    todayStr,
+    monthRange,
+    buildReportData,
+    buildDailySeries,
+    inferCategory
+} = require("../lib/personal-finance-service");
 const pfAuth = require("../lib/personal-finance-auth");
 
 let repoSingleton = null;
@@ -123,9 +130,17 @@ function registerAdminPersonalFinanceRoutes(router, deps = {}) {
         gate,
         asyncHandler(async (req, res) => {
             const rentang = resolveRange(req.query);
-            const rekap = await getRepo().summary({ from: rentang.from, to: rentang.to });
             const hariIni = todayStr();
-            const rekapHari = await getRepo().summary({ from: hariIni, to: hariIni });
+            // Deret harian ikut di sini (bukan endpoint terpisah) supaya halaman tetap
+            // 2 permintaan, bukan 3 — periodenya sama persis dengan ringkasan.
+            const [rekap, rekapHari, harian] = await Promise.all([
+                getRepo().summary({ from: rentang.from, to: rentang.to }),
+                getRepo().summary({ from: hariIni, to: hariIni }),
+                getRepo().dailyTotals({ from: rentang.from, to: rentang.to })
+            ]);
+            const perHari = buildDailySeries(harian, rentang.from, rentang.to);
+            const puncak = perHari.reduce((a, b) => (b.keluar > (a ? a.keluar : -1) ? b : a), null);
+
             res.json({
                 success: true,
                 data: {
@@ -136,7 +151,10 @@ function registerAdminPersonalFinanceRoutes(router, deps = {}) {
                         masuk: rekapHari.masuk,
                         keluar: rekapHari.keluar,
                         selisih: rekapHari.selisih
-                    }
+                    },
+                    perHari,
+                    hariTerboros: puncak && puncak.keluar > 0 ? puncak : null,
+                    rataKeluarPerHari: perHari.length ? Math.round(rekap.keluar / perHari.length) : 0
                 }
             });
         })
@@ -147,15 +165,43 @@ function registerAdminPersonalFinanceRoutes(router, deps = {}) {
         gate,
         asyncHandler(async (req, res) => {
             const rentang = resolveRange(req.query);
-            const rows = await getRepo().listEntries({
+            const filter = {
                 from: rentang.from,
                 to: rentang.to,
                 kind: req.query.kind,
                 category: req.query.category,
-                limit: req.query.limit || 200,
-                offset: req.query.offset
+                search: req.query.search
+            };
+            const [rows, semuaPeriode] = await Promise.all([
+                getRepo().listEntries({ ...filter, limit: req.query.limit || 200, offset: req.query.offset }),
+                // Daftar kategori untuk mengisi dropdown filter diambil dari SELURUH periode,
+                // bukan dari hasil terfilter — kalau tidak, memilih satu kategori akan
+                // menghapus semua pilihan lain dan pemakai terjebak (tak bisa ganti pilihan).
+                getRepo().summary({ from: rentang.from, to: rentang.to })
+            ]);
+
+            const subtotal = rows.reduce(
+                (a, r) => {
+                    if (r.kind === "in") a.masuk += Number(r.amount || 0);
+                    else a.keluar += Number(r.amount || 0);
+                    return a;
+                },
+                { masuk: 0, keluar: 0 }
+            );
+
+            res.json({
+                success: true,
+                data: rows,
+                periode: rentang,
+                terfilter: {
+                    aktif: Boolean(filter.kind || filter.category || String(filter.search || "").trim()),
+                    jumlah: rows.length,
+                    masuk: subtotal.masuk,
+                    keluar: subtotal.keluar,
+                    selisih: subtotal.masuk - subtotal.keluar
+                },
+                kategoriTersedia: [...new Set((semuaPeriode.perKategori || []).map((r) => r.category))].sort()
             });
-            res.json({ success: true, data: rows, periode: rentang });
         })
     );
 

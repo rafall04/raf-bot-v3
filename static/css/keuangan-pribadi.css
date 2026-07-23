@@ -320,6 +320,149 @@ html.tk-dark-pending {
     border-radius: var(--radius-pill);
 }
 
+/* ── Kepala kartu (judul + meta di kanan) ──────────────────────────────────── */
+.kp-card__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.85rem;
+}
+
+.kp-card__head .kp-card__title {
+    margin-bottom: 0;
+}
+
+.kp-harian__meta {
+    display: flex;
+    gap: 0.9rem;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    flex-wrap: wrap;
+}
+
+/* --ink + tebal, BUKAN --color-danger: merah #ef4444 di atas permukaan terang hanya 3.76
+   (gagal AA). Penanda hari terboros tetap terbaca lewat garis merah di batangnya. */
+.kp-harian__puncak {
+    color: var(--ink);
+    font-weight: 700;
+}
+
+/* ── Grafik batang per hari ────────────────────────────────────────────────── */
+.kp-harian {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    min-height: 8rem;
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+}
+
+.kp-hari {
+    flex: 1 0 14px;
+    min-width: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.kp-hari__batang {
+    width: 100%;
+    height: 6.5rem;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 1px;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.kp-hari__out,
+.kp-hari__in {
+    width: 45%;
+    border-radius: 2px 2px 0 0;
+    min-height: 0;
+}
+
+.kp-hari__out {
+    background: var(--color-danger);
+}
+
+.kp-hari__in {
+    background: var(--color-success);
+}
+
+.kp-hari__label {
+    font-size: 0.62rem;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+}
+
+.kp-hari--puncak .kp-hari__batang {
+    outline: 2px solid var(--color-danger);
+    outline-offset: 1px;
+}
+
+.kp-hari--puncak .kp-hari__label {
+    color: var(--ink);
+    font-weight: 700;
+}
+
+/* ── Bar filter ────────────────────────────────────────────────────────────── */
+.kp-filter {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.kp-filter__item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.kp-filter__item label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--ink-soft);
+    margin: 0;
+}
+
+.kp-filter__item .form-control {
+    background: var(--surface-2);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    min-width: 8rem;
+}
+
+.kp-filter__item--cari {
+    flex: 1 1 12rem;
+}
+
+.kp-filter__item--cari .form-control {
+    width: 100%;
+}
+
+.kp-filter__reset {
+    margin-bottom: 1px;
+}
+
+.kp-subtotal {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+}
+
 /* ── Tabel catatan ─────────────────────────────────────────────────────────── */
 .kp-card--full {
     margin-bottom: 1.2rem;

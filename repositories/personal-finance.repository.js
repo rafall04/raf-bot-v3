@@ -97,8 +97,8 @@ function createPersonalFinanceRepository(overrides = {}) {
         }
     }
 
-    /** Bangun klausa WHERE dari filter periode/jenis/kategori. */
-    function buildFilter({ from, to, kind, category } = {}) {
+    /** Bangun klausa WHERE dari filter periode/jenis/kategori/pencarian. */
+    function buildFilter({ from, to, kind, category, search } = {}) {
         const where = [];
         const params = [];
         if (from) {
@@ -116,6 +116,15 @@ function createPersonalFinanceRepository(overrides = {}) {
         if (category) {
             where.push("LOWER(category) = ?");
             params.push(String(category).toLowerCase());
+        }
+        const teks = String(search || "").trim().toLowerCase();
+        if (teks) {
+            // Cari di catatan DAN kategori — pemakai mengetik "bensin" tanpa peduli kata itu
+            // tersimpan sebagai catatan atau sebagai nama kategori. `%` / `_` milik pemakai
+            // di-escape supaya tidak berperilaku sebagai wildcard LIKE.
+            const aman = teks.replace(/[\\%_]/g, (c) => `\\${c}`);
+            where.push("(LOWER(COALESCE(note,'')) LIKE ? ESCAPE '\\' OR LOWER(category) LIKE ? ESCAPE '\\')");
+            params.push(`%${aman}%`, `%${aman}%`);
         }
         return { clause: where.length ? `WHERE ${where.join(" AND ")}` : "", params };
     }
@@ -157,6 +166,26 @@ function createPersonalFinanceRepository(overrides = {}) {
                 );
                 return { id: res.lastID, ts, tanggal, kind, amount, category, note, source };
             });
+        },
+
+        /**
+         * Total per TANGGAL dalam periode — bahan "pengeluaran per hari".
+         * Diagregasi di SQL supaya laporan sebulan tak menarik ratusan baris ke memori bot.
+         * Hanya tanggal yang PUNYA catatan yang dikembalikan; hari kosong diisi pemanggil
+         * (halaman butuh deret penuh agar batangnya tidak bolong).
+         */
+        async dailyTotals(filter = {}) {
+            const { clause, params } = buildFilter({ from: filter.from, to: filter.to });
+            return withDb((db) =>
+                all(
+                    db,
+                    `SELECT tanggal, kind, COALESCE(SUM(amount), 0) AS total, COUNT(*) AS jumlah
+                       FROM pf_entries ${clause}
+                      GROUP BY tanggal, kind
+                      ORDER BY tanggal ASC`,
+                    params
+                )
+            );
         },
 
         async listEntries(filter = {}) {
