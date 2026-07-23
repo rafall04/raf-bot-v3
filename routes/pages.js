@@ -265,19 +265,30 @@ router.get('/owner', checkRole(['admin', 'owner', 'superadmin']), (req, res) => 
 });
 
 // Keuangan Pribadi - dompet PRIBADI pemilik yang menumpang instance ini.
-// SENGAJA BUKAN checkRole: di accounts.json role `owner` tidak ada dan kedua akun admin tak
-// terbedakan, jadi gate berbasis role akan membuka dompet pribadi untuk admin lain. Gate =
-// allowlist username `config.personalFinance.webUsers` (gagal-tertutup bila kosong/fitur OFF).
+// Otentikasinya BERDIRI SENDIRI (lib/personal-finance-auth): kredensial + rahasia sesi
+// terpisah, cookie `pf_session`. Sesi admin TIDAK cukup untuk masuk ke sini — itu memang
+// tujuannya: browser admin yang tertinggal terbuka tak boleh ikut membuka dompet.
 // WAJIB terdaftar SEBELUM handler generik '/:type' di bawah — handler itu merender
 // views/sb-admin/<type>.php TANPA cek role sama sekali. Halaman ini pun tidak menyisipkan
-// data dari server: seluruh angka diambil via API yang punya gate sendiri (berlapis).
+// data dari server: seluruh angka diambil via API yang punya penjaga sesi sendiri (berlapis).
+router.get('/keuangan-pribadi/login', (req, res) => {
+    const cfg = (global.config && global.config.personalFinance) || {};
+    if (cfg.enabled !== true) return res.status(404).render('sb-admin/404.php');
+
+    const pfAuth = require('../lib/personal-finance-auth');
+    // Sudah punya sesi sah → tak perlu form login lagi.
+    if (pfAuth.resolveSession(req)) return res.redirect('/keuangan-pribadi');
+    return res.render('sb-admin/keuangan-pribadi-login.php');
+});
+
 router.get('/keuangan-pribadi', (req, res) => {
-    const { isPersonalFinanceWebUser } = require('./admin-personal-finance-routes');
-    if (!isPersonalFinanceWebUser(req.user, global.config)) {
-        // 404, BUKAN 403 — dan itu disengaja. "Akses ditolak" memberi tahu admin lain bahwa
-        // ada halaman keuangan pribadi di sini; 404 tidak membocorkan apa pun.
-        return res.status(404).render('sb-admin/404.php');
-    }
+    const cfg = (global.config && global.config.personalFinance) || {};
+    // 404, BUKAN 403 — disengaja. "Akses ditolak" memberi tahu orang lain bahwa ada halaman
+    // keuangan pribadi di sini; 404 tidak membocorkan apa pun.
+    if (cfg.enabled !== true) return res.status(404).render('sb-admin/404.php');
+
+    const pfAuth = require('../lib/personal-finance-auth');
+    if (!pfAuth.resolveSession(req)) return res.redirect('/keuangan-pribadi/login');
     return res.render('sb-admin/keuangan-pribadi.php');
 });
 

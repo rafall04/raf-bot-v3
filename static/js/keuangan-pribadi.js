@@ -69,6 +69,12 @@
 
     function ambilJson(url, opsi) {
         return fetch(url, opsi).then(function (r) {
+            // Sesi dompet berumur 8 jam. Kalau habis di tengah pemakaian, jangan tampilkan
+            // "gagal memuat" yang membingungkan — antar langsung ke halaman masuk.
+            if (r.status === 401) {
+                window.location.href = "/keuangan-pribadi/login";
+                throw new Error("Sesi berakhir, mengarahkan ke halaman masuk…");
+            }
             return r.json().then(function (j) {
                 if (!r.ok || j.success === false) {
                     throw new Error(j.message || "Gagal memuat data (" + r.status + ").");
@@ -199,6 +205,29 @@
     });
 
     elBulan.addEventListener("change", muat);
+
+    var elLogout = document.getElementById("kp-logout");
+    if (elLogout) {
+        elLogout.addEventListener("click", function () {
+            fetch("/api/keuangan-pribadi/logout", { method: "POST" }).finally(function () {
+                window.location.href = "/keuangan-pribadi/login";
+            });
+        });
+    }
+
+    // Ingat apakah panel tutorial ditutup — supaya tak mengganggu setelah hafal, tapi tetap
+    // terbuka secara default pada kunjungan pertama.
+    var elTutorial = document.getElementById("kp-tutorial");
+    if (elTutorial) {
+        try {
+            if (window.localStorage.getItem("kpTutorialTertutup") === "1") elTutorial.open = false;
+            elTutorial.addEventListener("toggle", function () {
+                window.localStorage.setItem("kpTutorialTertutup", elTutorial.open ? "0" : "1");
+            });
+        } catch (_e) {
+            /* localStorage diblokir → biarkan default terbuka */
+        }
+    }
 
     elBulan.value = bulanIni();
     document.getElementById("kp-tanggal").value = hariIni();

@@ -303,6 +303,175 @@
     color: var(--color-danger);
 }
 
+/* ── Halaman login terpisah ────────────────────────────────────────────────── */
+.kp-login-body {
+    background: var(--canvas);
+    color: var(--ink);
+    min-height: 100vh;
+}
+
+.kp-login-wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+}
+
+.kp-login-card {
+    width: 100%;
+    max-width: 23rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 2rem 1.6rem 1.8rem;
+    text-align: center;
+}
+
+.kp-login-ikon {
+    font-size: 2rem;
+    line-height: 1;
+    margin-bottom: 0.6rem;
+}
+
+.kp-login-judul {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 0.3rem;
+}
+
+.kp-login-sub {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin: 0 0 1.3rem;
+}
+
+.kp-login-card .kp-field {
+    text-align: left;
+    margin-bottom: 0.8rem;
+}
+
+.kp-login-btn {
+    margin-top: 0.4rem;
+}
+
+/* ── Tombol keluar ─────────────────────────────────────────────────────────── */
+.kp-keluar {
+    margin-left: 0.6rem;
+    padding: 0.2rem 0.7rem;
+    font-size: 0.78rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.kp-keluar:hover {
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+}
+
+/* ── Panel tutorial ────────────────────────────────────────────────────────── */
+.kp-tutorial {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.kp-tutorial__judul {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+    list-style: none;
+}
+
+.kp-tutorial__judul::-webkit-details-marker {
+    display: none;
+}
+
+.kp-tutorial__judul::before {
+    content: "▸ ";
+    color: var(--muted);
+}
+
+.kp-tutorial[open] .kp-tutorial__judul::before {
+    content: "▾ ";
+}
+
+.kp-tutorial__isi {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    gap: 1.2rem;
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--line);
+}
+
+.kp-tutorial__kolom h3 {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 0 0 0.5rem;
+}
+
+.kp-tutorial__catatan {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin: 0 0 0.5rem;
+}
+
+.kp-cmd {
+    margin: 0;
+    font-size: 0.82rem;
+}
+
+.kp-cmd dt {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 0.12rem 0.4rem;
+    display: inline-block;
+    margin-top: 0.4rem;
+}
+
+.kp-cmd dd {
+    margin: 0.15rem 0 0;
+    color: var(--ink-soft);
+    font-size: 0.8rem;
+}
+
+.kp-tutorial__list {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+}
+
+.kp-tutorial__list li {
+    margin-bottom: 0.45rem;
+}
+
+.kp-tutorial__list b {
+    color: var(--ink);
+}
+
+.kp-tutorial code {
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 0.02rem 0.28rem;
+}
+
 @media (max-width: 575.98px) {
     .kp-stat__value {
         font-size: 1.15rem;

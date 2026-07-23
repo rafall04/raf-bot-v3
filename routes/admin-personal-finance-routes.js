@@ -1,20 +1,22 @@
 /**
  * Header Doc
- * Purpose: API domain KEUANGAN PRIBADI owner — daftar catatan, rekap periode, tambah, dan hapus.
- *          Dipakai halaman `/keuangan-pribadi`. Gate SENGAJA memakai allowlist username
- *          (`config.personalFinance.webUsers`), BUKAN role: di `accounts.json` role `owner`
- *          tidak ada dan kedua akun admin tak terbedakan, sehingga gate berbasis role akan
- *          membuka dompet pribadi untuk admin lain.
+ * Purpose: API domain KEUANGAN PRIBADI owner — login/logout sesi dompet, daftar catatan, rekap
+ *          periode, tambah, dan hapus. Dipakai halaman `/keuangan-pribadi`.
+ *          Otentikasinya BERDIRI SENDIRI (`lib/personal-finance-auth`): kredensial + rahasia
+ *          sesi terpisah, cookie `pf_session`. Sesi admin TIDAK memberi akses ke sini, dan
+ *          sebaliknya. Ini menggantikan gate allowlist-username yang lama, yang masih menumpang
+ *          sesi admin sehingga browser admin yang tertinggal terbuka = dompet ikut terbuka.
  * Caller: `routes/admin-router.js`.
- * Deps: `ensureAuthenticatedStaff` (dari deps), `lib/error-handler.asyncHandler`,
+ * Deps: `lib/personal-finance-auth`, `lib/error-handler.asyncHandler`,
  *       `repositories/personal-finance.repository`, `lib/personal-finance-service`.
- * MainFuncs: `registerAdminPersonalFinanceRoutes`, `isPersonalFinanceWebUser`.
- * SideEffects: Menulis/menghapus baris di `personal_finance.sqlite`.
+ * MainFuncs: `registerAdminPersonalFinanceRoutes`, `ensurePersonalFinanceSession`.
+ * SideEffects: Menulis/menghapus baris di `personal_finance.sqlite`; set/hapus cookie sesi.
  */
 "use strict";
 
 const { asyncHandler } = require("../lib/error-handler");
 const { parseAmount, todayStr, monthRange, buildReportData, inferCategory } = require("../lib/personal-finance-service");
+const pfAuth = require("../lib/personal-finance-auth");
 
 let repoSingleton = null;
 function getRepo() {
@@ -26,34 +28,86 @@ function getRepo() {
 }
 
 /**
- * Apakah user login ini boleh melihat dompet pribadi?
- * GAGAL-TERTUTUP: fitur mati, allowlist kosong, atau user tak dikenal ⇒ false.
- * Artinya sesudah deploy halaman ini 403 untuk SEMUA orang sampai owner mengisi
- * `webUsers` sendiri — menyalakannya keputusan ops, bukan efek samping deploy.
+ * Penjaga sesi dompet. GAGAL-TERTUTUP: fitur mati, kredensial belum disiapkan, cookie tak ada,
+ * tanda tangan salah, kedaluwarsa, atau token bukan ber-scope dompet ⇒ 401.
+ * Token admin yang sah pun ditolak di sini — itu memang tujuannya.
  */
-function isPersonalFinanceWebUser(user, config) {
-    const cfg = (config && config.personalFinance) || {};
-    if (cfg.enabled !== true) return false;
-
-    const daftar = (cfg.webUsers || []).map((v) => String(v || "").trim().toLowerCase()).filter(Boolean);
-    if (!daftar.length) return false;
-
-    const username = String((user && user.username) || "").trim().toLowerCase();
-    return Boolean(username) && daftar.includes(username);
+function ensurePersonalFinanceSession(getConfig) {
+    return (req, res, next) => {
+        const cfg = (getConfig() || {}).personalFinance || {};
+        if (cfg.enabled !== true) {
+            return res.status(404).json({ success: false, message: "Tidak ditemukan." });
+        }
+        const sesi = pfAuth.resolveSession(req);
+        if (!sesi) {
+            return res.status(401).json({ success: false, message: "Sesi tidak sah. Silakan masuk kembali." });
+        }
+        req.pfUser = sesi;
+        return next();
+    };
 }
 
 function registerAdminPersonalFinanceRoutes(router, deps = {}) {
-    const ensureAuthenticatedStaff = deps.ensureAuthenticatedStaff || ((_req, _res, next) => next());
     const getConfig = deps.getConfig || (() => global.config);
+    const gate = ensurePersonalFinanceSession(getConfig);
 
-    function ensureOwner(req, res, next) {
-        if (!isPersonalFinanceWebUser(req.user, getConfig())) {
-            return res.status(403).json({ success: false, message: "Halaman ini bukan bagian dari akses Anda." });
-        }
-        return next();
-    }
+    // ── Otentikasi dompet (TANPA gate — ini pintunya) ───────────────────────────
+    router.get(
+        "/api/keuangan-pribadi/sesi",
+        asyncHandler(async (req, res) => {
+            const cfg = (getConfig() || {}).personalFinance || {};
+            if (cfg.enabled !== true) return res.status(404).json({ success: false });
+            const sesi = pfAuth.resolveSession(req);
+            res.json({
+                success: true,
+                data: { masuk: Boolean(sesi), username: sesi ? sesi.username : null, siap: pfAuth.hasCredential() }
+            });
+        })
+    );
 
-    const gate = [ensureAuthenticatedStaff, ensureOwner];
+    router.post(
+        "/api/keuangan-pribadi/login",
+        asyncHandler(async (req, res) => {
+            const cfg = (getConfig() || {}).personalFinance || {};
+            if (cfg.enabled !== true) return res.status(404).json({ success: false, message: "Tidak ditemukan." });
+
+            if (!pfAuth.hasCredential()) {
+                return res.status(503).json({
+                    success: false,
+                    message: "Kredensial dompet belum disiapkan. Jalankan scripts/set-keuangan-pribadi-password.js."
+                });
+            }
+
+            const { username, password } = req.body || {};
+            const sah = await pfAuth.verifyCredential(username, password);
+            if (!sah) {
+                // Pesan seragam — jangan bocorkan mana yang salah, username atau sandi.
+                return res.status(401).json({ success: false, message: "Nama pengguna atau sandi salah." });
+            }
+
+            const token = pfAuth.issueSessionToken(String(username).trim().toLowerCase());
+            res.cookie(pfAuth.COOKIE_NAME, token, {
+                httpOnly: true,
+                sameSite: "lax",
+                path: "/",
+                maxAge: 8 * 60 * 60 * 1000
+            });
+            res.json({ success: true });
+        })
+    );
+
+    router.post("/api/keuangan-pribadi/logout", (req, res) => {
+        res.cookie(pfAuth.COOKIE_NAME, "", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 0 });
+        res.json({ success: true });
+    });
+
+    // ── Penjaga MENYELURUH untuk sisa endpoint dompet ───────────────────────────
+    // Dipasang di level PREFIX, sesudah route login/logout/sesi di atas dan sebelum semua
+    // route data di bawah. Tujuannya: endpoint dompet yang ditambahkan nanti ikut terjaga
+    // walau penulisnya lupa menyisipkan `gate` — karena seluruh `/api/keuangan-pribadi/*`
+    // sudah "publik" bagi middleware admin (PUBLIC_PATHS), lupa satu gate = data pribadi
+    // terbuka tanpa login. Gate per-route di bawah tetap dipertahankan (berlapis).
+    router.use("/api/keuangan-pribadi", gate);
 
     // Rentang default = bulan berjalan; `?from=&to=` (YYYY-MM-DD) atau `?month=YYYY-MM`.
     function resolveRange(query = {}) {
@@ -152,4 +206,4 @@ function registerAdminPersonalFinanceRoutes(router, deps = {}) {
     );
 }
 
-module.exports = { registerAdminPersonalFinanceRoutes, isPersonalFinanceWebUser };
+module.exports = { registerAdminPersonalFinanceRoutes, ensurePersonalFinanceSession };

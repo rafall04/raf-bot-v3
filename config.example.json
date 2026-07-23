@@ -516,11 +516,10 @@
     "secretKey": "ISI_TURNSTILE_SECRET_KEY"
   },
   "personalFinance": {
-    "_catatan": "Dompet PRIBADI pemilik yang menumpang nomor bot. Terpisah total dari saldo pelanggan (DB sendiri: personal_finance.sqlite). Kepemilikan sengaja TIDAK memakai ownerNumber/role admin supaya menambah admin bisnis tak ikut membuka dompet pribadi.",
+    "_catatan": "Dompet PRIBADI pemilik yang menumpang nomor bot. Terpisah total dari saldo pelanggan (DB sendiri: personal_finance.sqlite). Kepemilikan WA sengaja TIDAK memakai ownerNumber/role admin. Halaman webnya punya LOGIN TERPISAH sendiri (database/personal_finance_auth.json, disiapkan lewat scripts/set-keuangan-pribadi-password.js) - sesi admin tidak memberi akses.",
     "enabled": false,
     "ownerJids": ["62xxxxxxxxxx@s.whatsapp.net"],
     "ownerLids": [],
-    "webUsers": [],
     "categories": {}
   }
 }

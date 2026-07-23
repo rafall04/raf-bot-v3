@@ -5418,22 +5418,22 @@
   "pf_bantuan": {
     "name": "Keuangan Pribadi - Bantuan",
     "category": "personal_finance",
-    "template": "💰 *CATATAN KEUANGAN PRIBADI*\n\nCatat cepat:\n• *#U keluar 50rb bensin*\n• *#U masuk 2jt gaji*\n\nLihat rekap:\n• *#U lapor* — hari ini\n• *#U bulan* — bulan ini\n• *#U bulan 2026-06* — bulan tertentu\n\nSalah catat:\n• *#U hapus 12* — hapus catatan nomor 12\n\nNominal bebas: 50rb, 2jt, 1,5jt, 50.000."
+    "template": "💰 *CATATAN KEUANGAN PRIBADI*\n\n*Mencatat* — langsung ketik, tanpa kode apa pun:\n• *keluar 50rb bensin*\n• *masuk 2jt gaji*\n\n*Melihat* — diawali kata *uang*:\n• *uang* — rekap hari ini\n• *uang bulan* — rekap bulan ini\n• *uang bulan 2026-06* — bulan tertentu\n\n*Salah catat:*\n• *uang hapus 12* — hapus catatan nomor 12\n\nNominal bebas: *50rb*, *2jt*, *1,5jt*, *50.000*.\nKategori ditebak sendiri dari catatanmu.\n\n_Ketik *uang bantuan* untuk membuka panduan ini lagi._"
   },
   "pf_tidak_dikenali": {
     "name": "Keuangan Pribadi - Perintah Tidak Dikenali",
     "category": "personal_finance",
-    "template": "⚠️ ${alasan}\n\nContoh: *#U keluar 50rb bensin*\nKetik *#U* untuk daftar perintah."
+    "template": "⚠️ ${alasan}\n\nContoh: *keluar 50rb bensin*\nKetik *uang bantuan* untuk daftar perintah."
   },
   "pf_catat_keluar": {
     "name": "Keuangan Pribadi - Catat Pengeluaran",
     "category": "personal_finance",
-    "template": "✅ Tercatat *keluar* ${nominal}\n📂 Kategori: ${kategori}\n📝 ${catatan}\n\nHari ini: masuk ${masukRp} · keluar ${keluarRp} · selisih ${selisihRp}\n_Salah? balas *#U hapus ${id}*_"
+    "template": "✅ Tercatat *keluar* ${nominal}\n📂 Kategori: ${kategori}\n📝 ${catatan}\n\nHari ini: masuk ${masukRp} · keluar ${keluarRp} · selisih ${selisihRp}\n_Salah? balas *uang hapus ${id}*_"
   },
   "pf_catat_masuk": {
     "name": "Keuangan Pribadi - Catat Pemasukan",
     "category": "personal_finance",
-    "template": "✅ Tercatat *masuk* ${nominal}\n📂 Kategori: ${kategori}\n📝 ${catatan}\n\nHari ini: masuk ${masukRp} · keluar ${keluarRp} · selisih ${selisihRp}\n_Salah? balas *#U hapus ${id}*_"
+    "template": "✅ Tercatat *masuk* ${nominal}\n📂 Kategori: ${kategori}\n📝 ${catatan}\n\nHari ini: masuk ${masukRp} · keluar ${keluarRp} · selisih ${selisihRp}\n_Salah? balas *uang hapus ${id}*_"
   },
   "pf_hapus_ok": {
     "name": "Keuangan Pribadi - Hapus Berhasil",

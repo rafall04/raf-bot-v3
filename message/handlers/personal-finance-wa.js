@@ -18,11 +18,19 @@ const {
     formatRupiah,
     todayStr,
     monthRange,
-    buildReportData
+    buildReportData,
+    TRIGGER_WORDS
 } = require("../../lib/personal-finance-service");
 
-// `#` wajib, sama seperti #PSB/#ODP — supaya huruf "u" dalam kalimat biasa tak pernah memicu.
-const TRIGGER_RE = /^\s*#u\b/i;
+/**
+ * Pemicu TANPA prefix: `keluar …`, `masuk …`, atau kata payung `uang/duit/kas/dompet`.
+ * Prefix `#U` DIHAPUS — terlalu ribet untuk dipakai beberapa kali sehari.
+ *
+ * Boleh telanjang karena gerbang di `message/raf.js` memeriksa IDENTITAS lebih dulu: pesan
+ * pelanggan tak pernah sampai ke sini walau kebetulan berbunyi "masuk". Daftar katanya sengaja
+ * sempit (lihat TRIGGER_WORDS) supaya percakapan bisnis pemilik sendiri tak ikut tertelan.
+ */
+const TRIGGER_RE = new RegExp(`^\\s*(?:${TRIGGER_WORDS.join("|")})\\b`, "i");
 
 let repoSingleton = null;
 function getRepo(override) {
@@ -75,16 +83,18 @@ function resolvePersonalFinanceOwner({ participant, plainPhone, config } = {}) {
 
 const HELP_FALLBACK =
     "💰 *CATATAN KEUANGAN PRIBADI*\n\n" +
-    "Catat cepat:\n" +
-    "• *#U keluar 50rb bensin*\n" +
-    "• *#U masuk 2jt gaji*\n\n" +
-    "Lihat rekap:\n" +
-    "• *#U lapor* — hari ini\n" +
-    "• *#U bulan* — bulan ini\n" +
-    "• *#U bulan 2026-06* — bulan tertentu\n\n" +
-    "Salah catat:\n" +
-    "• *#U hapus 12* — hapus catatan nomor 12\n\n" +
-    "Nominal bebas: 50rb, 2jt, 1,5jt, 50.000.";
+    "*Mencatat* — langsung ketik, tanpa kode apa pun:\n" +
+    "• *keluar 50rb bensin*\n" +
+    "• *masuk 2jt gaji*\n\n" +
+    "*Melihat* — diawali kata *uang*:\n" +
+    "• *uang* — rekap hari ini\n" +
+    "• *uang bulan* — rekap bulan ini\n" +
+    "• *uang bulan 2026-06* — bulan tertentu\n\n" +
+    "*Salah catat:*\n" +
+    "• *uang hapus 12* — hapus catatan nomor 12\n\n" +
+    "Nominal bebas: *50rb*, *2jt*, *1,5jt*, *50.000*.\n" +
+    "Kategori ditebak sendiri dari catatanmu.\n\n" +
+    "_Ketik *uang bantuan* untuk membuka panduan ini lagi._";
 
 /**
  * Jalankan satu perintah `#U`. Pemanggil WAJIB sudah memastikan pengirim = pemilik.
@@ -107,12 +117,13 @@ async function handlePersonalFinanceCommand(context = {}) {
         const alasan = {
             nominal_tidak_terbaca: "Nominalnya tidak terbaca.",
             jenis_tidak_dikenal: "Awali dengan *keluar* atau *masuk*.",
-            id_tidak_valid: "Nomor catatan tidak valid."
+            id_tidak_valid: "Nomor catatan tidak valid — lihat nomornya di *uang*.",
+            kosong: "Perintahnya kosong."
         }[perintah.reason] || "Perintah tidak dikenali.";
         await reply(
             renderResponseTemplate(
                 "pf_tidak_dikenali",
-                `⚠️ ${alasan}\n\nContoh: *#U keluar 50rb bensin*\nKetik *#U* untuk daftar perintah.`,
+                `⚠️ ${alasan}\n\nContoh: *keluar 50rb bensin*\nKetik *uang bantuan* untuk daftar perintah.`,
                 { alasan }
             )
         );
@@ -134,7 +145,7 @@ async function handlePersonalFinanceCommand(context = {}) {
                 `✅ Tercatat *${perintah.kind === "in" ? "masuk" : "keluar"}* ` +
                     `\${nominal}\n📂 Kategori: \${kategori}\n📝 \${catatan}\n\n` +
                     `Hari ini: masuk \${masukRp} · keluar \${keluarRp} · selisih \${selisihRp}\n` +
-                    `_Salah? balas *#U hapus \${id}*_`,
+                    `_Salah? balas *uang hapus \${id}*_`,
                 {
                     id: entry.id,
                     nominal: formatRupiah(entry.amount),

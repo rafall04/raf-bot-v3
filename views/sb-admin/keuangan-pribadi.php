@@ -38,10 +38,44 @@
             <div class="kp-periode mt-2 mt-sm-0">
               <label for="kp-bulan" class="mb-0 mr-2 small text-muted">Periode</label>
               <input type="month" id="kp-bulan" class="form-control form-control-sm kp-input-bulan">
+              <button type="button" id="kp-logout" class="kp-keluar" title="Keluar dari dompet">Keluar</button>
             </div>
           </div>
 
           <div id="kp-alert" class="kp-alert" hidden></div>
+
+          <!-- Tutorial: sengaja di ATAS dan terbuka secara default. Fitur ini dipakai
+               sesekali, jadi panduannya harus terlihat tanpa dicari. Bisa ditutup, dan
+               pilihannya diingat di localStorage. -->
+          <details class="kp-tutorial" id="kp-tutorial" open>
+            <summary class="kp-tutorial__judul">📖 Cara pakai — lewat WhatsApp &amp; lewat halaman ini</summary>
+            <div class="kp-tutorial__isi">
+              <div class="kp-tutorial__kolom">
+                <h3>Lewat WhatsApp</h3>
+                <p class="kp-tutorial__catatan">Kirim ke nomor bot. Tak ada kode/awalan apa pun.</p>
+                <dl class="kp-cmd">
+                  <dt>keluar 50rb bensin</dt><dd>catat pengeluaran Rp50.000</dd>
+                  <dt>masuk 2jt gaji</dt><dd>catat pemasukan Rp2.000.000</dd>
+                  <dt>uang</dt><dd>rekap hari ini</dd>
+                  <dt>uang bulan</dt><dd>rekap bulan ini</dd>
+                  <dt>uang bulan 2026-06</dt><dd>rekap bulan tertentu</dd>
+                  <dt>uang hapus 12</dt><dd>hapus catatan nomor 12</dd>
+                  <dt>uang bantuan</dt><dd>tampilkan panduan ini di WhatsApp</dd>
+                </dl>
+              </div>
+              <div class="kp-tutorial__kolom">
+                <h3>Hal yang sering ditanya</h3>
+                <ul class="kp-tutorial__list">
+                  <li><b>Format nominal bebas:</b> <code>50rb</code>, <code>50k</code>, <code>2jt</code>, <code>1,5jt</code>, <code>50.000</code> — semuanya dimengerti.</li>
+                  <li><b>Kategori ditebak sendiri</b> dari catatan (bensin&nbsp;→&nbsp;transport, kopi&nbsp;→&nbsp;makan, listrik&nbsp;→&nbsp;tagihan). Kalau salah tebak, hapus lalu catat ulang dengan kata lain.</li>
+                  <li><b>Salah catat?</b> Nomor catatan muncul di balasan WhatsApp dan di tabel bawah — pakai <code>uang hapus &lt;nomor&gt;</code> atau tombol × di tabel.</li>
+                  <li><b>Hanya nomor Anda</b> yang bisa memakai perintah ini. Pelanggan yang kebetulan mengetik kata sama tetap dilayani seperti biasa.</li>
+                  <li><b>Catatan ini terpisah</b> dari saldo pelanggan dan pembukuan ISP — tidak pernah tercampur, dan tidak ikut terkirim ke grup backup.</li>
+                  <li><b>Login halaman ini terpisah</b> dari akun admin. Keluar dari admin tidak otomatis menutup dompet, dan sebaliknya — pakai tombol <b>Keluar</b> di atas.</li>
+                </ul>
+              </div>
+            </div>
+          </details>
 
           <!-- Ringkasan periode -->
           <div class="kp-stats" id="kp-stats">
@@ -92,7 +126,7 @@
                   </div>
                 </div>
                 <button type="submit" class="kp-btn" id="kp-submit">Simpan catatan</button>
-                <p class="kp-hint">Kategori ditebak otomatis dari catatan. Di WhatsApp: <code>#U keluar 50rb bensin</code></p>
+                <p class="kp-hint">Kategori ditebak otomatis dari catatan. Lewat WhatsApp cukup ketik: <code>keluar 50rb bensin</code></p>
               </form>
             </section>
 

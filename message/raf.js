@@ -632,16 +632,23 @@ module.exports = async (raf, msg, m, options = {}) => {
             console.error('[ASET_TRIGGER_ERROR]', asetErr.message);
         }
 
-        // ── Perintah KEUANGAN PRIBADI owner — teks "#U ..." ──
+        // ── Perintah KEUANGAN PRIBADI owner — "keluar/masuk <nominal> ..." atau "uang ..." ──
         // Dompet PRIBADI pemilik yang menumpang nomor bot bisnis. Terisolasi penuh dari saldo
         // pelanggan: DB sendiri (personal_finance.sqlite), tak menyentuh lib/saldo, tak menulis
         // activity_logs. Gate: config `personalFinance.enabled` (default OFF) + daftar pemilik
         // TERPISAH (`personalFinance.ownerJids`, bukan `ownerNumber`) — supaya menambah admin
         // bisnis tak pernah ikut membuka dompet pribadi.
         //
-        // BEDA SENGAJA dari gerbang aset di atas: bukan-pemilik yang mengetik "#U" TIDAK diberi
-        // tahu apa pun, dia jatuh ke alur normal. Membalas "khusus pemilik" akan membocorkan ke
-        // pelanggan bahwa ada dompet pribadi di nomor ini — persis yang harus dihindari.
+        // TANPA prefix (dulu `#U`, dibuang karena ribet untuk pemakaian harian). Boleh telanjang
+        // KARENA urutannya: cocok-kata → lalu cek IDENTITAS, dan hanya pemilik yang diproses.
+        // Pesan pelanggan yang kebetulan berbunyi "masuk" tetap jatuh ke alur normal.
+        //
+        // Letaknya SESUDAH routing conversation-state (di atas), jadi kalau pemilik sedang di
+        // tengah wizard PSB/aset, kata "keluar" tetap milik wizard itu — bukan dibajak dompet.
+        //
+        // BEDA SENGAJA dari gerbang aset di atas: bukan-pemilik TIDAK diberi tahu apa pun, dia
+        // jatuh ke alur normal. Membalas "khusus pemilik" akan membocorkan ke pelanggan bahwa
+        // ada dompet pribadi di nomor ini — persis yang harus dihindari.
         // NON-THROWING: gagal di sini tak boleh menjatuhkan pesan lain.
         try {
             const pfCfg = (global.config && global.config.personalFinance) || {};

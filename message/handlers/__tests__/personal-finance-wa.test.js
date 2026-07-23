@@ -16,15 +16,25 @@ const { resolvePersonalFinanceOwner, handlePersonalFinanceCommand, TRIGGER_RE } 
 const OWNER = "6281234567890@s.whatsapp.net";
 const cfgAktif = { personalFinance: { enabled: true, ownerJids: [OWNER] } };
 
-describe("TRIGGER_RE", () => {
-    test("hanya menangkap perintah ber-#U di awal", () => {
-        expect(TRIGGER_RE.test("#U keluar 50rb")).toBe(true);
-        expect(TRIGGER_RE.test("#u lapor")).toBe(true);
-        expect(TRIGGER_RE.test("  #U")).toBe(true);
-        // Kalimat pelanggan biasa tak boleh memicu.
-        expect(TRIGGER_RE.test("untuk apa ya")).toBe(false);
-        expect(TRIGGER_RE.test("wifi saya mati")).toBe(false);
-        expect(TRIGGER_RE.test("bayar #utang")).toBe(false);
+describe("TRIGGER_RE — tanpa prefix", () => {
+    test("menangkap perintah dompet di awal pesan", () => {
+        for (const t of ["keluar 50rb bensin", "masuk 2jt gaji", "uang", "uang bulan", "  Uang Bantuan", "KELUAR 10rb"]) {
+            expect(TRIGGER_RE.test(t)).toBe(true);
+        }
+    });
+
+    test("kalimat pelanggan biasa TIDAK memicu", () => {
+        for (const t of [
+            "wifi saya mati",
+            "untuk apa ya",
+            "bayar tagihan bulan ini",
+            "beli voucher 5rb",
+            "lapor gangguan dong",
+            "minta uang kembali", // kata pemicu di TENGAH kalimat tak boleh menghitung
+            "keluarga saya banyak" // "keluar" hanya sebagai awalan kata → \b mencegahnya
+        ]) {
+            expect(TRIGGER_RE.test(t)).toBe(false);
+        }
     });
 });
 
@@ -99,7 +109,7 @@ describe("handlePersonalFinanceCommand", () => {
         const repo = buatRepo();
         const reply = jest.fn();
         const hasil = await handlePersonalFinanceCommand({
-            chats: "#U keluar 50rb bensin",
+            chats: "keluar 50rb bensin",
             reply,
             config: cfgAktif,
             repository: repo
@@ -116,25 +126,27 @@ describe("handlePersonalFinanceCommand", () => {
     test("nominal ngawur TIDAK pernah tersimpan", async () => {
         const repo = buatRepo();
         const reply = jest.fn();
-        await handlePersonalFinanceCommand({ chats: "#U keluar banyak", reply, config: cfgAktif, repository: repo });
+        await handlePersonalFinanceCommand({ chats: "keluar banyak", reply, config: cfgAktif, repository: repo });
 
         expect(repo.addEntry).not.toHaveBeenCalled();
         expect(reply).toHaveBeenCalledTimes(1);
     });
 
-    test("#U polos → kartu bantuan, tanpa menulis apa pun", async () => {
+    test("`uang bantuan` → kartu bantuan, tanpa menulis apa pun", async () => {
         const repo = buatRepo();
         const reply = jest.fn();
-        await handlePersonalFinanceCommand({ chats: "#U", reply, config: cfgAktif, repository: repo });
+        await handlePersonalFinanceCommand({ chats: "uang bantuan", reply, config: cfgAktif, repository: repo });
 
         expect(repo.addEntry).not.toHaveBeenCalled();
-        expect(String(reply.mock.calls[0][0])).toMatch(/#U keluar/i);
+        const teks = String(reply.mock.calls[0][0]);
+        expect(teks).toMatch(/keluar 50rb bensin/i);
+        expect(teks).not.toMatch(/#U/); // prefix lama tak boleh muncul lagi di panduan
     });
 
     test("hapus catatan memanggil repository dan mengonfirmasi", async () => {
         const repo = buatRepo();
         const reply = jest.fn();
-        await handlePersonalFinanceCommand({ chats: "#U hapus 1", reply, config: cfgAktif, repository: repo });
+        await handlePersonalFinanceCommand({ chats: "uang hapus 1", reply, config: cfgAktif, repository: repo });
 
         expect(repo.deleteEntry).toHaveBeenCalledWith(1);
         expect(String(reply.mock.calls[0][0])).toMatch(/1/);
@@ -143,9 +155,18 @@ describe("handlePersonalFinanceCommand", () => {
     test("laporan bulanan tidak menulis apa pun", async () => {
         const repo = buatRepo();
         const reply = jest.fn();
-        await handlePersonalFinanceCommand({ chats: "#U bulan 2026-06", reply, config: cfgAktif, repository: repo });
+        await handlePersonalFinanceCommand({ chats: "uang bulan 2026-06", reply, config: cfgAktif, repository: repo });
 
         expect(repo.addEntry).not.toHaveBeenCalled();
         expect(repo.summary).toHaveBeenCalledWith({ from: "2026-06-01", to: "2026-06-30" });
+    });
+
+    test("rekap hari ini lewat `uang` polos", async () => {
+        const repo = buatRepo();
+        const reply = jest.fn();
+        await handlePersonalFinanceCommand({ chats: "uang", reply, config: cfgAktif, repository: repo });
+
+        expect(repo.addEntry).not.toHaveBeenCalled();
+        expect(repo.listEntries).toHaveBeenCalled();
     });
 });

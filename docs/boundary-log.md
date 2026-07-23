@@ -940,3 +940,14 @@
 - **Status path lama:** tidak ada — domain baru, tak menggantikan apa pun.
 - **Tes:** 47 (parser nominal/kategori/perintah, gate kepemilikan termasuk penolakan `@lid` tak terdaftar + penolakan `ownerNumber`, repository CRUD/rekap/batas periode/tolak nominal ≤0).
 - **PELAJARAN:** `routes/pages.js` punya handler generik `/:type` yang merender `views/sb-admin/<type>.php` **tanpa cek role sama sekali** — halaman baru yang sensitif WAJIB terdaftar eksplisit di atasnya DAN tak menyisipkan data dari server.
+
+<a id="b176"></a>
+### Feat 2026-07-23 (Keuangan pribadi: perintah tanpa prefix + login halaman TERPISAH dari akun admin)
+
+- **Owner baru:** `lib/personal-finance-auth.js` (kredensial + rahasia sesi SENDIRI di `database/personal_finance_auth.json`, bcrypt 10, cookie `pf_session`) + `scripts/set-keuangan-pribadi-password.js` (bootstrap CLI) + `views/sb-admin/keuangan-pribadi-login.php`.
+- **Status path lama:** gate allowlist `config.personalFinance.webUsers` **DIHAPUS** (ikut dibuang dari config.example) — dulu menumpang sesi admin, jadi browser admin yang tertinggal terbuka = dompet ikut terbuka. Token admin kini DITOLAK dompet dan sebaliknya (rahasia tanda tangan beda + klaim `scope`).
+- **Perintah WA:** prefix `#U` **DIBUANG** (terlalu ribet untuk pemakaian harian). Kini tanpa prefix: `keluar 50rb bensin` / `masuk 2jt gaji`, payung `uang` (`uang`, `uang bulan [YYYY-MM]`, `uang hapus <id>`, `uang bantuan`). Aman telanjang karena gerbangnya cek IDENTITAS lebih dulu; `TRIGGER_WORDS` sengaja sempit — `bayar`/`beli`/`lapor`/`k`/`m` TIDAK memicu supaya percakapan bisnis pemilik tak tertelan.
+- **PUBLIC_PATHS:** `/keuangan-pribadi` + `/api/keuangan-pribadi` ditambahkan ke `lib/http-auth-bootstrap.js` — "publik" HANYA terhadap middleware sesi admin, persis pola `/bayar`; otorisasi asli di handler. Penjaga dipasang di level prefix (`router.use`) supaya endpoint baru tak lolos gara-gara lupa gate.
+- **Tutorial:** panel `<details>` terbuka-default di `/keuangan-pribadi` (daftar perintah WA + FAQ), pilihan buka/tutup diingat localStorage; di WA lewat `uang bantuan`.
+- **Tes:** 68 total (+21) — termasuk token admin ditolak dompet, token dompet tak sah dgn rahasia admin, scope palsu ditolak, cookie `token` admin tak terbaca sebagai `pf_session`, dan `TRIGGER_WORDS` tak memuat kata bisnis ambigu.
+- **PELAJARAN:** `PUBLIC_PATHS` cocok-prefix (`req.path.startsWith(path + "/")`) — menambah entri induk membuka SEMUA anaknya sekaligus, jadi hanya boleh untuk subtree yang punya penjaga sendiri di level prefix.
