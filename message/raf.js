@@ -201,6 +201,41 @@ module.exports = async (raf, msg, m, options = {}) => {
     // yang ter-link ke akun bot (HP admin). Skip semuanya supaya chat manual admin aman.
     // Sebelum skip, catat jejaknya per chat — dipakai fallback anti-diam agar bot tidak
     // menyela chat yang sedang ditangani admin (lihat customer-fallback-handler).
+    // ── Perintah dompet di GRUP DOMPET yang datang sebagai `fromMe` ──────────────
+    // Kasus nyata: pemilik mengetik dari HP yang MEMEGANG akun bot (server hanya perangkat
+    // tertaut), sehingga WhatsApp menandai pesannya `fromMe` dan guard di bawah membuangnya
+    // sebelum apa pun diproses — dompet tampak "diam total" tanpa satu pun baris log.
+    // Ditaruh SEBELUM guard fromMe, dan sengaja SEMPIT: hanya grup dompet yang dikonfigurasi
+    // DAN teks yang cocok pemicu dompet. Balasan bot sendiri tak pernah diawali kata pemicu
+    // ("✅ Tercatat…", "📅 LAPORAN…"), jadi tak mungkin memicu dirinya sendiri.
+    try {
+        const pfCfgFm = (global.config && global.config.personalFinance) || {};
+        const jidMasuk = msg.key?.remoteJid || '';
+        if (pfCfgFm.enabled === true && pfCfgFm.groupId && jidMasuk === pfCfgFm.groupId) {
+            const teksFm = msg.message?.conversation
+                || msg.message?.extendedTextMessage?.text
+                || '';
+            // Jejak SETIAP pesan di grup dompet — tanpa ini kegagalan di sini tak berjejak.
+            console.warn('[PF_GRUP_MASUK]',
+                'fromMe=', !!msg.key?.fromMe,
+                'participant=', msg.key?.participant || '-',
+                'participantAlt=', msg.key?.participantAlt || '-',
+                'teks=', JSON.stringify(String(teksFm).slice(0, 40)));
+
+            const pfFm = require('./handlers/personal-finance-wa');
+            if (msg.key?.fromMe && pfFm.TRIGGER_RE.test(String(teksFm))) {
+                await pfFm.handlePersonalFinanceCommand({
+                    chats: teksFm,
+                    reply: (t) => sendReply({ recipient: jidMasuk, text: t, quoted: msg }),
+                    config: global.config
+                });
+                return;
+            }
+        }
+    } catch (pfFmErr) {
+        console.error('[PF_GRUP_FROMME_ERROR]', pfFmErr.message);
+    }
+
     if (msg.key?.fromMe) {
         noteAdminOutbound(msg.key?.remoteJid);
         return;
