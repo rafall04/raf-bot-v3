@@ -5418,7 +5418,7 @@
   "pf_bantuan": {
     "name": "Keuangan Pribadi - Bantuan",
     "category": "personal_finance",
-    "template": "💰 *CATATAN KEUANGAN PRIBADI*\n\n*Mencatat* — langsung ketik, tanpa kode apa pun:\n• *keluar 50rb bensin*\n• *masuk 2jt gaji*\n\n*Melihat* — diawali kata *uang*:\n• *uang* — rekap hari ini\n• *uang bulan* — rekap bulan ini\n• *uang bulan 2026-06* — bulan tertentu\n\n*Salah catat:*\n• *uang hapus 12* — hapus catatan nomor 12\n\nNominal bebas: *50rb*, *2jt*, *1,5jt*, *50.000*.\nKategori ditebak sendiri dari catatanmu.\n\n_Ketik *uang bantuan* untuk membuka panduan ini lagi._"
+    "template": "💰 *CATATAN KEUANGAN PRIBADI*\n\n*Mencatat* — langsung ketik, tanpa kode apa pun:\n• *keluar 50rb bensin*\n• *masuk 2jt gaji*\n\n*Melihat* — diawali kata *uang*:\n• *uang* — rekap hari ini\n• *uang bulan* — rekap bulan ini\n• *uang minggu* — minggu ini (Sen–Min)\n• *uang minggu lalu*\n• *uang kemarin*\n• *uang bulan 2026-06* — bulan tertentu\n• *uang bulan lalu*\n\n*Salah catat:*\n• *uang hapus 12* — hapus catatan nomor 12\n\nNominal bebas: *50rb*, *2jt*, *1,5jt*, *50.000*.\nKategori ditebak sendiri dari catatanmu.\n\n_Ketik *uang bantuan* untuk membuka panduan ini lagi._"
   },
   "pf_tidak_dikenali": {
     "name": "Keuangan Pribadi - Perintah Tidak Dikenali",
@@ -5448,11 +5448,16 @@
   "pf_laporan_harian": {
     "name": "Keuangan Pribadi - Laporan Harian",
     "category": "personal_finance",
-    "template": "📅 *LAPORAN HARI INI* (${tanggal})\n\n⬇️ Masuk: ${masukRp}\n⬆️ Keluar: ${keluarRp}\n💵 Selisih: ${selisihRp}\n\n*Catatan:*\n${daftarCatatan}"
+    "template": "📅 *LAPORAN ${judul}* (${rentang})\n\n⬇️ Masuk: ${masukRp}\n⬆️ Keluar: ${keluarRp}\n💵 Selisih: ${selisihRp}\n📊 ${jumlahCatatan} catatan · rata-rata ${rataKeluarRp}/hari\n${bandingRingkas}\n\n*Pengeluaran per kategori:*\n${rincianKategoriPagu}\n\n*Catatan:*\n${daftarCatatan}"
   },
   "pf_laporan_bulanan": {
     "name": "Keuangan Pribadi - Laporan Bulanan",
     "category": "personal_finance",
-    "template": "🗓️ *LAPORAN BULAN ${bulan}*\n\n⬇️ Masuk: ${masukRp}\n⬆️ Keluar: ${keluarRp}\n💵 Selisih: ${selisihRp}\n📊 ${jumlahCatatan} catatan\n\n*Pengeluaran per kategori:*\n${rincianKategori}"
+    "template": "🗓️ *LAPORAN ${judul}*\n${rentang}\n\n⬇️ Masuk: ${masukRp}\n⬆️ Keluar: ${keluarRp}\n💵 Selisih: ${selisihRp}\n📊 ${jumlahCatatan} catatan · rata-rata ${rataKeluarRp}/hari\n🔥 Terboros: ${hariTerborosTeks}\n${bandingRingkas}\n\n*Pengeluaran per kategori:*\n${rincianKategoriPagu}"
+  },
+  "pf_laporan_mingguan": {
+    "name": "Keuangan Pribadi - Laporan Mingguan",
+    "category": "personal_finance",
+    "template": "🗓️ *LAPORAN ${judul}*\n${rentang}\n\n⬇️ Masuk: ${masukRp}\n⬆️ Keluar: ${keluarRp}\n💵 Selisih: ${selisihRp}\n📊 ${jumlahCatatan} catatan · rata-rata ${rataKeluarRp}/hari\n🔥 Terboros: ${hariTerborosTeks}\n${bandingRingkas}\n\n*Pengeluaran per kategori:*\n${rincianKategoriPagu}\n\n*Catatan:*\n${daftarCatatan}"
   }
 }

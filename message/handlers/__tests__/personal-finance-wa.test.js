@@ -99,6 +99,10 @@ describe("handlePersonalFinanceCommand", () => {
                 return row;
             }),
             summary: jest.fn(async () => ({ masuk: 0, keluar: 50000, selisih: -50000, jumlahCatatan: 1, perKategori: [] })),
+            // Laporan kini juga menarik pagu + total harian (untuk status pagu, rata-rata,
+            // dan hari terboros). Tiruan wajib menyediakannya, kalau tidak handler melempar.
+            listBudgets: jest.fn(async () => ({})),
+            dailyTotals: jest.fn(async () => []),
             listEntries: jest.fn(async () => []),
             getEntry: jest.fn(async () => ({ id: 1, amount: 50000, note: "bensin", category: "transport" })),
             deleteEntry: jest.fn(async () => ({ deleted: true }))
@@ -159,6 +163,36 @@ describe("handlePersonalFinanceCommand", () => {
 
         expect(repo.addEntry).not.toHaveBeenCalled();
         expect(repo.summary).toHaveBeenCalledWith({ from: "2026-06-01", to: "2026-06-30" });
+        // Juga menarik periode PEMBANDING (Mei) untuk baris tren.
+        expect(repo.summary).toHaveBeenCalledWith({ from: "2026-05-01", to: "2026-05-31" });
+    });
+
+    test("laporan mingguan memakai rentang Senin–Minggu dan tak menulis apa pun", async () => {
+        const repo = buatRepo();
+        const reply = jest.fn();
+        await handlePersonalFinanceCommand({ chats: "uang minggu", reply, config: cfgAktif, repository: repo });
+
+        expect(repo.addEntry).not.toHaveBeenCalled();
+        expect(repo.dailyTotals).toHaveBeenCalled();
+        const rentang = repo.summary.mock.calls[0][0];
+        const hari = (Date.parse(rentang.to) - Date.parse(rentang.from)) / 86400000;
+        expect(hari).toBe(6); // 7 hari inklusif
+    });
+
+    test("laporan menyertakan status pagu dan baris banding", async () => {
+        const repo = buatRepo();
+        repo.listBudgets = jest.fn(async () => ({ transport: 100000 }));
+        repo.summary = jest.fn(async () => ({
+            masuk: 0, keluar: 150000, selisih: -150000, jumlahCatatan: 1,
+            perKategori: [{ category: "transport", kind: "out", total: 150000, jumlah: 1 }]
+        }));
+        const reply = jest.fn();
+        await handlePersonalFinanceCommand({ chats: "uang bulan 2026-06", reply, config: cfgAktif, repository: repo });
+
+        const teks = String(reply.mock.calls[0][0]);
+        expect(teks).toMatch(/150\.000 \/ Rp100\.000/); // realisasi vs pagu
+        expect(teks).toMatch(/lewat/); // penanda lewat pagu
+        expect(teks).toMatch(/vs bulan lalu/); // baris banding
     });
 
     test("rekap hari ini lewat `uang` polos", async () => {

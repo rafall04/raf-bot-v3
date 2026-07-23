@@ -16,11 +16,67 @@ const { renderResponseTemplate } = require("./template-helpers");
 const {
     parsePersonalFinanceCommand,
     formatRupiah,
-    todayStr,
     monthRange,
+    dayRange,
+    weekRange,
+    previousRange,
+    hitungTren,
+    buildDailySeries,
     buildReportData,
     TRIGGER_WORDS
 } = require("../../lib/personal-finance-service");
+
+/**
+ * Terjemahkan aksi `report` hasil parser jadi rentang tanggal + judul.
+ * Satu tempat, supaya harian/mingguan/bulanan tak punya jalur berbeda-beda.
+ */
+function resolveRentangLaporan(perintah) {
+    if (perintah.scope === "week") {
+        const r = weekRange(perintah.geser || 0);
+        return { ...r, scope: "week", judul: `MINGGU INI`.replace("INI", perintah.geser === -1 ? "LALU" : "INI") };
+    }
+    if (perintah.scope === "month") {
+        if (perintah.geser === -1) {
+            const d = new Date();
+            const lalu = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+            const ym = `${lalu.getFullYear()}-${String(lalu.getMonth() + 1).padStart(2, "0")}`;
+            const r = monthRange(ym);
+            return { ...r, scope: "month", judul: `BULAN ${r.month}` };
+        }
+        const r = monthRange(perintah.month);
+        return { ...r, scope: "month", judul: `BULAN ${r.month}` };
+    }
+    const r = dayRange(perintah.geser || 0);
+    return { ...r, scope: "day", judul: perintah.geser === -1 ? "KEMARIN" : "HARI INI" };
+}
+
+/** Jumlah hari inklusif dalam rentang; dipakai untuk rata-rata harian. */
+function hitungHari(from, to) {
+    const [fy, fm, fd] = String(from).split("-").map(Number);
+    const [ty, tm, td] = String(to).split("-").map(Number);
+    const a = new Date(fy, fm - 1, fd);
+    const b = new Date(ty, tm - 1, td);
+    return Math.max(1, Math.round((b - a) / 86400000) + 1);
+}
+
+// Fallback runtime. CATATAN: template tersimpan di database/response_templates.json
+// MENIMPA teks ini — slot baru WAJIB ikut ditambahkan ke sana, kalau tidak bagiannya
+// dihitung lalu tak pernah terkirim (pelajaran lama di repo ini).
+const BLOK_INTI =
+    "⬇️ Masuk: ${masukRp}\n⬆️ Keluar: ${keluarRp}\n💵 Selisih: ${selisihRp}\n" +
+    "📊 ${jumlahCatatan} catatan · rata-rata ${rataKeluarRp}/hari\n";
+
+const FALLBACK_LAPORAN = {
+    day:
+        "📅 *LAPORAN ${judul}* (${rentang})\n\n" + BLOK_INTI +
+        "${bandingRingkas}\n\n*Pengeluaran per kategori:*\n${rincianKategoriPagu}\n\n*Catatan:*\n${daftarCatatan}",
+    week:
+        "🗓️ *LAPORAN ${judul}*\n${rentang}\n\n" + BLOK_INTI +
+        "🔥 Terboros: ${hariTerborosTeks}\n${bandingRingkas}\n\n*Pengeluaran per kategori:*\n${rincianKategoriPagu}\n\n*Catatan:*\n${daftarCatatan}",
+    month:
+        "🗓️ *LAPORAN ${judul}*\n${rentang}\n\n" + BLOK_INTI +
+        "🔥 Terboros: ${hariTerborosTeks}\n${bandingRingkas}\n\n*Pengeluaran per kategori:*\n${rincianKategoriPagu}"
+};
 
 /**
  * Pemicu TANPA prefix: `keluar …`, `masuk …`, atau kata payung `uang/duit/kas/dompet`.
@@ -180,37 +236,40 @@ async function handlePersonalFinanceCommand(context = {}) {
     }
 
     if (perintah.action === "report") {
-        if (perintah.scope === "day") {
-            const tgl = todayStr();
-            const [rekap, catatan] = await Promise.all([
-                repo.summary({ from: tgl, to: tgl }),
-                repo.listEntries({ from: tgl, to: tgl, limit: 30 })
-            ]);
-            const data = buildReportData(rekap, catatan);
-            await reply(
-                renderResponseTemplate(
-                    "pf_laporan_harian",
-                    `📅 *LAPORAN HARI INI* (\${tanggal})\n\n` +
-                        `⬇️ Masuk: \${masukRp}\n⬆️ Keluar: \${keluarRp}\n💵 Selisih: \${selisihRp}\n\n` +
-                        `*Catatan:*\n\${daftarCatatan}`,
-                    { ...data, tanggal: tgl }
-                )
-            );
-            return { handled: true };
-        }
+        const rentang = resolveRentangLaporan(perintah);
+        const jumlahHari = hitungHari(rentang.from, rentang.to);
 
-        const rentang = monthRange(perintah.month);
-        const rekap = await repo.summary({ from: rentang.from, to: rentang.to });
-        const data = buildReportData(rekap, []);
-        await reply(
-            renderResponseTemplate(
-                "pf_laporan_bulanan",
-                `🗓️ *LAPORAN BULAN \${bulan}*\n\n` +
-                    `⬇️ Masuk: \${masukRp}\n⬆️ Keluar: \${keluarRp}\n💵 Selisih: \${selisihRp}\n` +
-                    `📊 \${jumlahCatatan} catatan\n\n*Pengeluaran per kategori:*\n\${rincianKategori}`,
-                { ...data, bulan: rentang.month }
-            )
-        );
+        // Satu pengambilan data untuk SEMUA periode; yang berbeda hanya template & apakah
+        // daftar catatan ikut disertakan (hanya masuk akal untuk rentang pendek).
+        const sebelum = previousRange(rentang.from, rentang.to);
+        const [rekap, rekapSebelum, pagu, harian, catatan] = await Promise.all([
+            repo.summary({ from: rentang.from, to: rentang.to }),
+            sebelum ? repo.summary({ from: sebelum.from, to: sebelum.to }) : Promise.resolve(null),
+            repo.listBudgets(),
+            jumlahHari > 1 ? repo.dailyTotals({ from: rentang.from, to: rentang.to }) : Promise.resolve([]),
+            jumlahHari <= 7 ? repo.listEntries({ from: rentang.from, to: rentang.to, limit: 50 }) : Promise.resolve([])
+        ]);
+
+        const seri = buildDailySeries(harian, rentang.from, rentang.to);
+        const puncak = seri.reduce((a, b) => (b.keluar > (a ? a.keluar : -1) ? b : a), null);
+        const banding = rekapSebelum
+            ? {
+                  label: sebelum.label,
+                  masuk: hitungTren(rekap.masuk, rekapSebelum.masuk),
+                  keluar: hitungTren(rekap.keluar, rekapSebelum.keluar, true)
+              }
+            : null;
+
+        const data = buildReportData(rekap, catatan, {
+            pagu,
+            banding,
+            hari: jumlahHari,
+            hariTerboros: puncak && puncak.keluar > 0 ? puncak : null,
+            rentang: rentang.from === rentang.to ? rentang.from : `${rentang.from} s/d ${rentang.to}`
+        });
+
+        const kunci = { day: "pf_laporan_harian", week: "pf_laporan_mingguan", month: "pf_laporan_bulanan" }[rentang.scope];
+        await reply(renderResponseTemplate(kunci, FALLBACK_LAPORAN[rentang.scope], { ...data, judul: rentang.judul }));
         return { handled: true };
     }
 

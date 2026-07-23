@@ -92,8 +92,25 @@
         }
     }
 
+    /** Rentang Senin–Minggu (konvensi Indonesia), bukan "7 hari terakhir". */
+    function rentangMinggu(geser) {
+        var d = new Date();
+        var hari = d.getDay(); // 0 = Minggu
+        var mundur = hari === 0 ? 6 : hari - 1;
+        var senin = new Date(d.getFullYear(), d.getMonth(), d.getDate() - mundur + (geser || 0) * 7);
+        var minggu = new Date(senin.getFullYear(), senin.getMonth(), senin.getDate() + 6);
+        var f = function (x) {
+            return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0");
+        };
+        return { dari: f(senin), sampai: f(minggu) };
+    }
+
     function queryPeriode(p) {
         var q = p || periode();
+        if (q.mode === "minggu" || q.mode === "minggu-lalu") {
+            var r = rentangMinggu(q.mode === "minggu-lalu" ? -1 : 0);
+            return "?from=" + encodeURIComponent(r.dari) + "&to=" + encodeURIComponent(r.sampai);
+        }
         if (q.mode === "rentang" && q.dari && q.sampai) {
             var dari = q.dari;
             var sampai = q.sampai;
@@ -117,7 +134,10 @@
         wadah.innerHTML =
             '<div class="kp-toolbar__isi">' +
             '<select id="kp-mode" class="kp-pilih" aria-label="Mode periode">' +
-            '<option value="bulan">Per bulan</option><option value="rentang">Rentang tanggal</option>' +
+            '<option value="bulan">Per bulan</option>' +
+            '<option value="minggu">Minggu ini</option>' +
+            '<option value="minggu-lalu">Minggu lalu</option>' +
+            '<option value="rentang">Rentang tanggal</option>' +
             "</select>" +
             '<input type="month" id="kp-bulan" class="kp-input" aria-label="Bulan">' +
             '<span id="kp-rentang" class="kp-toolbar__isi" hidden>' +
@@ -140,8 +160,10 @@
 
         function terapkan() {
             var rentang = elMode.value === "rentang";
+            // Preset minggu tak butuh kontrol apa pun — rentangnya dihitung sendiri.
+            var preset = elMode.value === "minggu" || elMode.value === "minggu-lalu";
             elRentang.hidden = !rentang;
-            elBulan.hidden = rentang;
+            elBulan.hidden = rentang || preset;
             var baru = {
                 mode: elMode.value,
                 bulan: elBulan.value || bulanIni(),
@@ -158,8 +180,9 @@
 
         // Terapkan sekali di awal untuk menyembunyikan kontrol yang tak relevan.
         var rentangAwal = elMode.value === "rentang";
+        var presetAwal = elMode.value === "minggu" || elMode.value === "minggu-lalu";
         elRentang.hidden = !rentangAwal;
-        elBulan.hidden = rentangAwal;
+        elBulan.hidden = rentangAwal || presetAwal;
     }
 
     window.KP = {
