@@ -515,6 +515,13 @@
     "siteKey": "ISI_TURNSTILE_SITE_KEY",
     "secretKey": "ISI_TURNSTILE_SECRET_KEY"
   },
+  "businessExpense": {
+    "_catatan": "KAS USAHA per site. Perintah WA 'kas 150rb kabel' MENULIS ke expense_entries lewat lib/expense-manager - sumber angka yang SAMA dengan halaman /pengeluaran & /rekap-keuangan, bukan pembukuan kedua. Ledger & grup terpisah penuh per instance (Dander & Tanjungharjo masing-masing sendiri). Kata pemicu 'kas' sengaja dilepas dari dompet pribadi supaya tak bertabrakan.",
+    "enabled": false,
+    "groupId": "",
+    "ownerJids": ["62xxxxxxxxxx@s.whatsapp.net"],
+    "ownerLids": []
+  },
   "personalFinance": {
     "_catatan": "Dompet PRIBADI pemilik yang menumpang nomor bot. Terpisah total dari saldo pelanggan (DB sendiri: personal_finance.sqlite). Kepemilikan WA sengaja TIDAK memakai ownerNumber/role admin. Perintah WA: isi groupId dengan JID grup khusus (…@g.us) agar dompet dilayani DI GRUP saja - DM pemilik sudah penuh notifikasi upstream sehingga balasan dompet tenggelam; kosongkan groupId untuk memakai DM. Halaman webnya punya LOGIN TERPISAH sendiri (database/personal_finance_auth.json, disiapkan lewat scripts/set-keuangan-pribadi-password.js) - sesi admin tidak memberi akses.",
     "enabled": false,

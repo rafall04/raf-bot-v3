@@ -277,6 +277,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Feat 2026-07-22 (Otomasi anti-basi dokumen: guard docs↔kode + pre-push gate + hook diperluas + guard tema masuk npm test)](docs/boundary-log.md#b174)
 - [Feat 2026-07-23 (Keuangan pribadi owner menumpang nomor bot — domain terisolasi penuh)](docs/boundary-log.md#b175)
 - [Feat 2026-07-23 (Keuangan pribadi: perintah tanpa prefix + login halaman TERPISAH dari akun admin)](docs/boundary-log.md#b176)
+- [Feat 2026-07-23 (Kas usaha via WhatsApp — menumpang expense-manager, BUKAN pembukuan kedua)](docs/boundary-log.md#b177)
 
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.

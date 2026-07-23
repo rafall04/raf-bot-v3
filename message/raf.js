@@ -236,6 +236,31 @@ module.exports = async (raf, msg, m, options = {}) => {
         console.error('[PF_GRUP_FROMME_ERROR]', pfFmErr.message);
     }
 
+    // ── Perintah KAS USAHA `fromMe` di grup kas — alasan & bentuk sama dgn blok dompet ──
+    try {
+        const beCfgFm = (global.config && global.config.businessExpense) || {};
+        const jidKas = msg.key?.remoteJid || '';
+        if (beCfgFm.enabled === true && beCfgFm.groupId && jidKas === beCfgFm.groupId) {
+            const teksKas = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
+            console.warn('[KAS_GRUP_MASUK]',
+                'fromMe=', !!msg.key?.fromMe,
+                'participant=', msg.key?.participant || '-',
+                'teks=', JSON.stringify(String(teksKas).slice(0, 40)));
+
+            const beFm = require('./handlers/business-expense-wa');
+            if (msg.key?.fromMe && beFm.TRIGGER_RE.test(String(teksKas))) {
+                await beFm.handleBusinessExpenseCommand({
+                    chats: teksKas,
+                    reply: (t) => sendReply({ recipient: jidKas, text: t, quoted: msg }),
+                    actor: 'WhatsApp (pemilik)'
+                });
+                return;
+            }
+        }
+    } catch (beFmErr) {
+        console.error('[KAS_GRUP_FROMME_ERROR]', beFmErr.message);
+    }
+
     if (msg.key?.fromMe) {
         noteAdminOutbound(msg.key?.remoteJid);
         return;
@@ -352,6 +377,35 @@ module.exports = async (raf, msg, m, options = {}) => {
             }
         } catch (pfGroupErr) {
             console.error('[PF_GROUP_ERROR]', pfGroupErr.message);
+        }
+
+        // ── KAS USAHA via GRUP — "kas 150rb kabel dropcore" ──
+        // Menulis ke `expense_entries` lewat lib/expense-manager, jadi angkanya SATU SUMBER
+        // dengan halaman /pengeluaran & /rekap-keuangan. Grup & ledgernya per-instance:
+        // Dander dan Tanjungharjo masing-masing punya sendiri, tak saling bergantung.
+        // Scoped ketat: hanya grup kas terkonfigurasi + hanya pesan dari pemilik.
+        try {
+            const beCfg = (global.config && global.config.businessExpense) || {};
+            const be = require('./handlers/business-expense-wa');
+            if (beCfg.enabled === true && beCfg.groupId && from === beCfg.groupId
+                && type !== 'imageMessage' && be.TRIGGER_RE.test(String(chats || ''))) {
+                const beInfo = extractSenderInfo(msg, true);
+                const bePlain = beInfo.phoneNumber || getPreferredPlainSenderNumber(msg, sender) || '';
+                const bePart = beInfo.participant
+                    || (bePlain ? `${bePlain}@s.whatsapp.net` : (msg.key && msg.key.participant) || sender);
+
+                if (be.resolveBusinessExpenseOwner({ participant: bePart, plainPhone: bePlain, config: global.config })) {
+                    await be.handleBusinessExpenseCommand({
+                        chats,
+                        reply: (teks) => sendReply({ recipient: from, text: teks, quoted: msg }),
+                        actor: `WhatsApp (${bePlain || 'pemilik'})`
+                    });
+                } else {
+                    console.warn('[KAS_GRUP_BUKAN_PEMILIK]', 'participant=', bePart, 'plainPhone=', bePlain);
+                }
+            }
+        } catch (beGroupErr) {
+            console.error('[KAS_GRUP_ERROR]', beGroupErr.message);
         }
         return;
     }

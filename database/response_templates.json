@@ -5459,5 +5459,35 @@
     "name": "Keuangan Pribadi - Laporan Mingguan",
     "category": "personal_finance",
     "template": "🗓️ *LAPORAN ${judul}*\n${rentang}\n\n⬇️ Masuk: ${masukRp}\n⬆️ Keluar: ${keluarRp}\n💵 Selisih: ${selisihRp}\n📊 ${jumlahCatatan} catatan · rata-rata ${rataKeluarRp}/hari\n🔥 Terboros: ${hariTerborosTeks}\n${bandingRingkas}\n\n*Pengeluaran per kategori:*\n${rincianKategoriPagu}\n\n*Catatan:*\n${daftarCatatan}"
+  },
+  "be_bantuan": {
+    "name": "Kas Usaha - Bantuan",
+    "category": "business_expense",
+    "template": "🏢 *KAS USAHA*\n\nMencatat pengeluaran — langsung ketik:\n• *kas 150rb kabel dropcore*\n• *kas 50rb bensin survei*\n\nMelihat:\n• *kas* — hari ini\n• *kas kemarin*\n• *kas minggu* / *kas minggu lalu*\n• *kas bulan* / *kas bulan 2026-06* / *kas bulan lalu*\n\nSalah catat:\n• *kas batal 12* — batalkan pengeluaran nomor 12\n\nKategori ditebak sendiri. Tercatat di *Pengeluaran* & *Rekap Keuangan* — sumber angkanya sama."
+  },
+  "be_tidak_dikenali": {
+    "name": "Kas Usaha - Tidak Dikenali",
+    "category": "business_expense",
+    "template": "⚠️ ${alasan}\n\nContoh: *kas 150rb kabel dropcore*\nKetik *kas bantuan* untuk daftar perintah."
+  },
+  "be_catat": {
+    "name": "Kas Usaha - Catat Pengeluaran",
+    "category": "business_expense",
+    "template": "✅ Tercatat *${nominal}*\n📌 ${judul}\n📂 ${kategori} · ${metode}\n\nTotal hari ini: *${totalHari}* (${jumlahHari} catatan)\n_Salah? balas *kas batal ${id}*_"
+  },
+  "be_batal_ok": {
+    "name": "Kas Usaha - Batal Berhasil",
+    "category": "business_expense",
+    "template": "🗑️ Pengeluaran ${id} dibatalkan (${nominal} — ${judul})."
+  },
+  "be_batal_gagal": {
+    "name": "Kas Usaha - Batal Gagal",
+    "category": "business_expense",
+    "template": "⚠️ ${pesan}"
+  },
+  "be_laporan": {
+    "name": "Kas Usaha - Laporan",
+    "category": "business_expense",
+    "template": "🏢 *KAS USAHA — ${judul}*\n${rentang}\n\n💸 Total keluar: *${totalRp}*\n📊 ${jumlah} catatan\n\n*Per kategori:*\n${rincianKategori}\n\n*Terbesar:*\n${terbesar}\n\n*Catatan:*\n${daftar}"
   }
 }

@@ -951,3 +951,14 @@
 - **Tutorial:** panel `<details>` terbuka-default di `/keuangan-pribadi` (daftar perintah WA + FAQ), pilihan buka/tutup diingat localStorage; di WA lewat `uang bantuan`.
 - **Tes:** 68 total (+21) — termasuk token admin ditolak dompet, token dompet tak sah dgn rahasia admin, scope palsu ditolak, cookie `token` admin tak terbaca sebagai `pf_session`, dan `TRIGGER_WORDS` tak memuat kata bisnis ambigu.
 - **PELAJARAN:** `PUBLIC_PATHS` cocok-prefix (`req.path.startsWith(path + "/")`) — menambah entri induk membuka SEMUA anaknya sekaligus, jadi hanya boleh untuk subtree yang punya penjaga sendiri di level prefix.
+
+<a id="b177"></a>
+### Feat 2026-07-23 (Kas usaha via WhatsApp — menumpang expense-manager, BUKAN pembukuan kedua)
+
+- **Owner:** `lib/business-expense-service.js` (BARU — parser `kas`, pemetaan teks bebas ke 9 kategori TETAP, perakit laporan) + `message/handlers/business-expense-wa.js` (BARU — permukaan WA). Keduanya TANPA penyimpanan sendiri.
+- **Penyimpanan tetap milik `lib/expense-manager.js`:** `createExpense`/`listExpenses`/`cancelExpense` → tabel `expense_entries` + buku besar keuangan. Jadi angka WhatsApp, `/pengeluaran`, dan `/rekap-keuangan` SATU SUMBER. Ini pilihan sadar: membangun ledger kedua untuk uang yang sama = angka yang tak pernah cocok.
+- **`listExpenses` diperluas ADITIF** dengan `dateFrom`/`dateTo` (jalur month/year yang dipakai halaman web tak berubah) — laporan harian/mingguan tak bisa dinyatakan sebagai "bulan penuh".
+- **Kata `kas` DIPINDAH** dari payung dompet pribadi (`lib/personal-finance-service`) ke kas usaha; dompet pribadi kini `uang`/`duit`/`dompet`. Tanpa itu pengeluaran usaha tercatat di dompet pribadi — pencampuran yang justru dihindari #b175.
+- **Gate:** `config.businessExpense.enabled` default **OFF** + `groupId` + `ownerJids` TERPISAH. Per-instance penuh: Dander & Tanjungharjo punya grup + ledger sendiri, tak saling bergantung. Dipasang di 2 titik `raf.js` (blok grup + jalur `fromMe`), pola sama dengan dompet.
+- **Tes:** 22 — termasuk jaminan tiap hasil `inferKategoriKas` ADA di `EXPENSE_CATEGORIES` (kategori di luar daftar ditolak `createExpense`, jadi tebakan meleset = pencatatan GAGAL), baris dibatalkan tak ikut dihitung, dan `kas` bukan lagi pemicu dompet pribadi. Plus uji end-to-end DB sungguhan.
+- **PELAJARAN:** sebelum membangun "pencatatan X via WA", cari dulu siapa yang SUDAH memiliki angka X. Di repo ini `/pengeluaran` sudah ada — menumpanginya jauh lebih murah daripada merekonsiliasi dua ledger selamanya.
