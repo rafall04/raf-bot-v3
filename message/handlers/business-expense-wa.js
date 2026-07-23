@@ -18,6 +18,9 @@
 const { renderResponseTemplate } = require("./template-helpers");
 const {
     TRIGGER_KAS,
+    KATA_KONFIRMASI,
+    KATA_LEWATI,
+    parseKonfirmasiRutin,
     parseBusinessExpenseCommand,
     resolveRentangKas,
     buildKasReport
@@ -25,6 +28,17 @@ const {
 const { formatRupiah } = require("../../lib/personal-finance-service");
 
 const TRIGGER_RE = new RegExp(`^\\s*(?:${TRIGGER_KAS.join("|")})\\b`, "i");
+
+/**
+ * Regex gerbang untuk raf.js: perintah `kas` ATAU balasan konfirmasi biaya rutin.
+ * Balasan seperti "ok"/"lewati" bukan perintah `kas`, jadi tanpa ini ia tak pernah sampai
+ * ke handler. Aman dilebarkan karena gerbangnya sudah dibatasi grup kas + pemilik, DAN
+ * `cobaKonfirmasiRutin` mengembalikan handled:false bila memang tak ada tagihan menunggu.
+ */
+const GERBANG_RE = new RegExp(
+    `^\\s*(?:${TRIGGER_KAS.join("|")}|${KATA_KONFIRMASI.join("|")}|${KATA_LEWATI.join("|")})\\b`,
+    "i"
+);
 
 /** Metode bawaan: pengeluaran lapangan lewat WhatsApp hampir selalu tunai. */
 const METODE_BAWAAN = "TUNAI";
@@ -68,14 +82,100 @@ const HELP_FALLBACK =
     "• *kas batal 12* — batalkan pengeluaran nomor 12\n\n" +
     "Kategori ditebak sendiri. Tercatat di *Pengeluaran* & *Rekap Keuangan* — sumber angkanya sama.";
 
+/**
+ * Balasan konfirmasi biaya rutin (`ok`, `ok 620rb`, `lewati`). Dipisah dari perintah `kas`
+ * karena kata-kata ini HANYA bermakna saat ada tagihan menunggu — di luar itu diabaikan
+ * supaya "ok" biasa di grup tak diam-diam mencatat pengeluaran.
+ * @returns {Promise<{handled:boolean}>} handled:false → biarkan alur lain menanganinya.
+ */
+async function cobaKonfirmasiRutin({ chats, reply, actor, deps }) {
+    const balasan = parseKonfirmasiRutin(chats);
+    if (!balasan) return { handled: false };
+
+    const rec = (deps && deps.recurring) || require("../../lib/recurring-expense");
+    const menunggu = await rec.tertunda();
+    if (!menunggu.length) return { handled: false }; // tak ada yang ditunggu → bukan urusan kita
+
+    let target = null;
+    if (balasan.id) {
+        target = menunggu.find((x) => Number(x.id) === Number(balasan.id)) || null;
+        if (!target) {
+            await reply(
+                renderResponseTemplate("be_rutin_id_salah", "⚠️ Tidak ada tagihan tertunda bernomor ${id}.", {
+                    id: balasan.id
+                })
+            );
+            return { handled: true };
+        }
+    } else if (menunggu.length === 1) {
+        target = menunggu[0];
+    } else {
+        // Lebih dari satu menunggu → jangan menebak. Menebak salah berarti mencatat
+        // pengeluaran untuk pos yang keliru.
+        await reply(
+            renderResponseTemplate(
+                "be_rutin_pilih",
+                "❓ Ada ${jumlah} tagihan menunggu — sebutkan nomornya:\n\n${daftar}\n\nContoh: *ok ${contoh}* atau *ok ${contoh} 620rb*",
+                {
+                    jumlah: menunggu.length,
+                    contoh: menunggu[0].id,
+                    daftar: menunggu.map((x) => `${x.id}. ${x.nama} — ${formatRupiah(x.perkiraan)}`).join("\n")
+                }
+            )
+        );
+        return { handled: true };
+    }
+
+    if (balasan.aksi === "lewati") {
+        await rec.lewati(target.id);
+        await reply(
+            renderResponseTemplate("be_rutin_dilewati", "⏭️ ${nama} dilewati untuk periode ini.", { nama: target.nama })
+        );
+        return { handled: true };
+    }
+
+    const hasil = await rec.konfirmasi(target.id, { nominal: balasan.nominal, actor: actor || "WhatsApp" });
+    await reply(
+        renderResponseTemplate(
+            "be_rutin_dicatat",
+            "✅ *${nama}* tercatat ${nominal}${beda}\n📂 ${kategori} · ${metode}\n\n_Nomor pengeluaran: ${expenseId}_",
+            {
+                nama: target.nama,
+                nominal: formatRupiah(hasil.jumlah),
+                kategori: target.kategori,
+                metode: target.metode || METODE_BAWAAN,
+                expenseId: hasil.expense.id,
+                beda:
+                    hasil.jumlah !== Number(target.perkiraan)
+                        ? ` (perkiraan ${formatRupiah(target.perkiraan)})`
+                        : ""
+            }
+        )
+    );
+    return { handled: true };
+}
+
 async function handleBusinessExpenseCommand(context = {}) {
     const { chats, reply, actor, logger = console, deps } = context;
     const em = (deps && deps.expenseManager) || require("../../lib/expense-manager");
+
+    // Balasan konfirmasi diperiksa DULU: "ok"/"lewati" bukan perintah `kas`, jadi parser
+    // di bawah akan menolaknya sebagai "bukan_perintah_kas".
+    const konfirmasi = await cobaKonfirmasiRutin({ chats, reply, actor, deps });
+    if (konfirmasi.handled) return { handled: true };
+
     const perintah = parseBusinessExpenseCommand(chats);
 
     if (perintah.action === "help") {
         await reply(renderResponseTemplate("be_bantuan", HELP_FALLBACK));
         return { handled: true };
+    }
+
+    // Bukan perintah kas sama sekali (mis. "ok" tanpa tagihan menunggu, atau obrolan biasa)
+    // → DIAM. Membalas "perintah tidak dikenali" di grup yang juga dipakai bicara biasa
+    // membuat bot menyahut setiap kalimat.
+    if (perintah.action === "unknown" && perintah.reason === "bukan_perintah_kas") {
+        return { handled: false };
     }
 
     if (perintah.action === "unknown") {
@@ -172,6 +272,7 @@ async function handleBusinessExpenseCommand(context = {}) {
 
 module.exports = {
     TRIGGER_RE,
+    GERBANG_RE,
     METODE_BAWAAN,
     resolveBusinessExpenseOwner,
     handleBusinessExpenseCommand,

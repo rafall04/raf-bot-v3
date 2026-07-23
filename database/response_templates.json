@@ -5489,5 +5489,30 @@
     "name": "Kas Usaha - Laporan",
     "category": "business_expense",
     "template": "🏢 *KAS USAHA — ${judul}*\n${rentang}\n\n💸 Total keluar: *${totalRp}*\n📊 ${jumlah} catatan\n\n*Per kategori:*\n${rincianKategori}\n\n*Terbesar:*\n${terbesar}\n\n*Catatan:*\n${daftar}"
+  },
+  "be_pengingat_rutin": {
+    "name": "Kas Usaha - Pengingat Biaya Rutin",
+    "category": "business_expense",
+    "template": "🔔 *JATUH TEMPO HARI INI*\n\n📌 ${nama}\n💰 Perkiraan ${perkiraan}\n📂 ${kategori}\n\nBalas *ok* untuk mencatat sejumlah itu\natau *ok ${contoh}* kalau nominalnya berbeda\natau *lewati* kalau bulan ini tidak ada."
+  },
+  "be_rutin_dicatat": {
+    "name": "Kas Usaha - Biaya Rutin Dicatat",
+    "category": "business_expense",
+    "template": "✅ *${nama}* tercatat ${nominal}${beda}\n📂 ${kategori} · ${metode}\n\n_Nomor pengeluaran: ${expenseId}_"
+  },
+  "be_rutin_dilewati": {
+    "name": "Kas Usaha - Biaya Rutin Dilewati",
+    "category": "business_expense",
+    "template": "⏭️ ${nama} dilewati untuk periode ini."
+  },
+  "be_rutin_pilih": {
+    "name": "Kas Usaha - Pilih Tagihan",
+    "category": "business_expense",
+    "template": "❓ Ada ${jumlah} tagihan menunggu — sebutkan nomornya:\n\n${daftar}\n\nContoh: *ok ${contoh}* atau *ok ${contoh} 620rb*"
+  },
+  "be_rutin_id_salah": {
+    "name": "Kas Usaha - Nomor Tagihan Salah",
+    "category": "business_expense",
+    "template": "⚠️ Tidak ada tagihan tertunda bernomor ${id}."
   }
 }

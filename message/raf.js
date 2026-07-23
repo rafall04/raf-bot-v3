@@ -248,7 +248,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 'teks=', JSON.stringify(String(teksKas).slice(0, 40)));
 
             const beFm = require('./handlers/business-expense-wa');
-            if (msg.key?.fromMe && beFm.TRIGGER_RE.test(String(teksKas))) {
+            if (msg.key?.fromMe && beFm.GERBANG_RE.test(String(teksKas))) {
                 await beFm.handleBusinessExpenseCommand({
                     chats: teksKas,
                     reply: (t) => sendReply({ recipient: jidKas, text: t, quoted: msg }),
@@ -388,7 +388,7 @@ module.exports = async (raf, msg, m, options = {}) => {
             const beCfg = (global.config && global.config.businessExpense) || {};
             const be = require('./handlers/business-expense-wa');
             if (beCfg.enabled === true && beCfg.groupId && from === beCfg.groupId
-                && type !== 'imageMessage' && be.TRIGGER_RE.test(String(chats || ''))) {
+                && type !== 'imageMessage' && be.GERBANG_RE.test(String(chats || ""))) {
                 const beInfo = extractSenderInfo(msg, true);
                 const bePlain = beInfo.phoneNumber || getPreferredPlainSenderNumber(msg, sender) || '';
                 const bePart = beInfo.participant

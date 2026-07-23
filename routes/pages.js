@@ -333,6 +333,12 @@ router.get('/rekap-keuangan', checkRole(['admin', 'owner', 'superadmin']), (req,
 });
 
 // Pengeluaran page - ADMIN ONLY
+// Kas Usaha — setelan grup WA kas + biaya rutin. Angkanya mendarat di expense_entries
+// yang sama dengan /pengeluaran, jadi halaman ini tidak punya pembukuan sendiri.
+router.get('/kas-usaha', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/kas-usaha.php');
+});
+
 router.get('/pengeluaran', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/pengeluaran.php');
 });

@@ -973,3 +973,15 @@
 - **Bug yang ditemukan saat menguji fungsi ini sendiri:** `pulihkanDari` mengambil salinan pengaman lebih dulu, tapi stempel hanya beresolusi DETIK — salinan pengaman (DB kosong) MENIMPA backup yang sedang dipulihkan, lalu yang dikembalikan justru DB kosong itu. Ditutup dengan nama unik ber-counter.
 - **Tes:** 6, termasuk siklus penuh backup→hapus→pulih, tabrakan nama dalam detik yang sama, dan `basename()` yang menahan `../../config.json` jadi sumber pemulihan.
 - **PELAJARAN:** mengeluarkan sesuatu dari jalur backup bersama adalah keputusan yang BENAR untuk privasi, tapi wajib diikuti jalur backup penggantinya. "Tidak ikut backup grup" tak boleh diam-diam berarti "tidak dibackup sama sekali".
+
+<a id="b179"></a>
+### Feat 2026-07-23 (Biaya rutin usaha: bot mengingatkan, manusia mengonfirmasi + halaman /kas-usaha)
+
+- **Owner:** `lib/recurring-expense.js` (BARU — tabel `recurring_expenses` di DB utama: definisi + status per periode) + `lib/cron/jobs/recurring-expense-reminder.js` (BARU — pengingat harian ke grup kas) + `routes/admin-kas-usaha-routes.js` & halaman `/kas-usaha` (BARU — setelan grup + CRUD biaya rutin + ringkasan).
+- **Bot TIDAK memposting sendiri.** Satu baris pengeluaran adalah pernyataan bahwa uang benar-benar keluar; nominal yang meleset (listrik Rp500rb vs Rp620rb nyatanya) menghasilkan pembukuan salah yang tampak MEYAKINKAN — lebih buruk daripada kolom kosong. Bot mengingatkan, pencatatan menunggu balasan `ok` / `ok 620rb` / `lewati` di grup.
+- **Idempoten per PERIODE (`YYYY-MM`), bukan timestamp/boolean** — prod restart 7-13x/hari; hanya penanda per-periode yang membuat pengingat & posting tak menggandakan tanpa bergantung state di memori. Konfirmasi ganda ditolak dan diuji.
+- **Pencatatan tetap lewat `expense-manager.createExpense`** (#b177) — tak ada pembukuan kedua. Urutannya createExpense DULU baru tandai tuntas: kalau gagal, item tetap tertunda dan bisa diulang.
+- **Dua tagihan menunggu → bot MEMINTA nomor, tidak menebak.** Menebak salah berarti mencatat pengeluaran untuk pos yang keliru. Balasan `ok` juga di-abaikan (handled:false) bila tak ada yang menunggu — grup itu dipakai bicara biasa.
+- **Gaji SENGAJA tidak di sini** — sudah dikelola `/gaji-teknisi`; memasukkannya akan terhitung dua kali. Tanggal 29-31 pada bulan pendek jatuh ke hari terakhir, kalau tidak tagihan tgl 31 tak pernah tertagih di Februari.
+- **Tes:** 24 (12 store + 10 alur WA + gerbang) plus uji end-to-end cron→konfirmasi→`expense_entries`.
+- **PELAJARAN:** `renderResponseTemplate` mengembalikan fallback TANPA substitusi bila key tak ada di `response_templates.json` — key baru yang lupa didaftarkan menampilkan `${nama}` mentah ke pemakai. Guard `response-template-key-integrity` menangkapnya; jangan lewati.

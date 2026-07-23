@@ -1,0 +1,202 @@
+/**
+ * Header Doc
+ * Purpose: Gaya halaman /kas-usaha (setelan grup kas, biaya rutin, ringkasan).
+ *          HANYA token SEMANTIK sadar-mode supaya ikut membalik di body.tk-dark; ditegakkan
+ *          scripts/check-theme-tokens.js.
+ *          CATATAN: `--color-*-soft` adalah pastel TETAP yang tak membalik, dan
+ *          `--color-danger` sebagai TEKS hanya ~3.8 di atas permukaan terang (gagal AA) —
+ *          status karena itu disampaikan lewat GARIS/BORDER, bukan warna teks.
+ * Caller: views/sb-admin/kas-usaha.php.
+ * Deps: static/css/tokens.css (via admin-theme.css).
+ */
+
+.ku-alert {
+    margin-bottom: 1rem;
+    padding: 0.7rem 0.95rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink);
+    font-size: 0.86rem;
+}
+
+.ku-alert[data-tone="error"] {
+    border-color: var(--color-danger);
+}
+
+.ku-alert[data-tone="ok"] {
+    border-color: var(--color-success);
+}
+
+.ku-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.7rem;
+    margin-bottom: 0.9rem;
+}
+
+.ku-stat {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--indigo-600);
+    border-radius: var(--radius-lg);
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.ku-stat__label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    font-weight: 600;
+}
+
+.ku-stat__nilai {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.ku-kartu {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 1.1rem 1.15rem;
+    margin-bottom: 0.9rem;
+}
+
+.ku-kartu__kepala {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.9rem;
+}
+
+.ku-kartu__judul {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0;
+}
+
+.ku-kartu__meta {
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+}
+
+.ku-baris {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.ku-input {
+    flex: 1 1 18rem;
+    min-width: 0;
+}
+
+.ku-baris .form-control {
+    background: var(--surface-2);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    flex: 1 1 10rem;
+    min-width: 0;
+}
+
+.ku-input--kecil {
+    flex: 0 1 9rem !important;
+}
+
+.ku-input--mini {
+    flex: 0 1 5rem !important;
+}
+
+.ku-petunjuk {
+    margin: 0.7rem 0 0;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+}
+
+.ku-petunjuk code {
+    background: var(--surface-2);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 0.03rem 0.3rem;
+}
+
+.ku-form {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+}
+
+.ku-tabel-bungkus {
+    overflow-x: auto;
+}
+
+.ku-tabel {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    color: var(--ink);
+}
+
+.ku-tabel th,
+.ku-tabel td {
+    padding: 0.5rem 0.6rem;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.ku-tabel th {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--ink-soft);
+    font-weight: 600;
+}
+
+.ku-angka {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.ku-kosong {
+    color: var(--ink-soft);
+    text-align: center;
+    padding: 1.1rem 0;
+}
+
+/* Status dibawa BORDER, bukan warna teks — merah/hijau sebagai teks gagal kontras AA
+   di atas permukaan terang. */
+.ku-tanda {
+    display: inline-block;
+    padding: 0.06rem 0.45rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.7rem;
+    font-weight: 600;
+    border: 1px solid var(--line);
+    color: var(--ink);
+}
+
+.ku-tanda--ok {
+    border-color: var(--color-success);
+}
+
+.ku-tanda--nunggu {
+    border-color: var(--color-warning);
+}
+
+.ku-aksi {
+    white-space: nowrap;
+}

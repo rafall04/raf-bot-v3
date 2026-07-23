@@ -279,6 +279,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Feat 2026-07-23 (Keuangan pribadi: perintah tanpa prefix + login halaman TERPISAH dari akun admin)](docs/boundary-log.md#b176)
 - [Feat 2026-07-23 (Kas usaha via WhatsApp — menumpang expense-manager, BUKAN pembukuan kedua)](docs/boundary-log.md#b177)
 - [Fix 2026-07-23 (Backup lokal dompet pribadi — menutup risiko kehilangan permanen)](docs/boundary-log.md#b178)
+- [Feat 2026-07-23 (Biaya rutin usaha: bot mengingatkan, manusia mengonfirmasi + halaman /kas-usaha)](docs/boundary-log.md#b179)
 
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.

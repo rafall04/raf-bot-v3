@@ -36,6 +36,7 @@ const { registerAdminCustomerSteeringRoutes } = require("./admin-customer-steeri
 const { registerAdminOwnerCockpitRoutes } = require("./admin-owner-cockpit-routes");
 const { registerAdminCsatRoutes } = require("./admin-csat-routes");
 const { registerAdminPersonalFinanceRoutes } = require("./admin-personal-finance-routes");
+const { registerAdminKasUsahaRoutes } = require("./admin-kas-usaha-routes");
 const { rateLimit } = require("../lib/security");
 const { templatesCache } = require("../lib/templating");
 const templateManager = require("../lib/template-manager");
@@ -212,6 +213,7 @@ function createAdminRouter({ runtime } = {}) {
     registerAdminOwnerCockpitRoutes(router, { ensureAuthenticatedStaff });
     registerAdminCsatRoutes(router, { ensureAuthenticatedStaff });
     registerAdminPersonalFinanceRoutes(router, { ensureAuthenticatedStaff });
+    registerAdminKasUsahaRoutes(router, { ensureAuthenticatedStaff });
     router.use(createAdminRoutes({ runtime }));
     router.use(adminLegacyRouter);
     return router;
