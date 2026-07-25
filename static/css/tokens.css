@@ -68,8 +68,32 @@
 
     /* ── Skala radius ──────────────────────────────────────── */
     --radius-sm: 12px;
+    --radius-md: 14px;
     --radius-lg: 18px;
+    --radius-xl: 22px;
     --radius-pill: 999px;
+
+    /* ── Skala spacing (4px base) ──────────────────────────── */
+    --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+    --space-5: 24px; --space-6: 32px; --space-8: 48px;
+
+    /* ── Skala ELEVASI (shadow) SADAR-MODE ─────────────────────
+       ⭐ Pakai ini untuk depth kartu/panel/dropdown supaya konsisten & elegan.
+       Light = shadow slate lembut berlapis; DI-FLIP ke hitam pekat di body.tk-dark
+       (di bawah) agar depth tetap terbaca di mode gelap. */
+    --shadow-xs: 0 1px 2px rgba(15, 23, 42, .05);
+    --shadow-sm: 0 1px 3px rgba(15, 23, 42, .08), 0 1px 2px -1px rgba(15, 23, 42, .05);
+    --shadow-md: 0 6px 16px -6px rgba(15, 23, 42, .12), 0 2px 6px -3px rgba(15, 23, 42, .07);
+    --shadow-lg: 0 14px 32px -10px rgba(15, 23, 42, .16), 0 6px 12px -8px rgba(15, 23, 42, .1);
+    --shadow-xl: 0 28px 56px -16px rgba(15, 23, 42, .22);
+    --shadow-brand: 0 8px 20px -6px rgba(99, 102, 241, .38);
+
+    /* Cincin fokus (a11y) & aksen brand lembut — SADAR-MODE */
+    --ring:        0 0 0 3px rgba(99, 102, 241, .18);
+    --ring-strong: 0 0 0 3px rgba(99, 102, 241, .32);
+    --brand-soft:   rgba(99, 102, 241, .08);  /* bg chip/active/hover indigo tipis */
+    --brand-soft-2: rgba(99, 102, 241, .14);
+    --brand-ink:    var(--indigo-600);        /* teks/ikon indigo di atas surface terang */
 
     /* ── Surface gelap kanonik (body.tk-dark — admin & teknisi) ──
        Palet "elegant deep-slate" yang dulu hanya di admin-theme.css;
@@ -110,4 +134,17 @@ body.tk-dark {
     --ink-soft:  var(--dark-ink-soft);
     --muted:     var(--dark-muted);
     --line:      var(--dark-line);
+
+    /* Elevasi & aksen versi mode gelap (shadow lebih pekat, cincin lebih terang). */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, .4);
+    --shadow-sm: 0 2px 6px -1px rgba(0, 0, 0, .5);
+    --shadow-md: 0 10px 24px -8px rgba(0, 0, 0, .62);
+    --shadow-lg: 0 18px 40px -12px rgba(0, 0, 0, .72);
+    --shadow-xl: 0 32px 64px -18px rgba(0, 0, 0, .82);
+    --shadow-brand: 0 10px 26px -6px rgba(99, 102, 241, .5);
+    --ring:        0 0 0 3px rgba(129, 140, 248, .3);
+    --ring-strong: 0 0 0 3px rgba(129, 140, 248, .45);
+    --brand-soft:   rgba(129, 140, 248, .14);
+    --brand-soft-2: rgba(129, 140, 248, .24);
+    --brand-ink:    var(--indigo-300);
 }
