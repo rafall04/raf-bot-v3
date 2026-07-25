@@ -2,7 +2,8 @@
 /**
  * Header Doc
  * - Purpose: Partial <head> bersama (boilerplate) untuk halaman admin & teknisi —
- *   meta dasar, font, FontAwesome, sb-admin-2, tema per-peran, dashboard-modern.
+ *   meta dasar, font, FontAwesome, sb-admin-2, tema per-peran, dashboard-modern,
+ *   dan components-modern (lapisan komponen bersama, dimuat paling akhir 2 peran).
  *   Satu tempat untuk mengubah aset global (font/meta/CSS dasar) lintas semua halaman.
  *   CSS ekstra per-halaman (DataTables/Leaflet/Select2 dll) & <style> inline TETAP
  *   ditulis di halaman masing-masing SETELAH include ini (verbatim, agar atribut
@@ -50,3 +51,5 @@ require_once __DIR__ . '/_asset.php';
     <link href="<?= rafAssetUrl('/css/admin-theme.css') ?>" rel="stylesheet">
     <link href="<?= rafAssetUrl('/css/dashboard-modern.css') ?>" rel="stylesheet">
 <?php endif; ?>
+    <!-- Lapisan komponen bersama (Tahap 2 redesign) — dimuat PALING AKHIR di kedua peran -->
+    <link href="<?= rafAssetUrl('/css/components-modern.css') ?>" rel="stylesheet">

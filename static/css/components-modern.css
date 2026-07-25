@@ -1,0 +1,215 @@
+/* ============================================================
+   RAF BOT · Components Modern (Tahap 2 redesign "Evolusi Indigo Elegan")
+   ------------------------------------------------------------
+   Purpose : Lapisan KOMPONEN bersama yang menyeragamkan komponen inti
+             Bootstrap/SB-Admin — tombol, form, tabel, tab, alert, modal,
+             pagination, badge, dropdown — LINTAS peran (admin & teknisi)
+             memakai token SEMANTIK sadar-mode (tokens.css) + skala elevasi
+             & cincin fokus. Menggantikan tampilan legacy biar konsisten &
+             elegan di terang maupun gelap.
+   Caller  : Di-link PALING AKHIR di views/sb-admin/_head.php (setelah
+             admin-theme/teknisi-theme + dashboard-modern).
+   Kunci   : Aturan komponen di dalam halaman DISCOPE ke `#wrapper` (shell
+             SB-Admin yang ada di semua halaman ber-sidebar). `#wrapper`
+             mengandung 1 ID → spesifisitas (1,x,0) MENANG atas aturan tema
+             lama `body.tk-dark .x` (0,x,0) di KEDUA mode, jadi cukup SATU
+             aturan pakai token sadar-mode (auto-flip) tanpa duplikasi
+             `body.tk-dark`. Komponen yang bisa di-portal keluar #wrapper
+             (modal, dropdown) + `.badge` dibiarkan tanpa scope (hanya
+             penyesuaian struktural: radius/shadow) agar aman.
+             Catatan: halaman standalone tanpa shell (login/404) tidak
+             ber-#wrapper → ditangani terpisah di tahap halaman.
+   Deps    : tokens.css → var(--surface/--surface-2/--ink/--ink-soft/--muted/
+             --line/--shadow-*/--ring/--ring-strong/--brand-*/--indigo-*/
+             --color-*/--radius-*/--on-accent).
+   Catatan : WAJIB token semantik (dipindai guard check-theme-tokens.js —
+             jangan var(--white)/var(--slate-*) untuk warna/bg/border).
+   ============================================================ */
+
+/* ===================== Tombol ===================== */
+#wrapper .btn {
+    border-radius: 10px;
+    font-weight: 600;
+    transition: background-color .16s ease, background-image .16s ease, box-shadow .18s ease, transform .12s ease, border-color .16s ease, color .16s ease;
+}
+#wrapper .btn:focus-visible { outline: none; box-shadow: var(--ring); }
+#wrapper .btn:active { transform: translateY(1px); }
+
+#wrapper .btn-primary {
+    background-image: linear-gradient(135deg, var(--indigo-500), var(--indigo-600));
+    background-color: var(--indigo-600);
+    border-color: transparent;
+    color: var(--on-accent);
+    box-shadow: var(--shadow-brand);
+}
+#wrapper .btn-primary:hover,
+#wrapper .btn-primary:focus {
+    background-image: linear-gradient(135deg, var(--indigo-600), var(--indigo-700));
+    border-color: transparent;
+    color: var(--on-accent);
+}
+#wrapper .btn-primary:focus-visible { box-shadow: var(--shadow-brand), var(--ring-strong); }
+
+#wrapper .btn-outline-primary {
+    color: var(--brand-ink);
+    border-color: var(--indigo-300);
+    background-color: transparent;
+}
+#wrapper .btn-outline-primary:hover,
+#wrapper .btn-outline-primary:focus {
+    background-color: var(--indigo-500);
+    border-color: var(--indigo-500);
+    color: var(--on-accent);
+}
+
+#wrapper .btn-secondary {
+    background-color: var(--surface-2);
+    border-color: var(--line);
+    color: var(--ink);
+    box-shadow: none;
+}
+#wrapper .btn-secondary:hover,
+#wrapper .btn-secondary:focus {
+    background-color: var(--brand-soft);
+    border-color: var(--indigo-300);
+    color: var(--ink);
+}
+
+#wrapper .btn-light {
+    background-color: var(--surface);
+    border-color: var(--line);
+    color: var(--ink);
+}
+#wrapper .btn-light:hover { background-color: var(--surface-2); color: var(--ink); }
+
+/* ===================== Form & input ===================== */
+#wrapper .form-control,
+#wrapper .custom-select,
+#wrapper textarea.form-control {
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background-color: var(--surface);
+    color: var(--ink);
+    transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+#wrapper .form-control::placeholder { color: var(--muted); }
+#wrapper .form-control:focus,
+#wrapper .custom-select:focus {
+    border-color: var(--indigo-500);
+    background-color: var(--surface);
+    box-shadow: var(--ring);
+}
+#wrapper .input-group-text {
+    border-radius: 10px;
+    background-color: var(--surface-2);
+    border-color: var(--line);
+    color: var(--ink-soft);
+}
+
+/* ===================== Tabel ===================== */
+#wrapper .table thead th {
+    text-transform: uppercase;
+    font-size: .72rem;
+    letter-spacing: .04em;
+    font-weight: 700;
+    color: var(--muted);
+    background-color: transparent;
+    border-bottom: 1px solid var(--line);
+    border-top: 0;
+}
+#wrapper .table td,
+#wrapper .table th { border-top: 1px solid var(--line); vertical-align: middle; }
+#wrapper .table-hover tbody tr { transition: background-color .14s ease; }
+#wrapper .table-hover tbody tr:hover { background-color: var(--brand-soft); }
+
+/* ===================== Tab (underline elegan, ganti kotak SB-Admin) ===================== */
+#wrapper .nav-tabs { border-bottom: 1px solid var(--line); }
+#wrapper .nav-tabs .nav-link {
+    color: var(--ink-soft);
+    font-weight: 600;
+    background-color: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    margin-bottom: -1px;
+}
+#wrapper .nav-tabs .nav-link:hover {
+    color: var(--ink);
+    border-bottom-color: var(--indigo-300);
+    background-color: transparent;
+}
+#wrapper .nav-tabs .nav-link.active,
+#wrapper .nav-tabs .nav-item.show .nav-link {
+    color: var(--brand-ink);
+    background-color: transparent;
+    border: 0;
+    border-bottom: 2px solid var(--indigo-500);
+}
+
+/* ===================== Alert (radius + aksen kiri via box-shadow) ===================== */
+#wrapper .alert { border-radius: var(--radius-md); border-width: 1px; }
+#wrapper .alert-success { box-shadow: inset 3px 0 0 var(--color-success); }
+#wrapper .alert-danger  { box-shadow: inset 3px 0 0 var(--color-danger); }
+#wrapper .alert-warning { box-shadow: inset 3px 0 0 var(--color-warning); }
+#wrapper .alert-info    { box-shadow: inset 3px 0 0 var(--color-info); }
+#wrapper .alert-primary { box-shadow: inset 3px 0 0 var(--indigo-500); }
+
+/* ===================== Pagination ===================== */
+#wrapper .page-link {
+    color: var(--ink-soft);
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin: 0 2px;
+    transition: background-color .14s ease, color .14s ease, border-color .14s ease;
+}
+#wrapper .page-link:hover {
+    background-color: var(--brand-soft);
+    color: var(--brand-ink);
+    border-color: var(--indigo-300);
+}
+#wrapper .page-item.active .page-link {
+    background-image: linear-gradient(135deg, var(--indigo-500), var(--indigo-600));
+    border-color: transparent;
+    color: var(--on-accent);
+}
+#wrapper .page-item.disabled .page-link {
+    background-color: var(--surface-2);
+    color: var(--muted);
+    border-color: var(--line);
+}
+
+/* ===================== Badge (struktural; warna varian tetap dari tema) ===================== */
+.badge {
+    border-radius: var(--radius-pill);
+    font-weight: 700;
+    letter-spacing: .01em;
+    padding: .35em .7em;
+}
+
+/* ===================== Modal (bisa di-portal ke body → tanpa scope, struktural saja) ===================== */
+.modal-content {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background-color: var(--surface);
+    color: var(--ink);
+    overflow: hidden;
+}
+.modal-header { border-bottom: 1px solid var(--line); }
+.modal-footer { border-top: 1px solid var(--line); }
+
+/* ===================== Dropdown (bisa di-portal → tanpa scope, struktural saja) ===================== */
+.dropdown-menu {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    background-color: var(--surface);
+    color: var(--ink);
+    padding: .35rem;
+}
+.dropdown-item { color: var(--ink); border-radius: 8px; }
+.dropdown-item:hover,
+.dropdown-item:focus {
+    background-color: var(--brand-soft);
+    color: var(--brand-ink);
+}
