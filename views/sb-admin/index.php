@@ -81,6 +81,8 @@ if ($monitoringEnabled) {
     <link href="<?= rafAssetUrl('/css/sb-admin-2.min.css') ?>" rel="stylesheet">
     <link href="<?= rafAssetUrl('/static/css/monitoring.css') ?>" rel="stylesheet">
     <link href="<?= rafAssetUrl('/css/admin-theme.css') ?>" rel="stylesheet">
+    <!-- Tahap 2: lapisan komponen bersama (index.php tak lewat _head.php → link manual) -->
+    <link href="<?= rafAssetUrl('/css/components-modern.css') ?>" rel="stylesheet">
 
     <link href="<?= rafAssetUrl('/css/index.css') ?>" rel="stylesheet">
 
