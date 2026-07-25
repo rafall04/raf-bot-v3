@@ -49,11 +49,12 @@
         }
 
         .login-shell {
+            position: relative;
             width: 100%;
             max-width: 920px;
             background: #ffffff;
             border-radius: 24px;
-            box-shadow: 0 30px 70px rgba(2, 6, 23, 0.45);
+            box-shadow: 0 40px 90px -30px rgba(2, 6, 23, 0.6), 0 14px 34px -14px rgba(2, 6, 23, 0.4);
             overflow: hidden;
             display: grid;
             grid-template-columns: 1.05fr 1fr;
@@ -64,7 +65,9 @@
             position: relative;
             padding: 2.75rem 2.5rem;
             color: #fff;
-            background: linear-gradient(160deg, #4f46e5 0%, #6d28d9 55%, #7c3aed 100%);
+            background:
+                radial-gradient(rgba(255, 255, 255, 0.10) 1.3px, transparent 1.4px) 0 0 / 20px 20px,
+                linear-gradient(160deg, #4f46e5 0%, #6d28d9 55%, #7c3aed 100%);
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -172,7 +175,9 @@
             color: var(--muted);
             font-size: 0.9rem;
             pointer-events: none;
+            transition: color 0.15s ease;
         }
+        .input-wrap:focus-within > .lead-icon { color: var(--primary); }
         .input-wrap input {
             width: 100%;
             border: 1px solid var(--line);
@@ -188,7 +193,8 @@
         .input-wrap input:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.16);
+            background: #fbfcff;
         }
         .toggle-pass {
             position: absolute;
@@ -218,8 +224,9 @@
             margin-top: 0.4rem;
             font-family: inherit;
         }
-        .btn-login:hover { box-shadow: 0 14px 28px rgba(79, 70, 229, 0.4); }
+        .btn-login:hover { transform: translateY(-1px); box-shadow: 0 16px 32px -8px rgba(79, 70, 229, 0.5); }
         .btn-login:active { transform: translateY(1px); }
+        .btn-login:focus-visible { outline: none; box-shadow: 0 10px 22px rgba(79, 70, 229, 0.32), 0 0 0 4px rgba(99, 102, 241, 0.35); }
         .btn-login:disabled { opacity: 0.7; cursor: default; box-shadow: none; }
 
         .form-foot {
