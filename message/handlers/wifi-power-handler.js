@@ -2,13 +2,14 @@
  * Header Doc
  * Purpose: Handler pengaturan power transmit WiFi (persen 20-100) untuk pelanggan bulanan lewat perintah WhatsApp.
  * Caller: Dispatcher bot `message/raf.js` pada intent `GANTI_POWER_WIFI`.
- * Deps: `../../lib/jid-utils`, `../../lib/wifi`, `./template-helpers` (renderResponseTemplate).
+ * Deps: `../../lib/jid-utils`, `../../lib/wifi`, `../../lib/wifi-apply-guard` (assertWifiChangeApplied), `./template-helpers` (renderResponseTemplate).
  * MainFuncs: `handleGantiPowerWifi`.
  * SideEffects: Mengirim task perubahan power ke GenieACS dan reply WhatsApp.
  */
 
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
 const { setTransmitPower } = require('../../lib/wifi');
+const { assertWifiChangeApplied } = require('../../lib/wifi-apply-guard');
 const { renderResponseTemplate } = require('./template-helpers');
 
 /**
@@ -97,9 +98,9 @@ async function handleGantiPowerWifi({ sender, args, matchedKeywordLength, q, isO
                 verifyApplied: false,
             });
 
-            if (!response.ok) {
-                throw new Error(response.message || 'Task perubahan power gagal dikirim');
-            }
+            // `ok` saja tidak cukup — pakai penilai bersama supaya "task tak diterima"
+            // tak pernah dilaporkan sebagai berhasil ke pelanggan.
+            assertWifiChangeApplied(response);
 
             console.log('[WIFI_POWER] Success:', response.data);
             await reply(renderResponseTemplate(

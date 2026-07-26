@@ -12,6 +12,7 @@ const { logWifiChange } = require('../../../lib/wifi-logger');
 const { deleteUserState, format } = require('../conversation-handler');
 const { formatWifiSsidInfo } = require('../../../lib/wifi-ssid-summary');
 const { isAffirmative } = require('../../../lib/affirmative-parser');
+const { assertWifiChangeApplied } = require('../../../lib/wifi-apply-guard');
 
 function renderResponseTemplate(key, fallback, data = {}) {
     const rendered = format(key, data);
@@ -48,6 +49,14 @@ function buildActorLogFields(userState, fallbackSender) {
     };
 }
 
+/**
+ * Resolve SSID mana yang harus diubah, dari yang paling spesifik ke paling umum.
+ * JANGAN dikunci ke nama step: dulu cabang bulk hanya cocok untuk
+ * `CONFIRM_GANTI_NAMA_BULK`, sehingga step `ASK_NEW_NAME_FOR_BULK_AUTO`
+ * (dipasang `wifi-management.service.handleBulkAutoNameChange`) jatuh ke `[]`
+ * walau `bulk_ssids` terisi → pelanggan selalu dapat "SSID target tidak ditemukan".
+ * `bulk_ssids` kini fallback terakhir untuk step bulk apa pun.
+ */
 function getSelectedSsids(userState) {
     if (userState.selected_ssids && userState.selected_ssids.length) {
         return userState.selected_ssids;
@@ -55,11 +64,11 @@ function getSelectedSsids(userState) {
     if (userState.bulk_ssids && userState.selected_ssid_indices?.length) {
         return userState.selected_ssid_indices.map((index) => userState.bulk_ssids[index]);
     }
-    if (userState.bulk_ssids && userState.step === 'CONFIRM_GANTI_NAMA_BULK') {
-        return userState.bulk_ssids;
-    }
     if (userState.ssid_id) {
         return [userState.ssid_id];
+    }
+    if (userState.bulk_ssids?.length) {
+        return userState.bulk_ssids;
     }
     return [];
 }
@@ -190,17 +199,13 @@ async function handleAskNewName(userState, chats, reply, sender, global) {
         const payload = {};
         if (ssidsToChange.length === 1) {
             const result = await setSSIDName(userState.targetUser.device_id, ssidsToChange[0], newName);
-            if (!result.success) {
-                throw new Error(result.message);
-            }
+            assertWifiChangeApplied(result);
         } else {
             ssidsToChange.forEach((ssidId) => {
                 payload[`ssid_${ssidId}`] = newName;
             });
             const response = await updateWifiSettings(userState.targetUser.device_id, payload, { verifyApplied: true });
-            if (!response.ok) {
-                throw new Error(response.message);
-            }
+            assertWifiChangeApplied(response);
         }
 
         const actorFields = buildActorLogFields(userState, sender);
@@ -269,18 +274,14 @@ async function handleConfirmGantiNamaBulk(userState, userReply, reply, sender, _
     try {
         if (ssidsToChange.length === 1) {
             const result = await setSSIDName(targetUser.device_id, ssidsToChange[0], nama_wifi_baru);
-            if (!result.success) {
-                throw new Error(result.message);
-            }
+            assertWifiChangeApplied(result);
         } else {
             const payload = {};
             ssidsToChange.forEach((ssidId) => {
                 payload[`ssid_${ssidId}`] = nama_wifi_baru;
             });
             const result = await updateWifiSettings(targetUser.device_id, payload, { verifyApplied: true });
-            if (!result.ok) {
-                throw new Error(result.message);
-            }
+            assertWifiChangeApplied(result);
         }
 
         const actorFields = buildActorLogFields(userState, sender);

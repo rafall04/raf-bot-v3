@@ -12,6 +12,7 @@ const { logWifiChange } = require('../../../lib/wifi-logger');
 const { deleteUserState, format } = require('../conversation-handler');
 const { formatWifiSsidInfo } = require('../../../lib/wifi-ssid-summary');
 const { isAffirmative } = require('../../../lib/affirmative-parser');
+const { assertWifiChangeApplied } = require('../../../lib/wifi-apply-guard');
 
 function renderResponseTemplate(key, fallback, data = {}) {
     const rendered = format(key, data);
@@ -47,6 +48,15 @@ function buildActorLogFields(userState, fallbackSender) {
     };
 }
 
+/**
+ * Resolve SSID mana yang harus diubah, dari yang paling spesifik ke paling umum.
+ * JANGAN dikunci ke nama step: dulu cabang bulk hanya cocok untuk
+ * `CONFIRM_GANTI_SANDI_BULK`, sehingga step `ASK_NEW_PASSWORD_BULK_AUTO`
+ * (dipasang `wifi-management.service.handleBulkAutoPasswordChange`) jatuh ke `[]`
+ * walau `bulk_ssids` terisi → payload kosong → pelanggan dibilang "Berhasil"
+ * padahal sandi tak pernah berubah. `bulk_ssids` kini fallback terakhir untuk
+ * step bulk apa pun, sekarang maupun yang ditambahkan nanti.
+ */
 function getSelectedSsids(userState) {
     if (userState.selected_ssids && userState.selected_ssids.length) {
         return userState.selected_ssids;
@@ -54,11 +64,11 @@ function getSelectedSsids(userState) {
     if (userState.bulk_ssids && userState.selected_ssid_indices?.length) {
         return userState.selected_ssid_indices.map((index) => userState.bulk_ssids[index]);
     }
-    if (userState.bulk_ssids && userState.step === 'CONFIRM_GANTI_SANDI_BULK') {
-        return userState.bulk_ssids;
-    }
     if (userState.ssid_id) {
         return [userState.ssid_id];
+    }
+    if (userState.bulk_ssids?.length) {
+        return userState.bulk_ssids;
     }
     return [];
 }
@@ -179,9 +189,7 @@ async function handleAskNewPassword(userState, chats, reply, sender, global) {
 
     try {
         const result = await setPassword(userState.targetUser.device_id, userState.ssid_id || '1', newPassword);
-        if (!result.success) {
-            throw new Error(result.message);
-        }
+        assertWifiChangeApplied(result);
 
         const actorFields = buildActorLogFields(userState, sender);
         await logWifiChange({
@@ -232,6 +240,16 @@ async function handleAskNewPasswordBulk(userState, chats, reply, sender, global)
     userState.sandi_wifi_baru = newPassword;
     const ssidsToChange = getSelectedSsids(userState);
 
+    // Tanpa target SSID, payload ke GenieACS akan kosong dan pelanggan bisa
+    // dibilang "Berhasil" padahal nol task terkirim. Gagal terang-terangan.
+    if (!ssidsToChange.length) {
+        deleteUserState(sender);
+        return reply(renderResponseTemplate(
+            'wifi_password_bulk_target_missing',
+            '❌ Target WiFi tidak ditemukan. Silakan mulai lagi dari awal.'
+        ));
+    }
+
     if (global?.config?.custom_wifi_modification) {
         userState.step = 'CONFIRM_GANTI_SANDI_BULK';
         const ssidInfo = ssidsToChange.length > 1
@@ -260,9 +278,7 @@ async function handleAskNewPasswordBulk(userState, chats, reply, sender, global)
         });
 
         const response = await updateWifiSettings(userState.targetUser.device_id, bulkPayload, { verifyApplied: true });
-        if (!response.ok) {
-            throw new Error(response.message);
-        }
+        assertWifiChangeApplied(response);
 
         const actorFields = buildActorLogFields(userState, sender);
         await logWifiChange({
@@ -322,9 +338,7 @@ async function handleConfirmGantiSandi(userState, userReply, reply, sender, _glo
 
     try {
         const result = await setPassword(targetUser.device_id, ssid_id, sandi_wifi_baru);
-        if (!result.success) {
-            throw new Error(result.message);
-        }
+        assertWifiChangeApplied(result);
 
         const actorFields = buildActorLogFields(userState, sender);
         await logWifiChange({
@@ -385,9 +399,7 @@ async function handleConfirmGantiSandiBulk(userState, userReply, reply, sender, 
         });
 
         const result = await updateWifiSettings(targetUser.device_id, bulkPayload, { verifyApplied: true });
-        if (!result.ok) {
-            throw new Error(result.message);
-        }
+        assertWifiChangeApplied(result);
 
         const actorFields = buildActorLogFields(userState, sender);
         await logWifiChange({

@@ -985,3 +985,15 @@
 - **Gaji SENGAJA tidak di sini** — sudah dikelola `/gaji-teknisi`; memasukkannya akan terhitung dua kali. Tanggal 29-31 pada bulan pendek jatuh ke hari terakhir, kalau tidak tagihan tgl 31 tak pernah tertagih di Februari.
 - **Tes:** 24 (12 store + 10 alur WA + gerbang) plus uji end-to-end cron→konfirmasi→`expense_entries`.
 - **PELAJARAN:** `renderResponseTemplate` mengembalikan fallback TANPA substitusi bila key tak ada di `response_templates.json` — key baru yang lupa didaftarkan menampilkan `${nama}` mentah ke pemakai. Guard `response-template-key-integrity` menangkapnya; jangan lewati.
+
+<a id="b180"></a>
+### Fix 2026-07-26 (Ganti sandi/nama WiFi: payload kosong dilaporkan "Berhasil" — penjaga bukti-mendarat)
+
+- **Owner penilaian sukses:** `lib/wifi-apply-guard.js` (BARU — `isWifiChangeApplied`/`assertWifiChangeApplied`, aturan `ok && accepted !== false && applied !== false`). Dipakai 14 titik apply di `wifi-password-state-handler`, `wifi-name-state-handler`, `wifi-power-handler`, `services/wifi-management.service`; cek longgar `if (!x.ok)` DIHAPUS dari jalur itu.
+- **AKAR:** `getSelectedSsids()` mengunci cabang bulk ke NAMA STEP (`CONFIRM_GANTI_SANDI_BULK`), jadi step `ASK_NEW_PASSWORD_BULK_AUTO` (dipasang `handleBulkAutoPasswordChange`) jatuh ke `[]` walau `bulk_ssids` terisi → `bulkPayload = {}`. `bulk_ssids` kini fallback TERAKHIR, lepas dari nama step.
+- **GOTCHA yang membuatnya senyap:** `lib/genieacs.updateWifiSettings` balik **`ok: true`** untuk payload kosong — satu-satunya outlier; `setParameterValuesInternal`/`setWifiCredentials`/`applyBulkWifiUpdates` sudah `ok:false`+`PARSE_ERROR`. Kini diselaraskan, jadi nol-task tak bisa lagi menyamar jadi sukses di jalur mana pun.
+- **Korban prod (Tanjung):** 3 pelanggan dijanjikan sandi yang tak pernah aktif — id 74 (09-07), id 58 & 89 (24-07); dibuktikan `0 task` di ACS + `PreSharedKey` masih nilai lama. Ditandai di log oleh `reason: "...(0 SSIDs)"` + `changes.ssidIds: ""`. Dander memakai kode sama (rentan, belum ada korban).
+- **Jalur inline (`gantisandi <sandi>`) TIDAK terpengaruh** — memakai `user.bulk` langsung; itu sebabnya mayoritas pelanggan normal dan bug bertahan ~2 minggu.
+- **Template:** key baru `wifi_password_bulk_target_missing` (kembaran `wifi_name_bulk_target_missing`) ditambahkan di commit yang sama.
+- **Tes:** 4 regresi alur bulk-auto (`message/__tests__/wifi-bulk-auto-apply.test.js`, terbukti MERAH di kode lama) + 13 kontrak penjaga (`lib/__tests__/wifi-apply-guard.test.js`) + 9 guard statis pemindai repo (`message/__tests__/wifi-apply-success-judgment.test.js`).
+- **Tanpa gate config** — ini perbaikan korektif, bukan fitur baru.

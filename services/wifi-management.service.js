@@ -2,13 +2,14 @@
  * Header Doc
  * Purpose: Menjadi owner orchestration domain WiFi untuk perubahan nama/sandi agar handler bot tinggal menjadi adapter channel.
  * Caller: `message/handlers/wifi-management-handler.js` dan caller WiFi legacy/state yang mempertahankan signature existing.
- * Deps: Adapter `lib/wifi.js`, resolver customer `lib/jid-utils`, repository `repositories/wifi.repository.js`, dan callback state/reply dari caller.
+ * Deps: Adapter `lib/wifi.js`, penilai hasil `lib/wifi-apply-guard.js`, resolver customer `lib/jid-utils`, repository `repositories/wifi.repository.js`, dan callback state/reply dari caller.
  * MainFuncs: `createWifiManagementService`, `handleGantiNamaWifi`, `handleGantiSandiWifi`, `handleSingleSSIDNameChange`, `handleBulkAutoNameChange`, `handleSingleSSIDPasswordChange`, `handleBulkAutoPasswordChange`, `logWifiNameChange`, `logWifiPasswordChange`.
  * SideEffects: Mengubah konfigurasi WiFi perangkat, menulis log perubahan WiFi, dan memperbarui state percakapan WiFi melalui callback caller.
  */
 "use strict";
 
 const { formatWifiSsidInfo } = require("../lib/wifi-ssid-summary");
+const { assertWifiChangeApplied } = require("../lib/wifi-apply-guard");
 
 function sanitizePhone(identifier = "") {
     return String(identifier || "")
@@ -298,9 +299,7 @@ function createWifiManagementService(overrides = {}) {
 
         try {
             const result = await deps.setSSIDName(user.device_id, user.ssid_id || "1", newName);
-            if (!result.success) {
-                throw new Error(result.message);
-            }
+            assertWifiChangeApplied(result);
             await logWifiNameChange(user, newName, buildWifiLogSender(rawSender, stateKey), "single", actor);
             deleteUserState(stateKey);
             const ssidInfo = formatWifiSsidInfo([user.ssid_id || "1"]);
@@ -342,9 +341,7 @@ function createWifiManagementService(overrides = {}) {
                 bulkPayload[`ssid_${ssidId}`] = newName;
             });
             const response = await deps.updateWifiSettings(user.device_id, bulkPayload, { verifyApplied: true });
-            if (!response.ok) {
-                throw new Error(response.message);
-            }
+            assertWifiChangeApplied(response);
 
             await logWifiNameChange(user, newName, buildWifiLogSender(rawSender, stateKey), "bulk_auto", actor);
             deleteUserState(stateKey);
@@ -390,9 +387,7 @@ function createWifiManagementService(overrides = {}) {
 
         try {
             const result = await deps.setPassword(user.device_id, user.ssid_id || "1", newPassword);
-            if (!result.success) {
-                throw new Error(result.message);
-            }
+            assertWifiChangeApplied(result);
             await logWifiPasswordChange(user, newPassword, buildWifiLogSender(rawSender, stateKey), "single", actor);
             deleteUserState(stateKey);
             return replyWifiPasswordSuccess(reply, renderResponseTemplate, newPassword, formatWifiSsidInfo([user.ssid_id || "1"]));
@@ -424,9 +419,7 @@ function createWifiManagementService(overrides = {}) {
                 bulkPayload[`ssid_password_${ssidId}`] = newPassword;
             });
             const response = await deps.updateWifiSettings(user.device_id, bulkPayload, { verifyApplied: true });
-            if (!response.ok) {
-                throw new Error(response.message);
-            }
+            assertWifiChangeApplied(response);
 
             await logWifiPasswordChange(user, newPassword, buildWifiLogSender(rawSender, stateKey), "bulk_auto", actor);
             deleteUserState(stateKey);

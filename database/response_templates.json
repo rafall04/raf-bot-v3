@@ -3494,6 +3494,11 @@
     "category": "wifi",
     "template": "❌ Target WiFi tidak ditemukan. Silakan mulai lagi dari awal."
   },
+  "wifi_password_bulk_target_missing": {
+    "name": "WiFi Password State: Target SSID Tidak Ditemukan",
+    "category": "wifi",
+    "template": "❌ Target WiFi tidak ditemukan. Silakan mulai lagi dari awal."
+  },
   "approval_teknisi_status_notification": {
     "name": "Approval: Notifikasi Status Pengajuan ke Teknisi",
     "category": "approval",
