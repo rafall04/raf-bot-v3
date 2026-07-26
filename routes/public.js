@@ -711,12 +711,14 @@ customerApiRouter.get('/packages', asyncHandler(async (req, res) => {
 // membebankan pembelian atas nama nomor lain. Fulfillment ada di POST /callback/payment.
 
 customerApiRouter.get('/vouchers/status', asyncHandler(async (req, res) => {
-    // Probe ketersediaan fitur untuk panel (menyembunyikan menu bila operator belum mengaktifkan).
-    const enabled = customerVoucherService.isEnabled();
+    // Probe ketersediaan fitur untuk panel (menyembunyikan menu bila operator belum
+    // mengaktifkan), sekaligus mengirim tarif biaya admin QRIS dan nomor tujuan kode —
+    // keduanya dipakai layar konfirmasi SEBELUM transaksi dibuat.
+    const status = customerVoucherService.getFeatureStatus({ customer: req.customer });
     return sendSuccess(
         res,
-        { enabled },
-        enabled ? 'Pembelian voucher tersedia' : 'Pembelian voucher tidak tersedia'
+        status,
+        status.enabled ? 'Pembelian voucher tersedia' : 'Pembelian voucher tidak tersedia'
     );
 }));
 

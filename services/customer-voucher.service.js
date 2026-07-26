@@ -40,6 +40,33 @@ function isFailedKet(ket) {
     return typeof ket === 'string' && /^GAGAL/i.test(ket.trim());
 }
 
+/**
+ * Biaya admin QRIS iPaymu, ditagihkan ke PEMBELI (feeDirection BUYER).
+ *
+ * Dipakai HANYA untuk estimasi yang ditampilkan SEBELUM transaksi dibuat — angka pasti
+ * selalu datang dari iPaymu (`fee` pada record payment) begitu transaksi ada. Nilai ini
+ * kembar dengan `QRIS_FEE_RATE` di `static/voucher-buy.html`; kalau iPaymu mengubah tarif,
+ * dua-duanya harus ikut. Panel pelanggan membacanya dari sini (endpoint status) supaya
+ * tidak ada konstanta ketiga di repo panel.
+ */
+const QRIS_FEE_RATE = 0.007;
+
+/**
+ * Nomor utama pelanggan sebagai digit polos, atau '' bila tidak ada.
+ *
+ * `phone_number` menyimpan DAFTAR nomor dipisah '|' (lihat CustomerService.getPhoneNumbers
+ * dan BaseService.getCustomerJids). SATU-SATUNYA tempat aturan ini diterapkan untuk jalur
+ * voucher panel — jangan menghitungnya ulang di pemanggil, karena menyapu non-digit dari
+ * seluruh string akan menggabungkan semua nomor jadi angka 26-39 digit.
+ */
+function primaryPhoneDigits(customer) {
+    const primary = String(customer?.phone_number || '')
+        .split('|')
+        .map((part) => part.trim())
+        .filter(Boolean)[0] || '';
+    return primary.replace(/\D/g, '');
+}
+
 function createCustomerVoucherService({
     getConfig,
     pay,
@@ -72,6 +99,28 @@ function createCustomerVoucherService({
     /** Fitur ini deploy-gelap: default OFF, dinyalakan operator lewat config. */
     function isEnabled() {
         return config().customerVoucher?.enabled === true;
+    }
+
+    /**
+     * Read-model untuk layar pembuka panel.
+     *
+     * `qrisFeeRate` dan `notifyPhone` dikirim dari sini supaya panel bisa menampilkan
+     * rincian "harga + biaya admin" dan nomor tujuan SEBELUM transaksi dibuat, tanpa
+     * menghitung ulang aturan nomor utama di sisi klien.
+     */
+    function getFeatureStatus({ customer } = {}) {
+        const digits = primaryPhoneDigits(customer);
+        return {
+            enabled: isEnabled(),
+            qrisFeeRate: QRIS_FEE_RATE,
+            notifyPhone: digits || null
+        };
+    }
+
+    /** Estimasi biaya admin QRIS. `ceil` supaya tak pernah lebih kecil dari fee asli iPaymu. */
+    function estimateFee(amount) {
+        const base = parseInt(amount, 10) || 0;
+        return base > 0 ? Math.ceil(base * QRIS_FEE_RATE) : 0;
     }
 
     /** Read-model paket voucher untuk panel. Sengaja TIDAK membocorkan hargaReseller/margin. */
@@ -115,15 +164,7 @@ function createCustomerVoucherService({
             return { ok: false, status: 422, message: 'Harga paket tidak valid. Hubungi admin.' };
         }
 
-        // `phone_number` menyimpan DAFTAR nomor dipisah '|' (lihat CustomerService.getPhoneNumbers
-        // dan BaseService.getCustomerJids), bukan satu nomor. Menyapu non-digit dari SELURUH string
-        // akan MENGGABUNGKAN semua nomor jadi satu angka 26-39 digit — lolos cek panjang dan
-        // terkirim ke iPaymu sebagai nomor sampah. Ambil nomor pertama sebagai nomor utama.
-        const primaryPhone = String(customer?.phone_number || '')
-            .split('|')
-            .map((part) => part.trim())
-            .filter(Boolean)[0] || '';
-        const phoneDigits = primaryPhone.replace(/\D/g, '');
+        const phoneDigits = primaryPhoneDigits(customer);
         // Dibedakan: "belum punya nomor" bisa diperbaiki sendiri oleh pelanggan lewat halaman
         // Pengaturan, sedangkan nomor yang ada tapi cacat biasanya salah input dari admin.
         if (!phoneDigits) {
@@ -216,13 +257,22 @@ function createCustomerVoucherService({
         else if (record.status && failed) state = 'failed';
         else if (record.status) state = 'processing';
 
+        // Rincian NYATA dari iPaymu (disimpan saat charge), bukan estimasi. Dipakai panel
+        // untuk breakdown di layar QR dan struk pembayaran. `subtotal` mundur ke `amount`
+        // untuk record lama yang belum menyimpannya.
+        const amount = parseInt(record.amount, 10) || 0;
+        const subtotal = parseInt(record.subtotal, 10) || amount;
+        const fee = parseInt(record.fee, 10) || 0;
+
         return {
             reff: String(record.reffId),
             state,
             paid: record.status === true,
             prof: record.prof || null,
-            amount: parseInt(record.amount, 10) || 0,
-            total: record.priceTotal ?? null,
+            amount,
+            subtotal,
+            fee,
+            total: record.priceTotal ?? (subtotal + fee),
             qrString: state === 'pending' ? record.qrStr || null : null,
             voucherCode: code,
             createdAt: record.createdAt ?? null,
@@ -260,12 +310,15 @@ function createCustomerVoucherService({
 
     return {
         isEnabled,
+        getFeatureStatus,
+        estimateFee,
         listPackages,
         createPurchase,
         getPurchaseStatus,
         listHistory,
         // diekspor untuk test
-        _extractVoucherCode: extractVoucherCode
+        _extractVoucherCode: extractVoucherCode,
+        _primaryPhoneDigits: primaryPhoneDigits
     };
 }
 

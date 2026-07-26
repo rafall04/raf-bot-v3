@@ -62,6 +62,43 @@ describe("customer-voucher service — gating", () => {
     });
 });
 
+describe("customer-voucher service — read-model status fitur", () => {
+    test("mengirim tarif biaya admin QRIS untuk estimasi pra-transaksi", () => {
+        const { service } = build();
+        const status = service.getFeatureStatus({ customer: CUSTOMER });
+        expect(status.enabled).toBe(true);
+        // Kembar dengan QRIS_FEE_RATE di static/voucher-buy.html; panel membacanya dari sini
+        // supaya tidak ada konstanta ketiga di repo panel.
+        expect(status.qrisFeeRate).toBeCloseTo(0.007, 6);
+    });
+
+    test("notifyPhone = nomor UTAMA, bukan gabungan seluruh daftar", () => {
+        const { service } = build();
+        const status = service.getFeatureStatus({
+            customer: { id: 1, phone_number: "081234567890|081298765432" }
+        });
+        expect(status.notifyPhone).toBe("081234567890");
+    });
+
+    test("notifyPhone null bila pelanggan belum punya nomor", () => {
+        const { service } = build();
+        expect(service.getFeatureStatus({ customer: { id: 2, phone_number: "" } }).notifyPhone).toBeNull();
+        expect(service.getFeatureStatus({}).notifyPhone).toBeNull();
+    });
+
+    test("estimateFee dibulatkan KE ATAS supaya tak pernah kurang dari fee asli iPaymu", () => {
+        const { service } = build();
+        // 1000 * 0.007 = 7 tepat; 2000 -> 14; 3000 -> 21; 15000 -> 105; 50000 -> 350
+        expect(service.estimateFee(1000)).toBe(7);
+        expect(service.estimateFee(2000)).toBe(14);
+        expect(service.estimateFee(50000)).toBe(350);
+        // pecahan harus naik, bukan turun
+        expect(service.estimateFee(1001)).toBe(8);
+        expect(service.estimateFee(0)).toBe(0);
+        expect(service.estimateFee(undefined)).toBe(0);
+    });
+});
+
 describe("customer-voucher service — read-model paket", () => {
     test("tidak membocorkan hargaReseller / margin ke pelanggan", () => {
         const { service } = build();
@@ -239,6 +276,26 @@ describe("customer-voucher service — status & riwayat", () => {
         expect(done.state).toBe("completed");
         expect(done.qrString).toBeNull();
         expect(done.voucherCode).toBe("kode-ok");
+    });
+
+    test("membawa subtotal + fee NYATA untuk breakdown & struk", () => {
+        const payments = [
+            { ...base, reffId: "r9", status: true, ket: "kode-ok", subtotal: 1000, fee: 7, priceTotal: 1007, createdAt: 5 }
+        ];
+        const { service } = build({ payments });
+        const view = service.getPurchaseStatus({ customer: CUSTOMER, reff: "r9" }).data;
+        expect(view.subtotal).toBe(1000);
+        expect(view.fee).toBe(7);
+        expect(view.total).toBe(1007);
+    });
+
+    test("record lama tanpa subtotal/fee: subtotal mundur ke amount, total tetap konsisten", () => {
+        const payments = [{ ...base, reffId: "r10", status: true, ket: "kode-lama", createdAt: 5 }];
+        const { service } = build({ payments });
+        const view = service.getPurchaseStatus({ customer: CUSTOMER, reff: "r10" }).data;
+        expect(view.subtotal).toBe(1000);
+        expect(view.fee).toBe(0);
+        expect(view.total).toBe(1000);
     });
 
     test("ket berprefix GAGAL → state failed, tanpa kode", () => {
