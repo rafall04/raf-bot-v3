@@ -1007,3 +1007,13 @@
 - **Config gate:** `customerVoucher.enabled`, default **false** di `config.example.json` (deploy gelap). Rate limit 10 transaksi/15 menit per pelanggan; baca status tidak dibatasi karena panel mem-polling.
 - **Template:** key baru `voucher_beli_panel` di `database/message_templates.json`, ditambahkan di commit yang sama.
 - **Tes:** `services/__tests__/customer-voucher.service.test.js` (20 unit, termasuk scoping lintas-pelanggan) + `routes/__tests__/payment-callback-voucher.test.js` diperluas (12 guard statis; slice blok diperbaiki agar `buynowweb` tidak menelan cabang baru).
+<a id="b182"></a>
+### Fix 2026-07-26 (`/app/voucher` anonim membocorkan hargaReseller & margin)
+
+- **Owner tidak berubah** — `routes/public-anonymous.js` tetap pemilik `/app/voucher`. Yang berubah: responsnya TIDAK lagi `global.voucher` mentah (seperti dijelaskan [b03](#b03)), melainkan diproyeksikan lewat allowlist `PUBLIC_VOUCHER_FIELDS` + helper `toPublicVoucher`.
+- **Kebocoran:** `database/voucher.json` menyimpan `hargaReseller` dan `margin` per paket, dan endpoint ini anonim — siapa pun tanpa login bisa membaca harga reseller dan margin. Terverifikasi di produksi RAF-DANDER 2026-07-26 (`curl http://127.0.0.1:3010/app/voucher`).
+- **Allowlist, bukan blocklist:** hanya `prof`, `namavc`, `durasivc`, `hargavc` (+ `featured` bila cocok `config.voucherFeatured`). Kolom harga baru di voucher.json tidak akan otomatis bocor; kalau memang perlu tampil, tambahkan ke allowlist secara sadar.
+- **Nama field DIPERTAHANKAN** (bukan read-model bernama-baru seperti `listPackages()` di `services/customer-voucher.service.js`, [b181](#b181)) karena `static/voucher-buy.html` membaca `hargavc`/`namavc`/`durasivc` langsung — mengganti nama akan mengosongkan katalog halaman beli.
+- **`/app/packages` tidak disentuh:** hanya memancarkan metadata internal (tanpa margin/PII; `whitelist` di sana berupa string boolean) dan satu-satunya konsumennya adalah health-check area di `lib/portal-areas.js`. Bentuk `{data:[]}`-nya dijaga oleh test.
+- **Tes:** `routes/__tests__/public-anonymous-voucher-projection.test.js` (9 test) — kebocoran, kelengkapan field konsumen, allowlist terhadap kolom tak dikenal, perilaku `featured`, bentuk `/app/packages`, plus guard yang memindai `voucher-buy.html` agar allowlist dan konsumennya tak bisa berpisah diam-diam.
+- **Tanpa gate config** — perbaikan korektif keamanan, bukan fitur baru.

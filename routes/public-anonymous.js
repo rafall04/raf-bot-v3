@@ -8,7 +8,11 @@
  *   (app publik pada port terpisah).
  * Deps: express, path, qr-image, `lib/ipaymu` (pay), `lib/voucher` (checkhargavc), `lib/payment` (addPayment);
  *   state `global.payment` / `global.packages` / `global.voucher`.
- * MainFuncs: GET /voucher, GET /app/:type/:id?.
+ * MainFuncs: GET /voucher, GET /app/:type/:id?, `toPublicVoucher` (proyeksi allowlist).
+ * Catatan keamanan: `/app/voucher` TIDAK mengirim `global.voucher` mentah — ia diproyeksikan
+ *   lewat `PUBLIC_VOUCHER_FIELDS` supaya `hargaReseller`/`margin` tidak bocor ke pengunjung
+ *   anonim. Tambah kolom harga baru di voucher.json => tambahkan ke allowlist bila memang
+ *   perlu tampil, bukan sebaliknya.
  * SideEffects: Membuat record pembayaran (addPayment) & memanggil iPaymu saat `buy`. TIDAK menyentuh
  *   saldo/voucher fulfillment — penyelesaian ada di callback `POST /callback/payment` (tetap di
  *   `routes/public.js`, port utama), berbagi `global.payment` dalam proses yang sama.
@@ -22,6 +26,30 @@ const { addPayment } = require('../lib/payment');
 const { checkhargavc } = require('../lib/voucher');
 
 const router = express.Router();
+
+/**
+ * Field voucher yang BOLEH dilihat publik anonim.
+ *
+ * ALLOWLIST, bukan blocklist: `global.voucher` (database/voucher.json) juga menyimpan
+ * `hargaReseller` dan `margin`, dan menambah kolom harga baru di masa depan tidak boleh
+ * otomatis bocor ke `/app/voucher`.
+ *
+ * Nama field DIPERTAHANKAN apa adanya. Ini sengaja BUKAN read-model bernama-baru seperti
+ * `listPackages()` di services/customer-voucher.service.js (yang memancarkan price/name/
+ * duration) — `static/voucher-buy.html` membaca `hargavc`/`namavc`/`durasivc` langsung,
+ * jadi mengganti nama di sini akan mengosongkan katalog halaman beli.
+ */
+const PUBLIC_VOUCHER_FIELDS = ['prof', 'namavc', 'durasivc', 'hargavc'];
+
+/** Proyeksi satu paket voucher untuk konsumsi publik. `featured` hanya ditambah bila benar. */
+function toPublicVoucher(item, featured) {
+    const out = {};
+    PUBLIC_VOUCHER_FIELDS.forEach((field) => {
+        if (item && item[field] !== undefined) out[field] = item[field];
+    });
+    if (featured) out.featured = true;
+    return out;
+}
 
 // Halaman publik beli voucher online (pembeli umum/anonim). Static page; API-nya di /app/*.
 router.get('/voucher', (req, res) => {
@@ -66,12 +94,17 @@ router.get('/app/:type/:id?', async (req, res) => {
                 }
             }
             default: {
-                let data = type == 'packages' ? global.packages : type == 'voucher' ? global.voucher : [];
-                // Tandai paket "Terlaris" (config.voucherFeatured = prof) untuk badge di halaman beli.
-                if (type == 'voucher' && Array.isArray(data)) {
+                if (type == 'voucher') {
+                    // Diproyeksikan lewat allowlist: JANGAN kirim `global.voucher` mentah —
+                    // isinya termasuk hargaReseller & margin, dan endpoint ini anonim.
+                    // Tandai paket "Terlaris" (config.voucherFeatured = prof) untuk badge halaman beli.
                     const feat = String((global.config && global.config.voucherFeatured) || '').trim();
-                    if (feat) data = data.map(v => String(v.prof) === feat ? Object.assign({}, v, { featured: true }) : v);
+                    const list = Array.isArray(global.voucher) ? global.voucher : [];
+                    return res.json({
+                        data: list.map(v => toPublicVoucher(v, feat !== '' && String(v && v.prof) === feat))
+                    });
                 }
+                const data = type == 'packages' ? global.packages : [];
                 return res.json({ data });
             }
         }
