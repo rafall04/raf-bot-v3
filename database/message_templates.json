@@ -203,6 +203,10 @@
     "name": "Pelanggan: Voucher Diproses Manual (pembayaran berhasil)",
     "template": "✅ Pembayaran kamu *BERHASIL* dan sudah tercatat. Voucher segera kami kirimkan ya. Jika dalam beberapa saat belum masuk, silakan hubungi admin. Terima kasih! 🙏"
   },
+  "voucher_beli_panel": {
+    "name": "Kode Voucher — Pembelian dari Panel Pelanggan",
+    "template": "✅ *PEMBELIAN VOUCHER BERHASIL*\n\nTerima kasih! Berikut voucher WiFi Anda:\n\n🎫 *KODE VOUCHER*\n━━━━━━━━━━━━━━\n• Paket : *${nama_paket}*\n• Harga : *${harga}*\n• Kode  : *${kode_voucher}*\n━━━━━━━━━━━━━━\n\nKode ini juga tersimpan di menu *Voucher* pada panel pelanggan Anda. Hubungkan ke WiFi kami lalu masukkan kode di atas pada halaman login. _Simpan pesan ini sebagai bukti._ 🙏"
+  },
   "voucher_beli_web": {
     "name": "Kode Voucher — Pembelian Online (halaman web)",
     "template": "✅ *PEMBELIAN VOUCHER BERHASIL*\n\nTerima kasih! Berikut voucher WiFi Anda:\n\n🎫 *KODE VOUCHER*\n━━━━━━━━━━━━━━\n• Paket : *${nama_paket}*\n• Harga : *${harga}*\n• Kode  : *${kode_voucher}*\n━━━━━━━━━━━━━━\n\nHubungkan ke WiFi kami lalu masukkan kode di atas pada halaman login. _Simpan pesan ini sebagai bukti._ 🙏"

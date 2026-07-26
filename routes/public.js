@@ -2,8 +2,8 @@
  * Header Doc
  * Purpose: Router publik/customer portal untuk autentikasi, self-service pelanggan, laporan, payment callback, dan notifikasi outbound WA customer/admin.
  * Caller: `routes-registry`/Express app.
- * Deps: Express, auth/token helpers, payment/voucher/saldo helpers, customer/report/speed services, WhatsApp delivery service, template-service.
- * MainFuncs: handleOtpRequest, handleOtpVerify, handleCustomerLogin, customer API routes, payment callback, speed request route.
+ * Deps: Express, auth/token helpers, payment/voucher/saldo helpers, customer/report/speed services, WhatsApp delivery service, template-service, `services/customer-voucher.service` (beli voucher dari panel), `lib/ipaymu` (charge QRIS).
+ * MainFuncs: handleOtpRequest, handleOtpVerify, handleCustomerLogin, customer API routes (termasuk /vouchers/* beli voucher terautentikasi), payment callback (tag buynow/buynowweb/buynowpanel/topup), speed request route.
  * SideEffects: Membaca/menulis runtime data, mengirim OTP/notifikasi WhatsApp, menyimpan laporan/speed request/payment state.
  */
 const express = require('express');
@@ -23,7 +23,7 @@ const { createBillPaymentSettlement } = require('../lib/services/bill-payment-se
 const billSettlement = createBillPaymentSettlement();
 const { getvoucher } = require("../lib/mikrotik");
 const { addKoinUser, checkATMuser } = require('../lib/saldo');
-const { updateStatusPayment, checkStatusPayment, delPayment: _delPayment, addPayBuy: _addPayBuy, updateKetPayment } = require('../lib/payment');
+const { updateStatusPayment, checkStatusPayment, delPayment: _delPayment, addPayBuy: _addPayBuy, updateKetPayment, addPayment } = require('../lib/payment');
 const { checkprofvc, checkdurasivc, checkhargavc } = require('../lib/voucher');
 const { saveReports: _saveReports, saveSpeedRequests, savePackageChangeRequests: _savePackageChangeRequests, loadJSON: _loadJSON } = require('../lib/database');
 const { authCache } = require('../lib/auth-cache');
@@ -51,6 +51,20 @@ const { sendMessage, sendMessageToMany } = require('../lib/whatsapp-delivery-ser
 const { sendCritical } = require('../lib/whatsapp-critical-delivery');
 const { getAdminJids } = require('../lib/admin-recipients');
 const { recordVoucherOrphan } = require('../lib/voucher-orphan');
+const { pay: ipaymuPay } = require('../lib/ipaymu');
+const { createCustomerVoucherService } = require('../services/customer-voucher.service');
+
+// Beli voucher dari panel pelanggan (terautentikasi, tag `buynowpanel`). Dibuat sekali di
+// module scope: service-nya stateless dan membaca `global.*` lewat getter, jadi aman.
+const customerVoucherService = createCustomerVoucherService({
+    getConfig: () => global.config || {},
+    pay: ipaymuPay,
+    addPayment,
+    checkhargavc,
+    getVoucherProfiles: () => global.voucher,
+    getPayments: () => global.payment,
+    logger: console
+});
 
 // Alert admin yang ANDAL: kirim ke tiap JID admin valid via sendCritical (retry + dead-letter).
 // Dipakai saat voucher gagal / reaktivasi tagihan gagal — wajib sampai ke operator.
@@ -251,6 +265,21 @@ const paymentProofRateLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => `payment_proof_customer_${req.customer?.id || 'unknown'}`
+});
+
+// Beli voucher memanggil iPaymu (charge nyata) tiap request. Tanpa batas, satu akun bisa
+// membanjiri gateway dengan transaksi pending. Baca-status/riwayat TIDAK dibatasi karena panel
+// mem-polling status selama pelanggan menunggu QRIS dibayar.
+const voucherPurchaseRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 menit
+    max: 10, // 10 transaksi baru per 15 menit per customer
+    message: {
+        status: 429,
+        message: 'Terlalu banyak permintaan pembelian voucher. Silakan coba lagi dalam 15 menit.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => `voucher_purchase_customer_${req.customer?.id || 'unknown'}`
 });
 
 // memoryStorage — BUKAN diskStorage seperti handleReportPhotoUpload. handleIncomingProof() menuntut
@@ -675,6 +704,57 @@ customerApiRouter.get('/packages', asyncHandler(async (req, res) => {
     const customer = req.customer;
     const packages = await CustomerService.getAvailablePackages(customer, req);
     return sendSuccess(res, packages, "Daftar paket bulanan berhasil diambil");
+}));
+
+// ===== Beli voucher hotspot dari panel pelanggan (QRIS iPaymu, tag `buynowpanel`) =====
+// Nomor HP SELALU dari `req.customer`, tidak pernah dari body — kalau tidak, pelanggan bisa
+// membebankan pembelian atas nama nomor lain. Fulfillment ada di POST /callback/payment.
+
+customerApiRouter.get('/vouchers/status', asyncHandler(async (req, res) => {
+    // Probe ketersediaan fitur untuk panel (menyembunyikan menu bila operator belum mengaktifkan).
+    const enabled = customerVoucherService.isEnabled();
+    return sendSuccess(
+        res,
+        { enabled },
+        enabled ? 'Pembelian voucher tersedia' : 'Pembelian voucher tidak tersedia'
+    );
+}));
+
+customerApiRouter.get('/vouchers/packages', asyncHandler(async (req, res) => {
+    if (!customerVoucherService.isEnabled()) {
+        return sendError(res, 'Pembelian voucher belum tersedia saat ini.', 503);
+    }
+    return sendSuccess(res, customerVoucherService.listPackages(), 'Daftar paket voucher berhasil diambil');
+}));
+
+customerApiRouter.post('/vouchers/purchase', voucherPurchaseRateLimiter, asyncHandler(async (req, res) => {
+    const result = await customerVoucherService.createPurchase({
+        customer: req.customer,
+        prof: req.body?.prof
+    });
+    if (!result.ok) {
+        return sendError(res, result.message, result.status);
+    }
+    return sendSuccess(res, result.data, 'Transaksi berhasil dibuat. Selesaikan pembayaran QRIS.', 201);
+}));
+
+customerApiRouter.get('/vouchers/purchase/:reff', asyncHandler(async (req, res) => {
+    const result = customerVoucherService.getPurchaseStatus({
+        customer: req.customer,
+        reff: req.params.reff
+    });
+    if (!result.ok) {
+        return sendError(res, result.message, result.status);
+    }
+    return sendSuccess(res, result.data, 'Status transaksi berhasil diambil');
+}));
+
+customerApiRouter.get('/vouchers/history', asyncHandler(async (req, res) => {
+    const result = customerVoucherService.listHistory({
+        customer: req.customer,
+        limit: req.query.limit
+    });
+    return sendSuccess(res, result.data, 'Riwayat pembelian voucher berhasil diambil');
 }));
 
 customerApiRouter.post('/account/update', asyncHandler(async (req, res) => {
@@ -1186,6 +1266,69 @@ router.post('/callback/payment', async (req, res) => {
                         recordVoucherOrphan({ type: 'buynowweb_callback', reference_id, sender: pay.sender, amount: pay.amount, profile: prof, error: errorMessage });
                         await alertAdmins(renderTemplate('voucher_gagal_admin', {
                             pelanggan: pay.sender, paket: prof, harga: convertRupiah.convert(pay.amount), ref: reference_id, error: errorMessage
+                        }), 'voucher-gagal');
+                        updateKetPayment(reference_id, `GAGAL voucher: ${errorMessage}`);
+                        updateStatusPayment(reference_id, true);
+                        throw !0;
+                    } else throw !1;
+                });
+            } else if (pay.tag == 'buynowpanel') {
+                // Beli voucher dari PANEL PELANGGAN. Sama seperti `buynowweb`, kecuali: profil
+                // diambil dari `pay.prof` yang DISIMPAN saat charge — bukan diturunkan dari harga
+                // (`checkprofvc`), yang tertukar bila dua paket punya harga sama. Fallback ke
+                // harga hanya untuk record lama/anomali.
+                const prof = pay.prof || checkprofvc(String(pay.amount));
+                const durasivc = checkdurasivc(prof);
+                await getvoucher(prof, pay.sender, { caller: 'public.payment-callback.buynowpanel' }).then(async voucherResult => {
+                    if (!voucherResult.ok) {
+                        throw new Error(voucherResult.message);
+                    }
+                    const result = voucherResult.data?.username || voucherResult.message;
+                    updateKetPayment(reference_id, `${result}`);
+                    updateStatusPayment(reference_id, true);
+                    // Kode tampil di panel lewat polling GET /vouchers/purchase/:reff. WA tetap
+                    // dikirim sebagai salinan permanen (pelanggan bisa kehilangan tab panel), dan
+                    // pakai sendCritical karena pelanggan SUDAH bayar. Best-effort: gagal kirim
+                    // TIDAK menggagalkan callback.
+                    try {
+                        const digits = normalizePhoneNumber(String(pay.sender || ''));
+                        const jid = digits && digits.length > 8 ? `${digits}@s.whatsapp.net` : null;
+                        if (jid) {
+                            const message = renderTemplate('voucher_beli_panel', {
+                                nama_paket: durasivc || prof,
+                                harga: convertRupiah.convert(pay.amount),
+                                kode_voucher: result
+                            });
+                            await sendCritical(jid, { text: message }, { label: 'voucher-panel-code' });
+                        }
+                    } catch (waErr) {
+                        console.error('[BUYNOWPANEL] Gagal kirim kode voucher ke WA:', waErr.message);
+                    }
+                    // Notif admin penjualan (opsional, anti-spam via config). Never-throw.
+                    try {
+                        if (global.config && global.config.voucherSaleNotif && global.config.voucherSaleNotif.enabled) {
+                            await alertAdmins(renderTemplate('voucher_terjual_admin', {
+                                paket: durasivc || prof,
+                                harga: convertRupiah.convert(pay.amount),
+                                pembeli: pay.sender,
+                                kode: result,
+                                ref: reference_id
+                            }), 'voucher-terjual');
+                        }
+                    } catch (notifErr) {
+                        console.error('[BUYNOWPANEL] Gagal notif admin penjualan:', notifErr.message);
+                    }
+                    throw !0;
+                }).catch(async err => {
+                    if (typeof err === "string" || err instanceof Error) {
+                        const errorMessage = typeof err === "string" ? err : err.message;
+                        // Sudah bayar tapi voucher gagal terbit → orphan + alert admin (fulfill
+                        // manual), lalu TETAP mark paid supaya iPaymu berhenti retry (getvoucher
+                        // non-idempotent → retry = risiko voucher ganda). Panel menampilkan
+                        // state `failed` dari prefix GAGAL di `ket`.
+                        recordVoucherOrphan({ type: 'buynowpanel_callback', reference_id, sender: pay.sender, amount: pay.amount, profile: prof, error: errorMessage });
+                        await alertAdmins(renderTemplate('voucher_gagal_admin', {
+                            pelanggan: pay.sender, paket: durasivc || prof, harga: convertRupiah.convert(pay.amount), ref: reference_id, error: errorMessage
                         }), 'voucher-gagal');
                         updateKetPayment(reference_id, `GAGAL voucher: ${errorMessage}`);
                         updateStatusPayment(reference_id, true);

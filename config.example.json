@@ -211,6 +211,9 @@
   "voucherSaleNotif": {
     "enabled": false
   },
+  "customerVoucher": {
+    "enabled": false
+  },
   "voucherFeatured": "",
   "voucherSalesDashboard": {
     "enabled": true

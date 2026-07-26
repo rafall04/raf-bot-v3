@@ -997,3 +997,13 @@
 - **Template:** key baru `wifi_password_bulk_target_missing` (kembaran `wifi_name_bulk_target_missing`) ditambahkan di commit yang sama.
 - **Tes:** 4 regresi alur bulk-auto (`message/__tests__/wifi-bulk-auto-apply.test.js`, terbukti MERAH di kode lama) + 13 kontrak penjaga (`lib/__tests__/wifi-apply-guard.test.js`) + 9 guard statis pemindai repo (`message/__tests__/wifi-apply-success-judgment.test.js`).
 - **Tanpa gate config** — ini perbaikan korektif, bukan fitur baru.
+
+<a id="b181"></a>
+### Beli Voucher dari Panel Pelanggan (terautentikasi, tag `buynowpanel`)
+
+- **Owner:** `services/customer-voucher.service.js` (BARU) + endpoint `/api/customer/vouchers/{status,packages,purchase,purchase/:reff,history}` di `customerApiRouter` (`routes/public.js`). Surface anonim `/app/*` (`routes/public-anonymous.js`, [b03](#b03)) TETAP hidup dan tidak diubah — ini jalur kedua yang terautentikasi, bukan pengganti.
+- **Beda dari jalur web anonim:** nomor HP diambil dari `req.customer.phone_number` (tidak pernah dari body), dan pembacaan status/riwayat di-scope ke `customerId` fail-closed di kedua sisi — pelanggan tidak bisa membaca kode voucher orang lain dengan menebak `reff`.
+- **Fulfillment:** cabang `buynowpanel` di `POST /callback/payment` (`routes/public.js`), meniru pengamanan `buynowweb` (lock per-reff, verify S2S iPaymu, cross-check referenceId+amount, `recordVoucherOrphan` + `alertAdmins` saat gagal terbit, tetap mark paid karena `getvoucher` non-idempoten). Profil diambil dari `pay.prof` yang disimpan saat charge, BUKAN `checkprofvc(harga)` yang tertukar bila dua paket berharga sama.
+- **Config gate:** `customerVoucher.enabled`, default **false** di `config.example.json` (deploy gelap). Rate limit 10 transaksi/15 menit per pelanggan; baca status tidak dibatasi karena panel mem-polling.
+- **Template:** key baru `voucher_beli_panel` di `database/message_templates.json`, ditambahkan di commit yang sama.
+- **Tes:** `services/__tests__/customer-voucher.service.test.js` (20 unit, termasuk scoping lintas-pelanggan) + `routes/__tests__/payment-callback-voucher.test.js` diperluas (12 guard statis; slice blok diperbaiki agar `buynowweb` tidak menelan cabang baru).
