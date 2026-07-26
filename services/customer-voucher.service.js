@@ -115,9 +115,30 @@ function createCustomerVoucherService({
             return { ok: false, status: 422, message: 'Harga paket tidak valid. Hubungi admin.' };
         }
 
-        const phoneDigits = String(customer?.phone_number || '').replace(/\D/g, '');
-        if (!phoneDigits || phoneDigits.length < 8) {
-            return { ok: false, status: 422, message: 'Nomor HP akun Anda tidak valid. Perbarui di Pengaturan.' };
+        // `phone_number` menyimpan DAFTAR nomor dipisah '|' (lihat CustomerService.getPhoneNumbers
+        // dan BaseService.getCustomerJids), bukan satu nomor. Menyapu non-digit dari SELURUH string
+        // akan MENGGABUNGKAN semua nomor jadi satu angka 26-39 digit — lolos cek panjang dan
+        // terkirim ke iPaymu sebagai nomor sampah. Ambil nomor pertama sebagai nomor utama.
+        const primaryPhone = String(customer?.phone_number || '')
+            .split('|')
+            .map((part) => part.trim())
+            .filter(Boolean)[0] || '';
+        const phoneDigits = primaryPhone.replace(/\D/g, '');
+        // Dibedakan: "belum punya nomor" bisa diperbaiki sendiri oleh pelanggan lewat halaman
+        // Pengaturan, sedangkan nomor yang ada tapi cacat biasanya salah input dari admin.
+        if (!phoneDigits) {
+            return {
+                ok: false,
+                status: 422,
+                message: 'Akun Anda belum punya nomor HP terdaftar. Tambahkan dulu di menu Pengaturan, lalu coba lagi.'
+            };
+        }
+        if (phoneDigits.length < 8) {
+            return {
+                ok: false,
+                status: 422,
+                message: 'Nomor HP akun Anda tidak valid. Perbaiki di menu Pengaturan, atau hubungi admin.'
+            };
         }
 
         // iPaymu mewajibkan email; jalur web memakai pola sintetis yang sama agar tidak perlu

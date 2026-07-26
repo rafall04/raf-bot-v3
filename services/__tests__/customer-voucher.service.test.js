@@ -101,6 +101,58 @@ describe("customer-voucher service — pembuatan transaksi", () => {
         expect(called).toBe(false);
     });
 
+    test("phone_number KOSONG → 422 dengan pesan yang bisa ditindaklanjuti pelanggan", async () => {
+        // 6 dari 59 pelanggan DANDER kosong nomornya (login username/password). Mereka bisa
+        // memperbaiki sendiri di Pengaturan, jadi pesannya harus mengatakan itu.
+        const { service } = build();
+        const result = await service.createPurchase({
+            customer: { id: 8, name: "Y", phone_number: "" },
+            prof: "Paket-3Jam"
+        });
+        expect(result.status).toBe(422);
+        expect(result.message).toMatch(/belum punya nomor HP/i);
+        expect(result.message).toMatch(/Pengaturan/);
+    });
+
+    test("phone_number BERISI BANYAK NOMOR (dipisah '|') → pakai nomor PERTAMA, bukan gabungan", async () => {
+        // Regresi: `phone_number` adalah daftar dipisah '|'. Menyapu non-digit dari seluruh
+        // string menggabungkan semuanya jadi angka 26-39 digit yang lolos cek panjang dan
+        // terkirim ke iPaymu sebagai nomor sampah. 10 dari 59 pelanggan DANDER berbentuk ini.
+        let seenPhone = null;
+        const { service, added } = build({
+            payImpl: async (props) => {
+                seenPhone = props.phone;
+                return { id: "TRX-9", qrString: "QR", total: 1000, fee: 0, subTotal: 1000, exp: 3600 };
+            }
+        });
+
+        const result = await service.createPurchase({
+            customer: { id: 9, name: "Z", phone_number: "081234567890|081298765432|085711112222" },
+            prof: "Paket-3Jam"
+        });
+
+        expect(result.ok).toBe(true);
+        expect(String(seenPhone)).toBe("81234567890");
+        expect(String(seenPhone).length).toBeLessThan(14);
+        // sender yang tersimpan juga harus nomor tunggal, karena callback memakainya untuk kirim WA
+        expect(added[0].sender).toBe("081234567890");
+    });
+
+    test("spasi di sekitar pemisah '|' tidak ikut terbawa", async () => {
+        let seenPhone = null;
+        const { service } = build({
+            payImpl: async (props) => {
+                seenPhone = props.phone;
+                return { id: "TRX-10", qrString: "QR", total: 1000, fee: 0, subTotal: 1000, exp: 3600 };
+            }
+        });
+        await service.createPurchase({
+            customer: { id: 10, name: "W", phone_number: "  | 081234567890 | 081298765432" },
+            prof: "Paket-3Jam"
+        });
+        expect(String(seenPhone)).toBe("81234567890");
+    });
+
     test("gateway melempar → 502, bukan 500 bocor ke pelanggan", async () => {
         const { service } = build({ payImpl: async () => { throw "iPaymu tidak mengembalikan QrString."; } });
         const result = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-3Jam" });
