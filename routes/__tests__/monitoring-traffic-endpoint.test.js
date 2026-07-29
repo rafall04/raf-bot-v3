@@ -120,6 +120,57 @@ describe('klien grafik trafik', () => {
         });
     });
 
+    test('konfigurasi grafik memakai sintaks Chart.js v2 (pustaka terpasang v2.9.4)', () => {
+        // `static/vendor/chart.js/Chart.min.js` = v2.9.4. v2 MENGABAIKAN kunci v3/v4
+        // tanpa peringatan, jadi seluruh pengaturan sumbu diam-diam mati: terbukti di
+        // runtime kunci skalanya `x-axis-0`/`y-axis-0`, `beginAtZero` tak berlaku
+        // (sumbu terukur 60-220, bukan dari 0) dan `maxRotation:0` tak berlaku
+        // (label waktu miring & berjejal). Itulah "alur trafiknya tidak jelas".
+        const opsi = KLIEN.slice(KLIEN.indexOf('options: {'), KLIEN.indexOf('console.log(\'[Monitoring] Traffic chart initialized'));
+        // Bentuk v2 yang WAJIB ada
+        expect(opsi).toContain('yAxes: [{');
+        expect(opsi).toContain('xAxes: [{');
+        expect(opsi).toContain('gridLines:');
+        expect(opsi).toContain('scaleLabel:');
+        expect(opsi).toContain('beginAtZero: true');
+        expect(opsi).toMatch(/^\s{16}legend: \{/m);
+        expect(opsi).toMatch(/^\s{16}tooltips: \{/m);
+        // Bentuk v3/v4 yang TIDAK boleh kembali
+        expect(opsi).not.toMatch(/\n\s+y: \{\s*\n\s+beginAtZero/);
+        expect(opsi).not.toContain('plugins: {');
+        expect(opsi).not.toContain('interaction: {');
+        expect(opsi).not.toContain('transitions: {');
+    });
+
+    test('dataset memakai lineTension (v2), bukan tension (v3)', () => {
+        const data = KLIEN.slice(KLIEN.indexOf("label: 'Download'"), KLIEN.indexOf('options: {'));
+        expect(data).toContain('lineTension:');
+        expect(data).not.toMatch(/\n\s+tension:/);
+    });
+
+    test('update() memakai objek konfigurasi v2, bukan string mode v3', () => {
+        // `update('none')` di v2 bukan "tanpa animasi" — stringnya tak dikenal, jadi
+        // animasi 800ms tetap jalan. Grafik yang menyegar tiap 5 detik lalu terus
+        // berubah bentuk dan tak pernah diam.
+        expect(KLIEN).not.toContain(".update('none')");
+        expect(KLIEN).not.toContain(".update('default')");
+        expect(KLIEN).toContain('.update({ duration: 0 })');
+    });
+
+    test('hanya Download yang diisi; Upload garis polos agar keduanya terbaca', () => {
+        const ul = KLIEN.slice(KLIEN.indexOf("label: 'Upload'"), KLIEN.indexOf('options: {'));
+        expect(ul).toContain('fill: false');
+    });
+
+    test('warna sumbu grafik dibaca dari token tema, bukan warna tetap', () => {
+        // Chart.js melukis ke <canvas> → tak ikut var(). Kalau warnanya dipatok,
+        // legenda #374151 jadi gelap-di-atas-gelap begitu mode gelap dinyalakan.
+        expect(KLIEN).toContain('warnaGrafik()');
+        expect(KLIEN).toContain("ambil('--muted'");
+        expect(KLIEN).toContain("ambil('--ink-soft'");
+        expect(KLIEN).toContain('pantauTemaGrafik()');
+    });
+
     test('dataset trafik memakai spanGaps:false agar jeda benar-benar terlihat', () => {
         // Kalau ini berubah jadi true, `null` disambung diam-diam dan jeda datanya
         // tersembunyi lagi — persis kelemahan yang baru saja dibereskan.

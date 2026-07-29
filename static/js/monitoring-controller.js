@@ -90,6 +90,48 @@ class MonitoringController {
         if (ulTotal) ulTotal.textContent = 'Total: N/A';
     }
 
+    /**
+     * Warna sumbu/legenda/grid grafik, dibaca dari token tema di tokens.css.
+     * Chart.js melukis ke <canvas> sehingga tak ikut `var()` — nilainya harus
+     * disuntikkan sebagai warna nyata. Cadangannya dipakai kalau token belum ada
+     * (mis. halaman dirender sebelum CSS tema termuat).
+     */
+    warnaGrafik() {
+        const cs = getComputedStyle(document.body);
+        const gelap = document.body.classList.contains('tk-dark');
+        const ambil = (nama, cadangan) => ((cs.getPropertyValue(nama) || '').trim() || cadangan);
+        return {
+            tick: ambil('--muted', gelap ? '#8895ab' : '#64748b'),
+            teks: ambil('--ink-soft', gelap ? '#c3ccdd' : '#475569'),
+            // Grid tak bertoken: di mode gelap garis hitam transparan tak terlihat
+            // sama sekali, jadi polaritasnya harus dibalik, bukan sekadar diwarnai.
+            grid: gelap ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)'
+        };
+    }
+
+    /**
+     * Memasang ulang warna grafik saat tombol tema menyalakan/mematikan
+     * `body.tk-dark`. Tanpa ini, label sumbu tetap memakai warna mode sebelumnya
+     * dan bisa berakhir gelap-di-atas-gelap.
+     */
+    pantauTemaGrafik() {
+        if (this._pengamatTema) return;
+        this._pengamatTema = new MutationObserver(() => {
+            if (!this.trafficChart) return;
+            const w = this.warnaGrafik();
+            const o = this.trafficChart.options;
+            const y = o.scales.yAxes[0], x = o.scales.xAxes[0];
+            y.ticks.fontColor = w.tick;
+            y.gridLines.color = w.grid;
+            y.gridLines.zeroLineColor = w.grid;
+            y.scaleLabel.fontColor = w.tick;
+            x.ticks.fontColor = w.tick;
+            o.legend.labels.fontColor = w.teks;
+            this.trafficChart.update({ duration: 0 });
+        });
+        this._pengamatTema.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    }
+
     initCharts() {
         const canvas = document.getElementById('traffic-chart');
         if (!canvas) {
@@ -121,7 +163,12 @@ class MonitoringController {
         const uploadGradient = ctx.createLinearGradient(0, 0, 0, 400);
         uploadGradient.addColorStop(0, 'rgba(59, 130, 246, 0.3)'); // Blue
         uploadGradient.addColorStop(1, 'rgba(59, 130, 246, 0.05)');
-        
+
+        // Warna sumbu/legenda dibaca dari token tema saat init. Chart.js menggambar ke
+        // <canvas>, jadi ia TIDAK ikut `var()` — nilainya harus disuntikkan, dan
+        // dipasang ulang saat mode gelap dinyalakan (lihat pantauTemaGrafik()).
+        const warna = this.warnaGrafik();
+
         try {
             this.trafficChart = new Chart(canvas, {
             type: 'line',
@@ -132,7 +179,7 @@ class MonitoringController {
                     data: [],
                     borderColor: '#22c55e', // Green - lebih modern
                     backgroundColor: downloadGradient,
-                    tension: 0.4, // Lebih smooth curve (dari 0.1 ke 0.4)
+                    lineTension: 0.35, // v2 memakai `lineTension`, BUKAN `tension` (v3)
                     borderWidth: 2.5, // Lebih tebal untuk visibility
                     fill: true,
                     pointRadius: 0, // Hide points untuk smooth line
@@ -147,9 +194,14 @@ class MonitoringController {
                     data: [],
                     borderColor: '#3b82f6', // Blue - lebih modern
                     backgroundColor: uploadGradient,
-                    tension: 0.4, // Lebih smooth curve
+                    lineTension: 0.35, // v2: `lineTension`
                     borderWidth: 2.5,
-                    fill: true,
+                    // Upload TIDAK diisi. Dua area transparan yang saling tumpang-tindih
+                    // bercampur jadi satu blok kehijauan di area potongannya, dan di situ
+                    // tak ada cara membedakan download dari upload — itu bagian besar dari
+                    // "alur trafiknya tidak jelas". Download tetap area, upload jadi garis
+                    // tegas di atasnya.
+                    fill: false,
                     pointRadius: 0, // Hide points untuk smooth line
                     pointHoverRadius: 4, // Show on hover
                     pointHoverBorderWidth: 2,
@@ -159,106 +211,100 @@ class MonitoringController {
                     spanGaps: false
                 }]
             },
+            // ── SINTAKS WAJIB Chart.js v2.9.4 ────────────────────────────────
+            // Blok ini DULU ditulis dengan sintaks Chart.js v3/v4 (`scales: {y:{}}`,
+            // `plugins.legend`, `plugins.tooltip`, `interaction`, `title.text`,
+            // `ticks.color/font`) padahal `static/vendor/chart.js/Chart.min.js`
+            // adalah **v2.9.4**. v2 mengabaikan kunci yang tak dikenalnya TANPA
+            // memberi peringatan, jadi SELURUH pengaturan sumbu tidak pernah aktif.
+            // Terbukti saat runtime: kunci skalanya `x-axis-0`/`y-axis-0` (penamaan
+            // v2), `beginAtZero` tak berpengaruh (sumbu terukur 60–220, bukan dari 0),
+            // dan `maxRotation: 0` tak berpengaruh (label waktu miring & berjejal).
+            // Itulah kenapa "alur trafiknya tidak jelas": dasar sumbu Y mengambang
+            // mengikuti data, sehingga naik-turun biasa tergambar seperti gelombang
+            // ekstrem, dan sumbu X penuh label miring.
+            // v2 memakai `xAxes`/`yAxes` (array), `gridLines`, `scaleLabel`,
+            // `fontColor/fontSize`, serta `legend`/`tooltips`/`hover` di TINGKAT ATAS.
+            // Pola yang sama sudah benar di static/js/upstream-quality.js.
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: {
-                    intersect: false,
-                    mode: 'index'
+                hover: {
+                    mode: 'index',
+                    intersect: false
                 },
                 animation: {
-                    duration: 800, // Smooth animation duration
-                    easing: 'easeInOutQuart' // Smooth easing
-                },
-                transitions: {
-                    show: {
-                        animation: {
-                            duration: 800,
-                            easing: 'easeInOutQuart'
-                        }
-                    },
-                    hide: {
-                        animation: {
-                            duration: 800,
-                            easing: 'easeInOutQuart'
-                        }
-                    }
+                    duration: 800,
+                    easing: 'easeInOutQuart'
                 },
                 scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Mbps',
-                            font: {
-                                size: 12,
-                                weight: '600'
-                            },
-                            color: '#6b7280'
-                        },
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.05)', // Subtle grid
-                            drawBorder: false
-                        },
+                    yAxes: [{
                         ticks: {
-                            color: '#9ca3af',
-                            font: {
-                                size: 11
-                            },
+                            // Dasar sumbu DIPAKU di 0. Tanpa ini Chart.js menarik dasar
+                            // mengikuti nilai terendah, jadi setiap titik baru menggeser
+                            // seluruh sumbu dan bentuk grafiknya berubah tiap 5 detik.
+                            beginAtZero: true,
+                            fontColor: warna.tick,
+                            fontSize: 11,
                             padding: 8
+                        },
+                        gridLines: {
+                            color: warna.grid,
+                            zeroLineColor: warna.grid,
+                            drawBorder: false
+                        },
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Mbps',
+                            fontSize: 12,
+                            fontStyle: 'bold',
+                            fontColor: warna.tick
                         }
-                    },
-                    x: {
-                        grid: {
-                            display: false, // Hide x-axis grid untuk cleaner look
+                    }],
+                    xAxes: [{
+                        gridLines: {
+                            display: false,
                             drawBorder: false
                         },
                         ticks: {
-                            color: '#9ca3af',
-                            font: {
-                                size: 11
-                            },
+                            fontColor: warna.tick,
+                            fontSize: 11,
                             maxRotation: 0,
                             autoSkip: true,
                             maxTicksLimit: 8
                         }
+                    }]
+                },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    align: 'end',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        fontSize: 12,
+                        fontColor: warna.teks,
+                        boxWidth: 12
                     }
                 },
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top',
-                        align: 'end',
-                        labels: {
-                            usePointStyle: true,
-                            padding: 15,
-                            font: {
-                                size: 12,
-                                weight: '500'
-                            },
-                            color: '#374151',
-                            boxWidth: 12,
-                            boxHeight: 12
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        padding: 12,
-                        titleFont: {
-                            size: 13,
-                            weight: '600'
-                        },
-                        bodyFont: {
-                            size: 12
-                        },
-                        borderColor: 'rgba(255, 255, 255, 0.1)',
-                        borderWidth: 1,
-                        cornerRadius: 8,
-                        displayColors: true,
-                        callbacks: {
-                            label: function(context) {
-                                return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' Mbps';
-                            }
+                tooltips: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    xPadding: 12,
+                    yPadding: 12,
+                    titleFontSize: 13,
+                    titleFontStyle: 'bold',
+                    bodyFontSize: 12,
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    displayColors: true,
+                    callbacks: {
+                        // v2 memberi (tooltipItem, data), BUKAN `context` ala v3.
+                        label: function(item, data) {
+                            const nama = data.datasets[item.datasetIndex].label || '';
+                            return nama + ': ' + Number(item.yLabel).toFixed(2) + ' Mbps';
                         }
                     }
                 }
@@ -266,6 +312,7 @@ class MonitoringController {
         });
         
         console.log('[Monitoring] Traffic chart initialized successfully');
+        this.pantauTemaGrafik();
         } catch (error) {
             console.error('[Monitoring] Error initializing traffic chart:', error);
             // Retry setelah 1 detik jika error
@@ -325,7 +372,7 @@ class MonitoringController {
                     this.trafficChart.data.datasets[1].data = uploadData;
                     
                     // Update dengan animation untuk smooth transition
-                    this.trafficChart.update('default');
+                    this.trafficChart.update({ duration: 0 });
                 }
             }
         } catch (error) {
@@ -726,7 +773,7 @@ class MonitoringController {
                 this.trafficChart.data.datasets[1].data.push(null);
 
                 // Try update
-                this.trafficChart.update('none');
+                this.trafficChart.update({ duration: 0 });
 
                 // Setel ulang penanda agar pemulih tidak menyala tiap 10 detik; jeda
                 // berikutnya tetap akan tergambar kalau data memang belum juga datang.
@@ -1049,7 +1096,7 @@ class MonitoringController {
             try {
                 // PENTING: Validate chart object sebelum update
                 if (this.trafficChart && this.trafficChart.data && this.trafficChart.data.labels) {
-                    this.trafficChart.update('default');
+                    this.trafficChart.update({ duration: 0 });
                 } else {
                     console.warn('[Monitoring] Traffic chart object invalid, attempting re-init...');
                     this.initCharts();
@@ -1159,7 +1206,7 @@ class MonitoringController {
                     this.trafficChart.data.labels = [];
                     this.trafficChart.data.datasets[0].data = [];
                     this.trafficChart.data.datasets[1].data = [];
-                    this.trafficChart.update('default');
+                    this.trafficChart.update({ duration: 0 });
                 }
                 
                 this.lastData = null;
@@ -1386,7 +1433,7 @@ class MonitoringController {
         chart.data.datasets[0].data.push(data.download || 0);
         chart.data.datasets[1].data.push(data.upload || 0);
         
-        chart.update('none'); // Update without animation
+        chart.update({ duration: 0 }); // Update without animation
         
         // Update current values
         const currentDownload = document.getElementById('current-download');
