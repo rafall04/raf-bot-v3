@@ -92,6 +92,34 @@ describe('klien grafik trafik', () => {
         expect(potongan).not.toContain('datasets[1].data.push(0)');
     });
 
+    test('dataset Download dan Upload TIDAK berbagi satu array', () => {
+        // Bug terukur di produksi 29-07-2026: `const emptyData = new Array(...).fill(0)`
+        // dipasang ke datasets[0].data DAN datasets[1].data, jadi keduanya objek yang
+        // sama. Setiap pembaruan mendorong dua angka ke satu array → panjang data 42
+        // sementara label 11, Chart.js menggambar 11 entri TERTUA, dan garis Upload
+        // sebenarnya berisi download+upload berselang-seling.
+        const blok = KLIEN.slice(
+            KLIEN.indexOf('async fetchTrafficHistory()'),
+            KLIEN.indexOf('async fetchTrafficHistory()') + 1600
+        );
+        expect(blok).not.toMatch(/datasets\[0\]\.data = (\w+);[\s\S]{0,400}?datasets\[1\]\.data = \1;/);
+        // Dan tidak menyemai angka 0 palsu saat MikroTik belum terhubung.
+        expect(blok).not.toContain('.fill(0)');
+        expect(blok).toContain('datasets[0].data = []');
+        expect(blok).toContain('datasets[1].data = []');
+    });
+
+    test('label dan kedua dataset selalu digeser/didorong bersama', () => {
+        // Kalau salah satu di-shift tanpa yang lain, desync label-vs-data kembali.
+        const blok = KLIEN.slice(KLIEN.indexOf('const maxDataPoints = 30;'));
+        const potongan = blok.slice(0, 700);
+        ['labels.shift()', 'datasets[0].data.shift()', 'datasets[1].data.shift()',
+            'labels.push(timeString)', 'datasets[0].data.push(downloadCurrent)',
+            'datasets[1].data.push(uploadCurrent)'].forEach((baris) => {
+            expect(potongan).toContain(baris);
+        });
+    });
+
     test('dataset trafik memakai spanGaps:false agar jeda benar-benar terlihat', () => {
         // Kalau ini berubah jadi true, `null` disambung diam-diam dan jeda datanya
         // tersembunyi lagi — persis kelemahan yang baru saja dibereskan.

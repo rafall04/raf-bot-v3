@@ -276,9 +276,20 @@ class MonitoringController {
     async fetchTrafficHistory() {
         if (!this.mikrotikConnected) {
             if (this.trafficChart) {
-                const emptyData = new Array(this.trafficChart.data.labels.length || 20).fill(0);
-                this.trafficChart.data.datasets[0].data = emptyData;
-                this.trafficChart.data.datasets[1].data = emptyData;
+                // DUA array terpisah — ini bekas bug yang merusak grafik sepanjang sesi.
+                // Dulu SATU `emptyData` dipasang ke kedua dataset, jadi
+                // `datasets[0].data === datasets[1].data`: setiap pembaruan mendorong
+                // download DAN upload ke array yang SAMA. Akibatnya panjang data jadi
+                // dua kali jumlah label (terukur di produksi 29-07-2026: label 11,
+                // data 42), Chart.js hanya menggambar 11 entri pertama — yaitu bagian
+                // tertua — dan garis "Upload" sebenarnya bukan upload sama sekali.
+                //
+                // Juga tidak lagi menyemai 20 angka 0. Fungsi ini hanya dipanggil sekali
+                // saat init, ketika MikroTik memang belum sempat terhubung — itu berarti
+                // BELUM ADA data, bukan trafik nol. Grafik kosong jujur; nol tidak.
+                this.trafficChart.data.labels = [];
+                this.trafficChart.data.datasets[0].data = [];
+                this.trafficChart.data.datasets[1].data = [];
                 this.trafficChart.update();
             }
             return;
