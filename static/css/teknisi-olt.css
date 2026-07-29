@@ -62,9 +62,11 @@
         }
         @keyframes olt-indet { 0% { left: -35%; } 100% { left: 100%; } }
         @keyframes olt-fade-in { from { opacity: 0; } to { opacity: 1; } }
-        .olt-empty { text-align: center; padding: 2.75rem 1rem; color: #858796; animation: olt-fade-in 0.25s ease; }
-        .olt-empty > i { font-size: 2.75rem; color: #d1d3e2; margin-bottom: 0.75rem; display: block; }
-        .olt-empty .olt-empty-title { font-weight: 600; color: #5a5c69; font-size: 1.05rem; }
+        /* Salinan aturan yang sama ada di admin-olt.css — keduanya dulu literal TETAP
+           (#5a5c69 jatuh ke 2.6:1 di atas kartu gelap). Diganti token sadar-mode. */
+        .olt-empty { text-align: center; padding: 2.75rem 1rem; color: var(--ink-soft); animation: olt-fade-in 0.25s ease; }
+        .olt-empty > i { font-size: 2.75rem; color: var(--muted); margin-bottom: 0.75rem; display: block; }
+        .olt-empty .olt-empty-title { font-weight: 600; color: var(--ink); font-size: 1.05rem; }
         .btn.is-loading { pointer-events: none; opacity: 0.65; }
         .olt-just-loaded tbody tr { animation: olt-fade-in 0.3s ease; }
         @media (max-width: 768px) {
