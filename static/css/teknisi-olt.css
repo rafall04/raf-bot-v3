@@ -2,7 +2,8 @@
         .rx-power-good { color: #1cc88a; font-weight: 600; }
         .rx-power-warning { color: #f6c23e; font-weight: 600; }
         .rx-power-bad { color: #e74a3b; font-weight: 600; }
-        .refresh-timer { font-size: 0.8rem; color: #858796; }
+        /* #858796 TETAP = 3.38:1 (salinan aturan yang sama ada di admin-olt.css). */
+        .refresh-timer { font-size: 0.8rem; color: var(--muted); }
         .olt-stats-card { transition: transform 0.2s; cursor: pointer; }
         .olt-stats-card:hover { transform: translateY(-2px); }
         .olt-stats-card.online { border-left-color: #1cc88a; }

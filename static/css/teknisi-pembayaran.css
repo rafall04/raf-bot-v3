@@ -4,7 +4,9 @@
         .customer-info { display: flex; flex-direction: column; }
         .customer-name { font-weight: 600; color: #2e2f37; }
         .customer-phone { font-size: 0.8rem; color: #6c757d; }
-        .package-badge { background: #e7f1ff; color: #4e73df; padding: 4px 10px; border-radius: 15px; font-size: 0.8rem; font-weight: 500; }
+        /* Dulu pastel + biru SB-Admin TETAP (#4e73df di atas #e7f1ff = 3.81:1, dan
+           tak ikut mode gelap). --tint-info + --accent-info-ink keduanya membalik. */
+        .package-badge { background: var(--tint-info); color: var(--accent-info-ink); padding: 4px 10px; border-radius: 15px; font-size: 0.8rem; font-weight: 500; }
         .billing-date { font-weight: 500; }
         .btn-action { padding: 5px 10px; font-size: 0.8rem; }
         

@@ -271,6 +271,7 @@
 #wrapper .border-left-info    { border-left: .25rem solid var(--color-info) !important; }
 #wrapper .border-left-warning { border-left: .25rem solid var(--color-warning) !important; }
 #wrapper .border-left-danger  { border-left: .25rem solid var(--color-danger) !important; }
+#wrapper .border-left-secondary { border-left: .25rem solid var(--line) !important; }
 
 /* ===================== Keseragaman judul halaman =====================
    Tiga generasi pola judul hidup berdampingan: `.dashboard-header h1` (modern,
@@ -402,6 +403,9 @@ body { color: var(--ink); }
 #wrapper .text-info    { color: var(--accent-info-ink) !important; }
 #wrapper .text-primary { color: var(--brand-ink) !important; }
 #wrapper .text-muted   { color: var(--ink-soft) !important; }
+/* .text-secondary = #858796 (3.56:1) dan dipakai sebagai label tile KPI, mis.
+   "Komisi Belum Dibayar" di /papan-psb. */
+#wrapper .text-secondary { color: var(--ink-soft) !important; }
 #wrapper .text-gray-900,
 #wrapper .text-gray-800 { color: var(--ink) !important; }
 #wrapper .text-gray-700,
