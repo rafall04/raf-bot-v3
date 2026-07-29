@@ -338,10 +338,15 @@ class MonitoringController {
             // Initial load
             this.fetchMonitoringData();
             
-            // PENTING: Update monitoring data setiap 10 detik (kurang sering untuk mengurangi beban)
+            // Loop panel umum (CPU, memori, jumlah pengguna, daftar interface) — memakai
+            // `/api/monitoring/live` yang terukur ~11 detik di produksi. Intervalnya DULU
+            // 10 detik: lebih pendek daripada biaya panggilannya sendiri, jadi loop ini
+            // tak pernah bisa mengejar dan router selalu sibuk melayani 18 perintah —
+            // termasuk saat grafik trafik butuh giliran. 30 detik jujur terhadap biayanya
+            // dan menyisakan ruang bagi `/api/monitoring/traffic` yang ringan.
             this.updateInterval = setInterval(() => {
                 this.fetchMonitoringData();
-            }, 10000); // 10 detik untuk monitoring data umum
+            }, 30000);
             
             // PENTING: Pastikan chart sudah terinisialisasi sebelum membuat interval
             // Retry mechanism jika chart belum siap
@@ -553,13 +558,22 @@ class MonitoringController {
             }
 
             // Jika belum ada pilihan, biarkan backend memakai default terkonfigurasi (MONITOR_INTERFACE).
+            //
+            // AKAR MASALAH "grafik tidak realtime" (diukur di produksi 29-07-2026):
+            // dulu baris ini menunjuk `/api/monitoring/live`, yang menjalankan 18 perintah
+            // RouterOS dan makan ~11 detik — sementara batas abort di bawah ini 8 detik.
+            // Artinya SETIAP panggilan loop 5-detik ini dibatalkan sebelum data tiba, dan
+            // grafik tak pernah dapat satu titik pun dari sini. Yang tersisa hanyalah titik
+            // 0 palsu dari pemulih "stuck" — itulah "per 30 detik dan aneh" yang dilaporkan.
+            // `/api/monitoring/traffic` hanya menjalankan 2 perintah (~0,2 detik).
             const url = selectedInterface
-                ? `/api/monitoring/live?interface=${encodeURIComponent(selectedInterface)}`
-                : '/api/monitoring/live';
+                ? `/api/monitoring/traffic?interface=${encodeURIComponent(selectedInterface)}`
+                : '/api/monitoring/traffic';
 
-            // PENTING: Add timeout untuk prevent stuck requests
+            // Batas waktu harus di ATAS biaya nyata endpoint-nya, bukan angka bulat asal.
+            // Endpoint ini ~0,2 detik; 4 detik memberi kelonggaran 20x untuk router sibuk.
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 detik timeout
+            const timeoutId = setTimeout(() => controller.abort(), 4000);
             
             const response = await fetch(url, {
                 method: 'GET',
@@ -679,27 +693,35 @@ class MonitoringController {
      */
     recoverStuckTrafficChart() {
         try {
-            // Method 1: Coba force update dengan data dummy
+            // Metode 1: tandai JEDA, jangan mengarang angka.
+            //
+            // Dulu blok ini mendorong titik 0 ke kedua dataset. Itu berbohong: "tidak bisa
+            // diamati" digambar sebagai "trafik benar-benar nol". Karena sumber datanya
+            // memang selalu gagal (lihat catatan di fetchTrafficDataOnly), grafik yang
+            // dilihat operator sebagian besar adalah nol karangan ini — persis keluhan
+            // "datanya aneh dan cuma gerak tiap 30 detik".
+            // Dataset trafik memakai spanGaps:false, jadi `null` tampil sebagai putus garis:
+            // jujur, dan langsung terlihat sebagai masalah pengambilan data.
             if (this.trafficChart && this.trafficChart.data) {
                 const now = new Date();
-                const timeString = now.toLocaleTimeString('id-ID', { 
-                    hour: '2-digit', 
+                const timeString = now.toLocaleTimeString('id-ID', {
+                    hour: '2-digit',
                     minute: '2-digit',
                     second: '2-digit'
                 });
-                
-                // Add dummy data point untuk test
+
                 this.trafficChart.data.labels.push(timeString);
-                this.trafficChart.data.datasets[0].data.push(0);
-                this.trafficChart.data.datasets[1].data.push(0);
-                
+                this.trafficChart.data.datasets[0].data.push(null);
+                this.trafficChart.data.datasets[1].data.push(null);
+
                 // Try update
                 this.trafficChart.update('none');
-                
-                // Update timestamp
+
+                // Setel ulang penanda agar pemulih tidak menyala tiap 10 detik; jeda
+                // berikutnya tetap akan tergambar kalau data memang belum juga datang.
                 this.lastTrafficUpdateTime = Date.now();
-                
-                console.log('[Monitoring] Traffic chart recovery: force update successful');
+
+                console.warn('[Monitoring] Trafik tidak terbaca — digambar sebagai JEDA (bukan 0). Periksa /api/monitoring/traffic.');
                 return;
             }
         } catch (error) {

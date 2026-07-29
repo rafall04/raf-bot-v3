@@ -1044,3 +1044,13 @@
 - **Konvensi repo dipulihkan:** gerbang default-aktif lain memakai pola `!== false` (`networkAssets.waIntake` di `message/raf.js:723`, `messageLogging` di `repositories/message-log.repository.js:296`) sehingga tahan terhadap instalasi yang belum memerge kunci baru. `/voucher-sales` kini sama.
 - **Audit menyeluruh 52 gerbang `.enabled`:** hilang di prod — Dander 10, Tanjung 20 — tetapi hanya 3 yang example-nya `true`, dan 2 di antaranya (`messageLogging`, `networkAssets.waIntake`) sudah memakai pola `!== false` sehingga aman. `voucherSalesDashboard` satu-satunya yang benar-benar rusak. Sisa permukaan voucher sehat: `/voucher-send`, `/paket-voucher`, `/voucher-print`, `/agent-voucher-management`, `/saldo-management`, `/atm`, `/app/voucher`, `/api/voucher/print/{layouts,settings}` semuanya 200.
 - **Tanpa gate config baru** (perbaikan korektif). **Tes:** `routes/__tests__/page-feature-gates.test.js` (3 — pola gerbang, kontrak `config.example.json`, plus kontras `personalFinance` yang memang harus default MATI).
+
+<a id="b186"></a>
+### b186 — Laju trafik dasbor pindah ke endpoint sendiri; ponsel dapat skala kerapatan
+
+- **Pemilik baru:** `views/api-monitoring-traffic.php` (2 perintah RouterOS, ~0,2 dtk) memiliki laju trafik untuk grafik dasbor, lewat `GET /api/monitoring/traffic`.
+- **Jalur lama:** grafik memanggil `/api/monitoring/live` (18 perintah, terukur 11,0/11,0/11,3 dtk di prod) sedangkan fetch-nya abort di 8 dtk → nol titik data pernah sampai; yang tergambar hanya titik `0` karangan pemulih "stuck". Pemulih kini menggambar `null` (jeda, `spanGaps:false`).
+- **Dihapus:** `views/api-traffic-stats.php` (nol pemakai, bentuk balasan beda, pembagi 2^20). Loop panel umum 10 dtk → 30 dtk (dulu lebih pendek dari biaya panggilannya sendiri).
+- **UI:** blok `@media (max-width: 575.98px)` di `static/css/tokens.css` + `components-modern.css` merapatkan geometri di ponsel (padding kartu 20→14px, font tabel 16→13px). Meta viewport sudah benar; justru karena itu peramban mengunci zoom-out di 1.0, jadi tata letaknya yang harus dirapatkan.
+- **Gerbang:** tidak ada — perbaikan cacat, bukan fitur baru.
+- **Tes:** `routes/__tests__/monitoring-traffic-endpoint.test.js` (9 — biaya endpoint ≤2 perintah, klien menunjuk endpoint ringan, abort di atas biaya, jeda bukan nol palsu).

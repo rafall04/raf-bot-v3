@@ -6,7 +6,7 @@
 
 /* Primitif + token semantik sadar-mode bersama. ?v di-bump saat tokens.css berubah
    (@import tak ikut cache-bust rafAssetUrl → tanpa bump bisa BASI di CF). */
-@import url('/css/tokens.css?v=4');
+@import url('/css/tokens.css?v=5');
 
 :root {
     /* Token semantik teknisi → dipetakan ke primitif di tokens.css.

@@ -237,3 +237,29 @@ body.tk-dark {
     --tint-warning: rgba(245, 158, 11, .16);
     --tint-info:    rgba(59, 130, 246, .16);
 }
+
+/* ═══ SKALA PONSEL ════════════════════════════════════════════
+   Kenapa ini ada: di layar 390px, skala desktop menyisakan hanya 324px untuk isi
+   (24px padding halaman + 20px padding kartu di dua sisi). Halamannya SUDAH benar —
+   `width=device-width, initial-scale=1`, tanpa `user-scalable=no` — dan justru
+   karena benar, peramban ponsel mengunci perbesaran minimum di 1.0: halaman
+   width=device-width memang tak bisa diperkecil di bawah lebar layar. Jadi operator
+   melihat tata letak yang terasa "ter-zoom" DAN tak bisa di-zoom out untuk melihat
+   lebih banyak. Satu-satunya obat yang benar adalah merapatkan tata letaknya,
+   bukan mengutak-atik meta viewport.
+
+   Hanya token GEOMETRI yang dikecilkan — warna tidak disentuh, jadi mode gelap
+   tetap utuh dan penjaga token tema (scripts/check-theme-tokens.js) tetap hijau. */
+@media (max-width: 575.98px) {
+    :root,
+    body.tk-dark {
+        --page-pad-y: 12px;
+        --page-pad-x: 12px;
+        --page-pad-bottom: 24px;
+        --card-pad: 14px;
+        --title-size: 1.25rem;
+        --space-5: 16px;
+        --space-6: 20px;
+        --space-8: 28px;
+    }
+}

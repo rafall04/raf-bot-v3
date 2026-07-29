@@ -1,6 +1,17 @@
 /**
- * Monitoring API Routes
- * Handles all monitoring-related API endpoints
+ * Header Doc
+ * Purpose: Rute API monitoring jaringan (`/api/monitoring/*`). Sebagian besar hanya
+ *          meneruskan ke berkas PHP di `views/` lewat `executePHP()` — PHP-lah yang
+ *          bicara ke RouterOS. CATATAN BIAYA: `/live` menjalankan 18 perintah RouterOS
+ *          dan terukur ~11 detik di produksi; jangan pakai untuk apa pun yang menyegar
+ *          tiap beberapa detik. Untuk itu ada `/traffic` yang ringan (~0,2 detik).
+ * Caller: lib/routes-registry.js (dipasang di prefix `/api/monitoring`).
+ * Deps: views/api-monitoring-live.php, views/api-monitoring-traffic.php,
+ *       views/api-system-health.php, views/api-users-stats.php,
+ *       views/api-traffic-history.php, lib/mikrotik.js.
+ * MainFuncs: executePHP(), respondWithActiveUsers().
+ * SideEffects: Menjalankan proses PHP (`exec`) dan membuka koneksi API MikroTik.
+ *              Menyimpan cache pengguna aktif di memori (TTL 5 detik / stale 30 detik).
  */
 
 const express = require('express');
@@ -203,10 +214,14 @@ router.get('/health', (req, res) => {
 
 /**
  * GET /api/monitoring/traffic
- * Traffic statistics endpoint
+ * Laju trafik SAJA — endpoint ringan untuk grafik dasbor (2 perintah RouterOS, ~0,2 detik).
+ * Sengaja terpisah dari /live yang menjalankan 18 perintah dan terukur ~11 detik di produksi:
+ * grafik yang menyegarkan tiap beberapa detik tak boleh menunggu ARP, antrean, dan lease DHCP.
+ * Pemilik lama `api-traffic-stats.php` dihapus (nol pemakai, bentuk balasan berbeda,
+ * dan memakai pembagi 2^20 sehingga angkanya ~4,86% di bawah Winbox).
  */
 router.get('/traffic', (req, res) => {
-    executePHP('api-traffic-stats.php', req, res);
+    executePHP('api-monitoring-traffic.php', req, res);
 });
 
 /**

@@ -479,3 +479,30 @@ body { color: var(--ink); }
     #wrapper .form-control,
     #wrapper .custom-select { min-height: 38px; }
 }
+
+/* Padding kartu admin diarahkan ke token, sama seperti teknisi (teknisi-theme.css:334).
+   Di desktop nilainya tetap 20px — tak ada yang berubah. Gunanya: satu token saja yang
+   dikecilkan untuk ponsel, dan KEDUA peran ikut, tanpa aturan kembar. */
+#wrapper .card > .card-body { padding: var(--card-pad); }
+
+/* ===================== Kerapatan ponsel =====================
+   Terukur di /users pada viewport 390px SEBELUM blok ini: padding kartu 20px dan
+   font tabel 16px — skala desktop apa adanya, menyisakan 324px dari 390px untuk isi.
+   Karena meta viewport sudah benar, peramban mengunci zoom minimum di 1.0 sehingga
+   operator tak punya jalan keluar: tata letaknya yang harus dirapatkan.
+   Token geometri sudah dikecilkan di tokens.css; di sini yang belum bertoken. */
+@media (max-width: 575.98px) {
+    /* 16px untuk sel tabel terlalu besar di lebar 350-an px — satu baris pelanggan
+       jadi tak muat dan tabel selalu harus digulir menyamping. */
+    #wrapper .table { font-size: .8125rem; }
+    #wrapper .table td,
+    #wrapper .table th { padding: .5rem .5rem; }
+    #wrapper .table-sm td,
+    #wrapper .table-sm th { padding: .4rem .45rem; }
+
+    /* Jarak antar kartu ikut dirapatkan; 1.5rem menyisakan terlalu banyak ruang mati
+       saat kartunya sendiri hanya setinggi beberapa baris. */
+    #wrapper .card { margin-bottom: 1rem; }
+    #wrapper .card > .card-header { padding: .75rem var(--card-pad); }
+    #wrapper .page-header { margin-bottom: 1.25rem; }
+}
