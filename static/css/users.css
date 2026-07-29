@@ -15,9 +15,9 @@ body {
             box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
         }
 
-        .container-fluid {
-            padding: 1.5rem;
-        }
+        /* .container-fluid DIBUANG: menimpa skala padding bersama di tokens.css
+           (--page-pad-*). Halaman ini sempat jadi satu-satunya yang tak dapat
+           padding-bawah 40px. Step-down responsif di bawah tetap ada. */
 
         /* Section Headers */
         .dashboard-header {
