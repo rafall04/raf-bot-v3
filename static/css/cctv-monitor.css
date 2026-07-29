@@ -1,0 +1,47 @@
+/* ============================================================
+   Dipindahkan dari blok <style> inline di views/sb-admin/cctv-monitor.php
+   (CLAUDE.md: CSS/JS halaman disimpan eksternal di static/, bukan inline).
+   Primitif TETAP (var(--white)/var(--slate-*)) dulu tak terlihat guard karena
+   masih inline di .php — begitu dieksternalkan langsung ketahuan dan dipetakan
+   ke token semantik sadar-mode.
+   ============================================================ */
+
+    /* KPI & elemen kustom — pakai design token agar selaras light/dark (lihat tokens.css). */
+    .cctv-kpi { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1rem; }
+    @media (max-width: 575.98px) { .cctv-kpi { grid-template-columns: repeat(2, 1fr); } }
+    .cctv-kpi .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0.85rem 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .cctv-kpi .stat .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-soft); font-weight: 600; }
+    .cctv-kpi .stat .value { font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
+    .cctv-kpi .stat .value.up { color: var(--color-success); }
+    .cctv-kpi .stat .value.down { color: var(--color-danger); }
+    .cctv-kpi .stat .value.pending { color: var(--color-warning); }
+    .cctv-kpi .stat .value.total { color: var(--indigo-600); }
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .status-dot.up { background: var(--color-success); box-shadow: 0 0 0 3px rgba(16,185,129,0.18); }
+    .status-dot.down { background: var(--color-danger); box-shadow: 0 0 0 3px rgba(239,68,68,0.18); }
+    .status-dot.unknown { background: var(--muted); }
+    .cctv-host { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 0.85rem; color: var(--ink-soft); }
+    .cctv-tpl { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 0.85rem; line-height: 1.5; }
+    /* Dark mode — surface & teks via alias --d-* (admin-theme.css), aksen via shade terang token. */
+    body.tk-dark .cctv-kpi .stat { background: var(--d-surface); border-color: var(--d-line); }
+    body.tk-dark .cctv-kpi .stat .label { color: var(--d-ink-soft); }
+    body.tk-dark .cctv-kpi .stat .value.up { color: var(--emerald-400); }
+    body.tk-dark .cctv-kpi .stat .value.down { color: var(--red-400); }
+    body.tk-dark .cctv-kpi .stat .value.pending { color: var(--amber-400); }
+    body.tk-dark .cctv-kpi .stat .value.total { color: var(--indigo-300); }
+    body.tk-dark .cctv-host { color: var(--d-ink-soft); }
+    /* Picker pelanggan: cari + daftar (ganti <select> panjang) — nyaman light/dark & mobile. */
+    .cctv-cust-list { display: none; max-height: 210px; overflow-y: auto; background: var(--surface); margin-top: 4px; }
+    .cctv-cust-list.show { display: block; }
+    .cctv-cust-item { padding: 0.4rem 0.6rem; cursor: pointer; border-bottom: 1px solid var(--line); }
+    .cctv-cust-item:last-child { border-bottom: 0; }
+    .cctv-cust-item.active, .cctv-cust-item:hover { background: var(--indigo-50); }
+    .cctv-cust-item .nm { font-weight: 600; font-size: 0.85rem; }
+    .cctv-cust-item .meta { font-size: 0.78rem; color: var(--ink-soft); }
+    .cctv-cust-empty { padding: 0.5rem 0.6rem; font-size: 0.83rem; color: var(--muted); }
+    body.tk-dark .cctv-cust-list { background: var(--d-surface); }
+    body.tk-dark .cctv-cust-item { border-bottom-color: var(--d-line); }
+    body.tk-dark .cctv-cust-item.active, body.tk-dark .cctv-cust-item:hover { background: var(--d-surface-2); }
+    body.tk-dark .cctv-cust-item .meta { color: var(--d-ink-soft); }
+    body.tk-dark .cctv-cust-empty { color: var(--d-muted); }
+  

@@ -1,0 +1,20 @@
+/* ============================================================
+   Dipindahkan dari blok <style> inline di views/sb-admin/admin-kasbon.php
+   (CLAUDE.md: CSS/JS halaman disimpan eksternal di static/, bukan inline).
+   ============================================================ */
+
+        .stats-card { border-radius: 10px; transition: transform 0.2s; }
+        .stats-card:hover { transform: translateY(-2px); }
+        .stats-value { font-size: 1.5rem; font-weight: 700; }
+        .stats-label { font-size: 0.85rem; color: #6c757d; }
+        
+        .badge-pending { background-color: #ffc107; color: #000; }
+        .badge-approved { background-color: #28a745; color: white; }
+        .badge-rejected { background-color: #dc3545; color: white; }
+        .badge-paid { background-color: #17a2b8; color: white; }
+        
+        .filter-tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .filter-tab { padding: 8px 16px; border-radius: 20px; cursor: pointer; border: 2px solid #e3e6f0; background: white; transition: all 0.2s; font-weight: 500; }
+        .filter-tab:hover { border-color: #4e73df; }
+        .filter-tab.active { background: #4e73df; color: white; border-color: #4e73df; }
+    

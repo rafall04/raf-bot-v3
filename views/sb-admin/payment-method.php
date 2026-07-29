@@ -253,57 +253,11 @@
 
   <!-- Page level custom scripts -->
   <!-- <script src="/js/demo/datatables-demo.js"></script> -->
-  <script>
-    $(document).on('click', '.btn-edit', function() {
-      const id = $(this).data('id');
-      $('#editModal form').attr('action', '/api/payment-method/' + id);
-      $('#editModal input#id').val($(this).data('id'));
-      $('#editModal input#name').val($(this).data('name'));
-      $('#editModal input#category').val($(this).data('category'));
-      $('#editModal input#fee').val($(this).data('fee'));
-    });
-  </script>
+  <script src="<?= rafAssetUrl('/js/payment-method-1.js') ?>"></script>
 
-  <script>
-    $(document).ready(function() {
-      // Inisialisasi DataTable
-      const dataTable = $('#dataTable').DataTable({
-        ajax: '/api/payment-method',
-        columns: [{
-            data: 'id'
-          },
-          {
-            data: 'name'
-          },
-          {
-            data: 'category'
-          },
-          {
-            data: 'fee'
-          },
-          {
-            data: null,
-            render: function(data, type, row) {
-              return `
-                  <button class="btn btn-info btn-edit" data-id="${row.id}" data-name="${row.name}" data-category="${row.category}" data-fee="${row.fee}" data-toggle="modal" data-target="#editModal">Edit</button>
-                  <button onclick="deleteData('${row.id}')" class="btn btn-danger">Hapus</button>
-                  `;
-            }
-          }
-        ]
-      });
 
-      window.deleteData = function(id) {
-        if (confirm('Are you sure you want to delete this')) $.ajax({
-          url: '/api/payment-method/' + id,
-          type: 'DELETE',
-          success: function() {
-            dataTable.ajax.reload();
-          }
-        });
-      };
-    });
-  </script>
+  <script src="<?= rafAssetUrl('/js/payment-method-2.js') ?>"></script>
+
 
 </body>
 

@@ -10,11 +10,8 @@
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css" rel="stylesheet">
-    <style>
-        .select2-container--bootstrap4 .select2-selection--single { height: calc(1.5em + 0.75rem + 2px) !important; }
-        .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered { line-height: calc(1.5em + 0.75rem) !important; }
-        .info-card { border-radius: 12px; border-left: 4px solid #4e73df; }
-    </style>
+    <link href="<?= rafAssetUrl('/css/rubah-paket.css') ?>" rel="stylesheet">
+
 </head>
 <body id="page-top">
     <div id="wrapper">

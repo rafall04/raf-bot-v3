@@ -1,0 +1,12 @@
+/* ============================================================
+   Dipindahkan dari blok <style> inline di views/sb-admin/custom-isolir.php
+   (CLAUDE.md: CSS/JS halaman disimpan eksternal di static/, bukan inline).
+   ============================================================ */
+
+        body.isolir-page { background: #f8fafc; }
+        .isolir-header { background: linear-gradient(135deg, #991b1b 0%, #dc2626 58%, #f97316 100%); }
+        .isolir-card.accent-card { border-color: #fecaca; box-shadow: 0 16px 36px rgba(185, 28, 28, .08); }
+        .candidate-item.selected { border-color: #dc2626; background: #fef2f2; }
+        .candidate-item.selected::after { color: #b91c1c; }
+        .result-filter .btn.active { background: #dc2626; border-color: #dc2626; color: #fff; }
+    

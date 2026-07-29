@@ -1,16 +1,4 @@
-        :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --success: #10b981;
-            --info: #3b82f6;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --dark: #1f2937;
-            --light: #f9fafb;
-            --border-radius: 12px;
-        }
-
-        body {
+body {
             font-family: 'Inter', sans-serif;
             background: #f3f4f6;
             min-height: 100vh;

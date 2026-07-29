@@ -54,7 +54,9 @@ body {
 }
 
 .container-fluid {
-    padding: 1.6rem 1.75rem 2.5rem;
+    /* Dulu 1.6rem 1.75rem 2.5rem — beda sendiri dari admin tanpa alasan yang
+       pernah diputuskan. Kini memakai skala bersama di tokens.css. */
+    padding: var(--page-pad-y) var(--page-pad-x) var(--page-pad-bottom);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -273,8 +275,11 @@ a { color: var(--tk-primary-dark); }
 }
 
 .tk-page-head h1 {
-    font-size: 1.5rem;
-    font-weight: 700;
+    /* Dulu 1.5rem/700 sementara admin 1.875rem/800 — satu skala judul sekarang
+       (tokens.css). Step-down responsif di bawah tetap dipertahankan. */
+    font-size: var(--title-size);
+    font-weight: var(--title-weight);
+    letter-spacing: -0.025em;
     margin: 0;
     line-height: 1.15;
 }
@@ -326,7 +331,7 @@ a { color: var(--tk-primary-dark); }
 .card .card-header h6 i,
 .card .card-header .m-0 i { color: var(--tk-primary); }
 
-.card .card-body { padding: 1.4rem; }
+.card .card-body { padding: var(--card-pad); } /* dulu 1.4rem, admin 1.25rem — kini satu skala */
 
 /* Kill SB Admin 2 hard left-border accents in favour of soft top accent */
 .card.border-left-primary,

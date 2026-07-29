@@ -57,6 +57,9 @@ const browserGlobals = {
     $: 'readonly', jQuery: 'readonly', Chart: 'readonly', bootstrap: 'readonly', html2canvas: 'readonly',
     io: 'readonly', Swal: 'readonly', feather: 'readonly', moment: 'readonly',
     L: 'readonly', google: 'readonly', grecaptcha: 'readonly',
+    // DOMPurify dimuat dari CDN di halaman pembayaran teknisi. Baru terlihat ESLint
+    // setelah blok <script>-nya dieksternalkan dari .php ke static/js/.
+    DOMPurify: 'readonly',
     toastr: 'readonly', Notification: 'readonly'
 };
 

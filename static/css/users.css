@@ -1,16 +1,4 @@
-        :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --success: #10b981;
-            --info: #3b82f6;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --dark: #1f2937;
-            --light: #f9fafb;
-            --border-radius: 12px;
-        }
-
-        body {
+body {
             font-family: 'Inter', sans-serif;
             background: #f3f4f6;
             min-height: 100vh;
@@ -37,9 +25,12 @@
         }
 
         .dashboard-header h1 {
-            font-size: 1.875rem;
-            font-weight: 700;
-            color: var(--dark);
+            /* Dulu bobot 700 sendiri — menyimpang dari 800 di halaman lain.
+               Kini memakai skala judul bersama di tokens.css. */
+            font-size: var(--title-size);
+            font-weight: var(--title-weight);
+            letter-spacing: -0.025em;
+            color: var(--ink);
             margin-bottom: 0.25rem;
         }
 

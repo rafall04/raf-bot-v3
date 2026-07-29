@@ -10,44 +10,8 @@
 
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     
-    <style>
-        .stats-card {
-            border-left: 4px solid #4e73df;
-            background: linear-gradient(90deg, rgba(78, 115, 223, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
-        }
-        .stats-card.success {
-            border-left-color: #1cc88a;
-            background: linear-gradient(90deg, rgba(28, 200, 138, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
-        }
-        .stats-card.danger {
-            border-left-color: #e74a3b;
-            background: linear-gradient(90deg, rgba(231, 74, 59, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
-        }
-        .filter-section {
-            background-color: #f8f9fc;
-            border-radius: 0.35rem;
-            padding: 1rem;
-            margin-bottom: 1rem;
-        }
-        .log-badge {
-            font-size: 0.75rem;
-            padding: 0.25rem 0.5rem;
-        }
-        .action-badge {
-            font-weight: 600;
-        }
-        .action-CREATE { background-color: #1cc88a; color: white; }
-        .action-UPDATE { background-color: #36b9cc; color: white; }
-        .action-DELETE { background-color: #e74a3b; color: white; }
-        .action-VIEW { background-color: #858796; color: white; }
-        .log-timestamp {
-            font-size: 0.8rem;
-            color: #858796;
-        }
-        .table-responsive {
-            border-radius: 0.35rem;
-        }
-    </style>
+    <link href="<?= rafAssetUrl('/css/activity-logs.css') ?>" rel="stylesheet">
+
 </head>
 
 <body id="page-top">
@@ -187,128 +151,8 @@
     <script src="/vendor/datatables/jquery.dataTables.min.js"></script>
     <script src="/vendor/datatables/dataTables.bootstrap4.min.js"></script>
 
-    <script>
-        let dataTable;
-        let currentFilters = {
-            actionType: '',
-            resourceType: '',
-            userId: ''
-        };
+    <script src="<?= rafAssetUrl('/js/activity-logs.js') ?>"></script>
 
-        function loadActivityLogs() {
-            const params = new URLSearchParams({
-                limit: 100,
-                offset: 0,
-                ...currentFilters
-            });
-
-            fetch(`/api/logs/activity?${params}`, {
-                credentials: 'same-origin',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => {
-                if (response.status === 403) {
-                    // Handle 403 - redirect to login or show error
-                    return response.json().then(data => {
-                        throw new Error(data.message || 'Akses ditolak. Silakan login ulang.');
-                    });
-                }
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(result => {
-                if (result.status === 200 && result.data) {
-                    renderLogs(result.data);
-                } else {
-                    $('#activityLogsBody').html('<tr><td colspan="7" class="text-center text-danger">Error loading logs: ' + (result.message || 'Unknown error') + '</td></tr>');
-                }
-            })
-            .catch(error => {
-                console.error('Error loading activity logs:', error);
-                let errorMsg = error.message || 'Unknown error';
-                if (errorMsg.includes('Akses ditolak') || errorMsg.includes('403')) {
-                    errorMsg = 'Akses ditolak. Silakan login ulang atau hubungi administrator.';
-                }
-                $('#activityLogsBody').html('<tr><td colspan="7" class="text-center text-danger">' + errorMsg + '</td></tr>');
-            });
-        }
-
-        function renderLogs(logs) {
-            const tbody = $('#activityLogsBody');
-            tbody.empty();
-
-            if (logs.length === 0) {
-                tbody.html('<tr><td colspan="7" class="text-center">No activity logs found</td></tr>');
-                return;
-            }
-
-            logs.forEach(log => {
-                const timestamp = new Date(log.timestamp).toLocaleString('id-ID');
-                const actionClass = `action-${log.action_type}`;
-                
-                const row = `
-                    <tr>
-                        <td class="log-timestamp">${timestamp}</td>
-                        <td>${log.username}</td>
-                        <td><span class="badge badge-info">${log.role}</span></td>
-                        <td><span class="badge ${actionClass} action-badge">${log.action_type}</span></td>
-                        <td>
-                            <strong>${log.resource_type}</strong>
-                            ${log.resource_id ? `<br><small class="text-muted">ID: ${log.resource_id}</small>` : ''}
-                            ${log.resource_name ? `<br><small class="text-muted">${log.resource_name}</small>` : ''}
-                        </td>
-                        <td>${log.description || '-'}</td>
-                        <td><small>${log.ip_address || '-'}</small></td>
-                    </tr>
-                `;
-                tbody.append(row);
-            });
-
-            // Initialize DataTable if not already initialized
-            if (!dataTable) {
-                dataTable = $('#activityLogsTable').DataTable({
-                    order: [[0, 'desc']],
-                    pageLength: 25,
-                    language: {
-                        search: "Cari:",
-                        lengthMenu: "Tampilkan _MENU_ entries",
-                        info: "Menampilkan _START_ sampai _END_ dari _TOTAL_ entries",
-                        paginate: {
-                            first: "Pertama",
-                            last: "Terakhir",
-                            next: "Selanjutnya",
-                            previous: "Sebelumnya"
-                        }
-                    }
-                });
-            } else {
-                dataTable.clear().rows.add($('#activityLogsTable tbody tr')).draw();
-            }
-        }
-
-        // Event handlers
-        $('#refreshBtn').on('click', function() {
-            loadActivityLogs();
-        });
-
-        $('#applyFiltersBtn').on('click', function() {
-            currentFilters = {
-                actionType: $('#filterActionType').val(),
-                resourceType: $('#filterResourceType').val(),
-                userId: $('#filterUserId').val()
-            };
-            loadActivityLogs();
-        });
-
-        // Load on page load
-        $(document).ready(function() {
-            loadActivityLogs();
-        });
-    </script>
 </body>
 
 </html>

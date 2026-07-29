@@ -1,86 +1,11 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+<?php require_once __DIR__ . '/_asset.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>View Invoice</title>
-    <style>
-        @media print {
-            .no-print {
-                display: none !important;
-            }
-            body {
-                margin: 0;
-                padding: 0;
-            }
-            .invoice-wrapper {
-                max-width: 100% !important;
-                box-shadow: none !important;
-            }
-        }
-        
-        body {
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-            margin: 0;
-            padding: 20px;
-        }
-        
-        .print-toolbar {
-            background: white;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .print-toolbar button {
-            background: #4e73df;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .print-toolbar button:hover {
-            background: #2e59d9;
-        }
-        
-        .btn-secondary {
-            background: #6c757d !important;
-        }
-        
-        .btn-secondary:hover {
-            background: #5a6268 !important;
-        }
-        
-        .invoice-wrapper {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 50px;
-            color: #666;
-        }
-        
-        .error {
-            text-align: center;
-            padding: 50px;
-            color: #dc3545;
-        }
-    </style>
+    <link href="<?= rafAssetUrl('/css/view-invoice.css') ?>" rel="stylesheet">
 </head>
 <body>
     <div class="print-toolbar no-print">
@@ -114,59 +39,6 @@
         </div>
     </div>
     
-    <script>
-        // Get invoice ID from URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const invoiceId = urlParams.get('id');
-        const userId = urlParams.get('userId');
-        
-        if (!invoiceId || !userId) {
-            document.getElementById('invoiceContent').innerHTML = '<div class="error">Invalid invoice parameters</div>';
-        } else {
-            // Load invoice HTML
-            loadInvoice();
-        }
-        
-        async function loadInvoice() {
-            try {
-                const response = await fetch('/api/view-invoice?id=${invoiceId}&userId=${userId}', { credentials: 'include' });
-                if (!response.ok) {
-                    throw new Error('Failed to load invoice');
-                }
-                
-                const html = await response.text();
-                document.getElementById('invoiceContent').innerHTML = html;
-                
-                // Update page title
-                const invoiceNumber = document.querySelector('.invoice-number');
-                if (invoiceNumber) {
-                    document.title = `Invoice ${invoiceNumber.textContent}`;
-                }
-            } catch (error) {
-                document.getElementById('invoiceContent').innerHTML = `<div class="error">Error loading invoice: ${error.message}</div>`;
-            }
-        }
-        
-        async function downloadPDF() {
-            try {
-                const response = await fetch('/api/download-invoice-pdf?id=${invoiceId}&userId=${userId}', { credentials: 'include' });
-                if (!response.ok) {
-                    throw new Error('Failed to generate PDF');
-                }
-                
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `Invoice_${invoiceId}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            } catch (error) {
-                alert('Error downloading PDF: ' + error.message);
-            }
-        }
-    </script>
+    <script src="<?= rafAssetUrl('/js/view-invoice.js') ?>"></script>
 </body>
 </html>

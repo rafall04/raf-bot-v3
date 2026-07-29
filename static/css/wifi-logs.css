@@ -1,0 +1,50 @@
+/* ============================================================
+   Dipindahkan dari blok <style> inline di views/sb-admin/wifi-logs.php
+   (CLAUDE.md: CSS/JS halaman disimpan eksternal di static/, bukan inline).
+   ============================================================ */
+
+        .stats-card {
+            border-left: 4px solid #4e73df;
+            background: linear-gradient(90deg, rgba(78, 115, 223, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
+        }
+        .stats-card.warning {
+            border-left-color: #f6c23e;
+            background: linear-gradient(90deg, rgba(246, 194, 62, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
+        }
+        .stats-card.success {
+            border-left-color: #1cc88a;
+            background: linear-gradient(90deg, rgba(28, 200, 138, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
+        }
+        .stats-card.info {
+            border-left-color: #36b9cc;
+            background: linear-gradient(90deg, rgba(54, 185, 204, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
+        }
+        .log-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+        }
+        .log-details {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+        .change-type-badge {
+            font-weight: 600;
+        }
+        .filter-section {
+            background-color: #f8f9fc;
+            border-radius: 0.35rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .table-responsive {
+            border-radius: 0.35rem;
+        }
+        .log-timestamp {
+            font-size: 0.8rem;
+            color: #858796;
+        }
+        .log-source {
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+    

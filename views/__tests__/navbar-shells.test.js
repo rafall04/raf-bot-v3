@@ -58,9 +58,10 @@ describe('admin and teknisi shell hardening', () => {
       'teknisi-olt.php',
       'teknisi-pelanggan.php',
       'teknisi-pembayaran.php',
-      'teknisi-psb-installation.php',
-      'teknisi-psb-setup.php',
-      'teknisi-psb.php',
+      // teknisi-psb*.php DIHAPUS: jalur PSB 3-fase dipensiunkan sejak S3 —
+      // routes/pages.js me-redirect /teknisi-psb, /teknisi-psb-setup dan
+      // /teknisi-psb-installation ke /papan-psb, jadi view-nya tak pernah
+      // dirender lagi. Lihat docs/boundary-log.md.
       'teknisi-request-paket.php',
       'teknisi-tiket.php',
     ];

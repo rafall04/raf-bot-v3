@@ -1,176 +1,35 @@
-        :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --success: #10b981;
-            --info: #3b82f6;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --dark: #1f2937;
-            --light: #f9fafb;
-            --border-radius: 12px;
-        }
+/* ============================================================
+   RAF BOT · Dashboard (index.php) — HANYA yang khas dashboard
+   ------------------------------------------------------------
+   File ini dulu FORK dari dashboard-modern.css (727 vs 671 baris): index.php
+   sengaja tidak memuat dashboard-modern, jadi dashboard adalah satu-satunya
+   halaman yang bisa menyimpang dari sistem tanpa ketahuan — dan memang
+   menyimpang (kartu KPI tertinggal di versi lama tanpa clamp responsif).
+   Sekarang index.php ikut _head.php (dapat dashboard-modern + components-modern),
+   dan di sini hanya tersisa yang benar-benar milik dashboard: widget monitoring,
+   workspace keuangan, baris KPI, dan riwayat login.
+   Blok :root 9-token + 38 aturan yang duplikat/usang sudah dibuang.
+   ============================================================ */
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--canvas);
-            min-height: 100vh;
-        }
 
-        #content-wrapper {
-            background: #ffffff;
-            min-height: 100vh;
-        }
+        /* .container-fluid, .dashboard-header h1, .dashboard-section-title,
+           .dashboard-card .card-content/.card-value/.card-subtitle DIBUANG dari sini:
+           semuanya versi LEBIH TUA dari dashboard-modern.css. Membiarkannya justru
+           merugikan — .container-fluid akan menimpa skala padding bersama, dan
+           .card-value mengembalikan font-size:2rem menggantikan clamp responsif
+           yang menjaga angka besar tidak terpotong di layar sempit. */
 
-        .topbar {
-            background: var(--surface) !important;
-            border-bottom: 1px solid var(--line);
-            box-shadow: var(--shadow-sm) !important;
-        }
 
-        .container-fluid {
-            padding: 1.5rem;
-        }
 
-        /* Section Headers */
-        .dashboard-header {
-            margin-bottom: 2rem;
-        }
 
-        .dashboard-header h1 {
-            font-size: 1.875rem;
-            font-weight: 800;
-            color: var(--ink);
-            letter-spacing: -0.025em;
-            margin-bottom: 0.25rem;
-        }
 
-        .dashboard-header p {
-            color: var(--ink-soft);
-            font-size: 0.95rem;
-        }
 
-        .dashboard-section-title {
-            font-weight: 700;
-            font-size: 1.125rem;
-            color: var(--ink);
-            letter-spacing: -0.01em;
-            margin-top: 1.5rem;
-            margin-bottom: 0.85rem;
-            position: relative;
-            padding-left: 14px;
-        }
 
-        .dashboard-section-title::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 4px;
-            height: 18px;
-            background: linear-gradient(180deg, var(--indigo-400), var(--indigo-600));
-            border-radius: var(--radius-pill);
-        }
 
-        /* Modern Cards */
-        .dashboard-card {
-            background: var(--surface);
-            border: 1px solid var(--line);
-            border-radius: var(--radius-md);
-            box-shadow: var(--shadow-sm);
-            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-            overflow: hidden;
-            position: relative;
-            height: 100%;
-        }
 
-        .dashboard-card:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-lg);
-            border-color: rgba(99, 102, 241, 0.35);
-        }
 
-        .dashboard-card .card-body {
-            padding: 1.25rem;
-            position: relative;
-        }
 
-        .dashboard-card .card-content {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
 
-        .dashboard-card .card-info {
-            flex: 1;
-        }
-
-        .dashboard-card .card-title-text {
-            font-weight: 500;
-            font-size: 0.875rem;
-            color: var(--ink-soft);
-            margin-bottom: 0.5rem;
-        }
-
-        .dashboard-card .card-value {
-            font-size: 2rem;
-            font-weight: 800;
-            color: var(--ink);
-            letter-spacing: -0.02em;
-            line-height: 1;
-            margin-bottom: 0.25rem;
-            white-space: nowrap;
-            overflow: visible;
-            text-overflow: clip;
-        }
-
-        .dashboard-card .card-subtitle {
-            font-size: 0.75rem;
-            color: var(--muted);
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .dashboard-card .card-change {
-            font-size: 0.75rem;
-            font-weight: 500;
-            padding: 2px 6px;
-            border-radius: 4px;
-            display: inline-flex;
-            align-items: center;
-            gap: 2px;
-        }
-
-        .dashboard-card .card-change.positive {
-            color: var(--success);
-            background: rgba(16, 185, 129, 0.1);
-        }
-
-        .dashboard-card .card-change.negative {
-            color: var(--danger);
-            background: rgba(239, 68, 68, 0.1);
-        }
-
-        .dashboard-card .card-icon-container {
-            width: 56px;
-            height: 56px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 12px;
-            background: var(--surface-2);
-            transition: background 0.2s ease;
-        }
-
-        .dashboard-card:hover .card-icon-container {
-            background: var(--brand-soft-2);
-        }
-
-        .dashboard-card .card-icon-container i {
-            font-size: 1.5rem;
-            color: var(--primary);
-        }
 
         .dashboard-kpi-row .dashboard-card .card-body {
             padding: 1rem 1.05rem;
@@ -362,37 +221,29 @@
         }
 
         /* Card color variants */
-        .dashboard-card.card-primary .card-icon-container { background: rgba(99, 102, 241, 0.1); }
-        .dashboard-card.card-primary .card-icon-container i { color: var(--primary); }
+
+
         
-        .dashboard-card.card-success .card-icon-container { background: rgba(16, 185, 129, 0.1); }
-        .dashboard-card.card-success .card-icon-container i { color: var(--success); }
+
+
         
-        .dashboard-card.card-info .card-icon-container { background: rgba(59, 130, 246, 0.1); }
-        .dashboard-card.card-info .card-icon-container i { color: var(--info); }
+
+
         
-        .dashboard-card.card-warning .card-icon-container { background: rgba(245, 158, 11, 0.1); }
-        .dashboard-card.card-warning .card-icon-container i { color: var(--warning); }
+
+
         
-        .dashboard-card.card-danger .card-icon-container { background: rgba(239, 68, 68, 0.1); }
-        .dashboard-card.card-danger .card-icon-container i { color: var(--danger); }
+
+
         
-        .dashboard-card.card-dark .card-icon-container { background: rgba(31, 41, 55, 0.1); }
-        .dashboard-card.card-dark .card-icon-container i { color: var(--dark); }
+
+
 
         /* Loading spinner */
-        .dashboard-card .card-value .spinner-border {
-            width: 2rem;
-            height: 2rem;
-            border-color: var(--primary);
-            border-right-color: transparent;
-        }
+
 
         /* Error text */
-        .dashboard-card .card-value.error-text {
-            font-size: 1.5rem;
-            color: var(--danger) !important;
-        }
+
 
         /* Modern Button */
         .btn-primary-custom {
@@ -553,10 +404,7 @@
             background: white;
         }
 
-        .row.match-height > [class*="col-"] {
-            display: flex;
-            flex-direction: column;
-        }
+
 
         .row.match-height > [class*="col-"] > .card {
             flex-grow: 1;
@@ -636,14 +484,9 @@
                 font-size: 2rem;
             }
             
-            .dashboard-card .card-icon-container {
-                width: 60px;
-                height: 60px;
-            }
+
             
-            .dashboard-card .card-icon-container i {
-                font-size: 1.5rem;
-            }
+
             
             .dropdown-list {
                 width: 320px;
@@ -651,9 +494,7 @@
         }
 
         @media (max-width: 575.98px) {
-            .dashboard-header {
-                margin-bottom: 1.35rem;
-            }
+
 
             .dashboard-header .d-flex {
                 flex-direction: column;
@@ -665,9 +506,7 @@
                 font-size: 1.45rem;
             }
 
-            .dashboard-header p {
-                font-size: 0.88rem;
-            }
+
 
             .dashboard-header .btn,
             .dashboard-header .btn-primary-custom,

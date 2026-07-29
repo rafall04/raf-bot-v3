@@ -73,3 +73,41 @@
                 font-size: 1.25rem;
             }
         }
+
+
+/* ============================================================
+   Dipindahkan dari blok <style> inline di views/sb-admin/teknisi-pembayaran.php
+   (CLAUDE.md: CSS/JS halaman disimpan eksternal di static/, bukan inline).
+   ============================================================ */
+
+        @media (max-width: 768px) {
+            .container-fluid { padding: 0.75rem; }
+            .d-sm-flex { flex-direction: column !important; align-items: flex-start !important; }
+            .d-sm-flex .btn { width: 100%; margin-top: 1rem; }
+            h1.h3 { font-size: 1.25rem; }
+            .stats-card .card-body { padding: 1rem; }
+            .stats-value { font-size: 1.5rem; }
+            .stats-icon { width: 40px; height: 40px; font-size: 1.2rem; }
+            .filter-tabs { gap: 8px; }
+            .filter-tab { padding: 6px 12px; font-size: 0.85rem; }
+            .card-body { padding: 1rem; }
+            .table-responsive { font-size: 0.85rem; }
+            .btn-action { padding: 4px 8px; font-size: 0.75rem; }
+            .modal-dialog { margin: 0.5rem; max-width: calc(100% - 1rem); }
+            .form-control, select { font-size: 16px !important; }
+        }
+        @media (max-width: 576px) {
+            .container-fluid { padding: 0.5rem; }
+            h1.h3 { font-size: 1.1rem; }
+            .stats-value { font-size: 1.25rem; }
+            .stats-label { font-size: 0.75rem; }
+            .stats-icon { width: 35px; height: 35px; font-size: 1rem; }
+            .filter-tab { padding: 5px 10px; font-size: 0.8rem; }
+            .filter-tab .count { padding: 1px 6px; font-size: 0.7rem; }
+            .card-body { padding: 0.75rem; }
+            .table-responsive { font-size: 0.8rem; }
+            .package-badge { font-size: 0.7rem; padding: 3px 8px; }
+            .customer-summary { padding: 12px; }
+            .price-highlight { font-size: 1.25rem; }
+        }
+    

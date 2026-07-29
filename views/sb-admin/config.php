@@ -13,19 +13,8 @@
   <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
-  <style>
-    .config-nav { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.5rem; padding: 0; list-style: none; border: none; }
-    /* Literal tetap diganti token sadar-mode; #4e73df + teks putih hanya 4.47:1 → indigo-600. */
-    .config-nav .nav-link { cursor: pointer; border: 1px solid var(--line); border-radius: .5rem; color: var(--ink-soft); background: var(--surface); padding: .5rem 1rem; font-weight: 600; }
-    .config-nav .nav-link:hover { background: var(--surface-2); }
-    .config-nav .nav-link.active { background: var(--indigo-600); color: var(--on-accent); border-color: var(--indigo-600); }
-    /* dark mode: samakan dengan permukaan tema gelap */
-    body.tk-dark .config-nav .nav-link { background: var(--d-surface); color: var(--d-ink-soft); border-color: var(--d-line); }
-    body.tk-dark .config-nav .nav-link:hover { background: var(--d-surface-2); color: var(--d-ink); border-color: var(--d-line); }
-    body.tk-dark .config-nav .nav-link.active { background: var(--indigo-600); color: var(--on-accent); border-color: var(--indigo-600); }
-    .config-pane { display: none; }
-    .config-pane.active { display: block; }
-  </style>
+  <link href="<?= rafAssetUrl('/css/config.css') ?>" rel="stylesheet">
+
 
 </head>
 

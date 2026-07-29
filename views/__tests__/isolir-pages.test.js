@@ -1,8 +1,21 @@
 const fs = require('fs');
 const path = require('path');
 
+/**
+ * Membaca markup halaman DAN aset JS/CSS eksternalnya sebagai satu teks.
+ * Perilaku yang diperiksa test ini dulu hidup di blok <script>/<style> inline
+ * dalam .php; sejak dieksternalkan ke static/js|css (CLAUDE.md: aset halaman
+ * disimpan eksternal), isinya tidak lagi ada di .php. Maksud test tidak berubah —
+ * yang dicek tetap "perilaku ini masih ada", hanya sumbernya kini dua berkas.
+ */
 function readView(filename) {
-  return fs.readFileSync(path.join(__dirname, '..', 'sb-admin', filename), 'utf8');
+  const base = filename.replace(/\.php$/, '');
+  const parts = [fs.readFileSync(path.join(__dirname, '..', 'sb-admin', filename), 'utf8')];
+  for (const [dir, ext] of [['js', '.js'], ['css', '.css']]) {
+    const asset = path.join(__dirname, '..', '..', 'static', dir, base + ext);
+    if (fs.existsSync(asset)) parts.push(fs.readFileSync(asset, 'utf8'));
+  }
+  return parts.join('\n');
 }
 
 describe('isolir admin pages approval fixes', () => {

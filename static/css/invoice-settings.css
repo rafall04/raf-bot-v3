@@ -1,0 +1,32 @@
+/* ============================================================
+   Dipindahkan dari blok <style> inline di views/sb-admin/invoice-settings.php
+   (CLAUDE.md: CSS/JS halaman disimpan eksternal di static/, bukan inline).
+   ============================================================ */
+
+    .preview-card {
+      background: #f8f9fc;
+      border: 1px solid #e3e6f0;
+      border-radius: 0.35rem;
+      padding: 1rem;
+      font-family: 'Courier New', monospace;
+      white-space: pre-wrap;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    
+    .template-editor {
+      font-family: 'Courier New', monospace;
+      min-height: 300px;
+    }
+    
+    .variable-tag {
+      background: #4e73df;
+      color: white;
+      padding: 0.2rem 0.4rem;
+      border-radius: 0.25rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      margin: 0.1rem;
+      display: inline-block;
+    }
+  

@@ -1,0 +1,68 @@
+/* ============================================================
+   Dipindahkan dari blok <style> inline di views/sb-admin/pembayaran/teknisi.php
+   (CLAUDE.md: CSS/JS halaman disimpan eksternal di static/, bukan inline).
+   ============================================================ */
+
+    body {
+      background-color: #f8f9fc;
+      font-family: 'Nunito', sans-serif;
+    }
+    .btn, button, a.dropdown-item {
+      transition: all 0.2s ease-in-out;
+    }
+    .topbar {
+      box-shadow: 0 0.1rem 0.5rem rgba(0, 0, 0, 0.075) !important;
+    }
+    .img-profile {
+      border: 2px solid #e3e6f0;
+    }
+    .container-fluid > .h1.mb-2,
+    .container-fluid > .h3.mb-2 {
+      font-weight: 700;
+      color: #3a3b45;
+      margin-bottom: 2rem !important;
+    }
+    .filter-controls {
+      margin-bottom: 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .filter-controls .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    .filter-controls .form-label {
+      margin-bottom: .5rem;
+      font-size: 0.9em;
+      font-weight: 600;
+      /* #5a5c69 TETAP → 2.91:1 di atas kanvas gelap. */
+      color: var(--ink-soft);
+    }
+    .filter-controls .form-control-sm {
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+      border: 1px solid #d1d3e2;
+      font-size: 0.875rem;
+      padding: 0.4rem 0.75rem;
+    }
+    .filter-controls .form-control-sm:focus {
+      border-color: #4e73df;
+      box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.15);
+    }
+    /* Cards, card headers, modals & tables are governed by teknisi-theme.css
+       for cross-page consistency (was a divergent blue-gradient header here). */
+    #dataTable td, #dataTable th { vertical-align: middle; font-size: 0.85rem; }
+    .badge-pill { padding: 0.5em 0.8em; font-size: 0.78em; font-weight: 500; }
+    .custom-modal-body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2.5rem; min-height: 180px; text-align: center; }
+    .custom-modal-body .modal-icon { font-size: 4rem; margin-bottom: 1.25rem; }
+    .custom-modal-body #messageModalTitle { font-size: 1.4rem; font-weight: 600; color: #3a3b45; }
+    .custom-modal-body #messageModalText { font-size: 1rem; color: #5a5c69; margin-bottom: 1.5rem; }
+    .custom-modal-body #messageModalOkBtn { min-width: 100px; }
+    .scroll-to-top { background-color: rgba(78,115,223,0.9); border-radius: 0.5rem; }
+    .scroll-to-top:hover { background-color: #4e73df; }
+    .action-buttons .btn {
+        margin-right: 5px;
+        margin-bottom: 5px; /* Tambahkan margin bawah jika tombol bisa wrap */
+    }
+  

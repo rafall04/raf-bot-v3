@@ -1,0 +1,55 @@
+/* ============================================================
+   Dipindahkan dari blok <style> inline di views/sb-admin/kompensasi.php
+   (CLAUDE.md: CSS/JS halaman disimpan eksternal di static/, bukan inline).
+   ============================================================ */
+
+        .customer-search-results div,
+        .selected-customers-list div {
+            padding: 8px;
+            border: 1px solid #e3e6f0;
+            margin-bottom: 5px;
+            border-radius: .35rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .customer-search-results div:hover {
+            background-color: #f8f9fc;
+            cursor: pointer;
+        }
+        .btn-remove-customer {
+            margin-left: 10px;
+        }
+        .modal-body-scrollable {
+            max-height: calc(100vh - 200px); /* Sesuaikan tinggi maksimal */
+            overflow-y: auto;
+            white-space: pre-wrap; /* Agar line break dari \n tampil benar */
+            word-wrap: break-word;
+        }
+        .modal-body-scrollable ul {
+            padding-left: 20px; /* Indentasi untuk list */
+            list-style-type: none; /* Hapus bullet point default jika kita pakai styling sendiri */
+        }
+         .modal-body-scrollable ul ul { /* Sub-list */
+            padding-left: 20px;
+            list-style-type: disc; /* Atau biarkan default */
+        }
+        .modal-body-scrollable li {
+            margin-bottom: 10px;
+        }
+        .modal-body-scrollable .user-detail-item {
+            margin-bottom: 3px;
+            font-size: 0.9em;
+        }
+        .duration-input-group {
+            display: flex;
+            gap: 15px; /* Jarak antar input durasi */
+        }
+        .duration-input-group .form-group {
+            flex: 1; /* Agar input hari dan jam berbagi ruang */
+        }
+        #activeCompensationsTable th, #activeCompensationsTable td {
+            font-size: 0.85rem; /* Perkecil font tabel jika perlu */
+            vertical-align: middle;
+        }
+    

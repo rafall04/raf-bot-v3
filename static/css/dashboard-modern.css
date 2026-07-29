@@ -1,18 +1,6 @@
 /* Modern Dashboard Design System - RAF BOT v2 */
 /* Consistent styling across all admin pages */
 
-:root {
-    --primary: #6366f1;
-    --primary-dark: #4f46e5;
-    --success: #10b981;
-    --info: #3b82f6;
-    --warning: #f59e0b;
-    --danger: #ef4444;
-    --dark: #1f2937;
-    --light: #f9fafb;
-    --border-radius: 12px;
-}
-
 body {
     font-family: 'Inter', sans-serif;
     background: var(--canvas);
@@ -48,7 +36,8 @@ body {
 }
 
 .container-fluid {
-    padding: 1.5rem;
+    /* Skala layout bersama (tokens.css) — dipakai identik oleh admin & teknisi. */
+    padding: var(--page-pad-y) var(--page-pad-x) var(--page-pad-bottom);
 }
 
 .container-fluid,
@@ -74,8 +63,9 @@ body {
 }
 
 .dashboard-header h1 {
-    font-size: 1.875rem;
-    font-weight: 800;
+    /* Skala judul bersama (tokens.css) — identik dgn .tk-page-head h1 teknisi. */
+    font-size: var(--title-size);
+    font-weight: var(--title-weight);
     color: var(--ink);
     letter-spacing: -0.025em;
     margin-bottom: 0.25rem;

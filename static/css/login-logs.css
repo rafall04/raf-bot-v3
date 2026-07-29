@@ -1,0 +1,37 @@
+/* ============================================================
+   Dipindahkan dari blok <style> inline di views/sb-admin/login-logs.php
+   (CLAUDE.md: CSS/JS halaman disimpan eksternal di static/, bukan inline).
+   ============================================================ */
+
+        .stats-card {
+            border-left: 4px solid #4e73df;
+            background: linear-gradient(90deg, rgba(78, 115, 223, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
+        }
+        .stats-card.success {
+            border-left-color: #1cc88a;
+            background: linear-gradient(90deg, rgba(28, 200, 138, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
+        }
+        .stats-card.danger {
+            border-left-color: #e74a3b;
+            background: linear-gradient(90deg, rgba(231, 74, 59, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
+        }
+        .filter-section {
+            background-color: #f8f9fc;
+            border-radius: 0.35rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .log-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+        }
+        .log-timestamp {
+            font-size: 0.8rem;
+            color: #858796;
+        }
+        .table-responsive {
+            border-radius: 0.35rem;
+        }
+        .success-badge { background-color: #1cc88a; color: white; }
+        .failed-badge { background-color: #e74a3b; color: white; }
+    

@@ -9,30 +9,8 @@
 ?>
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
 
-    <style>
-        .stat-card {
-            border-left: 3px solid var(--primary);
-            transition: all 0.3s;
-            background: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--primary);
-        }
-        .stat-label {
-            font-size: 0.875rem;
-            color: #6c757d;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-    </style>
+    <link href="<?= rafAssetUrl('/css/agent-voucher-management.css') ?>" rel="stylesheet">
+
 </head>
 
 <body id="page-top">

@@ -67,23 +67,18 @@ if ($monitoringEnabled) {
 
 <head>
 
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <meta name="description" content="RAF BOT Dashboard - Premium Edition">
-    <meta name="author" content="RAF BOT">
-
-    <title>RAF BOT - Premium Dashboard</title>
-
-    <link href="/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<?php require_once __DIR__ . '/_asset.php'; ?>
-    <link href="<?= rafAssetUrl('/css/sb-admin-2.min.css') ?>" rel="stylesheet">
-    <link href="<?= rafAssetUrl('/static/css/monitoring.css') ?>" rel="stylesheet">
-    <link href="<?= rafAssetUrl('/css/admin-theme.css') ?>" rel="stylesheet">
-    <!-- Tahap 2: lapisan komponen bersama (index.php tak lewat _head.php → link manual) -->
-    <link href="<?= rafAssetUrl('/css/components-modern.css') ?>" rel="stylesheet">
-
+<?php
+    // Dulu <head> ditulis tangan dan sengaja TIDAK memuat dashboard-modern.css —
+    // index.css adalah FORK-nya (727 vs 671 baris). Akibatnya dashboard jadi
+    // satu-satunya halaman yang bisa menyimpang dari sistem tanpa ketahuan.
+    // Kini ikut partial bersama; index.css disisakan HANYA untuk yang khas
+    // dashboard (widget monitoring, workspace keuangan, riwayat login).
+    $pageTitle = 'RAF BOT - Premium Dashboard';
+    $pageDescription = 'RAF BOT Dashboard - Premium Edition';
+    $themeRole = 'admin';
+    include __DIR__ . '/_head.php';
+?>
+    <link href="<?= rafAssetUrl('/css/monitoring.css') ?>" rel="stylesheet">
     <link href="<?= rafAssetUrl('/css/index.css') ?>" rel="stylesheet">
 
 </head>
@@ -200,21 +195,7 @@ if ($monitoringEnabled) {
                     </li>
                 </ul>
             </nav>
-            <script>
-            // Fallback: Fetch dari API jika name masih 'User'
-            (function() {
-                if (document.getElementById('topbarUserName').textContent === 'User') {
-                    fetch('/api/me', { credentials: 'include' })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.status === 200 && data.data && data.data.name) {
-                                document.getElementById('topbarUserName').textContent = data.data.name;
-                            }
-                        })
-                        .catch(err => console.warn('Failed to fetch user name from API:', err));
-                }
-            })();
-            </script>
+            <script src="<?= rafAssetUrl('/js/index-page.js') ?>"></script>
             <div class="container-fluid">
                 <div class="dashboard-header">
                     <div class="d-flex align-items-center justify-content-between">
@@ -664,7 +645,11 @@ if ($monitoringEnabled) {
             <footer class="sticky-footer bg-white">
                 <div class="container my-auto">
                     <div class="copyright text-center my-auto">
-                        <span>Copyright &copy; RAF BOT <script>document.write(new Date().getFullYear())</script></span>
+                        <!-- Dulu `document.write(new Date().getFullYear())` inline. Tidak
+                             dieksternalkan: Chrome bisa MEMBLOKIR document.write dari skrip
+                             eksternal yang menghalangi parser. Halaman ini PHP, jadi tahunnya
+                             dirender di server saja — nol JavaScript. -->
+                        <span>Copyright &copy; RAF BOT <?= date('Y') ?></span>
                     </div>
                 </div>
             </footer>

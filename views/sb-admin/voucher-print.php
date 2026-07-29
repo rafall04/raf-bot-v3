@@ -8,16 +8,7 @@
     $pageDescription = 'RAF BOT - Generate & cetak voucher hotspot dengan layout sendiri';
     include __DIR__ . '/_head.php';
     ?>
-    <style>
-        .vp-gallery { display: flex; flex-wrap: wrap; gap: 10px; }
-        .vp-thumb { border: 2px solid #e3e6f0; border-radius: 8px; padding: 6px; cursor: pointer; background: #fff; width: 168px; }
-        .vp-thumb.selected { border-color: #4e73df; }
-        .vp-thumb .vp-thumb-box { height: 96px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        .vp-thumb .vp-thumb-box > div { transform: scale(0.78); transform-origin: center; }
-        .vp-thumb .vp-thumb-name { font-size: 11px; text-align: center; margin-top: 4px; color: #5a5c69; }
-        .vp-thumb .badge { font-size: 9px; }
-        .vp-help code { font-size: 11px; background: #f1f1f1; padding: 1px 4px; border-radius: 3px; }
-    </style>
+    <link href="<?= rafAssetUrl('/css/voucher-print.css') ?>" rel="stylesheet">
 </head>
 
 <body id="page-top">

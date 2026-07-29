@@ -212,53 +212,11 @@
 
   <!-- Page level custom scripts -->
   <!-- <script src="/js/demo/datatables-demo.js"></script> -->
-  <script>
-    $(document).on('click', '.btn-edit', function() {
-      const id = $(this).data('id');
-      $('#editModal form').attr('action', '/api/statik/' + id);
-      $('#editModal input#prof').val($(this).data('prof'));
-      $('#editModal input#limitat').val($(this).data('limitat'));
-      $('#editModal input#maxlimit').val($(this).data('maxlimit'));
-    });
-  </script>
+  <script src="<?= rafAssetUrl('/js/statik-1.js') ?>"></script>
 
-  <script>
-    $(document).ready(function() {
-      // Inisialisasi DataTable
-      const dataTable = $('#dataTable').DataTable({
-        ajax: '/api/statik',
-        columns: [{
-            data: 'prof'
-          },
-          {
-            data: 'limitat'
-          },
-          {
-            data: 'maxlimit'
-          },
-          {
-            data: null,
-            render: function(data, type, row) {
-              return `
-                  <button class="btn btn-info btn-edit" data-id="${row.prof}" data-prof="${row.prof}" data-limitat="${row.limitat}" data-maxlimit="${row.maxlimit}" data-toggle="modal" data-target="#editModal">Edit</button>
-                  <button onclick="deleteData('${row.prof}')" class="btn btn-danger">Hapus</button>
-                  `;
-            }
-          }
-        ]
-      });
 
-      window.deleteData = function(id) {
-        if (confirm('Are you sure you want to delete this')) $.ajax({
-          url: '/api/statik/' + id,
-          type: 'DELETE',
-          success: function() {
-            dataTable.ajax.reload();
-          }
-        });
-      };
-    });
-  </script>
+  <script src="<?= rafAssetUrl('/js/statik-2.js') ?>"></script>
+
 
 </body>
 

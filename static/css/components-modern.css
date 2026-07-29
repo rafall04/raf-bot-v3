@@ -283,8 +283,8 @@
 #wrapper h1.h3,
 #wrapper .page-header > h1,
 #wrapper .page-header > h2 {
-    font-size: 1.875rem;
-    font-weight: 800;
+    font-size: var(--title-size);
+    font-weight: var(--title-weight);
     letter-spacing: -0.025em;
     color: var(--ink) !important;
 }

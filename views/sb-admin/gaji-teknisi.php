@@ -8,22 +8,8 @@
     ?>
 
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
-    <style>
-        .stats-card { border-radius: 12px; transition: transform 0.2s, box-shadow 0.2s; }
-        .stats-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
-        .stats-icon { width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
-        .stats-value { font-size: 1.75rem; font-weight: 700; }
-        .stats-label { font-size: 0.85rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; }
-        .period-selector { background: white; border-radius: 10px; padding: 15px; margin-bottom: 20px; }
-        .badge-pending { background: #ffc107; color: #212529; }
-        .badge-paid { background: #28a745; color: white; }
-        .gaji-detail { font-size: 0.85rem; }
-        .gaji-detail .text-success { color: #28a745 !important; }
-        .gaji-detail .text-danger { color: #dc3545 !important; }
-        .input-group-text { min-width: 40px; justify-content: center; }
-        .form-section { background: #f8f9fc; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
-        .form-section-title { font-weight: 600; margin-bottom: 10px; color: #5a5c69; }
-    </style>
+    <link href="<?= rafAssetUrl('/css/gaji-teknisi.css') ?>" rel="stylesheet">
+
 </head>
 <body id="page-top">
     <div id="wrapper">

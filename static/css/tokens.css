@@ -104,12 +104,45 @@
     --blue-300: #93c5fd;
     --orange-300: #fdba74;
 
+    /* ── Alias kompatibilitas untuk CSS halaman lama ──────────
+       Blok `:root` berisi 9 token ini dulu DISALIN VERBATIM ke 8 file CSS halaman
+       (dashboard-modern, index, users, payment-status, paket-voucher,
+       network-assets, import-mikrotik, voucher-send). Itulah sumber penyimpangan
+       diam-diam: `--border-radius: 12px` di salinan users/payment-status membuat
+       kartu kedua halaman itu 12px sementara halaman lain 14px, tanpa ada yang
+       sengaja memutuskan begitu. Sekarang didefinisikan SEKALI di sini dan
+       dipetakan ke token kanonik, jadi tak bisa lagi menyimpang per file.
+       `--light` dihapus — nol pemakaian di seluruh repo. */
+    --primary:       var(--indigo-500);
+    --primary-dark:  var(--indigo-600);
+    --success:       var(--color-success);
+    --info:          var(--color-info);
+    --warning:       var(--color-warning);
+    --danger:        var(--color-danger);
+    --dark:          var(--ink);        /* selalu dipakai sebagai warna TEKS (terverifikasi) */
+    --border-radius: var(--radius-md);  /* 12px → 14px: menyamakan radius kartu lintas halaman */
+
     /* ── Skala radius ──────────────────────────────────────── */
     --radius-sm: 12px;
     --radius-md: 14px;
     --radius-lg: 18px;
     --radius-xl: 22px;
     --radius-pill: 999px;
+
+    /* ── Skala LAYOUT bersama (admin & teknisi) ───────────────
+       Dulu dua peran memakai skala yang berbeda tanpa keputusan sadar: padding
+       konten 24px (admin) vs 25.6/28/40px (teknisi), padding isi kartu 20px vs
+       22.4px, judul halaman 30px/800 vs 24px/700 — itu yang membuat keduanya
+       terasa seperti dua aplikasi. Sekarang satu skala, didefinisikan di sini.
+       Nilai horizontal & kartu mengikuti admin (mayoritas halaman, dan lebih
+       lega untuk tabel lebar); padding BAWAH mengikuti teknisi karena memang
+       lebih baik — konten tak lagi menempel di dasar viewport saat menggulir. */
+    --page-pad-y: 24px;
+    --page-pad-x: 24px;
+    --page-pad-bottom: 40px;
+    --card-pad: 20px;
+    --title-size: 1.875rem;
+    --title-weight: 800;
 
     /* ── Skala spacing (4px base) ──────────────────────────── */
     --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;

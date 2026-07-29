@@ -9,20 +9,7 @@
     include __DIR__ . '/_head.php';
     ?>
     <link href="<?= rafAssetUrl('/css/paket-voucher.css') ?>" rel="stylesheet">
-    <style>
-      #recentBody td{vertical-align:middle}
-      #recentBody .vc-code{font-family:monospace;font-weight:700;letter-spacing:.5px;background:rgba(128,128,128,.14);padding:2px 7px;border-radius:6px}
-      #recentBody .vc-copy{margin-left:6px;border:0;background:none;color:var(--primary,#4e73df);cursor:pointer;font-size:12px;font-weight:600;padding:0}
-      #recentBody .vc-copy:hover{text-decoration:underline}
-      #recentBody .vc-resend{border:1px solid var(--primary,#4e73df);background:none;color:var(--primary,#4e73df);border-radius:7px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
-      #recentBody .vc-resend:hover:not(:disabled){background:var(--primary,#4e73df);color:#fff}
-      #recentBody .vc-resend:disabled{opacity:.6;cursor:progress}
-      #recentBody .vc-reissue{border:1px solid #e0a800;background:none;color:#b8860b;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
-      #recentBody .vc-reissue:hover:not(:disabled){background:#e0a800;color:#fff}
-      #recentBody .vc-reissue:disabled{opacity:.6;cursor:progress}
-      #recentBody .vc-badge-fail{color:#e74a3b;font-weight:600;font-size:12px}
-      #recentBody .vc-muted{color:#888;font-size:12px}
-    </style>
+    <link href="<?= rafAssetUrl('/css/voucher-sales.css') ?>" rel="stylesheet">
 </head>
 
 <body id="page-top">

@@ -1,0 +1,75 @@
+/* ============================================================
+   Dipindahkan dari blok <style> inline di views/sb-admin/teknisi-kasbon.php
+   (CLAUDE.md: CSS/JS halaman disimpan eksternal di static/, bukan inline).
+   ============================================================ */
+
+        /* Page-specific: kasbon submission form */
+        .tk-amount-group .input-group-text {
+            background: #f8fafc;
+            border: 1px solid var(--tk-line);
+            border-right: none;
+            border-radius: var(--tk-radius-sm) 0 0 var(--tk-radius-sm);
+            color: var(--tk-ink-soft);
+            font-weight: 700;
+            font-size: 1.1rem;
+            padding: 0 1rem;
+        }
+        .tk-amount-group .amount-input {
+            font-size: 1.6rem;
+            font-weight: 800;
+            text-align: right;
+            border-left: none;
+            border-radius: 0 var(--tk-radius-sm) var(--tk-radius-sm) 0;
+            letter-spacing: -0.02em;
+        }
+        .tk-amount-group:focus-within .input-group-text {
+            border-color: var(--tk-primary);
+        }
+
+        /* quick-amount chips */
+        .tk-chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+        .tk-chip {
+            border: 1px solid var(--tk-line);
+            background: #fff;
+            color: var(--tk-ink-soft);
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.4rem 0.85rem;
+            border-radius: var(--tk-radius-pill);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .tk-chip:hover {
+            border-color: var(--tk-primary);
+            background: var(--tk-primary-soft);
+            color: var(--tk-primary-dark);
+        }
+
+        /* preview + submit panel */
+        .tk-preview-box {
+            background: linear-gradient(135deg, #eef2ff 0%, #faf5ff 100%);
+            border: 1px solid #e0e7ff;
+            border-radius: var(--tk-radius);
+            padding: 1.35rem;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: center;
+        }
+        .tk-preview-box .tk-preview-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--tk-muted);
+        }
+        .amount-preview {
+            font-size: 2rem;
+            color: var(--tk-primary-dark);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin: 0.35rem 0 1.1rem;
+            line-height: 1.1;
+        }
+    

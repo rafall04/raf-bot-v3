@@ -439,3 +439,13 @@
         });
         
         // ===== PERBAIKAN SELESAI =====
+
+
+/*
+ * Header Doc
+ * Purpose: Perilaku halaman views/sb-admin/network-assets.php —
+ *          dipindahkan dari blok <script> inline (CLAUDE.md: JS halaman eksternal).
+ * Caller : views/sb-admin/network-assets.php lewat <script src>, pada posisi yang sama dengan blok aslinya.
+ * SideEffects: memanipulasi DOM halaman tsb + memanggil API internal.
+ */
+document.write(new Date().getFullYear())

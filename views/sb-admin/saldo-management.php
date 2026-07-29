@@ -11,23 +11,8 @@
   <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
 
-  <style>
-    .topup-request-card {
-      border-left: 3px solid var(--primary);
-      margin-bottom: 15px;
-      transition: all 0.3s;
-      background: #ffffff;
-      border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    }
-    .topup-request-card:hover {
-      box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-      transform: translateY(-2px);
-    }
-    
-    .credit { color: var(--success); font-weight: bold; }
-    .debit { color: var(--danger); font-weight: bold; }
-  </style>
+  <link href="<?= rafAssetUrl('/css/saldo-management.css') ?>" rel="stylesheet">
+
 </head>
 
 <body id="page-top">

@@ -8,16 +8,8 @@
     ?>
 
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        /* Literal tetap diganti token sadar-mode (lihat rekap-keuangan.php). */
-        .summary-card { border: 0; border-radius: 14px; box-shadow: var(--shadow-md); }
-        .summary-card .card-body { padding: 1.35rem 1.5rem; }
-        .summary-label { font-size: 0.78rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.08em; }
-        .summary-value { font-size: 1.75rem; font-weight: 700; color: var(--ink); }
-        .panel-card { border: 0; border-radius: 14px; box-shadow: var(--shadow-md); }
-        .toast-stack { position: fixed; top: 80px; right: 20px; z-index: 1080; width: 360px; }
-    </style>
+    <link href="<?= rafAssetUrl('/css/pengeluaran.css') ?>" rel="stylesheet">
+
 </head>
 <body id="page-top">
     <div id="wrapper">

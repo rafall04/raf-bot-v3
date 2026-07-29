@@ -16,11 +16,14 @@
     gap: .45rem;
 }
 
+/* Pola judul ke-5 di panel ini. Dulu 1.45rem/700 sendiri; kini ikut skala
+   judul bersama di tokens.css supaya sama dengan halaman admin & teknisi. */
 .isolir-header h1 {
     margin: 0;
-    font-size: 1.45rem;
+    font-size: var(--title-size);
     line-height: 1.2;
-    font-weight: 700;
+    font-weight: var(--title-weight);
+    letter-spacing: -0.025em;
 }
 
 .isolir-header p {

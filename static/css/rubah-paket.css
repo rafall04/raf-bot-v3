@@ -1,0 +1,9 @@
+/* ============================================================
+   Dipindahkan dari blok <style> inline di views/sb-admin/rubah-paket.php
+   (CLAUDE.md: CSS/JS halaman disimpan eksternal di static/, bukan inline).
+   ============================================================ */
+
+        .select2-container--bootstrap4 .select2-selection--single { height: calc(1.5em + 0.75rem + 2px) !important; }
+        .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered { line-height: calc(1.5em + 0.75rem) !important; }
+        .info-card { border-radius: 12px; border-left: 4px solid #4e73df; }
+    

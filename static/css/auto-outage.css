@@ -1,0 +1,14 @@
+/* ============================================================
+   Dipindahkan dari blok <style> inline di views/sb-admin/auto-outage.php
+   (CLAUDE.md: CSS/JS halaman disimpan eksternal di static/, bukan inline).
+   ============================================================ */
+
+    .ao-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 1rem; }
+    .ao-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; box-shadow: 0 12px 30px rgba(15,23,42,0.06); }
+    .ao-card .card-header { background: transparent; border-bottom: 1px solid #e5e7eb; }
+    .ao-pill { display: inline-flex; align-items: center; gap: .35rem; padding: .35rem .6rem; border-radius: 999px; font-size: .78rem; background: #eef2ff; color: #1e3a8a; }
+    .ao-metric { border-radius: 12px; padding: 1rem; background: linear-gradient(135deg, #0f766e, #115e59); color: #fff; min-height: 100px; }
+    .ao-metric strong { font-size: 1.8rem; display: block; }
+    .ao-table { font-size: .86rem; }
+    @media (max-width: 991px) { .ao-grid { grid-template-columns: 1fr; } }
+  

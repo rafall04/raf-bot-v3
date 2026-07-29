@@ -12,16 +12,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2-bootstrap-theme/0.1.0-beta.10/select2-bootstrap.min.css" />
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     <link href="<?= rafAssetUrl('/css/teknisi-tiket.css') ?>" rel="stylesheet">
-    <style>
-      .ticket-card { border:1px solid rgba(128,128,128,.22); border-radius:12px; padding:.75rem .85rem; margin-bottom:.6rem; }
-      .ticket-card .tc-head { display:flex; justify-content:space-between; align-items:center; gap:.5rem; margin-bottom:.35rem; }
-      .ticket-card .tc-cust { font-size:.9rem; margin:.15rem 0; }
-      .ticket-card .tc-laporan { font-size:.82rem; opacity:.82; margin:.35rem 0; }
-      .ticket-card .tc-stepper { margin:.45rem 0; overflow-x:auto; }
-      .ticket-card .tc-actions { margin-top:.55rem; }
-      .ticket-card .tc-actions .btn-group-vertical { width:100%; gap:.3rem; }
-      .ticket-filter-bar .custom-switch { padding-left:2.25rem; }
-    </style>
+    <link href="<?= rafAssetUrl('/css/teknisi-tiket.css') ?>" rel="stylesheet">
 </head>
 
 <body id="page-top">

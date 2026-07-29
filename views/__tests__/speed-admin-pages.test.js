@@ -11,7 +11,9 @@ describe('speed admin page approval fixes', () => {
     });
 
     test('speed requests page uses a stable global DataTable reference', () => {
-        const source = fs.readFileSync(path.join(__dirname, '..', 'sb-admin', 'speed-requests.php'), 'utf8');
+        // Perilaku ini dulu di blok <script> inline speed-requests.php; sejak
+        // dieksternalkan (CLAUDE.md: JS halaman di static/js/) sumbernya pindah.
+        const source = fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'speed-requests.js'), 'utf8');
         expect(source.includes('window.speedRequestTable = null;')).toBe(true);
         expect(source.includes('function getSpeedRequestTable()')).toBe(true);
         expect(source.includes('getSpeedRequestTable()?.ajax.reload();')).toBe(true);

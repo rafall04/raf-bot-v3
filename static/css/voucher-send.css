@@ -1,16 +1,4 @@
-        :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --success: #10b981;
-            --info: #3b82f6;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --dark: #1f2937;
-            --light: #f9fafb;
-            --border-radius: 12px;
-        }
-
-        body { font-family: 'Inter', sans-serif; background: #f3f4f6; }
+body { font-family: 'Inter', sans-serif; background: #f3f4f6; }
 
         .page-header {
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
@@ -19,7 +7,8 @@
             margin-bottom: 1.5rem;
             color: white;
         }
-        .page-header h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+        /* Skala judul bersama (tokens.css) — dulu 1.5rem/700 sendiri. */
+        .page-header h1 { font-size: var(--title-size); font-weight: var(--title-weight); letter-spacing: -0.025em; margin: 0; }
         .page-header p { margin: 0.25rem 0 0; opacity: 0.9; font-size: 0.9rem; }
 
         .card-modern {

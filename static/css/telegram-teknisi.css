@@ -1,0 +1,17 @@
+/* ============================================================
+   Dipindahkan dari blok <style> inline di views/sb-admin/telegram-teknisi.php
+   (CLAUDE.md: CSS/JS halaman disimpan eksternal di static/, bukan inline).
+   ============================================================ */
+
+    /* .tg-card dulu background:#fff TETAP — di mode gelap jadi kartu putih dengan teks
+       terang di atasnya (terukur 1.16:1). Kini token sadar-mode. */
+    .tg-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow-md); }
+    .tg-card .card-header { background:transparent; border-bottom:1px solid var(--line); }
+    .tg-metric { border-radius:12px; padding:1rem; background:linear-gradient(135deg,#0ea5e9,#0369a1); color:var(--on-accent); min-height:92px; }
+    .tg-metric.is-danger { background:linear-gradient(135deg,var(--color-danger),#b91c1c); }
+    .tg-metric strong { font-size:1.4rem; display:block; }
+    .tg-table { font-size:.86rem; }
+    .badge-on { background:var(--tint-success); color:var(--accent-success-ink); }
+    .badge-off { background:var(--surface-2); color:var(--ink-soft); }
+    .badge-pill2 { font-size:.72rem; padding:.3rem .55rem; border-radius:999px; }
+  

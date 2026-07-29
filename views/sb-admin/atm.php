@@ -202,49 +202,11 @@
 
   <!-- Page level custom scripts -->
   <!-- <script src="/js/demo/datatables-demo.js"></script> -->
-  <script>
-    $(document).on('click', '.btn-edit', function() {
-      const id = $(this).data('id');
-      $('#editModal form').attr('action', '/api/atm/' + id);
-      $('#editModal input#id').val($(this).data('id'));
-      $('#editModal input#saldo').val($(this).data('saldo'));
-    });
-  </script>
+  <script src="<?= rafAssetUrl('/js/atm-1.js') ?>"></script>
 
-  <script>
-    $(document).ready(function() {
-      // Inisialisasi DataTable
-      const dataTable = $('#dataTable').DataTable({
-        ajax: '/api/atm',
-        columns: [{
-            data: 'id'
-          },
-          {
-            data: 'saldo'
-          },
-          {
-            data: null,
-            render: function(data, type, row) {
-              return `
-                  <button class="btn btn-info btn-edit" data-id="${row.id}" data-saldo="${row.saldo}" data-toggle="modal" data-target="#editModal">Edit</button>
-                  <button onclick="deleteData('${row.id}')" class="btn btn-danger">Hapus</button>
-                  `;
-            }
-          }
-        ]
-      });
 
-      window.deleteData = function(id) {
-        if (confirm('Are you sure you want to delete this')) $.ajax({
-          url: '/api/atm/' + id,
-          type: 'DELETE',
-          success: function() {
-            dataTable.ajax.reload();
-          }
-        });
-      };
-    });
-  </script>
+  <script src="<?= rafAssetUrl('/js/atm-2.js') ?>"></script>
+
 
 </body>
 
