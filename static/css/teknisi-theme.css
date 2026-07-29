@@ -851,14 +851,18 @@ label, .form-group > label {
 }
 
 @media (max-width: 575.98px) {
-    .container-fluid { padding: 0.9rem 0.9rem 1.75rem; }
+    /* Padding halaman ponsel juga sudah dibawa token (--page-pad-* di blok <576px),
+       dan aturan dasar di baris 56 memakainya — override ini hanya membuat teknisi
+       14,4px sementara admin 12px. Dihapus supaya keduanya benar-benar sama. */
     .tk-stats-row { gap: 0.75rem; }
     .tk-page-head { align-items: flex-start; }
     .tk-page-head .tk-title-icon { width: 2.6rem; height: 2.6rem; font-size: 1.05rem; }
     .tk-page-head h1 { font-size: 1.18rem; }
     .tk-page-head .tk-actions { width: 100%; }
     .tk-page-head .tk-actions .btn { flex: 1 1 auto; }
-    .card .card-body { padding: 1.1rem; }
+    /* Padding kartu ponsel dulu dipatok 1.1rem di sini — nilai kembar yang membuat
+       teknisi dan admin berbeda 3,6px tanpa alasan. Kini satu pemilik: token
+       --card-pad (tokens.css, blok <576px) lewat `#wrapper .card-body`. */
 
     /* Stat cards on narrow screens: stack the icon on top so the value gets the
        full card width (prevents "Rp 10.000" wrapping / large rupiah overflowing)

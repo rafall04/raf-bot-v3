@@ -584,9 +584,11 @@ body {
 }
 
 @media (max-width: 575.98px) {
-    .container-fluid {
-        padding: 0.75rem;
-    }
+    /* Nilainya dulu dipatok 0.75rem di sini. Kebetulan sama dengan token, tapi
+       "kebetulan sama" itulah yang bikin skala pelan-pelan menyimpang: token
+       --page-pad-* di blok <576px tokens.css sekarang jadi satu-satunya pemilik,
+       dan aturan dasar di baris 38 sudah membacanya — jadi override ini tak perlu.
+       Padding bawah tetap lebih longgar agar isi terakhir tak menempel footer. */
 
     .dashboard-header h1 {
         font-size: 1.28rem;

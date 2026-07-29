@@ -482,8 +482,14 @@ body { color: var(--ink); }
 
 /* Padding kartu admin diarahkan ke token, sama seperti teknisi (teknisi-theme.css:334).
    Di desktop nilainya tetap 20px — tak ada yang berubah. Gunanya: satu token saja yang
-   dikecilkan untuk ponsel, dan KEDUA peran ikut, tanpa aturan kembar. */
-#wrapper .card > .card-body { padding: var(--card-pad); }
+   dikecilkan untuk ponsel, dan KEDUA peran ikut, tanpa aturan kembar.
+
+   TANPA anak-langsung (`>`): panel di halaman admin memakai `.dashboard-card`, BUKAN
+   `.card` — terukur di /users produksi, 2 dari 2 `.card-body` di sana punya induk
+   `.dashboard-card`. Selektor `.card > .card-body` cocok dengan NOL elemen dan padding
+   tetap 20px. `.card-body` polos menjangkau keduanya; `#wrapper` menjaga agar tetap
+   mengalahkan `.card .card-body` warisan tanpa perlu !important. */
+#wrapper .card-body { padding: var(--card-pad); }
 
 /* ===================== Kerapatan ponsel =====================
    Terukur di /users pada viewport 390px SEBELUM blok ini: padding kartu 20px dan
