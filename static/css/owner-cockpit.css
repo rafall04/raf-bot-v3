@@ -31,10 +31,12 @@
 }
 .oc-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(15, 23, 42, .10); }
 
-.oc-card--success { --oc-accent: var(--color-success); }
-.oc-card--info    { --oc-accent: var(--color-info); }
-.oc-card--warning { --oc-accent: var(--color-warning); }
-.oc-card--danger  { --oc-accent: var(--color-danger); }
+/* --oc-accent dipakai sebagai WARNA TEKS (.oc-metric--accent); aksen mentah cuma
+   2.54:1 di atas kartu putih. Pakai shade -ink yang sadar-mode. */
+.oc-card--success { --oc-accent: var(--accent-success-ink); }
+.oc-card--info    { --oc-accent: var(--accent-info-ink); }
+.oc-card--warning { --oc-accent: var(--accent-warning-ink); }
+.oc-card--danger  { --oc-accent: var(--accent-danger-ink); }
 .oc-card--neutral { --oc-accent: var(--muted); }
 
 .oc-card__top { display: flex; align-items: flex-start; gap: .8rem; margin-bottom: .55rem; }
@@ -72,7 +74,7 @@
 
 .oc-badges { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .35rem; }
 .oc-badge { font-size: .7rem; font-weight: 700; padding: .12rem .55rem; border-radius: var(--radius-pill); }
-.oc-badge--NORMAL    { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 15%, transparent); }
+.oc-badge--NORMAL    { color: var(--accent-success-ink); background: var(--tint-success); }
 .oc-badge--DEGRADASI { color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 16%, transparent); }
 .oc-badge--GANGGUAN, .oc-badge--PUTUS { color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 15%, transparent); }
 .oc-badge--UNKNOWN, .oc-badge--OFF { color: var(--muted); background: color-mix(in srgb, var(--muted) 15%, transparent); }

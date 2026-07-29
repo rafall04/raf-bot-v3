@@ -41,7 +41,7 @@
         }
         .log-timestamp {
             font-size: 0.8rem;
-            color: #858796;
+            color: var(--muted);
         }
         .log-source {
             font-size: 0.75rem;

@@ -16,5 +16,5 @@
         .filter-tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
         .filter-tab { padding: 8px 16px; border-radius: 20px; cursor: pointer; border: 2px solid #e3e6f0; background: white; transition: all 0.2s; font-weight: 500; }
         .filter-tab:hover { border-color: #4e73df; }
-        .filter-tab.active { background: #4e73df; color: white; border-color: #4e73df; }
+        .filter-tab.active { background: var(--indigo-600); color: var(--on-accent); border-color: var(--indigo-600); }
     

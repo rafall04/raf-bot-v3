@@ -104,7 +104,7 @@ body { font-family: 'Inter', sans-serif; background: #f3f4f6; }
         }
         .voucher-card .name { font-weight: 600; font-size: 0.85rem; color: var(--dark); }
         .voucher-card .duration { font-size: 0.75rem; color: #6b7280; margin: 0.25rem 0; }
-        .voucher-card .price { font-weight: 700; color: var(--success); font-size: 0.9rem; }
+        .voucher-card .price { font-weight: 700; color: var(--accent-success-ink); font-size: 0.9rem; }
 
         .qty-selector { display: flex; gap: 0.5rem; flex-wrap: wrap; }
         .qty-btn {
@@ -188,7 +188,7 @@ body { font-family: 'Inter', sans-serif; background: #f3f4f6; }
 
         .history-table { font-size: 0.8rem; }
         .history-table th { background: #f9fafb; font-weight: 600; }
-        .badge-sent { background: #d1fae5; color: #059669; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.7rem; }
+        .badge-sent { background: var(--tint-success); color: var(--accent-success-ink); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.7rem; }
         .badge-generated { background: #dbeafe; color: #2563eb; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.7rem; }
 
         .select2-container--bootstrap .select2-selection--single {

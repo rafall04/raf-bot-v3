@@ -406,6 +406,11 @@ body { color: var(--ink); }
 /* .text-secondary = #858796 (3.56:1) dan dipakai sebagai label tile KPI, mis.
    "Komisi Belum Dibayar" di /papan-psb. */
 #wrapper .text-secondary { color: var(--ink-soft) !important; }
+/* Label checkbox/radio SB-Admin mewarisi #858796 (3.56:1) — dipakai di layar
+   isolir untuk memilih pelanggan, jadi teks yang benar-benar dibaca. */
+#wrapper .custom-control-label { color: var(--ink-soft); }
+/* .alert-light praktis putih-di-putih (3.86:1); jadikan panel netral bertoken. */
+#wrapper .alert-light { background-color: var(--surface-2); border-color: var(--line); color: var(--ink); }
 #wrapper .text-gray-900,
 #wrapper .text-gray-800 { color: var(--ink) !important; }
 #wrapper .text-gray-700,

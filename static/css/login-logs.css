@@ -27,11 +27,11 @@
         }
         .log-timestamp {
             font-size: 0.8rem;
-            color: #858796;
+            color: var(--muted);
         }
         .table-responsive {
             border-radius: 0.35rem;
         }
-        .success-badge { background-color: #1cc88a; color: white; }
+        .success-badge { background-color: var(--fill-success); color: var(--on-accent); }
         .failed-badge { background-color: #e74a3b; color: white; }
     

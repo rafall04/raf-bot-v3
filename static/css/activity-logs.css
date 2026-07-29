@@ -28,13 +28,13 @@
         .action-badge {
             font-weight: 600;
         }
-        .action-CREATE { background-color: #1cc88a; color: white; }
-        .action-UPDATE { background-color: #36b9cc; color: white; }
-        .action-DELETE { background-color: #e74a3b; color: white; }
+        .action-CREATE { background-color: var(--fill-success); color: var(--on-accent); }
+        .action-UPDATE { background-color: var(--fill-info); color: var(--on-accent); }
+        .action-DELETE { background-color: var(--fill-danger); color: var(--on-accent); }
         .action-VIEW { background-color: #858796; color: white; }
         .log-timestamp {
             font-size: 0.8rem;
-            color: #858796;
+            color: var(--muted);
         }
         .table-responsive {
             border-radius: 0.35rem;
