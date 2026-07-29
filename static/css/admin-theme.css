@@ -7,7 +7,7 @@
 /* Primitif + token semantik sadar-mode bersama (skala indigo/slate + --surface/--ink/--muted…).
    ?v di-bump saat tokens.css berubah — @import tak ikut cache-bust rafAssetUrl otomatis, sedang
    file tema ini di-bust; tanpa bump, tokens.css bisa BASI di CDN/CF → var(--ink) kosong. */
-@import url('/css/tokens.css?v=3');
+@import url('/css/tokens.css?v=4');
 
 /* Modern sidebar styles live inline in views/sb-admin/_navbar.php so they
    apply on every admin page without per-page CSS link. The block below is

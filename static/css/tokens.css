@@ -65,7 +65,10 @@
        label tabel — selalu terbaca di KEDUA mode.
        Pakai ini untuk TEKS/IKON berstatus; pakai --fill-* di bawah untuk ISIAN. */
     --accent-success-ink: #047857; /* emerald-700 · di putih = 5.46 */
-    --accent-danger-ink:  #dc2626; /* red-600     · di putih = 4.83 */
+    /* red-700, bukan red-600: #dc2626 lolos tipis di atas PUTIH (4.83) tapi jatuh ke
+       4.37 begitu latarnya sedikit berwarna — mis. chip `${slot}` di /templates yang
+       ber-latar kuning pucat. red-700 = 6.47 di putih, 5.72 di chip itu. */
+    --accent-danger-ink:  #b91c1c; /* red-700     · di putih = 6.47 */
     --accent-warning-ink: #b45309; /* amber-700   · di putih = 5.02 */
     --accent-info-ink:    #1d4ed8; /* blue-700    · di putih = 6.70 */
 

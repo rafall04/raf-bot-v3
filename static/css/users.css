@@ -181,7 +181,9 @@
 
         /* Modern Button */
         .btn-primary-custom {
-            background: var(--primary);
+            /* --primary (indigo-500 #6366f1) + teks putih = 4.47:1, gagal AA tipis.
+               indigo-600 = 6.29:1 dan tetap warna brand. */
+            background: var(--indigo-600);
             color: white !important;
             border: none;
             border-radius: 8px;

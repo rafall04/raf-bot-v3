@@ -231,7 +231,8 @@
 
 .monitoring-state-badge.state-stale {
     background: rgba(217, 119, 6, 0.12);
-    color: #b45309;
+    /* #b45309 di atas tint amber ini = 4.42:1 (gagal AA tipis) → amber-800. */
+    color: #92400e;
 }
 
 .monitoring-state-badge.state-disconnected {
@@ -672,7 +673,8 @@
 
 /* Temperature specific styling */
 #mikrotik-temp {
-    color: #ff6b6b;
+    /* #ff6b6b hanya 2.65:1 di atas kanvas terang; --accent-danger-ink sadar-mode. */
+    color: var(--accent-danger-ink);
 }
 
 /* Progress bars */

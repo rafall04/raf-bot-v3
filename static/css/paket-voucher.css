@@ -67,7 +67,9 @@
 #dataTable { width: 100% !important; }
 #dataTable td { vertical-align: middle; }
 .price-cell { font-weight: 700; font-variant-numeric: tabular-nums; }
-.margin-pos { color: var(--success); font-weight: 600; }
+/* --success (#10b981) sebagai TEKS hanya 2.54:1 di atas kartu putih — angka margin
+   ini dibaca, jadi pakai shade pekat yang sadar-mode. */
+.margin-pos { color: var(--accent-success-ink); font-weight: 600; }
 .btn-act {
     border: none;
     border-radius: 7px;

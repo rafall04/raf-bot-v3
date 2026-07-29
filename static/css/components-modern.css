@@ -297,10 +297,15 @@
 /* Bootstrap 4 memberi `.table { color: #858796 }` EKSPLISIT — jadi sel tabel tidak
    ikut pewarisan di atas dan tetap abu pucat (2.91:1). Harus di-set terpisah. */
 #wrapper .table { color: var(--ink); }
-/* Footer duduk di luar #content pada sebagian shell → warnanya masih mewarisi
-   abu SB-Admin (#858796, 3.56:1). Diikat eksplisit. */
-#wrapper .sticky-footer,
-#wrapper .sticky-footer .copyright { color: var(--ink-soft); }
+/* Sebagian halaman punya markup yang membuat footer (dan konten sesudahnya) berakhir
+   DI LUAR #wrapper saat dirender — terverifikasi langsung di /templates produksi,
+   `foot.closest('#wrapper')` = null padahal di sumbernya tampak di dalam. Aturan
+   ber-scope #wrapper tak akan pernah menjangkaunya, jadi warna dasar dokumen diikat
+   di sini supaya tak ada teks yang tertinggal memakai abu SB-Admin #858796 (3.56:1).
+   Sidebar & topbar tidak terpengaruh: keduanya menyetel warnanya sendiri. */
+body { color: var(--ink); }
+.sticky-footer,
+.sticky-footer .copyright { color: var(--ink-soft); }
 
 /* ===================== Pensiun palet aksen legacy =====================
    SB-Admin memakai palet sendiri (#36b9cc info, #e74a3b danger, #f6c23e
