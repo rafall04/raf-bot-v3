@@ -424,9 +424,20 @@ router.get('/voucher-print', checkRole(['admin', 'owner', 'superadmin']), (req, 
 });
 
 // Penjualan Voucher (dashboard statistik voucher online terjual) - ADMIN ONLY.
-// On/off via config.voucherSalesDashboard.enabled (default true); bila OFF → 404.
+// On/off via config.voucherSalesDashboard.enabled (default AKTIF); hanya mati bila
+// eksplisit { enabled: false }.
+//
+// Dulu gerbangnya memakai cek TRUTHY (`&& cfg.enabled`), sehingga kunci yang TIDAK
+// ADA di config.json = MATI — padahal komentar di sini dan config.example.json
+// sama-sama menyatakan default true. Produksi tak pernah punya kunci itu (config.json
+// prod adalah merge-key, tidak pernah ditimpa), jadi halaman ini 404 di KEDUA bot
+// tanpa ada yang pernah memutuskan mematikannya. Pola `!== false` di bawah sama
+// dengan gerbang default-aktif lain di repo ini (mis. networkAssets.waIntake di
+// message/raf.js, messageLogging di repositories/message-log.repository.js) dan
+// tahan terhadap instalasi yang belum memerge kunci baru.
 router.get('/voucher-sales', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
-    if (!(global.config && global.config.voucherSalesDashboard && global.config.voucherSalesDashboard.enabled)) {
+    const cfg = (global.config && global.config.voucherSalesDashboard) || {};
+    if (cfg.enabled === false) {
         return res.status(404).render('sb-admin/404.php');
     }
     res.render('sb-admin/voucher-sales.php');
