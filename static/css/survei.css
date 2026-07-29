@@ -40,9 +40,12 @@
 .csat-dist__n { width: 32px; text-align: right; font-weight: 700; font-size: .82rem; color: var(--ink); }
 
 .csat-badge { display: inline-block; padding: .1rem .45rem; border-radius: var(--radius-pill, 999px); font-size: .78rem; font-weight: 700; }
-.csat-badge--good { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 15%, transparent); }
-.csat-badge--mid  { color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 15%, transparent); }
-.csat-badge--bad  { color: var(--color-danger);  background: color-mix(in srgb, var(--color-danger) 15%, transparent); }
+/* Dulu aksen MENTAH sebagai teks di atas color-mix 15% → terukur 1.52–1.8:1 di
+   produksi (praktis tak terbaca). Teks pakai shade pekat sadar-mode, latarnya
+   token tint yang ikut membalik — pola yang sama dengan .table-* & badge lain. */
+.csat-badge--good { color: var(--accent-success-ink); background: var(--tint-success); }
+.csat-badge--mid  { color: var(--accent-warning-ink); background: var(--tint-warning); }
+.csat-badge--bad  { color: var(--accent-danger-ink);  background: var(--tint-danger); }
 
 .csat-table th { font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-top: 0; }
 .csat-table td { vertical-align: middle; color: var(--ink); }

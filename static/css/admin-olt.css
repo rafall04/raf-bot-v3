@@ -64,9 +64,10 @@
         }
         @keyframes olt-indet { 0% { left: -35%; } 100% { left: 100%; } }
         @keyframes olt-fade-in { from { opacity: 0; } to { opacity: 1; } }
-        .olt-empty { text-align: center; padding: 2.75rem 1rem; color: #858796; animation: olt-fade-in 0.25s ease; }
-        .olt-empty > i { font-size: 2.75rem; color: #d1d3e2; margin-bottom: 0.75rem; display: block; }
-        .olt-empty .olt-empty-title { font-weight: 600; color: #5a5c69; font-size: 1.05rem; }
+        /* Literal tetap (#858796 = 3.56:1, #5a5c69, #d1d3e2) diganti token sadar-mode. */
+        .olt-empty { text-align: center; padding: 2.75rem 1rem; color: var(--ink-soft); animation: olt-fade-in 0.25s ease; }
+        .olt-empty > i { font-size: 2.75rem; color: var(--muted); margin-bottom: 0.75rem; display: block; }
+        .olt-empty .olt-empty-title { font-weight: 600; color: var(--ink); font-size: 1.05rem; }
         /* tombol sedang loading */
         .btn.is-loading { pointer-events: none; opacity: 0.65; }
         /* fade-in lembut sekali saat data baru dimuat */

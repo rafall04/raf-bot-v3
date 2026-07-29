@@ -437,7 +437,9 @@ body { color: var(--ink); }
 #wrapper code { color: var(--accent-danger-ink); }
 #wrapper .toast-body { color: var(--ink); }
 /* Placeholder Select2 memakai abu tetap; samakan dengan placeholder input lain. */
-#wrapper .select2-selection__placeholder { color: var(--muted); }
+/* --ink-soft, bukan --muted: kotak Select2 kadang ber-latar abu (#eee) sehingga
+   --muted turun ke 4.1:1 — terukur di /network-assets produksi. */
+#wrapper .select2-selection__placeholder { color: var(--ink-soft); }
 
 #wrapper .dataTables_wrapper .dataTables_info,
 #wrapper .dataTables_wrapper .dataTables_length,
