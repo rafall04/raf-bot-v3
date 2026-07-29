@@ -704,18 +704,22 @@ a.n ${account.name || '[Nama]'}</small>
         .then(res => res.json())
         .then(json => {
           if (json.status === 200 && json.data) {
-            document.getElementById('oltEnabled').value = json.data.enabled ? 'true' : 'false';
-            document.getElementById('oltHost').value = json.data.host || '';
-            document.getElementById('oltPort').value = json.data.port || 161;
-            document.getElementById('oltCommunity').value = json.data.community || 'public';
-            document.getElementById('oltTimeout').value = json.data.timeout || 15000;
-            // Web OLT config
-            document.getElementById('oltWebEnabled').value = json.data.webEnabled ? 'true' : 'false';
-            document.getElementById('oltWebUsername').value = json.data.webUsername || '';
-            document.getElementById('oltWebPassword').value = json.data.webPassword || '';
-            document.getElementById('oltTimeWindow').value = json.data.timeWindow || 10;
-            document.getElementById('oltScrapeInterval').value = json.data.scrapeInterval || 1;
-            document.getElementById('oltMaxLogPages').value = json.data.maxLogPages || 3;
+            // Tab OLT sudah didesain ulang jadi DAFTAR PERANGKAT (#oltDevicesTable):
+            // field tunggal host/port/community/timeout serta kredensial web sudah
+            // TIDAK ADA lagi di markup. Kode lama menyetel .value pada elemen yang
+            // hilang → melempar di baris pertama yang absen, dan SELURUH setelan di
+            // bawahnya (time window, interval scrape, maks halaman log) tak pernah
+            // terisi — errornya tertelan .catch sebagai "Error loading OLT config".
+            // Ditemukan lewat sapuan error konsol; setel per-elemen dengan penjaga.
+            const set = (id, val) => {
+              const el = document.getElementById(id);
+              if (el) el.value = val;
+            };
+            set('oltEnabled', json.data.enabled ? 'true' : 'false');
+            set('oltWebEnabled', json.data.webEnabled ? 'true' : 'false');
+            set('oltTimeWindow', json.data.timeWindow || 10);
+            set('oltScrapeInterval', json.data.scrapeInterval || 1);
+            set('oltMaxLogPages', json.data.maxLogPages || 3);
           }
         })
         .catch(err => {

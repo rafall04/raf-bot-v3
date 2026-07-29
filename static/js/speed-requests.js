@@ -12,10 +12,16 @@
             return window.speedRequestTable;
         }
 
-        // Fetch username for topbar
+        // Fetch username for topbar.
+        // `#usernameTopbar` TIDAK ADA di markup halaman ini maupun di topbar.php —
+        // kode ini selalu melempar "Cannot set properties of null" dan tertelan
+        // .catch() sebagai "Gagal fetch data user", seolah API-nya yang bermasalah.
+        // Bug lama (sudah ada sebelum blok ini dieksternalkan); baru terlihat saat
+        // konsol diperiksa. Dijaga null supaya tidak menutupi kegagalan fetch ASLI.
         fetch('/api/me', { credentials: 'include' }).then(res => res.json()).then(data => {
-            if (data.data && data.data.username) {
-                document.getElementById('usernameTopbar').textContent = data.data.username;
+            const el = document.getElementById('usernameTopbar');
+            if (el && data.data && data.data.username) {
+                el.textContent = data.data.username;
             }
         }).catch(err => console.error("Gagal fetch data user:", err));
 
