@@ -1,0 +1,122 @@
+/* ============================================================
+   RAF BOT · Halaman Error (403/404) — Tahap 4 redesign
+   ------------------------------------------------------------
+   Purpose : Tampilan halaman error yang berdiri sendiri (tanpa sidebar, karena
+             peran pemakai bisa saja memang tak berhak membuka shell-nya) namun
+             tetap memakai token SEMANTIK sadar-mode sehingga benar di terang &
+             gelap. Menggantikan `res.send()` teks polos tanpa tema.
+   Caller  : lib/http-error-page.js (dirender langsung oleh Express).
+   Deps    : tokens.css (via <link> di markup) → --canvas/--surface/--ink/
+             --ink-soft/--muted/--line/--radius-*/--shadow-*/--indigo-*/--ring.
+   Catatan : WAJIB token semantik — dipindai guard scripts/check-theme-tokens.js.
+   ============================================================ */
+
+.rf-err-body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background-color: var(--canvas);
+    color: var(--ink);
+    font-family: Inter, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+.rf-err-card {
+    width: 100%;
+    max-width: 480px;
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 40px 32px;
+    text-align: center;
+}
+
+.rf-err-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 20px;
+    border-radius: var(--radius-pill);
+    background-color: var(--brand-soft);
+    color: var(--brand-ink);
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.rf-err-code {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 8px;
+}
+
+.rf-err-title {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--ink);
+    margin: 0 0 10px;
+}
+
+.rf-err-msg {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    margin: 0 0 28px;
+}
+
+.rf-err-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.rf-err-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color .16s ease, box-shadow .18s ease, color .16s ease;
+}
+
+.rf-err-btn-primary {
+    background-image: linear-gradient(135deg, var(--indigo-500), var(--indigo-600));
+    background-color: var(--indigo-600);
+    color: var(--on-accent);
+    box-shadow: var(--shadow-brand);
+}
+
+.rf-err-btn-primary:hover { background-image: linear-gradient(135deg, var(--indigo-600), var(--indigo-700)); }
+
+.rf-err-btn-ghost {
+    background-color: var(--surface-2);
+    border-color: var(--line);
+    color: var(--ink);
+}
+
+.rf-err-btn-ghost:hover { background-color: var(--brand-soft); color: var(--brand-ink); }
+
+.rf-err-btn:focus-visible { outline: none; box-shadow: var(--ring-strong); }
+
+.rf-err-foot {
+    margin-top: 24px;
+    font-size: 12px;
+    color: var(--muted);
+}

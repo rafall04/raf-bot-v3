@@ -445,7 +445,8 @@
 
         .login-history-header-meta {
             font-size: 0.78rem;
-            color: #6b7280;
+            /* #6b7280 TETAP → 3.56:1 di atas kartu gelap. --muted sudah sadar-mode. */
+            color: var(--muted);
             font-weight: 500;
         }
 

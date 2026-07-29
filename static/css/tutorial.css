@@ -9,14 +9,21 @@
     --psb: #0E8A63; --psb-soft: #E6F4EE; --psb-ink: #0A5C43;
     --repair: #C96A18; --repair-soft: #FBEEDF; --repair-ink: #8F4A0E;
     --agen: #245C9C; --agen-soft: #E4EDF6; --agen-ink: #17416F;
-    --tline: #E0E9E4; --tink: #17251F; --tsoft: #52635C; --tfaint: #8A9791;
+    --tline: #E0E9E4; --tink: #17251F; --tsoft: #52635C; --tfaint: var(--muted);
     --chat: #DEF1E4; --tmono: "SFMono-Regular", "Roboto Mono", ui-monospace, Menlo, Consolas, monospace;
     max-width: 780px;
 }
 body.tk-dark .tut {
     --psb-soft: rgba(14,138,99,.16); --repair-soft: rgba(201,106,24,.16); --agen-soft: rgba(36,92,156,.18);
     --tline: var(--d-line, #2b3a34); --tink: var(--d-ink, #e6efe9); --tsoft: var(--d-ink-soft, #9fb0a8);
-    --tfaint: #7d8c85; --chat: rgba(14,138,99,.14);
+    --tfaint: var(--muted); --chat: rgba(14,138,99,.14);
+    /* Aksen `-ink` adalah shade PEKAT untuk teks di atas latar `-soft` pastel. Saat gelap
+       latar `-soft` berubah jadi transparan di atas kanvas gelap, tapi dulu `-ink` tetap
+       pekat → teksnya nyaris hilang (terukur 2.07–2.13:1 di halaman panduan). Dibalik ke
+       shade terang, sejalan dengan --accent-*-ink di tokens.css. */
+    --psb-ink: var(--emerald-300);
+    --repair-ink: var(--amber-300);
+    --agen-ink: var(--blue-300);
 }
 .tut .jump { display: flex; gap: .5rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
 .tut .jump a { flex: 1; min-width: 130px; text-align: center; text-decoration: none; font-weight: 700; font-size: .88rem; padding: .55rem .5rem; border-radius: 10px; border: 1px solid var(--tline); color: var(--tink); }
@@ -28,8 +35,8 @@ body.tk-dark .tut {
 .tut .rule .ic { flex: none; width: 24px; text-align: center; }
 .tut .flow { margin-top: 2rem; scroll-margin-top: 12px; }
 .tut .flow-tag { font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: .28rem .6rem; border-radius: 999px; color: #fff; display: inline-block; }
-.tut .flow.f-psb .flow-tag { background: var(--psb); }
-.tut .flow.f-repair .flow-tag { background: var(--repair); }
+.tut .flow.f-psb .flow-tag { background: var(--psb-tag, #0B6E4F); } /* dipekatkan dari #0E8A63: putih di atasnya hanya 4.34:1 */
+.tut .flow.f-repair .flow-tag { background: #A0540E; } /* dipekatkan dari #C96A18: putih di atasnya hanya 3.78:1 */
 .tut .flow.f-agen .flow-tag { background: var(--agen); }
 .tut .flow h2 { font-size: 1.3rem; font-weight: 800; margin: .5rem 0 .2rem; color: var(--tink); }
 .tut .flow-sub { color: var(--tsoft); font-size: .92rem; margin: 0 0 1.2rem; }
@@ -61,7 +68,9 @@ body.tk-dark .tut {
 .tut .note.tip { background: var(--psb-soft); color: var(--psb-ink); }
 .tut .flow.f-repair .note.tip { background: var(--repair-soft); color: var(--repair-ink); }
 .tut .flow.f-agen .note.tip { background: var(--agen-soft); color: var(--agen-ink); }
-.tut .note.warn { background: #FBEAE3; color: #B4431F; }
+/* Dulu pastel + teks pekat TETAP → tak ikut membalik. Latar --surface-2 (membalik)
+   + aksen di garis kiri, pola yang sama dengan .alert-* di components-modern.css. */
+.tut .note.warn { background: var(--surface-2); color: var(--accent-warning-ink); box-shadow: inset 3px 0 0 var(--color-warning); }
 .tut .note .ic { flex: none; }
 .tut .faq { margin-top: 2.4rem; }
 .tut .faq h2, .tut .cheat h2 { font-size: 1.15rem; font-weight: 800; margin: 0 0 .8rem; color: var(--tink); }

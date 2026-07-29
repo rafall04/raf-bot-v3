@@ -15,13 +15,14 @@
 
   <style>
     .config-nav { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.5rem; padding: 0; list-style: none; border: none; }
-    .config-nav .nav-link { cursor: pointer; border: 1px solid #d1d3e2; border-radius: .5rem; color: #5a5c69; background: #fff; padding: .5rem 1rem; font-weight: 600; }
-    .config-nav .nav-link:hover { background: #eaecf4; }
-    .config-nav .nav-link.active { background: #4e73df; color: #fff; border-color: #4e73df; }
+    /* Literal tetap diganti token sadar-mode; #4e73df + teks putih hanya 4.47:1 → indigo-600. */
+    .config-nav .nav-link { cursor: pointer; border: 1px solid var(--line); border-radius: .5rem; color: var(--ink-soft); background: var(--surface); padding: .5rem 1rem; font-weight: 600; }
+    .config-nav .nav-link:hover { background: var(--surface-2); }
+    .config-nav .nav-link.active { background: var(--indigo-600); color: var(--on-accent); border-color: var(--indigo-600); }
     /* dark mode: samakan dengan permukaan tema gelap */
     body.tk-dark .config-nav .nav-link { background: var(--d-surface); color: var(--d-ink-soft); border-color: var(--d-line); }
     body.tk-dark .config-nav .nav-link:hover { background: var(--d-surface-2); color: var(--d-ink); border-color: var(--d-line); }
-    body.tk-dark .config-nav .nav-link.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    body.tk-dark .config-nav .nav-link.active { background: var(--indigo-600); color: var(--on-accent); border-color: var(--indigo-600); }
     .config-pane { display: none; }
     .config-pane.active { display: block; }
   </style>

@@ -2,13 +2,15 @@
  * Header Doc
  * Purpose: Router halaman PHP/SB Admin dengan guard role eksplisit sebelum fallback file PHP.
  * Caller: `lib/routes-registry.js`.
- * Deps: Express, filesystem view lookup, dan middleware role lokal.
+ * Deps: Express, filesystem view lookup, middleware role lokal, dan
+ *       `lib/http-error-page` untuk layar 403 ber-tema.
  * MainFuncs: `checkRole` dan route render halaman admin/teknisi.
  * SideEffects: Merender view PHP atau mengembalikan halaman 404/403.
  */
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const { sendErrorPage } = require('../lib/http-error-page');
 
 const router = express.Router();
 
@@ -18,21 +20,47 @@ function checkRole(allowedRoles) {
         // Debug logging
         console.log(`[CHECK_ROLE] Path: ${req.path}, User: ${req.user ? req.user.username : 'null'}, Role: ${req.user ? req.user.role : 'null'}, Allowed: ${allowedRoles.join(', ')}`);
         
+        // Penolakan akses dulu dibalas res.send() teks polos — tanpa tema, tanpa judul,
+        // tanpa jalan kembali. Sekarang memakai halaman error ber-tema (sadar mode gelap).
         if (!req.user) {
             console.log(`[CHECK_ROLE] No req.user found. Token: ${req.cookies?.token ? 'exists' : 'missing'}`);
             // If no user but has token, might be expired or invalid
             if (req.cookies?.token || req.headers?.authorization) {
-                return res.status(403).send("Akses ditolak. Token tidak valid atau expired. Silakan login ulang.");
+                return sendErrorPage(res, {
+                    status: 403,
+                    title: 'Sesi kamu sudah berakhir',
+                    message: 'Token login tidak valid atau sudah kedaluwarsa. Silakan masuk ulang untuk melanjutkan.',
+                    backHref: '/login',
+                    backLabel: 'Masuk Ulang',
+                });
             }
-            return res.status(403).send("Akses ditolak. Silakan login terlebih dahulu.");
+            return sendErrorPage(res, {
+                status: 403,
+                title: 'Perlu masuk dulu',
+                message: 'Halaman ini hanya bisa dibuka setelah kamu masuk ke panel.',
+                backHref: '/login',
+                backLabel: 'Halaman Masuk',
+            });
         }
-        
+
         if (!allowedRoles.includes(req.user.role)) {
             console.log(`[CHECK_ROLE] Role mismatch. User role: ${req.user.role}, Required: ${allowedRoles.join(', ')}`);
             if (req.user.role === 'teknisi') {
-                return res.status(403).send("Akses ditolak. Halaman ini khusus Administrator.");
+                return sendErrorPage(res, {
+                    status: 403,
+                    title: 'Halaman khusus Administrator',
+                    message: 'Akun teknisi tidak punya akses ke halaman ini. Kembali ke panel teknisi untuk melanjutkan pekerjaan.',
+                    backHref: '/pembayaran/teknisi',
+                    backLabel: 'Panel Teknisi',
+                });
             }
-            return res.status(403).send(`Akses ditolak. Role Anda (${req.user.role}) tidak memiliki akses ke halaman ini.`);
+            return sendErrorPage(res, {
+                status: 403,
+                title: 'Akses tidak diizinkan',
+                message: `Peran akun kamu (${req.user.role}) tidak memiliki akses ke halaman ini.`,
+                backHref: '/',
+                backLabel: 'Kembali ke Beranda',
+            });
         }
         
         next();

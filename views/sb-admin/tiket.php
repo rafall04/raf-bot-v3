@@ -2,22 +2,16 @@
 <html lang="en">
 
 <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <meta name="description" content="RAF BOT Ticket Management">
-    <meta name="author" content="RAF BOT">
-    <title>RAF BOT - Ticket Management</title>
-    
-    <link href="/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<?php require_once __DIR__ . '/_asset.php'; ?>
-    <link href="<?= rafAssetUrl('/css/sb-admin-2.min.css') ?>" rel="stylesheet">
-    <link href="<?= rafAssetUrl('/css/admin-theme.css') ?>" rel="stylesheet">
+<?php
+    // <head> tulis tangan melewatkan components-modern.css (lapisan komponen bersama).
+    $pageTitle = 'RAF BOT - Ticket Management';
+    $pageDescription = 'RAF BOT Ticket Management';
+    $themeRole = 'admin';
+    include __DIR__ . '/_head.php';
+?>
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2-bootstrap-theme/0.1.0-beta.10/select2-bootstrap.min.css" />
-    <link href="<?= rafAssetUrl('/css/dashboard-modern.css') ?>" rel="stylesheet">
 
     <link href="<?= rafAssetUrl('/css/tiket.css') ?>" rel="stylesheet">
 </head>

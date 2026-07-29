@@ -200,7 +200,8 @@
         }
 
         .btn-success-custom {
-            background: var(--success);
+            /* --success #10b981 + teks putih = 2.54:1 (gagal AA); --fill-success = 5.46:1. */
+            background: var(--fill-success);
             color: white !important;
             border: none;
             border-radius: 8px;
@@ -212,7 +213,7 @@
         }
 
         .btn-success-custom:hover {
-            background: #059669;
+            background: var(--accent-success-ink);
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
             color: white !important;

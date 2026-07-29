@@ -10,24 +10,28 @@
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .summary-card { border: 0; border-radius: 14px; box-shadow: 0 12px 32px rgba(17, 24, 39, 0.08); }
+        .summary-card { border: 0; border-radius: 14px; box-shadow: var(--shadow-md); }
         .summary-card .card-body { padding: 1.35rem 1.5rem; }
-        .summary-label { font-size: 0.78rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.08em; }
-        .summary-value { font-size: 1.85rem; font-weight: 700; color: #111827; }
-        .summary-panel, .filter-panel, .ledger-panel { border: 0; border-radius: 14px; box-shadow: 0 12px 32px rgba(17, 24, 39, 0.08); }
-        .summary-pill { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid #eef2f7; border-radius: 10px; margin-bottom: 10px; }
-        .summary-pill-label { font-weight: 600; color: #374151; }
-        .summary-pill-value { font-weight: 700; color: #111827; }
-        .summary-pill-meta { font-size: 0.78rem; color: #6b7280; }
-        .domain-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+        /* Semua warna di bawah dulunya literal TETAP (#111827, #6b7280, #fff7ed …) sehingga
+           tidak ikut membalik di body.tk-dark — nilai uang di .summary-pill-value sempat
+           terukur kontras 1.03 alias tak terlihat. Kini pakai token sadar-mode. */
+        .summary-label { font-size: 0.78rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.08em; }
+        .summary-value { font-size: 1.85rem; font-weight: 700; color: var(--ink); }
+        .summary-panel, .filter-panel, .ledger-panel { border: 0; border-radius: 14px; box-shadow: var(--shadow-md); }
+        .summary-pill { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 10px; }
+        .summary-pill-label { font-weight: 600; color: var(--ink-soft); }
+        .summary-pill-value { font-weight: 700; color: var(--ink); }
+        .summary-pill-meta { font-size: 0.78rem; color: var(--muted); }
+        .domain-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
         .domain-row:last-child { border-bottom: 0; }
-        .summary-list-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+        .summary-list-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
         .summary-list-row:last-child { border-bottom: 0; }
         .quick-action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-        .quick-action-card { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid #eef2f7; border-radius: 12px; color: #111827; text-decoration: none !important; }
-        .quick-action-card:hover { border-color: #dbeafe; background: #f8fbff; }
-        .health-item { border-left: 4px solid #f59e0b; padding: 10px 12px; border-radius: 8px; background: #fff7ed; margin-bottom: 10px; }
-        .health-item.healthy { border-left-color: #10b981; background: #ecfdf5; }
+        .quick-action-card { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); text-decoration: none !important; }
+        .quick-action-card:hover { border-color: var(--indigo-300); background: var(--surface-2); }
+        /* Latar berstatus: --surface-2 (membalik) + aksen di border, BUKAN pastel tetap. */
+        .health-item { border-left: 4px solid var(--color-warning); padding: 10px 12px; border-radius: 8px; background: var(--surface-2); margin-bottom: 10px; }
+        .health-item.healthy { border-left-color: var(--color-success); }
         .toast-stack { position: fixed; top: 80px; right: 20px; z-index: 1080; width: 360px; }
         .table td, .table th { vertical-align: middle; }
     </style>

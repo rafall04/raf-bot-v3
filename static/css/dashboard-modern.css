@@ -258,7 +258,8 @@ body {
 }
 
 .btn-success-custom {
-    background: var(--success);
+    /* var(--success) #10b981 + teks putih = 2.54:1 (gagal AA). --fill-success sudah lulus. */
+    background: var(--fill-success);
     color: white !important;
     border: none;
     border-radius: 8px;
@@ -270,15 +271,16 @@ body {
 }
 
 .btn-success-custom:hover {
-    background: #059669;
+    background: var(--accent-success-ink);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
     color: white !important;
 }
 
 .btn-warning-custom {
-    background: var(--warning);
-    color: white !important;
+    /* Amber tetap terang; teksnya yang digelapkan (putih di atas amber cuma 2.15:1). */
+    background: var(--fill-warning);
+    color: var(--on-fill-warning) !important;
     border: none;
     border-radius: 8px;
     padding: 10px 24px;
@@ -289,14 +291,14 @@ body {
 }
 
 .btn-warning-custom:hover {
-    background: #d97706;
+    background: var(--amber-400);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
     color: white !important;
 }
 
 .btn-danger-custom {
-    background: var(--danger);
+    background: var(--fill-danger);
     color: white !important;
     border: none;
     border-radius: 8px;
@@ -308,14 +310,14 @@ body {
 }
 
 .btn-danger-custom:hover {
-    background: #dc2626;
+    background: var(--accent-danger-ink);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
     color: white !important;
 }
 
 .btn-info-custom {
-    background: var(--info);
+    background: var(--fill-info);
     color: white !important;
     border: none;
     border-radius: 8px;

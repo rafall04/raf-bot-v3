@@ -6,7 +6,7 @@
 
 /* Primitif + token semantik sadar-mode bersama. ?v di-bump saat tokens.css berubah
    (@import tak ikut cache-bust rafAssetUrl → tanpa bump bisa BASI di CF). */
-@import url('/css/tokens.css?v=2');
+@import url('/css/tokens.css?v=3');
 
 :root {
     /* Token semantik teknisi → dipetakan ke primitif di tokens.css.
@@ -25,7 +25,7 @@
 
     --tk-ink: var(--slate-900);
     --tk-ink-soft: var(--slate-600);
-    --tk-muted: var(--slate-400);
+    --tk-muted: var(--slate-500); /* slate-400 hanya 2.56:1 di atas putih (gagal AA) */
     --tk-line: #e9edf5; /* bespoke (tanpa primitif Tailwind padanan) */
     --tk-surface: var(--white);
     --tk-surface-2: var(--slate-50);

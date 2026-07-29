@@ -44,7 +44,8 @@
       margin-bottom: .5rem;
       font-size: 0.9em;
       font-weight: 600;
-      color: #5a5c69;
+      /* #5a5c69 TETAP → 2.91:1 di atas kanvas gelap. */
+      color: var(--ink-soft);
     }
     .filter-controls .form-control-sm {
       border-radius: 0.5rem;

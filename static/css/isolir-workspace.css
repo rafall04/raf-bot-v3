@@ -1,6 +1,6 @@
 .isolir-page {
     font-family: 'Inter', sans-serif;
-    background: #f4f6fb;
+    background: var(--canvas);
 }
 
 .isolir-shell {
@@ -67,8 +67,8 @@
 }
 
 .isolir-card {
-    background: #fff;
-    border: 1px solid #e5e7eb;
+    background: var(--surface);
+    border: 1px solid var(--line);
     border-radius: 16px;
     box-shadow: 0 14px 34px rgba(15, 23, 42, .06);
 }
@@ -93,7 +93,7 @@
 .isolir-section-head p {
     margin: .2rem 0 0;
     font-size: .85rem;
-    color: #6b7280;
+    color: var(--muted);
 }
 
 .isolir-toolbar {
@@ -132,7 +132,7 @@
 }
 
 .isolir-meta-line small {
-    color: #6b7280;
+    color: var(--muted);
 }
 
 .isolir-list {
@@ -145,7 +145,7 @@
 
 .isolir-item {
     position: relative;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--line);
     border-radius: 14px;
     padding: .95rem 1rem;
     cursor: pointer;
@@ -191,12 +191,12 @@
     display: grid;
     gap: .28rem;
     margin-top: .55rem;
-    color: #6b7280;
+    color: var(--muted);
     font-size: .84rem;
 }
 
 .isolir-item-meta strong {
-    color: #475569;
+    color: var(--ink-soft);
     font-weight: 600;
 }
 
@@ -218,18 +218,18 @@
 }
 
 .isolir-pill.profile {
-    background: #dbeafe;
-    color: #1d4ed8;
+    background: var(--tint-info);
+    color: var(--accent-info-ink);
 }
 
 .isolir-pill.ready {
-    background: #dcfce7;
-    color: #166534;
+    background: var(--tint-success);
+    color: var(--accent-success-ink);
 }
 
 .isolir-pill.warn {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--tint-warning);
+    color: var(--accent-warning-ink);
 }
 
 .isolir-pill.danger {
@@ -279,7 +279,7 @@
 
 .isolir-table-wrap {
     overflow: hidden;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--line);
     border-radius: 12px;
 }
 
@@ -327,7 +327,7 @@
 
 .isolir-empty {
     text-align: center;
-    color: #6b7280;
+    color: var(--muted);
     padding: 1.35rem 1rem;
 }
 
@@ -435,10 +435,10 @@
 
     .isolir-table tr {
         margin-bottom: .7rem;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--line);
         border-radius: 12px;
         overflow: hidden;
-        background: #fff;
+        background: var(--surface);
     }
 
     .isolir-table td {

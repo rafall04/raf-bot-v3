@@ -119,7 +119,8 @@
 
         .dashboard-card .card-subtitle {
             font-size: 0.75rem;
-            color: #9ca3af;
+            /* #9ca3af TETAP = 2.54:1 di atas kartu putih (gagal AA). */
+            color: var(--muted);
             display: flex;
             align-items: center;
             gap: 4px;

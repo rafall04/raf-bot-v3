@@ -404,7 +404,8 @@
 .traffic-stat .stat-total {
     display: block;
     font-size: 0.82rem;
-    color: #94a3b8;
+    /* #94a3b8 hanya 2.56:1 di atas putih (gagal AA); --muted sadar-mode = 4.76:1. */
+    color: var(--muted);
 }
 
 .download-stat i {
@@ -438,12 +439,16 @@
 
 .resource-header span {
     font-size: 0.875rem;
-    color: #64748b;
+    /* Selector ini (0,1,1) mengalahkan .resource-value (0,1,0), jadi angka "N/A"
+       ikut abu pucat #64748b (2.65:1 di atas kartu). --ink-soft = 7.58:1. */
+    color: var(--ink-soft);
 }
 
 .resource-value {
     font-weight: 700;
-    color: #1f2937;
+    /* Dulu #1f2937 tetap (butuh tambalan !important terpisah di admin-theme untuk
+       mode gelap); --ink sudah membalik sendiri. */
+    color: var(--ink);
 }
 
 /* Modern Progress Bars */

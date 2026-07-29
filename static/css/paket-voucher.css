@@ -55,7 +55,8 @@
 }
 .stat-card .label {
     font-size: 0.72rem;
-    color: #6b7280;
+    /* #6b7280 TETAP — tak ikut mode gelap dan hanya ~3.4:1 di atas kartu terang. */
+    color: var(--ink-soft);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-weight: 600;

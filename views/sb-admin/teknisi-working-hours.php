@@ -1,18 +1,14 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Pengaturan Jam Kerja Teknisi - RAF NET</title>
-    
-    <link href="/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
-<?php require_once __DIR__ . '/_asset.php'; ?>
-    <link href="<?= rafAssetUrl('/css/sb-admin-2.min.css') ?>" rel="stylesheet">
-  <link href="<?= rafAssetUrl('/css/dashboard-modern.css') ?>" rel="stylesheet">
-    <link href="<?= rafAssetUrl('/css/teknisi-theme.css') ?>" rel="stylesheet">
+<?php
+    // <head> tulis tangan melewatkan components-modern.css (lapisan komponen bersama).
+    $pageTitle = 'Pengaturan Jam Kerja Teknisi - RAF NET';
+    $themeRole = 'teknisi';
+    include __DIR__ . '/_head.php';
+?>
     <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
-    
+
     <style>
         .time-input {
             max-width: 120px;

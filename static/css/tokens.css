@@ -32,6 +32,7 @@
     --slate-100: #f1f5f9;
     --slate-200: #e2e8f0;
     --slate-400: #94a3b8;
+    --slate-500: #64748b;
     --slate-600: #475569;
     --slate-900: #0f172a;
 
@@ -55,6 +56,40 @@
        mode terang maupun gelap. Tanpa token ini, halaman terpaksa menulis var(--white)
        yang dilarang guard tema — atau memakai --ink yang justru menghilang di mode gelap. */
     --on-accent: #ffffff;
+
+    /* ── Aksen untuk TEKS di atas surface (SADAR-MODE) ────────
+       Aksen mentah di atas TERLALU terang untuk dipakai sebagai warna TEKS di latar
+       terang: #10b981 di putih = 2.54, #1cc88a (legacy sb-admin) = 2.17 → gagal AA 4.5.
+       Token di bawah memakai shade PEKAT saat mode terang dan shade TERANG saat mode
+       gelap (di-flip di body.tk-dark), jadi teks berstatus — .text-success, angka uang,
+       label tabel — selalu terbaca di KEDUA mode.
+       Pakai ini untuk TEKS/IKON berstatus; pakai --fill-* di bawah untuk ISIAN. */
+    --accent-success-ink: #047857; /* emerald-700 · di putih = 5.46 */
+    --accent-danger-ink:  #dc2626; /* red-600     · di putih = 4.83 */
+    --accent-warning-ink: #b45309; /* amber-700   · di putih = 5.02 */
+    --accent-info-ink:    #1d4ed8; /* blue-700    · di putih = 6.70 */
+
+    /* ── Isian beraksen yang AMAN dipasangi teks --on-accent ──
+       Isian mentah gagal kontras dengan teks putih: #10b981=2.54, #ef4444=3.76,
+       #3b82f6=3.68, #f59e0b=2.15. Isian di bawah sudah lulus AA 4.5:1 dengan
+       --on-accent. Khusus warning sengaja tetap amber terang (identitas "peringatan"
+       hilang kalau dipekatkan) → teksnya memakai --on-fill-warning yang gelap.
+       TIDAK di-flip di mode gelap: ini permukaan aksen sendiri, kontras terhadap
+       teksnya sudah benar terlepas dari latar halaman. */
+    --fill-success: #047857; /* + --on-accent = 5.46 */
+    --fill-danger:  #dc2626; /* + --on-accent = 4.83 */
+    --fill-info:    #1d4ed8; /* + --on-accent = 6.70 */
+    --fill-warning: #f59e0b; /* + --on-fill-warning = 7.50 */
+    --on-fill-warning: #0f172a;
+    --fill-neutral: #475569; /* pengganti .btn-dark/.badge-secondary sb-admin · +putih = 7.58 */
+
+    /* Tint baris/panel berstatus — SADAR-MODE (light: pastel; dark: aksen transparan
+       di atas surface gelap). Dipakai .table-success/.table-danger dll. supaya baris
+       bertanda tidak berubah jadi blok terang menyilaukan di mode gelap. */
+    --tint-success: #d1fae5;
+    --tint-danger:  #fee2e2;
+    --tint-warning: #fef3c7;
+    --tint-info:    #dbeafe;
 
     /* ── Shade aksen status (dipakai pada mode gelap admin) ── */
     --emerald-300: #6ee7b7;
@@ -104,7 +139,8 @@
     --dark-surface-2: #1d2740;
     --dark-ink: #e9eef8;
     --dark-ink-soft: #aab6cb;
-    --dark-muted: #6b7689;
+    /* Dinaikkan dari #6b7689 (hanya 3.77:1 di atas --dark-surface, gagal AA) ke 5.71:1. */
+    --dark-muted: #8895ab;
     --dark-line: rgba(148, 163, 184, 0.1);
     --dark-line-2: rgba(148, 163, 184, 0.18);
 
@@ -119,7 +155,11 @@
     --canvas:    var(--slate-50);  /* bg halaman */
     --ink:       var(--slate-900); /* teks utama (judul, angka, sel tabel) */
     --ink-soft:  var(--slate-600); /* teks sekunder */
-    --muted:     var(--slate-400); /* teks tersier / hint / header tabel */
+    /* slate-500, BUKAN slate-400: --muted dipakai sebagai teks yang benar-benar DIBACA
+       (label statistik, hint, placeholder). slate-400 di atas putih hanya 2.56:1 —
+       gagal AA dan terukur sebagai penyebab kegagalan kontras paling sering di
+       seluruh panel. slate-500 = 4.76:1 dan masih jelas lebih redup dari --ink-soft. */
+    --muted:     var(--slate-500); /* teks tersier / hint */
     --line:      var(--slate-200); /* border / hairline / pemisah */
 }
 
@@ -147,4 +187,17 @@ body.tk-dark {
     --brand-soft:   rgba(129, 140, 248, .14);
     --brand-soft-2: rgba(129, 140, 248, .24);
     --brand-ink:    var(--indigo-300);
+
+    /* Aksen TEKS dibalik ke shade terang — di atas --dark-surface (#141b29) rasio
+       emerald-300 = 11.3, jauh di atas AA. Isian (--fill-*) sengaja TIDAK dibalik. */
+    --accent-success-ink: var(--emerald-300);
+    --accent-danger-ink:  var(--red-300);
+    --accent-warning-ink: var(--amber-300);
+    --accent-info-ink:    var(--blue-300);
+
+    /* Tint baris berstatus di mode gelap: aksen transparan tipis, bukan pastel terang. */
+    --tint-success: rgba(16, 185, 129, .16);
+    --tint-danger:  rgba(239, 68, 68, .16);
+    --tint-warning: rgba(245, 158, 11, .16);
+    --tint-info:    rgba(59, 130, 246, .16);
 }

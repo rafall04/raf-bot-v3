@@ -2,16 +2,15 @@
 <html lang="id">
 
 <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Panduan Teknisi - RAF NET</title>
-    <link href="/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
-    <link href="https://fonts.googleapis.com/css?family=Nunito:200,300,400,600,700,800,900" rel="stylesheet">
-<?php require_once __DIR__ . '/_asset.php'; ?>
-    <link href="<?= rafAssetUrl('/css/sb-admin-2.min.css') ?>" rel="stylesheet">
-    <link href="<?= rafAssetUrl('/css/dashboard-modern.css') ?>" rel="stylesheet">
-    <link href="<?= rafAssetUrl('/css/teknisi-theme.css') ?>" rel="stylesheet">
+<?php
+    // <head> tulis tangan sebelumnya melewatkan components-modern.css (lapisan
+    // komponen bersama) — halaman ini jadi penyumbang kegagalan kontras terbesar
+    // di mode gelap (44 teks di bawah 3:1). Ikut partial bersama supaya otomatis
+    // dapat lapisan komponen + urutan cascade yang benar.
+    $pageTitle = 'Panduan Teknisi - RAF NET';
+    $themeRole = 'teknisi';
+    include __DIR__ . '/_head.php';
+?>
     <link href="<?= rafAssetUrl('/css/tutorial.css') ?>" rel="stylesheet">
 </head>
 

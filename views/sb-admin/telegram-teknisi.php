@@ -22,14 +22,16 @@
     include __DIR__ . '/_head.php';
     ?>
   <style>
-    .tg-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; box-shadow:0 12px 30px rgba(15,23,42,0.06); }
-    .tg-card .card-header { background:transparent; border-bottom:1px solid #e5e7eb; }
-    .tg-metric { border-radius:12px; padding:1rem; background:linear-gradient(135deg,#0ea5e9,#0369a1); color:#fff; min-height:92px; }
-    .tg-metric.is-danger { background:linear-gradient(135deg,#ef4444,#b91c1c); }
+    /* .tg-card dulu background:#fff TETAP — di mode gelap jadi kartu putih dengan teks
+       terang di atasnya (terukur 1.16:1). Kini token sadar-mode. */
+    .tg-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow-md); }
+    .tg-card .card-header { background:transparent; border-bottom:1px solid var(--line); }
+    .tg-metric { border-radius:12px; padding:1rem; background:linear-gradient(135deg,#0ea5e9,#0369a1); color:var(--on-accent); min-height:92px; }
+    .tg-metric.is-danger { background:linear-gradient(135deg,var(--color-danger),#b91c1c); }
     .tg-metric strong { font-size:1.4rem; display:block; }
     .tg-table { font-size:.86rem; }
-    .badge-on { background:#dcfce7; color:#166534; }
-    .badge-off { background:#f3f4f6; color:#374151; }
+    .badge-on { background:var(--tint-success); color:var(--accent-success-ink); }
+    .badge-off { background:var(--surface-2); color:var(--ink-soft); }
     .badge-pill2 { font-size:.72rem; padding:.3rem .55rem; border-radius:999px; }
   </style>
 </head>

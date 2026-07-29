@@ -1175,7 +1175,7 @@
         
         /* Styling for custom label toggles inside the layer control */
         .leaflet-control-layers-separator {
-            border-top: 1px solid #ddd;
+            border-top: 1px solid var(--line);
             margin: 5px 0;
         }
         .label-toggle-section {
@@ -1193,8 +1193,11 @@
         
         /* Advanced Legend Styling */
         .advanced-legend {
-            background: rgba(255,255,255,0.96);
-            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.18);
+            /* Panel legenda dulu putih TETAP → tetap putih di mode gelap sementara
+               teksnya ikut membalik jadi terang (terukur ~1:1). Kini token sadar-mode. */
+            background: var(--surface);
+            color: var(--ink);
+            box-shadow: var(--shadow-lg);
             border-radius: 10px;
             padding: 8px 10px;
             font-size: 12.5px;
@@ -1246,7 +1249,9 @@
         .legend-category {
             margin-bottom: 6px;
             padding: 5px 6px 5px 8px;
-            background: #f8f9fc;
+            /* #f8f9fc TETAP → blok terang di panel legenda saat mode gelap, dan teks
+               yang sudah membalik jadi terang di atasnya (terukur 1.11:1). */
+            background: var(--surface-2);
             border-radius: 6px;
             border-left: 3px solid transparent;
         }
