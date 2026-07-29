@@ -284,6 +284,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Beli Voucher dari Panel Pelanggan (terautentikasi, tag `buynowpanel`)](docs/boundary-log.md#b181)
 - [Fix 2026-07-26 (`/app/voucher` anonim membocorkan hargaReseller & margin)](docs/boundary-log.md#b182)
 - [Redesign admin+teknisi Tahap 4 (`.card` disatukan, palet SB-Admin pensiun, guard mode gelap diperluas)](docs/boundary-log.md#b183)
+- [Fix 2026-07-29 (Setelan tampilan invoice tak pernah diterapkan + reset senyap jatuh tempo)](docs/boundary-log.md#b184)
 
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.

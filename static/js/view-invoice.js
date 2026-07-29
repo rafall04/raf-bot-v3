@@ -20,7 +20,9 @@
         
         async function loadInvoice() {
             try {
-                const response = await fetch('/api/view-invoice?id=${invoiceId}&userId=${userId}', { credentials: 'include' });
+                // Kutip TUNGGAL bikin ${...} terkirim apa adanya — terbukti 404 di
+                // produksi, jadi halaman ini tak pernah bisa menampilkan invoice.
+                const response = await fetch(`/api/view-invoice?id=${invoiceId}&userId=${userId}`, { credentials: 'include' });
                 if (!response.ok) {
                     throw new Error('Failed to load invoice');
                 }
@@ -40,7 +42,7 @@
         
         async function downloadPDF() {
             try {
-                const response = await fetch('/api/download-invoice-pdf?id=${invoiceId}&userId=${userId}', { credentials: 'include' });
+                const response = await fetch(`/api/download-invoice-pdf?id=${invoiceId}&userId=${userId}`, { credentials: 'include' });
                 if (!response.ok) {
                     throw new Error('Failed to generate PDF');
                 }

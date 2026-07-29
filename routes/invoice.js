@@ -1,3 +1,21 @@
+/**
+ * Header Doc
+ * Purpose: API invoice — ambil invoice terakhir milik pelanggan, render HTML,
+ *          unduh PDF, kirim manual ke WhatsApp, pratinjau, serta baca/simpan
+ *          Pengaturan Invoice (identitas perusahaan, pajak, jatuh tempo,
+ *          rekening, dan kustomisasi tampilan).
+ * Caller: `lib/routes-registry.js` (dimount di /api), halaman
+ *          views/sb-admin/invoice-settings.php + static/js/invoice-settings.js,
+ *          dan tombol cetak invoice di static/js/users.js.
+ * Deps: lib/pdf-invoice-generator (SATU sumber tampilan HTML & PDF),
+ *          lib/templating, lib/whatsapp-delivery-service, multer (unggah logo),
+ *          database/invoices.json, config.json.
+ * MainFuncs: ensureAdmin(), route /get-latest-invoice, /view-invoice,
+ *          /download-invoice-pdf, /send-invoice-manual, /invoice-settings,
+ *          /upload-logo, /preview-pdf-invoice.
+ * SideEffects: MENULIS config.json saat menyimpan pengaturan (lalu me-refresh
+ *          global.config), menulis berkas logo, dan mengirim pesan WhatsApp.
+ */
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -328,7 +346,12 @@ router.route('/invoice-settings')
                     dueDays: config.invoice?.dueDays || 30,
                     dueDateType: config.invoice?.dueDateType || 'fixed',
                     dueDateDay: config.invoice?.dueDateDay || 10,
-                    autoSend: config.invoice?.autoSend === true,
+                    // `!== false`, BUKAN `=== true`: lib/invoice-generator.js memakai
+                    // `autoSend !== false`, jadi saat kunci ini absen sistem TETAP
+                    // mengirim otomatis sementara halaman pengaturan menampilkannya
+                    // MATI. Yang diselaraskan pembacaannya — perilaku pengiriman
+                    // sengaja tidak diubah diam-diam lewat perbaikan tampilan.
+                    autoSend: config.invoice?.autoSend !== false,
                     sendPDF: config.invoice?.sendPDF !== false
                 },
                 bankAccount: {
@@ -387,42 +410,64 @@ router.route('/invoice-settings')
                 logoPath: config.company?.logoPath || ''
             };
 
+            // PENTING — kunci yang TIDAK dikirim form harus DIPERTAHANKAN, bukan
+            // dipaksa ke default. Form Pengaturan Invoice tidak punya field untuk
+            // dueDateType / dueDateDay / showDueDate, sehingga versi lama yang
+            // menulis `dueDateType || 'fixed'` MERESET aturan jatuh tempo setiap
+            // kali admin menekan Simpan — bahkan tanpa mengubah apa pun. Nilai itu
+            // dipakai calculateInvoiceDueDate() untuk tanggal yang tercetak di
+            // invoice, jadi resetnya mengubah tagihan pelanggan secara diam-diam.
+            // Bedakan "field TIDAK ADA di payload" (undefined → pertahankan yang lama)
+            // dari "field dikirim KOSONG" (admin sengaja mengosongkan → simpan kosong).
+            // Kalau keduanya disamakan, admin tak akan pernah bisa menghapus catatan,
+            // logo, atau nomor rekening — nilainya selalu kembali.
+            const keep = (kirim, lama, bawaan) => (kirim !== undefined ? kirim : (lama !== undefined ? lama : bawaan));
+            // Untuk field yang TIDAK BOLEH kosong (prefix nomor invoice, judul-judul,
+            // tema): kosong diperlakukan sebagai "pakai bawaan", bukan disimpan kosong.
+            const keepReq = (kirim, lama, bawaan) => (kirim !== undefined && String(kirim).trim() !== '' ? kirim : (lama !== undefined && String(lama).trim() !== '' ? lama : bawaan));
+            const keepBool = (kirim, lama, bawaan) => (kirim !== undefined ? kirim === 'true' : (typeof lama === 'boolean' ? lama : bawaan));
+            const prevInvoice = config.invoice || {};
+            const prevBank = config.bankAccount || {};
+            const prevPdf = config.pdfCustomization || {};
+
             config.invoice = {
-                ...config.invoice,
-                enableTax: enableTax === 'true',
-                taxRate: parseInt(taxRate) || 11,
-                prefix: invoicePrefix || 'INV',
-                dueDays: parseInt(dueDays) || 30,
-                dueDateType: dueDateType || 'fixed',
-                dueDateDay: parseInt(dueDateDay) || 10,
-                autoSend: autoSend === 'true',
-                sendPDF: sendPDF !== 'false'
+                ...prevInvoice,
+                enableTax: keepBool(enableTax, prevInvoice.enableTax, true),
+                taxRate: parseInt(taxRate) || prevInvoice.taxRate || 11,
+                prefix: keepReq(invoicePrefix, prevInvoice.prefix, 'INV'),
+                dueDays: parseInt(dueDays) || prevInvoice.dueDays || 30,
+                dueDateType: keep(dueDateType, prevInvoice.dueDateType, 'fixed'),
+                dueDateDay: parseInt(dueDateDay) || prevInvoice.dueDateDay || 10,
+                autoSend: keepBool(autoSend, prevInvoice.autoSend, true),
+                sendPDF: keepBool(sendPDF, prevInvoice.sendPDF, true)
             };
-            
+
             config.bankAccount = {
-                bankName: bankName || '',
-                accountNumber: bankAccountNumber || '',
-                accountName: bankAccountName || '',
-                branch: bankBranch || '',
-                paymentInstructions: paymentInstructions || ''
+                ...prevBank,
+                bankName: keep(bankName, prevBank.bankName, ''),
+                accountNumber: keep(bankAccountNumber, prevBank.accountNumber, ''),
+                accountName: keep(bankAccountName, prevBank.accountName, ''),
+                branch: keep(bankBranch, prevBank.branch, ''),
+                paymentInstructions: keep(paymentInstructions, prevBank.paymentInstructions, '')
             };
-            
+
             config.pdfCustomization = {
-                theme: pdfTheme || 'blue',
-                logoUrl: logoUrl || '',
-                headerText: headerText || 'INVOICE',
-                footerText: footerText || 'Terima kasih atas kepercayaan Anda.',
-                billingTitle: billingTitle || 'TAGIHAN KEPADA:',
-                serviceTitle: serviceTitle || 'DETAIL LAYANAN:',
-                showCustomerID: showCustomerID !== 'false',
-                showCustomerPhone: showCustomerPhone === 'true',
-                showServiceSpeed: showServiceSpeed !== 'false',
-                showServiceDescription: showServiceDescription === 'true',
-                showNPWP: showNPWP === 'true',
-                showDueDate: showDueDate !== 'false',
-                paymentMethods: paymentMethods || 'cash_transfer',
-                showNotes: showNotes === 'true',
-                additionalNotes: additionalNotes || ''
+                ...prevPdf,
+                theme: keepReq(pdfTheme, prevPdf.theme, 'blue'),
+                logoUrl: keep(logoUrl, prevPdf.logoUrl, ''),
+                headerText: keepReq(headerText, prevPdf.headerText, 'INVOICE'),
+                footerText: keepReq(footerText, prevPdf.footerText, 'Terima kasih atas kepercayaan Anda.'),
+                billingTitle: keepReq(billingTitle, prevPdf.billingTitle, 'TAGIHAN KEPADA:'),
+                serviceTitle: keepReq(serviceTitle, prevPdf.serviceTitle, 'DETAIL LAYANAN:'),
+                showCustomerID: keepBool(showCustomerID, prevPdf.showCustomerID, true),
+                showCustomerPhone: keepBool(showCustomerPhone, prevPdf.showCustomerPhone, true),
+                showServiceSpeed: keepBool(showServiceSpeed, prevPdf.showServiceSpeed, true),
+                showServiceDescription: keepBool(showServiceDescription, prevPdf.showServiceDescription, true),
+                showNPWP: keepBool(showNPWP, prevPdf.showNPWP, true),
+                showDueDate: keepBool(showDueDate, prevPdf.showDueDate, true),
+                paymentMethods: keepReq(paymentMethods, prevPdf.paymentMethods, 'cash_transfer'),
+                showNotes: keepBool(showNotes, prevPdf.showNotes, true),
+                additionalNotes: keep(additionalNotes, prevPdf.additionalNotes, '')
             };
 
             // Save to file
