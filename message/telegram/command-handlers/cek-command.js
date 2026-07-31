@@ -6,6 +6,7 @@
  *          saran tindakan dalam satu pesan ringkas. READ-ONLY: tidak mengeksekusi aksi apa pun.
  * Caller: peta perintah di `index.js`; tombol "🩺 Cek Lengkap" (callback do:cek:<id>).
  * Deps: `./resolve-helper`, `./diagnosis-verdict`, `lib/telegram/telegram-format`,
+ *       `lib/area-outage-gate` (verdict gangguan area — satu pemilik rumus ambang),
  *       getActivePPPoEUsers (mikrotik), getCustomerRedaman (wifi), resolveByCustomer & getOltSnapshot
  *       (olt-optical-resolver), getUsers/getConfig — semua diinjeksi.
  * MainFuncs: `createCekCommand(deps)` → handler(ctx).
@@ -16,8 +17,7 @@
 const { resolveCustomerOrReply, displayName, firstPart, customerActionsKeyboard } = require("./resolve-helper");
 const { buildVerdict } = require("./diagnosis-verdict");
 const { b, code, escapeHtml, statusBadge, rxVerdict } = require("../../../lib/telegram/telegram-format");
-
-const AREA_OUTAGE_RATIO = 0.3;
+const { evaluateAreaOutage } = require("../../../lib/area-outage-gate");
 
 function unwrapList(res) {
     if (Array.isArray(res)) return res;
@@ -61,9 +61,13 @@ async function collect(user, deps) {
         if (lineStatus === "offline") {
             const withPppoe = users.filter((u) => u.pppoe_username);
             offlineCount = withPppoe.filter((u) => !activeSet.has(firstPart(u.pppoe_username).toLowerCase())).length;
-            const ratio = withPppoe.length ? offlineCount / withPppoe.length : 0;
-            const threshold = parseInt((deps.getConfig ? deps.getConfig() : global.config || {}).outage_area_threshold, 10) || 5;
-            areaOutage = offlineCount >= threshold || ratio >= AREA_OUTAGE_RATIO;
+            // Rumus ambangnya milik `lib/area-outage-gate` — dulu disalin di sini dan di handler
+            // cek koneksi pelanggan, jadi keduanya bisa memberi verdict berbeda untuk momen sama.
+            areaOutage = evaluateAreaOutage({
+                offlineCount,
+                totalWithPppoe: withPppoe.length,
+                config: deps.getConfig ? deps.getConfig() : global.config,
+            }).areaOutage;
         }
     }
 

@@ -83,7 +83,7 @@
                     {
                         data: 'rx_power', title: 'Redaman',
                         render: (data, type, row) => {
-                            if (type === 'display') return renderRxPower(data);
+                            if (type === 'display') return renderRxPower(data, row);
                             if (type === 'sort' || type === 'type') {
                                 // N/A → 9999 supaya tersortir ke BAWAH (redaman valid tampil dulu),
                                 // bukan menumpuk di atas saat sort "Terburuk" (ascending).
@@ -178,8 +178,9 @@
 
             try {
                 await loadPppoeData();
-                await loadOltMatchedData(force); // force hanya saat tombol Refresh (bukan saat pilih OLT)
-                updateLastUpdateTime();
+                const result = await loadOltMatchedData(force); // force hanya saat tombol Refresh (bukan saat pilih OLT)
+                updateLastUpdateTime(result && result.freshness);
+                if (result) reportDataQuality(result);
             } catch (e) {
                 console.error('Error:', e);
                 showAlert('danger', 'Gagal memuat data: ' + e.message);
@@ -339,11 +340,13 @@
                         showAlert('info', 'Menyiapkan data OLT… memuat ulang otomatis.');
                         setTimeout(() => loadAllData(false), 6000);
                     }
+                    return result; // dipakai pemanggil untuk umur data + peringatan mutu data
                 }
             } catch (e) {
                 console.error('OLT error:', e);
                 showAlert('danger', 'Gagal terhubung: ' + e.message);
             }
+            return null;
         }
 
         function showCustomerDetail(key) {
@@ -429,6 +432,12 @@
                     if (val < -25) { rxClass = 'modal-rx-bad'; rxStatus = 'Buruk'; }
                     else if (val < -20) { rxClass = 'modal-rx-warning'; rxStatus = 'Perhatian'; }
                 }
+                // ONU tidak online → angka ini pembacaan TERAKHIR sebelum putus. Jangan divonis
+                // "Bagus": OLT EPON menyimpan nilai lama dan itulah yang bikin ONU mati terbaca sehat.
+                if (oltStatus !== 'Online') {
+                    rxClass = '';
+                    rxStatus = 'terakhir sebelum putus';
+                }
                 $('#modalRxPower').removeClass('modal-rx-good modal-rx-warning modal-rx-bad').addClass(rxClass).text(rxPower);
                 $('#modalRxStatus').text(rxStatus);
             } else {
@@ -488,12 +497,17 @@
 
                         const idx = matchedData.findIndex(m => m.user_id == currentCustomerData.user_id);
                         if (idx !== -1) {
+                            // Kesahihan redaman ikut diperbarui — kalau tidak, baris bisa kembali
+                            // hijau walau ONU baru saja terpantau LOS.
+                            const rxValid = data.olt_status === 'Online' && !isNaN(parseFloat(data.rx_power));
                             matchedData[idx].rx_power = data.rx_power;
+                            matchedData[idx].rx_power_valid = rxValid;
                             matchedData[idx].olt_status = data.olt_status;
                             matchedData[idx].is_dying_gasp = data.is_dying_gasp;
                             matchedData[idx].is_los = data.is_los;
                             matchedData[idx].last_down_cause = data.last_down_cause;
                             currentCustomerData.rx_power = data.rx_power;
+                            currentCustomerData.rx_power_valid = rxValid;
                             currentCustomerData.olt_status = data.olt_status;
                             currentCustomerData.is_dying_gasp = data.is_dying_gasp;
                             currentCustomerData.is_los = data.is_los;
@@ -516,10 +530,23 @@
             }
         }
 
-        function renderRxPower(rxPower) {
+        // Redaman hanya diwarnai (hijau/kuning/merah) bila memang PENGUKURAN SAAT INI. OLT EPON
+        // tetap menyimpan rxPower terakhir untuk ONU yang sudah mati, jadi tanpa penjagaan ini
+        // pelanggan LOS bisa tampil "hijau, sinyal bagus". Angkanya tetap ditampilkan (berguna
+        // sebagai jejak), tapi redup dan berlabel "terakhir".
+        function renderRxPower(rxPower, row) {
+            if (row && row.status_known === false) {
+                return '<span class="text-muted" title="Status ONU tidak terbaca dari OLT (walk SNMP tidak lengkap) — redaman tak bisa dipercaya">'
+                    + '<i class="fas fa-question-circle"></i> tak terbaca</span>';
+            }
             if (!rxPower || rxPower === 'N/A') return '<span class="text-muted">N/A</span>';
             const val = parseFloat(rxPower);
             if (isNaN(val)) return `<span class="text-muted">${rxPower}</span>`;
+
+            if (row && row.rx_power_valid === false) {
+                return `<span class="text-muted" title="ONU tidak online — ini pembacaan TERAKHIR sebelum putus, bukan kondisi sekarang">`
+                    + `<i class="fas fa-history"></i> ${rxPower} <small>(terakhir)</small></span>`;
+            }
 
             let cls = 'rx-power-good', icon = 'fa-signal';
             if (val < -25) { cls = 'rx-power-bad'; icon = 'fa-exclamation-circle'; }
@@ -641,9 +668,38 @@
             }
         }
 
-        function updateLastUpdateTime() {
-            const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            $('#lastUpdateTime').html(`<i class="fas fa-clock"></i> ${time}`);
+        // UMUR DATA, bukan jam fetch. Backend menyajikan snapshot ber-cache, jadi isi tabel bisa
+        // jauh lebih tua dari label "baru saja diperbarui" — itu yang membuat data basi dipercaya
+        // sebagai data nyata saat perbaikan kabel.
+        function updateLastUpdateTime(freshness) {
+            if (!freshness || !freshness.fetched_at || freshness.age_seconds === null) {
+                $('#lastUpdateTime').html('<i class="fas fa-clock"></i> <span class="text-muted">umur data tak diketahui</span>');
+                return;
+            }
+            const age = Number(freshness.age_seconds) || 0;
+            const jam = new Date(freshness.fetched_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const umur = age < 60 ? `${age} dtk lalu` : `${Math.round(age / 60)} mnt lalu`;
+            const basi = age >= 60;
+            const cls = basi ? 'text-warning' : '';
+            const icon = freshness.refreshing ? 'fa-sync fa-spin' : (basi ? 'fa-exclamation-triangle' : 'fa-clock');
+            $('#lastUpdateTime').html(`<span class="${cls}"><i class="fas ${icon}"></i> data OLT ${jam} (${umur})</span>`);
+        }
+
+        // Peringatan saat snapshot terlalu tua atau walk SNMP tidak lengkap — data setengah jadi
+        // yang disajikan diam-diam adalah cara tercepat membuat teknisi salah vonis.
+        function reportDataQuality(result) {
+            const walks = Array.isArray(result.incompleteWalks) ? result.incompleteWalks : [];
+            if (walks.length) {
+                const detail = walks.map(w => `${w.oltName || w.oltId}: ${(w.walks || []).join(', ')}`).join(' | ');
+                showAlert('warning', `Data OLT TIDAK LENGKAP — sebagian pembacaan SNMP kosong (${detail}). Status/redaman di tabel belum tentu mencerminkan kondisi sebenarnya.`);
+                return true;
+            }
+            const f = result.freshness;
+            if (f && f.age_seconds !== null && f.max_age_seconds && f.age_seconds >= f.max_age_seconds) {
+                showAlert('warning', `Data OLT berumur ${Math.round(f.age_seconds / 60)} menit dan belum berhasil diperbarui. Tekan Refresh sebelum mengambil keputusan.`);
+                return true;
+            }
+            return false;
         }
 
         function startAutoRefresh() {

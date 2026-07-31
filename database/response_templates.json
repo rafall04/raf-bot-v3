@@ -3006,10 +3006,10 @@
       "reboot_offer"
     ]
   },
-  "conncheck_offline_area": {
+  "conncheck_offline_area_v2": {
     "name": "Cek Koneksi: Terputus (Gangguan Area)",
     "category": "koneksi",
-    "template": "🔎 *STATUS KONEKSI — ${nama_layanan}*\n\nHalo Kak ${nama}!\n\n🔴 *Jalur internet: TERPUTUS*\n⚠️ Terdeteksi *gangguan area* — sekitar ${jumlah} pelanggan ikut terdampak. Tim teknisi kami sedang menanganinya.\n\nAnda *tidak perlu* membuat laporan; kami akan kabari begitu koneksi pulih. Mohon ditunggu ya 🙏"
+    "template": "🔎 *STATUS KONEKSI — ${nama_layanan}*\n\nHalo Kak ${nama}!\n\n🔴 *Jalur internet: TERPUTUS*\n⚠️ Terdeteksi *gangguan pada jaringan di area Anda*. Tim teknisi kami sudah mengetahuinya dan sedang menanganinya.\n\nAnda *tidak perlu* membuat laporan; kami akan kabari begitu koneksi pulih. Mohon ditunggu ya 🙏"
   },
   "conncheck_offline_single": {
     "name": "Cek Koneksi: Terputus (Hanya Anda)",

@@ -128,5 +128,68 @@ describe("auto-outage-detection.service", () => {
         expect(snapshot.eligible).toHaveLength(1);
         expect(snapshot.eligible[0].user_id).toBe("1");
         expect(snapshot.ineligible).toHaveLength(1);
+        expect(snapshot.mass_outage.suppressed).toBe(false);
+    });
+
+    // Kabel putus: puluhan pelanggan turun berbarengan. Tanpa gerbang ini tiap pelanggan yang lolos
+    // ambang menit akan di-DM "apakah ada kendala pada WiFi-nya?" — bertanya soal gangguan yang
+    // penyebabnya di sisi kita, sekaligus kiriman massal di luar antrean ber-jitter.
+    function massOutageFixture(count, offlineSince = "2026-05-03T04:20:00.000Z") {
+        const states = [];
+        const users = [];
+        for (let i = 0; i < count; i += 1) {
+            states.push({
+                user_id: String(i + 1),
+                pppoe_username: `cust-${i}`,
+                router_id: "main-router",
+                status: "offline",
+                offline_since: offlineSince,
+                broadcast_count: 0
+            });
+            users.push({ id: String(i + 1), pppoe_username: `cust-${i}`, area: "Utara" });
+        }
+        return { states, users };
+    }
+
+    const MASS_RULE = {
+        target_scope: "area",
+        target_filter_json: { area: "Utara" },
+        offline_threshold_minutes: 15,
+        broadcast_cooldown_minutes: 720,
+        max_broadcast_per_incident: 1
+    };
+
+    test("gangguan massal menahan SEMUA percakapan per-pelanggan", async () => {
+        const { states, users } = massOutageFixture(30);
+        const service = createAutoOutageDetectionService({
+            repository: createRepoStub(states),
+            runtime: createRuntimeWithUsers(users),
+            getConfig: () => ({}),
+            now: () => new Date("2026-05-03T05:00:00.000Z")
+        });
+
+        const snapshot = await service.buildDetectionSnapshot({ rule: MASS_RULE });
+
+        expect(snapshot.eligible).toHaveLength(0);
+        expect(snapshot.mass_outage.active).toBe(true);
+        expect(snapshot.mass_outage.suppressed).toBe(true);
+        expect(snapshot.mass_outage.eligibleCount).toBe(30);
+        expect(snapshot.ineligible.every((item) => item.eligibility.reason === "mass_outage_suppressed")).toBe(true);
+    });
+
+    test("admin bisa memaksa lewat ignoreMassOutageGate (broadcast manual)", async () => {
+        const { states, users } = massOutageFixture(30);
+        const service = createAutoOutageDetectionService({
+            repository: createRepoStub(states),
+            runtime: createRuntimeWithUsers(users),
+            getConfig: () => ({}),
+            now: () => new Date("2026-05-03T05:00:00.000Z")
+        });
+
+        const snapshot = await service.buildDetectionSnapshot({ rule: MASS_RULE, ignoreMassOutageGate: true });
+
+        expect(snapshot.eligible).toHaveLength(30);
+        expect(snapshot.mass_outage.active).toBe(true);
+        expect(snapshot.mass_outage.suppressed).toBe(false);
     });
 });

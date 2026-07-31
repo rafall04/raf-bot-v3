@@ -1054,3 +1054,43 @@
 - **UI:** blok `@media (max-width: 575.98px)` di `static/css/tokens.css` + `components-modern.css` merapatkan geometri di ponsel (padding kartu 20→14px, font tabel 16→13px). Meta viewport sudah benar; justru karena itu peramban mengunci zoom-out di 1.0, jadi tata letaknya yang harus dirapatkan.
 - **Gerbang:** tidak ada — perbaikan cacat, bukan fitur baru.
 - **Tes:** `routes/__tests__/monitoring-traffic-endpoint.test.js` (9 — biaya endpoint ≤2 perintah, klien menunjuk endpoint ringan, abort di atas biaya, jeda bukan nol palsu).
+
+<a id="b187"></a>
+### Fix 2026-07-31 (Satu pemilik verdict gangguan area + gerbang gangguan-massal auto outage)
+
+- **Pemilik baru:** `lib/area-outage-gate.js` — `evaluateAreaOutage` (verdict untuk MENJAWAB: jumlah + rasio offline) dan `evaluateMassOutage` (gerbang MENAHAN kiriman keluar, diukur dari ukuran batch).
+- **Jalur lama:** rumus ambang yang disalin di `message/handlers/connection-check-handler.js` (`AREA_OUTAGE_RATIO`) dan `message/telegram/command-handlers/cek-command.js` dihapus, keduanya kini memanggil owner.
+- **Gerbang baru:** `services/auto-outage-detection.service.buildDetectionSnapshot` mengosongkan `eligible` saat batch ≥ ambang (alasan `mass_outage_suppressed`); melindungi cron DAN broadcast manual `POST /api/admin/auto-outage/broadcast` (override sadar: `force: true`).
+- **AKAR:** cron auto outage tak punya kesadaran massal sama sekali — satu kabel putus = puluhan DM "apakah ada kendala pada WiFi-nya?", di luar antrean ber-jitter `sendQueueWithRetry`.
+- **GOTCHA:** gerbang mengukur UKURAN BATCH, bukan jumlah offline. Jumlah offline mentah membuat pelanggan isolir/churn menyalakannya permanen (auto outage mati diam-diam); "baru saja turun" tak pernah bertemu ambang kelayakan rule yang 180 menit.
+- **Gate:** `config.autoOutageMassGate.enabled` **default ON** — ini gerbang pengaman, bukan fitur; default OFF berarti mengirim perilaku yang rusak. Ambang `outage_area_threshold` (lama) / `autoOutageMassGate.maxBatchSize`.
+- **Tes:** `lib/__tests__/area-outage-gate.test.js` (12) + `services/__tests__/auto-outage-detection.service.test.js` (2 baru).
+
+<a id="b188"></a>
+### Fix 2026-07-31 (Pesan gangguan area bocorkan jumlah pelanggan terdampak)
+
+- **Pemilik baru:** key template `conncheck_offline_area_v2` di `database/response_templates.json` — teks kualitatif tanpa angka.
+- **Jalur lama:** key `conncheck_offline_area` DIHAPUS dari repo. Salinan hasil kustomisasi di prod (template di-merge-key, tak pernah ditimpa deploy) jadi yatim/tak terpakai → kebocoran berhenti tanpa mengedit file template tiap server.
+- **`message/handlers/connection-check-handler.js`** tak lagi mengoper slot `jumlah` ke render, jadi admin pun tak bisa membocorkannya lewat edit template di `/api/templates`. Angka aslinya tetap dipakai internal (gerbang reboot + bot teknisi Telegram, keduanya staf).
+- **AKAR:** `jumlah` = `offlineCount` seluruh pelanggan PPPoE yang sedang offline; saat gangguan massal angkanya nyaris sama dengan total pelanggan, jadi bot memberi tahu pelanggan besar basis pelanggan kita.
+- **Gate:** tidak ada — perbaikan korektif. **Tes:** `message/handlers/__tests__/connection-check-handler.test.js` (2 baru: slot tak dioper + template tersimpan bebas angka).
+
+<a id="b189"></a>
+### Fix 2026-07-31 (Monitor OLT menyajikan data basi/setengah jadi sebagai fakta)
+
+- **Pemilik baru:** `lib/olt-optical-resolver.isRxPowerValid` — satu-satunya rumus kesahihan redaman, dipakai `routes/olt.js` (`rx_power_valid` di `/matched` & `/onus`), `resolveByCustomer` (`rxPowerValid`), dan laporan pasca-perbaikan.
+- **`routes/olt.js`:** stale-while-revalidate dapat BATAS UMUR KERAS `OLT_CACHE_MAX_AGE` 5 mnt (lewat itu pemanggil menunggu data segar), plus `freshness` (umur nyata snapshot) & `incompleteWalks` di respons.
+- **`lib/olt-hioso.js`:** `onu.statusKnown` (false = walk phaseState tak menyebut ONU itu), `incompleteWalks` per-OLT, dan status `error` bila SEMUA OLT gagal — dulu selalu `success` berisi nol ONU, yang di hilir terbaca "semua pelanggan offline".
+- **UI `static/js/{teknisi,admin}-olt.js`:** label waktu memakai umur data dari server (dulu `new Date()` browser → selalu "baru saja" apa pun umur isinya); redaman ONU non-Online tampil redup berlabel "(terakhir)", tak pernah hijau; peringatan saat walk tak lengkap / data lewat batas umur.
+- **AKAR (insiden FO cut Tanjungharjo 2026-07-30):** OLT EPON tetap melaporkan rxPower terakhir milik ONU yang sudah mati, dan pewarnaan tabel mengabaikan status → pelanggan LOS tampil "redaman bagus".
+- **Gate:** tidak ada — perbaikan korektif. **Tes:** `lib/__tests__/olt-data-honesty.test.js` (9).
+
+<a id="b190"></a>
+### Feat 2026-07-31 (Laporan verifikasi pasca-perbaikan ke grup — angka nyata per pelanggan terdampak)
+
+- **Owner:** `lib/post-repair-verification.js` (BARU) — ukur ulang tiap pelanggan terdampak dari snapshot OLT **force-refresh**, pilah `PULIH` / `REDAMAN_MEMBURUK` / `MASIH_MATI` / `TIDAK_TERBACA`, kirim ke grup alarm OLT.
+- **Pemicu:** hook never-throw di `lib/olt-los-broadcaster.sendRecovery` — menyertakan insiden yang MASIH aktif di OLT yang sama, karena notif "PEMULIHAN AREA" bawaan hanya menyebut yang kembali online sehingga sisa korban tak terlihat.
+- **Status path lama:** notif pulih & `lib/repair-group-notifier.notifyRepairGroupCompleted` tetap jalan apa adanya; laporan ini menambah, tidak menggantikan.
+- **Anti data-palsu:** redaman hanya dilaporkan sebagai kondisi kini bila lolos `isRxPowerValid` (#b189); ONU tak ditemukan/tak terbaca dilaporkan apa adanya, tidak diam-diam dihitung pulih. Snapshot gagal → laporan mengakuinya alih-alih "semua aman" palsu.
+- **Pembanding "sebelum":** `lib/olt-rxpower-history` (opsional; butuh `config.oltRxPowerHistory.enabled`).
+- **Gate:** `config.postRepairReport.enabled` (default OFF), `settleDelayMs` 2 mnt, `minAffected` 3, `rxWarnDbm` -25, `rxDegradeDb` 3. **Tes:** `lib/__tests__/post-repair-verification.test.js` (12).

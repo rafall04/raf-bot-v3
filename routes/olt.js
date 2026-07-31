@@ -1,6 +1,21 @@
 /**
- * OLT Routes
- * API endpoints untuk monitoring OLT HIOSO
+ * Header Doc
+ * Purpose: HTTP controller monitoring OLT (multi-merk) — snapshot ONU, pencocokan ONU↔pelanggan,
+ *          refresh per-ONU, health, dan data untuk halaman `/admin-olt` & `/teknisi-olt`.
+ *          KEJUJURAN DATA bagian dari kontraknya: snapshot OLT di-cache (stale-while-revalidate)
+ *          agar walk SNMP yang lama tak memblok halaman, jadi tiap respons WAJIB membawa umur data
+ *          sebenarnya (`freshness`), penanda walk tak lengkap (`incompleteWalks`), dan kesahihan
+ *          tiap angka redaman (`rx_power_valid`). Cache punya BATAS UMUR KERAS — lewat itu
+ *          pemanggil menunggu data segar, karena foto lama berlabel "baru saja" lebih berbahaya
+ *          daripada halaman yang jujur gagal.
+ * Caller: `lib/routes-registry.js` (mount `/api/olt`), halaman admin/teknisi OLT.
+ * Deps: `lib/olt-hioso` (driver default + agregasi multi-OLT), `lib/olt-drivers` (dispatch merk),
+ *       `lib/olt-manager` (daftar device + cache MAC→OLT), `lib/olt-log-scraper` (klasifikasi
+ *       LOS/DG dari web log), `lib/olt-optical-resolver` (matching + `isRxPowerValid`),
+ *       `lib/mikrotik` (PPPoE active untuk peta MAC↔pelanggan).
+ * MainFuncs: GET `/matched`, GET `/onus`, GET `/customer/:userId`, POST `/refresh-single`,
+ *            helper `getCachedOltDataByKey`, `getOltCacheMeta`.
+ * SideEffects: Query SNMP ke OLT + API MikroTik; menulis `database/last-caller-id-cache.json`.
  */
 
 const express = require('express');
@@ -21,7 +36,7 @@ const oltManager = require('../lib/olt-manager');
 // Import driver registry (multi-merk OLT). Dispatch per device.brand.
 const { resolveDriver, getDriver, listDrivers, detectBrand } = require('../lib/olt-drivers');
 // Inti matching pelanggan→ONU optik (1 sumber kebenaran, dipakai bersama bot Telegram teknisi).
-const { buildOnuIndex, matchOnu } = require('../lib/olt-optical-resolver');
+const { buildOnuIndex, matchOnu, isRxPowerValid } = require('../lib/olt-optical-resolver');
 // Pemisahan akun infrastruktur (CCTV/monitoring) + penyusun baris status infra (PPPoE + OLT).
 const { isInfrastructure } = require('../lib/account-classification');
 const { buildInfraRow } = require('../lib/infra-status');
@@ -47,7 +62,31 @@ const pppoeCache = {
 // (~30 dtk untuk 608 ONU). Key: 'all' (semua OLT) atau oltId tertentu — supaya
 // "pilih 1 OLT" hanya query OLT itu (tak ikut walk OLT lain yang lambat).
 const OLT_CACHE_TTL = 30000;
+// BATAS UMUR KERAS untuk stale-while-revalidate. Tanpa ini, sekali cache terisi, data lama
+// disajikan SEKETIKA selamanya selama refresh latar belakang terus gagal (OLT tak terjangkau saat
+// gangguan justru kondisi paling mungkin) — dan halaman tetap tampak "baru saja diperbarui".
+// Lewat ambang ini pemanggil harus MENUNGGU data segar; kalau gagal, gagalnya terlihat.
+const OLT_CACHE_MAX_AGE = 5 * 60 * 1000;
 const oltDataCacheMap = new Map(); // key -> { data, timestamp, loading, refreshPromise }
+
+/**
+ * Metadata kesegaran cache OLT untuk satu key — supaya UI bisa menampilkan UMUR DATA yang
+ * sebenarnya, bukan jam saat browser selesai fetch (dua hal yang bisa berbeda jauh).
+ */
+function getOltCacheMeta(key) {
+    const entry = oltDataCacheMap.get(key);
+    if (!entry || !entry.timestamp) {
+        return { fetched_at: null, age_seconds: null, stale: true, refreshing: !!(entry && entry.loading), max_age_seconds: OLT_CACHE_MAX_AGE / 1000 };
+    }
+    const ageMs = Date.now() - entry.timestamp;
+    return {
+        fetched_at: new Date(entry.timestamp).toISOString(),
+        age_seconds: Math.round(ageMs / 1000),
+        stale: ageMs >= OLT_CACHE_TTL,
+        refreshing: !!entry.loading,
+        max_age_seconds: OLT_CACHE_MAX_AGE / 1000
+    };
+}
 
 /**
  * Refresh satu entry cache (query OLT). Dedup: jika sudah ada refresh berjalan,
@@ -91,18 +130,26 @@ async function getCachedOltDataByKey(key, devices, forceRefresh = false) {
     }
     const fresh = entry.data && (now - entry.timestamp) < OLT_CACHE_TTL;
     if (fresh) return entry.data;
-    if (entry.data) {
-        // Basi tapi ada → sajikan seketika + refresh di background (tak ditunggu).
+    if (entry.data && (now - entry.timestamp) < OLT_CACHE_MAX_AGE) {
+        // Basi tapi masih dalam batas → sajikan seketika + refresh di background (tak ditunggu).
+        // Umurnya dilaporkan ke UI lewat getOltCacheMeta(); yang dilarang adalah menyajikannya
+        // sebagai data segar.
         if (!entry.loading) refreshOltEntry(entry, devices).catch(() => {});
         return entry.data;
     }
-    return refreshOltEntry(entry, devices); // load pertama → tunggu
+    // Belum pernah terisi ATAU sudah melewati batas umur keras → tunggu data segar. Kalau OLT
+    // memang tak terjangkau, hasilnya status error dan halaman menampilkan kegagalan itu apa
+    // adanya — jauh lebih berguna daripada foto lama berlabel "baru saja".
+    return refreshOltEntry(entry, devices);
 }
 
 // Kompat: /matched tetap pakai key 'all' (semua OLT).
 async function getCachedMultipleOltData(oltDevices, forceRefresh = false) {
     return getCachedOltDataByKey('all', oltDevices, forceRefresh);
 }
+
+// Kesahihan pembacaan redaman dimiliki `lib/olt-optical-resolver` (dipakai bersama bot teknisi &
+// laporan pasca-perbaikan) — jangan bikin salinan rumusnya di sini.
 
 // ============================================
 // LAST CALLER ID CACHE - Menyimpan MAC terakhir per PPPoE username
@@ -722,6 +769,10 @@ router.get('/matched', async (req, res) => {
                     olt_name: matchedOnu.olt_name || null,
                     olt_host: matchedOnu.olt_host || null,
                     rx_power: matchedOnu.rxPower,
+                    // Nilai di atas bisa jadi pembacaan TERAKHIR dari ONU yang sudah mati; dua
+                    // penanda ini yang menentukan boleh tidaknya ia dibaca sebagai kondisi kini.
+                    rx_power_valid: isRxPowerValid(matchedOnu, finalStatus),
+                    status_known: matchedOnu.statusKnown !== false,
                     olt_status: finalStatus,
                     is_dying_gasp: isDyingGasp,
                     is_los: isLos,
@@ -775,6 +826,8 @@ router.get('/matched', async (req, res) => {
                     olt_name: cachedOlt ? cachedOlt.oltName : null,
                     olt_host: cachedOlt ? cachedOlt.oltHost : null,
                     rx_power: 'N/A',
+                    rx_power_valid: false,
+                    status_known: true,
                     olt_status: finalStatus,
                     is_dying_gasp: isDyingGasp,
                     is_los: isLos,
@@ -825,6 +878,9 @@ router.get('/matched', async (req, res) => {
             status: 200,
             message: 'OK',
             timestamp: oltResult.timestamp,
+            // Kesegaran data yang SEBENARNYA (kapan SNMP walk selesai, bukan kapan browser fetch).
+            freshness: getOltCacheMeta('all'),
+            incompleteWalks: oltResult.incompleteWalks || [],
             enabled: true,
             data: matchedData,
             oltByMacPrefix: oltByMacPrefix,
@@ -1094,6 +1150,10 @@ router.get('/onus', async (req, res) => {
                 serial: onu.serial || null,
                 mac_olt: onu.macAddress,
                 rx_power: onu.rxPower,
+                // Redaman ONU yang tidak Online = pembacaan TERAKHIR yang masih tersimpan di OLT,
+                // bukan kondisi kini. Lihat isRxPowerValid().
+                rx_power_valid: isRxPowerValid(onu, disp.olt_status),
+                status_known: onu.statusKnown !== false,
                 tx_power: onu.txPower || 'N/A',       // ONU Tx upstream (GPON ZTE; HIOSO N/A)
                 attenuation: onu.attenuation || 'N/A', // atenuasi downstream ≈ (GPON ZTE)
                 olt_status: disp.olt_status,
@@ -1124,6 +1184,9 @@ router.get('/onus', async (req, res) => {
             status: 200,
             message: 'OK',
             timestamp: oltResult.timestamp,
+            // Kesegaran data yang SEBENARNYA (kapan SNMP walk selesai, bukan kapan browser fetch).
+            freshness: getOltCacheMeta(cacheKey),
+            incompleteWalks: oltResult.incompleteWalks || [],
             enabled: true,
             data: rows,
             totalOnu: rows.length,

@@ -1,14 +1,18 @@
 /**
  * Header Doc
  * Purpose: Orchestrator deteksi pelanggan offline berbasis database users dan PPP active MikroTik batch.
+ *          Memegang GERBANG GANGGUAN-MASSAL: saat banyak pelanggan turun berbarengan, daftar
+ *          `eligible` dikosongkan supaya tak ada DM per-pelanggan saat penyebabnya ada di sisi kita.
  * Caller: `routes/admin-auto-outage-routes.js`, `lib/cron/jobs/auto-outage-check.js`.
- * Deps: `repositories/auto-outage.repository.js`, runtime users repository, `lib/mikrotik` adapter functions, dan `services/auto-outage-rule.service.js`.
+ * Deps: `repositories/auto-outage.repository.js`, runtime users repository, `lib/mikrotik` adapter functions,
+ *       `lib/area-outage-gate.js` (evaluateMassOutage), dan `services/auto-outage-rule.service.js`.
  * MainFuncs: `createAutoOutageDetectionService`, `runManualScan`, `buildDetectionSnapshot`.
  * SideEffects: Membaca MikroTik, membaca runtime users, dan menulis state/scan log auto outage.
  */
 "use strict";
 
 const { createAutoOutageRuleService } = require("./auto-outage-rule.service");
+const { evaluateMassOutage } = require("../lib/area-outage-gate");
 
 function defaultDeps() {
     return {
@@ -16,6 +20,7 @@ function defaultDeps() {
         runtime: global.__appRuntime || null,
         getActivePPPoEUsers: require("../lib/mikrotik").getActivePPPoEUsers,
         getAllPPPoESecrets: require("../lib/mikrotik").getAllPPPoESecrets,
+        getConfig: () => global.config,
         now: () => new Date()
     };
 }
@@ -214,7 +219,7 @@ function createAutoOutageDetectionService(overrides = {}) {
         const rule = input.rule || {};
         const statesResult = await deps.repository.listStates({ status: "offline", limit: input.limit || 500 });
         const states = statesResult.items || [];
-        const eligible = [];
+        let eligible = [];
         const ineligible = [];
 
         for (const state of states) {
@@ -229,13 +234,40 @@ function createAutoOutageDetectionService(overrides = {}) {
             else ineligible.push(record);
         }
 
+        // GERBANG GANGGUAN-MASSAL. Rule per-pelanggan hanya tahu "si A sudah offline > N menit";
+        // ia buta terhadap "50 pelanggan turun berbarengan". Tanpa gerbang ini satu kabel putus =
+        // puluhan DM "apakah ada kendala pada WiFi-nya?" — bertanya ke pelanggan tentang gangguan
+        // yang penyebabnya ada di sisi kita, sekaligus jadi kiriman massal di luar antrean
+        // ber-jitter (guard anti-ban ada di sendQueueWithRetry, jalur ini tidak lewat sana).
+        // Diukur dari UKURAN BATCH yang hendak dikirim — lihat alasannya di lib/area-outage-gate.
+        const totalWithPppoe = (getUsersSnapshot() || []).filter((user) => user && user.pppoe_username).length;
+        const massOutage = evaluateMassOutage({
+            eligibleCount: eligible.length,
+            totalWithPppoe,
+            config: deps.getConfig ? deps.getConfig() : global.config
+        });
+        const suppressedByMassOutage = massOutage.active && input.ignoreMassOutageGate !== true;
+        if (suppressedByMassOutage && eligible.length > 0) {
+            for (const record of eligible) {
+                ineligible.push({
+                    ...record,
+                    eligibility: { eligible: false, reason: "mass_outage_suppressed", mass_outage: massOutage }
+                });
+            }
+            eligible = [];
+        }
+
         return {
             eligible,
             ineligible,
+            mass_outage: { ...massOutage, suppressed: suppressedByMassOutage },
             summary: {
                 total_offline: states.length,
                 total_eligible: eligible.length,
-                total_ineligible: ineligible.length
+                total_ineligible: ineligible.length,
+                mass_outage_active: massOutage.active,
+                mass_outage_suppressed: suppressedByMassOutage,
+                mass_outage_batch_size: massOutage.eligibleCount
             }
         };
     }

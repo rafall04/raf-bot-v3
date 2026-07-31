@@ -103,7 +103,14 @@ function registerAdminAutoOutageRoutes(router, deps = {}) {
             res.status(404).json({ status: 404, message: "Rule not found." });
             return;
         }
-        const snapshot = await detectionService.buildDetectionSnapshot({ rule, limit: toLimit(req.body?.limit, 500) });
+        // Gerbang gangguan-massal berlaku juga untuk broadcast manual — justru saat kabel putus
+        // godaan menekan tombol ini paling besar. Admin tetap bisa memaksa dengan `force: true`,
+        // tapi harus sengaja; diam adalah default.
+        const snapshot = await detectionService.buildDetectionSnapshot({
+            rule,
+            limit: toLimit(req.body?.limit, 500),
+            ignoreMassOutageGate: req.body?.force === true
+        });
         const sent = [];
         const skipped = [];
         for (const item of snapshot.eligible) {
@@ -124,6 +131,7 @@ function registerAdminAutoOutageRoutes(router, deps = {}) {
             data: {
                 sent,
                 skipped,
+                mass_outage: snapshot.mass_outage || null,
                 summary: {
                     ...snapshot.summary,
                     total_sent: sent.length,

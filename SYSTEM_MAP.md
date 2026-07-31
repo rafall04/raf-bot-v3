@@ -287,6 +287,10 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-07-29 (Setelan tampilan invoice tak pernah diterapkan + reset senyap jatuh tempo)](docs/boundary-log.md#b184)
 - [Fix 2026-07-29 (`/voucher-sales` 404 di kedua bot — gerbang default-aktif memakai cek truthy)](docs/boundary-log.md#b185)
 - [Fix 2026-07-29 (Grafik trafik tak pernah dapat data: endpoint 11 dtk vs abort 8 dtk → endpoint ringan sendiri + skala kerapatan ponsel)](docs/boundary-log.md#b186)
+- [Fix 2026-07-31 (Satu pemilik verdict gangguan area + gerbang gangguan-massal auto outage)](docs/boundary-log.md#b187)
+- [Fix 2026-07-31 (Pesan gangguan area bocorkan jumlah pelanggan terdampak)](docs/boundary-log.md#b188)
+- [Fix 2026-07-31 (Monitor OLT menyajikan data basi/setengah jadi sebagai fakta)](docs/boundary-log.md#b189)
+- [Feat 2026-07-31 (Laporan verifikasi pasca-perbaikan ke grup — angka nyata per pelanggan terdampak)](docs/boundary-log.md#b190)
 
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.

@@ -13,7 +13,9 @@
  *          Reboot hanya ditawarkan saat gangguan PLAUSIBEL di modem — bukan saat jaringan yang sakit.
  * Caller: `message/handlers/raf-intent-dispatch/customer-service-intents.js` pada intent `CEK_KONEKSI`.
  * Deps: `../../lib/jid-utils` (resolveCustomerBySender), `../../lib/mikrotik` (getActivePPPoEUsers),
- *       `../../lib/wifi` (getSSIDInfo), `../../repositories/auto-outage.repository` (state offline_since),
+ *       `../../lib/wifi` (getSSIDInfo), `../../lib/area-outage-gate` (verdict gangguan area — satu
+ *       pemilik rumus ambang, dipakai bersama bot teknisi & gerbang auto outage),
+ *       `../../repositories/auto-outage.repository` (state offline_since),
  *       `./template-helpers` (renderResponseTemplate), `../../lib/customer-path-resolver` (IP→jalur LIVE
  *       dari address-list steering RAF-STEER-*, bukan CIDR statik; default gmdp saat tak di-steer)
  *       + lazy `../../lib/upstream-quality-poller` (status jalur upstream, best-effort)
@@ -34,6 +36,7 @@ const { getSSIDInfo } = require('../../lib/wifi');
 const { renderResponseTemplate } = require('./template-helpers');
 const { resolveCustomerPath } = require('../../lib/customer-path-resolver');
 const { hasConnectivityComplaintSignal } = require('../../lib/loose-intent-matcher');
+const { evaluateAreaOutage } = require('../../lib/area-outage-gate');
 
 // Cache daftar PPPoE aktif sebentar supaya burst "cek koneksi" tidak menghajar MikroTik.
 // addrByUser dipakai seksi upstream (map username → IP remote utk pemetaan jalur).
@@ -44,8 +47,8 @@ const ACTIVE_CACHE_TTL_MS = 30000;
 let upstreamReportCache = { at: 0, report: null };
 const UPSTREAM_REPORT_TTL_MS = 30000;
 
-// Ambang kemungkinan gangguan area (jumlah & rasio pelanggan offline berbarengan).
-const AREA_OUTAGE_RATIO = 0.3;
+// Ambang kemungkinan gangguan area dipusatkan di `lib/area-outage-gate` — dulu rumus yang sama
+// disalin di sini, di bot teknisi Telegram, dan tak ada sama sekali di cron auto outage.
 
 // Ambang data GenieACS dianggap BASI: ONU belum inform (mis. buta lintas-PTP) atau ACS tak
 // menyimpan _lastInform. Selaras ambang gate reboot — inform periodik ACS prod terukur ~12 mnt,
@@ -396,9 +399,11 @@ async function resolveLineStatus({ user, userList, routerId }) {
     // Offline → cek apakah banyak pelanggan lain juga offline (indikasi gangguan area).
     const withPppoe = userList.filter((u) => u.pppoe_username);
     const offlineCount = withPppoe.filter((u) => !activeSet.has(normalizeUsername(u.pppoe_username))).length;
-    const ratio = withPppoe.length ? offlineCount / withPppoe.length : 0;
-    const threshold = parseInt(global.config && global.config.outage_area_threshold, 10) || 5;
-    const areaOutage = offlineCount >= threshold || ratio >= AREA_OUTAGE_RATIO;
+    const { areaOutage } = evaluateAreaOutage({
+        offlineCount,
+        totalWithPppoe: withPppoe.length,
+        config: global.config
+    });
 
     return { lineStatus: 'offline', areaOutage, offlineCount };
 }
@@ -525,7 +530,10 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
         upstream,
         health_note: healthNote,
         app: appDiagnosis,
-        jumlah: offlineCount,
+        // SENGAJA TIDAK ADA `jumlah`. Jumlah pelanggan yang ikut offline = data usaha (besar basis
+        // pelanggan); saat gangguan massal angkanya nyaris = total pelanggan. Dengan slot-nya tidak
+        // dioper sama sekali, admin pun tak bisa membocorkannya lewat edit template di /api/templates.
+        // Angka aslinya tetap dipakai internal: gerbang reboot (buildRebootOffer) & bot teknisi.
         terakhir_online: formatTerakhirOnline(offlineSince),
         reboot_offer: rebootOffer,
         // Bila bot sanggup mereboot sendiri, JANGAN suruh pelanggan mencabut listrik — korpus chat
@@ -551,12 +559,17 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
             `• Ketik *cek wifi* untuk lihat perangkat yang terhubung\n` +
             `• Masih bermasalah? ketik *lapor wifi lemot*\n\nTerima kasih 🙏${rebootOffer}`;
     } else if (lineStatus === 'offline' && areaOutage) {
-        key = 'conncheck_offline_area';
+        // Key BARU (v2) sengaja menggantikan `conncheck_offline_area` yang lama: template lama
+        // memuat `${jumlah}` dan template PROD di-merge-key (tak pernah ditimpa deploy), jadi
+        // memperbaiki teksnya saja tidak menghentikan kebocoran di server yang sudah jalan.
+        // Dengan key baru, salinan lama di prod jadi yatim/tak terpakai → bocor berhenti tanpa
+        // harus mengedit file template prod satu per satu.
+        key = 'conncheck_offline_area_v2';
         fallback =
             `🔎 *STATUS KONEKSI — ${namaLayanan}*\n\nHalo Kak ${nama}!\n\n` +
             `🔴 *Jalur internet: TERPUTUS*\n` +
-            `⚠️ Terdeteksi *gangguan area* — sekitar ${offlineCount} pelanggan ikut terdampak. ` +
-            `Tim teknisi kami sedang menanganinya.\n\n` +
+            `⚠️ Terdeteksi *gangguan pada jaringan di area Anda*. ` +
+            `Tim teknisi kami sudah mengetahuinya dan sedang menanganinya.\n\n` +
             `Anda *tidak perlu* membuat laporan; kami akan kabari begitu koneksi pulih. Mohon ditunggu ya 🙏`;
     } else if (lineStatus === 'offline') {
         key = 'conncheck_offline_single';

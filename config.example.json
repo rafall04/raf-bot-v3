@@ -307,9 +307,23 @@
       "messageTemplate": ""
     }
   },
+  "postRepairReport": {
+    "enabled": false,
+    "settleDelayMs": 120000,
+    "minAffected": 3,
+    "rxWarnDbm": -25,
+    "rxDegradeDb": 3,
+    "groupId": ""
+  },
   "oltEventLog": {
     "enabled": true,
     "retentionDays": 90
+  },
+  "outage_area_threshold": 5,
+  "outage_area_ratio": 0.3,
+  "autoOutageMassGate": {
+    "enabled": true,
+    "maxBatchSize": 5
   },
   "cctvMonitor": {
     "enabled": false,

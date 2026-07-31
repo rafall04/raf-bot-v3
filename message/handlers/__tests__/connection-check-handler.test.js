@@ -23,6 +23,7 @@ const { resolveCustomerBySender } = require('../../../lib/jid-utils');
 const { getActivePPPoEUsers } = require('../../../lib/mikrotik');
 const { getSSIDInfo } = require('../../../lib/wifi');
 const { createAutoOutageRepository } = require('../../../repositories/auto-outage.repository');
+const { renderResponseTemplate } = require('../template-helpers');
 const { handleCekKoneksi } = require('../connection-check-handler');
 
 function activeFrom(usernames) {
@@ -101,7 +102,39 @@ describe('handleCekKoneksi', () => {
 
         await handleCekKoneksi(ctx);
 
-        expect(lastReply(ctx)).toBe('conncheck_offline_area');
+        expect(lastReply(ctx)).toBe('conncheck_offline_area_v2');
+    });
+
+    // Jumlah pelanggan yang ikut offline = DATA USAHA (saat gangguan massal angkanya nyaris sama
+    // dengan total pelanggan). Pernah bocor lewat slot `${jumlah}` di template lama
+    // `conncheck_offline_area`. Guard ini menjaga KEDUA sisi jalur render sekaligus:
+    //   (a) slot tak pernah dioper ke render → admin pun tak bisa re-leak lewat edit template;
+    //   (b) teks fallback runtime tidak memuat angka.
+    // Template TERSIMPAN dijaga terpisah di bawah (template menimpa fallback).
+    test('pesan gangguan area TIDAK membocorkan jumlah pelanggan terdampak', async () => {
+        withRouter('r-area-bocor');
+        const users = makeUsers(10);
+        resolveCustomerBySender.mockResolvedValue({ user: users[9] });
+        getActivePPPoEUsers.mockResolvedValue(activeFrom(['cust-0', 'cust-1', 'cust-2', 'cust-3']));
+
+        await handleCekKoneksi(baseCtx({ users }));
+
+        const call = renderResponseTemplate.mock.calls.find(([key]) => key === 'conncheck_offline_area_v2');
+        expect(call).toBeDefined();
+        const [, fallback, data] = call;
+        expect(Object.keys(data)).not.toContain('jumlah');
+        expect(fallback).not.toContain('${jumlah}');
+        expect(fallback).not.toMatch(/\d+\s*pelanggan/i);
+    });
+
+    test('template tersimpan gangguan area bebas slot jumlah (template menimpa fallback)', () => {
+        const templates = require('../../../database/response_templates.json');
+        expect(templates.conncheck_offline_area_v2).toBeDefined();
+        // Key lama sengaja DIBUANG dari repo: salinan hasil kustomisasi di prod (merge-key,
+        // tak pernah ditimpa deploy) jadi yatim → kebocoran berhenti tanpa edit manual di server.
+        expect(templates.conncheck_offline_area).toBeUndefined();
+        expect(templates.conncheck_offline_area_v2.template).not.toContain('${jumlah}');
+        expect(templates.conncheck_offline_area_v2.template).not.toMatch(/\d+\s*pelanggan/i);
     });
 
     test('TERPUTUS hanya pelanggan ini saat mayoritas online', async () => {
