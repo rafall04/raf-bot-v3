@@ -415,6 +415,11 @@ function registerAdminContentRoutes(router, deps) {
             forceIncludeOptOut: req.body?.force_include_opt_out === true
                 || req.body?.force_include_opt_out === "true"
                 || req.body?.forceIncludeOptOut === true,
+            // Lolos-paksa penjaga data internal (jumlah pelanggan / PPPoE / ODP-ODC di teks pelanggan).
+            // Harus disengaja: default menahan, karena pesan WA tak bisa ditarik kembali.
+            allowSensitive: req.body?.allow_sensitive === true
+                || req.body?.allow_sensitive === "true"
+                || req.body?.allowSensitive === true,
             sendToAll,
             allUsers,
             selectedUsers,

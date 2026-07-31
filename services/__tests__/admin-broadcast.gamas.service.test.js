@@ -107,7 +107,8 @@ describe("admin-broadcast.service GAMAS", () => {
             mode: "odp",
             filter: "ODP-01",
             allUsers: USERS,
-            text: "Halo ${nama} ODP ${odp}",
+            // Teks sengaja BERSIH dari data internal — penjaga menolak `${odp}` di pesan pelanggan.
+            text: "Halo ${nama}, ada gangguan di area Anda",
             operator: "admin1"
         });
 
@@ -120,7 +121,7 @@ describe("admin-broadcast.service GAMAS", () => {
 
         // Hanya pelanggan id=1 punya phone; id=4 tidak punya → 1 sukses + 1 failure.
         expect(sendMessageToMany).toHaveBeenCalledTimes(1);
-        expect(sendMessageToMany).toHaveBeenCalledWith(["0811"], { text: "Halo A ODP ODP-01" });
+        expect(sendMessageToMany).toHaveBeenCalledWith(["0811"], { text: "Halo A, ada gangguan di area Anda" });
         // Throttle dipanggil sekali antar dua pelanggan (bukan setelah pelanggan terakhir).
         expect(wait).toHaveBeenCalledWith(1200);
         expect(insertHistory).toHaveBeenCalledTimes(1);
@@ -187,5 +188,94 @@ describe("admin-broadcast.service GAMAS", () => {
             allUsers: USERS,
             text: ""
         })).rejects.toMatchObject({ statusCode: 400 });
+    });
+
+    // PENJAGA DATA INTERNAL. Broadcast satu-satunya jalur teks-ke-pelanggan yang diketik bebas admin,
+    // jadi memperbaiki template saja tidak menutup lubangnya. Ditolak SEBELUM satu pesan pun keluar —
+    // pesan WhatsApp tidak bisa ditarik kembali.
+    describe("penjaga data internal", () => {
+        function guardService(sendMessageToMany = jest.fn()) {
+            return {
+                service: createAdminBroadcastService({
+                    hasAuthenticatedSession: () => true,
+                    sendMessageToMany,
+                    normalizePhoneNumber: (v) => v,
+                    wait: () => Promise.resolve(),
+                    randomJitter: () => 0,
+                    getConfig: () => ({}),
+                    historyRepository: { insertHistory: jest.fn() }
+                }),
+                sendMessageToMany
+            };
+        }
+
+        test("menolak teks yang menyebut jumlah pelanggan terdampak", async () => {
+            const { service, sendMessageToMany } = guardService();
+            await expect(service.queueBroadcast({
+                mode: "all",
+                allUsers: USERS,
+                text: "Mohon maaf, gangguan area — sekitar 96 pelanggan ikut terdampak."
+            })).rejects.toMatchObject({ statusCode: 400 });
+            expect(sendMessageToMany).not.toHaveBeenCalled();
+        });
+
+        test("menolak teks yang memuat slot identitas internal (ODP / PPPoE)", async () => {
+            const { service } = guardService();
+            await expect(service.queueBroadcast({
+                mode: "odp", filter: "ODP-01", allUsers: USERS, text: "Halo ${nama}, ODP ${odp} bermasalah."
+            })).rejects.toMatchObject({ statusCode: 400 });
+            await expect(service.queueBroadcast({
+                mode: "all", allUsers: USERS, text: "Akun ${username_pppoe} terganggu."
+            })).rejects.toMatchObject({ statusCode: 400 });
+        });
+
+        // Substitusi bisa MEMUNCULKAN kebocoran yang tak terlihat di teks mentah.
+        test("menolak kebocoran yang baru muncul setelah substitusi placeholder", async () => {
+            const { service } = guardService();
+            await expect(service.queueBroadcast({
+                mode: "all",
+                allUsers: [{ id: 9, name: "Budi 3 pelanggan", phone_number: "0819", notify_outage: true }],
+                text: "Halo ${nama}, ada gangguan."
+            })).rejects.toMatchObject({ statusCode: 400 });
+        });
+
+        // Dry-run justru tempat admin menyadari kesalahan sebelum kirim sungguhan.
+        test("dry-run pun ditahan, bukan cuma pengiriman sungguhan", async () => {
+            const { service } = guardService();
+            await expect(service.queueBroadcast({
+                mode: "all", allUsers: USERS, dryRun: true, text: "Gangguan, 96 pelanggan terdampak."
+            })).rejects.toMatchObject({ statusCode: 400 });
+        });
+
+        test("bisa dilewati bila admin sengaja (allowSensitive)", async () => {
+            const { service } = guardService(jest.fn().mockResolvedValue({ sent: true }));
+            const result = await service.queueBroadcast({
+                mode: "all",
+                allUsers: USERS,
+                text: "Gangguan, 96 pelanggan terdampak.",
+                allowSensitive: true
+            });
+            expect(result.status).toBe(202);
+        });
+
+        test("pesan gangguan yang wajar tetap lolos", async () => {
+            const { service } = guardService(jest.fn().mockResolvedValue({ sent: true }));
+            const result = await service.queueBroadcast({
+                mode: "all",
+                allUsers: USERS,
+                text: "Halo Kak ${nama}, sedang ada gangguan di area Anda. Tim teknisi menangani."
+            });
+            expect(result.status).toBe(202);
+        });
+
+        test("semua template GAMAS bawaan bebas data internal", () => {
+            const templates = require("../../database/response_templates.json");
+            const { findCustomerTextLeaks } = require("../../lib/customer-text-guard");
+            const gamasKeys = Object.keys(templates).filter((key) => key.startsWith("broadcast_gamas_"));
+            expect(gamasKeys.length).toBeGreaterThan(0);
+            for (const key of gamasKeys) {
+                expect({ key, leaks: findCustomerTextLeaks(templates[key].template) }).toEqual({ key, leaks: [] });
+            }
+        });
     });
 });

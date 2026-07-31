@@ -1094,3 +1094,14 @@
 - **Anti data-palsu:** redaman hanya dilaporkan sebagai kondisi kini bila lolos `isRxPowerValid` (#b189); ONU tak ditemukan/tak terbaca dilaporkan apa adanya, tidak diam-diam dihitung pulih. Snapshot gagal → laporan mengakuinya alih-alih "semua aman" palsu.
 - **Pembanding "sebelum":** `lib/olt-rxpower-history` (opsional; butuh `config.oltRxPowerHistory.enabled`).
 - **Gate:** `config.postRepairReport.enabled` (default OFF), `settleDelayMs` 2 mnt, `minAffected` 3, `rxWarnDbm` -25, `rxDegradeDb` 3. **Tes:** `lib/__tests__/post-repair-verification.test.js` (12).
+
+<a id="b191"></a>
+### Fix 2026-07-31 (Broadcast GAMAS: penjaga data internal sebelum teks keluar ke pelanggan)
+
+- **Owner:** `lib/customer-text-guard.js` (BARU) — `findCustomerTextLeaks` mendeteksi jumlah pelanggan terdampak (angka maupun slot `${jumlah} pelanggan`) dan identitas internal (`${username_pppoe}`, `${odp}`, `${odc}`, sebutan ODP/ODC tercetak).
+- **Penegakan:** `services/admin-broadcast.service.ensureNoInternalDataLeak` menolak (400) SEBELUM satu pesan pun terkirim, termasuk pada dry-run. Diperiksa dua bentuk: teks/template mentah (menangkap slot) DAN teks tersubstitusi untuk penerima contoh (menangkap yang baru muncul setelah render).
+- **Kenapa penjaga, bukan hanya perbaikan template:** teks broadcast diketik BEBAS oleh admin di `/broadcast`, template bisa diedit dari `/api/templates`, dan salinan prod di-merge-key. Memperbaiki satu template hanya menutup satu jalan.
+- **Template diperbaiki:** `broadcast_gamas_kabel_putus` tak lagi mencetak `(ODP ${odp})` ke pelanggan. Tiga template GAMAS lain sudah bersih; dijaga tes.
+- **Override sadar:** `allow_sensitive: true` pada `POST /api/broadcast` (dilog `[BROADCAST_SENSITIVE_OVERRIDE]`); default menahan karena pesan WA tak bisa ditarik kembali.
+- **Catatan cakupan:** penjaga hanya di jalur broadcast admin — balasan otomatis lain sudah bersih lewat #b188.
+- **Tes:** `lib/__tests__/customer-text-guard.test.js` (14, termasuk kasus pesan wajar yang TIDAK boleh ikut tertahan) + `services/__tests__/admin-broadcast.gamas.service.test.js` (7 baru).

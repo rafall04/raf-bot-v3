@@ -1,8 +1,11 @@
 /**
  * Header Doc
- * Purpose: Service broadcast admin — resolusi target (segmen + opt-out), throttle anti-ban, dry-run, dan history.
+ * Purpose: Service broadcast admin — resolusi target (segmen + opt-out), throttle anti-ban, dry-run, history,
+ *          dan PENJAGA DATA INTERNAL: broadcast satu-satunya jalur teks-ke-pelanggan yang bisa diketik
+ *          bebas admin, jadi jumlah pelanggan terdampak & identitas internal (PPPoE/ODP/ODC) ditolak
+ *          di sini sebelum satu pesan pun terkirim.
  * Caller: `routes/admin-content-routes.js` (endpoint `/api/broadcast`, `/api/broadcast/preview`, `/api/broadcast/history`).
- * Deps: `lib/whatsapp-gateway`, `lib/whatsapp-delivery-service`, `lib/utils`, `lib/response-template-helper`, `lib/error-handler`, `lib/bill-pay-token` (link bayar), `lib/templating` (formatBankAccounts utk ${rekening}), `rupiah-format`, dan `repositories/broadcast.repository`.
+ * Deps: `lib/whatsapp-gateway`, `lib/whatsapp-delivery-service`, `lib/utils`, `lib/response-template-helper`, `lib/error-handler`, `lib/bill-pay-token` (link bayar), `lib/templating` (formatBankAccounts utk ${rekening}), `lib/customer-text-guard` (penjaga data internal), `rupiah-format`, dan `repositories/broadcast.repository`.
  * MainFuncs: `createAdminBroadcastService`, `resolveTargetUsers`, `formatBroadcastMessage`, `queueBroadcast`, `previewBroadcast`.
  * SideEffects: Mengirim pesan WhatsApp dengan jeda antar pelanggan, menulis entri history broadcast ke SQLite.
  */
@@ -12,6 +15,7 @@ const { createError, ErrorTypes } = require("../lib/error-handler");
 const formatRupiah = require("rupiah-format");
 const { buildBillPayUrl } = require("../lib/bill-pay-token");
 const { formatBankAccounts } = require("../lib/templating");
+const { findCustomerTextLeaks, describeLeaks } = require("../lib/customer-text-guard");
 
 const DEFAULT_MESSAGE_DELAY_MS = 1500;
 const DEFAULT_JITTER_MS = 800;
@@ -302,6 +306,56 @@ function createAdminBroadcastService(overrides = {}) {
         }
     }
 
+    /**
+     * PENJAGA DATA INTERNAL. Broadcast adalah satu-satunya jalur di mana teks ke pelanggan bisa
+     * DIKETIK BEBAS admin — jadi memperbaiki template saja tidak cukup, dan template pun bisa diedit
+     * dari `/api/templates` atau sudah terlanjur beda di prod (file template di-merge-key).
+     * Diperiksa DUA bentuk: teks mentah/template (menangkap slot `${jumlah}`/`${odp}` sebelum
+     * tersubstitusi) dan teks yang SUDAH dirender untuk satu penerima contoh (menangkap angka yang
+     * baru muncul setelah substitusi, mis. ODP tercetak jadi "ODP MAWAR-03").
+     * Menolak lebih dulu, sebelum satu pesan pun terkirim — pesan WA tak bisa ditarik kembali.
+     */
+    function ensureNoInternalDataLeak({ text, templateKey, templateFallback, sampleUser, allowSensitive }) {
+        const rawTemplate = String(text || "")
+            || (templateKey && deps.renderResponseTemplate
+                ? deps.renderResponseTemplate(templateKey, templateFallback || "", {})
+                : String(templateFallback || ""));
+        const rendered = renderText({ text, templateKey, user: sampleUser, fallback: templateFallback });
+
+        const leaks = [
+            ...findCustomerTextLeaks(rawTemplate),
+            ...findCustomerTextLeaks(rendered)
+        ];
+        if (leaks.length === 0) return;
+
+        // Dedup antar kedua bentuk pemeriksaan supaya pesan error tak mengulang temuan yang sama.
+        const unique = [];
+        const seen = new Set();
+        for (const leak of leaks) {
+            const key = `${leak.kind}::${leak.phrase.toLowerCase()}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            unique.push(leak);
+        }
+
+        if (allowSensitive === true) {
+            console.warn("[BROADCAST_SENSITIVE_OVERRIDE]", {
+                templateKey: templateKey || null,
+                leaks: unique.map((leak) => leak.phrase)
+            });
+            return;
+        }
+
+        throw createError(
+            ErrorTypes.VALIDATION_ERROR,
+            `Broadcast ditahan — pesan memuat data internal yang tak boleh dibaca pelanggan: ${describeLeaks(unique)}. ` +
+            "Saat gangguan massal, jumlah pelanggan terdampak nyaris sama dengan total pelanggan kita, " +
+            "dan nama PPPoE/ODP/ODC tidak berguna bagi pelanggan. Cukup sebut bahwa sedang ada gangguan. " +
+            "Bila memang disengaja, kirim ulang dengan allow_sensitive: true.",
+            400
+        );
+    }
+
     return {
         deps,
         formatBroadcastMessage,
@@ -370,6 +424,16 @@ function createAdminBroadcastService(overrides = {}) {
             if (targetUsers.length === 0) {
                 throw createError(ErrorTypes.VALIDATION_ERROR, "No valid users selected for broadcast.", 400);
             }
+
+            // Diperiksa SEBELUM dry-run juga: dry-run adalah tempat admin menyadari kesalahan
+            // sebelum mengirim sungguhan, jadi justru di situ peringatannya paling berguna.
+            ensureNoInternalDataLeak({
+                text,
+                templateKey,
+                templateFallback,
+                sampleUser: targetUsers[0],
+                allowSensitive: input.allowSensitive === true
+            });
 
             if (input.dryRun) {
                 return {

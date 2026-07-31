@@ -4652,7 +4652,7 @@
   "broadcast_gamas_kabel_putus": {
     "name": "Broadcast GAMAS - Kabel Fiber Putus",
     "category": "broadcast",
-    "template": "Halo Kak ${nama},\n\nMohon maaf atas ketidaknyamanannya. Saat ini sedang terjadi gangguan kabel fiber di area Anda (ODP ${odp}). Tim teknisi sudah ditugaskan ke lokasi.\n\nEstimasi pemulihan: secepat mungkin. Mohon kesabarannya.\n\nTerima kasih atas pengertiannya."
+    "template": "Halo Kak ${nama},\n\nMohon maaf atas ketidaknyamanannya. Saat ini sedang terjadi gangguan kabel fiber di area Anda. Tim teknisi sudah ditugaskan ke lokasi.\n\nEstimasi pemulihan: secepat mungkin. Mohon kesabarannya.\n\nTerima kasih atas pengertiannya."
   },
   "broadcast_gamas_maintenance": {
     "name": "Broadcast GAMAS - Maintenance Terjadwal",

@@ -291,6 +291,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-07-31 (Pesan gangguan area bocorkan jumlah pelanggan terdampak)](docs/boundary-log.md#b188)
 - [Fix 2026-07-31 (Monitor OLT menyajikan data basi/setengah jadi sebagai fakta)](docs/boundary-log.md#b189)
 - [Feat 2026-07-31 (Laporan verifikasi pasca-perbaikan ke grup — angka nyata per pelanggan terdampak)](docs/boundary-log.md#b190)
+- [Fix 2026-07-31 (Broadcast GAMAS: penjaga data internal sebelum teks keluar ke pelanggan)](docs/boundary-log.md#b191)
 
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
