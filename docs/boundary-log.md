@@ -1105,3 +1105,14 @@
 - **Override sadar:** `allow_sensitive: true` pada `POST /api/broadcast` (dilog `[BROADCAST_SENSITIVE_OVERRIDE]`); default menahan karena pesan WA tak bisa ditarik kembali.
 - **Catatan cakupan:** penjaga hanya di jalur broadcast admin — balasan otomatis lain sudah bersih lewat #b188.
 - **Tes:** `lib/__tests__/customer-text-guard.test.js` (14, termasuk kasus pesan wajar yang TIDAK boleh ikut tertahan) + `services/__tests__/admin-broadcast.gamas.service.test.js` (7 baru).
+
+<a id="b192"></a>
+### Fix 2026-07-31 (Pembacaan OLT sebagian disulap jadi vonis "semua pelanggan mati")
+
+- **Akar:** MAC = kunci identitas ONU HIOSO, dan `getOltData` membuang tiap ONU ber-MAC `'N/A'`. Satu walk MAC kosong karena itu MENGHAPUS seluruh inventaris, tapi tetap dilaporkan `status:'success'` berisi nol ONU → di hilir terbaca "semua pelanggan offline".
+- **Terjadi nyata:** Tanjungharjo 2026-07-31, 96 pelanggan tampil Offline ±8 menit; OLT sehat (walk sama dari proses terpisah membaca 105 ONU, 3/3 percobaan). Terlihat hanya karena `incompleteWalks` dari #b189.
+- **Bukan rebutan SNMP:** diuji di prod — paralel, serial, dan paralel+sesi-saingan semuanya 105 varbind, 0/3 gagal. Hipotesis awal terbantah.
+- **Owner perbaikan:** `lib/olt-hioso.getOltData` menolak snapshot dengan `status:'error'` bila walk MAC kosong SEMENTARA kolom lain berisi. Semua walk kosong tetap `success` (OLT baru tanpa ONU itu sah) — cukup ditandai `incompleteWalks`.
+- **Efek berantai:** `routes/olt.js:refreshOltEntry` hanya men-cache `status==='success'`, jadi snapshot rusak kini tak ikut ter-cache dan tak disajikan berulang selama jendela 5 menit.
+- **Cacat #b189 yang ikut diperbaiki:** `freshness` dulu dibaca ulang dari cache SAAT RESPONS DISUSUN, sehingga pada jalur stale-while-revalidate ia melaporkan umur snapshot BARU untuk data LAMA yang dikirim (terbukti: respons "0 detik" berisi nol ONU sementara log bot mencatat 105 ONU 2 detik kemudian). `getCachedOltDataByKey` kini mengembalikan `{data, freshness}` — umur dipetik bersama datanya.
+- **Tes:** `lib/__tests__/olt-hioso-partial-read.test.js` (5, termasuk batas "OLT tanpa ONU tetap sah").

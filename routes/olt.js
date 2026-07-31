@@ -14,7 +14,8 @@
  *       LOS/DG dari web log), `lib/olt-optical-resolver` (matching + `isRxPowerValid`),
  *       `lib/mikrotik` (PPPoE active untuk peta MAC↔pelanggan).
  * MainFuncs: GET `/matched`, GET `/onus`, GET `/customer/:userId`, POST `/refresh-single`,
- *            helper `getCachedOltDataByKey`, `getOltCacheMeta`.
+ *            helper `getCachedOltDataByKey` (mengembalikan `{data, freshness}` — umur dipetik
+ *            bersama datanya), `buildOltFreshness`.
  * SideEffects: Query SNMP ke OLT + API MikroTik; menulis `database/last-caller-id-cache.json`.
  */
 
@@ -70,20 +71,32 @@ const OLT_CACHE_MAX_AGE = 5 * 60 * 1000;
 const oltDataCacheMap = new Map(); // key -> { data, timestamp, loading, refreshPromise }
 
 /**
- * Metadata kesegaran cache OLT untuk satu key — supaya UI bisa menampilkan UMUR DATA yang
- * sebenarnya, bukan jam saat browser selesai fetch (dua hal yang bisa berbeda jauh).
+ * Metadata kesegaran untuk SNAPSHOT YANG DISAJIKAN — `servedAt` diambil pada detik data itu
+ * dipetik dari cache, BUKAN dibaca ulang saat respons disusun.
+ *
+ * Bedanya fatal pada jalur stale-while-revalidate: request menyajikan snapshot lama lalu memicu
+ * refresh latar belakang; kalau refresh itu selesai sebelum respons selesai disusun, membaca ulang
+ * `entry.timestamp` menghasilkan umur milik snapshot BARU sementara `data` yang dikirim masih yang
+ * LAMA. Persis kebohongan "baru saja diperbarui" yang seharusnya dihapus oleh #b189 — terlihat di
+ * Tanjungharjo 2026-07-31: respons melaporkan umur 0 detik untuk data kosong, sementara log bot
+ * mencatat 105 ONU dua detik kemudian.
  */
-function getOltCacheMeta(key) {
-    const entry = oltDataCacheMap.get(key);
-    if (!entry || !entry.timestamp) {
-        return { fetched_at: null, age_seconds: null, stale: true, refreshing: !!(entry && entry.loading), max_age_seconds: OLT_CACHE_MAX_AGE / 1000 };
+function buildOltFreshness(servedAt, entry) {
+    if (!servedAt) {
+        return {
+            fetched_at: null,
+            age_seconds: null,
+            stale: true,
+            refreshing: !!(entry && entry.loading),
+            max_age_seconds: OLT_CACHE_MAX_AGE / 1000
+        };
     }
-    const ageMs = Date.now() - entry.timestamp;
+    const ageMs = Date.now() - servedAt;
     return {
-        fetched_at: new Date(entry.timestamp).toISOString(),
+        fetched_at: new Date(servedAt).toISOString(),
         age_seconds: Math.round(ageMs / 1000),
         stale: ageMs >= OLT_CACHE_TTL,
-        refreshing: !!entry.loading,
+        refreshing: !!(entry && entry.loading),
         max_age_seconds: OLT_CACHE_MAX_AGE / 1000
     };
 }
@@ -125,22 +138,28 @@ async function getCachedOltDataByKey(key, devices, forceRefresh = false) {
     let entry = oltDataCacheMap.get(key);
     if (!entry) { entry = { data: null, timestamp: 0, loading: false, refreshPromise: null }; oltDataCacheMap.set(key, entry); }
 
+    // Umur dipetik BERSAMAAN dengan datanya (lihat buildOltFreshness) — bukan dibaca ulang nanti.
+    const sajikan = (data, servedAt) => ({ data, freshness: buildOltFreshness(servedAt, entry) });
+
     if (forceRefresh) {
-        return refreshOltEntry(entry, devices); // tunggu segar
+        const result = await refreshOltEntry(entry, devices); // tunggu segar
+        return sajikan(result, result && result.status === 'success' ? entry.timestamp : Date.now());
     }
     const fresh = entry.data && (now - entry.timestamp) < OLT_CACHE_TTL;
-    if (fresh) return entry.data;
+    if (fresh) return sajikan(entry.data, entry.timestamp);
     if (entry.data && (now - entry.timestamp) < OLT_CACHE_MAX_AGE) {
         // Basi tapi masih dalam batas → sajikan seketika + refresh di background (tak ditunggu).
-        // Umurnya dilaporkan ke UI lewat getOltCacheMeta(); yang dilarang adalah menyajikannya
-        // sebagai data segar.
+        // Snapshot & umurnya dipetik SEKARANG, sebelum refresh latar belakang sempat menggantinya.
+        const data = entry.data;
+        const servedAt = entry.timestamp;
         if (!entry.loading) refreshOltEntry(entry, devices).catch(() => {});
-        return entry.data;
+        return sajikan(data, servedAt);
     }
     // Belum pernah terisi ATAU sudah melewati batas umur keras → tunggu data segar. Kalau OLT
     // memang tak terjangkau, hasilnya status error dan halaman menampilkan kegagalan itu apa
     // adanya — jauh lebih berguna daripada foto lama berlabel "baru saja".
-    return refreshOltEntry(entry, devices);
+    const result = await refreshOltEntry(entry, devices);
+    return sajikan(result, result && result.status === 'success' ? entry.timestamp : Date.now());
 }
 
 // Kompat: /matched tetap pakai key 'all' (semua OLT).
@@ -671,7 +690,7 @@ router.get('/matched', async (req, res) => {
         // Get OLT data dari semua OLT (parallel query, dengan cache 30 dtk)
         console.log(`[OLT] Fetching matched ONT data from ${oltDevices.length} OLT(s)`);
         const forceRefresh = req.query.force === 'true';
-        const oltResult = await getCachedMultipleOltData(oltDevices, forceRefresh);
+        const { data: oltResult, freshness } = await getCachedMultipleOltData(oltDevices, forceRefresh);
 
         if (oltResult.status !== 'success') {
             return res.json({
@@ -878,8 +897,8 @@ router.get('/matched', async (req, res) => {
             status: 200,
             message: 'OK',
             timestamp: oltResult.timestamp,
-            // Kesegaran data yang SEBENARNYA (kapan SNMP walk selesai, bukan kapan browser fetch).
-            freshness: getOltCacheMeta('all'),
+            // Kesegaran SNAPSHOT YANG DIKIRIM di respons ini (dipetik bersama datanya).
+            freshness,
             incompleteWalks: oltResult.incompleteWalks || [],
             enabled: true,
             data: matchedData,
@@ -946,13 +965,14 @@ router.get('/infra-status', async (req, res) => {
             if (globalConfig && globalConfig.enabled) {
                 const oltDevices = oltManager.getOltDevices();
                 if (oltDevices.length > 0) {
-                    const oltResult = await Promise.race([
+                    const cached = await Promise.race([
                         getCachedMultipleOltData(oltDevices, req.query.force === 'true'),
                         new Promise((resolve) => {
                             const t = setTimeout(() => resolve(null), INFRA_OLT_ENRICH_TIMEOUT_MS);
                             if (t && typeof t.unref === 'function') t.unref();
                         })
                     ]);
+                    const oltResult = cached && cached.data;
                     if (oltResult && oltResult.status === 'success') {
                         onuIndex = buildOnuIndex(oltResult.onus, { normalizeMAC });
                         oltEnabled = true;
@@ -1056,7 +1076,7 @@ router.get('/onus', async (req, res) => {
         }
 
         const forceRefresh = req.query.force === 'true';
-        const oltResult = await getCachedOltDataByKey(cacheKey, targetDevices, forceRefresh);
+        const { data: oltResult, freshness } = await getCachedOltDataByKey(cacheKey, targetDevices, forceRefresh);
         if (oltResult.status !== 'success') {
             return res.json({ status: 200, message: oltResult.message || 'Gagal mengambil data OLT', data: [], enabled: true, error: true });
         }
@@ -1184,8 +1204,8 @@ router.get('/onus', async (req, res) => {
             status: 200,
             message: 'OK',
             timestamp: oltResult.timestamp,
-            // Kesegaran data yang SEBENARNYA (kapan SNMP walk selesai, bukan kapan browser fetch).
-            freshness: getOltCacheMeta(cacheKey),
+            // Kesegaran SNAPSHOT YANG DIKIRIM di respons ini (dipetik bersama datanya).
+            freshness,
             incompleteWalks: oltResult.incompleteWalks || [],
             enabled: true,
             data: rows,
