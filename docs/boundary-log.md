@@ -1116,3 +1116,13 @@
 - **Efek berantai:** `routes/olt.js:refreshOltEntry` hanya men-cache `status==='success'`, jadi snapshot rusak kini tak ikut ter-cache dan tak disajikan berulang selama jendela 5 menit.
 - **Cacat #b189 yang ikut diperbaiki:** `freshness` dulu dibaca ulang dari cache SAAT RESPONS DISUSUN, sehingga pada jalur stale-while-revalidate ia melaporkan umur snapshot BARU untuk data LAMA yang dikirim (terbukti: respons "0 detik" berisi nol ONU sementara log bot mencatat 105 ONU 2 detik kemudian). `getCachedOltDataByKey` kini mengembalikan `{data, freshness}` — umur dipetik bersama datanya.
 - **Tes:** `lib/__tests__/olt-hioso-partial-read.test.js` (5, termasuk batas "OLT tanpa ONU tetap sah").
+
+<a id="b193"></a>
+### Fix 2026-07-31 (Walk SNMP yang GAGAL tak lagi tertukar dengan walk yang memang kosong)
+
+- **Akar:** `performSnmpWalk(...).catch(() => [])` di `lib/olt-hioso.getOltData` menyamakan "walk menolak" dengan "walk tak berisi". OLT yang TIDAK MENJAWAB karena itu tampil identik dengan OLT baru yang belum punya ONU — dua kondisi yang penanganannya berlawanan, dan pengecualian "semua kosong = sah" di #b192 meloloskannya jadi `success` berisi nol ONU.
+- **Terlihat nyata:** OLT Dander `192.168.11.2` — router segmennya membalas `Destination Host Unreachable` (perangkat tak menjawab ARP), tapi bot kadang melaporkannya sukses-kosong (`[OLT] Walk tidak lengkap ... mac, phaseState, rxPower kosong`).
+- **Owner perbaikan:** tiap walk kini dibungkus jadi `{nama, rows, gagal}`; hasilnya `failedWalks` terpisah dari `incompleteWalks`. SEMUA walk gagal → `error` "OLT tidak menjawab"; MAC kosong akibat walk gagal → `error`; MAC kosong tanpa kegagalan apa pun → tetap `success` (OLT belum punya ONU — batas yang sengaja dipertahankan).
+- **Efek berantai:** `routes/olt.js:refreshOltEntry` hanya men-cache `success`, jadi snapshot dari OLT mati tak lagi mengendap di cache 5 menit.
+- **Diagnosis jaringan (bukan kode):** 192.168.11.2 absen dari LAN-nya sendiri — mati/lepas/pindah IP; 53 dari 58 pelanggan Dander tanpa visibilitas OLT. Perlu pengecekan fisik/router.
+- **Tes:** `lib/__tests__/olt-hioso-partial-read.test.js` (10, +5 untuk pembedaan gagal-vs-kosong).
