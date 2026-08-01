@@ -294,6 +294,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-07-31 (Broadcast GAMAS: penjaga data internal sebelum teks keluar ke pelanggan)](docs/boundary-log.md#b191)
 - [Fix 2026-07-31 (Pembacaan OLT sebagian disulap jadi vonis "semua pelanggan mati")](docs/boundary-log.md#b192)
 - [Fix 2026-07-31 (Walk SNMP yang GAGAL tak lagi tertukar dengan walk yang memang kosong)](docs/boundary-log.md#b193)
+- [Fix 2026-08-01 (Pembacaan OLT jujur sampai ke layar: pembatas waktu ikut config, OLT bisu tak lagi jadi vonis "Offline")](docs/boundary-log.md#b194)
 
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.

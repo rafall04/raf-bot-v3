@@ -37,7 +37,7 @@ const oltManager = require('../lib/olt-manager');
 // Import driver registry (multi-merk OLT). Dispatch per device.brand.
 const { resolveDriver, getDriver, listDrivers, detectBrand } = require('../lib/olt-drivers');
 // Inti matching pelanggan→ONU optik (1 sumber kebenaran, dipakai bersama bot Telegram teknisi).
-const { buildOnuIndex, matchOnu, isRxPowerValid } = require('../lib/olt-optical-resolver');
+const { buildOnuIndex, matchOnu, isRxPowerValid, isSnapshotReadableFor } = require('../lib/olt-optical-resolver');
 // Pemisahan akun infrastruktur (CCTV/monitoring) + penyusun baris status infra (PPPoE + OLT).
 const { isInfrastructure } = require('../lib/account-classification');
 const { buildInfraRow } = require('../lib/infra-status');
@@ -810,10 +810,18 @@ router.get('/matched', async (req, res) => {
                 // Coba ambil slot/onu dari cache jika ada
                 const cachedInfo = lastCallerIdCache.get(user.pppoe_username);
                 
+                // ONT tidak ada di OLT saat ini; coba kenali OLT-nya dari cache MAC.
+                const cachedOlt = oltManager.getOltFromMac(macInfo.mac);
+
                 let finalStatus = 'Offline';
                 let isDyingGasp = false;
                 let isLos = false;
-                
+                // ABSENNYA ONU cuma bermakna kalau OLT-nya memang terbaca. Bila OLT pelanggan ini
+                // bisu ronde ini, dia tidak hilang — kita yang tidak melihat, dan menuliskan
+                // `status_known: true` di sini adalah persis kebohongan yang membuat 53 pelanggan
+                // Dander tervonis Offline saat OLT-nya tak menjawab.
+                let statusKnown = true;
+
                 if (logEvent) {
                     if (logEvent.event_type === 'dying-gasp') {
                         finalStatus = 'Dying Gasp';
@@ -822,12 +830,15 @@ router.get('/matched', async (req, res) => {
                         finalStatus = 'LOS';
                         isLos = true;
                     }
+                } else if (!isSnapshotReadableFor(oltResult, cachedOlt)) {
+                    // Syslog (logEvent di atas) bukti MANDIRI dan tetap dipercaya; tanpa itu kita
+                    // tak punya pengamatan apa pun tentang pelanggan ini.
+                    statusKnown = false;
                 }
-                
-                console.log(`[OLT] User ${user.pppoe_username}: ONT not in OLT, status: ${finalStatus} (cached slot/onu: ${cachedInfo?.slot_id}/${cachedInfo?.onu_id})`);
 
-                // ONT tidak ada di OLT saat ini; coba kenali OLT-nya dari cache MAC.
-                const cachedOlt = oltManager.getOltFromMac(macInfo.mac);
+                console.log(`[OLT] User ${user.pppoe_username}: ONT not in OLT, status: ${finalStatus}`
+                    + `${statusKnown ? '' : ' (OLT TIDAK TERBACA — bukan vonis)'}`
+                    + ` (cached slot/onu: ${cachedInfo?.slot_id}/${cachedInfo?.onu_id})`);
 
                 matchedData.push({
                     user_id: user.id,
@@ -846,8 +857,8 @@ router.get('/matched', async (req, res) => {
                     olt_host: cachedOlt ? cachedOlt.oltHost : null,
                     rx_power: 'N/A',
                     rx_power_valid: false,
-                    status_known: true,
-                    olt_status: finalStatus,
+                    status_known: statusKnown,
+                    olt_status: statusKnown ? finalStatus : 'Tidak terbaca',
                     is_dying_gasp: isDyingGasp,
                     is_los: isLos,
                     last_down_cause: null,
@@ -900,6 +911,9 @@ router.get('/matched', async (req, res) => {
             // Kesegaran SNAPSHOT YANG DIKIRIM di respons ini (dipetik bersama datanya).
             freshness,
             incompleteWalks: oltResult.incompleteWalks || [],
+            // OLT yang tak terbaca ronde ini. Wajib ikut: tanpa ini pembaca tak punya cara tahu
+            // bahwa sebagian barisnya bertanda "tidak diketahui" karena alat bacanya yang buta.
+            failedOlts: oltResult.failedOlts || [],
             enabled: true,
             data: matchedData,
             oltByMacPrefix: oltByMacPrefix,

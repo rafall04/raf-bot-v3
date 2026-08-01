@@ -1126,3 +1126,15 @@
 - **Efek berantai:** `routes/olt.js:refreshOltEntry` hanya men-cache `success`, jadi snapshot dari OLT mati tak lagi mengendap di cache 5 menit.
 - **Diagnosis jaringan (bukan kode):** 192.168.11.2 absen dari LAN-nya sendiri — mati/lepas/pindah IP; 53 dari 58 pelanggan Dander tanpa visibilitas OLT. Perlu pengecekan fisik/router.
 - **Tes:** `lib/__tests__/olt-hioso-partial-read.test.js` (10, +5 untuk pembedaan gagal-vs-kosong).
+
+<a id="b194"></a>
+### Fix 2026-08-01 (Pembacaan OLT jujur sampai ke layar: pembatas waktu ikut config, OLT bisu tak lagi jadi vonis "Offline")
+
+- **Akar #1 — perbaikan #b193 TAK PERNAH JALAN di produksi:** pembatas darurat `getOltData` dipatok 60 dtk sementara anggaran SNMP dari config = `timeout × (1+retries)` = 90 dtk, jadi ia selalu menang duluan dan pemanggil menerima "timeout" polos tanpa `failedWalks`. Terukur live: balik di detik 60,12. Kini lewat `snmpDeadlineMs()` (diekspor + dikunci tes aritmetika).
+- **Akar #2 — armada:** snapshot gabungan bisu soal cakupannya; 1 OLT mati di antara 3 tetap `success` dan pelanggannya divonis `Offline` + `status_known:true` (Dander 192.168.11.2, 53 dari 58). Owner: `getMultipleOltData` kini menyebut `failedOlts`; `lib/olt-optical-resolver.isSnapshotReadableFor` (BARU, diekspor) satu-satunya penentu boleh/tidaknya menyimpulkan; dipakai `routes/olt.js` `/matched` + `resolveByCustomer` → state ketiga "Tidak terbaca" (`status_known:false`). Syslog tetap menang (bukti mandiri).
+- **Setengah-terapan yang ditutup:** `lib/olt-drivers/zte.js:reliableSnmpWalk` (`return []` → `{rows,failed,reason}` + tolak bila walk inventaris gagal), `olt-hioso.getSingleOnuData` (`.catch(()=>[])` → tolak bila walk status gagal; jalur cache-hit kini ikut cek `statusKnown`), `lib/olt-drivers/contract.normalizeOnu` (dulu MEMBUANG `statusKnown`, mematikan 4 penjaga di hilir).
+- **Ikut diperbaiki:** gerbang tolak hanya menghitung `INVENTORY_WALKS` (OLT kosong yang gagal di kolom hiasan tak lagi divonis rusak); yang dihitung ONU yang SELAMAT, bukan baris mentah; log gagal vs kosong dipisah (dulu menyesatkan, dan kegagalan `name`/`lastDownCause` tak pernah tercetak); timer 60 dtk dibersihkan (10 handle bocor → 0); `session.dgram` didengarkan karena listener `'error'` net-snmp tak pernah menyala; vonis yatim pasca-timeout dibungkam.
+- **Status path lama:** tak ada path dimatikan — semua tetap di tempatnya, kontraknya yang diperketat. `session.isClosed` (selalu `undefined`) dibuang.
+- **Gate:** tidak ada. Perbaikan kejujuran yang fail-closed; menggerbangnya sama dengan menjadikan bug sebagai default.
+- **UI:** `static/js/{admin,teknisi}-olt.js` — lencana "?" untuk `status_known:false`, dan baris itu tak lagi ikut dihitung maupun ter-filter sebagai offline.
+- **Tes:** `olt-hioso-partial-read` (20, +10; mock kini memeriksa opsi sesi & penutupan sesi), `olt-zte-partial-read` (BARU, 5), `olt-data-honesty` (21, +12).

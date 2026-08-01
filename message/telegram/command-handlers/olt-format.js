@@ -25,7 +25,15 @@ function fmtOltLines(r) {
     }
 
     const lines = [];
-    lines.push(`Status: ${statusBadge(r.status)} <b>${escapeHtml(r.status)}</b>`);
+
+    // "Tak bisa mengamati" ≠ "mengamati yang mati". Kalau OLT-nya sendiri tak terbaca, teknisi
+    // harus tahu bahwa ini kebutaan alat baca — bukan vonis tentang modem pelanggan, yang dulu
+    // dicetak sebagai "🔴 Offline" dengan penuh percaya diri.
+    if (r.statusKnown === false) {
+        lines.push("❔ Status <b>TIDAK TERBACA</b> — OLT tidak menjawab, jadi ini bukan vonis soal modem pelanggan.");
+    } else {
+        lines.push(`Status: ${statusBadge(r.status)} <b>${escapeHtml(r.status)}</b>`);
+    }
     if (hasValue(r.rxPower)) lines.push(`RX (sisi OLT): <b>${escapeHtml(String(r.rxPower))}</b> dBm`);
 
     const oltLabel = [r.oltName, r.oltHost].filter(Boolean).map(escapeHtml).join(" · ");
@@ -39,8 +47,9 @@ function fmtOltLines(r) {
 
     if (hasValue(r.serial)) lines.push(`Serial: ${code(r.serial)}`);
 
-    // Alasan putus (LOS vs Dying Gasp) bila tidak online.
-    if (r.status && String(r.status).toLowerCase() !== "online") {
+    // Alasan putus (LOS vs Dying Gasp) bila tidak online. Dilewati saat status tak terbaca:
+    // `lastDownCause` di situ adalah sisa pembacaan lama, bukan sebab kejadian sekarang.
+    if (r.statusKnown !== false && r.status && String(r.status).toLowerCase() !== "online") {
         if (r.isDyingGasp) {
             lines.push("⚠️ Penyebab: <b>Dying Gasp</b> — listrik/adaptor ONU mati.");
         } else if (r.isLos) {

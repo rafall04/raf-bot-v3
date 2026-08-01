@@ -556,8 +556,16 @@
         }
 
         function renderOltStatus(row) {
+            // DG/LOS dari syslog adalah bukti MANDIRI (tak lewat SNMP) — tetap dimenangkan.
             if (row.is_dying_gasp) return '<span class="badge badge-danger"><i class="fas fa-bolt"></i> DG</span>';
             if (row.is_los) return '<span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> LOS</span>';
+            // OLT-nya sendiri tak terbaca → status pelanggan ini TIDAK DIKETAHUI. Dulu ia jatuh ke
+            // lencana silang abu-abu yang dibaca teknisi sebagai "mati" — kebutaan alat baca
+            // tersaji sebagai vonis.
+            if (row.status_known === false) {
+                return '<span class="badge badge-light border text-muted" title="OLT tidak menjawab — status pelanggan ini TIDAK diketahui, bukan berarti offline">'
+                    + '<i class="fas fa-question-circle"></i> ?</span>';
+            }
             if (row.olt_status === 'Online') return '<span class="badge badge-success"><i class="fas fa-check"></i></span>';
             return '<span class="badge badge-secondary"><i class="fas fa-times"></i></span>';
         }
@@ -628,6 +636,10 @@
             data.forEach(item => {
                 if (item.is_dying_gasp) dyingGasp++;
                 else if (item.is_los) los++;
+                // Status tak terbaca TIDAK ikut dihitung offline. Menghitungnya membuat OLT yang
+                // mati tampil sebagai lonjakan pelanggan mati — angka panik dari data yang justru
+                // tidak ada. Jumlah kartu memang jadi tak menjumlah total, dan itu memang jujur.
+                else if (item.status_known === false) { /* tak dihitung */ }
                 else if (item.olt_status === 'Online') online++;
                 else offline++;
             });
@@ -649,7 +661,9 @@
                     if (!row) return false;
                     switch (status) {
                         case 'online': return row.olt_status === 'Online' && !row.is_los && !row.is_dying_gasp;
-                        case 'offline': return row.olt_status !== 'Online' && !row.is_los && !row.is_dying_gasp;
+                        // Sejalan dengan updateStatsFromData: yang statusnya tak terbaca bukan offline.
+                        case 'offline': return row.olt_status !== 'Online' && row.status_known !== false
+                            && !row.is_los && !row.is_dying_gasp;
                         case 'los': return row.is_los === true;
                         case 'dying_gasp': return row.is_dying_gasp === true;
                         default: return true;
