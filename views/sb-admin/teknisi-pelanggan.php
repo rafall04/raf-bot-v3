@@ -101,6 +101,39 @@
     <a class="scroll-to-top rounded" href="#page-top"><i class="fas fa-angle-up"></i></a>
     <div class="modal fade" id="logoutModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Ready to Leave?</h5><button class="close" type="button" data-dismiss="modal">&times;</button></div><div class="modal-body">Select "Logout" to end session.</div><div class="modal-footer"><button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button><a class="btn btn-primary" href="/logout">Logout</a></div></div></div></div>
 
+    <!-- Titik rumah pelanggan. Kembar dengan modal di users.php (admin) SECARA SENGAJA: aturannya
+         tidak diduplikasi di sini — gerbangnya ada di server (POST /api/users/:id/location), halaman
+         ini cuma menampilkan hasil penilaian. Tombol GPS ada karena teknisi menandai sambil berdiri
+         di depan rumah; hasilnya tetap wajib lewat "Cek titik" dulu, tak ada jalur pintas simpan. -->
+    <div class="modal fade" id="lokasiModal" data-backdrop="static" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-map-pin"></i> Titik Lokasi — <span id="lokasi_nama"></span></h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="lokasi_lama" class="alert alert-secondary py-2 mb-3" style="font-size:.9rem;"></div>
+                    <button type="button" class="btn btn-primary btn-sm btn-block mb-2" id="lokasi_gps">
+                        <i class="fas fa-crosshairs"></i> Pakai lokasi saya sekarang
+                    </button>
+                    <div id="lokasi_gps_info" class="mb-2"></div>
+                    <div class="mb-2">
+                        <label for="lokasi_input" class="form-label">Titik baru</label>
+                        <textarea class="form-control form-control-sm" id="lokasi_input" rows="2" placeholder="Tempel di sini: -7.195085, 111.890908  atau  https://maps.google.com/?q=..."></textarea>
+                        <small class="form-text text-muted">Berdiri di depan rumah pelanggan lalu tekan tombol biru di atas. Atau tempel <b>koordinat</b>/<b>link Google Maps</b> yang dikirim pelanggan. Link pendek (maps.app.goo.gl) buka dulu di HP, lalu salin link panjang/koordinatnya.</small>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="lokasi_cek"><i class="fas fa-search-location"></i> Cek titik</button>
+                    <div id="lokasi_hasil" class="mt-3"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Tutup</button>
+                    <button type="button" class="btn btn-success btn-sm" id="lokasi_simpan" disabled><i class="fas fa-save"></i> Simpan titik</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="ssid-update" data-backdrop="static" tabindex="-1">
         <div class="modal-dialog"> <form class="modal-content" id="ssidUpdateForm">
                 <div class="modal-header"><h5 class="modal-title" id="ssidUpdateModalTitle">Perbarui SSID</h5><button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button></div>

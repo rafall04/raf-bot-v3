@@ -1149,3 +1149,15 @@
 - **Gate:** tidak ada — perbaikan gerbang yang salah-vonis; menggerbangnya sama dengan mempertahankan bug.
 - **AKAR TES BUTA:** dua test memakai `activeUsernames`/`loadActivePppoeUsernames` = `Set` KOSONG, keadaan yang mustahil di lapangan, sehingga regresi lolos hijau. Kini stub memakai `new Set(["tes@hw"])`.
 - **Tes:** `psb-modem-provenance` (16, +2 regresi + 1 anti-lubang `device_id`), `psb.state` (51, +3 tampilan SN).
+
+<a id="b196"></a>
+### Feat 2026-08-02 (Titik rumah pelanggan: teknisi akhirnya punya pintu — di web dibuka, di WA dibuat terlihat)
+
+- **AKAR:** gerbang titik lokasi [#b171] selesai 2026-07-21 dan berfungsi penuh, tapi **tak pernah dipakai sekali pun** dalam 12 hari. Terukur di produksi: Tanjungharjo 9/98 bertitik (9%), Dander 1/59 (2%) — **147 pelanggan tanpa titik**, `location_source` KOSONG di semua baris (jadi 10 titik yang ada pun bukan dari gerbang ini) dan `location_updated_at` belum pernah terisi. Dua sebabnya bukan bug melainkan pintu yang tertutup.
+- **Sebab #1 — web menolak teknisi:** `POST /api/users/:id/location` memakai `ensureAdmin` (`admin|owner|superadmin`) → teknisi 403, padahal dialah yang berdiri di depan rumah. Owner: guard ditukar ke `ensureAuthenticatedStaff` (`routes/api-route-helpers`, di-require langsung seperti `admin-network-assets-routes`). Gerbang presisi TIDAK dilonggarkan — yang berubah hanya siapa yang boleh mengetuk.
+- **Sebab #2 — WA tak terlihat:** perintah `lokasi` tak disebut di menu mana pun. Owner: blok "TITIK RUMAH PELANGGAN" di template `database/wifi_menu_templates.json` key `technicianmenu` (merge-key; prod identik repo, tanpa kustomisasi).
+- **Permukaan baru:** `views/sb-admin/teknisi-pelanggan.php` (`#lokasiModal`, kembar dgn `users.php`) + `static/js/teknisi-pelanggan.js` (kolom Koordinat jadi tombol `.btn-set-lokasi`; sel kosong = ajakan bertindak, bukan "N/A" pasif) + tombol **GPS HP** yang menampilkan akurasi apa adanya (>100 m diberi peringatan keras "kemungkinan lokasi jaringan, bukan GPS"). GPS hanya MENGISI kotak — "Cek titik" tetap wajib, tak ada jalur pintas simpan.
+- **Sumber titik:** `LOCATION_SOURCES.TEKNISI_WEB` (BARU) — dipilih dari `req.user.role`, peran lain tetap `admin_web`. Dibedakan karena keandalannya beda: teknisi menandai di lokasi, admin menandai dari kantor atas kiriman orang lain.
+- **Gate:** tidak ada. **Status path lama:** tak ada yang dimatikan; modal admin di `users.php` tetap apa adanya.
+- **Tes:** `customer-location-service` +2 (sumber unik & terpisah), `technician-menu-discoverability` (BARU, 4 — menahan perintah hilang senyap dari menu). Verifikasi render: halaman teknisi dimuat dgn JWT teknisi — modal ada, titik basecamp `-7.24139,111.83833` DITOLAK server, link Maps sah lolos + jarak geser 7756 m, konsol bersih.
+- **PELAJARAN:** fitur yang tak punya pintu masuk sama dengan fitur yang tak ada. Setelah membangun jalur input, periksa juga **siapa yang boleh** dan **dari mana dia tahu** — dua-duanya diam saat rusak, dan `npm test` tak akan pernah merah karenanya.

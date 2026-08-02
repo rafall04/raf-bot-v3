@@ -296,6 +296,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-07-31 (Walk SNMP yang GAGAL tak lagi tertukar dengan walk yang memang kosong)](docs/boundary-log.md#b193)
 - [Fix 2026-08-01 (Pembacaan OLT jujur sampai ke layar: pembatas waktu ikut config, OLT bisu tak lagi jadi vonis "Offline")](docs/boundary-log.md#b194)
 - [Fix 2026-08-02 (PSB buntu: modem polos divonis "TERPAKAI pelanggan lain", dan SN di layar beda tulisan dengan stiker)](docs/boundary-log.md#b195)
+- [Feat 2026-08-02 (Titik rumah pelanggan: teknisi akhirnya punya pintu — di web dibuka, di WA dibuat terlihat)](docs/boundary-log.md#b196)
 
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.

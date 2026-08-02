@@ -52,6 +52,11 @@ function createApiUsersRouter(deps) {
         buildMikrotikSyncResult,
     } = deps;
 
+    // Guard staf (admin/owner/superadmin + TEKNISI). Di-require langsung — sama seperti
+    // `admin-network-assets-routes` / `admin-konfirmasi-bayar-routes` — karena tidak disuntikkan
+    // lewat `deps`, dan menambah key deps baru berarti menyentuh semua pemanggil registry.
+    const { ensureAuthenticatedStaff } = require('./api-route-helpers');
+
     const router = express.Router();
 
     function getRuntime() {
@@ -302,7 +307,12 @@ router.post('/users/:id/send-welcome', ensureAdmin, async (req, res) => {
 // Tanpa `confirm` endpoint hanya MENILAI dan mengembalikan pratinjau: titik LAMA, jarak geser, tetangga
 // & ODP terdekat, plus peringatan. Jadi web memakai gerbang yang PERSIS SAMA dengan wizard WA —
 // aturan presisinya satu, tak ada jalur pintas yang lolos pemeriksaan.
-router.post('/users/:id/location', ensureAdmin, asyncHandler(async (req, res) => {
+// Guard SENGAJA `ensureAuthenticatedStaff` (teknisi ikut), bukan `ensureAdmin`: teknisi-lah yang
+// berdiri di depan rumah pelanggan, jadi dia sumber titik paling akurat. Sebelumnya endpoint ini
+// admin-only sehingga teknisi dapat 403 dan jalur web praktis mati untuk mereka — 147 pelanggan di
+// dua bot tak punya titik sama sekali. Gerbang presisinya tak dilonggarkan sedikit pun; yang berubah
+// hanya SIAPA yang boleh mengetuk.
+router.post('/users/:id/location', ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
     const locationService = require('../lib/customer-location-service');
     const user = apiUsersRepository.findUserById(req.params.id);
     if (!user) {
@@ -352,7 +362,11 @@ router.post('/users/:id/location', ensureAdmin, asyncHandler(async (req, res) =>
             latitude: verdict.point.lat,
             longitude: verdict.point.lng,
             maps_url: locationService.buildMapsUrl(verdict.point.lat, verdict.point.lng),
-            location_source: locationService.LOCATION_SOURCES.ADMIN_WEB,
+            // Sumber ikut PERAN yang menyimpan, bukan dipatok `admin_web` — lihat catatan di
+            // `LOCATION_SOURCES.TEKNISI_WEB`. Peran tak dikenal jatuh ke `admin_web` (perilaku lama).
+            location_source: req.user?.role === 'teknisi'
+                ? locationService.LOCATION_SOURCES.TEKNISI_WEB
+                : locationService.LOCATION_SOURCES.ADMIN_WEB,
             location_updated_at: new Date().toISOString()
         },
         actor: { id: req.user?.id, username: req.user?.username, name: req.user?.name || req.user?.username, role: req.user?.role },
