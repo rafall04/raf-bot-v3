@@ -1138,3 +1138,14 @@
 - **Gate:** tidak ada. Perbaikan kejujuran yang fail-closed; menggerbangnya sama dengan menjadikan bug sebagai default.
 - **UI:** `static/js/{admin,teknisi}-olt.js` — lencana "?" untuk `status_known:false`, dan baris itu tak lagi ikut dihitung maupun ter-filter sebagai offline.
 - **Tes:** `olt-hioso-partial-read` (20, +10; mock kini memeriksa opsi sesi & penutupan sesi), `olt-zte-partial-read` (BARU, 5), `olt-data-honesty` (21, +12).
+
+<a id="b195"></a>
+### Fix 2026-08-02 (PSB buntu: modem polos divonis "TERPAKAI pelanggan lain", dan SN di layar beda tulisan dengan stiker)
+
+- **Akar #1 — urutan aturan gerbang:** `lib/psb-modem-provenance.classifyModemCandidate` memeriksa "punya sesi PPPoE aktif" (aturan #1) SEBELUM "PPPoE bawaan pabrik" (aturan #3). Modem polos yang dicolok PASTI memegang sesi `tes@hw` aktif — itulah cara dia online — jadi aturan #3 tak pernah tercapai dan SETIAP modem baru divonis `terpakai`/`assignable:false`. Karena tak ada baris users ber-PPPoE `tes@hw`, `ownerName` null → teks jatuh ke "pelanggan lain". Terukur live di Tanjungharjo: satu sesi `tes@hw` aktif (uptime 35m), klasifikasi `terpakai`. Owner tetap file yang sama; kini `isDefaultPppoe` dihitung lebih dulu dan menetralkan bukti PPPoE di aturan #1 & tautan `linkedByPppoe` (kredensial bawaan dipakai BERSAMA, tak menunjuk satu orang). Tautan `device_id` tetap penuh — ia menunjuk satu modem, bukan sekelas.
+- **Inversi yang ikut hilang:** dengan router TAK terbaca (`activeUsernames:null`) modem yang sama lolos `baru/assignable` — gerbang lebih longgar saat MikroTik mati daripada saat hidup.
+- **Akar #2 — SN beda tulisan:** layar mencetak bentuk ACS 16-heksa (`4857544349B734AD`) sedangkan stiker Huawei berbunyi `HWTC49B734AD` (`48575443` = ASCII "HWTC"); 157 dari 160 device di ACS berbentuk begini. Teknisi membandingkan dengan mata, menjawab "bedo", PSB batal. Owner: `stickerSn()`/`snText()` (`message/handlers/state-domains/psb.state.js`, diekspor) — bentuk stiker di depan, bentuk ACS menyusul; SN non-Huawei (ZTE) dibiarkan apa adanya.
+- **Status path lama:** tak ada path dimatikan; `DEFAULT_PPPOE_USERNAMES` yang sebelumnya jadi kode mati kini benar-benar terpakai.
+- **Gate:** tidak ada — perbaikan gerbang yang salah-vonis; menggerbangnya sama dengan mempertahankan bug.
+- **AKAR TES BUTA:** dua test memakai `activeUsernames`/`loadActivePppoeUsernames` = `Set` KOSONG, keadaan yang mustahil di lapangan, sehingga regresi lolos hijau. Kini stub memakai `new Set(["tes@hw"])`.
+- **Tes:** `psb-modem-provenance` (16, +2 regresi + 1 anti-lubang `device_id`), `psb.state` (51, +3 tampilan SN).

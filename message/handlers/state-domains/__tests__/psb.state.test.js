@@ -11,7 +11,7 @@
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
-const { startPsbSession, handlePsbConversationState, buildPppoeUsername, isPsbTutorialTrigger, psbTutorialText, parsePsbScheduleRef } = require("../psb.state");
+const { startPsbSession, handlePsbConversationState, buildPppoeUsername, isPsbTutorialTrigger, psbTutorialText, parsePsbScheduleRef, stickerSn, snText } = require("../psb.state");
 
 // Push susulan WiFi (koreksi band) menyentuh GenieACS → di-mock supaya test tak menembak ACS nyata.
 jest.mock("../../../../lib/genieacs-helper", () => ({
@@ -54,7 +54,11 @@ function harness(overrides = {}) {
         // sesi PPPoE MikroTik & riwayat OLT. Tanpa ini tiap test menembak router sungguhan (~6 dtk).
         modemProvenance: {
             ...require("../../../../lib/psb-modem-provenance"),
-            loadActivePppoeUsernames: jest.fn(async () => new Set())
+            // `tes@hw` SENGAJA ada di daftar sesi aktif: modem polos yang menyala memang memegang
+            // sesi kredensial bawaan — itulah cara dia online. Stub Set kosong (dipakai sebelumnya)
+            // menggambarkan keadaan yang tak pernah terjadi di lapangan dan menyembunyikan regresi
+            // Tanjungharjo 2026-08-02 (setiap modem baru divonis "TERPAKAI pelanggan lain").
+            loadActivePppoeUsernames: jest.fn(async () => new Set(["tes@hw"]))
         },
         oltRepository: { getModemStateByPppoe: jest.fn(async () => null) },
         getUsers: () => global.users || [],
@@ -695,5 +699,29 @@ describe("PSB koreksi band setelah push", () => {
         expect(mockPushDevice).not.toHaveBeenCalled();
         // Teknisi tetap diberi tahu jujur bahwa band tak terbaca.
         expect(h.base.reply.mock.calls.map((c) => c[0]).join("\n")).toMatch(/Band modem tak terbaca/i);
+    });
+});
+
+// REGRESI Tanjungharjo 2026-08-02: layar menulis SN bentuk ACS (`4857544349B734AD`) sedangkan stiker
+// modem berbunyi `HWTC49B734AD`. Teknisi membandingkan dengan mata, menyimpulkan "bedo" (beda), lalu
+// membatalkan PSB atas modem yang sebenarnya BENAR. Bentuk stiker wajib tampil lebih dulu.
+describe("tampilan SN (stickerSn / snText)", () => {
+    test("SN 16-heksa Huawei → bentuk stiker HWTC… dipulihkan", () => {
+        expect(stickerSn("4857544349B734AD")).toBe("HWTC49B734AD");
+        expect(stickerSn("485754437c8ebeb1")).toBe("HWTC7C8EBEB1");
+    });
+
+    test("snText menaruh bentuk STIKER di depan, bentuk ACS menyusul", () => {
+        expect(snText("4857544349B734AD")).toBe("HWTC49B734AD (ACS 4857544349B734AD)");
+    });
+
+    test("SN yang bukan bentuk itu dibiarkan apa adanya (jangan mengarang)", () => {
+        // ONU ZTE di ACS yang sama — panjang & bentuknya lain.
+        expect(stickerSn("EQFLH7U22977")).toBeNull();
+        expect(snText("EQFLH7U22977")).toBe("EQFLH7U22977");
+        // 16 heksa tapi 8 pertama bukan huruf ASCII → bukan pola vendor, jangan diterjemahkan.
+        expect(stickerSn("0011223344556677")).toBeNull();
+        expect(snText("")).toBe("");
+        expect(snText(null)).toBe("");
     });
 });

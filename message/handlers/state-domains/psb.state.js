@@ -21,7 +21,9 @@
  *        boleh ditimpa), `fetchDeviceCapability` (`lib/wifi-bulk-reconcile` — SSID sadar-band:
  *        2.4G index 1 selalu, 5G index 5 hanya bila modem dual-band), `usersService` (`global.__apiUsersService`),
  *        `getConfig`, `packages`, `sendGroupSummary`. Require langsung: `./psb-caption-parser`, `fs`, `path`.
- * MainFuncs: `startPsbSession(context)`, `handlePsbConversationState(context)`.
+ * MainFuncs: `startPsbSession(context)`, `handlePsbConversationState(context)`, `stickerSn(sn)`/`snText(sn)`
+ *            (SN ditampilkan dalam bentuk STIKER `HWTC…` lebih dulu, bentuk ACS 16-heksa menyusul —
+ *            teknisi mencocokkan dengan mata ke stiker).
  * SideEffects: Tulis foto KTP/rumah + lokasi ke `uploads/psb/...`, buat pelanggan + push modem GenieACS +
  *              kirim WA (welcome pelanggan + ringkasan grup). Reply teknisi & ringkasan grup JUJUR ikut
  *              hasil push modem (`body.device_config{attempted,ok}`): klaim "online/di-push" hanya bila
@@ -147,8 +149,29 @@ function withPsbDeps(context) {
 }
 
 // SN modem ditampilkan LENGKAP — teknisi cocokkan dgn stiker (potongan bisa ambigu antar-modem).
+// Bentuk SN yang TERCETAK DI STIKER modem Huawei: `HWTC` + 8 heksa. TR-069 melaporkan SN yang sama
+// dalam bentuk 16-heksa penuh, di mana 8 heksa pertama adalah ASCII dari huruf vendor
+// (`48575443` = "HWTC"). Mengembalikan null bila SN bukan bentuk itu (mis. ONU ZTE).
+function stickerSn(sn) {
+    const raw = String(sn || "").trim();
+    if (!/^[0-9a-fA-F]{16}$/.test(raw)) return null;
+    let vendor = "";
+    for (let i = 0; i < 8; i += 2) {
+        vendor += String.fromCharCode(parseInt(raw.slice(i, i + 2), 16));
+    }
+    if (!/^[A-Za-z]{4}$/.test(vendor)) return null;
+    return `${vendor.toUpperCase()}${raw.slice(8).toUpperCase()}`;
+}
+
+// Teknisi mencocokkan SN dengan MATA ke stiker, jadi bentuk stiker ditaruh DI DEPAN. Bentuk ACS tetap
+// ikut ditampilkan supaya (a) apa pun yang tercetak di stiker batch itu tetap ketemu, dan (b) admin
+// masih bisa mengorelasikan ke GenieACS. Insiden Tanjungharjo 2026-08-02: teknisi menolak modem yang
+// BENAR karena layar menulis `4857544349B734AD` sedangkan stiker berbunyi `HWTC49B734AD` — dia
+// menjawab "bedo" lalu PSB batal. 157 dari 160 modem di ACS berbentuk begini.
 function snText(sn) {
-    return String(sn || "").trim();
+    const raw = String(sn || "").trim();
+    const sticker = stickerSn(raw);
+    return sticker ? `${sticker} (ACS ${raw})` : raw;
 }
 
 function minutesAgo(iso, nowMs) {
@@ -923,6 +946,8 @@ module.exports = {
     startPsbSession,
     parsePsbScheduleRef,
     buildPppoeUsername,
+    stickerSn,
+    snText,
     isPsbTutorialTrigger,
     psbTutorialText,
     PSB_STEPS,
