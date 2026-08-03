@@ -160,6 +160,37 @@ function createPaymentProofService(overrides = {}) {
     }
 
     /**
+     * Teriak ke admin saat "catat lunas" GAGAL. Tanpa ini kegagalan hanya jadi satu baris log:
+     * admin sudah membalas "ok", pelanggan merasa lunas, tapi tagihan tetap terbuka dan uangnya
+     * tak masuk ledger — persis insiden 03-08-2026 (SQLITE_IOERR pada koneksi tulis). NEVER-THROW:
+     * kegagalan notifikasi tak boleh menutupi kegagalan aslinya.
+     */
+    async function alertAdminsSettleFailed(record, user, err) {
+        try {
+            const admins = deps.getAdminJids();
+            if (!admins || admins.length === 0) {
+                logWarn("[PAYMENT_PROOF] Tak ada JID admin untuk alert gagal catat lunas");
+                return;
+            }
+
+            const text = renderResponseTemplate("payment_proof_settle_failed_admin", {
+                id: record.id,
+                nama: (user && user.name) || record.userName,
+                periode: padPeriod(record.periodMonth, record.periodYear),
+                nominal: formatRupiah(record.amountDue),
+                alasan: err && err.message ? err.message : String(err)
+            }, `🚨 *GAGAL CATAT LUNAS*\n\nPelanggan: ${(user && user.name) || record.userName}\nPeriode: ${padPeriod(record.periodMonth, record.periodYear)}\nNominal: ${formatRupiah(record.amountDue)}\nKode bukti: ${record.id}\n\nPenyebab: ${err && err.message ? err.message : String(err)}\n\n⚠️ Pembayaran ini *BELUM tercatat*. Tagihan masih terbuka dan uangnya belum masuk rekap. Coba konfirmasi ulang; kalau tetap gagal, laporkan ke teknis.`);
+
+            const res = await deps.sendMessageToMany(admins, { text });
+            if (!res || !res.sent) {
+                logWarn("[PAYMENT_PROOF] Alert gagal-catat-lunas tidak terkirim", res && res.errorCode);
+            }
+        } catch (alertErr) {
+            logError("[PAYMENT_PROOF] Alert gagal-catat-lunas error:", alertErr);
+        }
+    }
+
+    /**
      * GERBANG INTAKE — dipanggil SEBELUM media diunduh & sebelum apa pun disimpan.
      *
      * Mengumpulkan bukti (snapshot tagihan) lalu menyerahkan keputusan ke `classifyIncomingPhoto`
@@ -354,6 +385,8 @@ function createPaymentProofService(overrides = {}) {
             });
         } catch (err) {
             logError("[PAYMENT_PROOF] Gagal catat lunas:", err);
+            // Kegagalan di sini BERARTI UANG TAK TERCATAT — jangan biarkan cuma jadi baris log.
+            await alertAdminsSettleFailed(record, user, err);
             return { ok: false, reason: "settle_failed", error: err.message };
         }
 

@@ -5220,6 +5220,18 @@
     "category": "payment",
     "template": "⚠️ Pelanggan ini *tidak punya tagihan terbuka* — besar kemungkinan ini BUKAN bukti pembayaran (mis. foto keluhan/kendala).\n\n👉 *Balas pesan ini* dengan *hapus* untuk membuang dari antrian (pelanggan tidak dikirimi pesan apa pun).\nPakai *ok* HANYA bila ini benar-benar pembayaran di muka."
   },
+  "payment_proof_settle_failed_admin": {
+    "name": "Bukti Bayar - ALERT Gagal Catat Lunas (admin)",
+    "category": "payment",
+    "template": "🚨 *GAGAL CATAT LUNAS*\n\nPelanggan: ${nama}\nPeriode: ${periode}\nNominal: ${nominal}\nKode bukti: ${id}\n\nPenyebab: ${alasan}\n\n⚠️ Pembayaran ini *BELUM tercatat*. Tagihan pelanggan masih terbuka dan uangnya belum masuk rekap keuangan.\n\n👉 Coba konfirmasi ulang (*ok ${id}*). Kalau tetap gagal, laporkan ke teknis — jangan dibiarkan, pelanggan bisa kena pengingat/isolir padahal sudah bayar.",
+    "placeholders": [
+      "nama",
+      "periode",
+      "nominal",
+      "id",
+      "alasan"
+    ]
+  },
   "payment_proof_admin_no_outstanding": {
     "name": "Bukti Bayar - Konfirmasi Ditolak (tak ada tagihan)",
     "category": "payment",

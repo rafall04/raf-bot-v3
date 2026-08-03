@@ -11,20 +11,22 @@ const express = require('express');
 const router = express.Router();
 const { logActivity } = require('../lib/activity-logger');
 const { rateLimit, validateInput: _validateInput } = require('../lib/security');
-const { getDatabasePath } = require('../lib/env-config');
 const { renderTemplate } = require('../lib/templating');
 const { formatCurrency, formatDate } = require('../lib/message-template-helper');
 const { DOMAIN_EVENTS, emitAsync } = require('../lib/domain-events');
 const { initializeDomainNotificationListeners } = require('../lib/domain-notification-listeners');
 const { isReady } = require('../lib/whatsapp-gateway');
 const { waitForWhatsAppDelay } = require('../lib/wa-timing');
-const sqlite3 = require('sqlite3').verbose();
+const { withoutClose } = require('../lib/sqlite-shared-reader');
 
 initializeDomainNotificationListeners();
 
-// Get database connection
+// Pakai koneksi app persisten (`global.db`), BUKAN koneksi baru per request. Membuka lalu
+// menutup koneksi ke users.sqlite yang LIVE me-yatimkan file `-wal`/`-shm` sehingga koneksi
+// tulis app gagal `SQLITE_IOERR` senyap sampai restart. `withoutClose` membuat `db.close()`
+// yang tersebar di route ini jadi no-op. Lihat lib/sqlite-shared-reader.
 function getDb() {
-    return new sqlite3.Database(getDatabasePath('users.sqlite'));
+    return withoutClose(global.db);
 }
 
 // Middleware for admin only

@@ -117,12 +117,16 @@ describe('change-package sync policy', () => {
     mockIsMikrotikSyncEnabled.mockImplementation(() => global.config.sync_to_mikrotik !== false);
     mockDbRun.mockImplementation((_sql, _params, callback) => callback.call({ changes: 1 }, null));
     mockDbClose.mockImplementation(() => {});
+    // Route kini memakai koneksi app persisten (global.db) lewat withoutClose,
+    // bukan koneksi sqlite baru per request. Lihat lib/sqlite-shared-reader.
+    global.db = { run: mockDbRun, close: mockDbClose };
     mockLogActivity.mockResolvedValue(true);
     mockRenderTemplate.mockReturnValue('template');
     mockSendCritical.mockResolvedValue({ delivered: true, attempts: 1 });
   });
 
   afterEach(() => {
+    delete global.db;
     delete global.config;
     delete global.users;
     delete global.raf;
@@ -196,12 +200,16 @@ describe('change-package customer notification (sendCritical)', () => {
     mockIsMikrotikSyncEnabled.mockImplementation(() => global.config.sync_to_mikrotik !== false);
     mockDbRun.mockImplementation((_sql, _params, callback) => callback.call({ changes: 1 }, null));
     mockDbClose.mockImplementation(() => {});
+    // Route kini memakai koneksi app persisten (global.db) lewat withoutClose,
+    // bukan koneksi sqlite baru per request. Lihat lib/sqlite-shared-reader.
+    global.db = { run: mockDbRun, close: mockDbClose };
     mockLogActivity.mockResolvedValue(true);
     mockRenderTemplate.mockReturnValue('Halo, paket Anda berubah.');
     mockSendCritical.mockResolvedValue({ delivered: true, attempts: 1 });
   });
 
   afterEach(() => {
+    delete global.db;
     delete global.config;
     delete global.users;
   });
