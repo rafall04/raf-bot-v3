@@ -1173,3 +1173,13 @@
 - **Gate:** tidak ada (perbaikan bug, bukan fitur baru).
 - **Tes:** `sqlite-shared-reader` (5, termasuk regresi "siklus baca berulang tak mengganti inode -wal & tulis tetap sukses") + `users-sqlite-connection-policy` (3, guard anti-kambuh). GOTCHA test: reader sengaja tak ditutup → `afterEach` wajib `closeSharedReaders()` atau `rmSync` gagal EBUSY di Windows.
 - **PELAJARAN:** "disk I/O error" dari SQLite hampir tak pernah berarti disk rusak. Bandingkan dulu inode yang dipegang proses (`/proc/<pid>/fd`) dengan file di disk — file yatim tak terlihat sama sekali dari `df`, `dmesg`, maupun `PRAGMA quick_check`.
+
+<a id="b198"></a>
+### Fix 2026-08-03 (Menu Diskon mati diam-diam: skema kolom users.discount_* tak pernah ada di produksi)
+
+- **AKAR:** skema fitur diskon HANYA hidup di skrip sekali-jalan `scripts/run-new-features-migration.js`, tak pernah masuk `CREATE TABLE users` (`lib/database.js`) maupun sistem migrasi durabel. Skrip itu dihapus commit `e90f191` dengan alasan "one-off sudah diterapkan" — padahal di **kedua** DB produksi kolomnya tak pernah ada (51 kolom, nol `discount_*`).
+- **Gejala terukur:** `GET /api/discount/13` di prod → **HTTP 500** "Gagal mengambil data diskon"; log `SQLITE_ERROR: no such column: discount_amount` berulang sejak lama. Menu **Diskon** tetap tampil di sidebar (`_navbar.php` → `/admin-diskon`) dan routernya terpasang, jadi tombolnya hidup tapi selalu gagal.
+- **Owner:** `lib/payment-finance-service.syncUserDiscountSchema()` (BARU, dipanggil dari `ensurePaymentFinanceTables`) — self-heal idempoten 8 kolom, mengikuti idiom `syncPaymentHistorySchema` yang sudah ada. Ditaruh di modul ini karena dialah yang MEMBACA `discount_*` (`getEffectivePrice`) dan MENULIS `discount_months_used`. Fresh install ditutup lewat `CREATE TABLE users` di `lib/database.js`.
+- **Status path lama:** skrip migrasi one-off tetap terhapus (tak dihidupkan lagi); tak ada path yang dimatikan. Kolom bersifat aditif ber-default → pelanggan lama tetap "tanpa diskon", harga efektif tak berubah.
+- **Gate:** tidak ada (perbaikan bug). **Tes:** `user-discount-schema` (4) memakai bentuk tabel PERSIS prod (tanpa kolom discount) — termasuk idempotensi & jaminan data lama tak tersentuh.
+- **PELAJARAN:** tabel punya `CREATE TABLE IF NOT EXISTS` di service pemakainya sehingga selamat; penambahan KOLOM tak punya pemilik semacam itu, jadi ia mati sendirian. Sebelum menghapus migrasi "sudah diterapkan", verifikasi ke DB produksi — bukan ke asumsi.

@@ -298,6 +298,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-02 (PSB buntu: modem polos divonis "TERPAKAI pelanggan lain", dan SN di layar beda tulisan dengan stiker)](docs/boundary-log.md#b195)
 - [Feat 2026-08-02 (Titik rumah pelanggan: teknisi akhirnya punya pintu — di web dibuka, di WA dibuat terlihat)](docs/boundary-log.md#b196)
 - [Fix 2026-08-03 (Pembayaran tercatat separuh: koneksi baca yang buka-tutup me-yatimkan WAL users.sqlite)](docs/boundary-log.md#b197)
+- [Fix 2026-08-03 (Menu Diskon mati diam-diam: skema kolom users.discount_* tak pernah ada di produksi)](docs/boundary-log.md#b198)
 
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
