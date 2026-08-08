@@ -618,8 +618,16 @@ describe("PSB gerbang asal-usul modem", () => {
             oltRepository: { getModemStateByPppoe: jest.fn(async () => ({ customer_name: "Wimpi Sayekti" })) }
         });
         await reachConfirm(h);
-        // Layar kosong harus MENGAJARI jalan keluarnya, bukan buntu.
-        expect(replies(h)).toMatch(/cari <4 digit SN>/);
+        // Layar kosong harus MENGAJARI jalan keluarnya, bukan buntu — termasuk resep modem bekas
+        // MATI internet (set PPPoE ke tes@hw + REFRESH, TANPA hapus record GenieACS; insiden 2026-08-07).
+        expect(replies(h)).toMatch(/cari HWTC49B734AD/);
+        expect(replies(h)).toMatch(/cari <nama pemilik lama>/);
+        expect(replies(h)).toMatch(/tes@hw/i);
+        expect(replies(h)).toMatch(/tak perlu hapus.*GenieACS/i);
+        // JANGAN menjanjikan "factory reset → muncul otomatis di daftar": diukur di ACS produksi
+        // Dander 2026-08-08, `_lastBootstrap` tak pernah sekali pun bergerak setelah registrasi
+        // (0 dari 57 device yang punya field itu), jadi janji tsb tak bisa ditepati.
+        expect(replies(h)).not.toMatch(/reset pabrik/i);
 
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "cari wimpi" });
         expect(findPsbCandidatesByHint).toHaveBeenCalledWith(expect.objectContaining({ hint: "wimpi" }));
@@ -723,5 +731,101 @@ describe("tampilan SN (stickerSn / snText)", () => {
         expect(stickerSn("0011223344556677")).toBeNull();
         expect(snText("")).toBe("");
         expect(snText(null)).toBe("");
+    });
+});
+
+// INSIDEN Dander 2026-08-07: modem BEKAS — teknisi ketik SN LENGKAP dari stiker & PPPoE lama, dua-
+// duanya "tidak terdeteksi"; owner terpaksa set default tes@hw + HAPUS record GenieACS + ulang PSB.
+// Suite ini mengunci jalan keluar di dalam wizard: SN polosan langsung dicari, label deteksi jujur
+// (reset/online), dan peringatan modem offline SEBELUM eksekusi.
+describe("PSB modem bekas (insiden 2026-08-07)", () => {
+    const replies = (h) => h.base.reply.mock.calls.map((c) => c[0]).join("\n");
+    const { looksLikeSnInput } = require("../psb.state");
+
+    test("looksLikeSnInput: SN stiker/heksa (dgn/tanpa pemisah) YA; kata biasa, angka pilihan, perintah TIDAK", () => {
+        expect(looksLikeSnInput("HWTC49B734AD")).toBe(true);
+        expect(looksLikeSnInput("4857544349B734AD")).toBe(true);
+        expect(looksLikeSnInput("hwtc 49b7 34ad")).toBe(true);
+        expect(looksLikeSnInput("HWTC-49B734AD")).toBe(true);
+        expect(looksLikeSnInput("49B734AD")).toBe(true);
+        expect(looksLikeSnInput("2")).toBe(false);        // pemilih nomor daftar
+        expect(looksLikeSnInput("10")).toBe(false);
+        expect(looksLikeSnInput("ya")).toBe(false);
+        expect(looksLikeSnInput("refresh")).toBe(false);
+        expect(looksLikeSnInput("sukirman")).toBe(false); // nama orang → tetap butuh `cari`
+        expect(looksLikeSnInput("krajan")).toBe(false);
+        expect(looksLikeSnInput("")).toBe(false);
+    });
+
+    test("SN polosan tanpa `cari` di layar konfirmasi → langsung dicari", async () => {
+        const copotan = { deviceId: "dev-C", serialNumber: "4857544349B734AD", model: "HG8145V5", currentPPPUsername: "wimpi-krajan@rafcybernet", registeredDate: "2025-08-01T00:00:00.000Z", lastInform: "2026-07-01T00:00:00.000Z" };
+        const findPsbCandidatesByHint = jest.fn(async () => ({ ok: true, data: [copotan] }));
+        const h = harness({ findPsbCandidatesByHint });
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "HWTC49B734AD" });
+        expect(findPsbCandidatesByHint).toHaveBeenCalledWith(expect.objectContaining({ hint: "HWTC49B734AD" }));
+        expect(h.getState().step).toBe("PSB_PICK_MODEM");
+        // Modem bekas lama tak inform → daftar menandai offline, bukan "reg X hari lalu" yang menyesatkan.
+        expect(replies(h)).toMatch(/offline, terakhir/);
+    });
+
+    test("SN polosan juga berlaku di daftar pilih (STEP_PICK); angka tetap memilih nomor", async () => {
+        const copotan = { deviceId: "dev-C", serialNumber: "4857544349B734AD", model: "HG8145V5", currentPPPUsername: "wimpi-krajan@rafcybernet", registeredDate: "2025-08-01T00:00:00.000Z" };
+        const findPsbCandidatesByHint = jest.fn(async () => ({ ok: true, data: [copotan] }));
+        const h = harness({ findPsbCandidatesByHint });
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "TIDAK" });
+        expect(h.getState().step).toBe("PSB_PICK_MODEM");
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "485754 4349B7 34AD" });
+        expect(findPsbCandidatesByHint).toHaveBeenCalledWith(expect.objectContaining({ hint: "485754 4349B7 34AD" }));
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "1" });
+        const arg = h.base.usersService.upsertUserFromAdminPanel.mock.calls[0][0];
+        expect(arg.userData.device_id).toBe("dev-C");
+    });
+
+    test("label deteksi jujur: kandidat `reset` (bootstrap) & `default-online` tampil dgn stempelnya", async () => {
+        const h = harness({
+            findRecentPsbCandidates: jest.fn(async () => ({
+                ok: true,
+                data: [
+                    { deviceId: "dev-reset", serialNumber: "48575443BBBB0002", model: "HG8145V5", currentPPPUsername: "tes@hw", registeredDate: "2024-03-01T00:00:00.000Z", detectedVia: "reset", detectedAtIso: "2026-07-04T10:10:00.000Z", lastInform: "2026-07-04T10:15:00.000Z" },
+                    { deviceId: "dev-polos", serialNumber: "48575443CCCC0003", model: "HG8145V5", currentPPPUsername: "tes@hw", registeredDate: "2024-03-01T00:00:00.000Z", detectedVia: "default-online", detectedAtIso: "2026-07-04T10:12:00.000Z", lastInform: "2026-07-04T10:12:00.000Z" }
+                ]
+            }))
+        });
+        await reachConfirm(h);
+        expect(replies(h)).toMatch(/di-reset 10 mnt lalu/);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "TIDAK" });
+        expect(replies(h)).toMatch(/online 8 mnt lalu/);
+        // `_registered` kuno TIDAK ditampilkan sebagai "reg 2 tahun lalu" yang membingungkan.
+        expect(replies(h)).not.toMatch(/reg \d+ hari lalu/);
+    });
+
+    test("modem terpilih terbukti LAMA tak inform → layar konfirmasi memperingatkan SEBELUM eksekusi", async () => {
+        const h = harness({
+            findRecentPsbCandidates: jest.fn(async () => ({
+                ok: true,
+                data: [{ deviceId: "dev-off", serialNumber: "48575443DDDD0004", model: "HG8145V5", currentPPPUsername: "tes@hw", registeredDate: "2026-07-04T09:40:00.000Z", detectedVia: "registered", detectedAtIso: "2026-07-04T09:40:00.000Z", lastInform: "2026-06-01T00:00:00.000Z" }]
+            }))
+        });
+        await reachConfirm(h);
+        expect(replies(h)).toMatch(/terakhir terbaca ACS .* pastikan modem MENYALA/i);
+    });
+
+    // KEJUJURAN ERROR — akar pengalaman DAVIN: query ACS yang gagal dulu menyamar jadi
+    // "tak ada modem", membuat teknisi/owner memvonis modemnya hilang & membongkar GenieACS.
+    test("deteksi kandidat GAGAL (ACS error) → pesan 'Gagal membaca', BUKAN 'belum ada modem'", async () => {
+        const h = harness({ findRecentPsbCandidates: jest.fn(async () => ({ ok: false, message: "timeout" })) });
+        await reachConfirm(h);
+        expect(replies(h)).toMatch(/Gagal membaca daftar modem/i);
+        expect(replies(h)).not.toMatch(/belum ada modem terbaca/i);
+    });
+
+    test("cari saat ACS error → 'Pencarian gagal', BUKAN 'Tak ada modem cocok'", async () => {
+        const h = harness({ findPsbCandidatesByHint: jest.fn(async () => ({ ok: false, message: "timeout" })) });
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "cari wimpi" });
+        expect(replies(h)).toMatch(/Pencarian gagal/i);
+        expect(replies(h)).not.toMatch(/Tak ada modem cocok/i);
     });
 });

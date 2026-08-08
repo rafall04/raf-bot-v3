@@ -3,8 +3,10 @@
  * Purpose: State domain wizard PSB via DM teknisi (per-bot area) — bagian Fase 2 [[psb-simplification-plan]].
  *          Alur SLOT-FILLING: teknisi DM `#PSB` + foto KTP (data caption OPSIONAL) → bot kumpulkan
  *          data (Nama/Dusun/RT-RW/Paket/WiFi/Sandi/HP — boleh dicicil per pesan) + foto rumah + share lokasi
- *          URUTAN BEBAS, tampilkan checklist & nagih yg kurang → begitu lengkap bot BACA modem (recency
- *          `_registered`) → tampilkan RINGKASAN data + username PPPoE rakitan + SN utk diverifikasi teknisi
+ *          URUTAN BEBAS, tampilkan checklist & nagih yg kurang → begitu lengkap bot BACA modem (3 jalur:
+ *          registrasi baru `_registered` + factory-reset `_lastBootstrap` + modem polos `tes@hw` online —
+ *          modem BEKAS terlihat tanpa hapus record GenieACS; `cari` sadar bentuk stiker `HWTC…`↔heksa,
+ *          SN polosan tanpa `cari` ikut dicari) → tampilkan RINGKASAN data + username PPPoE rakitan + SN utk diverifikasi teknisi
  *          (YA/TIDAK/pilih-nomor) → HANYA setelah YA: buat pelanggan + secret PPPoE + push PPPoE+WiFi ke
  *          modem + welcome → ringkasan ke grup PSB. Konfirmasi = gate verifikasi sebelum sentuh apa pun.
  *          Username PPPoE dirakit bot dari Nama + Dusun jadi `<nama>-<dusun>@<realm>` (teknisi tak ketik
@@ -107,7 +109,8 @@ function psbTutorialText() {
         "• SN cocok → balas *YA*",
         "• Beda → balas *TIDAK* (bot kasih daftar, balas *angka*)",
         "• Belum kebaca → nyalakan modem, balas *REFRESH*",
-        "• *Modem bekas/copotan* (tak muncul di daftar) → ketik `cari 8EBEB1` (4-6 digit SN) atau `cari wimpi` (nama pemilik lama)",
+        "• *Modem bekas/copotan* (tak muncul di daftar) → ketik SN dari stiker, *lengkap atau potongan* — `cari HWTC49B734AD` / `cari 8EBEB1` — atau `cari wimpi` (nama/PPPoE pemilik lama). Kirim SN polosan tanpa `cari` juga bisa.",
+        "• Modem bekas paling pasti ditemukan lewat *cari SN* di atas — itu jalur yang dijamin jalan. Kalau mau dia muncul sendiri di daftar, set PPPoE modem ke `tes@hw` lalu balas *REFRESH*. Tak perlu hapus apa pun di GenieACS.",
         "ℹ️ Bot menandai tiap modem: 🆕 BARU · ♻️ BEKAS <nama> (boleh dipakai) · ⛔ TERPAKAI = masih melayani pelanggan lain.",
         "   Kalau ⛔ muncul, bot MENOLAK — itu benar: kalau dipaksa, internet pelanggan itu mati. Cek ulang stiker modemmu.",
         "",
@@ -178,7 +181,42 @@ function minutesAgo(iso, nowMs) {
     const t = Date.parse(iso);
     if (!Number.isFinite(t)) return "?";
     const m = Math.max(0, Math.round((nowMs - t) / 60000));
-    return m < 60 ? `${m} mnt lalu` : `${Math.round(m / 60)} jam lalu`;
+    if (m < 60) return `${m} mnt lalu`;
+    if (m < 2880) return `${Math.round(m / 60)} jam lalu`; // < 2 hari
+    return `${Math.round(m / 1440)} hari lalu`; // modem bekas: _registered bisa berumur bulan/tahun
+}
+
+// Label deteksi yang JUJUR per kandidat. Kandidat hasil deteksi otomatis membawa `detectedVia`
+// (registered/reset/default-online) dari psb-genieacs-service; kandidat hasil `cari` tidak — untuk
+// mereka tampilkan status online/offline dari `_lastInform`, karena "reg 2 tahun lalu" pada modem
+// bekas itu benar tapi menyesatkan (yang teknisi butuh tahu: modem ini hidup atau tidak).
+const ONLINE_INFORM_MAX_MS = 30 * 60 * 1000;
+function detectedLabel(c, nowMs) {
+    if (!c) return "";
+    if (c.detectedVia === "reset") return `di-reset ${minutesAgo(c.detectedAtIso, nowMs)}`;
+    if (c.detectedVia === "default-online") return `online ${minutesAgo(c.detectedAtIso, nowMs)}`;
+    if (c.detectedVia === "registered") return `reg ${minutesAgo(c.detectedAtIso, nowMs)}`;
+    const informTs = Date.parse(c.lastInform || "");
+    if (Number.isFinite(informTs)) {
+        return (nowMs - informTs) <= ONLINE_INFORM_MAX_MS
+            ? `online ${minutesAgo(c.lastInform, nowMs)}`
+            : `⚠️ offline, terakhir ${minutesAgo(c.lastInform, nowMs)}`;
+    }
+    return c.registeredDate ? `reg ${minutesAgo(c.registeredDate, nowMs)}` : "";
+}
+
+// Peringatan bila modem terpilih tampak MATI (tak pernah/lama tak inform): push setting bakal gagal.
+// Teknisi tetap boleh lanjut (pelanggan tercatat, push diberi tahu gagal secara jujur) — tapi dia
+// diberi tahu SEBELUM eksekusi supaya bisa menyalakan/mereset modem dulu.
+function offlineWarningLine(candidate, nowMs) {
+    if (!candidate) return null;
+    // Hanya bila TERBUKTI basi: record ACS selalu punya `_lastInform`; tanpa nilai (kandidat
+    // sintetis/projection aneh) jangan menuduh offline — "tidak tahu" ≠ "terbukti mati".
+    const informTs = Date.parse(candidate.lastInform || "");
+    if (!Number.isFinite(informTs) || (nowMs - informTs) <= ONLINE_INFORM_MAX_MS) return null;
+    // Catatan: TR-069 di jaringan ini lewat jalur manajemen SENDIRI (bukan sesi PPPoE pelanggan),
+    // jadi lastInform basi ≈ modem benar-benar mati/tak tersambung — bukan soal kredensial.
+    return `⚠️ Modem ini terakhir terbaca ACS ${minutesAgo(candidate.lastInform, nowMs)} — pastikan modem MENYALA & tersambung jaringan (cek adaptor/kabel optik). Kalau tetap mati, setting otomatis akan GAGAL.`;
 }
 
 // Slug bagian NAMA untuk username: huruf kecil, spasi→_, buang selain [a-z0-9_].
@@ -513,10 +551,12 @@ async function detectAndAskConfirm(context, ctx) {
     ctx.odp = resolveNearestOdp(context, ctx);
 
     let candidates = [];
+    let scanFailed = false;
     try {
         const res = await findRecentPsbCandidates({ windowMinutes, limit: 10, nowMs });
         if (res && res.ok) candidates = res.data || [];
-    } catch (e) { logger?.error?.("[PSB_DM] deteksi modem gagal:", e.message); }
+        else { scanFailed = true; logger?.warn?.(`[PSB_DM] deteksi modem gagal: ${res && res.message}`); }
+    } catch (e) { scanFailed = true; logger?.error?.("[PSB_DM] deteksi modem gagal:", e.message); }
 
     // ASAL-USUL tiap kandidat: modem polos, modem copotan (bekas siapa), atau MASIH dipakai orang.
     // Ini yang membuat teknisi tak perlu tahu modem itu bekas siapa — dan yang mencegah modem
@@ -525,12 +565,26 @@ async function detectAndAskConfirm(context, ctx) {
 
     if (candidates.length === 0) {
         setUserState(stateSender, { step: STEP_CONFIRM, _scope: "teknisi", context: { ...ctx, candidate: null, candidates: [] } });
+        // KEJUJURAN: gagal-baca ACS ≠ "modemnya tidak ada". Dua pesan berbeda supaya teknisi
+        // tidak memvonis modem (atau membongkar GenieACS) padahal yang sakit koneksi/ACS-nya.
+        if (scanFailed) {
+            await safeReply(reply, [
+                ...customerRecapLines(ctx),
+                ``,
+                `⚠️ *Gagal membaca daftar modem dari ACS* (bukan berarti modemnya tak ada).`,
+                `• Tunggu sebentar lalu balas *REFRESH* untuk coba lagi`,
+                `• Atau langsung ketik SN dari stiker: \`cari HWTC49B734AD\` (lengkap/potongan) / \`cari <nama pemilik lama>\``,
+                `• Batalkan: *BATAL*`
+            ].join("\n"), logger);
+            return;
+        }
         await safeReply(reply, [
             ...customerRecapLines(ctx),
             ``,
-            `⚠️ Data siap, tapi *belum ada modem baru terbaca* di ACS (window ${windowMinutes} mnt).`,
-            `• Modem baru dinyalakan? tunggu sebentar lalu balas *REFRESH*`,
-            `• *Modem bekas/copotan?* dia tak muncul di daftar "baru" — ketik \`cari <4 digit SN>\` atau \`cari <nama pemilik lama>\``,
+            `⚠️ Data siap, tapi *belum ada modem terbaca* di ACS (window ${windowMinutes} mnt).`,
+            `• Modem baru dinyalakan? tunggu 1–2 mnt lalu balas *REFRESH*`,
+            `• *Modem bekas/copotan?* ketik SN dari stiker, lengkap atau potongan (mis. \`cari HWTC49B734AD\`) — atau \`cari <nama pemilik lama>\` / \`cari <pppoe lama>\`. Modem bekas KETEMU lewat cari walau tak muncul di daftar ini.`,
+            `• Mau muncul sendiri di daftar? set PPPoE modem ke \`tes@hw\` lalu balas *REFRESH* — tak perlu hapus-hapus di GenieACS`,
             `• Batalkan: *BATAL*`
         ].join("\n"), logger);
         return;
@@ -541,7 +595,8 @@ async function detectAndAskConfirm(context, ctx) {
     await safeReply(reply, [
         `📋 *CEK DULU sebelum dieksekusi:*`,
         ...customerRecapLines(ctx),
-        `📡 Modem: SN \`${snText(top.serialNumber)}\` · ${top.model} · reg ${minutesAgo(top.registeredDate, nowMs)}${provBadge(context, top)}`,
+        `📡 Modem: SN \`${snText(top.serialNumber)}\` · ${top.model} · ${detectedLabel(top, nowMs)}${provBadge(context, top)}`,
+        ...(offlineWarningLine(top, nowMs) ? [offlineWarningLine(top, nowMs)] : []),
         ...(assignmentBlockReason(top) ? [``, assignmentBlockReason(top)] : []),
         ``,
         `Semua BENAR & modem cocok stiker? Balas *YA* (eksekusi) · *TIDAK* (ganti modem) · *BATAL*`
@@ -554,6 +609,16 @@ function parseSearchHint(text) {
     return m ? m[1].trim() : null;
 }
 
+// Teknisi sering mengetik SN POLOSAN tanpa kata `cari` — token yang berpola SN diperlakukan sebagai
+// pencarian. Ketat: setelah pemisah dibuang wajib 6–24 alfanumerik DAN berpola SN (stiker
+// `HWTC…` = 4 huruf + heksa, atau heksa ≥6 digit) supaya jawaban kata biasa ("sudah", nama dusun)
+// tidak ikut tersedot jadi pencarian, dan angka pilihan 1–10 (≤2 digit) tetap jadi pemilih nomor.
+function looksLikeSnInput(text) {
+    const stripped = String(text || "").trim().replace(/[\s:._\-]/g, "");
+    if (!/^[0-9a-zA-Z]{6,24}$/.test(stripped)) return false;
+    return /^[a-zA-Z]{4}[0-9a-fA-F]{2,}$/.test(stripped) || /^[0-9a-fA-F]{6,}$/.test(stripped);
+}
+
 // Jalur CARI — dipakai saat daftar otomatis kosong atau modem yang benar tak muncul di situ.
 // Ini penting khusus untuk modem COPOTAN: dia tak ikut "baru terdeteksi" (registrasinya ke ACS
 // sudah lama), jadi satu-satunya cara menemukannya adalah dicari — lewat potongan SN di stiker,
@@ -562,17 +627,29 @@ async function searchAndList(context, ctx, hint) {
     const { reply, setUserState, stateSender, findPsbCandidatesByHint, nowMs = Date.now(), logger = console } = context;
 
     let found = [];
+    let searchFailed = false;
     try {
         const res = await findPsbCandidatesByHint({ hint, limit: 10 });
         if (res && res.ok) found = res.data || [];
-        else if (res && res.message) logger?.warn?.(`[PSB_DM] cari modem gagal: ${res.message}`);
-    } catch (e) { logger?.error?.("[PSB_DM] cari modem gagal:", e.message); }
+        else { searchFailed = true; logger?.warn?.(`[PSB_DM] cari modem gagal: ${res && res.message}`); }
+    } catch (e) { searchFailed = true; logger?.error?.("[PSB_DM] cari modem gagal:", e.message); }
+
+    // KEJUJURAN: query yang GAGAL tidak boleh menyamar jadi "tak ada yang cocok" — itu membuat
+    // teknisi memvonis modemnya hilang padahal ACS-nya yang tak merespons (timeout/breaker).
+    if (searchFailed) {
+        await safeReply(reply, [
+            `⚠️ *Pencarian gagal* — ACS tidak merespons (bukan berarti modem "*${hint}*" tak ada).`,
+            `Tunggu sebentar lalu ulangi \`cari ${hint}\`, atau balas *REFRESH*. Batal: *BATAL*.`
+        ].join("\n"), logger);
+        return;
+    }
 
     if (!found.length) {
         await safeReply(reply, [
             `🔎 Tak ada modem cocok "*${hint}*".`,
-            `Coba potongan *SN* dari stiker (4 digit terakhir cukup), atau *nama pemilik lama* modem.`,
-            `Kalau modem baru saja dinyalakan, balas *REFRESH*. Batal: *BATAL*.`
+            `Coba SN dari stiker — *lengkap* (mis. \`HWTC49B734AD\`) atau potongan (4 digit terakhir cukup) — atau *nama/PPPoE pemilik lama* modem.`,
+            `Modem belum pernah online di jaringan kita (belum ada di ACS)? Nyalakan & tunggu 1–2 mnt (modem bekas: reset pabrik / PPPoE \`tes@hw\` membantu ia masuk daftar otomatis), lalu balas *REFRESH*.`,
+            `Batal: *BATAL*.`
         ].join("\n"), logger);
         return;
     }
@@ -585,7 +662,7 @@ async function searchAndList(context, ctx, hint) {
 function candidateListText(context, candidates, nowMs) {
     const nums = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
     const lines = candidates.slice(0, 10).map((c, i) =>
-        `${nums[i] || (i + 1) + "."} SN \`${snText(c.serialNumber)}\` · ${c.model} · reg ${minutesAgo(c.registeredDate, nowMs)}${provBadge(context, c)}`);
+        `${nums[i] || (i + 1) + "."} SN \`${snText(c.serialNumber)}\` · ${c.model} · ${detectedLabel(c, nowMs)}${provBadge(context, c)}`);
     return `Pilih modem yang cocok dgn stiker (balas *angka*), atau *REFRESH* / *BATAL*:\n${lines.join("\n")}`;
 }
 
@@ -916,7 +993,10 @@ async function handlePsbConversationState(context) {
         if (lower === "refresh") { await detectAndAskConfirm(context, ctx); return { handled: true }; }
         const hint = parseSearchHint(text);
         if (hint) { await searchAndList(context, ctx, hint); return { handled: true }; }
-        await safeReply(reply, "Balas *YA* (cocok) · *TIDAK* (pilih dari daftar) · *REFRESH* · `cari <SN/nama>` · *BATAL*.", logger);
+        // SN polosan (tanpa `cari`) → langsung dicari. Teknisi di lapangan mengetik apa yang dia
+        // baca di stiker; jangan hukum dia dengan menu bantuan hanya karena kurang satu kata.
+        if (looksLikeSnInput(text)) { await searchAndList(context, ctx, text); return { handled: true }; }
+        await safeReply(reply, "Balas *YA* (cocok) · *TIDAK* (pilih dari daftar) · *REFRESH* · `cari <SN/nama>` (SN stiker lengkap juga bisa) · *BATAL*.", logger);
         return { handled: true };
     }
 
@@ -925,6 +1005,9 @@ async function handlePsbConversationState(context) {
         if (lower === "refresh") { await detectAndAskConfirm(context, ctx); return { handled: true }; }
         const pickHint = parseSearchHint(text);
         if (pickHint) { await searchAndList(context, ctx, pickHint); return { handled: true }; }
+        // SN polosan juga berlaku di daftar pilih — pemilih nomor tetap aman (angka 1–10 terlalu
+        // pendek untuk lolos looksLikeSnInput).
+        if (looksLikeSnInput(text)) { await searchAndList(context, ctx, text); return { handled: true }; }
         const n = parseInt(text, 10);
         if (Number.isInteger(n) && n >= 1 && n <= (ctx.candidates || []).length) {
             const picked = ctx.candidates[n - 1];
@@ -948,6 +1031,7 @@ module.exports = {
     buildPppoeUsername,
     stickerSn,
     snText,
+    looksLikeSnInput,
     isPsbTutorialTrigger,
     psbTutorialText,
     PSB_STEPS,
