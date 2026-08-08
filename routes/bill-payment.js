@@ -60,6 +60,16 @@ function resolveBillContext(token) {
     };
 }
 
+// Status lunas dari snapshot runtime bisa BOOLEAN atau INTEGER, tergantung siapa yang terakhir
+// menulisnya: loader boot (`lib/database.js`) mengoersi ke boolean, tetapi jalur pelunasan
+// (`lib/payment-finance-service.js` → `paidValue = isPaid ? 1 : 0`) menaruh integer 1 ke snapshot.
+// Artinya `paid === true` justru GAGAL tepat setelah pelanggan membayar — persis saat gerbang
+// "sudah lunas" paling dibutuhkan. Pakai predikat yang sama dengan services/api-users/update-user-by-id.js.
+function isUserPaid(user) {
+    const paid = user && user.paid;
+    return paid === true || paid === 1 || paid === "1";
+}
+
 function currentPeriod() {
     const now = new Date();
     return { periodMonth: now.getMonth() + 1, periodYear: now.getFullYear() };
@@ -115,7 +125,7 @@ router.get("/bayar/:token", chargeLimiter, async (req, res) => {
     const ctx = resolveBillContext(req.params.token);
     if (!ctx.ok) return res.status(400).send(statusPage("Link tidak valid", "Tautan pembayaran tidak valid atau sudah kedaluwarsa. Silakan hubungi admin."));
     if (ctx.whitelist) return res.send(statusPage("Tidak Ada Tagihan", `Halo ${ctx.user.name}, paket Anda tidak ditagih. Terima kasih.`));
-    if (ctx.user.paid === true) return res.send(statusPage("Sudah Lunas", `Tagihan Anda sudah lunas. Terima kasih, ${ctx.user.name}. 🙏`));
+    if (isUserPaid(ctx.user)) return res.send(statusPage("Sudah Lunas", `Tagihan Anda sudah lunas. Terima kasih, ${ctx.user.name}. 🙏`));
     if (!ctx.amount || ctx.amount < 1000) return res.status(400).send(statusPage("Tagihan Belum Tersedia", "Nominal tagihan belum diatur. Silakan hubungi admin."));
 
     const { periodMonth, periodYear } = currentPeriod();
@@ -317,7 +327,7 @@ router.get("/api/bayar/:token/info", async (req, res) => {
     if (!ctx.ok) return res.json({ ok: false, status: ctx.status, reason: ctx.reason });
     if (ctx.whitelist) return res.json({ ok: true, status: "free", nama: ctx.user.name });
 
-    const paid = ctx.user.paid === true;
+    const paid = isUserPaid(ctx.user);
     let channels = null;
     let channelError = null;
     if (!paid) {
@@ -350,7 +360,7 @@ router.post("/api/bayar/:token/charge", chargeLimiter, async (req, res) => {
     const ctx = resolveBillContext(req.params.token);
     if (!ctx.ok) return res.status(400).json({ ok: false, status: ctx.status });
     if (ctx.whitelist) return res.status(400).json({ ok: false, status: "free" });
-    if (ctx.user.paid === true) return res.status(409).json({ ok: false, status: "already_paid" });
+    if (isUserPaid(ctx.user)) return res.status(409).json({ ok: false, status: "already_paid" });
     if (!ctx.amount || ctx.amount < 1000) return res.status(400).json({ ok: false, status: "invalid_amount" });
 
     const { method, channel } = req.body || {};
@@ -424,3 +434,5 @@ router.get("/api/bayar/:token/status", (req, res) => {
 });
 
 module.exports = router;
+// Internal — test.
+module.exports._isUserPaid = isUserPaid;

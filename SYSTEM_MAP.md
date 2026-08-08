@@ -300,6 +300,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-03 (Pembayaran tercatat separuh: koneksi baca yang buka-tutup me-yatimkan WAL users.sqlite)](docs/boundary-log.md#b197)
 - [Fix 2026-08-03 (Menu Diskon mati diam-diam: skema kolom users.discount_* tak pernah ada di produksi)](docs/boundary-log.md#b198)
 - [Fix 2026-08-07/08 (PSB "SN selalu salah": cari/by-sn kini sadar bentuk stiker `HWTC…`↔heksa ACS — diverifikasi langsung ke ACS produksi 160 device)](docs/boundary-log.md#b199)
+- [Fix 2026-08-09 (Tiga gerbang yang tak pernah menyala: tutup tiket, bayar-dua-kali, dan tujuan transfer saldo)](docs/boundary-log.md#b200)
 
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.

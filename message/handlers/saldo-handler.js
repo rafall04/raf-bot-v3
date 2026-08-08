@@ -21,11 +21,14 @@ const MIN_TRANSFER_AMOUNT = 1000;
 /**
  * Cek apakah targetId terdaftar di sistem (saldo atau users registry).
  * Pakai ini sebelum transfer untuk hindari kredit ke JID hantu.
+ * WAJIB async: `saldoManager.getUserSaldoData` adalah fungsi async (lib/saldo/balance-operations.js).
+ * Tanpa `await`, yang dinilai adalah Promise — selalu truthy — sehingga gerbang ini dulu SELALU
+ * meloloskan tujuan mana pun, termasuk nomor yang tak pernah terdaftar.
  */
-function isTargetRegistered(targetId, targetNumber) {
+async function isTargetRegistered(targetId, targetNumber) {
     // 1. Sudah punya row saldo (pernah cek/topup) → registered.
     try {
-        const row = saldoManager.getUserSaldoData?.(targetId);
+        const row = await saldoManager.getUserSaldoData?.(targetId);
         if (row) return true;
     } catch (__) {}
 
@@ -456,7 +459,7 @@ async function handleTransferSaldo(msg, sender, reply, args) {
         }
 
         // Verifikasi tujuan terdaftar — supaya tidak kredit ke JID hantu.
-        if (!isTargetRegistered(targetId, targetNumber)) {
+        if (!(await isTargetRegistered(targetId, targetNumber))) {
             return await reply(renderResponseTemplate(
                 'saldo_transfer_target_not_registered',
                 `❌ Nomor ${targetNumber} belum terdaftar di sistem. Pastikan nomor tujuan sudah pernah daftar/topup di bot ini.`,

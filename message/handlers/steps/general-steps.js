@@ -4,7 +4,8 @@
  * Header Doc
  * Purpose: Menangani langkah percakapan umum (konfirmasi proses tiket, resolusi/foto tiket, komplain, tanya) untuk workflow tiket legacy.
  * Caller: Router state conversation bot.
- * Deps: `../../../lib/whatsapp-delivery-service`, `../../../lib/whatsapp-gateway`, dan `../../../lib/template-service`.
+ * Deps: `../../../lib/whatsapp-delivery-service`, `../../../lib/whatsapp-gateway`, `../../../lib/template-service`,
+ *   dan `../ticket-creation-handler` (pemilik `saveReportsToFile` — persistensi tiket ke `database/reports.json`).
  * MainFuncs: `handleGeneralSteps`.
  * SideEffects: Mengubah state percakapan, memicu aksi device, dan mengirim update tiket ke pelanggan.
  */
@@ -119,7 +120,7 @@ async function handleGeneralSteps({ userState, sender, chats, pushname, setUserS
                     global.reports[reportIndex].teknisiName = teknisiName;          // For new workflow
                     
                     // Save to file
-                    const { saveReportsToFile } = require('../report-handler');
+                    const { saveReportsToFile } = require('../ticket-creation-handler');
                     saveReportsToFile(global.reports);
                     
                     // Notify customer
@@ -359,7 +360,7 @@ async function handleGeneralSteps({ userState, sender, chats, pushname, setUserS
                     }
                     
                     // Save to file
-                    const { saveReportsToFile } = require('../report-handler');
+                    const { saveReportsToFile } = require('../ticket-creation-handler');
                     saveReportsToFile(global.reports);
                     
                     // Build customer notification
