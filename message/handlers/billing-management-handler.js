@@ -42,7 +42,12 @@ async function handleCekTagihan({ plainSenderNumber: _plainSenderNumber, pushnam
         // 3. Find package details
         const packageInfo = global.packages.find(p => p.name === user.subscription);
         const packageName = packageInfo ? packageInfo.name : "Tidak Diketahui";
-        const packagePrice = packageInfo ? parseInt(packageInfo.price) : 0;
+        // Harga EFEKTIF (subscription_price per-pelanggan + diskon aktif), satu sumber dengan
+        // ledger pembayaran — bukan harga paket mentah yang salah untuk pelanggan berharga khusus.
+        const { getEffectivePrice } = require('../../lib/payment-finance-service');
+        // TANPA fallback ke harga paket: nilai 0 dari getEffectivePrice adalah jawaban SAH
+        // (paket gratis / diskon 100%) dan tak boleh diganti harga penuh.
+        const packagePrice = getEffectivePrice(user);
 
         // 4. Check paid status and build response using templates
         const templateData = {

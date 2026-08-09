@@ -1,8 +1,15 @@
 "use strict";
 
 /**
- * Customer Handler
- * Menangani fitur-fitur untuk pelanggan
+ * Header Doc
+ * Purpose: Handler fitur pelanggan di bot WA — cek tagihan, cek paket, dan penerimaan keluhan.
+ *   Pesan yang dirakit di sini dibaca langsung oleh PELANGGAN, jadi tidak boleh memuat data
+ *   internal (device-id ACS, nama profil MikroTik, ODP/ODC).
+ * Caller: `message/handlers/raf-intent-dispatch/customer-service-intents.js` dan dispatcher intent.
+ * Deps: `rupiah-format`, `./conversation-handler` (state percakapan + katalog pesan).
+ * MainFuncs: `handleCheckBill`, `handleCheckPackage`, `handleComplaint`.
+ * SideEffects: Menyetel conversation state (alur keluhan); tidak mengirim WA sendiri —
+ *   mengembalikan objek `{success, message}` untuk dikirim caller.
  */
 
 const convertRupiah = require('rupiah-format');
@@ -106,17 +113,21 @@ function handleCheckPackage({ user, pushname }) {
 
         if (packageDetails) {
             message += `💰 *Harga:* ${convertRupiah.convert(packageDetails.price)}\n`;
-            if (packageDetails.profile) {
-                message += `⚡ *Kecepatan:* ${packageDetails.profile}\n`;
+            // `profile` = NAMA PROFIL MIKROTIK (internal, mis. "12Mbps"). Yang boleh dilihat
+            // pelanggan adalah `displayProfile` ("Up To 10Mbps") — sama seperti jalur pelanggan
+            // lain (message/wifi.js, lib/services/customer-service.js, routes/packages.js).
+            const kecepatan = packageDetails.displayProfile || packageDetails.profile;
+            if (kecepatan) {
+                message += `⚡ *Kecepatan:* ${kecepatan}\n`;
             }
             if (packageDetails.description) {
                 message += `📝 *Deskripsi:* ${packageDetails.description}\n`;
             }
         }
 
-        if (user.device_id) {
-            message += `🔧 *Device ID:* ${user.device_id}\n`;
-        }
+        // Device ID GenieACS SENGAJA tidak ditampilkan: identitas internal ACS dilarang muncul
+        // di pesan pelanggan (CLAUDE.md > pesan pelanggan tanpa data internal). Teknisi/admin
+        // membacanya lewat panel, bukan lewat balasan bot ke pelanggan.
 
         message += `\n📞 *Butuh upgrade atau downgrade paket?*\n`;
         message += `Silakan hubungi admin untuk perubahan paket.\n`;

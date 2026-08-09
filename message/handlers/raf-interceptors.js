@@ -1,3 +1,15 @@
+/**
+ * Header Doc
+ * Purpose: Guard pra-dispatch untuk router pesan WA — menentukan apakah pesan masuk boleh
+ *   menginterupsi state percakapan yang sedang berjalan (kata batal, perintah global, state
+ *   terproteksi) dan menormalkan hasil pencocokan intent.
+ * Caller: `message/raf.js` (sebelum routeConversationState / routeManagedState).
+ * Deps: tidak ada (murni fungsi + konstanta; matcher intent disuntik caller).
+ * MainFuncs: `isCancellationKeyword`, `isWifiInputState`, `isStateBreakingCommand`,
+ *   `buildStateRoutingContext`, `resolveGlobalCommandStatus`, `resolveIntentFromKeywords`.
+ * SideEffects: Tidak ada — tak menyentuh state, DB, maupun WhatsApp.
+ */
+
 // State yang user-facing tidak boleh terinterupsi oleh global command (menu, lapor, dst).
 // Keluar dari state ini hanya bisa lewat *batal/cancel* atau penyelesaian alur normal.
 const PROTECTED_STATES = [
@@ -101,6 +113,67 @@ function resolveGlobalCommandStatus({ chats, isInProtectedState, getIntentFromKe
     return GLOBAL_COMMANDS.includes(commandCheck) || keywordCheck !== null;
 }
 
+// Perintah yang boleh MEMUTUS state percakapan yang sedang berjalan.
+//
+// SENGAJA lebih sempit daripada `resolveGlobalCommandStatus`. Yang terakhir bernilai true untuk
+// keyword APA PUN (`... || keywordCheck !== null`), dan itu dipakai hilir untuk arti lain
+// ("pesan ini kelihatan seperti perintah, bukan jawaban state") — jadi maknanya tidak diubah.
+// Tapi memakainya sebagai izin MENGHAPUS state membuat jawaban wajar di tengah wizard
+// meledakkan sesi: `cari <SN>` (yang justru diajarkan bot di alur PSB), `lokasi budi` (dicetak
+// bot sendiri sebagai cara mempersempit daftar), dan `internet mati` sebagai isi keluhan.
+// Pemakainya mengetik persis yang disuruh, lalu kehilangan seluruh progres.
+//
+// Jalan keluar tetap ada dan tak pernah tertutup: kata batal (ditangani terpisah, sebelum ini),
+// perintah eksplisit di GLOBAL_COMMANDS, dan kedaluwarsa state 15 menit.
+function isStateBreakingCommand(chats) {
+    const firstWord = normalizeChatInput(chats).split(/\s+/)[0];
+    if (!firstWord) return false;
+    // Semua varian MENU ikut memutus. Katalog perintah live memuat `menuwifi`, `menuteknisi`, dan
+    // `menuowner` selain `menu` — semuanya murni navigasi, dan pemakai yang mengetiknya jelas
+    // sedang minta keluar. Tanpa ini, orang yang menuruti menu bot justru tersangkut di wizard.
+    if (firstWord.startsWith("menu")) return true;
+    return GLOBAL_COMMANDS.includes(firstWord);
+}
+
+// State yang MENGUMPULKAN DATA BEBAS dari pemakai — di sinilah keyword tak boleh memutus state.
+//
+// Ini sengaja daftar prefix yang SEMPIT, bukan "semua state". Bug aslinya khusus terjadi di
+// wizard pengumpul data: bot meminta sebuah NILAI (SN modem, nama pelanggan, isi keluhan, nama
+// dusun), lalu nilai yang diketik pemakai kebetulan cocok keyword dan meledakkan sesi — termasuk
+// `cari <SN>` dan `lokasi <nama>` yang justru diajarkan bot sendiri.
+//
+// State lain (pilihan bernomor seperti menu laporan / mode ganti WiFi) TIDAK masuk sini: di sana
+// pemakai yang mengetik ulang perintahnya memang bermaksud memulai ulang, dan menahan state akan
+// membuatnya ditegur "pilihan tidak valid" alih-alih dilayani.
+const DATA_COLLECTING_STATE_PREFIXES = [
+    'PSB_',            // wizard PSB (data pelanggan, SN modem, foto)
+    'PSBJADWAL_',      // wizard #jadwal papan PSB
+    'CUSTLOC_',        // titik lokasi pelanggan (nama/nomor pelanggan)
+    'ASSET_',          // wizard aset ODC/ODP/JALUR
+    'AWAITING_COMPLAINT',
+    'AWAITING_QUESTION',
+    'AUTO_OUTAGE_TRIAGE'
+];
+
+function isDataCollectingState(step) {
+    const s = String(step || '');
+    if (!s) return false;
+    return DATA_COLLECTING_STATE_PREFIXES.some((prefix) => s === prefix || s.startsWith(prefix));
+}
+
+/**
+ * Boleh memutus state yang sedang berjalan?
+ * - Perintah global eksplisit (varian menu, bantuan, lapor, saldo) SELALU boleh — pemakai tak
+ *   boleh terjebak.
+ * - Selain itu, perilaku lama dipertahankan (keyword apa pun memutus), KECUALI di wizard pengumpul
+ *   data, tempat jawaban pemakai kerap menyerupai perintah.
+ */
+function shouldBreakState({ chats, step, isGlobalCommand }) {
+    if (isStateBreakingCommand(chats)) return true;
+    if (isDataCollectingState(step)) return false;
+    return !!isGlobalCommand;
+}
+
 function resolveIntentFromKeywords({ chats, isAgent, getIntentFromKeywords }) {
     const keywordResult = getIntentFromKeywords(chats);
     if (!keywordResult) {
@@ -127,8 +200,12 @@ function resolveIntentFromKeywords({ chats, isAgent, getIntentFromKeywords }) {
 module.exports = {
     PROTECTED_STATES,
     WIFI_INPUT_STATES,
+    GLOBAL_COMMANDS,
     isCancellationKeyword,
     isWifiInputState,
+    isStateBreakingCommand,
+    isDataCollectingState,
+    shouldBreakState,
     buildStateRoutingContext,
     resolveGlobalCommandStatus,
     resolveIntentFromKeywords

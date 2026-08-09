@@ -2,11 +2,13 @@
  * Header Doc
  * Purpose: Skeleton handler map untuk intent workflow tiket teknisi/owner di dispatcher WhatsApp.
  * Caller: `message/handlers/raf-intent-dispatch/index.js` dan composer dispatcher intent.
- * Deps: Tidak ada; placeholder refactor tahap skeleton.
+ * Deps: `../../../lib/ticket-workflow` (`normalizeStatus` — satu sumber kebenaran status tiket).
  * MainFuncs: `TICKET_TEKNISI_INTENT_HANDLERS`, `handleListTiketIntent`, `handleDoneUploadPhotosIntent`, `handleSelesaiTiketIntent`.
  * SideEffects: Tidak ada.
  */
 "use strict";
+
+const { normalizeStatus } = require("../../../lib/ticket-workflow");
 
 async function handleSelesaikanTiketIntent(context) {
     const {
@@ -77,8 +79,13 @@ async function handleListTiketIntent(context) {
 
     if (!isTeknisi && !isOwner) return reply(mess.teknisiOrOwnerOnly);
 
+    // Status tiket punya SATU pemilik: `normalizeStatus` (lib/ticket-workflow). Tiket baru lahir
+    // dengan status 'baru' (`createBaseTicket`), dan `ensureFinalStatus` memaksa nilai di luar
+    // daftar final kembali ke 'baru' — jadi 'pending'/'open' TIDAK PERNAH ada di data. Daftar
+    // string mentah di sini membuat `list tiket` selalu menjawab "tidak ada tiket" walau antrean
+    // gangguan menumpuk. Jalur pelanggan (`ticket-customer-intents.js`) sudah memakai 'baru'.
     const pendingTickets = global.reports?.filter(r =>
-        r.status === 'pending' || r.status === 'open'
+        normalizeStatus(r.status) === 'baru'
     ) || [];
 
     if (pendingTickets.length === 0) {

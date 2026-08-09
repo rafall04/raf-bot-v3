@@ -40,7 +40,7 @@ const { evaluateAreaOutage } = require('../../lib/area-outage-gate');
 
 // Cache daftar PPPoE aktif sebentar supaya burst "cek koneksi" tidak menghajar MikroTik.
 // addrByUser dipakai seksi upstream (map username → IP remote utk pemetaan jalur).
-let activeCache = { at: 0, routerId: null, set: null, addrByUser: null };
+let activeCache = { at: 0, routerId: null, set: null, addrByUser: null, error: null };
 const ACTIVE_CACHE_TTL_MS = 30000;
 
 // Cache laporan status jalur upstream (query SQLite ringan, tapi burst tetap dihemat).
@@ -66,20 +66,55 @@ function normalizeUsername(value) {
         .toLowerCase();
 }
 
+// "Gagal membaca" TIDAK BOLEH menyamar jadi "daftar kosong".
+//
+// `getActivePPPoEUsers` tidak pernah throw: saat timeout / circuit-breaker terbuka / config
+// salah, ia RESOLVE `{ok:false, data:null, errorCode:…}`. Versi lama fungsi ini memulangkan `[]`
+// untuk bentuk itu, sehingga SETIAP pelanggan dinilai offline, `offlineCount` = seluruh
+// pelanggan ber-PPPoE, gerbang gangguan-area pasti menyala, dan pelanggan yang internetnya
+// baik-baik saja dikabari "TERPUTUS — terdeteksi gangguan pada jaringan di area Anda".
+// Sekarang: hanya array yang benar-benar terbaca yang dianggap data; bentuk lain = gagal baca.
+class MikrotikReadError extends Error {
+    constructor(errorCode) {
+        super(`Gagal membaca sesi PPPoE aktif dari MikroTik (${errorCode || "UNKNOWN"})`);
+        this.name = "MikrotikReadError";
+        this.errorCode = errorCode || "UNKNOWN";
+    }
+}
+
 function unwrapMikrotikList(result) {
     if (Array.isArray(result)) return result;
+    // Result-object yang eksplisit gagal → jangan pernah diterjemahkan jadi daftar kosong.
+    if (result && typeof result === "object" && result.ok === false) {
+        throw new MikrotikReadError(result.errorCode);
+    }
     if (Array.isArray(result?.data)) return result.data;
     if (Array.isArray(result?.data?.data)) return result.data.data;
     if (Array.isArray(result?.items)) return result.items;
-    return [];
+    // Bentuk tak dikenal (mis. `{ok:true, data:null}`) = tak bisa dipastikan → gagal-tertutup.
+    throw new MikrotikReadError("UNPARSEABLE_RESULT");
 }
 
 async function getActiveUsernameSet(routerId) {
     const now = Date.now();
-    if (activeCache.set && activeCache.routerId === routerId && now - activeCache.at < ACTIVE_CACHE_TTL_MS) {
-        return activeCache.set;
+    const masihSegar = activeCache.routerId === routerId && now - activeCache.at < ACTIVE_CACHE_TTL_MS;
+
+    // Cache NEGATIF: kegagalan ikut disimpan (sebagai kegagalan, BUKAN sebagai daftar kosong).
+    // Saat router sakit, "cek koneksi" biasanya datang berbondong-bondong — tanpa ini tiap pesan
+    // menembak ulang router yang sedang bermasalah. Yang di-cache adalah FAKTA "tak bisa dibaca",
+    // sehingga jawabannya tetap 'unknown' dan tak pernah berubah jadi vonis offline.
+    if (masihSegar && activeCache.error) throw activeCache.error;
+    if (masihSegar && activeCache.set) return activeCache.set;
+
+    let list;
+    try {
+        list = unwrapMikrotikList(await getActivePPPoEUsers({ router_id: routerId }));
+    } catch (err) {
+        // addrByUser SENGAJA dikosongkan: memetakan jalur upstream pelanggan dari IP lama saat
+        // router tak terbaca akan menghasilkan diagnosa yang percaya diri tapi salah.
+        activeCache = { at: now, routerId, set: null, addrByUser: null, error: err };
+        throw err;
     }
-    const list = unwrapMikrotikList(await getActivePPPoEUsers({ router_id: routerId }));
     const set = new Set();
     const addrByUser = new Map();
     for (const item of list) {
@@ -89,7 +124,7 @@ async function getActiveUsernameSet(routerId) {
         const addr = item.address || item.ip || null;
         if (addr) addrByUser.set(uname, String(addr));
     }
-    activeCache = { at: now, routerId, set, addrByUser };
+    activeCache = { at: now, routerId, set, addrByUser, error: null };
     return set;
 }
 
@@ -387,7 +422,10 @@ async function resolveLineStatus({ user, userList, routerId }) {
     let activeSet;
     try {
         activeSet = await getActiveUsernameSet(routerId);
-    } catch (_e) {
+    } catch (err) {
+        // Buta, bukan "semua mati". Dicatat dengan alasan sebenarnya supaya kebutaan router
+        // terlihat di log — diam total di sini dulu membuat gangguan MikroTik tak terdeteksi.
+        console.warn(`[CEK_KONEKSI] Status jalur TIDAK DAPAT dipastikan: ${err && err.message ? err.message : err}`);
         return { lineStatus: 'unknown', areaOutage: false, offlineCount: 0 };
     }
 
@@ -594,7 +632,7 @@ module.exports = {
     resolveLineStatus, // dipakai reboot-modem-handler utk gerbang gangguan-area (M3)
     // Test-only: reset cache in-memori (PPP-active + laporan upstream) agar test deterministik.
     _resetCachesForTest() {
-        activeCache = { at: 0, routerId: null, set: null, addrByUser: null };
+        activeCache = { at: 0, routerId: null, set: null, addrByUser: null, error: null };
         upstreamReportCache = { at: 0, report: null };
     }
 };

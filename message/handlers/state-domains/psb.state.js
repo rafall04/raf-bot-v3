@@ -920,7 +920,19 @@ async function handlePsbConversationState(context) {
 
     if (!PSB_STEPS.has(stateStep)) return { handled: false };
     const ctx = (teknisiState && teknisiState.context) || null;
-    if (!ctx || !ctx.data) { deleteUserState(stateSender); return { handled: true }; }
+    if (!ctx || !ctx.data) {
+        // Sesi PSB hilang di tengah jalan (state terhapus / konteks rusak). Dulu di sini hanya
+        // `return { handled: true }` TANPA balasan apa pun — bot benar-benar bisu dan teknisi
+        // menyimpulkan botnya rusak, padahal ia sudah mengirim foto KTP, data, dan share lokasi.
+        // Kegagalan boleh terjadi, tapi TIDAK BOLEH senyap.
+        deleteUserState(stateSender);
+        await safeReply(
+            reply,
+            "⚠️ Sesi *PSB* sebelumnya terputus, jadi datanya tidak tersimpan.\n\nSilakan mulai lagi dengan mengetik *#PSB*.",
+            logger
+        );
+        return { handled: true };
+    }
 
     const text = String(chats || "").trim();
     const lower = text.toLowerCase();

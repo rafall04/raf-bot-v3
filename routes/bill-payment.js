@@ -31,6 +31,10 @@ const gateways = require("../lib/payment-gateways");
 const { addPayment, checkStatusPayment, updateStatusPayment, updateKetPayment } = require("../lib/payment");
 const { createBillPaymentSettlement } = require("../lib/services/bill-payment-settlement");
 const { buildPaidReceiptText } = require("../lib/services/paid-receipt");
+// Nominal yang di-charge WAJIB memakai harga efektif (subscription_price per-pelanggan + diskon
+// aktif) — sumber yang sama dengan ledger. Memakai `packages.json.price` mentah di sini bukan
+// sekadar teks salah: itu jumlah uang yang benar-benar ditarik dari pelanggan.
+const { getEffectivePrice } = require("../lib/payment-finance-service");
 const { sendMessage } = require("../lib/whatsapp-delivery-service");
 
 const billSettlement = createBillPaymentSettlement();
@@ -47,12 +51,22 @@ function resolveBillContext(token) {
     if (!user) return { ok: false, status: "user_not_found" };
     if (user.subscription === "PAKET-VOUCHER") return { ok: false, status: "not_postpaid", user };
     const pkg = (global.packages || []).find((p) => p.name === user.subscription) || {};
+    // Paket pelanggan sudah tidak ada di katalog (dihapus/diganti nama) DAN tak ada harga khusus
+    // per-pelanggan → JANGAN menarik uang. `getEffectivePrice` akan jatuh ke `getPackagePrice`
+    // yang MENEBAK nominal dari pola nama ("PAKET-150K" → 150.000); menagih angka tebakan lewat
+    // gateway tidak boleh terjadi. Arah gagal yang aman: nol, lalu ditahan gerbang di bawah.
+    const hargaKhusus = Number.parseInt(user.subscription_price, 10);
+    const paketHilang = !pkg.name && !(Number.isFinite(hargaKhusus) && hargaKhusus > 0);
     return {
         ok: true,
         user,
         pkg,
         whitelist: pkg.whitelist === true,
-        amount: parseInt(pkg.price, 10) || 0,
+        packageMissing: paketHilang,
+        // TANPA fallback `|| pkg.price`: nol dari getEffectivePrice berarti pelanggan memang tak
+        // punya tagihan (gratis / diskon 100%). Fallback akan menarik uang dari orang yang tak
+        // berutang — dan di sini nominalnya benar-benar di-charge ke gateway.
+        amount: paketHilang ? 0 : getEffectivePrice(user),
         // Flag uji di PAKET (packages.json): user pada paket ber-`sandbox:true` memakai sandbox
         // iPaymu (demo, nol rupiah); paket pelanggan asli tak ber-flag → tetap produksi. Isolasi
         // per-paket, bukan toggle global → pelanggan lain tak terpengaruh.
@@ -126,6 +140,13 @@ router.get("/bayar/:token", chargeLimiter, async (req, res) => {
     if (!ctx.ok) return res.status(400).send(statusPage("Link tidak valid", "Tautan pembayaran tidak valid atau sudah kedaluwarsa. Silakan hubungi admin."));
     if (ctx.whitelist) return res.send(statusPage("Tidak Ada Tagihan", `Halo ${ctx.user.name}, paket Anda tidak ditagih. Terima kasih.`));
     if (isUserPaid(ctx.user)) return res.send(statusPage("Sudah Lunas", `Tagihan Anda sudah lunas. Terima kasih, ${ctx.user.name}. 🙏`));
+    // Tagihan efektif NOL (diskon penuh / harga khusus 0) BUKAN error konfigurasi — pelanggan
+    // memang tak punya yang harus dibayar. Dulu kasus ini mustahil karena nominal selalu diambil
+    // dari harga paket; sejak nominal memakai harga efektif, ia nyata dan tak boleh dijawab
+    // "Nominal tagihan belum diatur — hubungi admin" yang membuat orang mengira dirinya menunggak.
+    if (!ctx.packageMissing && ctx.amount === 0) {
+        return res.send(statusPage("Tidak Ada Tagihan", `Halo ${ctx.user.name}, tagihan Anda periode ini Rp0 — tidak ada yang perlu dibayar. Terima kasih. 🙏`));
+    }
     if (!ctx.amount || ctx.amount < 1000) return res.status(400).send(statusPage("Tagihan Belum Tersedia", "Nominal tagihan belum diatur. Silakan hubungi admin."));
 
     const { periodMonth, periodYear } = currentPeriod();

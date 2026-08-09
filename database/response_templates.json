@@ -5531,5 +5531,10 @@
     "name": "Kas Usaha - Nomor Tagihan Salah",
     "category": "business_expense",
     "template": "⚠️ Tidak ada tagihan tertunda bernomor ${id}."
+  },
+  "rebootfu_deep_unknown": {
+    "name": "Reboot Follow-up: Kondisi Tak Terpantau",
+    "template": "Terima kasih Kak 🙏 Kondisi jalurnya belum bisa saya pastikan dari sini.\n\nSudah saya teruskan ke teknisi supaya dicek langsung ya — mohon ditunggu.",
+    "category": "pelanggan"
   }
 }

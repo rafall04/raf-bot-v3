@@ -128,6 +128,25 @@ async function handleRebootFollowupAnswer(userState, userReply, reply, sender) {
             );
         }
 
+        // BUTA: bot tak bisa membaca jalur pelanggan. Tak boleh mengklaim "normal" (itu bohong),
+        // tak boleh pula mengklaim "gangguan di sisi kami" (itu tebakan). Eskalasi ke admin
+        // membawa alasan sebenarnya, dan pelanggan diberi kalimat netral.
+        if (verdict === "TAK_TERPANTAU") {
+            service.closeJob(job.id, store.STATUS.ESCALATED);
+            await service.notifyAdmins(
+                `🔧 *Reboot selesai, kondisi TIDAK BISA DIPASTIKAN*\nPelanggan: ${job.name || "-"} (${job.jid})\n` +
+                    `Device: ${job.deviceId}\nAlasan: ${detail}\n` +
+                    `⚠️ Bot BUTA di sini — mohon dicek manual, jangan dianggap normal.`
+            );
+            return reply(
+                renderResponseTemplate(
+                    "rebootfu_deep_unknown",
+                    `Terima kasih Kak 🙏 Kondisi jalurnya belum bisa saya pastikan dari sini.\n\n` +
+                        `Sudah saya teruskan ke teknisi supaya dicek langsung ya — mohon ditunggu.`
+                )
+            );
+        }
+
         // Ada penyebab yang bisa dijelaskan → jujurkan, jangan buat tiket buta.
         service.closeJob(job.id, store.STATUS.ESCALATED);
         await service.notifyAdmins(

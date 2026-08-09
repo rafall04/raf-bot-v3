@@ -132,6 +132,8 @@ const {
 } = require('./handlers/raf-context');
 const {
     isCancellationKeyword,
+    isStateBreakingCommand,
+    shouldBreakState,
     buildStateRoutingContext,
     resolveGlobalCommandStatus
 } = require('./handlers/raf-interceptors');
@@ -594,7 +596,15 @@ module.exports = async (raf, msg, m, options = {}) => {
             return;
         }
 
-        if (smartReportState && isGlobalCommand && !isInProtectedState) {
+        // Pemutusan state HANYA oleh perintah global eksplisit (menu/bantuan/lapor/saldo…),
+        // bukan oleh sembarang keyword yang kebetulan cocok — lihat `isStateBreakingCommand`.
+        //
+        // SENGAJA tanpa balasan tambahan di sini: perintah yang memutus state adalah perintah yang
+        // diketik pemakai secara sadar, dan perintah itu SELALU punya jawabannya sendiri (menu,
+        // bantuan, saldo…). Menambah ack di sini membuat pemakai menerima DUA pesan untuk satu
+        // perintah. Kegagalan senyap yang jadi keluhan asli ditutup di pemilik state masing-masing
+        // (mis. `psb.state.js` membalas saat konteks sesi hilang), bukan dengan ack umum di sini.
+        if (smartReportState && shouldBreakState({ chats, step: smartReportState.step, isGlobalCommand }) && !isInProtectedState) {
             console.log(`[GLOBAL_COMMAND] User ${stateSender} broke out of state with command: "${chats}"`);
             deleteUserState(stateSender);
         }
@@ -915,7 +925,10 @@ module.exports = async (raf, msg, m, options = {}) => {
 
         const isInManagedWifiInputState = userState?.step && userState.step.startsWith('ASK_NEW_');
 
-        if (userState?.step && isGlobalCommand && !isInManagedWifiInputState) {
+        // Sama seperti pemutusan di atas: hanya perintah global EKSPLISIT yang boleh membuang
+        // state terkelola. Sebelumnya sembarang keyword ikut membuangnya, sehingga jawaban
+        // wajar di tengah wizard (mis. "internet mati" sebagai isi keluhan) menghapus sesi.
+        if (userState?.step && shouldBreakState({ chats, step: userState.step, isGlobalCommand }) && !isInManagedWifiInputState) {
             console.log(`[GLOBAL_COMMAND] Clearing managed state for ${stateSender}`);
             deleteUserState(stateSender);
         }
@@ -924,7 +937,12 @@ module.exports = async (raf, msg, m, options = {}) => {
             handleManagedConversationState,
             getUserState,
             stateSender,
-            isGlobalCommand,
+            // WAJIB predikat SEMPIT yang sama dengan pemutus state di atas. Kalau di sini masih
+            // memakai `isGlobalCommand` yang longgar, state BERTAHAN (karena tak lagi dihapus)
+            // tapi handler state-nya tetap dilewati — pesan jatuh ke intent dan state menggantung,
+            // sehingga pesan BERIKUTNYA yang tertangkap sebagai jawaban wizard. Dua keputusan ini
+            // harus memakai dasar yang sama supaya tidak saling bertentangan.
+            isGlobalCommand: shouldBreakState({ chats, step: userState?.step, isGlobalCommand }),
             handleConversationState,
             chats,
             temp,

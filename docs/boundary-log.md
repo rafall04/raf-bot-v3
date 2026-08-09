@@ -1206,3 +1206,15 @@
 - **Status path lama:** tak ada path yang dimatikan — ini perbaikan perilaku di tempat, bukan pemindahan kepemilikan.
 - **Gate:** tidak ada (perbaikan bug alur hidup).
 - **Tes:** `scripts/__tests__/broken-requires.test.js` (BARU — guard repo: tiap `require` relatif di kode produksi wajib resolve; `database/` dikecualikan karena gitignore), `routes/__tests__/bill-payment-paid-gate.test.js` (BARU, 6), `message/handlers/__tests__/saldo-transfer-target-guard.test.js` (BARU, 5).
+
+<a id="b201"></a>
+### Fix 2026-08-09 (Delapan jalur yang berbohong: MikroTik buta divonis "semua mati", wizard mati senyap, nominal salah, dan `list tiket` selalu kosong)
+
+- **Benang merah:** semua ini kode yang MENGAKU tahu / MENGAKU berhasil padahal tidak. Pembacaan gagal disulap jadi vonis, tebakan disulap jadi angka tagihan, dan pesan yang tak pernah keluar dilaporkan terkirim.
+- **Owner:** `message/handlers/connection-check-handler.js` (`MikrotikReadError` + cache NEGATIF — hasil `{ok:false}`/bentuk tak dikenal tak lagi jadi `[]`, jadi `lineStatus:'unknown'` bukan "semua pelanggan offline" + gangguan-area palsu); `message/handlers/raf-interceptors.js` (`shouldBreakState` + `isDataCollectingState` — keyword hanya kebal-memutus di wizard PENGUMPUL DATA `PSB_`/`PSBJADWAL_`/`CUSTLOC_`/`ASSET_`/`AWAITING_COMPLAINT`/`AUTO_OUTAGE_TRIAGE`; state pilihan bernomor tetap seperti semula); `lib/payment-finance-service.resolveBillingAmount` (BARU — membedakan nol yang SAH dari nol karena katalog tak terbaca); `lib/reboot-followup-service` (verdict ketiga `TAK_TERPANTAU`).
+- **Ikutan:** `psb-caption-parser.resolvePackage` (fuzzy tak boleh mengenai paket Rp0/whitelist, ambigu → null, exact `displayProfile`); `customer-handler` (device-id ACS & profil MikroTik tak lagi bocor ke pelanggan); `ticket-teknisi-intents` (`normalizeStatus(...) === 'baru'`, dulu menyaring `pending`/`open` yang tak pernah ada); `whatsapp-critical-delivery` (bypass dedup + objek penanda wrapper dibaca sebagai GAGAL); `whatsapp-notification-wrapper` (`markNotificationSent` setelah kirim berhasil); `psb.state.js` (sesi hilang wajib dibalas, tak lagi bisu).
+- **Nominal:** 4 jalur penagihan + halaman `/bayar` memakai harga EFEKTIF; paket terhapus tak lagi ditagih angka TEBAKAN dari pola nama; tagihan Rp0 dijawab "Tidak Ada Tagihan", bukan "hubungi admin".
+- **Status path lama:** tak ada yang dimatikan — perbaikan perilaku di tempat. `resolveGlobalCommandStatus` SENGAJA tetap longgar (hilir memakainya dengan arti lain).
+- **Gate:** tidak ada (perbaikan bug alur hidup).
+- **Tes:** BARU `connection-check-blind-guard` (8), `state-breaking-command` (17), `psb-package-zero-billing` (10), `ticket-list-and-package-privacy` (19), `lib/__tests__/honest-verdict-and-delivery` (10).
+- **PELAJARAN:** perbaikan pertama saya terlalu luas — menahan state di SEMUA wizard membuat perintah yang sah dijawab "pilihan tidak valid". Pembeda yang benar bukan "state" melainkan "state ini sedang meminta DATA atau meminta PILIHAN". Dan `||` sebagai jaring pengaman berbahaya di jalur uang: `getEffectivePrice(user) || hargaPaket` membangkitkan tagihan penuh untuk pelanggan diskon 100%.

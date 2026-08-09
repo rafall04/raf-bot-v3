@@ -46,21 +46,51 @@ function normKey(raw) {
     return null;
 }
 
+// Paket TANPA tagihan (harga 0 / whitelist) tak boleh pernah jadi hasil TEBAKAN.
+// Pelanggan di paket seperti ini tak pernah ditagih dan kebal reminder/isolir, jadi salah-pilih
+// di sini merugikan tiap bulan tanpa satu pun alarm. Pendaftaran gratis yang DISENGAJA tetap
+// bisa — lewat nama/profil persis, bukan lewat fuzzy.
+function isZeroBillingPackage(pkg) {
+    if (!pkg) return false;
+    const price = Number.parseInt(pkg.price, 10);
+    return pkg.whitelist === true || !Number.isFinite(price) || price <= 0;
+}
+
 // Cocokkan input paket ke nama paket kanonik di packages (exact name → exact profile → fuzzy ringan).
+// Fuzzy sengaja dipersempit: dulu `v.includes(n) || n.includes(v)` membuat "30Mbps" (displayProfile
+// paket Rp165.000) mendarat di PAKET-KHUSUS-30Mbps yang berharga Rp0 — angka yang paling sering
+// diucapkan pelanggan justru menghasilkan pelanggan yang tak pernah tertagih. Fuzzy juga menolak
+// hasil ganda: kalau input cocok ke lebih dari satu paket, lebih baik minta teknisi memperjelas
+// daripada menebak yang kebetulan pertama di daftar.
 function resolvePackage(input, packages) {
     const v = String(input || "").trim().toLowerCase();
     if (!v) return null;
     const list = Array.isArray(packages) ? packages : [];
+
+    // Exact match (nama lalu profil) — tetap boleh mengenai paket gratis, karena eksplisit.
     let m = list.find((p) => String(p.name || "").toLowerCase() === v);
     if (m) return m.name;
     m = list.find((p) => String(p.profile || "").toLowerCase() === v);
     if (m) return m.name;
-    m = list.find((p) => {
+
+    // Exact match ke displayProfile ("Up To 10Mbps") — bentuk yang dilihat pelanggan.
+    m = list.find((p) => String(p.displayProfile || "").toLowerCase() === v);
+    if (m) return m.name;
+
+    const fuzzy = list.filter((p) => {
+        if (isZeroBillingPackage(p)) return false;
         const n = String(p.name || "").toLowerCase();
         const pr = String(p.profile || "").toLowerCase();
-        return (n && (n.includes(v) || v.includes(n))) || (pr && (pr.includes(v) || v.includes(pr)));
+        const dp = String(p.displayProfile || "").toLowerCase();
+        return (
+            (n && (n.includes(v) || v.includes(n))) ||
+            (pr && (pr.includes(v) || v.includes(pr))) ||
+            (dp && dp.includes(v))
+        );
     });
-    return m ? m.name : null;
+    // Ambigu (>1 kandidat) → jangan tebak; biarkan validator menandai paket sebagai "unknown"
+    // supaya wizard menagih ulang ke teknisi.
+    return fuzzy.length === 1 ? fuzzy[0].name : null;
 }
 
 // Nama dusun → Title Case ("ngitik" → "Ngitik", "sumber rejo" → "Sumber Rejo") untuk alamat.
