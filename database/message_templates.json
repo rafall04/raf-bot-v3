@@ -328,5 +328,6 @@
       "company_name"
     ],
     "enabled": true
-  }
+  },
+  "tagihan_struk_cicilan": "✅ *PEMBAYARAN DITERIMA*\n\nHalo Kak *${nama_pelanggan}*, pembayaran Anda sudah kami terima. Terima kasih! 🙏\n\n🧾 *STRUK CICILAN*\n━━━━━━━━━━━━━━\n• Paket   : *${nama_paket}*\n• Periode : ${periode}\n• Dibayar : *${jumlah_dibayar}*\n• *Sisa tagihan* : *${sisa_tagihan}*\n• Metode  : ${metode}\n• Waktu   : ${waktu}\n• No. Ref : ${no_ref}\n━━━━━━━━━━━━━━\n\nSisa tagihan di atas masih perlu dilunasi ya Kak. Kalau sudah dibayar, kirimkan foto buktinya di sini.\n\n_Simpan struk ini sebagai bukti pembayaran._ Butuh bantuan? Ketik *menuwifi*."
 }

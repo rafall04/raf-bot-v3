@@ -276,6 +276,37 @@ router.post('/request', ensureAuthenticatedStaff, rateLimit('partial-payment', 3
                         }
                     });
                     console.log(`[ADMIN_PARTIAL_PAYMENT] Payment recorded for ${user.name}: Rp ${amountPaid.toLocaleString('id-ID')}`);
+
+                    // Struk CICILAN ke pelanggan. Notifikasi pelanggan selama ini hanya dipasang di
+                    // `onFinalPaid`, yang menurut kontraknya cuma dipanggil saat periode LUNAS PENUH
+                    // — jadi yang membayar SEBAGIAN tidak menerima apa pun. Besoknya ia mengetik
+                    // "cek tagihan", melihat nominal PENUH + "BELUM LUNAS", dan merasa uangnya hilang.
+                    // Uang sudah berpindah tangan, jadi ini dikirim lewat sendCritical (retry +
+                    // dead-letter), bukan notifikasi biasa. NEVER-THROW: gagal kirim tak boleh
+                    // membatalkan pencatatan pembayaran yang sudah sah.
+                    if (isPartial) {
+                        try {
+                            const { buildPartialPaymentReceiptText } = require('../lib/services/paid-receipt');
+                            const { sendCritical } = require('../lib/whatsapp-critical-delivery');
+                            const teksStruk = buildPartialPaymentReceiptText({
+                                user,
+                                amountPaid,
+                                amountRemaining,
+                                periodMonth: currentMonth,
+                                periodYear: currentYear,
+                                method: paymentMethod,
+                                paidAt: new Date().toISOString(),
+                                refId: newRequest.id
+                            });
+                            for (const raw of String(user.phone_number || '').split('|')) {
+                                const nomor = String(raw || '').trim();
+                                if (!nomor) continue;
+                                await sendCritical(nomor, { text: teksStruk }, { label: 'struk_cicilan' });
+                            }
+                        } catch (strukErr) {
+                            console.error('[ADMIN_PARTIAL_PAYMENT] gagal kirim struk cicilan:', strukErr && strukErr.message);
+                        }
+                    }
                 } catch (processError) {
                     console.error('[ADMIN_PARTIAL_PAYMENT_ERROR]', processError);
                 }
