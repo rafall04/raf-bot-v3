@@ -1586,7 +1586,7 @@
   "general_complaint_received": {
     "name": "General Steps: Keluhan Diterima",
     "category": "general_steps",
-    "template": "*Keluhan/Saran Diterima*\n\nTerima kasih *${pushname}* atas masukan Anda.\n\n*Detail:*\nID: #${complaintId}\nPesan: ${complaint}\n\nTim kami akan segera menindaklanjuti keluhan/saran Anda.\nAnda akan menerima notifikasi untuk update selanjutnya.\n\n_Diterima pada: ${receivedAt}_",
+    "template": "*Keluhan/Saran Diterima*\n\nTerima kasih *${pushname}* atas masukan Anda.\n\n*Detail:*\nNo. Tiket: *${complaintId}*\nPesan: ${complaint}\n\nTim kami akan segera menindaklanjuti keluhan/saran Anda.\nCek statusnya kapan saja dengan mengetik *cek tiket ${complaintId}*.\n\n_Diterima pada: ${receivedAt}_",
     "placeholders": [
       "pushname",
       "complaintId",
@@ -5535,6 +5535,11 @@
   "rebootfu_deep_unknown": {
     "name": "Reboot Follow-up: Kondisi Tak Terpantau",
     "template": "Terima kasih Kak 🙏 Kondisi jalurnya belum bisa saya pastikan dari sini.\n\nSudah saya teruskan ke teknisi supaya dicek langsung ya — mohon ditunggu.",
+    "category": "pelanggan"
+  },
+  "general_complaint_failed": {
+    "name": "Keluhan: Gagal Disimpan",
+    "template": "🙏 Maaf Kak, keluhan Anda belum bisa kami simpan karena kendala sistem.\n\nMohon sampaikan langsung ke admin ya supaya tidak terlewat.",
     "category": "pelanggan"
   }
 }

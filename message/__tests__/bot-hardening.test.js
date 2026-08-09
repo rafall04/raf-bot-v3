@@ -185,7 +185,10 @@ describe('WhatsApp bot hardening regressions', () => {
         }));
     });
 
-    test('customer complaint state uses sender key instead of stored phone field', () => {
+    // `handleComplaint` kini ASYNC: keluhan bebas dibuatkan TIKET NYATA lewat
+    // `lib/report-orchestration-service.createCustomerComplaintTicket` (dulu cuma console.log).
+    // Maksud test ini tak berubah — state tetap di-key `sender`, bukan nomor tersimpan.
+    test('customer complaint state uses sender key instead of stored phone field', async () => {
         const sender = '628123456789@s.whatsapp.net';
         const user = {
             id: 77,
@@ -193,7 +196,7 @@ describe('WhatsApp bot hardening regressions', () => {
             phone_number: '08123456789'
         };
 
-        const complaintResult = handleComplaint({
+        const complaintResult = await handleComplaint({
             sender,
             user,
             pushname: 'Tester',

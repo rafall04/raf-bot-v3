@@ -133,21 +133,32 @@ async function handleAwaitingComplaint(userState, chats, reply, sender, pushname
         return reply(renderResponseTemplate("general_complaint_empty"));
     }
 
-    const complaintData = {
-        id: Date.now().toString(),
-        userId: userState.user?.id,
-        userName: userState.user?.name,
-        userPhone: userState.user?.phone_number,
+    // Keluhan bebas → TIKET NYATA (satu pemilik: lib/report-orchestration-service). Dulu di sini
+    // hanya `console.log` + ID palsu `Date.now()`, sehingga janji "tim akan menindaklanjuti"
+    // mustahil ditepati: tak masuk papan teknisi, tak ada yang diberi tahu, tak bisa dicek.
+    const { createCustomerComplaintTicket } = require("../../../lib/report-orchestration-service");
+    const hasil = await createCustomerComplaintTicket({
+        user: userState.user,
+        sender,
         complaint,
-        createdAt: new Date().toISOString(),
-        status: "new"
-    };
-    console.log("[NEW_COMPLAINT]", complaintData);
+        pushname
+    });
 
     deleteUserState(sender);
+
+    // Gagal simpan → JANGAN menjanjikan tindak lanjut. Lebih baik pelanggan tahu harus menghubungi
+    // admin daripada menunggu tindak lanjut yang tak akan datang.
+    if (!hasil.ok) {
+        return reply(renderResponseTemplate(
+            "general_complaint_failed",
+            "🙏 Maaf Kak, keluhan Anda belum bisa kami simpan karena kendala sistem.\n\n" +
+            "Mohon sampaikan langsung ke admin ya supaya tidak terlewat."
+        ));
+    }
+
     return reply(renderResponseTemplate("general_complaint_received", {
         pushname,
-        complaintId: complaintData.id,
+        complaintId: hasil.ticketId,
         complaint,
         receivedAt: new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
     }));

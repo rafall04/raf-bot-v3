@@ -152,7 +152,7 @@ function handleCheckPackage({ user, pushname }) {
  * @param {Object} params - Parameters
  * @returns {Object} Response object
  */
-function handleComplaint({ sender, stateSender, user, pushname, complaint }) {
+async function handleComplaint({ sender, stateSender, user, pushname, complaint }) {
     try {
         if (!user) {
             return {
@@ -180,25 +180,29 @@ function handleComplaint({ sender, stateSender, user, pushname, complaint }) {
             };
         }
 
-        // Save complaint (you might want to save this to a database)
-        const complaintData = {
-            id: Date.now().toString(),
-            userId: user.id,
-            userName: user.name,
-            userPhone: user.phone_number,
-            complaint: complaint,
-            createdAt: new Date().toISOString(),
-            status: 'new'
-        };
+        // Keluhan bebas → TIKET NYATA (satu pemilik: lib/report-orchestration-service).
+        // Dulu hanya `console.log` + ID palsu `Date.now()`, sehingga kalimat di bawah
+        // ("akan menerima notifikasi untuk update selanjutnya") mustahil ditepati.
+        const { createCustomerComplaintTicket } = require('../../lib/report-orchestration-service');
+        const hasilKeluhan = await createCustomerComplaintTicket({
+            user,
+            sender: stateSender || sender,
+            complaint,
+            pushname
+        });
 
-        // Here you would typically save to database
-        // For now, just log it
-        console.log('[NEW_COMPLAINT]', complaintData);
+        if (!hasilKeluhan.ok) {
+            return {
+                success: false,
+                message: `🙏 Maaf *${pushname}*, keluhan Anda belum bisa kami simpan karena kendala sistem.\n\n` +
+                    `Mohon sampaikan langsung ke admin ya supaya tidak terlewat.`
+            };
+        }
 
         let message = `✅ *Keluhan/Saran Diterima*\n\n`;
         message += `Terima kasih *${pushname}* atas masukan Anda.\n\n`;
         message += `📋 *Detail:*\n`;
-        message += `ID: #${complaintData.id}\n`;
+        message += `No. Tiket: *${hasilKeluhan.ticketId}*\n`;
         message += `Pesan: ${complaint}\n\n`;
         message += `Tim kami akan segera menindaklanjuti keluhan/saran Anda.\n`;
         message += `Anda akan menerima notifikasi untuk update selanjutnya.\n\n`;

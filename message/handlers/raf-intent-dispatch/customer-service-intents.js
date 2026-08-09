@@ -48,7 +48,8 @@ async function handleKeluhanSaranIntent(context) {
     } = context;
     const user = await findUserWithLidSupport(global.users, msg, plainSenderNumber, raf);
     const keluhanText = chats.replace(/^(keluhan|saran|kritik|komplain)\s*/i, '').trim();
-    const result = handleComplaint({ sender, stateSender, user, pushname, complaint: keluhanText });
+    // `handleComplaint` kini ASYNC — ia membuat tiket nyata, bukan sekadar mencatat ke log.
+    const result = await handleComplaint({ sender, stateSender, user, pushname, complaint: keluhanText });
     await reply(result.message);
 }
 

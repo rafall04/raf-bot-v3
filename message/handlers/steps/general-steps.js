@@ -63,25 +63,32 @@ async function handleGeneralSteps({ userState, sender, chats, pushname, setUserS
                 };
             }
             
-            // Save complaint
-            const complaintData = {
-                id: Date.now().toString(),
-                userId: userState.user.id,
-                userName: userState.user.name,
-                userPhone: userState.user.phone_number,
-                complaint: complaint,
-                createdAt: new Date().toISOString(),
-                status: 'new'
-            };
-            
-            // Log complaint (you might want to save to database)
-            console.log('[NEW_COMPLAINT]', complaintData);
-            
+            // Keluhan bebas → TIKET NYATA (satu pemilik: lib/report-orchestration-service).
+            // Dulu hanya `console.log` + ID palsu, jadi janji tindak lanjut mustahil ditepati.
+            const { createCustomerComplaintTicket } = require("../../../lib/report-orchestration-service");
+            const hasilKeluhan = await createCustomerComplaintTicket({
+                user: userState.user,
+                sender,
+                complaint,
+                pushname
+            });
+
             deleteUserState(sender);
-            
+
+            if (!hasilKeluhan.ok) {
+                return {
+                    success: false,
+                    message: renderResponseTemplate(
+                        "general_complaint_failed",
+                        "🙏 Maaf Kak, keluhan Anda belum bisa kami simpan karena kendala sistem.\n\n" +
+                        "Mohon sampaikan langsung ke admin ya supaya tidak terlewat."
+                    )
+                };
+            }
+
             return {
                 success: true,
-                message: renderResponseTemplate("general_complaint_received", { pushname, complaintId: complaintData.id, complaint, receivedAt: new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) })
+                message: renderResponseTemplate("general_complaint_received", { pushname, complaintId: hasilKeluhan.ticketId, complaint, receivedAt: new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) })
             };
         }
         
