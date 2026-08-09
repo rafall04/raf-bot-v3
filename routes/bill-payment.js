@@ -34,7 +34,7 @@ const { buildPaidReceiptText } = require("../lib/services/paid-receipt");
 // Nominal yang di-charge WAJIB memakai harga efektif (subscription_price per-pelanggan + diskon
 // aktif) — sumber yang sama dengan ledger. Memakai `packages.json.price` mentah di sini bukan
 // sekadar teks salah: itu jumlah uang yang benar-benar ditarik dari pelanggan.
-const { getEffectivePrice } = require("../lib/payment-finance-service");
+const { getEffectivePrice, getPaymentPositionForPeriod } = require("../lib/payment-finance-service");
 const { sendMessage } = require("../lib/whatsapp-delivery-service");
 
 const billSettlement = createBillPaymentSettlement();
@@ -44,7 +44,7 @@ const router = express.Router();
 const chargeLimiter = rateLimit({ windowMs: 60 * 1000, max: 12, standardHeaders: true, legacyHeaders: false });
 
 // Verifikasi token + resolve konteks tagihan (pelanggan pascabayar + nominal paket).
-function resolveBillContext(token) {
+async function resolveBillContext(token) {
     const v = verifyBillPayToken(token);
     if (!v.ok) return { ok: false, status: "invalid", reason: v.reason };
     const user = (global.users || []).find((u) => String(u.id) === String(v.uid));
@@ -57,16 +57,39 @@ function resolveBillContext(token) {
     // gateway tidak boleh terjadi. Arah gagal yang aman: nol, lalu ditahan gerbang di bawah.
     const hargaKhusus = Number.parseInt(user.subscription_price, 10);
     const paketHilang = !pkg.name && !(Number.isFinite(hargaKhusus) && hargaKhusus > 0);
+
+    // TANPA fallback `|| pkg.price`: nol dari getEffectivePrice berarti pelanggan memang tak
+    // punya tagihan (gratis / diskon 100%). Fallback akan menarik uang dari orang yang tak
+    // berutang — dan di sini nominalnya benar-benar di-charge ke gateway.
+    const hargaEfektif = paketHilang ? 0 : getEffectivePrice(user);
+
+    // SISA tagihan, bukan harga penuh. Pelanggan yang sudah mencicil tak boleh ditarik lagi
+    // sejumlah penuh — uangnya sudah masuk ledger. Sumbernya sama dengan penagihan.
+    // GAGAL-TERTUTUP: ledger tak terbaca → pakai harga efektif (perilaku lama), jangan menebak.
+    let amount = hargaEfektif;
+    let sudahDibayar = 0;
+    if (hargaEfektif > 0) {
+        try {
+            const { periodMonth, periodYear } = currentPeriod();
+            const posisi = await getPaymentPositionForPeriod(user, periodMonth, periodYear, { amountDue: hargaEfektif });
+            if (posisi && Number.isFinite(Number(posisi.outstanding))) {
+                amount = Math.max(0, Number(posisi.outstanding));
+                sudahDibayar = Math.max(0, hargaEfektif - amount);
+            }
+        } catch (posErr) {
+            console.warn("[BAYAR] Posisi ledger tak terbaca, pakai harga efektif:", posErr && posErr.message);
+        }
+    }
+
     return {
         ok: true,
         user,
         pkg,
         whitelist: pkg.whitelist === true,
         packageMissing: paketHilang,
-        // TANPA fallback `|| pkg.price`: nol dari getEffectivePrice berarti pelanggan memang tak
-        // punya tagihan (gratis / diskon 100%). Fallback akan menarik uang dari orang yang tak
-        // berutang — dan di sini nominalnya benar-benar di-charge ke gateway.
-        amount: paketHilang ? 0 : getEffectivePrice(user),
+        amountDue: hargaEfektif,
+        alreadyPaid: sudahDibayar,
+        amount,
         // Flag uji di PAKET (packages.json): user pada paket ber-`sandbox:true` memakai sandbox
         // iPaymu (demo, nol rupiah); paket pelanggan asli tak ber-flag → tetap produksi. Isolasi
         // per-paket, bukan toggle global → pelanggan lain tak terpengaruh.
@@ -136,7 +159,7 @@ router.get("/bayar/:token", chargeLimiter, async (req, res) => {
         return res.sendFile(path.join(__dirname, "..", "static", "bill-payment.html"));
     }
 
-    const ctx = resolveBillContext(req.params.token);
+    const ctx = await resolveBillContext(req.params.token);
     if (!ctx.ok) return res.status(400).send(statusPage("Link tidak valid", "Tautan pembayaran tidak valid atau sudah kedaluwarsa. Silakan hubungi admin."));
     if (ctx.whitelist) return res.send(statusPage("Tidak Ada Tagihan", `Halo ${ctx.user.name}, paket Anda tidak ditagih. Terima kasih.`));
     if (isUserPaid(ctx.user)) return res.send(statusPage("Sudah Lunas", `Tagihan Anda sudah lunas. Terima kasih, ${ctx.user.name}. 🙏`));
@@ -344,7 +367,7 @@ router.get("/bayar-status", (req, res) => {
 
 // Info tagihan + daftar channel aktif (dinamis dari iPaymu).
 router.get("/api/bayar/:token/info", async (req, res) => {
-    const ctx = resolveBillContext(req.params.token);
+    const ctx = await resolveBillContext(req.params.token);
     if (!ctx.ok) return res.json({ ok: false, status: ctx.status, reason: ctx.reason });
     if (ctx.whitelist) return res.json({ ok: true, status: "free", nama: ctx.user.name });
 
@@ -378,7 +401,7 @@ router.get("/api/bayar/:token/info", async (req, res) => {
 
 // Buat charge untuk channel terpilih → balikkan data render (QR / VA / kode retail).
 router.post("/api/bayar/:token/charge", chargeLimiter, async (req, res) => {
-    const ctx = resolveBillContext(req.params.token);
+    const ctx = await resolveBillContext(req.params.token);
     if (!ctx.ok) return res.status(400).json({ ok: false, status: ctx.status });
     if (ctx.whitelist) return res.status(400).json({ ok: false, status: "free" });
     if (isUserPaid(ctx.user)) return res.status(409).json({ ok: false, status: "already_paid" });

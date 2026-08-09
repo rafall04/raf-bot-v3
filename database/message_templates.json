@@ -173,11 +173,11 @@
   },
   "tagihan_lunas": {
     "name": "Cek Tagihan - LUNAS",
-    "template": "✅ *STATUS TAGIHAN ANDA* ✅\n\nHalo Kak *${nama_pelanggan}*,\n\nStatus tagihan WiFi Anda untuk paket *${nama_paket}* dengan total *${harga}* adalah: *LUNAS*.\n\nTerima kasih telah melakukan pembayaran tepat waktu. Selamat menikmati layanan kami! 😊\n\nButuh bantuan lain? Ketik *menuwifi*."
+    "template": "✅ *STATUS TAGIHAN ANDA* ✅\n\nHalo Kak *${nama_pelanggan}*,\n\nStatus tagihan WiFi Anda untuk paket *${nama_paket}* dengan total *${harga}* adalah: *LUNAS*.${cicilan_info}\n\nTerima kasih telah melakukan pembayaran tepat waktu. Selamat menikmati layanan kami! 😊\n\nButuh bantuan lain? Ketik *menuwifi*."
   },
   "tagihan_belum_lunas": {
     "name": "Cek Tagihan - BELUM LUNAS",
-    "template": "⚠️ *STATUS TAGIHAN ANDA* ⚠️\n\nHalo Kak *${nama_pelanggan}*,\n\nStatus tagihan WiFi Anda untuk paket *${nama_paket}* dengan total *${harga}* adalah: *BELUM LUNAS*.\n\n💳 Pembayaran via transfer ke:\n${rekening}\n\nSetelah transfer, mohon kirim *foto bukti pembayaran* ke chat ini agar kami proses. Butuh bantuan lain? Ketik *menuwifi*."
+    "template": "⚠️ *STATUS TAGIHAN ANDA* ⚠️\n\nHalo Kak *${nama_pelanggan}*,\n\nStatus tagihan WiFi Anda untuk paket *${nama_paket}* dengan total *${harga}* adalah: *BELUM LUNAS*.${cicilan_info}\n\n💳 Pembayaran via transfer ke:\n${rekening}\n\nSetelah transfer, mohon kirim *foto bukti pembayaran* ke chat ini agar kami proses. Butuh bantuan lain? Ketik *menuwifi*."
   },
   "tagihan_struk_lunas": {
     "name": "Struk Tagihan Lunas (otomatis dari pembayaran online)",
@@ -329,5 +329,6 @@
     ],
     "enabled": true
   },
-  "tagihan_struk_cicilan": "✅ *PEMBAYARAN DITERIMA*\n\nHalo Kak *${nama_pelanggan}*, pembayaran Anda sudah kami terima. Terima kasih! 🙏\n\n🧾 *STRUK CICILAN*\n━━━━━━━━━━━━━━\n• Paket   : *${nama_paket}*\n• Periode : ${periode}\n• Dibayar : *${jumlah_dibayar}*\n• *Sisa tagihan* : *${sisa_tagihan}*\n• Metode  : ${metode}\n• Waktu   : ${waktu}\n• No. Ref : ${no_ref}\n━━━━━━━━━━━━━━\n\nSisa tagihan di atas masih perlu dilunasi ya Kak. Kalau sudah dibayar, kirimkan foto buktinya di sini.\n\n_Simpan struk ini sebagai bukti pembayaran._ Butuh bantuan? Ketik *menuwifi*."
+  "tagihan_struk_cicilan": "✅ *PEMBAYARAN DITERIMA*\n\nHalo Kak *${nama_pelanggan}*, pembayaran Anda sudah kami terima. Terima kasih! 🙏\n\n🧾 *STRUK CICILAN*\n━━━━━━━━━━━━━━\n• Paket   : *${nama_paket}*\n• Periode : ${periode}\n• Dibayar : *${jumlah_dibayar}*\n• *Sisa tagihan* : *${sisa_tagihan}*\n• Metode  : ${metode}\n• Waktu   : ${waktu}\n• No. Ref : ${no_ref}\n━━━━━━━━━━━━━━\n\nSisa tagihan di atas masih perlu dilunasi ya Kak. Kalau sudah dibayar, kirimkan foto buktinya di sini.\n\n_Simpan struk ini sebagai bukti pembayaran._ Butuh bantuan? Ketik *menuwifi*.",
+  "gaji_struk_teknisi": "💰 *GAJI SUDAH DITRANSFER*\n\nHalo *${nama_teknisi}*, gaji periode *${periode}* sudah kami transfer. Terima kasih atas kerja kerasnya! 🙏\n\n🧾 *RINCIAN*\n━━━━━━━━━━━━━━\n${rincian_pendapatan}\n${rincian_potongan}\n• *Gaji bersih*   : *${gaji_bersih}*\n━━━━━━━━━━━━━━\nNo. Ref : ${no_ref}\n\nKalau ada yang tidak sesuai, langsung kabari admin ya."
 }

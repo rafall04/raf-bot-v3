@@ -103,9 +103,21 @@ describe('nominal penagihan memakai harga efektif di SEMUA jalur', () => {
         expect(src).not.toMatch(/harga:\s*packageInfo\.price/);
     });
 
-    test('halaman bayar: harga efektif dipakai untuk amount yang di-charge', () => {
+    test('halaman bayar: nominal di-charge = SISA tagihan, bertumpu harga efektif', () => {
         const src = baca('routes', 'bill-payment.js');
-        expect(src).toMatch(/amount:\s*paketHilang\s*\?\s*0\s*:\s*getEffectivePrice\(user\)/);
+        // Harga efektif tetap jadi dasar (paket hilang → 0, tak menagih angka tebakan)…
+        expect(src).toMatch(/const\s+hargaEfektif\s*=\s*paketHilang\s*\?\s*0\s*:\s*getEffectivePrice\(user\)/);
+        // …lalu dikurangi cicilan yang sudah masuk ledger.
+        expect(src).toMatch(/getPaymentPositionForPeriod\(/);
+        expect(src).toMatch(/amount\s*=\s*Math\.max\(0,\s*Number\(posisi\.outstanding\)\)/);
+    });
+
+    test('halaman bayar GAGAL-TERTUTUP: ledger tak terbaca → pakai harga efektif, bukan menebak', () => {
+        const src = baca('routes', 'bill-payment.js');
+        const idx = src.indexOf('getPaymentPositionForPeriod(');
+        const blok = src.slice(Math.max(0, idx - 700), idx + 700);
+        expect(blok).toMatch(/let\s+amount\s*=\s*hargaEfektif/);
+        expect(blok).toMatch(/catch\s*\(posErr\)/);
     });
 
     test('cron penagihan membedakan nol yang SAH dari nol karena katalog tak terbaca', () => {

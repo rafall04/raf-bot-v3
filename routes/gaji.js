@@ -1,6 +1,14 @@
 /**
- * Gaji Teknisi Routes
- * Payroll period final untuk teknisi
+ * Header Doc
+ * Purpose: Route payroll & kasbon teknisi — draft → finalisasi → BAYAR, plus ringkasan kasbon.
+ *   Saat payroll dibayar, teknisi menerima STRUK GAJI via WhatsApp (rincian pendapatan +
+ *   potongan + gaji bersih) lewat jalur berjaminan; sebelum ini uang masuk tanpa keterangan apa pun.
+ * Caller: `lib/routes-registry.js` (mount admin).
+ * Deps: `express`, `lib/activity-logger`, `lib/security` (rateLimit), `lib/technician-finance-service`,
+ *   `lib/services/payroll-receipt` (teks struk), `lib/whatsapp-critical-delivery` (sendCritical).
+ * MainFuncs: router GET/POST/PUT/DELETE payroll + kasbon (`PUT /:id/pay` = titik pembayaran).
+ * SideEffects: Menulis tabel `technician_gaji`/kasbon, activity log, dan mengirim WhatsApp
+ *   ke teknisi saat payroll dibayar (never-throw — kegagalan kirim tak membatalkan pembayaran).
  */
 
 const express = require('express');
@@ -295,6 +303,29 @@ router.put('/:id/pay', ensureAdmin, async (req, res) => {
         }).catch(console.error);
 
         const payroll = await getPayrollRecord(id);
+
+        // Struk gaji ke TEKNISI. Payroll punya seluruh angkanya, tapi selama ini teknisi tak
+        // pernah diberi tahu apa pun — uang masuk rekening tanpa rincian, dan potongan kasbon
+        // (bagian yang paling sering dipertanyakan) tak terlihat sama sekali.
+        // Uang sudah berpindah tangan, jadi lewat `sendCritical` (retry + dead-letter), bukan
+        // notifikasi biasa. NEVER-THROW: gagal kirim struk tak boleh menggagalkan pembayaran
+        // payroll yang SUDAH tercatat.
+        try {
+            const { buildPayrollReceiptText, resolveTechnicianPhones } = require('../lib/services/payroll-receipt');
+            const { sendCritical } = require('../lib/whatsapp-critical-delivery');
+            const nomor = resolveTechnicianPhones(payroll.teknisi_id, global.accounts);
+            if (nomor.length === 0) {
+                console.warn(`[GAJI_NOTIF] Teknisi #${payroll.teknisi_id} tak punya nomor WA — struk gaji tidak terkirim.`);
+            } else {
+                const teks = buildPayrollReceiptText(payroll);
+                for (const ph of nomor) {
+                    await sendCritical(ph, { text: teks }, { label: 'struk_gaji_teknisi' });
+                }
+            }
+        } catch (strukErr) {
+            console.error('[GAJI_NOTIF] Gagal kirim struk gaji:', strukErr && strukErr.message);
+        }
+
         res.json({
             status: 200,
             message: 'Payroll berhasil dibayar',

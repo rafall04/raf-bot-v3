@@ -1218,3 +1218,14 @@
 - **Gate:** tidak ada (perbaikan bug alur hidup).
 - **Tes:** BARU `connection-check-blind-guard` (8), `state-breaking-command` (17), `psb-package-zero-billing` (10), `ticket-list-and-package-privacy` (19), `lib/__tests__/honest-verdict-and-delivery` (10).
 - **PELAJARAN:** perbaikan pertama saya terlalu luas — menahan state di SEMUA wizard membuat perintah yang sah dijawab "pilihan tidak valid". Pembeda yang benar bukan "state" melainkan "state ini sedang meminta DATA atau meminta PILIHAN". Dan `||` sebagai jaring pengaman berbahaya di jalur uang: `getEffectivePrice(user) || hargaPaket` membangkitkan tagihan penuh untuk pelanggan diskon 100%.
+
+<a id="b202"></a>
+### Feat+Fix 2026-08-09 (Uang yang bergerak kini selalu ada kabarnya: struk gaji teknisi, sisa tagihan setelah cicilan)
+
+- **Owner BARU:** `lib/services/payroll-receipt.js` (`buildPayrollReceiptText`, `resolveTechnicianPhones`) — teks struk GAJI teknisi, dipanggil `routes/gaji.js` PUT `/:id/pay` lewat `sendCritical` (retry + dead-letter; uang sudah berpindah tangan). Rincian pendapatan & POTONGAN ditampilkan (potongan kasbon = yang paling sering dipertanyakan); komponen bernilai nol disembunyikan supaya tak ada baris "Rp 0". Sebelum ini payroll punya semua angkanya tapi teknisi tak pernah diberi tahu apa pun.
+- **Sisa tagihan:** `handleCekTagihan` (`billing-management-handler`) dan `resolveBillContext` (`routes/bill-payment.js`, kini ASYNC — 3 pemanggil ikut `await`) memakai `getPaymentPositionForPeriod().outstanding`, bukan harga penuh. Pelanggan yang mencicil tak lagi melihat nominal penuh + "BELUM LUNAS", dan gateway tak lagi menarik jumlah penuh. Slot `${cicilan_info}` ditambahkan ke `tagihan_belum_lunas`/`tagihan_lunas` (kosong bila tak ada cicilan).
+- **GAGAL-TERTUTUP di kedua jalur:** ledger tak terbaca ⇒ kembali ke `getEffectivePrice`, JANGAN menebak — menampilkan/menarik sisa yang salah lebih berbahaya daripada angka penuh yang sudah dikenal.
+- **GOTCHA berulang:** `renderTemplate` memulangkan kalimat `Error: Template "…" not found`, BUKAN string kosong, untuk key yang belum ada — sedangkan `database/message_templates.json` produksi MERGE-KEY. Semua builder struk baru wajib punya penjaga bentuk itu (`^Error: Template`), kalau tidak pelanggan/teknisi menerima teks error sebagai struk.
+- **Status path lama:** tak ada yang dimatikan; `getEffectivePrice` tetap dasar `amountDue` yang dikirim ke ledger.
+- **Gate:** tidak ada. **Template baru:** `gaji_struk_teknisi` (message_templates).
+- **Tes:** `lib/__tests__/payroll-receipt.test.js` (BARU, 10), `message/handlers/__tests__/cek-tagihan-outstanding.test.js` (BARU, 6), + asersi `bill-payment` diperbarui.
