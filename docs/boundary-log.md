@@ -1240,3 +1240,13 @@
 - **GOTCHA @lid:** pemilik ber-`@lid` disimpan apa adanya ke `ownerLids`; angkanya bukan nomor telepon, dinormalkan jadi `62<lid>` = pemilik palsu yang tak pernah cocok.
 - **Pendukung:** `lib/whatsapp.adapter.getGroupParticipants()` (BARU) supaya pemilik dipilih dari daftar anggota grup — gerbangnya gagal-tertutup, salah satu digit = perintah diabaikan senyap.
 - **Gate:** tetap `config.businessExpense.enabled` (default OFF). **Tes:** `routes/__tests__/kas-usaha-toggle.test.js` (17).
+
+<a id="b204"></a>
+
+### Fix 2026-08-09 (Modul opsional per-instance + satu penerjemah nominal untuk kas usaha)
+
+- **Owner:** `lib/cron.js` & `index.js` kini memuat dompet pribadi secara MALAS + bergerbang `personalFinance.enabled` (menyusul `routes/admin-router.js` di rilis yang sama).
+- **AKAR:** `require` tingkat-atas ke modul yang sengaja tak dipasang di semua instance = instance itu gagal boot; satu job backup opsional menyandera SELURUH cron, dan satu registrar menahan API kas usaha menyeberang ke bot kedua.
+- **Owner nominal:** `lib/recurring-expense.js` memakai `parseAmount` dari `lib/personal-finance-service` — penerjemah yang sama dengan perintah `kas` di WhatsApp. `Number()` polos dihapus dari `simpan()` dan `konfirmasi()`.
+- **AKAR nominal:** `Number("850rb")` = NaN → halaman menolak format yang petunjuknya sendiri contohkan; di `konfirmasi()` NaN jatuh DIAM-DIAM ke perkiraan sehingga pembukuan mencatat angka yang bukan angka yang disebut orangnya.
+- **Status path lama:** tak ada; keduanya perbaikan di tempat. **Tes:** `scripts/__tests__/optional-per-instance-modules.test.js` (6), `lib/__tests__/recurring-expense.test.js` (+6).

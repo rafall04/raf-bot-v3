@@ -305,6 +305,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Feat+Fix 2026-08-09 (Uang yang bergerak kini selalu ada kabarnya: struk gaji teknisi, sisa tagihan setelah cicilan)](docs/boundary-log.md#b202)
 
 - [Feat 2026-08-09 (Kas usaha: seluruh setelan pindah ke halaman admin — sakelar, grup, pemilik)](docs/boundary-log.md#b203)
+- [Fix 2026-08-09 (Modul opsional per-instance + satu penerjemah nominal untuk kas usaha)](docs/boundary-log.md#b204)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
