@@ -771,6 +771,11 @@ async function createReportTicket({ sender, state, reply: _reply }) {
 
         return {
             success: true,
+            // `ticketId` ikut dipulangkan supaya pemanggil non-percakapan (mis.
+            // `promoteReportDraftOnTimeout`) bisa menyebut nomor tiketnya ke pelanggan.
+            // Sebelumnya hanya `{success, message}`, sehingga notifikasi promote-on-timeout
+            // membaca `undefined` dan tak pernah terkirim — perbaikannya mati separuh.
+            ticketId,
             message: renderResponseTemplate(
                 'smart_report_text_report_created_success',
                 'Laporan berhasil dibuat.\n\nID Tiket: *${ticketId}*\nPrioritas: *${priorityLabel}*\nEstimasi: *${estimasi}*\nStatus: Pending\nFoto: ${photoStatus}\n\nCek status: *cektiket ${ticketId}*',

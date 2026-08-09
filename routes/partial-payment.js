@@ -246,7 +246,7 @@ router.post('/request', ensureAuthenticatedStaff, rateLimit('partial-payment', 3
 
             if (isAdmin) {
                 try {
-                    await applyPaymentStatusChange({
+                    const hasilBayar = await applyPaymentStatusChange({
                         user,
                         paid: true,
                         periodMonth: currentMonth,
@@ -284,27 +284,42 @@ router.post('/request', ensureAuthenticatedStaff, rateLimit('partial-payment', 3
                     // Uang sudah berpindah tangan, jadi ini dikirim lewat sendCritical (retry +
                     // dead-letter), bukan notifikasi biasa. NEVER-THROW: gagal kirim tak boleh
                     // membatalkan pencatatan pembayaran yang sudah sah.
-                    if (isPartial) {
-                        try {
-                            const { buildPartialPaymentReceiptText } = require('../lib/services/paid-receipt');
-                            const { sendCritical } = require('../lib/whatsapp-critical-delivery');
-                            const teksStruk = buildPartialPaymentReceiptText({
-                                user,
-                                amountPaid,
-                                amountRemaining,
-                                periodMonth: currentMonth,
-                                periodYear: currentYear,
-                                method: paymentMethod,
-                                paidAt: new Date().toISOString(),
-                                refId: newRequest.id
-                            });
-                            for (const raw of String(user.phone_number || '').split('|')) {
-                                const nomor = String(raw || '').trim();
-                                if (!nomor) continue;
-                                await sendCritical(nomor, { text: teksStruk }, { label: 'struk_cicilan' });
-                            }
-                        } catch (strukErr) {
-                            console.error('[ADMIN_PARTIAL_PAYMENT] gagal kirim struk cicilan:', strukErr && strukErr.message);
+                    // GERBANG BERBASIS BUKTI, bukan pembacaan awal. `isPartial` dihitung dari
+                    // `outstanding` yang dibaca SEBELUM transaksi; `applyPaymentStatusChange`
+                    // membaca ulang posisinya sendiri dan itulah kebenarannya. Kalau pembayaran
+                    // ternyata MELUNASI periode, jalur lunas sudah mengirim struk LUNAS —
+                    // struk cicilan di sini akan jadi pesan kedua yang bertentangan.
+                    const benarBenarCicilan = hasilBayar && hasilBayar.becameFullyPaid !== true;
+                    const sisaSebenarnya = hasilBayar && hasilBayar.positionAfter
+                        && Number.isFinite(Number(hasilBayar.positionAfter.outstanding))
+                        ? Math.max(0, Number(hasilBayar.positionAfter.outstanding))
+                        : amountRemaining;
+
+                    // Sakelar operator yang sama dengan notifikasi lunas (halaman Cron). Saat bot
+                    // sengaja dibisukan (mis. impor massal), struk cicilan pun harus ikut diam.
+                    const notifAktif = global.cronConfig?.status_message_paid_notification === true;
+
+                    if (benarBenarCicilan && notifAktif && sisaSebenarnya > 0) {
+                        // FIRE-AND-FORGET: `sendCritical` menunggu WA ready + retry (bisa puluhan
+                        // detik). Menahan respons HTTP di dalam `withLock` membuat panel admin
+                        // menggantung dan lock tertahan. Kegagalan tetap tercatat di dead-letter.
+                        const { buildPartialPaymentReceiptText } = require('../lib/services/paid-receipt');
+                        const { sendCritical } = require('../lib/whatsapp-critical-delivery');
+                        const teksStruk = buildPartialPaymentReceiptText({
+                            user,
+                            amountPaid,
+                            amountRemaining: sisaSebenarnya,
+                            periodMonth: currentMonth,
+                            periodYear: currentYear,
+                            method: paymentMethod,
+                            paidAt: new Date().toISOString(),
+                            refId: newRequest.id
+                        });
+                        for (const raw of String(user.phone_number || '').split('|')) {
+                            const nomor = String(raw || '').trim();
+                            if (!nomor) continue;
+                            sendCritical(nomor, { text: teksStruk }, { label: 'struk_cicilan' })
+                                .catch((e) => console.error('[ADMIN_PARTIAL_PAYMENT] gagal kirim struk cicilan:', e && e.message));
                         }
                     }
                 } catch (processError) {
