@@ -282,12 +282,12 @@ function isParentActive($pages, $current) {
     <hr class="sidebar-divider">
     <div class="sidebar-heading">Keuangan &amp; Bisnis</div>
 
-    <li class="nav-item <?php echo isParentActive(['/rekap-keuangan', '/pengeluaran', '/transaction', '/saldo-management'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseKeuangan" aria-expanded="<?php echo isParentActive(['/rekap-keuangan', '/pengeluaran', '/transaction', '/saldo-management'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseKeuangan">
+    <li class="nav-item <?php echo isParentActive(['/rekap-keuangan', '/pengeluaran', '/kas-usaha', '/transaction', '/saldo-management'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseKeuangan" aria-expanded="<?php echo isParentActive(['/rekap-keuangan', '/pengeluaran', '/kas-usaha', '/transaction', '/saldo-management'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseKeuangan">
             <i class="fas fa-fw fa-chart-line"></i>
             <span>Keuangan</span>
         </a>
-        <div id="collapseKeuangan" class="collapse <?php echo isParentActive(['/rekap-keuangan', '/pengeluaran', '/transaction', '/saldo-management'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingKeuangan" data-parent="#accordionSidebar">
+        <div id="collapseKeuangan" class="collapse <?php echo isParentActive(['/rekap-keuangan', '/pengeluaran', '/kas-usaha', '/transaction', '/saldo-management'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingKeuangan" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/rekap-keuangan', $current_page) ? 'active' : ''; ?>" href="/rekap-keuangan">
                     <i class="fas fa-fw fa-chart-line mr-2"></i>
@@ -296,6 +296,10 @@ function isParentActive($pages, $current) {
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/pengeluaran', $current_page) ? 'active' : ''; ?>" href="/pengeluaran">
                     <i class="fas fa-fw fa-receipt mr-2"></i>
                     <span>Pengeluaran</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/kas-usaha', $current_page) ? 'active' : ''; ?>" href="/kas-usaha">
+                    <i class="fas fa-fw fa-building mr-2"></i>
+                    <span>Kas Usaha</span>
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/transaction', $current_page) ? 'active' : ''; ?>" href="/transaction">
                     <i class="fas fa-fw fa-exchange-alt mr-2"></i>

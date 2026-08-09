@@ -130,6 +130,17 @@ describe("pemilik kas: dipilih dari halaman, @lid tak dikarang jadi nomor", () =
         expect(js).toMatch(/di luar grup/);
     });
 
+    test("halaman TERJANGKAU dari sidebar — bukan cuma kalau URL-nya diketik", () => {
+        // Halaman ini sempat yatim: rutenya terdaftar tapi tak ada satu pun tautan menu,
+        // jadi operator tak punya cara menemukannya.
+        const navbar = baca("views", "sb-admin", "_navbar.php");
+        expect(navbar).toContain('href="/kas-usaha"');
+        expect(navbar).toMatch(/Kas Usaha/);
+        // Ikut disorot saat halamannya terbuka (induk menu Keuangan ikut membuka).
+        expect(navbar).toMatch(/isActive\('\/kas-usaha', \$current_page\)/);
+        expect(navbar).toMatch(/'\/pengeluaran', '\/kas-usaha'/);
+    });
+
     test("halaman punya sakelarnya", () => {
         expect(halaman).toMatch(/id="ku-aktif"/);
         expect(halaman).toMatch(/Aktifkan kas usaha/i);
