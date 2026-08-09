@@ -221,8 +221,17 @@ app.use('/api/auth/otp/request', authLimiter);
 // baru membuka halaman beberapa kali langsung terkunci 15 menit padahal belum sekali pun
 // menyentuh sandi (dilaporkan 2026-07-23). Selagi belum ada kredensial memang tak ada yang
 // bisa ditebak, jadi tak ada yang perlu direm; globalLimiter tetap berlaku.
+//
+// Modul dompet adalah fitur OPSIONAL per-instance dan boleh tidak terpasang di sini, jadi
+// require-nya dibungkus: berkas yang absen tak boleh menjadikan endpoint ini 500. Instance
+// tanpa dompet tak punya apa pun untuk direm — lewati saja.
 app.use('/api/keuangan-pribadi/login', (req, res, next) => {
-    const { hasCredential } = require('./lib/personal-finance-auth');
+    let hasCredential;
+    try {
+        ({ hasCredential } = require('./lib/personal-finance-auth'));
+    } catch (_e) {
+        return next();
+    }
     if (!hasCredential()) return next();
     return authLimiter(req, res, next);
 });
