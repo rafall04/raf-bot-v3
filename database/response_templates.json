@@ -5541,5 +5541,10 @@
     "name": "Keluhan: Gagal Disimpan",
     "template": "🙏 Maaf Kak, keluhan Anda belum bisa kami simpan karena kendala sistem.\n\nMohon sampaikan langsung ke admin ya supaya tidak terlewat.",
     "category": "pelanggan"
+  },
+  "report_draft_promoted_timeout": {
+    "name": "Laporan: Draft Dipromosikan (timeout foto)",
+    "template": "✅ Laporan Anda tetap kami catat ya Kak.\n\nNo. Tiket: *${ticket_id}*\n\nFotonya boleh menyusul — tidak wajib. Cek status kapan saja dengan *cek tiket ${ticket_id}*.",
+    "category": "pelanggan"
   }
 }

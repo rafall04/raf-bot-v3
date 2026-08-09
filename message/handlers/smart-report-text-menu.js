@@ -8,7 +8,7 @@
  */
 
 const { isDeviceOnline, getDeviceOfflineMessage: _getDeviceOfflineMessage } = require('../../lib/device-status');
-const { setUserState, getUserState, deleteUserState, format } = require('./conversation-handler');
+const { setUserState, getUserState, deleteUserState, format, registerStateTimeoutHandler } = require('./conversation-handler');
 const { getResponseTimeMessage, isWithinWorkingHours } = require('../../lib/working-hours-helper');
 const { hasActiveReport } = require('../../lib/report-helper');
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
@@ -800,8 +800,63 @@ async function createReportTicket({ sender, state, reply: _reply }) {
  * Notify technicians with delay to prevent spam
  */
 
+/**
+ * Draft laporan yang DITINGGALKAN di langkah foto tidak boleh ikut mati bersama state-nya.
+ *
+ * Alur hidup (text-menu) berhenti di step `REPORT_MATI_PHOTO` sambil meminta foto. Pelanggan yang
+ * internetnya mati sering tak punya yang bisa difoto (layar modem gelap), lalu diam. Setelah 15
+ * menit state dihapus — dan tiketnya TIDAK PERNAH LAHIR. Teknisi tak pernah tahu ada yang melapor.
+ *
+ * Handler timeout memang sudah ada, tapi hanya terdaftar untuk step LEGACY
+ * (`GANGGUAN_MATI_AWAITING_PHOTO`/`LEMOT_AWAITING_PHOTO`) dan menuntut bentuk state lama
+ * (`state.ticketData`), sedangkan alur ini memakai `ticketDraft`. Jadi ia tak pernah menolong di
+ * sini. Solusinya memakai pembuat tiket milik alur ini sendiri, yang sudah paham bentuk state-nya.
+ *
+ * Foto adalah LAMPIRAN, bukan syarat lahirnya tiket. NEVER-THROW.
+ */
+async function promoteReportDraftOnTimeout(userId, state) {
+    try {
+        if (!state || !getReportCustomer(state)) {
+            console.warn('[REPORT_TIMEOUT_PROMOTE] state/pelanggan kosong, dilewati', { userId });
+            return;
+        }
+        const hasil = await createReportTicket({ sender: userId, state, reply: async () => {} });
+        const ticketId = hasil && (hasil.ticketId || (hasil.data && hasil.data.ticketId));
+        console.log('[REPORT_TIMEOUT_PROMOTE] draft laporan dipromosikan jadi tiket', { userId, ticketId: ticketId || null });
+
+        // Pelanggan WAJIB diberi tahu — kalau tidak, dari sisinya laporannya tetap "hilang".
+        if (ticketId) {
+            try {
+                const { sendMessage } = require('../../lib/whatsapp-delivery-service');
+                await sendMessage(userId, {
+                    text: renderResponseTemplate(
+                        'report_draft_promoted_timeout',
+                        `✅ Laporan Anda tetap kami catat ya Kak.\n\nNo. Tiket: *${ticketId}*\n\n` +
+                        `Fotonya boleh menyusul — tidak wajib. Cek status kapan saja dengan *cek tiket ${ticketId}*.`,
+                        { ticket_id: ticketId }
+                    )
+                }, { skipDuplicateCheck: true });
+            } catch (kirimErr) {
+                console.error('[REPORT_TIMEOUT_PROMOTE] gagal beri tahu pelanggan:', kirimErr && kirimErr.message);
+            }
+        }
+    } catch (error) {
+        console.error('[REPORT_TIMEOUT_PROMOTE] gagal promote draft jadi tiket', { userId, error: error && error.message });
+    }
+}
+
+// Guard sama seperti smart-report-handler: test yang me-mock conversation-handler tak selalu
+// mengekspor fungsi ini.
+if (typeof registerStateTimeoutHandler === 'function') {
+    registerStateTimeoutHandler('REPORT_MATI_PHOTO', promoteReportDraftOnTimeout);
+    registerStateTimeoutHandler('REPORT_LEMOT_ANALYSIS', promoteReportDraftOnTimeout);
+    registerStateTimeoutHandler('REPORT_LEMOT_CONFIRM', promoteReportDraftOnTimeout);
+    registerStateTimeoutHandler('CONFIRM_MATI_REPORT', promoteReportDraftOnTimeout);
+}
+
 module.exports = {
     startReportFlow,
+    promoteReportDraftOnTimeout,
     handleMenuSelection,
     handleInternetMati,
     handleInternetLemot,
