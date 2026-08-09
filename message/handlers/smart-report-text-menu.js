@@ -847,11 +847,21 @@ async function promoteReportDraftOnTimeout(userId, state) {
 
 // Guard sama seperti smart-report-handler: test yang me-mock conversation-handler tak selalu
 // mengekspor fungsi ini.
+// HANYA step LAMPIRAN, bukan step KEPUTUSAN.
+//
+// `REPORT_MATI_PHOTO` tercapai SETELAH pelanggan memilih "sudah restart, masih mati" — niat
+// melapornya sudah jelas, dan yang ditunggu tinggal foto (lampiran opsional). Di situ, diam
+// wajar diartikan "tak ada yang bisa difoto", dan tiket memang layak lahir.
+//
+// Step lain SENGAJA TIDAK didaftarkan meski sempat saya pasang: `REPORT_LEMOT_ANALYSIS`,
+// `REPORT_LEMOT_CONFIRM`, dan `CONFIRM_MATI_REPORT` adalah step KEPUTUSAN — bot bertanya
+// "Balas *SUDAH* jika teratasi atau *BELUM* untuk buat laporan". Mayoritas pelanggan yang
+// masalahnya sudah beres sendiri tidak membalas apa-apa; menafsirkan diam sebagai "BELUM"
+// akan melahirkan tiket palsu, mem-blast WA ke SELURUH teknisi & admin, dan (lewat
+// `hasActiveReport`) menutup pintu lapor pelanggan itu untuk gangguan berikutnya.
+// Membuat tiket menurunkan teknisi ke lapangan — itu butuh persetujuan EKSPLISIT, bukan diam.
 if (typeof registerStateTimeoutHandler === 'function') {
     registerStateTimeoutHandler('REPORT_MATI_PHOTO', promoteReportDraftOnTimeout);
-    registerStateTimeoutHandler('REPORT_LEMOT_ANALYSIS', promoteReportDraftOnTimeout);
-    registerStateTimeoutHandler('REPORT_LEMOT_CONFIRM', promoteReportDraftOnTimeout);
-    registerStateTimeoutHandler('CONFIRM_MATI_REPORT', promoteReportDraftOnTimeout);
 }
 
 module.exports = {

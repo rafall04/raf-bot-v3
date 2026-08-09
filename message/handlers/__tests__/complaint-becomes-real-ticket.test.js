@@ -55,7 +55,7 @@ describe('keluhan pelanggan menjadi TIKET NYATA, bukan console.log', () => {
         const src = baca('lib', 'report-orchestration-service.js');
         const idx = src.indexOf('async function createCustomerComplaintTicket');
         expect(idx).toBeGreaterThan(-1);
-        const blok = src.slice(idx, idx + 1600);
+        const blok = src.slice(idx, idx + 3200);
         expect(blok).toMatch(/try\s*\{/);
         expect(blok).toMatch(/catch\s*\(/);
         expect(blok).toMatch(/return\s*\{\s*ok:\s*false/);
@@ -79,5 +79,60 @@ describe('keluhan pelanggan menjadi TIKET NYATA, bukan console.log', () => {
         expect(teks.length).toBeGreaterThan(20);
         expect(teks).toMatch(/admin/i);
         expect(teks).not.toMatch(/menindaklanjuti/i);
+    });
+});
+
+describe('koreksi regresi: tiket keluhan tak boleh merusak alur lain', () => {
+    const REPO2 = path.join(__dirname, '..', '..', '..');
+    const bacaR = (...p) => fs.readFileSync(path.join(REPO2, ...p), 'utf8');
+
+    test('tiket keluhan ditandai source:"keluhan" agar bisa dibedakan', () => {
+        const src = bacaR('lib', 'report-orchestration-service.js');
+        const idx = src.indexOf('async function createCustomerComplaintTicket');
+        expect(src.slice(idx, idx + 2600)).toMatch(/source:\s*'keluhan'/);
+    });
+
+    test('hasActiveReport MENGABAIKAN tiket keluhan — pintu lapor gangguan tetap terbuka', () => {
+        const { hasActiveReport } = require(path.join(REPO2, 'lib', 'report-helper'));
+        const keluhan = { pelangganUserId: 7, status: 'baru', source: 'keluhan', ticketId: 'KEL0001' };
+        const gangguan = { pelangganUserId: 7, status: 'baru', issueType: 'MATI', ticketId: 'GGN0001' };
+
+        // Hanya ada tiket keluhan → pelanggan TETAP boleh melapor gangguan.
+        expect(hasActiveReport(7, [keluhan])).toBeFalsy();
+        // Tiket gangguan aktif → gerbang tetap bekerja seperti semula.
+        expect(hasActiveReport(7, [gangguan])).toBeTruthy();
+        // Campuran → yang ditemukan harus tiket gangguannya.
+        expect(hasActiveReport(7, [keluhan, gangguan]).ticketId).toBe('GGN0001');
+    });
+
+    test('issueType KELUHAN juga dikenali walau penanda source hilang', () => {
+        const { hasActiveReport } = require(path.join(REPO2, 'lib', 'report-helper'));
+        expect(hasActiveReport(7, [{ pelangganUserId: 7, status: 'baru', issueType: 'KELUHAN' }])).toBeFalsy();
+    });
+
+    test('ada pembatas satu keluhan TERBUKA per pelanggan (anti banjir tiket & notifikasi)', () => {
+        const src = bacaR('lib', 'report-orchestration-service.js');
+        const idx = src.indexOf('async function createCustomerComplaintTicket');
+        const blok = src.slice(idx, idx + 2600);
+        expect(blok).toMatch(/global\.reports/);
+        expect(blok).toMatch(/existing:\s*true/);
+    });
+});
+
+describe('koreksi regresi: promosi timeout HANYA di step lampiran', () => {
+    const textMenu = fs.readFileSync(
+        path.join(__dirname, '..', 'smart-report-text-menu.js'), 'utf8'
+    );
+
+    test('hanya REPORT_MATI_PHOTO yang didaftarkan', () => {
+        const cocok = textMenu.match(/registerStateTimeoutHandler\(\s*'([A-Z_]+)'/g) || [];
+        expect(cocok.length).toBe(1);
+        expect(cocok[0]).toContain('REPORT_MATI_PHOTO');
+    });
+
+    test('step KEPUTUSAN tidak didaftarkan — diam bukan persetujuan', () => {
+        for (const step of ['REPORT_LEMOT_ANALYSIS', 'REPORT_LEMOT_CONFIRM', 'CONFIRM_MATI_REPORT']) {
+            expect(textMenu).not.toMatch(new RegExp(`registerStateTimeoutHandler\\(\\s*'${step}'`));
+        }
     });
 });

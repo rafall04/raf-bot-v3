@@ -27,10 +27,16 @@ describe('draft laporan tidak boleh mati bersama state-nya', () => {
         expect(textMenu).toMatch(/registerStateTimeoutHandler\(\s*'REPORT_MATI_PHOTO'/);
     });
 
-    test('step keputusan lain di alur yang sama juga terlindungi', () => {
-        for (const step of ['REPORT_LEMOT_ANALYSIS', 'REPORT_LEMOT_CONFIRM', 'CONFIRM_MATI_REPORT']) {
-            expect(textMenu).toMatch(new RegExp(`registerStateTimeoutHandler\\(\\s*'${step}'`));
-        }
+    // CATATAN: test lama di sini menuntut step KEPUTUSAN (REPORT_LEMOT_ANALYSIS/…_CONFIRM/
+    // CONFIRM_MATI_REPORT) ikut didaftarkan. Itu SALAH dan sempat jadi regresi nyata: di step
+    // keputusan bot bertanya "Balas *SUDAH* … atau *BELUM*", sehingga diamnya pelanggan yang
+    // masalahnya sudah beres akan dibaca sebagai "BELUM" → tiket palsu + blast ke seluruh staf.
+    // Asersinya dibalik di `complaint-becomes-real-ticket.test.js`: step keputusan WAJIB TIDAK
+    // didaftarkan. Hanya step LAMPIRAN (`REPORT_MATI_PHOTO`) yang boleh promote-on-timeout.
+    test('hanya step LAMPIRAN yang didaftarkan — bukan step keputusan', () => {
+        const cocok = textMenu.match(/registerStateTimeoutHandler\(\s*'([A-Z_]+)'/g) || [];
+        expect(cocok.length).toBe(1);
+        expect(cocok[0]).toContain('REPORT_MATI_PHOTO');
     });
 
     test('promosi memakai pembuat tiket MILIK alur ini, bukan handler legacy yang bentuk state-nya beda', () => {
