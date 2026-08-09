@@ -63,6 +63,16 @@
               <span class="ku-kartu__meta" id="ku-status-fitur"></span>
             </div>
             <div class="ku-baris">
+              <label class="ku-sakelar" for="ku-aktif">
+                <input type="checkbox" id="ku-aktif">
+                <span>Aktifkan kas usaha</span>
+              </label>
+            </div>
+            <p class="ku-petunjuk">
+              Saat aktif, bot mengirim pengingat biaya rutin ke grup di bawah dan menerima perintah
+              <code>kas …</code> di sana. Mematikannya membuat bot diam tanpa menghapus data apa pun.
+            </p>
+            <div class="ku-baris">
               <select id="ku-grup" class="form-control form-control-sm ku-input"><option value="">— belum dipilih —</option></select>
               <button type="button" class="btn btn-sm btn-outline-secondary" id="ku-muat-grup">Muat grup</button>
               <button type="button" class="btn btn-sm btn-primary" id="ku-simpan-grup">Simpan</button>
@@ -72,6 +82,18 @@
               <code>ok</code> / <code>ok 620rb</code> / <code>lewati</code>. Di grup itu juga bisa
               mencatat langsung: <code>kas 150rb kabel dropcore</code>.
             </p>
+
+            <h3 class="ku-subjudul">Siapa yang boleh mencatat</h3>
+            <p class="ku-petunjuk">
+              Hanya orang di daftar ini yang perintah <code>kas …</code>-nya dijalankan. Selama
+              daftarnya kosong, bot <b>diam</b> di grup walaupun sudah aktif.
+            </p>
+            <div id="ku-pemilik" class="ku-pemilik"><span class="ku-kosong">Memuat anggota grup…</span></div>
+            <div class="ku-baris">
+              <input type="text" id="ku-pemilik-manual" class="form-control form-control-sm ku-input"
+                     placeholder="Nomor lain, pisahkan koma (mis. 08123456789)">
+              <button type="button" class="btn btn-sm btn-primary" id="ku-simpan-pemilik">Simpan pemilik</button>
+            </div>
           </section>
 
           <!-- Biaya rutin -->

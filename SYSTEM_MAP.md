@@ -304,6 +304,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-09 (Delapan jalur yang berbohong: MikroTik buta divonis "semua mati", wizard mati senyap, nominal salah, dan `list tiket` selalu kosong)](docs/boundary-log.md#b201)
 - [Feat+Fix 2026-08-09 (Uang yang bergerak kini selalu ada kabarnya: struk gaji teknisi, sisa tagihan setelah cicilan)](docs/boundary-log.md#b202)
 
+- [Feat 2026-08-09 (Kas usaha: seluruh setelan pindah ke halaman admin — sakelar, grup, pemilik)](docs/boundary-log.md#b203)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

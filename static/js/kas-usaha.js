@@ -1,7 +1,8 @@
 /**
  * Header Doc
- * Purpose: Frontend halaman /kas-usaha — pilih grup WhatsApp kas, kelola BIAYA RUTIN
- *          (tambah/ubah/hapus/catat), dan tampilkan ringkasan kas bulan berjalan.
+ * Purpose: Frontend halaman /kas-usaha — sakelar aktif, pilih grup WhatsApp kas, tentukan
+ *          PEMILIK yang boleh mencatat, kelola BIAYA RUTIN (tambah/ubah/hapus/catat), dan
+ *          tampilkan ringkasan kas bulan berjalan.
  *          Tombol "Catat" memanggil endpoint yang sama dengan konfirmasi WhatsApp, jadi
  *          hasilnya identik: pengeluaran dibuat lewat expense-manager, bukan di sini.
  * Caller: views/sb-admin/kas-usaha.php (butuh static/css/kas-usaha.css).
@@ -72,13 +73,59 @@
                 return '<option value="' + esc(k) + '">' + esc(k) + "</option>";
             }).join("");
 
+            var sak = el("ku-aktif");
+            if (sak) sak.checked = d.enabled === true;
+
+            gambarPemilik(d);
+
             var st = el("ku-status-fitur");
             if (st) {
-                st.textContent = d.enabled
-                    ? (d.waSiap ? "" : "WhatsApp belum terkoneksi — daftar grup tak bisa dimuat")
-                    : "Fitur kas usaha masih OFF di config (businessExpense.enabled)";
+                // Status yang JUJUR soal syarat: satu saja belum terpenuhi = bot diam.
+                var jmlPemilik = (d.ownerJids || []).length + (d.ownerLids || []).length;
+                if (!d.enabled) st.textContent = "Kas usaha OFF — nyalakan lewat sakelar di bawah.";
+                else if (!d.groupId) st.textContent = "Aktif, tapi grup kas belum dipilih — pengingat belum akan terkirim.";
+                else if (!jmlPemilik) st.textContent = "Aktif, tapi belum ada pemilik — perintah kas di grup akan diabaikan.";
+                else if (!d.waSiap) st.textContent = "WhatsApp belum terkoneksi — daftar grup tak bisa dimuat.";
+                else st.textContent = "";
             }
         });
+    }
+
+    // Pemilik ditampilkan sebagai DAFTAR CENTANG anggota grup. Mengetik nomor manual gampang
+    // salah satu digit, dan gerbangnya gagal-tertutup: nomor meleset = perintah diabaikan
+    // tanpa pesan error. Nomor di luar grup tetap bisa ditambah lewat kolom manual.
+    function gambarPemilik(d) {
+        var box = el("ku-pemilik");
+        if (!box) return;
+        var terpilih = (d.ownerJids || []).concat(d.ownerLids || []).map(String);
+        var peserta = d.peserta || [];
+
+        var luarGrup = terpilih.filter(function (j) {
+            return !peserta.some(function (p) { return p.id === j; });
+        });
+
+        if (!peserta.length && !luarGrup.length) {
+            box.innerHTML = '<span class="ku-kosong">' +
+                (d.groupId
+                    ? (d.waSiap ? "Grup ini belum punya anggota terbaca." : "WhatsApp belum terkoneksi — anggota grup tak bisa dimuat. Pakai kolom nomor manual di bawah.")
+                    : "Pilih grup dulu untuk melihat anggotanya.") +
+                "</span>";
+            return;
+        }
+
+        function baris(id, label, dicentang) {
+            return '<label class="ku-pemilik__item"><input type="checkbox" class="ku-pemilik__cek" value="' +
+                esc(id) + '"' + (dicentang ? " checked" : "") + "><span>" + esc(label) + "</span></label>";
+        }
+
+        box.innerHTML =
+            peserta.map(function (p) {
+                var nomor = p.id.indexOf("@lid") !== -1 ? p.id : p.id.split("@")[0];
+                return baris(p.id, nomor + (p.admin ? " (admin grup)" : ""), terpilih.indexOf(p.id) !== -1);
+            }).join("") +
+            luarGrup.map(function (j) {
+                return baris(j, j.split("@")[0] + " (di luar grup)", true);
+            }).join("");
     }
 
     function muatRutin() {
@@ -131,6 +178,30 @@
         });
     }
 
+    // Sakelar aktif — langsung tersimpan (tanpa tombol Simpan terpisah) supaya tak ada
+    // keadaan "kelihatan menyala di layar tapi belum tersimpan". Gagal simpan mengembalikan
+    // posisi sakelar agar layar tak berbohong.
+    var sakelar = el("ku-aktif");
+    if (sakelar) {
+        sakelar.addEventListener("change", function () {
+            var mau = sakelar.checked;
+            sakelar.disabled = true;
+            ambil("/api/kas-usaha/aktif", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ enabled: mau })
+            }).then(function (j) {
+                pesan(j.message || (mau ? "Kas usaha diaktifkan." : "Kas usaha dimatikan."), "ok");
+                return muatSetelan();
+            }).catch(function (e) {
+                sakelar.checked = !mau;
+                pesan(e.message, "error");
+            }).then(function () {
+                sakelar.disabled = false;
+            });
+        });
+    }
+
     el("ku-muat-grup").addEventListener("click", function () {
         muatSetelan().then(function () { pesan("Daftar grup dimuat.", "ok"); }).catch(function (e) { pesan(e.message, "error"); });
     });
@@ -142,6 +213,25 @@
             body: JSON.stringify({ groupId: el("ku-grup").value })
         })
             .then(function (j) { pesan(j.message, "ok"); })
+            .catch(function (e) { pesan(e.message, "error"); });
+    });
+
+    el("ku-simpan-pemilik").addEventListener("click", function () {
+        var pemilik = Array.prototype.map.call(
+            document.querySelectorAll(".ku-pemilik__cek:checked"),
+            function (c) { return c.value; }
+        );
+        var manual = el("ku-pemilik-manual").value.split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+        ambil("/api/kas-usaha/pemilik", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pemilik: pemilik.concat(manual) })
+        })
+            .then(function (j) {
+                el("ku-pemilik-manual").value = "";
+                pesan(j.message, "ok");
+                return muatSetelan();
+            })
             .catch(function (e) { pesan(e.message, "error"); });
     });
 

@@ -1,15 +1,19 @@
 /**
  * Header Doc
- * Purpose: API halaman `/kas-usaha` — setelan grup WhatsApp kas, CRUD biaya rutin, dan
- *          ringkasan kas periode berjalan.
+ * Purpose: API halaman `/kas-usaha` — setelan kas usaha (sakelar aktif, grup WhatsApp,
+ *          daftar pemilik), CRUD biaya rutin, dan ringkasan kas periode berjalan.
+ *          SEMUA setelan bisa diubah dari halaman; tak ada lagi yang mengharuskan operator
+ *          menyunting `config.json` di server.
  *          BEDA dari dompet pribadi: ini setelan BISNIS, jadi memang di-gate akun staf
  *          (admin/owner) seperti halaman keuangan usaha lainnya — bukan sesi dompet.
  * Caller: `routes/admin-router.js`.
  * Deps: `ensureAuthenticatedStaff` (dari deps), `lib/error-handler.asyncHandler`,
- *       `lib/recurring-expense`, `lib/expense-manager`, `lib/whatsapp.adapter` (daftar grup).
- * MainFuncs: `registerAdminKasUsahaRoutes`.
- * SideEffects: Menulis `config.json` (hanya `businessExpense.groupId`) + tabel
- *              `recurring_expenses`; tak pernah menyentuh `expense_entries` secara langsung.
+ *       `lib/recurring-expense`, `lib/expense-manager`, `lib/whatsapp.adapter` (grup + anggota),
+ *       `lib/cron/jobs/recurring-expense-reminder` (penjadwalan ulang saat sakelar diubah).
+ * MainFuncs: `registerAdminKasUsahaRoutes`, `tulisSetelan`.
+ * SideEffects: Menulis `config.json` (hanya key di bawah `businessExpense`) + tabel
+ *              `recurring_expenses`; menjadwalkan ulang cron pengingat; tak pernah menyentuh
+ *              `expense_entries` secara langsung.
  */
 "use strict";
 
@@ -18,6 +22,32 @@ const recurring = require("../lib/recurring-expense");
 const { EXPENSE_CATEGORIES, listExpenses } = require("../lib/expense-manager");
 
 const PERAN = ["owner", "admin", "superadmin"];
+
+/**
+ * SATU-SATUNYA penulis setelan kas usaha ke `config.json`.
+ * Baca-ubah-tulis, HANYA menyentuh key yang diberikan: berkas ini memuat kredensial gateway
+ * dan puluhan setelan lain, jadi menulis ulang objeknya dari nol pernah = kehilangan config.
+ * Config in-memory ikut disegarkan supaya perubahan berlaku tanpa restart.
+ * @param {Object} tambalan key `businessExpense` yang diubah.
+ * @returns {Object|null} config in-memory setelah disegarkan.
+ */
+function tulisSetelan(tambalan, getConfig) {
+    const fs = require("fs");
+    const path = require("path");
+    const p = path.join(__dirname, "..", "config.json");
+
+    const isi = JSON.parse(fs.readFileSync(p, "utf8"));
+    if (!isi.businessExpense) isi.businessExpense = {};
+    Object.assign(isi.businessExpense, tambalan);
+    fs.writeFileSync(p, JSON.stringify(isi, null, 2), "utf8");
+
+    const cfg = getConfig();
+    if (cfg) {
+        if (!cfg.businessExpense) cfg.businessExpense = {};
+        Object.assign(cfg.businessExpense, tambalan);
+    }
+    return cfg;
+}
 
 function registerAdminKasUsahaRoutes(router, deps = {}) {
     const ensureAuthenticatedStaff = deps.ensureAuthenticatedStaff || ((_req, _res, next) => next());
@@ -40,9 +70,13 @@ function registerAdminKasUsahaRoutes(router, deps = {}) {
         asyncHandler(async (_req, res) => {
             const cfg = (getConfig() || {}).businessExpense || {};
             let grup = [];
+            let peserta = [];
             let waSiap = true;
             try {
-                grup = await require("../lib/whatsapp.adapter").getGroups();
+                const wa = require("../lib/whatsapp.adapter");
+                grup = await wa.getGroups();
+                // Anggota grup terpilih — supaya pemilik dipilih dari daftar, bukan diketik.
+                if (cfg.groupId) peserta = await wa.getGroupParticipants(cfg.groupId);
             } catch (_e) {
                 // WA putus bukan kegagalan endpoint — setelan tersimpan tetap harus terlihat.
                 waSiap = false;
@@ -53,8 +87,10 @@ function registerAdminKasUsahaRoutes(router, deps = {}) {
                     enabled: cfg.enabled === true,
                     groupId: cfg.groupId || "",
                     ownerJids: cfg.ownerJids || [],
+                    ownerLids: cfg.ownerLids || [],
                     kategori: EXPENSE_CATEGORIES,
                     grup,
+                    peserta,
                     waSiap
                 }
             });
@@ -70,24 +106,100 @@ function registerAdminKasUsahaRoutes(router, deps = {}) {
                 return res.status(400).json({ success: false, message: "JID grup harus berakhiran @g.us." });
             }
 
-            const fs = require("fs");
-            const path = require("path");
-            const p = path.join(__dirname, "..", "config.json");
-            // Baca-ubah-tulis, HANYA menyentuh satu key. config.json memuat kredensial
-            // gateway dan puluhan setelan lain.
-            const isi = JSON.parse(fs.readFileSync(p, "utf8"));
-            if (!isi.businessExpense) isi.businessExpense = {};
-            isi.businessExpense.groupId = groupId;
-            fs.writeFileSync(p, JSON.stringify(isi, null, 2), "utf8");
-
-            const cfg = getConfig();
-            if (cfg) {
-                if (!cfg.businessExpense) cfg.businessExpense = {};
-                cfg.businessExpense.groupId = groupId;
-            }
+            tulisSetelan({ groupId }, getConfig);
             res.json({
                 success: true,
                 message: groupId ? "Grup kas disimpan." : "Grup kas dikosongkan — pengingat tidak akan terkirim."
+            });
+        })
+    );
+
+    // Sakelar AKTIF fitur kas usaha. Sebelum ini halaman hanya MEMBERI TAHU "masih OFF di config"
+    // tanpa memberi cara menyalakannya — operator tetap harus membuka config.json di server, yang
+    // justru berkas paling berbahaya untuk disunting tangan (memuat kredensial gateway).
+    router.put(
+        "/api/kas-usaha/aktif",
+        jaga,
+        asyncHandler(async (req, res) => {
+            const aktif = (req.body || {}).enabled === true;
+            const cfg = tulisSetelan({ enabled: aktif }, getConfig);
+
+            // Cron pengingat membaca `enabled` SAAT DIJADWALKAN, bukan saat berbunyi. Tanpa
+            // penjadwalan ulang di sini, menyalakan dari halaman menghasilkan sukses semu:
+            // layar bilang aktif, tapi tak satu pun pengingat terkirim sampai proses direstart.
+            let jadwalAktif = false;
+            try {
+                const { initRecurringExpenseReminderTask } = require("../lib/cron/jobs/recurring-expense-reminder");
+                initRecurringExpenseReminderTask();
+                jadwalAktif = aktif;
+            } catch (e) {
+                console.error("[KAS_AKTIF] Gagal menjadwalkan ulang pengingat:", e && e.message);
+            }
+
+            // Jujur soal syarat: "aktif" tanpa grup/pemilik tak menghasilkan apa pun.
+            const be = (cfg && cfg.businessExpense) || {};
+            const kurang = [];
+            if (!be.groupId) kurang.push("grup kas belum dipilih");
+            if (!((be.ownerJids || []).length + (be.ownerLids || []).length)) kurang.push("pemilik belum ditentukan");
+
+            res.json({
+                success: true,
+                enabled: aktif,
+                jadwalAktif,
+                message: !aktif
+                    ? "Kas usaha dimatikan."
+                    : (kurang.length
+                        ? `Kas usaha diaktifkan — tapi ${kurang.join(" & ")}, jadi bot belum akan bekerja.`
+                        : "Kas usaha diaktifkan.")
+            });
+        })
+    );
+
+    // Pemilik kas — siapa yang boleh mengetik `kas …` dan membalas `ok`/`lewati` di grup.
+    // Gerbangnya GAGAL-TERTUTUP, jadi selama daftar ini kosong fitur diam total meski sudah
+    // aktif dan grupnya benar; dulu satu-satunya cara mengisinya adalah menyunting config.json.
+    router.put(
+        "/api/kas-usaha/pemilik",
+        jaga,
+        asyncHandler(async (req, res) => {
+            const masuk = Array.isArray((req.body || {}).pemilik) ? req.body.pemilik : [];
+            const jids = [];
+            const lids = [];
+            const ditolak = [];
+
+            for (const mentah of masuk) {
+                const v = String(mentah || "").trim();
+                if (!v) continue;
+                if (/@lid$/i.test(v)) {
+                    // `@lid` disimpan APA ADANYA. Angkanya BUKAN nomor telepon — mengubahnya
+                    // jadi `62<lid>` menghasilkan pemilik palsu yang tak pernah cocok.
+                    if (!lids.includes(v)) lids.push(v);
+                    continue;
+                }
+                const digit = v.replace(/@.*$/, "").replace(/[^0-9]/g, "");
+                const nomor = digit.startsWith("0") ? `62${digit.slice(1)}` : digit;
+                if (nomor.length < 9 || nomor.length > 15) {
+                    ditolak.push(v);
+                    continue;
+                }
+                const jid = `${nomor}@s.whatsapp.net`;
+                if (!jids.includes(jid)) jids.push(jid);
+            }
+
+            if (ditolak.length) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Nomor tidak dikenali: ${ditolak.join(", ")}. Pakai format 08… atau 62….`
+                });
+            }
+
+            tulisSetelan({ ownerJids: jids, ownerLids: lids }, getConfig);
+            res.json({
+                success: true,
+                data: { ownerJids: jids, ownerLids: lids },
+                message: jids.length + lids.length
+                    ? `${jids.length + lids.length} pemilik kas disimpan.`
+                    : "Daftar pemilik dikosongkan — perintah kas di grup akan diabaikan."
             });
         })
     );

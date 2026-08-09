@@ -1229,3 +1229,14 @@
 - **Status path lama:** tak ada yang dimatikan; `getEffectivePrice` tetap dasar `amountDue` yang dikirim ke ledger.
 - **Gate:** tidak ada. **Template baru:** `gaji_struk_teknisi` (message_templates).
 - **Tes:** `lib/__tests__/payroll-receipt.test.js` (BARU, 10), `message/handlers/__tests__/cek-tagihan-outstanding.test.js` (BARU, 6), + asersi `bill-payment` diperbarui.
+
+<a id="b203"></a>
+
+### Feat 2026-08-09 (Kas usaha: seluruh setelan pindah ke halaman admin — sakelar, grup, pemilik)
+
+- **Owner:** `routes/admin-kas-usaha-routes.js` — `tulisSetelan()` jadi SATU-SATUNYA penulis `businessExpense` di config (baca-ubah-tulis per-key), plus endpoint baru `PUT /api/kas-usaha/aktif` & `PUT /api/kas-usaha/pemilik`.
+- **Status path lama:** menyunting `config.json` di server tak lagi diperlukan untuk fitur ini; tak ada endpoint yang dimatikan.
+- **AKAR sukses semu:** `initRecurringExpenseReminderTask()` membaca `enabled` saat DIJADWALKAN, bukan saat berbunyi — menyalakan dari halaman tanpa penjadwalan ulang bikin layar bilang "aktif" tapi nol pengingat sampai restart. Sakelar kini menjadwalkan ulang.
+- **GOTCHA @lid:** pemilik ber-`@lid` disimpan apa adanya ke `ownerLids`; angkanya bukan nomor telepon, dinormalkan jadi `62<lid>` = pemilik palsu yang tak pernah cocok.
+- **Pendukung:** `lib/whatsapp.adapter.getGroupParticipants()` (BARU) supaya pemilik dipilih dari daftar anggota grup — gerbangnya gagal-tertutup, salah satu digit = perintah diabaikan senyap.
+- **Gate:** tetap `config.businessExpense.enabled` (default OFF). **Tes:** `routes/__tests__/kas-usaha-toggle.test.js` (17).

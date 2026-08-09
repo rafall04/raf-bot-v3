@@ -533,7 +533,7 @@
     "secretKey": "ISI_TURNSTILE_SECRET_KEY"
   },
   "businessExpense": {
-    "_catatan": "KAS USAHA per site. Perintah WA 'kas 150rb kabel' MENULIS ke expense_entries lewat lib/expense-manager - sumber angka yang SAMA dengan halaman /pengeluaran & /rekap-keuangan, bukan pembukuan kedua. Ledger & grup terpisah penuh per instance (Dander & Tanjungharjo masing-masing sendiri). Kata pemicu 'kas' sengaja dilepas dari dompet pribadi supaya tak bertabrakan.",
+    "_catatan": "KAS USAHA per site. Perintah WA 'kas 150rb kabel' MENULIS ke expense_entries lewat lib/expense-manager - sumber angka yang SAMA dengan halaman /pengeluaran & /rekap-keuangan, bukan pembukuan kedua. Ledger & grup terpisah penuh per instance (Dander & Tanjungharjo masing-masing sendiri). Kata pemicu 'kas' sengaja dilepas dari dompet pribadi supaya tak bertabrakan. SEMUA key di bawah kini diatur dari halaman /kas-usaha (sakelar, grup, pemilik) - tak perlu menyunting berkas ini di server; biaya rutin (listrik/internet/sewa) tinggal di tabel recurring_expenses, bukan di config.",
     "enabled": false,
     "groupId": "",
     "ownerJids": ["62xxxxxxxxxx@s.whatsapp.net"],
