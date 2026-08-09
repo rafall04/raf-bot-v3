@@ -35,7 +35,20 @@ const { registerAdminWanSwitchRoutes } = require("./admin-wan-switch-routes");
 const { registerAdminCustomerSteeringRoutes } = require("./admin-customer-steering-routes");
 const { registerAdminOwnerCockpitRoutes } = require("./admin-owner-cockpit-routes");
 const { registerAdminCsatRoutes } = require("./admin-csat-routes");
-const { registerAdminPersonalFinanceRoutes } = require("./admin-personal-finance-routes");
+// Dompet PRIBADI sengaja hanya dipasang di instance tertentu (menumpang satu nomor bot),
+// jadi berkasnya boleh TIDAK ADA di instance lain. Karena itu require-nya MALAS: `require`
+// tingkat-atas membuat instance tanpa berkas ini gagal boot, dan kegagalan boot dari fitur
+// opsional adalah harga yang tak sepadan.
+function registerAdminPersonalFinanceRoutes(router, deps) {
+    if (!(global.config && global.config.personalFinance && global.config.personalFinance.enabled === true)) return;
+    try {
+        require("./admin-personal-finance-routes").registerAdminPersonalFinanceRoutes(router, deps);
+    } catch (e) {
+        // Aktif di config tapi berkasnya tak terpasang = salah pasang yang harus TERLIHAT,
+        // bukan didiamkan. Bot tetap hidup; halaman dompetnya yang absen.
+        console.error("[ADMIN_ROUTER] Dompet pribadi aktif di config tapi modulnya tak terpasang:", e && e.message);
+    }
+}
 const { registerAdminKasUsahaRoutes } = require("./admin-kas-usaha-routes");
 const { rateLimit } = require("../lib/security");
 const { templatesCache } = require("../lib/templating");

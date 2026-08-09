@@ -130,6 +130,18 @@ describe("pemilik kas: dipilih dari halaman, @lid tak dikarang jadi nomor", () =
         expect(js).toMatch(/di luar grup/);
     });
 
+    test("fitur opsional per-instance tak boleh menjatuhkan boot instance lain", () => {
+        // Dompet pribadi sengaja hanya terpasang di sebagian instance. Saat require-nya masih
+        // tingkat-atas, membawa admin-router ke instance tanpa berkas itu = gagal boot — dan
+        // itulah yang memblokir Kas Usaha menyeberang ke instance kedua.
+        const ar = baca("routes", "admin-router.js");
+        expect(ar).not.toMatch(/^const \{ registerAdminPersonalFinanceRoutes \} = require/m);
+        expect(ar).toMatch(/personalFinance\.enabled === true/);
+        expect(ar).toMatch(/require\("\.\/admin-personal-finance-routes"\)/);
+        // Salah pasang tetap harus terlihat di log, bukan didiamkan.
+        expect(ar).toMatch(/tak terpasang/);
+    });
+
     test("halaman TERJANGKAU dari sidebar — bukan cuma kalau URL-nya diketik", () => {
         // Halaman ini sempat yatim: rutenya terdaftar tapi tak ada satu pun tautan menu,
         // jadi operator tak punya cara menemukannya.
