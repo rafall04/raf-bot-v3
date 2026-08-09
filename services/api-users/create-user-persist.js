@@ -144,8 +144,13 @@ async function persistAndNotifyNewUser(deps, { newUser, plainTextPassword, final
                 let displayProfile = "-";
                 if (newUser.subscription && deps.getPackages().length > 0) {
                     const pkg = deps.getPackages().find((item) => item.name === newUser.subscription);
-                    if (pkg && pkg.display_profile) {
-                        displayProfile = pkg.display_profile;
+                    // `packages.json` memakai camelCase `displayProfile`. Membaca `display_profile`
+                    // (snake) SELALU undefined, sehingga jatuh ke `pkg.profile` — nama profil
+                    // MikroTik. Akibatnya pelanggan diberi tahu angka yang BUKAN produk yang dijual,
+                    // dan konsisten LEBIH TINGGI (Tanjung PAKET-110K: "16Mbps" padahal "Up To 10Mbps").
+                    // Snake dipertahankan sebagai cadangan supaya katalog lama tetap terbaca.
+                    if (pkg && (pkg.displayProfile || pkg.display_profile)) {
+                        displayProfile = pkg.displayProfile || pkg.display_profile;
                     } else if (pkg && pkg.profile) {
                         displayProfile = pkg.profile;
                     }

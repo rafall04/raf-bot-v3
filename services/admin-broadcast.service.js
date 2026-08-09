@@ -82,7 +82,11 @@ function formatBroadcastMessage(template, user) {
     if (message.includes("${display_profile}")) {
         // Nama kecepatan/tampilan paket (dipakai template "Selamat Datang" import_welcome).
         const pkg = (global.packages || []).find((p) => p.name === subscription) || {};
-        placeholders.display_profile = pkg.display_profile || pkg.profile || subscription || "-";
+        // camelCase `displayProfile` adalah kunci NYATA di packages.json; `display_profile` (snake)
+        // tak pernah ada, sehingga jalur ini dulu selalu jatuh ke `pkg.profile` — nama profil
+        // MikroTik — dan mengirim angka kecepatan yang BUKAN produk yang dijual ke pelanggan,
+        // secara MASSAL. Terukur di produksi: "16Mbps" dikirim untuk paket "Up To 10Mbps".
+        placeholders.display_profile = pkg.displayProfile || pkg.display_profile || pkg.profile || subscription || "-";
     }
     if (message.includes("${jatuh_tempo}")) {
         const due = new Date();
