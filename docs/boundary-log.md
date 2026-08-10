@@ -1356,5 +1356,6 @@
 - **Owner:** `lib/technician-finance-service.getUnsettledCollectionByPeriod()` (BARU) → `/api/gaji/kasbon-summary/:teknisiId` memulangkan `komisi_tertunda`; peringatan tampil di `#komisiTertundaInfo` (`views/sb-admin/gaji-teknisi.php` + `static/js/gaji-teknisi.js`).
 - **AKAR:** ringkasan hanya melaporkan komisi periode yang sedang dibuka, jadi periode yang tak pernah dibuatkan payroll tak muncul di layar mana pun. Terukur prod (read-only): satu teknisi Rp1.575.000 belum terkunci Jan–Jul 2026 tapi payroll hanya 7/2026 → **Rp1.355.000 tak terlihat**.
 - **Status path lama:** tetap — ini penambahan pandangan, tak mengubah perhitungan payroll mana pun.
-- **Gate:** tidak ada (murni informasi). Periode berjalan & periode bernilai nol bersih dikecualikan agar tak jadi alarm palsu.
-- **Tes:** `lib/__tests__/payroll-stranded-commission.test.js` (9) — pengelompokan, debit mengurangi, isolasi antar-teknisi, yang terkunci berhenti dilaporkan, plus jalur tampil route→JS→PHP.
+- **Gate:** tidak ada (murni informasi). Yang ditandai HANYA periode tanpa baris payroll sama sekali (`has_payroll`): periode berjalan, periode yang payroll draft-nya sudah ada, dan periode bernilai nol bersih dikecualikan — uji prod menyempitkan angka dari Rp1.575.000/7 periode jadi Rp1.355.000/6 periode.
+- **GOTCHA:** `technician_gaji.teknisi_id` INTEGER vs `technician_collection_ledger.teknisi_id` TEXT — join WAJIB `CAST(... AS TEXT)` dua arah, kalau tidak `has_payroll` diam-diam selalu 0.
+- **Tes:** `lib/__tests__/payroll-stranded-commission.test.js` (13) — pengelompokan, debit mengurangi, isolasi antar-teknisi, has_payroll draft, CAST join, yang terkunci berhenti dilaporkan, plus jalur tampil route→JS→PHP.
