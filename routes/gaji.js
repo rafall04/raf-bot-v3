@@ -326,19 +326,27 @@ router.put('/:id/pay', ensureAdmin, async (req, res) => {
         // Uang sudah berpindah tangan, jadi lewat `sendCritical` (retry + dead-letter), bukan
         // notifikasi biasa. NEVER-THROW: gagal kirim struk tak boleh menggagalkan pembayaran
         // payroll yang SUDAH tercatat.
+        // Apakah struk BENAR-BENAR berangkat. Dipakai kabar ke grup di bawah — mengklaim
+        // "rincian sudah dikirim" padahal tidak membuat pemilik berhenti mencari celahnya,
+        // sementara teknisi tak pernah menerima rincian potongan kasbonnya.
+        let strukTerkirim = false;
+        let strukAlasanGagal = '';
         try {
             const { buildPayrollReceiptText, resolveTechnicianPhones } = require('../lib/services/payroll-receipt');
             const { sendCritical } = require('../lib/whatsapp-critical-delivery');
             const nomor = resolveTechnicianPhones(payroll.teknisi_id, global.accounts);
             if (nomor.length === 0) {
+                strukAlasanGagal = 'nomor WA teknisi belum diisi';
                 console.warn(`[GAJI_NOTIF] Teknisi #${payroll.teknisi_id} tak punya nomor WA — struk gaji tidak terkirim.`);
             } else {
                 const teks = buildPayrollReceiptText(payroll);
                 for (const ph of nomor) {
                     await sendCritical(ph, { text: teks }, { label: 'struk_gaji_teknisi' });
                 }
+                strukTerkirim = true;
             }
         } catch (strukErr) {
+            strukAlasanGagal = (strukErr && strukErr.message) || 'gagal kirim';
             console.error('[GAJI_NOTIF] Gagal kirim struk gaji:', strukErr && strukErr.message);
         }
 
@@ -348,11 +356,17 @@ router.put('/:id/pay', ensureAdmin, async (req, res) => {
         try {
             const { kabarkanKeGrupKas } = require('../lib/services/kas-group-notifier');
             await kabarkanKeGrupKas('kas_notif_gaji', {
-                fallback: '💸 *GAJI DIBAYAR*\n\n👤 ${nama}\n📅 Periode ${periode}\n💰 ${nominal}\n\n_Rincian lengkap sudah dikirim ke teknisinya._',
+                fallback: '💸 *GAJI DIBAYAR*\n\n👤 ${nama}\n📅 Periode ${periode}\n💰 ${nominal}\n\n${status_struk}',
                 data: {
                     nama: payroll.teknisi_name || `Teknisi #${payroll.teknisi_id}`,
                     periode: `${payroll.period_month}/${payroll.period_year}`,
-                    nominal: payroll.net_amount
+                    nominal: payroll.net_amount,
+                    // Katakan apa adanya. Klaim "sudah dikirim" yang tak benar membuat tak
+                    // seorang pun menutup celahnya — teknisi diam saja karena mengira memang
+                    // tak ada rincian, pemilik tenang karena mengira sudah terkirim.
+                    status_struk: strukTerkirim
+                        ? '_Rincian lengkap sudah dikirim ke teknisinya._'
+                        : `⚠️ _Struk BELUM terkirim ke teknisi (${strukAlasanGagal}). Rinciannya perlu disampaikan manual._`
                 }
             });
         } catch (grupErr) {

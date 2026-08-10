@@ -1337,3 +1337,14 @@
 - **Ikut diperbaiki:** `message/raf.js` me-`require` `handlers/personal-finance-wa` TANPA gerbang di 2 titik ⇒ di instance tanpa modul itu melempar untuk SETIAP pesan (`[PF_TRIGGER_ERROR] Cannot find module`), tertangkap catch tapi membanjiri log dan menyamarkan error sungguhan. Kini require setelah `enabled === true`.
 - **PELAJARAN:** drift yang "cuma tertinggal" bisa berarti satu bot diam total sementara bot lain jalan — dan gejalanya cuma satu baris warning di log.
 - **Tes:** `lib/__tests__/inbound-group-sender.test.js` (6).
+
+<a id="b213"></a>
+
+### Fix 2026-08-10 (Tiga temuan tinjauan adversarial: waiver, prefill gaji, klaim struk)
+
+- **Waiver diabaikan rekap tunggakan** — `payment_waivers` tabel TERPISAH & tak menulis `payment_history`, jadi periode yang sengaja digratiskan terhitung menunggak penuh. DORMAN selama query pelanggan nol baris; HIDUP begitu #b206 memperbaikinya. Owner: `repositories/arrears.repository` (baca waiver `status='active'`, tabel absen ⇒ `[]`) + `services/arrears.service` (`waiverSet` ⇒ outstanding 0, status `DIBEBASKAN`).
+- **AKIBAT yang ditutup:** pelanggan yang dijanjikan gratis masuk daftar "Broadcast Terarah → penunggak" dan menerima pesan penagihan.
+- **Prefill gaji pokok tak ikut berganti teknisi** (`static/js/gaji-teknisi.js`): penjaga lama hanya mengisi kolom kosong, jadi ganti teknisi setelah submit ditolak 409 meninggalkan gaji pokok teknisi SEBELUMNYA — ikut ke finalisasi, struk, dan transfer. Kini kolom SELALU ditimpa saat teknisinya berganti (`prefillUntukTeknisi`), tetap menghormati ketikan untuk teknisi yang sama.
+- **Klaim palsu ke grup** (`routes/gaji.js` + template `kas_notif_gaji`): kabar "Rincian lengkap sudah dikirim ke teknisinya" terkirim walau struk GAGAL (nomor WA kosong / sendCritical melempar). Kini slot `${status_struk}` menyebut kegagalan + alasannya.
+- **Satu temuan tinjauan GUGUR sebagai basi:** "SISA bukan MASUK−KELUAR" sudah diperbaiki #b211 sebelum tinjauan selesai.
+- **Tes:** `services/__tests__/arrears-blind-spot.test.js` (+5 = 15).

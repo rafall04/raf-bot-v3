@@ -55,6 +55,13 @@ function createArrearsService(overrides = {}) {
     function buildLedgerMaps(ledger) {
         const paymentMap = new Map();
         const reversalMap = new Map();
+        // Periode yang tagihannya DIBEBASKAN. Bukan "sudah dibayar" melainkan "tak ada yang
+        // perlu ditagih" — karena itu diperlakukan sebagai outstanding nol, bukan sebagai
+        // pembayaran (kalau dihitung sebagai pembayaran ia akan muncul sebagai pemasukan).
+        const waiverSet = new Set();
+        for (const w of ledger.waivers || []) {
+            waiverSet.add(`${w.user_id}:${formatPeriodKey(w.period_month, w.period_year)}`);
+        }
 
         for (const payment of ledger.payments || []) {
             const key = `${payment.user_id}:${formatPeriodKey(payment.period_month, payment.period_year)}`;
@@ -72,10 +79,10 @@ function createArrearsService(overrides = {}) {
             reversalMap.set(key, (reversalMap.get(key) || 0) + Number(reversal.amount_reversed || 0));
         }
 
-        return { paymentMap, reversalMap };
+        return { paymentMap, reversalMap, waiverSet };
     }
 
-    function buildCustomerPeriods(customer, paymentMap, reversalMap, currentPeriodKey) {
+    function buildCustomerPeriods(customer, paymentMap, reversalMap, currentPeriodKey, waiverSet = new Set()) {
         const periods = [];
 
         for (const [key, entry] of paymentMap.entries()) {
@@ -88,7 +95,8 @@ function createArrearsService(overrides = {}) {
             // `amount_due` dari ledger adalah kebenaran untuk periode yang PUNYA baris pembayaran
             // (nominal yang benar-benar ditagih saat itu). Selebihnya jatuh ke harga efektif.
             const amountDue = Number(entry.amount_due) > 0 ? Number(entry.amount_due) : hargaEfektif(customer);
-            const outstanding = Math.max(amountDue - netPaid, 0);
+            const dibebaskan = waiverSet.has(key);
+            const outstanding = dibebaskan ? 0 : Math.max(amountDue - netPaid, 0);
             periods.push({
                 period,
                 amount_due: amountDue,
@@ -96,21 +104,26 @@ function createArrearsService(overrides = {}) {
                 total_reversal: reversal,
                 net_paid: netPaid,
                 outstanding,
-                status: outstanding > 0 ? "MENUNGGAK" : "LUNAS"
+                dibebaskan,
+                status: dibebaskan ? "DIBEBASKAN" : outstanding > 0 ? "MENUNGGAK" : "LUNAS"
             });
         }
 
         const currentKey = `${customer.id}:${currentPeriodKey}`;
         if (!paymentMap.has(currentKey)) {
             const amountDue = hargaEfektif(customer);
+            // Pembebasan berlaku juga untuk periode yang belum punya baris pembayaran —
+            // justru itu bentuk yang paling umum: "Bebaskan tagihan bulan ini" saat mendaftar.
+            const dibebaskan = waiverSet.has(currentKey);
             periods.push({
                 period: currentPeriodKey,
                 amount_due: amountDue,
                 gross_paid: 0,
                 total_reversal: 0,
                 net_paid: 0,
-                outstanding: amountDue,
-                status: amountDue > 0 ? "MENUNGGAK" : "LUNAS"
+                outstanding: dibebaskan ? 0 : amountDue,
+                dibebaskan,
+                status: dibebaskan ? "DIBEBASKAN" : amountDue > 0 ? "MENUNGGAK" : "LUNAS"
             });
         }
 
@@ -121,7 +134,7 @@ function createArrearsService(overrides = {}) {
     async function getArrearsReadModel({ periodMonth, periodYear }) {
         const customers = await repository.listBillableCustomers();
         const ledger = await repository.getLedgerEntriesUpToPeriod({ periodMonth, periodYear });
-        const { paymentMap, reversalMap } = buildLedgerMaps(ledger);
+        const { paymentMap, reversalMap, waiverSet } = buildLedgerMaps(ledger);
 
         const currentPeriodKey = formatPeriodKey(periodMonth, periodYear);
         const rows = [];
@@ -130,7 +143,7 @@ function createArrearsService(overrides = {}) {
         let totalBilledAmount = 0;
 
         for (const customer of customers) {
-            const periods = buildCustomerPeriods(customer, paymentMap, reversalMap, currentPeriodKey);
+            const periods = buildCustomerPeriods(customer, paymentMap, reversalMap, currentPeriodKey, waiverSet);
             const currentPeriod = periods.find((period) => period.period === currentPeriodKey) || {
                 amount_due: hargaEfektif(customer),
                 net_paid: 0,
@@ -196,9 +209,9 @@ function createArrearsService(overrides = {}) {
         }
 
         const ledger = await repository.getLedgerEntriesUpToPeriod({ periodMonth, periodYear });
-        const { paymentMap, reversalMap } = buildLedgerMaps(ledger);
+        const { paymentMap, reversalMap, waiverSet } = buildLedgerMaps(ledger);
         const currentPeriodKey = formatPeriodKey(periodMonth, periodYear);
-        const periods = buildCustomerPeriods(customerSource, paymentMap, reversalMap, currentPeriodKey);
+        const periods = buildCustomerPeriods(customerSource, paymentMap, reversalMap, currentPeriodKey, waiverSet);
         const unpaidPeriods = periods.filter((period) => period.outstanding > 0);
         const readModel = await getArrearsReadModel({ periodMonth, periodYear });
         const customer = readModel.rows.find((row) => String(row.user_id) === String(userId)) || null;

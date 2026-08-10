@@ -99,7 +99,31 @@ function createArrearsRepository(overrides = {}) {
                     [cutoff]
                 );
 
-                return { payments, reversals };
+                // PEMBEBASAN TAGIHAN ("Tandai Gratis" / "Bebaskan tagihan bulan ini").
+                // Disimpan di tabel TERPISAH dan TIDAK menulis baris `payment_history`, jadi
+                // tanpa dibaca di sini periode yang sengaja digratiskan tetap terhitung
+                // menunggak sebesar harga penuh — dan pelanggan yang dijanjikan gratis ikut
+                // masuk daftar "Broadcast Terarah → penunggak".
+                // Cacat ini DORMAN selama query pelanggan memulangkan nol baris; begitu itu
+                // diperbaiki (#b206), ia langsung hidup.
+                let waivers = [];
+                try {
+                    waivers = await all(
+                        db,
+                        `SELECT user_id, period_month, period_year, amount_waived
+                           FROM payment_waivers
+                          WHERE status = 'active'
+                            AND ((period_year * 100) + period_month) <= ?
+                          ORDER BY period_year ASC, period_month ASC, id ASC`,
+                        [cutoff]
+                    );
+                } catch (_e) {
+                    // Tabel belum pernah dibuat (instance yang tak pernah memakai fitur gratis).
+                    // Kosong = tak ada pembebasan, bukan kegagalan.
+                    waivers = [];
+                }
+
+                return { payments, reversals, waivers };
             } finally {
                 db.close();
             }

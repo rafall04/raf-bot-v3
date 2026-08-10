@@ -5585,7 +5585,7 @@
   "kas_notif_gaji": {
     "name": "Kas Usaha - Notif Gaji Dibayar",
     "category": "business_expense",
-    "template": "💸 *GAJI DIBAYAR*\n\n👤 ${nama}\n📅 Periode ${periode}\n💰 ${nominal}\n\n_Rincian lengkap sudah dikirim ke teknisinya._"
+    "template": "💸 *GAJI DIBAYAR*\n\n👤 ${nama}\n📅 Periode ${periode}\n💰 ${nominal}\n\n${status_struk}"
   },
   "kas_notif_pengeluaran_besar": {
     "name": "Kas Usaha - Notif Pengeluaran Besar",

@@ -144,3 +144,62 @@ describe("query pelanggan tak boleh menyaring dengan nilai status yang tak perna
         expect(sql).toMatch(/!= 'infrastruktur'/);
     });
 });
+
+describe("pembebasan tagihan (Tandai Gratis) tidak boleh terhitung menunggak", () => {
+    // Waiver disimpan di tabel TERPISAH `payment_waivers` dan TIDAK menulis baris
+    // payment_history. Selama query pelanggan memulangkan nol baris, cacat ini dorman;
+    // begitu itu diperbaiki, pelanggan yang DIJANJIKAN GRATIS ikut masuk daftar
+    // "Broadcast Terarah → penunggak" dan menerima pesan penagihan.
+    function repoDenganWaiver(waivers) {
+        return {
+            listBillableCustomers: async () => [PELANGGAN_PROD[0]], // Budi, PAKET-100K
+            getLedgerEntriesUpToPeriod: async () => ({ payments: [], reversals: [], waivers })
+        };
+    }
+
+    test("periode berjalan yang dibebaskan -> TIDAK menunggak", async () => {
+        const svc = createArrearsService({
+            repository: repoDenganWaiver([{ user_id: 1, period_month: 8, period_year: 2026, amount_waived: 100000 }]),
+            getEffectivePrice: hargaKatalog
+        });
+        const hasil = await svc.getArrearsReadModel(PERIODE);
+        expect(hasil.summary.total_customers_in_arrears).toBe(0);
+        expect(hasil.summary.total_outstanding).toBe(0);
+    });
+
+    test("tanpa waiver, pelanggan yang sama TETAP menunggak (anti guard yang meloloskan semua)", async () => {
+        const svc = createArrearsService({
+            repository: repoDenganWaiver([]),
+            getEffectivePrice: hargaKatalog
+        });
+        const hasil = await svc.getArrearsReadModel(PERIODE);
+        expect(hasil.summary.total_customers_in_arrears).toBe(1);
+        expect(hasil.summary.total_outstanding).toBe(100000);
+    });
+
+    test("waiver periode LAIN tak membebaskan periode berjalan", async () => {
+        const svc = createArrearsService({
+            repository: repoDenganWaiver([{ user_id: 1, period_month: 7, period_year: 2026, amount_waived: 100000 }]),
+            getEffectivePrice: hargaKatalog
+        });
+        const hasil = await svc.getArrearsReadModel(PERIODE);
+        expect(hasil.summary.total_outstanding).toBe(100000);
+    });
+
+    test("waiver milik pelanggan LAIN tak membebaskan pelanggan ini", async () => {
+        const svc = createArrearsService({
+            repository: repoDenganWaiver([{ user_id: 99, period_month: 8, period_year: 2026, amount_waived: 100000 }]),
+            getEffectivePrice: hargaKatalog
+        });
+        const hasil = await svc.getArrearsReadModel(PERIODE);
+        expect(hasil.summary.total_outstanding).toBe(100000);
+    });
+
+    test("repositori benar-benar menanyakan waiver AKTIF saja", () => {
+        const sql = baca("repositories", "arrears.repository.js");
+        expect(sql).toMatch(/FROM payment_waivers/);
+        expect(sql).toMatch(/status = 'active'/);
+        // Tabel belum ada (instance yang tak pernah memakai fitur gratis) bukan kegagalan.
+        expect(sql).toMatch(/waivers = \[\]/);
+    });
+});

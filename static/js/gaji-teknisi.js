@@ -6,6 +6,10 @@ $(document).ready(function() {
     const bulanNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     let gajiTable;
     let createCollectionPayable = 0;
+    // Teknisi mana yang nilai prefill di kolom gaji pokok saat ini MILIKI. Dipakai untuk
+    // membedakan "operator sedang mengetik untuk teknisi yang sama" dari "teknisinya berganti,
+    // angka di kolom milik orang lain".
+    let prefillUntukTeknisi = null;
     let editCollectionPayable = 0;
     let createMarketingPayable = 0; // komisi marketing PSB (pemberi lead teknisi) — Fase 2b
     let editMarketingPayable = 0;
@@ -226,20 +230,34 @@ $(document).ready(function() {
             $('#kasbonInfo').text(`Saldo hutang aktif: ${formatRupiah(response.data.total_kasbon || 0)}`);
             $('#collectionInfo').text(`Komisi collection: ${formatRupiah(createCollectionPayable)} · marketing PSB: ${formatRupiah(createMarketingPayable)}`);
 
-            // Prefill gaji pokok dari payroll TERAKHIR teknisi ini. Angka ini nyaris tak pernah
-            // berubah, jadi mengetiknya ulang tiap bulan hanya membuka peluang salah ketik.
-            // HANYA mengisi kolom yang masih kosong/0 — jangan menimpa angka yang sedang diketik.
+            // Prefill gaji pokok dari payroll TERAKHIR teknisi ini.
+            //
+            // Kalau TEKNISINYA BERGANTI, kolom SELALU ditimpa — angka yang ada di sana milik
+            // orang lain, dan mempertahankannya tak pernah benar. Dulu penjaganya
+            // `!sekarang || Number(sekarang) === 0`, padahal nilainya sudah terformat
+            // ("1.500.000") sehingga `Number()` memulangkan NaN dan kedua syarat gagal:
+            // ganti teknisi setelah submit ditolak 409 meninggalkan gaji pokok teknisi
+            // SEBELUMNYA, dengan baris keterangan yang justru menampilkan angka yang benar —
+            // bertentangan dengan isi kolomnya. Draft tersimpan dengan gaji orang lain,
+            // ikut ke finalisasi, struk, dan uang yang benar-benar ditransfer.
+            //
+            // Untuk teknisi yang SAMA, angka yang sedang diketik operator tetap dihormati.
             const terakhir = Number(response.data.gaji_pokok_terakhir) || 0;
-            const sekarang = getInputValue('#createGajiPokok');
             const jejak = $('#gajiPokokInfo');
-            if (terakhir > 0 && (!sekarang || Number(sekarang) === 0)) {
+            const gantiTeknisi = String(teknisiId) !== String(prefillUntukTeknisi);
+            const kosong = !getInputValue('#createGajiPokok');
+
+            if (gantiTeknisi || kosong) {
                 setInputValue('#createGajiPokok', terakhir);
-                jejak.text(`Diisi dari payroll ${response.data.periode_terakhir} (${formatRupiah(terakhir)}) — ubah kalau berbeda.`);
+                jejak.text(terakhir > 0
+                    ? `Diisi dari payroll ${response.data.periode_terakhir} (${formatRupiah(terakhir)}) — ubah kalau berbeda.`
+                    : 'Belum ada payroll sebelumnya untuk teknisi ini — isi manual.');
             } else if (terakhir > 0) {
                 jejak.text(`Payroll ${response.data.periode_terakhir}: ${formatRupiah(terakhir)}`);
             } else {
                 jejak.text('Belum ada payroll sebelumnya untuk teknisi ini.');
             }
+            prefillUntukTeknisi = teknisiId;
             calculateCreateTotal();
         });
     });
@@ -300,6 +318,9 @@ $(document).ready(function() {
         $('#collectionInfo').text('Komisi collection periode ini: Rp 0');
         createCollectionPayable = 0;
         createMarketingPayable = 0;
+        // Lupakan pemilik prefill: form kosong tak lagi mewakili teknisi mana pun.
+        prefillUntukTeknisi = null;
+        $("#gajiPokokInfo").text("");
     }
 
     window.viewDetail = function(id) {
