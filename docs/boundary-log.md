@@ -1326,3 +1326,14 @@
 - **GOTCHA template:** `be_ringkasan_uang` tersimpan MENIMPA fallback — slot `${omset_aktif}`/`${isolir_info}`/`${akan_info}`/`${proyeksi_info}` WAJIB ikut diperbarui di store, kalau tidak bagian barunya dihitung lalu tak pernah terkirim (terbukti saat uji: teks masih format lama padahal angka sudah benar).
 - **Jujur:** proyeksi hanya dihitung bila pemasukan, pengeluaran, DAN tagihan rutin ketiganya terbaca; isolir tak terbaca ⇒ omset TIDAK disaring dan dikatakan.
 - **Tes:** `lib/__tests__/money-summary.test.js` (11), `routes/__tests__/kas-cashflow.test.js` (16).
+
+<a id="b212"></a>
+
+### Fix 2026-08-10 (Tanjungharjo membuang SEMUA teks grup — normalizer masuk tertinggal)
+
+- **AKAR TERBUKTI:** `lib/whatsapp-inbound-adapter.js` di Tanjungharjo masih versi lama yang membaca pengirim dari `msg.participant` (level atas, KOSONG untuk teks biasa di grup) ⇒ `normalizeIncomingMessage` memulangkan `null` ⇒ raf.js berhenti dengan `[WARNING] chats is undefined` SEBELUM cabang grup. Gerbang kas tak pernah dijalankan.
+- **Bukti angka:** hari itu Dander 0 kemunculan "chats is undefined", Tanjungharjo 4 — satu tepat saat "kas bantuan" gagal. Perbaikannya sudah ada sejak `d97441d` tapi tak pernah dideploy ke Tanjungharjo (ada di daftar 27 berkas tertinggal).
+- **Owner:** berkas itu sendiri; `sender = isGroup ? (msg.key.participant || msg.participant) : from` — ADITIF, bentuk lama (PSB gambar ber-caption) tetap jalan.
+- **Ikut diperbaiki:** `message/raf.js` me-`require` `handlers/personal-finance-wa` TANPA gerbang di 2 titik ⇒ di instance tanpa modul itu melempar untuk SETIAP pesan (`[PF_TRIGGER_ERROR] Cannot find module`), tertangkap catch tapi membanjiri log dan menyamarkan error sungguhan. Kini require setelah `enabled === true`.
+- **PELAJARAN:** drift yang "cuma tertinggal" bisa berarti satu bot diam total sementara bot lain jalan — dan gejalanya cuma satu baris warning di log.
+- **Tes:** `lib/__tests__/inbound-group-sender.test.js` (6).

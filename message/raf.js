@@ -343,8 +343,13 @@ module.exports = async (raf, msg, m, options = {}) => {
         // NON-THROWING: bug di sini tak boleh menjatuhkan loop pesan.
         try {
             const pfCfg = (global.config && global.config.personalFinance) || {};
-            const pf = require('./handlers/personal-finance-wa');
-            if (pfCfg.enabled === true && pfCfg.groupId && from === pfCfg.groupId
+            // Require SESUDAH gerbang config: dompet pribadi sengaja hanya terpasang di sebagian
+            // instance, jadi di instance lain modulnya TAK ADA dan require tanpa syarat melempar
+            // untuk SETIAP pesan grup. Terbukti di prod: "[PF_TRIGGER_ERROR] Cannot find module".
+            // Tertangkap catch sehingga tak menjatuhkan bot, tapi membanjiri log error dan
+            // menyamarkan kesalahan sungguhan.
+            const pf = pfCfg.enabled === true ? require('./handlers/personal-finance-wa') : null;
+            if (pf && pfCfg.groupId && from === pfCfg.groupId
                 && type !== 'imageMessage' && pf.TRIGGER_RE.test(String(chats || ''))) {
                 // JANGAN pakai getOptionalJid di sini — helper itu berorientasi DM (membaca
                 // `remoteJidAlt`), sedangkan grup menaruh pengirim di `participant`/
@@ -798,13 +803,15 @@ module.exports = async (raf, msg, m, options = {}) => {
         // NON-THROWING: gagal di sini tak boleh menjatuhkan pesan lain.
         try {
             const pfCfg = (global.config && global.config.personalFinance) || {};
-            const pf = require('./handlers/personal-finance-wa');
+            // Require SESUDAH gerbang config — alasan sama dengan blok grup di atas: modulnya
+            // memang tak terpasang di sebagian instance.
+            const pf = pfCfg.enabled === true ? require('./handlers/personal-finance-wa') : null;
             // Kalau `groupId` dikonfigurasi, dompet HANYA dilayani di grup itu — DM sengaja
             // dimatikan. Alasannya bukan keamanan tapi kebisingan: DM pemilik adalah saluran
             // notifikasi upstream/monitoring, dan balasan dompet tenggelam di antaranya.
             // Kosongkan `groupId` untuk kembali memakai DM.
             const pfLewatDm = !pfCfg.groupId;
-            if (pfCfg.enabled === true && pfLewatDm && type !== 'imageMessage' && pf.TRIGGER_RE.test(String(chats || ''))) {
+            if (pf && pfLewatDm && type !== 'imageMessage' && pf.TRIGGER_RE.test(String(chats || ''))) {
                 const pemilik = pf.resolvePersonalFinanceOwner({
                     participant: optionalJid || sender,
                     plainPhone: plainSenderNumber,
