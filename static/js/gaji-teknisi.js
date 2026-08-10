@@ -92,10 +92,170 @@ $(document).ready(function() {
         $.get('/api/gaji/teknisi').done((response) => {
             if (response.status !== 200) return;
             const select = $('#createTeknisiId');
+            const selectTertunda = $('#tertundaTeknisiId');
             select.empty().append('<option value="">-- Pilih Teknisi --</option>');
+            selectTertunda.empty().append('<option value="">-- Pilih Teknisi --</option>');
             (response.data || []).forEach((teknisi) => {
                 select.append(`<option value="${teknisi.id}">${teknisi.name}</option>`);
+                selectTertunda.append(`<option value="${teknisi.id}">${teknisi.name}</option>`);
             });
+            cariTeknisiBerkomisiTertunda(response.data || []);
+        });
+        muatRiwayatTutup();
+    }
+
+    // ── Komisi periode lama ────────────────────────────────────────────────────────────────
+    // Panel ini menyelesaikan satu masalah spesifik: komisi yang periodenya tak pernah
+    // dibuatkan payroll tak muncul di layar mana pun, jadi tak akan pernah dibayar — DAN
+    // sebagiannya ternyata bukan utang sama sekali (hasil backfill saat fitur dinyalakan,
+    // uangnya sudah diserahkan duluan). Dua nasib itu butuh dua tindakan berbeda.
+
+    let tertundaPeriodeSaatIni = [];
+    let sedangMenutup = false;
+
+    // Kartu hanya muncul kalau ada yang benar-benar menggantung — halaman tak perlu memamerkan
+    // alat yang tak ada gunanya hari ini.
+    function cariTeknisiBerkomisiTertunda(daftarTeknisi) {
+        const now = new Date();
+        const permintaan = daftarTeknisi.map((teknisi) =>
+            $.get(`/api/gaji/kasbon-summary/${teknisi.id}`, { month: now.getMonth() + 1, year: now.getFullYear() })
+                .then((r) => ({ id: teknisi.id, tertunda: (r.data && r.data.komisi_tertunda) || [] }))
+                .catch(() => ({ id: teknisi.id, tertunda: [] }))
+        );
+        Promise.all(permintaan).then((hasil) => {
+            const adaYangMenggantung = hasil.some((h) => h.tertunda.length > 0);
+            if (!adaYangMenggantung) return;
+            $('#kartuKomisiTertunda').show();
+            const pertama = hasil.find((h) => h.tertunda.length > 0);
+            $('#tertundaTeknisiId').val(pertama.id).trigger('change');
+        });
+    }
+
+    function muatPeriodeTertunda(teknisiId) {
+        tertundaPeriodeSaatIni = [];
+        const daftar = $('#tertundaDaftar');
+        if (!teknisiId) {
+            daftar.html('<div class="text-muted">Pilih teknisi untuk melihat periodenya.</div>');
+            perbaruiTombolTutup();
+            return;
+        }
+        const now = new Date();
+        $.get(`/api/gaji/kasbon-summary/${teknisiId}`, { month: now.getMonth() + 1, year: now.getFullYear() })
+            .done((response) => {
+                tertundaPeriodeSaatIni = (response.data && response.data.komisi_tertunda) || [];
+                if (tertundaPeriodeSaatIni.length === 0) {
+                    daftar.html('<div class="text-success"><i class="fas fa-check"></i> Tidak ada komisi periode lama yang menggantung.</div>');
+                    perbaruiTombolTutup();
+                    return;
+                }
+                const baris = tertundaPeriodeSaatIni.map((p, i) => {
+                    const [bulan, tahun] = p.periode.split('/');
+                    return `<div class="form-check">
+                        <input class="form-check-input tertunda-centang" type="checkbox" id="tertunda${i}"
+                               data-bulan="${bulan}" data-tahun="${tahun}" data-total="${p.total}" checked>
+                        <label class="form-check-label" for="tertunda${i}">
+                            ${bulanNames[parseInt(bulan, 10)]} ${tahun} — <strong>${formatRupiah(p.total)}</strong>
+                            <span class="text-muted">(${p.entries} penarikan)</span>
+                        </label>
+                    </div>`;
+                }).join('');
+                daftar.html(baris);
+                perbaruiTombolTutup();
+            })
+            .fail(() => {
+                daftar.html('<div class="text-danger">Gagal memuat periode.</div>');
+                perbaruiTombolTutup();
+            });
+    }
+
+    function periodeTercentang() {
+        return $('.tertunda-centang:checked').map(function() {
+            return {
+                month: parseInt($(this).data('bulan'), 10),
+                year: parseInt($(this).data('tahun'), 10),
+                total: Number($(this).data('total')) || 0
+            };
+        }).get();
+    }
+
+    function perbaruiTombolTutup() {
+        const dipilih = periodeTercentang();
+        const keterangan = String($('#tertundaKeterangan').val() || '').trim();
+        const boleh = dipilih.length > 0 && keterangan.length >= 10 && !sedangMenutup;
+        $('#btnTutupKomisi').prop('disabled', !boleh);
+        const total = dipilih.reduce((s, p) => s + p.total, 0);
+        $('#btnTutupKomisi').html(total > 0
+            ? `<i class="fas fa-file-signature"></i> Tandai ${formatRupiah(total)} sudah dibayar di luar sistem`
+            : '<i class="fas fa-file-signature"></i> Tandai sudah dibayar di luar sistem');
+    }
+
+    $(document).on('change', '#tertundaTeknisiId', function() {
+        muatPeriodeTertunda($(this).val());
+    });
+    $(document).on('change', '.tertunda-centang', perbaruiTombolTutup);
+    $(document).on('input', '#tertundaKeterangan', perbaruiTombolTutup);
+
+    $(document).on('click', '#btnTutupKomisi', function() {
+        if (sedangMenutup) return;
+        const teknisiId = $('#tertundaTeknisiId').val();
+        const dipilih = periodeTercentang();
+        const keterangan = String($('#tertundaKeterangan').val() || '').trim();
+        if (!teknisiId || dipilih.length === 0 || keterangan.length < 10) return;
+
+        const total = dipilih.reduce((s, p) => s + p.total, 0);
+        const namaTeknisi = $('#tertundaTeknisiId option:selected').text();
+        // Kalimat konfirmasi menyebut nominal, nama, DAN menegaskan bahwa bot tidak membayar —
+        // di kalimat inilah beda "bayar sekarang" dan "tandai sudah dibayar" harus diucapkan.
+        const pesan = `Tutup ${formatRupiah(total)} komisi ${namaTeknisi} di ${dipilih.length} periode?\n\n`
+            + 'Bot TIDAK akan mentransfer apa pun dan TIDAK mengirim struk.\n'
+            + 'Pakai ini HANYA kalau uangnya sudah Anda serahkan sendiri di luar sistem.\n\n'
+            + 'Tindakan ini tidak bisa dibatalkan lewat halaman ini.';
+        if (!window.confirm(pesan)) return;
+
+        sedangMenutup = true;
+        $('#btnTutupKomisi').prop('disabled', true);
+        $.ajax({
+            url: '/api/gaji/komisi-tertunda/tutup',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                teknisi_id: teknisiId,
+                periods: dipilih.map((p) => ({ month: p.month, year: p.year })),
+                keterangan,
+                // Nominal yang DILIHAT operator. Server menolak kalau angkanya sudah berubah,
+                // supaya yang tertutup tak pernah lebih besar dari yang disetujui mata.
+                expected_total: total
+            })
+        }).done((response) => {
+            showAlert('success', response.message || 'Komisi ditutup');
+            $('#tertundaKeterangan').val('');
+            muatPeriodeTertunda(teknisiId);
+            muatRiwayatTutup();
+            loadData();
+        }).fail((xhr) => {
+            const pesanGagal = (xhr.responseJSON && xhr.responseJSON.message) || 'Gagal menutup komisi';
+            showAlert('danger', pesanGagal);
+            if (xhr.status === 409) muatPeriodeTertunda(teknisiId);
+        }).always(() => {
+            sedangMenutup = false;
+            perbaruiTombolTutup();
+        });
+    });
+
+    function muatRiwayatTutup() {
+        $.get('/api/gaji/komisi-tertunda/riwayat').done((response) => {
+            const rows = (response && response.data) || [];
+            if (rows.length === 0) return;
+            const html = rows.map((r) => `<tr>
+                <td>${String(r.closed_out_at || '').slice(0, 10)}</td>
+                <td>${r.teknisi_name || ''}</td>
+                <td>${r.period_month}/${r.period_year}</td>
+                <td>${formatRupiah(r.total)}</td>
+                <td>${r.closed_out_by || ''}</td>
+                <td>${r.closed_out_note || ''}</td>
+            </tr>`).join('');
+            $('#tabelRiwayatTutup tbody').html(html);
+            $('#kartuRiwayatTutup').show();
         });
     }
 
@@ -336,6 +496,9 @@ $(document).ready(function() {
         // Lupakan pemilik prefill: form kosong tak lagi mewakili teknisi mana pun.
         prefillUntukTeknisi = null;
         $("#gajiPokokInfo").text("");
+        // Peringatan komisi tertunda ikut dibersihkan. Tanpa ini ia tetap terpampang saat modal
+        // dibuka lagi untuk teknisi LAIN — angka orang lain di layar orang ini.
+        $('#komisiTertundaInfo').text('').hide();
     }
 
     window.viewDetail = function(id) {

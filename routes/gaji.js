@@ -29,6 +29,7 @@ const {
     finalizePayroll,
     payPayroll
 } = require('../lib/technician-finance-service');
+const { writeOffCollectionPeriods, getCloseoutHistory } = require('../lib/technician-collection-settlement');
 
 function dbRun(sql, params = []) {
     return new Promise((resolve, reject) => {
@@ -433,6 +434,75 @@ router.delete('/:id', ensureAdmin, async (req, res) => {
     } catch (error) {
         console.error('[GAJI_DELETE_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal menghapus draft payroll' });
+    }
+});
+
+/**
+ * Menutup komisi periode lama yang uangnya SUDAH diserahkan ke teknisi di luar sistem.
+ * Ini BUKAN pembayaran — tak ada rupiah berpindah dan tak ada struk WhatsApp dikirim.
+ * Sengaja endpoint TERPISAH dari pembuatan payroll: dua arah uang yang berlawanan tak boleh
+ * dibedakan oleh sebuah boolean di body.
+ */
+router.post('/komisi-tertunda/tutup', ensureAdmin, rateLimit('tutup-komisi', 10, 60000), async (req, res) => {
+    try {
+        const teknisiId = req.body.teknisi_id;
+        const periods = Array.isArray(req.body.periods) ? req.body.periods : [];
+        const keterangan = String(req.body.keterangan || '').trim();
+        const expectedTotal = req.body.expected_total == null ? null : Number(req.body.expected_total);
+
+        if (!teknisiId || periods.length === 0) {
+            return res.status(400).json({ status: 400, message: 'teknisi_id dan minimal satu periode wajib diisi' });
+        }
+        if (periods.length > 36) {
+            return res.status(400).json({ status: 400, message: 'Maksimal 36 periode sekali tutup' });
+        }
+        if (keterangan.length < 10) {
+            return res.status(400).json({ status: 400, message: 'Keterangan wajib diisi minimal 10 karakter — ini satu-satunya penjelasan yang tersisa nanti' });
+        }
+
+        const hasil = await writeOffCollectionPeriods({ teknisiId, periods, keterangan, actor: req.user.username || req.user.name || 'admin', expectedTotal });
+
+        if (!hasil.ok && hasil.reason === 'nominal_berubah') {
+            return res.status(409).json({
+                status: 409,
+                message: `Nominal berubah sejak layar dimuat (sekarang Rp${Number(hasil.totalSekarang).toLocaleString('id-ID')}). Muat ulang halaman lalu periksa lagi.`
+            });
+        }
+        if (!hasil.ok) {
+            return res.status(400).json({ status: 400, message: 'Permintaan tidak valid: ' + hasil.reason });
+        }
+
+        logActivity({
+            userId: req.user.id,
+            username: req.user.username,
+            role: req.user.role,
+            actionType: 'UPDATE',
+            resourceType: 'komisi_collection_teknisi',
+            resourceId: String(teknisiId),
+            resourceName: `Penutupan komisi teknisi #${teknisiId}`,
+            description: `Menutup komisi ${hasil.ditutup.map((d) => d.periode).join(', ')} senilai Rp${hasil.total.toLocaleString('id-ID')} — ${keterangan}`,
+            // entry_ids disimpan supaya pembatalan manual kelak tahu PERSIS baris mana yang
+            // harus dikredit balik, bukan menebak dari periode.
+            newValue: { periods: hasil.ditutup, total: hasil.total, keterangan, entry_ids: hasil.entryIds },
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent']
+        }).catch(console.error);
+
+        res.json({ status: 200, data: hasil, message: `Komisi Rp${hasil.total.toLocaleString('id-ID')} ditutup tanpa pembayaran` });
+    } catch (error) {
+        console.error('[GAJI_TUTUP_KOMISI_ERROR]', error);
+        res.status(500).json({ status: 500, message: 'Gagal menutup komisi' });
+    }
+});
+
+/** Riwayat penutupan — setelah ditutup, angkanya nol di layar utama; ini yang masih bicara. */
+router.get('/komisi-tertunda/riwayat', ensureAdmin, async (req, res) => {
+    try {
+        const rows = await getCloseoutHistory({ teknisiId: req.query.teknisi_id || null, limit: 50 });
+        res.json({ status: 200, data: rows });
+    } catch (error) {
+        console.error('[GAJI_RIWAYAT_TUTUP_ERROR]', error);
+        res.status(500).json({ status: 500, message: 'Gagal memuat riwayat penutupan' });
     }
 });
 

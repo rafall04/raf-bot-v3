@@ -120,6 +120,71 @@
                         </div>
                     </div>
 
+                    <!-- Komisi periode lama.
+                         SENGAJA kartu tersendiri, di LUAR form Buat Draft Payroll: tombol di sini
+                         menutup uang tanpa membayarnya, dan kalau ia hidup di dalam form itu,
+                         menekan Enter di kolom teks bisa memicunya alih-alih menyimpan draft.
+                         Tersembunyi sampai ada teknisi yang benar-benar punya komisi menggantung. -->
+                    <div class="card shadow mb-4 border-left-warning" id="kartuKomisiTertunda" style="display:none">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-warning">
+                                <i class="fas fa-hourglass-half"></i> Komisi Periode Lama Yang Belum Ada Payroll-nya
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label class="font-weight-bold">Teknisi</label>
+                                <select class="form-control" id="tertundaTeknisiId"></select>
+                            </div>
+                            <div id="tertundaDaftar" class="mb-3"></div>
+                            <div class="alert alert-secondary" id="tertundaPenjelasan">
+                                Komisi ini hanya ikut terbayar kalau ada payroll untuk periode yang sama.
+                                Kalau uangnya <strong>belum</strong> Anda serahkan, buat draft payroll untuk bulan itu
+                                lewat tombol <em>Buat Draft Payroll</em> (dropdown Bulan bisa dipilih ke bulan lampau).
+                            </div>
+                            <div class="form-group">
+                                <label class="font-weight-bold">Sudah dibayar kapan &amp; bagaimana? <span class="text-danger">(wajib)</span></label>
+                                <input type="text" class="form-control" id="tertundaKeterangan" maxlength="200"
+                                       placeholder="Contoh: sudah diserahkan tunai bulan Juli 2026, komisi ini hasil backfill">
+                                <small class="text-muted">Minimal 10 karakter. Ini satu-satunya penjelasan yang tersisa enam bulan lagi.</small>
+                            </div>
+                            <button type="button" class="btn btn-outline-danger" id="btnTutupKomisi" disabled>
+                                <i class="fas fa-file-signature"></i> Tandai sudah dibayar di luar sistem
+                            </button>
+                            <small class="d-block mt-2 text-muted">
+                                Tombol ini <strong>tidak</strong> mentransfer apa pun dan tidak mengirim struk WhatsApp.
+                                Pakai hanya kalau uangnya sudah Anda serahkan sendiri.
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Riwayat penutupan: setelah ditutup angkanya jadi nol di layar utama,
+                         jadi harus ada SATU tempat yang masih menjelaskan apa yang terjadi. -->
+                    <div class="card shadow mb-4" id="kartuRiwayatTutup" style="display:none">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="fas fa-history"></i> Riwayat Penutupan Komisi
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered" id="tabelRiwayatTutup" width="100%">
+                                    <thead>
+                                        <tr>
+                                            <th>Tanggal</th>
+                                            <th>Teknisi</th>
+                                            <th>Periode</th>
+                                            <th>Nominal</th>
+                                            <th>Oleh</th>
+                                            <th>Keterangan</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Gaji Table -->
                     <div class="card shadow mb-4">
                         <div class="card-header py-3">

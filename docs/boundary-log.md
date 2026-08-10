@@ -1359,3 +1359,14 @@
 - **Gate:** tidak ada (murni informasi). Yang ditandai HANYA periode tanpa baris payroll sama sekali (`has_payroll`): periode berjalan, periode yang payroll draft-nya sudah ada, dan periode bernilai nol bersih dikecualikan — uji prod menyempitkan angka dari Rp1.575.000/7 periode jadi Rp1.355.000/6 periode.
 - **GOTCHA:** `technician_gaji.teknisi_id` INTEGER vs `technician_collection_ledger.teknisi_id` TEXT — join WAJIB `CAST(... AS TEXT)` dua arah, kalau tidak `has_payroll` diam-diam selalu 0.
 - **Tes:** `lib/__tests__/payroll-stranded-commission.test.js` (13) — pengelompokan, debit mengurangi, isolasi antar-teknisi, has_payroll draft, CAST join, yang terkunci berhenti dilaporkan, plus jalur tampil route→JS→PHP.
+
+<a id="b215"></a>
+
+### Feat 2026-08-10 (Gaji: menutup komisi historis yang sudah dibayar di luar sistem)
+
+- **Owner:** `lib/technician-collection-settlement.writeOffCollectionPeriods()` + `getCloseoutHistory()` (BARU, tetap penulis TUNGGAL ledger) → `POST /api/gaji/komisi-tertunda/tutup` + `GET .../riwayat`; kartu sendiri di `views/sb-admin/gaji-teknisi.php` (`#kartuKomisiTertunda`, `#kartuRiwayatTutup`).
+- **AKAR:** 271 dari 315 baris komisi prod dibuat `backfill-20260710` dan NOL bertaut `payment_history` — Rp1.355.000 itu artefak pembukuan saat fitur dinyalakan, bukan utang berjalan. Membuat 6 payroll susulan malah membukukan Rp1.355.000 pengeluaran BARU ke Jan–Jun (`syncTechnicianPayrollPaid` menstempel periode payroll).
+- **Skema:** 3 kolom di `technician_collection_ledger` — `closed_out_at`/`closed_out_by`/`closed_out_note`. Baris tak dihapus; debit penyeimbang mendarat di PERIODE ASLI.
+- **Anti dobel-bayar:** pengecualian STRUKTURAL (`closed_out_at IS NULL` di `getCollectionPayableEntries` + `getUnsettledCollectionByPeriod`), bukan aritmetis. `getNetForTechnicianPeriodUser` sengaja TIDAK menghitung debit penutupan — kalau dihitung, net kembali nol dan pembayaran ulang periode lama mengkredit komisi yang sudah diserahkan.
+- **Gerbang salah-pakai:** endpoint TERPISAH dari pembuatan payroll, keterangan wajib ≥10 karakter, `expected_total` → 409 kalau layar operator basi, `event_key` `closeout:<idKredit>` untuk klik ganda, tombol `type="button"` di LUAR form buat-draft (di dalam form, Enter memicunya).
+- **Gate:** tidak ada — inert sampai diklik. **Tes:** `lib/__tests__/collection-writeoff.test.js` (18).
