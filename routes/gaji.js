@@ -30,6 +30,8 @@ const {
     payPayroll
 } = require('../lib/technician-finance-service');
 const { writeOffCollectionPeriods, getCloseoutHistory } = require('../lib/technician-collection-settlement');
+const salaryPlan = require('../lib/technician-salary-plan');
+const { initTechnicianSalaryDraftTask } = require('../lib/cron/jobs/technician-salary-draft');
 
 function dbRun(sql, params = []) {
     return new Promise((resolve, reject) => {
@@ -227,6 +229,162 @@ router.post('/', ensureAdmin, rateLimit('create-gaji', 20, 60000), async (req, r
     } catch (error) {
         console.error('[GAJI_CREATE_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal membuat payroll teknisi' });
+    }
+});
+
+// CATATAN URUTAN: route ber-path HARFIAH wajib didaftarkan SEBELUM route
+// berparameter di kedalaman yang sama. Express mencocokkan berurutan, jadi
+// PUT /:id menelan PUT /gaji-tetap dan menjawab 404 "payroll tidak ditemukan".
+
+/**
+ * Menutup komisi periode lama yang uangnya SUDAH diserahkan ke teknisi di luar sistem.
+ * Ini BUKAN pembayaran — tak ada rupiah berpindah dan tak ada struk WhatsApp dikirim.
+ * Sengaja endpoint TERPISAH dari pembuatan payroll: dua arah uang yang berlawanan tak boleh
+ * dibedakan oleh sebuah boolean di body.
+ */
+router.post('/komisi-tertunda/tutup', ensureAdmin, rateLimit('tutup-komisi', 10, 60000), async (req, res) => {
+    try {
+        const teknisiId = req.body.teknisi_id;
+        const periods = Array.isArray(req.body.periods) ? req.body.periods : [];
+        const keterangan = String(req.body.keterangan || '').trim();
+        const expectedTotal = req.body.expected_total == null ? null : Number(req.body.expected_total);
+
+        if (!teknisiId || periods.length === 0) {
+            return res.status(400).json({ status: 400, message: 'teknisi_id dan minimal satu periode wajib diisi' });
+        }
+        if (periods.length > 36) {
+            return res.status(400).json({ status: 400, message: 'Maksimal 36 periode sekali tutup' });
+        }
+        if (keterangan.length < 10) {
+            return res.status(400).json({ status: 400, message: 'Keterangan wajib diisi minimal 10 karakter — ini satu-satunya penjelasan yang tersisa nanti' });
+        }
+
+        const hasil = await writeOffCollectionPeriods({ teknisiId, periods, keterangan, actor: req.user.username || req.user.name || 'admin', expectedTotal });
+
+        if (!hasil.ok && hasil.reason === 'nominal_berubah') {
+            return res.status(409).json({
+                status: 409,
+                message: `Nominal berubah sejak layar dimuat (sekarang Rp${Number(hasil.totalSekarang).toLocaleString('id-ID')}). Muat ulang halaman lalu periksa lagi.`
+            });
+        }
+        if (!hasil.ok) {
+            return res.status(400).json({ status: 400, message: 'Permintaan tidak valid: ' + hasil.reason });
+        }
+
+        logActivity({
+            userId: req.user.id,
+            username: req.user.username,
+            role: req.user.role,
+            actionType: 'UPDATE',
+            resourceType: 'komisi_collection_teknisi',
+            resourceId: String(teknisiId),
+            resourceName: `Penutupan komisi teknisi #${teknisiId}`,
+            description: `Menutup komisi ${hasil.ditutup.map((d) => d.periode).join(', ')} senilai Rp${hasil.total.toLocaleString('id-ID')} — ${keterangan}`,
+            // entry_ids disimpan supaya pembatalan manual kelak tahu PERSIS baris mana yang
+            // harus dikredit balik, bukan menebak dari periode.
+            newValue: { periods: hasil.ditutup, total: hasil.total, keterangan, entry_ids: hasil.entryIds },
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent']
+        }).catch(console.error);
+
+        res.json({ status: 200, data: hasil, message: `Komisi Rp${hasil.total.toLocaleString('id-ID')} ditutup tanpa pembayaran` });
+    } catch (error) {
+        console.error('[GAJI_TUTUP_KOMISI_ERROR]', error);
+        res.status(500).json({ status: 500, message: 'Gagal menutup komisi' });
+    }
+});
+
+// ── Gaji pokok tetap ───────────────────────────────────────────────────────────────────────
+// Nominalnya sama tiap bulan, jadi diisi SEKALI lalu draft bulan berjalan muncul sendiri.
+// Semua jalur di sini berhenti di DRAFT — finalisasi & pembayaran tetap klik manusia.
+
+router.get('/gaji-tetap', ensureAdmin, async (req, res) => {
+    try {
+        const [plans, belumDibayar] = await Promise.all([salaryPlan.listPlans(), salaryPlan.getUnpaidPayrolls()]);
+        const teknisi = (global.accounts || [])
+            .filter((a) => String(a.role || '').toLowerCase() === 'teknisi')
+            .map((a) => {
+                const plan = plans.find((p) => Number(p.teknisi_id) === Number(a.id));
+                return {
+                    teknisi_id: a.id,
+                    name: a.name || a.username,
+                    gaji_pokok: plan ? Number(plan.gaji_pokok) : 0,
+                    aktif: plan ? Number(plan.aktif) === 1 : true,
+                    last_drafted_period: plan ? plan.last_drafted_period : null
+                };
+            });
+        res.json({ status: 200, data: { teknisi, setelan: salaryPlan.setelan(), belum_dibayar: belumDibayar } });
+    } catch (error) {
+        console.error('[GAJI_TETAP_GET_ERROR]', error);
+        res.status(500).json({ status: 500, message: 'Gagal memuat gaji tetap' });
+    }
+});
+
+router.put('/gaji-tetap', ensureAdmin, async (req, res) => {
+    try {
+        const hasil = await salaryPlan.savePlans(req.body.items || []);
+        if (!hasil.ok) {
+            return res.status(400).json({ status: 400, message: `Tidak tersimpan: ${hasil.reason}` });
+        }
+        logActivity({
+            userId: req.user.id,
+            username: req.user.username,
+            role: req.user.role,
+            actionType: 'UPDATE',
+            resourceType: 'gaji_tetap_teknisi',
+            resourceId: 'all',
+            resourceName: 'Gaji pokok tetap teknisi',
+            description: hasil.items.map((i) => `${i.nama}: Rp${i.gajiPokok.toLocaleString('id-ID')}`).join(', '),
+            newValue: hasil.items,
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent']
+        }).catch(console.error);
+        res.json({ status: 200, data: hasil, message: hasil.items.map((i) => `${i.nama}: Rp ${i.gajiPokok.toLocaleString('id-ID')}`).join(' · ') + ' tersimpan' });
+    } catch (error) {
+        console.error('[GAJI_TETAP_PUT_ERROR]', error);
+        res.status(500).json({ status: 500, message: 'Gagal menyimpan gaji tetap' });
+    }
+});
+
+router.put('/gaji-tetap/otomatis', ensureAdmin, async (req, res) => {
+    try {
+        const sesudah = await salaryPlan.setAutoDraft({ enabled: req.body.enabled === true, draftDay: req.body.draft_day });
+        // Jadwalkan ULANG. Tanpa ini hasilnya SUKSES SEMU: layar bilang aktif, nol draft
+        // sampai `pm2 restart`, karena cron membaca config saat dijadwalkan.
+        try {
+            initTechnicianSalaryDraftTask();
+        } catch (cronError) {
+            console.error('[GAJI_TETAP_CRON_RESCHEDULE_ERROR]', cronError.message);
+        }
+        res.json({ status: 200, data: sesudah, message: sesudah.autoDraft ? `Draft otomatis AKTIF — dibuat tiap tanggal ${sesudah.draftDay || 28}` : 'Draft otomatis dimatikan' });
+    } catch (error) {
+        console.error('[GAJI_TETAP_OTOMATIS_ERROR]', error);
+        res.status(500).json({ status: 500, message: 'Gagal mengubah sakelar' });
+    }
+});
+
+router.post('/gaji-tetap/buat-draft', ensureAdmin, rateLimit('gaji-tetap-draft', 10, 60000), async (req, res) => {
+    try {
+        const hasil = await salaryPlan.createDraftsForPeriod({ ignoreDayGate: true, actor: getActor(req) });
+        res.json({
+            status: 200,
+            data: hasil,
+            message: `${hasil.dibuat} draft dibuat, ${hasil.sudahAda} sudah ada, ${hasil.dilewati} dilewati`
+        });
+    } catch (error) {
+        console.error('[GAJI_TETAP_BUAT_DRAFT_ERROR]', error);
+        res.status(500).json({ status: 500, message: 'Gagal membuat draft' });
+    }
+});
+
+/** Riwayat penutupan — setelah ditutup, angkanya nol di layar utama; ini yang masih bicara. */
+router.get('/komisi-tertunda/riwayat', ensureAdmin, async (req, res) => {
+    try {
+        const rows = await getCloseoutHistory({ teknisiId: req.query.teknisi_id || null, limit: 50 });
+        res.json({ status: 200, data: rows });
+    } catch (error) {
+        console.error('[GAJI_RIWAYAT_TUTUP_ERROR]', error);
+        res.status(500).json({ status: 500, message: 'Gagal memuat riwayat penutupan' });
     }
 });
 
@@ -434,75 +592,6 @@ router.delete('/:id', ensureAdmin, async (req, res) => {
     } catch (error) {
         console.error('[GAJI_DELETE_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal menghapus draft payroll' });
-    }
-});
-
-/**
- * Menutup komisi periode lama yang uangnya SUDAH diserahkan ke teknisi di luar sistem.
- * Ini BUKAN pembayaran — tak ada rupiah berpindah dan tak ada struk WhatsApp dikirim.
- * Sengaja endpoint TERPISAH dari pembuatan payroll: dua arah uang yang berlawanan tak boleh
- * dibedakan oleh sebuah boolean di body.
- */
-router.post('/komisi-tertunda/tutup', ensureAdmin, rateLimit('tutup-komisi', 10, 60000), async (req, res) => {
-    try {
-        const teknisiId = req.body.teknisi_id;
-        const periods = Array.isArray(req.body.periods) ? req.body.periods : [];
-        const keterangan = String(req.body.keterangan || '').trim();
-        const expectedTotal = req.body.expected_total == null ? null : Number(req.body.expected_total);
-
-        if (!teknisiId || periods.length === 0) {
-            return res.status(400).json({ status: 400, message: 'teknisi_id dan minimal satu periode wajib diisi' });
-        }
-        if (periods.length > 36) {
-            return res.status(400).json({ status: 400, message: 'Maksimal 36 periode sekali tutup' });
-        }
-        if (keterangan.length < 10) {
-            return res.status(400).json({ status: 400, message: 'Keterangan wajib diisi minimal 10 karakter — ini satu-satunya penjelasan yang tersisa nanti' });
-        }
-
-        const hasil = await writeOffCollectionPeriods({ teknisiId, periods, keterangan, actor: req.user.username || req.user.name || 'admin', expectedTotal });
-
-        if (!hasil.ok && hasil.reason === 'nominal_berubah') {
-            return res.status(409).json({
-                status: 409,
-                message: `Nominal berubah sejak layar dimuat (sekarang Rp${Number(hasil.totalSekarang).toLocaleString('id-ID')}). Muat ulang halaman lalu periksa lagi.`
-            });
-        }
-        if (!hasil.ok) {
-            return res.status(400).json({ status: 400, message: 'Permintaan tidak valid: ' + hasil.reason });
-        }
-
-        logActivity({
-            userId: req.user.id,
-            username: req.user.username,
-            role: req.user.role,
-            actionType: 'UPDATE',
-            resourceType: 'komisi_collection_teknisi',
-            resourceId: String(teknisiId),
-            resourceName: `Penutupan komisi teknisi #${teknisiId}`,
-            description: `Menutup komisi ${hasil.ditutup.map((d) => d.periode).join(', ')} senilai Rp${hasil.total.toLocaleString('id-ID')} — ${keterangan}`,
-            // entry_ids disimpan supaya pembatalan manual kelak tahu PERSIS baris mana yang
-            // harus dikredit balik, bukan menebak dari periode.
-            newValue: { periods: hasil.ditutup, total: hasil.total, keterangan, entry_ids: hasil.entryIds },
-            ipAddress: req.ip,
-            userAgent: req.headers['user-agent']
-        }).catch(console.error);
-
-        res.json({ status: 200, data: hasil, message: `Komisi Rp${hasil.total.toLocaleString('id-ID')} ditutup tanpa pembayaran` });
-    } catch (error) {
-        console.error('[GAJI_TUTUP_KOMISI_ERROR]', error);
-        res.status(500).json({ status: 500, message: 'Gagal menutup komisi' });
-    }
-});
-
-/** Riwayat penutupan — setelah ditutup, angkanya nol di layar utama; ini yang masih bicara. */
-router.get('/komisi-tertunda/riwayat', ensureAdmin, async (req, res) => {
-    try {
-        const rows = await getCloseoutHistory({ teknisiId: req.query.teknisi_id || null, limit: 50 });
-        res.json({ status: 200, data: rows });
-    } catch (error) {
-        console.error('[GAJI_RIWAYAT_TUTUP_ERROR]', error);
-        res.status(500).json({ status: 500, message: 'Gagal memuat riwayat penutupan' });
     }
 });
 

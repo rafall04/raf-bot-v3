@@ -102,7 +102,117 @@ $(document).ready(function() {
             cariTeknisiBerkomisiTertunda(response.data || []);
         });
         muatRiwayatTutup();
+        muatGajiTetap();
     }
+
+    // ── Gaji pokok tetap ───────────────────────────────────────────────────────────────────
+    // Nominalnya sama tiap bulan. Diisi sekali di sini, lalu draft bulan berjalan dibuat sendiri.
+
+    let gajiTetapData = null;
+
+    function muatGajiTetap() {
+        $.get('/api/gaji/gaji-tetap').done((response) => {
+            if (response.status !== 200) return;
+            gajiTetapData = response.data;
+            renderGajiTetap();
+            renderSpandukBelumDibayar(response.data.belum_dibayar || []);
+        });
+    }
+
+    function renderGajiTetap() {
+        const { teknisi, setelan } = gajiTetapData;
+        const baris = teknisi.map((t) => `
+            <div class="form-group row align-items-center mb-2" data-teknisi="${t.teknisi_id}">
+                <label class="col-sm-4 col-form-label font-weight-bold mb-0">${t.name}</label>
+                <div class="col-sm-8">
+                    <div class="input-group">
+                        <div class="input-group-prepend"><span class="input-group-text">Rp</span></div>
+                        <input type="text" class="form-control gaji-tetap-input" value="${formatNumber(t.gaji_pokok)}" placeholder="0">
+                    </div>
+                </div>
+            </div>`).join('');
+        $('#gajiTetapRows').html(baris || '<div class="text-muted">Belum ada akun teknisi.</div>');
+        $('#gajiTetapOtomatis').prop('checked', setelan.autoDraft === true);
+        $('#gajiTetapJadwalInfo').text(setelan.autoDraft
+            ? `Draft bulan berjalan dibuat tiap tanggal ${setelan.draftDay}.`
+            : `Kalau dinyalakan, draft bulan berjalan dibuat tiap tanggal ${setelan.draftDay}.`);
+        perbaruiPeringatanOtomatisMati();
+    }
+
+    // Nilai tersimpan tapi sakelar mati = persis sama dengan hari ini: nol draft, selamanya.
+    // Judul kartunya sendiri berjanji "isi sekali", jadi janji itu harus ditarik dengan jelas.
+    function perbaruiPeringatanOtomatisMati() {
+        if (!gajiTetapData) return;
+        const adaNilai = (gajiTetapData.teknisi || []).some((t) => Number(t.gaji_pokok) > 0);
+        const mati = !$('#gajiTetapOtomatis').is(':checked');
+        $('#gajiTetapPeringatanMati').toggle(adaNilai && mati);
+    }
+
+    function renderSpandukBelumDibayar(rows) {
+        if (!rows || rows.length === 0) {
+            $('#spandukBelumDibayar').hide();
+            return;
+        }
+        const teks = rows.map((r) =>
+            `<a href="#" class="badge badge-light mr-1 spanduk-periode" data-bulan="${r.period_month}" data-tahun="${r.period_year}">
+                ${bulanNames[r.period_month]} ${r.period_year} — ${r.teknisi_name} ${formatRupiah(r.net_amount)}
+            </a>`).join(' ');
+        $('#spandukIsi').html(' ' + teks);
+        $('#spandukBelumDibayar').show();
+    }
+
+    // Klik periode di spanduk = setel filter ke bulan itu. Tanpa ini pemilik harus menebak
+    // bulan mana yang harus dipilih untuk melihat payroll yang diberitahukan spanduk.
+    $(document).on('click', '.spanduk-periode', function(e) {
+        e.preventDefault();
+        $('#selectMonth').val($(this).data('bulan'));
+        $('#selectYear').val($(this).data('tahun'));
+        loadData();
+    });
+
+    // initCurrencyInputs mengikat selector statis; baris gaji tetap dirender belakangan.
+    $(document).on('input', '.gaji-tetap-input', function() {
+        const bersih = $(this).val().replace(/\./g, '').replace(/[^0-9]/g, '');
+        $(this).val(bersih ? formatNumber(bersih) : '');
+    });
+
+    $(document).on('click', '#simpanGajiTetap', function() {
+        const items = $('#gajiTetapRows [data-teknisi]').map(function() {
+            return { teknisi_id: $(this).data('teknisi'), gaji_pokok: parseNumber($(this).find('.gaji-tetap-input').val()) };
+        }).get().filter((i) => i.gaji_pokok > 0);
+
+        if (items.length === 0) {
+            showAlert('warning', 'Isi gaji pokok minimal untuk satu teknisi');
+            return;
+        }
+        const tombol = $(this).prop('disabled', true);
+        $.ajax({ url: '/api/gaji/gaji-tetap', method: 'PUT', contentType: 'application/json', data: JSON.stringify({ items }) })
+            // Pesan sukses MENGULANG nominal terformat: kolom mata uang membuang huruf, jadi
+            // "250rb" menjadi 250 dan tersimpan diam-diam sebagai Rp250.
+            .done((r) => { showAlert('success', r.message); muatGajiTetap(); })
+            .fail((xhr) => showAlert('danger', (xhr.responseJSON && xhr.responseJSON.message) || 'Gagal menyimpan'))
+            .always(() => tombol.prop('disabled', false));
+    });
+
+    $(document).on('change', '#gajiTetapOtomatis', function() {
+        const nyala = $(this).is(':checked');
+        const sakelar = $(this).prop('disabled', true);
+        $.ajax({ url: '/api/gaji/gaji-tetap/otomatis', method: 'PUT', contentType: 'application/json', data: JSON.stringify({ enabled: nyala }) })
+            .done((r) => { showAlert('success', r.message); muatGajiTetap(); })
+            .fail(() => {
+                showAlert('danger', 'Gagal mengubah sakelar');
+                sakelar.prop('checked', !nyala); // kembalikan posisi — jangan tampilkan keadaan palsu
+            })
+            .always(() => { sakelar.prop('disabled', false); perbaruiPeringatanOtomatisMati(); });
+    });
+
+    $(document).on('click', '#buatDraftSekarang', function() {
+        const tombol = $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Membuat...');
+        $.ajax({ url: '/api/gaji/gaji-tetap/buat-draft', method: 'POST', contentType: 'application/json', data: '{}' })
+            .done((r) => { showAlert('success', r.message); loadData(); muatGajiTetap(); })
+            .fail((xhr) => showAlert('danger', (xhr.responseJSON && xhr.responseJSON.message) || 'Gagal membuat draft'))
+            .always(() => tombol.prop('disabled', false).html('<i class="fas fa-bolt"></i> Buat draft bulan ini sekarang'));
+    });
 
     // ── Komisi periode lama ────────────────────────────────────────────────────────────────
     // Panel ini menyelesaikan satu masalah spesifik: komisi yang periodenya tak pernah

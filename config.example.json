@@ -693,5 +693,11 @@
     "groupId": "",
     "ownerLids": [],
     "categories": {}
+  },
+  "technicianSalary": {
+    "_catatan": "Gaji pokok TETAP per teknisi. Nominalnya TIDAK di sini — tinggal di tabel technician_salary_defaults (diisi di halaman /gaji-teknisi). Di sini hanya sakelar otomatisasi. Otomatisasi berhenti di DRAFT: tak pernah memfinalisasi, membayar, atau mengirim struk.",
+    "autoDraft": false,
+    "draftDay": 28,
+    "draftSchedule": "20 7 * * *"
   }
 }

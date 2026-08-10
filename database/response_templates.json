@@ -5591,5 +5591,6 @@
     "name": "Kas Usaha - Notif Pengeluaran Besar",
     "category": "business_expense",
     "template": "🧾 *PENGELUARAN BESAR DICATAT*\n\n📌 ${judul}\n💰 ${nominal}\n📂 ${kategori}\n👤 oleh ${oleh}"
-  }
+  },
+  "kas_notif_draft_gaji": "🧾 *Draft Gaji Dibuat Otomatis*\n\nPeriode: ${periode}\nTeknisi: ${daftar} (${jumlah} orang)\nTotal gaji pokok: ${total}\n\nIni BARU DRAFT — belum ada uang keluar dan belum ada struk terkirim.\nBuka halaman Gaji Teknisi untuk finalisasi lalu tandai dibayar."
 }

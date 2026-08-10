@@ -1370,3 +1370,15 @@
 - **Anti dobel-bayar:** pengecualian STRUKTURAL (`closed_out_at IS NULL` di `getCollectionPayableEntries` + `getUnsettledCollectionByPeriod`), bukan aritmetis. `getNetForTechnicianPeriodUser` sengaja TIDAK menghitung debit penutupan — kalau dihitung, net kembali nol dan pembayaran ulang periode lama mengkredit komisi yang sudah diserahkan.
 - **Gerbang salah-pakai:** endpoint TERPISAH dari pembuatan payroll, keterangan wajib ≥10 karakter, `expected_total` → 409 kalau layar operator basi, `event_key` `closeout:<idKredit>` untuk klik ganda, tombol `type="button"` di LUAR form buat-draft (di dalam form, Enter memicunya).
 - **Gate:** tidak ada — inert sampai diklik. **Tes:** `lib/__tests__/collection-writeoff.test.js` (18).
+
+<a id="b216"></a>
+
+### Feat 2026-08-10 (Gaji: gaji pokok tetap — isi sekali, draft bulanan dibuat sendiri)
+
+- **Owner:** `lib/technician-salary-plan.js` (BARU, tabel `technician_salary_defaults`) + `lib/cron/jobs/technician-salary-draft.js` (BARU, terdaftar di `lib/cron.js`) → 4 endpoint `/api/gaji/gaji-tetap*` + kartu "Gaji Pokok Tetap" di `views/sb-admin/gaji-teknisi.php`.
+- **AKAR:** gaji pokok nominalnya sama tiap bulan; mengetik ulang 12x setahun hanya membuka peluang salah ketik dan bulan yang terlewat.
+- **BATAS KERAS:** otomatisasi berhenti di DRAFT — tak pernah `finalizePayroll`/`payPayroll`/kirim struk. Dikunci tes pindai statis.
+- **Idempotensi 2 lapis:** `UNIQUE(teknisi_id,period_month,period_year)` mencegah draft dobel; `last_drafted_period` ('YYYY-MM') mencegah draft yang SENGAJA dihapus operator hidup lagi besok. Cron HARIAN + gerbang `>= min(draftDay, hariTerakhirBulan)` = menyusul kalau tercecer (prod restart 7-13x/hari; node-cron tak mengejar tick terlewat).
+- **GOTCHA URUTAN ROUTE:** path harfiah WAJIB didaftarkan sebelum `/:id` — `PUT /:id` sempat menelan `PUT /gaji-tetap` dan menjawab 404 "payroll tidak ditemukan".
+- **Penutup akibat otomatisasi:** spanduk payroll belum dibayar LINTAS BULAN (`getUnpaidPayrolls`) — tabel menyaring per bulan, jadi draft bulan lalu tak terlihat sama sekali; plus kabar `kas_notif_draft_gaji` ke grup kas (pemicu manusia ke halaman ini hilang begitu nominalnya tak perlu diketik).
+- **Gate:** `config.technicianSalary.autoDraft` default OFF; sakelar MENJADWALKAN ULANG cron (tanpa itu sukses semu sampai restart). **Tes:** `lib/__tests__/technician-salary-plan.test.js` (24).

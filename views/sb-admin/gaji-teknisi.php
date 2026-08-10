@@ -120,6 +120,50 @@
                         </div>
                     </div>
 
+                    <!-- Spanduk payroll belum dibayar, LINTAS BULAN.
+                         Wajib ada begitu draft dibuat otomatis: tabel di bawah menyaring ke bulan
+                         yang dipilih, jadi draft bulan lalu tak muncul di satu pixel pun setelah
+                         bulannya berganti — dan peringatan komisi juga bungkam untuk periode yang
+                         sudah punya baris payroll. Tanpa spanduk ini, otomatisasi justru
+                         menciptakan uang tak terlihat. -->
+                    <div class="alert alert-warning shadow-sm" id="spandukBelumDibayar" style="display:none">
+                        <strong><i class="fas fa-exclamation-circle"></i> Ada payroll yang belum dibayar:</strong>
+                        <span id="spandukIsi"></span>
+                    </div>
+
+                    <!-- Gaji pokok tetap: diisi SEKALI, dipakai tiap bulan. -->
+                    <div class="card shadow mb-4 border-left-primary" id="kartuGajiTetap">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="fas fa-redo"></i> Gaji Pokok Tetap — isi sekali, dipakai tiap bulan
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="gajiTetapRows"></div>
+                            <div class="alert alert-warning mt-3" id="gajiTetapPeringatanMati" style="display:none">
+                                Nilainya tersimpan, tapi <strong>draft otomatis masih MATI</strong> — tidak akan ada draft yang dibuat sendiri.
+                                Nyalakan sakelar di bawah.
+                            </div>
+                            <div class="custom-control custom-switch mt-3 mb-2">
+                                <input type="checkbox" class="custom-control-input" id="gajiTetapOtomatis">
+                                <label class="custom-control-label" for="gajiTetapOtomatis">
+                                    Buat draft payroll otomatis tiap bulan
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mb-3" id="gajiTetapJadwalInfo"></small>
+                            <button type="button" class="btn btn-primary" id="simpanGajiTetap">
+                                <i class="fas fa-save"></i> Simpan
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" id="buatDraftSekarang">
+                                <i class="fas fa-bolt"></i> Buat draft bulan ini sekarang
+                            </button>
+                            <small class="d-block mt-2 text-muted">
+                                Otomatisasi berhenti di <strong>draft</strong> — tidak ada uang keluar dan tidak ada struk terkirim
+                                sampai Anda finalisasi lalu tandai dibayar. Komisi &amp; potongan kasbon dihitung saat finalisasi.
+                            </small>
+                        </div>
+                    </div>
+
                     <!-- Komisi periode lama.
                          SENGAJA kartu tersendiri, di LUAR form Buat Draft Payroll: tombol di sini
                          menutup uang tanpa membayarnya, dan kalau ia hidup di dalam form itu,
@@ -510,6 +554,6 @@
     <script src="/js/sb-admin-2.min.js"></script>
     <script src="/vendor/datatables/jquery.dataTables.min.js"></script>
     <script src="/vendor/datatables/dataTables.bootstrap4.min.js"></script>
-    <script src="/js/gaji-teknisi.js"></script>
+    <script src="<?= rafAssetUrl('/js/gaji-teknisi.js') ?>"></script>
 </body>
 </html>
