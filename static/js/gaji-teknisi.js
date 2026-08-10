@@ -230,6 +230,21 @@ $(document).ready(function() {
             $('#kasbonInfo').text(`Saldo hutang aktif: ${formatRupiah(response.data.total_kasbon || 0)}`);
             $('#collectionInfo').text(`Komisi collection: ${formatRupiah(createCollectionPayable)} · marketing PSB: ${formatRupiah(createMarketingPayable)}`);
 
+            // Komisi yang menggantung di periode LAIN. Komisi hanya ikut terbayar kalau ADA
+            // payroll untuk periode yang sama — bulan yang tak pernah dibuatkan payroll
+            // menyimpan uang teknisi tanpa muncul di layar mana pun, jadi tak akan pernah
+            // dibayar. Ditulis di sini supaya keputusannya sadar, bukan karena tak tahu.
+            const tertunda = response.data.komisi_tertunda || [];
+            const totalTertunda = tertunda.reduce((s, x) => s + Number(x.total || 0), 0);
+            const jejakTertunda = $('#komisiTertundaInfo');
+            if (totalTertunda > 0) {
+                jejakTertunda
+                    .text(`⚠️ ${formatRupiah(totalTertunda)} komisi dari ${tertunda.length} periode lain belum pernah masuk payroll: ${tertunda.map((x) => x.periode).join(', ')}`)
+                    .show();
+            } else {
+                jejakTertunda.text('').hide();
+            }
+
             // Prefill gaji pokok dari payroll TERAKHIR teknisi ini.
             //
             // Kalau TEKNISINYA BERGANTI, kolom SELALU ditimpa — angka yang ada di sana milik

@@ -1348,3 +1348,13 @@
 - **Klaim palsu ke grup** (`routes/gaji.js` + template `kas_notif_gaji`): kabar "Rincian lengkap sudah dikirim ke teknisinya" terkirim walau struk GAGAL (nomor WA kosong / sendCritical melempar). Kini slot `${status_struk}` menyebut kegagalan + alasannya.
 - **Satu temuan tinjauan GUGUR sebagai basi:** "SISA bukan MASUK−KELUAR" sudah diperbaiki #b211 sebelum tinjauan selesai.
 - **Tes:** `services/__tests__/arrears-blind-spot.test.js` (+5 = 15).
+
+<a id="b214"></a>
+
+### Fix 2026-08-10 (Gaji: komisi periode lain yang tak pernah masuk payroll kini terlihat)
+
+- **Owner:** `lib/technician-finance-service.getUnsettledCollectionByPeriod()` (BARU) → `/api/gaji/kasbon-summary/:teknisiId` memulangkan `komisi_tertunda`; peringatan tampil di `#komisiTertundaInfo` (`views/sb-admin/gaji-teknisi.php` + `static/js/gaji-teknisi.js`).
+- **AKAR:** ringkasan hanya melaporkan komisi periode yang sedang dibuka, jadi periode yang tak pernah dibuatkan payroll tak muncul di layar mana pun. Terukur prod (read-only): satu teknisi Rp1.575.000 belum terkunci Jan–Jul 2026 tapi payroll hanya 7/2026 → **Rp1.355.000 tak terlihat**.
+- **Status path lama:** tetap — ini penambahan pandangan, tak mengubah perhitungan payroll mana pun.
+- **Gate:** tidak ada (murni informasi). Periode berjalan & periode bernilai nol bersih dikecualikan agar tak jadi alarm palsu.
+- **Tes:** `lib/__tests__/payroll-stranded-commission.test.js` (9) — pengelompokan, debit mengurangi, isolasi antar-teknisi, yang terkunci berhenti dilaporkan, plus jalur tampil route→JS→PHP.

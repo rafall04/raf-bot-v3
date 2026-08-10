@@ -22,6 +22,7 @@ const {
     getMarketingPayableSummary,
     createPayrollDraft,
     getPayrollList,
+    getUnsettledCollectionByPeriod,
     getPayrollRecord,
     getPayrollSummary,
     updatePayrollDraft,
@@ -122,14 +123,18 @@ router.get('/kasbon-summary/:teknisiId', ensureAdmin, async (req, res) => {
         const teknisiId = parseInt(req.params.teknisiId, 10);
         const month = parseInt(req.query.month, 10) || new Date().getMonth() + 1;
         const year = parseInt(req.query.year, 10) || new Date().getFullYear();
-        const [kasbon, collection, marketing, riwayat] = await Promise.all([
+        const [kasbon, collection, marketing, riwayat, komisiTertunda] = await Promise.all([
             getKasbonSummary({ teknisiId }),
             getCollectionPayableSummary({ teknisiId, periodMonth: month, periodYear: year }),
             getMarketingPayableSummary({ teknisiId }),
             // Payroll TERAKHIR teknisi ini — dipakai memprefill gaji pokok. Gaji pokok nyaris
             // selalu sama tiap bulan, jadi mengetiknya ulang 12x setahun hanya membuka peluang
             // salah ketik pada angka yang seharusnya tak berubah.
-            getPayrollList({ teknisiId }).catch(() => [])
+            getPayrollList({ teknisiId }).catch(() => []),
+            // Komisi yang menggantung di periode LAIN. Komisi hanya ikut terbayar kalau ada
+            // payroll untuk periode yang sama, jadi bulan yang tak pernah dibuatkan payroll
+            // menyimpan uang teknisi tanpa terlihat di layar mana pun.
+            getUnsettledCollectionByPeriod({ teknisiId }).catch(() => [])
         ]);
 
         // Ambil periode terbaru SELAIN periode yang sedang dibuat (kalau drafnya sudah ada,
@@ -150,7 +155,18 @@ router.get('/kasbon-summary/:teknisiId', ensureAdmin, async (req, res) => {
                 collection_debit: collection.total_debit,
                 komisi_marketing: marketing.net_total,
                 gaji_pokok_terakhir: sebelumnya ? Number(sebelumnya.gaji_pokok) || 0 : 0,
-                periode_terakhir: sebelumnya ? `${sebelumnya.period_month}/${sebelumnya.period_year}` : null
+                periode_terakhir: sebelumnya ? `${sebelumnya.period_month}/${sebelumnya.period_year}` : null,
+                // Komisi menggantung di periode SELAIN yang sedang dibuat. Terukur di produksi:
+                // satu teknisi punya Rp1,5jt tersebar di 7 periode sementara payroll hanya ada
+                // untuk 1 periode — sisanya tak muncul di layar mana pun dan tak akan terbayar.
+                komisi_tertunda: (Array.isArray(komisiTertunda) ? komisiTertunda : [])
+                    .filter((r) => !(Number(r.period_month) === month && Number(r.period_year) === year))
+                    .map((r) => ({
+                        periode: `${r.period_month}/${r.period_year}`,
+                        entries: Number(r.entries) || 0,
+                        total: Number(r.net_total) || 0
+                    }))
+                    .filter((r) => r.total !== 0)
             }
         });
     } catch (error) {

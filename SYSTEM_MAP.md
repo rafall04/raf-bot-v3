@@ -315,6 +315,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-10 (Satu hitungan untuk halaman & perintah omset — omset tanpa isolir + proyeksi)](docs/boundary-log.md#b211)
 - [Fix 2026-08-10 (Tanjungharjo membuang SEMUA teks grup — normalizer masuk tertinggal)](docs/boundary-log.md#b212)
 - [Fix 2026-08-10 (Tiga temuan tinjauan adversarial: waiver, prefill gaji, klaim struk)](docs/boundary-log.md#b213)
+- [Fix 2026-08-10 (Gaji: komisi periode lain yang tak pernah masuk payroll kini terlihat)](docs/boundary-log.md#b214)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

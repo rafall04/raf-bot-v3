@@ -215,6 +215,9 @@
                                             <input type="text" class="form-control currency-input" id="createBonus" value="0">
                                         </div>
                                         <small class="text-info" id="collectionInfo">Komisi collection periode ini: Rp 0</small>
+                                        <!-- Komisi periode lain yang belum pernah masuk payroll:
+                                             uang teknisi yang terutang tapi tak terlihat. -->
+                                        <small class="text-danger d-block" id="komisiTertundaInfo" style="display:none"></small>
                                     </div>
                                 </div>
                             </div>
