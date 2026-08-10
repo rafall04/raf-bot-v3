@@ -318,6 +318,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-10 (Gaji: komisi periode lain yang tak pernah masuk payroll kini terlihat)](docs/boundary-log.md#b214)
 - [Feat 2026-08-10 (Gaji: menutup komisi historis yang sudah dibayar di luar sistem)](docs/boundary-log.md#b215)
 - [Feat 2026-08-10 (Gaji: gaji pokok tetap — isi sekali, draft bulanan dibuat sendiri)](docs/boundary-log.md#b216)
+- [Fix 2026-08-10 (Gaji: empat celah siklus gaji ditutup — kasbon, struk, marketing, pembatalan)](docs/boundary-log.md#b217)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

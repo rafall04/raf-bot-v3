@@ -1382,3 +1382,14 @@
 - **GOTCHA URUTAN ROUTE:** path harfiah WAJIB didaftarkan sebelum `/:id` — `PUT /:id` sempat menelan `PUT /gaji-tetap` dan menjawab 404 "payroll tidak ditemukan".
 - **Penutup akibat otomatisasi:** spanduk payroll belum dibayar LINTAS BULAN (`getUnpaidPayrolls`) — tabel menyaring per bulan, jadi draft bulan lalu tak terlihat sama sekali; plus kabar `kas_notif_draft_gaji` ke grup kas (pemicu manusia ke halaman ini hilang begitu nominalnya tak perlu diketik).
 - **Gate:** `config.technicianSalary.autoDraft` default OFF; sakelar MENJADWALKAN ULANG cron (tanpa itu sukses semu sampai restart). **Tes:** `lib/__tests__/technician-salary-plan.test.js` (24).
+
+<a id="b217"></a>
+
+### Fix 2026-08-10 (Gaji: empat celah siklus gaji ditutup — kasbon, struk, marketing, pembatalan)
+
+- **Owner:** `lib/technician-finance-service` (`unfinalizePayroll`, `setPayrollReceiptStatus`, `getReservedKasbonDeduction`), `lib/psb-schedule-service` (`unsettleMarketingFromPayroll` + filter periode), `routes/gaji.js` (`PUT /:id/batal-finalisasi`, `POST /:id/kirim-ulang-struk`).
+- **Kasbon terlihat:** saldo hutang kini tampil di modal EDIT + penanda di baris tabel + catatan di draft otomatis. Sebelumnya angka itu HANYA ada di modal Buat Draft — yang tak pernah dibuka lagi begitu draft dibuat otomatis, jadi hutang bisa menganggur bertahun-tahun.
+- **Struk jujur:** `sendCritical` memulangkan `{delivered:false}` (tak melempar); kode lama mengabaikannya dan melaporkan "sudah dikirim". Status kini disimpan (`struk_status`/`struk_at`/`struk_error`) dan bisa dikirim ulang.
+- **Marketing per periode:** `getUnsettledMarketingForTeknisi`/`settleMarketingToPayroll` menerima `periodMonth`/`periodYear` dan membatasi "sampai dengan" periode payroll — payroll Juli tak lagi menelan komisi Agustus. Settle mengunci ID dari snapshot, bukan mengulang filter.
+- **Pembatalan finalisasi:** kembali ke `draft` DAN melepas kunci komisi (collection `payroll_id`=NULL + marketing kembali `pending`). Tanpa pelepasan itu finalisasi kedua menemukan nol lalu menimpa komisi jadi kosong. Payroll `paid` ditolak.
+- **Tes:** `payroll-uang-benar` (7), `payroll-struk-dan-batal` (10), `marketing-periode-payroll` (5).

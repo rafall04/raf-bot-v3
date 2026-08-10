@@ -449,6 +449,13 @@
                                             <div class="input-group-prepend"><span class="input-group-text">Rp</span></div>
                                             <input type="text" class="form-control currency-input" id="editPotonganKasbon" value="0">
                                         </div>
+                                        <!-- Saldo hutang WAJIB terlihat di sini. Dengan draft otomatis,
+                                             modal Buat Draft tak pernah dibuka lagi — dan di situlah
+                                             satu-satunya tempat angka ini dulu muncul. -->
+                                        <small class="d-block text-muted" id="editKasbonInfo"></small>
+                                        <button type="button" class="btn btn-link btn-sm p-0 mt-1" id="editKasbonIsiPenuh" style="display:none">
+                                            Isi sebesar sisa hutang
+                                        </button>
                                     </div>
                                 </div>
                                 <div class="col-md-6">

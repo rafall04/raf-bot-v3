@@ -128,6 +128,8 @@ $(document).ready(function() {
     // Nominalnya sama tiap bulan. Diisi sekali di sini, lalu draft bulan berjalan dibuat sendiri.
 
     let gajiTetapData = null;
+    // Sisa hutang per teknisi, dipakai menandai baris payroll yang belum memotong kasbon.
+    const kasbonPerTeknisi = {};
 
     function muatGajiTetap() {
         $.get('/api/gaji/gaji-tetap').done((response) => {
@@ -291,10 +293,18 @@ $(document).ready(function() {
         const now = new Date();
         const permintaan = daftarTeknisi.map((teknisi) =>
             $.get(`/api/gaji/kasbon-summary/${teknisi.id}`, { month: now.getMonth() + 1, year: now.getFullYear() })
-                .then((r) => ({ id: teknisi.id, tertunda: (r.data && r.data.komisi_tertunda) || [] }))
-                .catch(() => ({ id: teknisi.id, tertunda: [] }))
+                .then((r) => ({
+                    id: teknisi.id,
+                    tertunda: (r.data && r.data.komisi_tertunda) || [],
+                    kasbon: (r.data && r.data.total_kasbon) || 0
+                }))
+                .catch(() => ({ id: teknisi.id, tertunda: [], kasbon: 0 }))
         );
         Promise.all(permintaan).then((hasil) => {
+            hasil.forEach((h) => {
+                kasbonPerTeknisi[String(h.id)] = h.kasbon || 0;
+            });
+            loadData(); // gambar ulang tabel supaya penanda hutangnya ikut muncul
             const adaYangMenggantung = hasil.some((h) => h.tertunda.length > 0);
             if (!adaYangMenggantung) return;
             $('#kartuKomisiTertunda').show();
@@ -488,7 +498,11 @@ $(document).ready(function() {
                 actions += `<button class="btn btn-warning btn-sm" onclick="finalizeGaji(${gaji.id})" title="Finalize"><i class="fas fa-lock"></i></button> `;
                 actions += `<button class="btn btn-danger btn-sm" onclick="deleteGaji(${gaji.id})" title="Hapus"><i class="fas fa-trash"></i></button>`;
             } else if (gaji.status === 'finalized') {
+                actions += `<button class="btn btn-warning btn-sm" onclick="batalFinalisasi(${gaji.id})" title="Batalkan finalisasi (kembali ke draft)"><i class="fas fa-unlock"></i></button> `;
                 actions += `<button class="btn btn-success btn-sm" onclick="payGaji(${gaji.id})" title="Bayar"><i class="fas fa-money-bill-wave"></i></button>`;
+            } else if (gaji.status === 'paid' && gaji.struk_status !== 'terkirim') {
+                // Uang sudah berpindah tapi rinciannya tak sampai — teknisi berhak atas struknya.
+                actions += `<button class="btn btn-outline-danger btn-sm" onclick="kirimUlangStruk(${gaji.id})" title="Struk belum terkirim — kirim ulang"><i class="fas fa-paper-plane"></i></button>`;
             }
 
             const pendapatan = [];
@@ -499,6 +513,15 @@ $(document).ready(function() {
             const potongan = [];
             if ((gaji.potongan_kasbon || 0) > 0) potongan.push(`<small class="d-block text-danger">Kasbon: ${formatRupiah(gaji.potongan_kasbon)}</small>`);
             if ((gaji.potongan_lain || 0) > 0) potongan.push(`<small class="d-block text-danger">Lain: ${formatRupiah(gaji.potongan_lain)}</small>`);
+            // Hutang yang BELUM dipotong ditandai di baris, bukan cuma di dalam modal — dengan
+            // draft otomatis, baris tabel inilah satu-satunya yang pasti dilihat operator.
+            const hutang = Number(kasbonPerTeknisi[String(gaji.teknisi_id)] || 0);
+            if (hutang > 0 && (gaji.potongan_kasbon || 0) <= 0 && gaji.status !== 'paid') {
+                potongan.push(`<small class="d-block text-warning"><i class="fas fa-exclamation-triangle"></i> Hutang ${formatRupiah(hutang)} belum dipotong</small>`);
+            }
+            if ((gaji.status === 'paid') && gaji.struk_status && gaji.struk_status !== 'terkirim') {
+                potongan.push('<small class="d-block text-danger">Struk BELUM terkirim</small>');
+            }
 
             tbody.append(`
                 <tr>
@@ -727,8 +750,45 @@ $(document).ready(function() {
             $('#editCollectionInfo').text(`Komisi collection terkunci: ${formatRupiah(editCollectionPayable)}`);
             calculateEditTotal();
             $('#editGajiModal').modal('show');
+            muatKasbonUntukEdit(gaji);
         });
     };
+
+    /**
+     * Saldo hutang teknisi di modal EDIT.
+     *
+     * Dulu angka ini HANYA ada di modal Buat Draft. Begitu draft dibuat otomatis tiap bulan,
+     * operator tak pernah membuka modal itu lagi — jalurnya jadi "lihat tabel > Edit >
+     * Finalisasi > Bayar", dan tak satu pun layar di situ menyebut hutang. Akibatnya teknisi
+     * bisa mengambil kasbon lalu menerima gaji penuh berbulan-bulan tanpa terpotong sepeser pun.
+     */
+    function muatKasbonUntukEdit(gaji) {
+        const jejak = $('#editKasbonInfo');
+        jejak.text('Memeriksa saldo hutang...').removeClass('text-danger text-muted').addClass('text-muted');
+        $.get(`/api/gaji/kasbon-summary/${gaji.teknisi_id}`, { month: gaji.period_month, year: gaji.period_year })
+            .done((r) => {
+                const sisa = Number((r.data && r.data.total_kasbon) || 0);
+                const sudahDipotong = Number(gaji.potongan_kasbon || 0);
+                if (sisa <= 0) {
+                    jejak.removeClass('text-danger').addClass('text-muted').text('Tidak ada hutang kasbon aktif.');
+                    $('#editKasbonIsiPenuh').hide();
+                    return;
+                }
+                jejak.removeClass('text-muted').addClass('text-danger')
+                    .text(`⚠️ Saldo hutang aktif: ${formatRupiah(sisa)}${sudahDipotong > 0 ? ` (sudah dipotong ${formatRupiah(sudahDipotong)} di draft ini)` : ' — belum dipotong sama sekali di draft ini'}`);
+                $('#editKasbonIsiPenuh').data('sisa', sisa).show();
+            })
+            .fail(() => jejak.removeClass('text-muted').addClass('text-danger').text('Gagal memeriksa saldo hutang.'));
+    }
+
+    // Satu klik mengisi potongan sebesar sisa hutang. Mengetik ulang angka yang sudah
+    // ditampilkan di sebelahnya hanya membuka peluang salah ketik.
+    $(document).on('click', '#editKasbonIsiPenuh', function() {
+        const sisa = Number($(this).data('sisa')) || 0;
+        if (sisa <= 0) return;
+        setInputValue('#editPotonganKasbon', sisa);
+        calculateEditTotal();
+    });
 
     $('#submitEditGaji').click(function() {
         const id = $('#editGajiId').val();
@@ -788,6 +848,22 @@ $(document).ready(function() {
         }).always(() => {
             finalisasiBerjalan.delete(id);
         });
+    };
+
+    window.kirimUlangStruk = function(id) {
+        if (!window.confirm('Kirim ulang struk gaji ke teknisi?\n\nTidak ada uang yang berpindah — hanya rinciannya yang dikirim ulang lewat WhatsApp.')) return;
+        $.ajax({ url: `/api/gaji/${id}/kirim-ulang-struk`, method: 'POST', contentType: 'application/json', data: '{}' })
+            .done((r) => { showAlert('success', r.message); loadData(); })
+            .fail((xhr) => showAlert('danger', (xhr.responseJSON && xhr.responseJSON.message) || 'Gagal mengirim ulang struk'));
+    };
+
+    window.batalFinalisasi = function(id) {
+        // Finalisasi mengunci komisi ke payroll ini; pembatalannya harus melepaskan kunci itu
+        // juga, kalau tidak komisinya menggantung di payroll yang tak jadi dibayar.
+        if (!window.confirm('Batalkan finalisasi payroll ini?\n\nStatusnya kembali ke draft dan komisi yang terkunci dilepas supaya bisa dihitung ulang.\nBelum ada uang yang berpindah, jadi ini aman.')) return;
+        $.ajax({ url: `/api/gaji/${id}/batal-finalisasi`, method: 'PUT', contentType: 'application/json', data: '{}' })
+            .done((r) => { showAlert('success', r.message); loadData(); })
+            .fail((xhr) => showAlert('danger', (xhr.responseJSON && xhr.responseJSON.message) || 'Gagal membatalkan finalisasi'));
     };
 
     window.payGaji = function(id) {

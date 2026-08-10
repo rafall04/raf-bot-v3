@@ -27,7 +27,9 @@ const {
     getPayrollSummary,
     updatePayrollDraft,
     finalizePayroll,
-    payPayroll
+    payPayroll,
+    setPayrollReceiptStatus,
+    unfinalizePayroll
 } = require('../lib/technician-finance-service');
 const { writeOffCollectionPeriods, getCloseoutHistory } = require('../lib/technician-collection-settlement');
 const salaryPlan = require('../lib/technician-salary-plan');
@@ -63,6 +65,57 @@ function getActor(req) {
         username: req.user?.username || null,
         name: req.user?.name || req.user?.username || null
     };
+}
+
+/**
+ * Mengirim struk gaji ke teknisi DAN mencatat hasilnya apa adanya.
+ *
+ * `sendCritical` TIDAK PERNAH melempar — ia memulangkan `{ delivered: false, errorCode }`.
+ * Kode lama mengabaikan nilai balik itu dan menandai "terkirim" begitu perulangannya selesai,
+ * jadi struk yang tak pernah sampai tetap dilaporkan berhasil ke grup kas. Akibatnya tak
+ * seorang pun menutup celahnya: teknisi diam karena mengira memang tak ada rincian, pemilik
+ * tenang karena layar bilang sudah terkirim.
+ *
+ * Statusnya disimpan di baris payroll supaya bisa dilihat dan dikirim ulang belakangan —
+ * gagal kirim yang hanya muncul di log PM2 sama saja dengan tidak tercatat.
+ */
+async function kirimStrukGaji(payroll) {
+    let terkirim = false;
+    let alasan = '';
+    try {
+        const { buildPayrollReceiptText, resolveTechnicianPhones } = require('../lib/services/payroll-receipt');
+        const { sendCritical } = require('../lib/whatsapp-critical-delivery');
+        const nomor = resolveTechnicianPhones(payroll.teknisi_id, global.accounts);
+        if (nomor.length === 0) {
+            alasan = 'nomor WA teknisi belum diisi';
+            console.warn(`[GAJI_NOTIF] Teknisi #${payroll.teknisi_id} tak punya nomor WA — struk gaji tidak terkirim.`);
+        } else {
+            const teks = buildPayrollReceiptText(payroll);
+            const gagal = [];
+            for (const ph of nomor) {
+                const r = await sendCritical(ph, { text: teks }, { label: 'struk_gaji_teknisi' });
+                if (!r || r.delivered !== true) {
+                    gagal.push(`${ph}: ${(r && (r.errorCode || r.warning)) || 'tak diketahui'}`);
+                }
+            }
+            // Cukup SATU nomor berhasil = teknisinya menerima struk.
+            terkirim = gagal.length < nomor.length;
+            if (gagal.length) alasan = gagal.join('; ');
+        }
+    } catch (strukErr) {
+        alasan = (strukErr && strukErr.message) || 'gagal kirim';
+        console.error('[GAJI_NOTIF] Gagal kirim struk gaji:', strukErr && strukErr.message);
+    }
+
+    try {
+        await setPayrollReceiptStatus(payroll.id, {
+            status: terkirim ? 'terkirim' : 'gagal',
+            error: terkirim ? '' : alasan
+        });
+    } catch (simpanErr) {
+        console.error('[GAJI_NOTIF] Gagal menyimpan status struk:', simpanErr && simpanErr.message);
+    }
+    return { terkirim, alasan };
 }
 
 function mapRowForResponse(row) {
@@ -129,7 +182,7 @@ router.get('/kasbon-summary/:teknisiId', ensureAdmin, async (req, res) => {
         const [kasbon, collection, marketing, riwayat, komisiTertunda] = await Promise.all([
             getKasbonSummary({ teknisiId }),
             getCollectionPayableSummary({ teknisiId, periodMonth: month, periodYear: year }),
-            getMarketingPayableSummary({ teknisiId }),
+            getMarketingPayableSummary({ teknisiId, periodMonth: month, periodYear: year }),
             // Payroll TERAKHIR teknisi ini — dipakai memprefill gaji pokok. Gaji pokok nyaris
             // selalu sama tiap bulan, jadi mengetiknya ulang 12x setahun hanya membuka peluang
             // salah ketik pada angka yang seharusnya tak berubah.
@@ -385,6 +438,89 @@ router.post('/gaji-tetap/buat-draft', ensureAdmin, rateLimit('gaji-tetap-draft',
     }
 });
 
+/**
+ * Membatalkan finalisasi payroll — kembali ke draft supaya bisa diperbaiki.
+ *
+ * Belum ada uang yang berpindah pada status `finalized`, jadi pembatalannya aman. Yang WAJIB
+ * ikut dibatalkan adalah kunci komisinya; itu ditangani service.
+ */
+router.put('/:id/batal-finalisasi', ensureAdmin, async (req, res) => {
+    try {
+        const hasil = await unfinalizePayroll(req.params.id, getActor(req));
+        if (!hasil.ok) {
+            const pesan = {
+                not_found: 'Payroll tidak ditemukan',
+                sudah_dibayar: 'Payroll sudah DIBAYAR — uangnya sudah berpindah, tidak bisa dibatalkan dari sini',
+                bukan_finalized: 'Hanya payroll berstatus finalized yang bisa dibatalkan'
+            }[hasil.reason] || 'Tidak bisa dibatalkan';
+            return res.status(hasil.reason === 'not_found' ? 404 : 409).json({ status: 409, message: pesan });
+        }
+
+        logActivity({
+            userId: req.user.id,
+            username: req.user.username,
+            role: req.user.role,
+            actionType: 'UPDATE',
+            resourceType: 'payroll_teknisi',
+            resourceId: String(req.params.id),
+            resourceName: `Batal finalisasi payroll #${req.params.id}`,
+            description: `Finalisasi dibatalkan; ${hasil.komisiDilepas} baris komisi & ${hasil.marketingDilepas} komisi marketing dilepas`,
+            newValue: hasil,
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent']
+        }).catch(console.error);
+
+        res.json({
+            status: 200,
+            data: hasil,
+            message: `Finalisasi dibatalkan — kembali ke draft. ${hasil.komisiDilepas} baris komisi dilepas dan akan dihitung ulang saat difinalisasi lagi.`
+        });
+    } catch (error) {
+        console.error('[GAJI_BATAL_FINALISASI_ERROR]', error);
+        res.status(500).json({ status: 500, message: 'Gagal membatalkan finalisasi' });
+    }
+});
+
+/**
+ * Mengirim ULANG struk gaji ke teknisi.
+ *
+ * Kegagalan kirim dulu hanya jadi baris di log PM2: tak terlihat, tak bisa diulang. Uangnya
+ * sudah berpindah, jadi teknisi berhak atas rinciannya walau percobaan pertama gagal.
+ */
+router.post('/:id/kirim-ulang-struk', ensureAdmin, rateLimit('kirim-struk', 20, 60000), async (req, res) => {
+    try {
+        const payroll = await getPayrollRecord(req.params.id);
+        if (!payroll) {
+            return res.status(404).json({ status: 404, message: 'Payroll tidak ditemukan' });
+        }
+        if (payroll.status !== 'paid') {
+            return res.status(400).json({ status: 400, message: 'Struk hanya untuk payroll yang sudah dibayar' });
+        }
+
+        const hasil = await kirimStrukGaji(payroll);
+        logActivity({
+            userId: req.user.id,
+            username: req.user.username,
+            role: req.user.role,
+            actionType: 'UPDATE',
+            resourceType: 'payroll_teknisi',
+            resourceId: String(payroll.id),
+            resourceName: `Kirim ulang struk #${payroll.id}`,
+            description: hasil.terkirim ? 'Struk gaji berhasil dikirim ulang' : `Kirim ulang struk GAGAL: ${hasil.alasan}`,
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent']
+        }).catch(console.error);
+
+        if (!hasil.terkirim) {
+            return res.status(502).json({ status: 502, message: `Struk masih gagal terkirim: ${hasil.alasan}` });
+        }
+        res.json({ status: 200, message: `Struk gaji ${payroll.teknisi_name} berhasil dikirim ulang` });
+    } catch (error) {
+        console.error('[GAJI_KIRIM_ULANG_ERROR]', error);
+        res.status(500).json({ status: 500, message: 'Gagal mengirim ulang struk' });
+    }
+});
+
 /** Riwayat penutupan — setelah ditutup, angkanya nol di layar utama; ini yang masih bicara. */
 router.get('/komisi-tertunda/riwayat', ensureAdmin, async (req, res) => {
     try {
@@ -515,26 +651,9 @@ router.put('/:id/pay', ensureAdmin, async (req, res) => {
         // Apakah struk BENAR-BENAR berangkat. Dipakai kabar ke grup di bawah — mengklaim
         // "rincian sudah dikirim" padahal tidak membuat pemilik berhenti mencari celahnya,
         // sementara teknisi tak pernah menerima rincian potongan kasbonnya.
-        let strukTerkirim = false;
-        let strukAlasanGagal = '';
-        try {
-            const { buildPayrollReceiptText, resolveTechnicianPhones } = require('../lib/services/payroll-receipt');
-            const { sendCritical } = require('../lib/whatsapp-critical-delivery');
-            const nomor = resolveTechnicianPhones(payroll.teknisi_id, global.accounts);
-            if (nomor.length === 0) {
-                strukAlasanGagal = 'nomor WA teknisi belum diisi';
-                console.warn(`[GAJI_NOTIF] Teknisi #${payroll.teknisi_id} tak punya nomor WA — struk gaji tidak terkirim.`);
-            } else {
-                const teks = buildPayrollReceiptText(payroll);
-                for (const ph of nomor) {
-                    await sendCritical(ph, { text: teks }, { label: 'struk_gaji_teknisi' });
-                }
-                strukTerkirim = true;
-            }
-        } catch (strukErr) {
-            strukAlasanGagal = (strukErr && strukErr.message) || 'gagal kirim';
-            console.error('[GAJI_NOTIF] Gagal kirim struk gaji:', strukErr && strukErr.message);
-        }
+        const hasilStruk = await kirimStrukGaji(payroll);
+        const strukTerkirim = hasilStruk.terkirim;
+        const strukAlasanGagal = hasilStruk.alasan;
 
         // Kabar ke GRUP KAS: gaji adalah pengeluaran terbesar tiap bulan, dan tanpa ini
         // satu-satunya yang tahu uang keluar adalah orang yang menekan tombolnya.
