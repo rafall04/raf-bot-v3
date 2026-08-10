@@ -239,7 +239,7 @@ $(document).ready(function() {
             const jejakTertunda = $('#komisiTertundaInfo');
             if (totalTertunda > 0) {
                 jejakTertunda
-                    .text(`⚠️ ${formatRupiah(totalTertunda)} komisi dari ${tertunda.length} periode lain belum pernah masuk payroll: ${tertunda.map((x) => x.periode).join(', ')}`)
+                    .text(`⚠️ ${formatRupiah(totalTertunda)} komisi di ${tertunda.length} periode belum pernah dibuatkan payroll (${tertunda.map((x) => x.periode).join(', ')}) — buat draft untuk periode itu, kalau tidak komisinya tak akan terbayar.`)
                     .show();
             } else {
                 jejakTertunda.text('').hide();

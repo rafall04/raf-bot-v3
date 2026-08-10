@@ -156,10 +156,13 @@ router.get('/kasbon-summary/:teknisiId', ensureAdmin, async (req, res) => {
                 komisi_marketing: marketing.net_total,
                 gaji_pokok_terakhir: sebelumnya ? Number(sebelumnya.gaji_pokok) || 0 : 0,
                 periode_terakhir: sebelumnya ? `${sebelumnya.period_month}/${sebelumnya.period_year}` : null,
-                // Komisi menggantung di periode SELAIN yang sedang dibuat. Terukur di produksi:
-                // satu teknisi punya Rp1,5jt tersebar di 7 periode sementara payroll hanya ada
-                // untuk 1 periode — sisanya tak muncul di layar mana pun dan tak akan terbayar.
+                // Komisi menggantung di periode yang TAK punya baris payroll sama sekali —
+                // itulah yang tak muncul di layar mana pun dan karenanya tak akan terbayar.
+                // Terukur di produksi: satu teknisi punya Rp1,35jt tersebar di 6 periode
+                // seperti itu. Periode yang payroll-nya sudah ada (walau masih draft) TIDAK
+                // ikut ditandai — uangnya sudah terlihat di tabel, tinggal difinalisasi.
                 komisi_tertunda: (Array.isArray(komisiTertunda) ? komisiTertunda : [])
+                    .filter((r) => !Number(r.has_payroll))
                     .filter((r) => !(Number(r.period_month) === month && Number(r.period_year) === year))
                     .map((r) => ({
                         periode: `${r.period_month}/${r.period_year}`,
