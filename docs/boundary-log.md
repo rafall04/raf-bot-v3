@@ -1315,3 +1315,14 @@
 - **Tetap GAGAL-TERTUTUP:** hanya cocok bila pemetaan menyebut nomor yang sama; pemetaan tak terbaca ⇒ ditolak. Diuji: orang lain tetap ditolak.
 - **GOTCHA:** gerbang ini tak pernah bersuara ke pengguna — kegagalannya tampak seperti "fitur rusak", bukan "setelan separuh". Bandingkan `personalFinance.ownerJids` (terisi, jalan) vs `businessExpense.ownerLids` (terisi sendirian, diam).
 - **Tes:** `message/handlers/__tests__/kas-pemilik-lid.test.js` (6).
+
+<a id="b211"></a>
+
+### Fix 2026-08-10 (Satu hitungan untuk halaman & perintah `omset` — omset tanpa isolir + proyeksi)
+
+- **Owner TUNGGAL:** `lib/services/money-summary.buildMoneySummary()` kini merakit SELURUH angka kas (pemasukan, omset tanpa isolir, pengeluaran nyata, tagihan rutin belum tuntas, sisa, proyeksi). `GET /api/kas-usaha/cashflow` hanya mendelegasikan.
+- **AKAR:** halaman dan WhatsApp menghitung sendiri-sendiri ⇒ BENAR-BENAR berselisih di produksi: WA melaporkan perkiraan omset termasuk pelanggan terisolir, halaman tidak. Dua angka bernama sama yang saling membantah.
+- **Perintah `omset` kini menjawab:** "kalau semua bayar" (tanpa isolir, selisihnya disebut) dan "sisa setelah tagihan rutin" (proyeksi, ditandai ⚠️ bila minus).
+- **GOTCHA template:** `be_ringkasan_uang` tersimpan MENIMPA fallback — slot `${omset_aktif}`/`${isolir_info}`/`${akan_info}`/`${proyeksi_info}` WAJIB ikut diperbarui di store, kalau tidak bagian barunya dihitung lalu tak pernah terkirim (terbukti saat uji: teks masih format lama padahal angka sudah benar).
+- **Jujur:** proyeksi hanya dihitung bila pemasukan, pengeluaran, DAN tagihan rutin ketiganya terbaca; isolir tak terbaca ⇒ omset TIDAK disaring dan dikatakan.
+- **Tes:** `lib/__tests__/money-summary.test.js` (11), `routes/__tests__/kas-cashflow.test.js` (16).

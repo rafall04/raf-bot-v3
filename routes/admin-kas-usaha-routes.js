@@ -296,109 +296,14 @@ function registerAdminKasUsahaRoutes(router, deps = {}) {
         "/api/kas-usaha/cashflow",
         jaga,
         asyncHandler(async (_req, res) => {
-            const now = new Date();
-            const p = (n) => String(n).padStart(2, "0");
-            const bulan = now.getMonth() + 1;
-            const tahun = now.getFullYear();
-            const from = `${tahun}-${p(bulan)}-01`;
-            const to = `${tahun}-${p(bulan)}-${p(new Date(tahun, bulan, 0).getDate())}`;
-
-            const gagal = [];
-
-            // KELUAR — pengeluaran nyata bulan ini, per kategori (bahan grafik).
-            let keluar = null;
-            let perKategori = {};
-            let jumlahCatatan = 0;
-            try {
-                const rows = await listExpenses({ dateFrom: from, dateTo: to, status: "active" });
-                keluar = rows.reduce((s, e) => s + Number(e.amount || 0), 0);
-                jumlahCatatan = rows.length;
-                for (const e of rows) {
-                    perKategori[e.category] = (perKategori[e.category] || 0) + Number(e.amount || 0);
-                }
-            } catch (_e) {
-                gagal.push("pengeluaran");
-            }
-
-            // AKAN KELUAR — biaya rutin bulan ini yang BELUM dituntaskan (belum dikonfirmasi
-            // maupun dilewati). Sengaja DIPISAH dari `keluar`, tidak dijumlahkan ke dalamnya:
-            // satu baris pengeluaran adalah pernyataan bahwa uang BENAR-BENAR keluar, dan
-            // memasukkan perkiraan ke sana menghasilkan pembukuan salah yang tampak meyakinkan.
-            // Tapi menampilkan Rp0 saat ada Rp6,9jt jatuh tempo tanggal 15 juga menyesatkan —
-            // ke arah sebaliknya. Karena itu dua-duanya dilaporkan, masing-masing dengan namanya.
-            let akanKeluar = null;
-            let akanJumlah = 0;
-            let akanTerlewat = 0;
-            const akanPerKategori = {};
-            try {
-                const semua = await recurring.listAll();
-                const periode = recurring.periodeSekarang();
-                const hariIni = now.getDate();
-                const hariTerakhir = new Date(tahun, bulan, 0).getDate();
-                akanKeluar = 0;
-                for (const r of semua) {
-                    if (!r.aktif) continue;
-                    if (r.last_settled_period === periode) continue; // sudah dicatat / dilewati
-                    const n = Number(r.perkiraan) || 0;
-                    akanKeluar += n;
-                    akanJumlah += 1;
-                    akanPerKategori[r.kategori] = (akanPerKategori[r.kategori] || 0) + n;
-                    // Tanggal 29-31 di bulan pendek jatuh ke hari terakhir (sama dengan cron).
-                    const jatuh = Math.min(Number(r.tanggal) || 1, hariTerakhir);
-                    if (jatuh < hariIni) akanTerlewat += 1;
-                }
-            } catch (_e) {
-                gagal.push("biaya_rutin");
-                akanKeluar = null;
-            }
-
-            // MASUK + OMSET — dari owner-cockpit (satu pemilik harga & isolir).
-            let masuk = null;
-            let omset = null;
-            try {
-                const cockpit = require("../lib/owner-cockpit-service");
-                const [kartu, om] = await Promise.all([cockpit.buildIncomeOnly(), cockpit.buildOmsetAktif()]);
-                if (kartu && kartu.ok !== false) masuk = Number(kartu.netPaid) || 0;
-                else gagal.push("pemasukan");
-                omset = om && om.ok ? om : null;
-                if (!omset) gagal.push("omset");
-            } catch (_e) {
-                gagal.push("pemasukan");
-            }
-
-            // Sisa & belum-masuk hanya bermakna kalau kedua sisinya terbaca. Jangan menghitung
-            // dari null yang diam-diam jadi 0 — itu melaporkan untung/rugi yang tak pernah diukur.
-            const sisa = masuk != null && keluar != null ? masuk - keluar : null;
-            const belumMasuk =
-                omset && masuk != null ? Math.max(0, Number(omset.omsetAktif) - masuk) : null;
-            // Proyeksi = sisa SEKARANG dikurangi tagihan rutin yang masih akan jatuh tempo.
-            // Inilah angka yang menjawab "bulan ini saya aman atau tidak", dan ia HANYA sah
-            // kalau ketiga bahannya terbaca — jangan pernah memproyeksikan dari nilai buta.
-            const proyeksiSisa = sisa != null && akanKeluar != null ? sisa - akanKeluar : null;
-
-            res.json({
-                success: true,
-                data: {
-                    periode: `${bulan}/${tahun}`,
-                    masuk,
-                    keluar,
-                    sisa,
-                    jumlahCatatan,
-                    perKategori,
-                    akanKeluar,
-                    akanJumlah,
-                    akanTerlewat,
-                    akanPerKategori,
-                    proyeksiSisa,
-                    omsetAktif: omset ? omset.omsetAktif : null,
-                    omsetPenuh: omset ? omset.mrr : null,
-                    isolirTerbaca: omset ? omset.isolirTerbaca : false,
-                    isolirJumlah: omset ? omset.isolirJumlah : null,
-                    isolirNilai: omset ? omset.isolirNilai : null,
-                    belumMasuk,
-                    gagal
-                }
-            });
+            // SELURUH hitungannya milik lib/services/money-summary — sama persis dengan yang
+            // dipakai perintah `omset` di WhatsApp. Dulu halaman menghitung sendiri, dan
+            // akibatnya nyata: WA melaporkan omset Rp7.125.000 (termasuk terisolir) sementara
+            // halaman Rp6.905.000. Dua angka bernama sama yang berselisih membuat pemiliknya
+            // berhenti percaya keduanya.
+            const ms = require("../lib/services/money-summary");
+            const d = await ms.buildMoneySummary();
+            res.json({ success: true, data: d });
         })
     );
 

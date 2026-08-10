@@ -5580,7 +5580,7 @@
   "be_ringkasan_uang": {
     "name": "Kas Usaha - Ringkasan Uang",
     "category": "business_expense",
-    "template": "💰 *RINGKASAN UANG* — ${judul}\nPeriode ${periode}\n\n*MASUK*\n• Bulan ini      : ${net_paid}\n• Hari ini       : ${today_amount} (${today_count} transaksi)\n• Perkiraan omset: ${mrr}\n• Sudah lunas    : ${lunas}/${total_pelanggan} (${collection_rate}%)\n• Tunggakan      : ${tunggakan} dari ${tunggakan_pelanggan} pelanggan${tren}\n\n*KELUAR*\n• Pengeluaran    : ${total_pengeluaran}\n\n*SISA*\n• Bersih         : ${sisa_bersih}${catatan}"
+    "template": "💰 *RINGKASAN UANG* — ${judul}\nPeriode ${periode}\n\n*MASUK*\n• Bulan ini      : ${net_paid}\n• Hari ini       : ${today_amount} (${today_count} transaksi)\n• Sudah lunas    : ${lunas}/${total_pelanggan} (${collection_rate}%)\n• Tunggakan      : ${tunggakan} dari ${tunggakan_pelanggan} pelanggan${tren}\n\n*KALAU SEMUA BAYAR*\n• Omset bulan ini : ${omset_aktif}${isolir_info}\n• Belum masuk     : ${belum_masuk}\n\n*KELUAR*\n• Sudah keluar   : ${total_pengeluaran}${akan_info}\n\n*SISA*\n• Sekarang       : ${sisa_bersih}${proyeksi_info}${catatan}"
   },
   "kas_notif_gaji": {
     "name": "Kas Usaha - Notif Gaji Dibayar",

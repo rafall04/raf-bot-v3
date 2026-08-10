@@ -85,29 +85,21 @@ describe("omset aktif: pelanggan terisolir dikeluarkan", () => {
     });
 });
 
-describe("endpoint cashflow melapor jujur", () => {
+describe("endpoint cashflow MENDELEGASIKAN, tidak menghitung sendiri", () => {
     const route = baca("routes", "admin-kas-usaha-routes.js");
 
-    test("tersedia dan membawa semua pos arus kas", () => {
-        expect(route).toContain("/api/kas-usaha/cashflow");
+    test("memanggil money-summary, bukan merakit angkanya di route", () => {
+        // Halaman dan perintah `omset` di WhatsApp WAJIB memakai hitungan yang sama.
+        // Saat route menghitung sendiri, keduanya BENAR-BENAR berselisih: WA melaporkan
+        // perkiraan omset termasuk pelanggan terisolir, halaman tidak — dua angka bernama
+        // sama yang saling membantah, dan pemiliknya berhenti percaya keduanya.
         const idx = route.indexOf("/api/kas-usaha/cashflow");
         const blok = route.slice(idx, route.indexOf("Ringkasan kas bulan berjalan", idx));
-        for (const pos of ["masuk", "keluar", "sisa", "omsetAktif", "omsetPenuh", "perKategori", "belumMasuk"]) {
-            expect(blok).toContain(pos);
-        }
-    });
-
-    test("sisa TIDAK dihitung saat salah satu sisi tak terbaca", () => {
-        const idx = route.indexOf("/api/kas-usaha/cashflow");
-        const blok = route.slice(idx, route.indexOf("Ringkasan kas bulan berjalan", idx));
-        expect(blok).toMatch(/masuk != null && keluar != null \? masuk - keluar : null/);
-    });
-
-    test("sumber yang gagal dicatat, bukan disamarkan jadi nol", () => {
-        const idx = route.indexOf("/api/kas-usaha/cashflow");
-        const blok = route.slice(idx, route.indexOf("Ringkasan kas bulan berjalan", idx));
-        expect(blok).toMatch(/gagal\.push\("pengeluaran"\)/);
-        expect(blok).toMatch(/gagal\.push\("pemasukan"\)/);
+        expect(blok).toMatch(/money-summary/);
+        expect(blok).toMatch(/buildMoneySummary\(\)/);
+        // Tak boleh ada perhitungan lokal yang bisa menyimpang lagi.
+        expect(blok).not.toMatch(/akanKeluar \+=/);
+        expect(blok).not.toMatch(/buildCashflowSummary/);
     });
 });
 
@@ -139,36 +131,35 @@ describe("tampilan arus kas", () => {
 });
 
 describe("tagihan yang BELUM jatuh tempo: ditampilkan, tapi tak dicampur ke pengeluaran", () => {
-    const route = baca("routes", "admin-kas-usaha-routes.js");
+    const svc = baca("lib", "services", "money-summary.js");
     const js = baca("static", "js", "kas-usaha.js");
     const view = baca("views", "sb-admin", "kas-usaha.php");
 
     test("akanKeluar dihitung dari biaya rutin yang belum dituntaskan periode ini", () => {
-        const idx = route.indexOf("/api/kas-usaha/cashflow");
-        const blok = route.slice(idx, route.indexOf("Ringkasan kas bulan berjalan", idx));
+        const blok = svc;
         expect(blok).toMatch(/r\.last_settled_period === periode/);
         expect(blok).toMatch(/if \(!r\.aktif\) continue/);
         expect(blok).toMatch(/akanPerKategori/);
     });
 
     test("TIDAK dijumlahkan ke `keluar` — satu baris pengeluaran = uang benar-benar keluar", () => {
-        const idx = route.indexOf("/api/kas-usaha/cashflow");
-        const blok = route.slice(idx, route.indexOf("Ringkasan kas bulan berjalan", idx));
+        const blok = svc;
         // `keluar` hanya diisi dari listExpenses, tak pernah ditambah akanKeluar.
         expect(blok).not.toMatch(/keluar \+= akanKeluar|keluar = keluar \+ akan/);
         expect(blok).toMatch(/akanKeluar \+= n/);
     });
 
     test("tanggal 29-31 di bulan pendek dijepit ke hari terakhir (sama dengan cron)", () => {
-        const idx = route.indexOf("/api/kas-usaha/cashflow");
-        const blok = route.slice(idx, route.indexOf("Ringkasan kas bulan berjalan", idx));
+        const blok = svc;
         expect(blok).toMatch(/Math\.min\(Number\(r\.tanggal\) \|\| 1, hariTerakhir\)/);
     });
 
     test("proyeksi hanya dihitung kalau kedua bahannya terbaca", () => {
-        const idx = route.indexOf("/api/kas-usaha/cashflow");
-        const blok = route.slice(idx, route.indexOf("Ringkasan kas bulan berjalan", idx));
-        expect(blok).toMatch(/sisa != null && akanKeluar != null \? sisa - akanKeluar : null/);
+        // Proyeksi hanya sah kalau pemasukan, pengeluaran, DAN tagihan rutin ketiganya
+        // terbaca. Menghitungnya dari salah satu nilai buta menghasilkan ramalan untung/rugi
+        // yang tak pernah diukur — lebih buruk daripada tak ada ramalan.
+        expect(svc).toMatch(/pemasukan && keluar != null && akanKeluar != null/);
+        expect(svc).toMatch(/proyeksiSisa:/);
     });
 
     test("layar menyebutnya terpisah + memperingatkan kalau proyeksinya minus", () => {

@@ -312,6 +312,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-10 (Keuangan: gaji pokok terisi sendiri, metode jadi pilihan, @lid tak lagi mentah)](docs/boundary-log.md#b208)
 - [Feat 2026-08-10 (Kas usaha: kartu arus kas + grafik pengeluaran, omset tanpa isolir)](docs/boundary-log.md#b209)
 - [Fix 2026-08-10 (Bot DIAM di grup kas — pemilik tersimpan @lid, pesan tiba sebagai nomor)](docs/boundary-log.md#b210)
+- [Fix 2026-08-10 (Satu hitungan untuk halaman & perintah omset — omset tanpa isolir + proyeksi)](docs/boundary-log.md#b211)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
