@@ -42,14 +42,33 @@ $(document).ready(function() {
     }
 
     function showAlert(type, message) {
+        // `.alert-sesaat` WAJIB: penutup otomatis di bawah dulu menyapu SEMUA `.alert` di
+        // halaman — termasuk spanduk payroll belum dibayar dan peringatan permanen lain, yang
+        // memang berkelas `alert`. Bootstrap MENGHAPUS elemennya dari DOM, jadi satu notifikasi
+        // membuat spanduk itu lenyap selamanya sampai halaman dimuat ulang.
         const alertHtml = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            <div class="alert alert-${type} alert-dismissible alert-sesaat fade show" role="alert">
                 ${message}
                 <button type="button" class="close" data-dismiss="alert">&times;</button>
             </div>
         `;
-        $('.container-fluid').prepend(alertHtml);
-        setTimeout(() => $('.alert').alert('close'), 5000);
+        const el = $(alertHtml);
+        $('.container-fluid').prepend(el);
+        // Notifikasi dirender di PUNCAK halaman; kalau operator sedang menatap kartu di bawah,
+        // pesan yang menjelaskan kenapa sesuatu gagal tak pernah terlihat — dan hasilnya
+        // terbaca sebagai "tombolnya tidak melakukan apa-apa".
+        if (el[0] && typeof el[0].scrollIntoView === 'function') {
+            el[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        setTimeout(() => $('.alert-sesaat').alert('close'), 6000);
+    }
+
+    /** Umpan balik DI TEMPAT operator menekan tombolnya, bukan hanya di puncak halaman. */
+    function kabarGajiTetap(tipe, pesan) {
+        $('#gajiTetapHasil')
+            .removeClass('text-success text-danger text-warning')
+            .addClass(tipe === 'success' ? 'text-success' : tipe === 'danger' ? 'text-danger' : 'text-warning')
+            .text(pesan);
     }
 
     function initSelectors() {
@@ -177,20 +196,47 @@ $(document).ready(function() {
     });
 
     $(document).on('click', '#simpanGajiTetap', function() {
-        const items = $('#gajiTetapRows [data-teknisi]').map(function() {
-            return { teknisi_id: $(this).data('teknisi'), gaji_pokok: parseNumber($(this).find('.gaji-tetap-input').val()) };
-        }).get().filter((i) => i.gaji_pokok > 0);
+        const semua = $('#gajiTetapRows [data-teknisi]').map(function() {
+            return {
+                teknisi_id: $(this).data('teknisi'),
+                nama: $(this).find('label').text().trim(),
+                mentah: String($(this).find('.gaji-tetap-input').val() || '').trim(),
+                gaji_pokok: parseNumber($(this).find('.gaji-tetap-input').val())
+            };
+        }).get();
 
-        if (items.length === 0) {
-            showAlert('warning', 'Isi gaji pokok minimal untuk satu teknisi');
+        // Tak ada jalur diam. Dulu daftar kosong berarti "return" tanpa permintaan apa pun dan
+        // pesannya dirender di puncak halaman yang sedang tak dilihat operator — hasilnya
+        // terbaca sebagai "tombolnya tidak melakukan apa-apa".
+        if (semua.length === 0) {
+            kabarGajiTetap('danger', 'Daftar teknisi belum termuat. Muat ulang halaman lalu coba lagi.');
+            showAlert('danger', 'Daftar teknisi belum termuat — muat ulang halaman.');
             return;
         }
+        const kosong = semua.filter((i) => i.gaji_pokok <= 0);
+        if (kosong.length === semua.length) {
+            const contoh = semua.map((i) => `${i.nama}: "${i.mentah}"`).join(', ');
+            kabarGajiTetap('warning', `Belum ada nominal yang terbaca sebagai angka (${contoh}). Ketik angkanya saja, contoh: 250000.`);
+            return;
+        }
+
+        const items = semua.filter((i) => i.gaji_pokok > 0).map((i) => ({ teknisi_id: i.teknisi_id, gaji_pokok: i.gaji_pokok }));
         const tombol = $(this).prop('disabled', true);
+        kabarGajiTetap('warning', 'Menyimpan...');
         $.ajax({ url: '/api/gaji/gaji-tetap', method: 'PUT', contentType: 'application/json', data: JSON.stringify({ items }) })
             // Pesan sukses MENGULANG nominal terformat: kolom mata uang membuang huruf, jadi
             // "250rb" menjadi 250 dan tersimpan diam-diam sebagai Rp250.
-            .done((r) => { showAlert('success', r.message); muatGajiTetap(); })
-            .fail((xhr) => showAlert('danger', (xhr.responseJSON && xhr.responseJSON.message) || 'Gagal menyimpan'))
+            .done((r) => {
+                const lewat = kosong.length ? ` (${kosong.map((i) => i.nama).join(', ')} dilewati karena kosong)` : '';
+                kabarGajiTetap('success', r.message + lewat);
+                showAlert('success', r.message + lewat);
+                muatGajiTetap();
+            })
+            .fail((xhr) => {
+                const pesan = (xhr.responseJSON && xhr.responseJSON.message) || `Gagal menyimpan (HTTP ${xhr.status || 'tak ada respons'})`;
+                kabarGajiTetap('danger', pesan);
+                showAlert('danger', pesan);
+            })
             .always(() => tombol.prop('disabled', false));
     });
 
@@ -208,9 +254,25 @@ $(document).ready(function() {
 
     $(document).on('click', '#buatDraftSekarang', function() {
         const tombol = $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Membuat...');
+        kabarGajiTetap('warning', 'Membuat draft...');
         $.ajax({ url: '/api/gaji/gaji-tetap/buat-draft', method: 'POST', contentType: 'application/json', data: '{}' })
-            .done((r) => { showAlert('success', r.message); loadData(); muatGajiTetap(); })
-            .fail((xhr) => showAlert('danger', (xhr.responseJSON && xhr.responseJSON.message) || 'Gagal membuat draft'))
+            .done((r) => {
+                // Nol dibuat BUKAN kegagalan diam: sebutkan alasannya, kalau tidak operator
+                // menekan tombolnya berulang kali sambil mengira tak terjadi apa-apa.
+                const d = r.data || {};
+                const rinci = d.dibuat === 0
+                    ? (d.sudahAda > 0 ? 'Draft bulan ini memang sudah ada.' : 'Belum ada gaji pokok tetap yang tersimpan — isi nominalnya lalu Simpan dulu.')
+                    : '';
+                kabarGajiTetap(d.dibuat > 0 ? 'success' : 'warning', `${r.message}. ${rinci}`.trim());
+                showAlert(d.dibuat > 0 ? 'success' : 'warning', `${r.message}. ${rinci}`.trim());
+                loadData();
+                muatGajiTetap();
+            })
+            .fail((xhr) => {
+                const pesan = (xhr.responseJSON && xhr.responseJSON.message) || `Gagal membuat draft (HTTP ${xhr.status || 'tak ada respons'})`;
+                kabarGajiTetap('danger', pesan);
+                showAlert('danger', pesan);
+            })
             .always(() => tombol.prop('disabled', false).html('<i class="fas fa-bolt"></i> Buat draft bulan ini sekarang'));
     });
 

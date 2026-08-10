@@ -157,6 +157,10 @@
                             <button type="button" class="btn btn-outline-primary" id="buatDraftSekarang">
                                 <i class="fas fa-bolt"></i> Buat draft bulan ini sekarang
                             </button>
+                            <!-- Hasil DI TEMPAT tombolnya. Notifikasi di puncak halaman tak
+                                 terlihat kalau operator sedang menatap kartu ini, dan hasilnya
+                                 terbaca sebagai "tombolnya tidak melakukan apa-apa". -->
+                            <div class="mt-2 font-weight-bold" id="gajiTetapHasil"></div>
                             <small class="d-block mt-2 text-muted">
                                 Otomatisasi berhenti di <strong>draft</strong> — tidak ada uang keluar dan tidak ada struk terkirim
                                 sampai Anda finalisasi lalu tandai dibayar. Komisi &amp; potongan kasbon dihitung saat finalisasi.
