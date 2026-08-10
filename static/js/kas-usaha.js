@@ -75,6 +75,12 @@
 
             var sak = el("ku-aktif");
             if (sak) sak.checked = d.enabled === true;
+            var dg = el("ku-digest");
+            if (dg) {
+                dg.checked = d.digest === true;
+                // Ringkasan hanya bermakna kalau fiturnya menyala — jangan tawarkan yang mustahil.
+                dg.disabled = d.enabled !== true;
+            }
 
             gambarPemilik(d);
 
@@ -189,7 +195,7 @@
             ambil("/api/kas-usaha/aktif", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ enabled: mau })
+                body: JSON.stringify({ enabled: mau, digest: el("ku-digest") ? el("ku-digest").checked : undefined })
             }).then(function (j) {
                 pesan(j.message || (mau ? "Kas usaha diaktifkan." : "Kas usaha dimatikan."), "ok");
                 return muatSetelan();
@@ -198,6 +204,27 @@
                 pesan(e.message, "error");
             }).then(function () {
                 sakelar.disabled = false;
+            });
+        });
+    }
+
+    var sakelarDigest = el("ku-digest");
+    if (sakelarDigest) {
+        sakelarDigest.addEventListener("change", function () {
+            var mau = sakelarDigest.checked;
+            sakelarDigest.disabled = true;
+            ambil("/api/kas-usaha/aktif", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ enabled: el("ku-aktif").checked, digest: mau })
+            }).then(function () {
+                pesan(mau ? "Ringkasan uang akan dikirim tiap pagi." : "Ringkasan uang harian dimatikan.", "ok");
+                return muatSetelan();
+            }).catch(function (e) {
+                sakelarDigest.checked = !mau;
+                pesan(e.message, "error");
+            }).then(function () {
+                sakelarDigest.disabled = el("ku-aktif").checked !== true;
             });
         });
     }

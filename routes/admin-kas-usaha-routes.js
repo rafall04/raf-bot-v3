@@ -85,6 +85,7 @@ function registerAdminKasUsahaRoutes(router, deps = {}) {
                 success: true,
                 data: {
                     enabled: cfg.enabled === true,
+                    digest: cfg.digest === true,
                     groupId: cfg.groupId || "",
                     ownerJids: cfg.ownerJids || [],
                     ownerLids: cfg.ownerLids || [],
@@ -121,19 +122,24 @@ function registerAdminKasUsahaRoutes(router, deps = {}) {
         "/api/kas-usaha/aktif",
         jaga,
         asyncHandler(async (req, res) => {
-            const aktif = (req.body || {}).enabled === true;
-            const cfg = tulisSetelan({ enabled: aktif }, getConfig);
+            const body = req.body || {};
+            const aktif = body.enabled === true;
+            const tambalan = { enabled: aktif };
+            // Ringkasan uang harian: opt-in TERPISAH. Sebagian pemilik mau mencatat kas di grup
+            // tapi tak mau menerima laporan tiap pagi.
+            if (body.digest !== undefined) tambalan.digest = body.digest === true;
+            const cfg = tulisSetelan(tambalan, getConfig);
 
-            // Cron pengingat membaca `enabled` SAAT DIJADWALKAN, bukan saat berbunyi. Tanpa
-            // penjadwalan ulang di sini, menyalakan dari halaman menghasilkan sukses semu:
-            // layar bilang aktif, tapi tak satu pun pengingat terkirim sampai proses direstart.
+            // Cron membaca setelannya SAAT DIJADWALKAN, bukan saat berbunyi. Tanpa penjadwalan
+            // ulang di sini, menyalakan dari halaman menghasilkan sukses semu: layar bilang
+            // aktif, tapi tak satu pun pesan terkirim sampai proses direstart.
             let jadwalAktif = false;
             try {
-                const { initRecurringExpenseReminderTask } = require("../lib/cron/jobs/recurring-expense-reminder");
-                initRecurringExpenseReminderTask();
+                require("../lib/cron/jobs/recurring-expense-reminder").initRecurringExpenseReminderTask();
+                require("../lib/cron/jobs/money-digest").initMoneyDigestTask();
                 jadwalAktif = aktif;
             } catch (e) {
-                console.error("[KAS_AKTIF] Gagal menjadwalkan ulang pengingat:", e && e.message);
+                console.error("[KAS_AKTIF] Gagal menjadwalkan ulang job kas:", e && e.message);
             }
 
             // Jujur soal syarat: "aktif" tanpa grup/pemilik tak menghasilkan apa pun.

@@ -177,7 +177,11 @@
   "psbIntake": {
     "enabled": false,
     "groupId": "",
-    "allowedRoles": ["teknisi", "admin", "owner"],
+    "allowedRoles": [
+      "teknisi",
+      "admin",
+      "owner"
+    ],
     "recencyWindowMinutes": 120,
     "pppoeRealm": "rafcybernet",
     "freeInstallMonth": false,
@@ -189,7 +193,9 @@
     "enabled": false
   },
   "networkAssets": {
-    "waIntake": { "enabled": true },
+    "waIntake": {
+      "enabled": true
+    },
     "defaultOdpCapacity": 8,
     "odpSuggestMaxMeters": 250,
     "odcSuggestMaxMeters": 2000
@@ -390,14 +396,66 @@
     "baselineHours": 24,
     "retentionDays": 30,
     "paths": [
-      { "key": "gmdp", "label": "GMDP (utama)", "routingTable": null, "iface": "1.VLAN62-GMDP", "gatewayTarget": "195.168.62.1", "affects": "pelanggan reguler (pool 70.x)", "capacity": { "downMbps": 0, "upMbps": 0 } },
-      { "key": "ih", "label": "IndiHome direct", "routingTable": "FREE", "iface": "2.VLAN502", "gatewayTarget": "192.168.102.1", "affects": "trafik WhatsApp/game pelanggan 110k-125k + jalur FREE", "capacity": { "downMbps": 0, "upMbps": 0 } },
-      { "key": "mni", "label": "IH via MNI", "routingTable": "MNI", "iface": "Tunnel-MNI", "tunnelType": "l2tp", "affects": "paket 110k & 125k (browsing/video)", "capacity": { "downMbps": 0, "upMbps": 0 } },
-      { "key": "sf", "label": "SF (backup MNI)", "routingTable": "SF-PROBE", "iface": "SF", "tunnelType": "sstp", "affects": "paket 110k & 125k saat dialihkan ke backup", "capacity": { "downMbps": 0, "upMbps": 0 } }
+      {
+        "key": "gmdp",
+        "label": "GMDP (utama)",
+        "routingTable": null,
+        "iface": "1.VLAN62-GMDP",
+        "gatewayTarget": "195.168.62.1",
+        "affects": "pelanggan reguler (pool 70.x)",
+        "capacity": {
+          "downMbps": 0,
+          "upMbps": 0
+        }
+      },
+      {
+        "key": "ih",
+        "label": "IndiHome direct",
+        "routingTable": "FREE",
+        "iface": "2.VLAN502",
+        "gatewayTarget": "192.168.102.1",
+        "affects": "trafik WhatsApp/game pelanggan 110k-125k + jalur FREE",
+        "capacity": {
+          "downMbps": 0,
+          "upMbps": 0
+        }
+      },
+      {
+        "key": "mni",
+        "label": "IH via MNI",
+        "routingTable": "MNI",
+        "iface": "Tunnel-MNI",
+        "tunnelType": "l2tp",
+        "affects": "paket 110k & 125k (browsing/video)",
+        "capacity": {
+          "downMbps": 0,
+          "upMbps": 0
+        }
+      },
+      {
+        "key": "sf",
+        "label": "SF (backup MNI)",
+        "routingTable": "SF-PROBE",
+        "iface": "SF",
+        "tunnelType": "sstp",
+        "affects": "paket 110k & 125k saat dialihkan ke backup",
+        "capacity": {
+          "downMbps": 0,
+          "upMbps": 0
+        }
+      }
     ],
     "targets": [
-      { "key": "google", "label": "Google DNS", "address": "8.8.4.4" },
-      { "key": "cloudflare", "label": "Cloudflare DNS", "address": "1.0.0.1" }
+      {
+        "key": "google",
+        "label": "Google DNS",
+        "address": "8.8.4.4"
+      },
+      {
+        "key": "cloudflare",
+        "label": "Cloudflare DNS",
+        "address": "1.0.0.1"
+      }
     ],
     "alerts": {
       "enabled": false,
@@ -411,8 +469,24 @@
       "traceWaitSeconds": 45
     },
     "pathPools": [
-      { "path": "mni", "cidrs": ["192.168.61.0/24", "192.168.62.0/24", "192.168.71.0/24", "192.168.123.0/24", "10.10.50.0/24"] },
-      { "path": "gmdp", "cidrs": ["192.168.70.0/24", "10.10.0.0/20", "192.168.145.0/24"] }
+      {
+        "path": "mni",
+        "cidrs": [
+          "192.168.61.0/24",
+          "192.168.62.0/24",
+          "192.168.71.0/24",
+          "192.168.123.0/24",
+          "10.10.50.0/24"
+        ]
+      },
+      {
+        "path": "gmdp",
+        "cidrs": [
+          "192.168.70.0/24",
+          "10.10.0.0/20",
+          "192.168.145.0/24"
+        ]
+      }
     ]
   },
   "serviceMonitor": {
@@ -423,19 +497,63 @@
     "statusWindowMinutes": 10,
     "retentionDays": 14,
     "services": [
-      { "key": "instagram", "label": "Instagram", "host": "www.instagram.com" },
-      { "key": "facebook", "label": "Facebook", "host": "www.facebook.com" },
-      { "key": "whatsapp", "label": "WhatsApp", "host": "web.whatsapp.com" },
-      { "key": "google", "label": "Google", "host": "www.google.com" },
-      { "key": "youtube", "label": "YouTube", "host": "www.youtube.com" },
-      { "key": "cloudflare", "label": "Cloudflare", "host": "www.cloudflare.com" },
-      { "key": "tiktok", "label": "TikTok", "host": "www.tiktok.com" }
+      {
+        "key": "instagram",
+        "label": "Instagram",
+        "host": "www.instagram.com"
+      },
+      {
+        "key": "facebook",
+        "label": "Facebook",
+        "host": "www.facebook.com"
+      },
+      {
+        "key": "whatsapp",
+        "label": "WhatsApp",
+        "host": "web.whatsapp.com"
+      },
+      {
+        "key": "google",
+        "label": "Google",
+        "host": "www.google.com"
+      },
+      {
+        "key": "youtube",
+        "label": "YouTube",
+        "host": "www.youtube.com"
+      },
+      {
+        "key": "cloudflare",
+        "label": "Cloudflare",
+        "host": "www.cloudflare.com"
+      },
+      {
+        "key": "tiktok",
+        "label": "TikTok",
+        "host": "www.tiktok.com"
+      }
     ],
     "paths": [
-      { "key": "gmdp", "label": "GMDP", "srcIp": "" },
-      { "key": "ih", "label": "IndiHome", "srcIp": "" },
-      { "key": "mni", "label": "MNI", "srcIp": "" },
-      { "key": "sf", "label": "SF", "srcIp": "" }
+      {
+        "key": "gmdp",
+        "label": "GMDP",
+        "srcIp": ""
+      },
+      {
+        "key": "ih",
+        "label": "IndiHome",
+        "srcIp": ""
+      },
+      {
+        "key": "mni",
+        "label": "MNI",
+        "srcIp": ""
+      },
+      {
+        "key": "sf",
+        "label": "SF",
+        "srcIp": ""
+      }
     ],
     "alerts": {
       "enabled": false,
@@ -457,7 +575,13 @@
         "affects": "Paket 110k & 125k",
         "note": "Alihkan trafik dari tunnel MNI ke tunnel SF (backup).",
         "operations": [
-          { "match": { "routingMark": "MNI", "gateway": "Tunnel-MNI" }, "apply": "disable" }
+          {
+            "match": {
+              "routingMark": "MNI",
+              "gateway": "Tunnel-MNI"
+            },
+            "apply": "disable"
+          }
         ]
       },
       {
@@ -466,8 +590,21 @@
         "affects": "Pelanggan reguler (tabel utama)",
         "note": "Alihkan pelanggan reguler dari GMDP ke IndiHome.",
         "operations": [
-          { "match": { "table": "main", "gateway": "1.1.1.1", "comment": "MAIN" }, "apply": "disable" },
-          { "match": { "table": "main", "gateway": "192.168.102.1" }, "apply": "enable" }
+          {
+            "match": {
+              "table": "main",
+              "gateway": "1.1.1.1",
+              "comment": "MAIN"
+            },
+            "apply": "disable"
+          },
+          {
+            "match": {
+              "table": "main",
+              "gateway": "192.168.102.1"
+            },
+            "apply": "enable"
+          }
         ]
       }
     ]
@@ -516,7 +653,10 @@
   },
   "customerSteering": {
     "enabled": false,
-    "poolLists": ["freedns", "lokaldns"],
+    "poolLists": [
+      "freedns",
+      "lokaldns"
+    ],
     "reconcileIntervalSeconds": 60
   },
   "steeringDriftMonitor": {
@@ -533,16 +673,23 @@
     "secretKey": "ISI_TURNSTILE_SECRET_KEY"
   },
   "businessExpense": {
-    "_catatan": "KAS USAHA per site. Perintah WA 'kas 150rb kabel' MENULIS ke expense_entries lewat lib/expense-manager - sumber angka yang SAMA dengan halaman /pengeluaran & /rekap-keuangan, bukan pembukuan kedua. Ledger & grup terpisah penuh per instance (Dander & Tanjungharjo masing-masing sendiri). Kata pemicu 'kas' sengaja dilepas dari dompet pribadi supaya tak bertabrakan. SEMUA key di bawah kini diatur dari halaman /kas-usaha (sakelar, grup, pemilik) - tak perlu menyunting berkas ini di server; biaya rutin (listrik/internet/sewa) tinggal di tabel recurring_expenses, bukan di config.",
+    "_catatan": "KAS USAHA per site. Perintah WA 'kas 150rb kabel' MENULIS ke expense_entries lewat lib/expense-manager - sumber angka yang SAMA dengan halaman /pengeluaran & /rekap-keuangan, bukan pembukuan kedua. Ledger & grup terpisah penuh per instance (Dander & Tanjungharjo masing-masing sendiri). Kata pemicu 'kas' sengaja dilepas dari dompet pribadi supaya tak bertabrakan. SEMUA key di bawah kini diatur dari halaman /kas-usaha (sakelar, grup, pemilik) - tak perlu menyunting berkas ini di server; biaya rutin (listrik/internet/sewa) tinggal di tabel recurring_expenses, bukan di config. RINGKASAN UANG: digest=true mengirim rekap pemasukan/omset/tunggakan/sisa ke grup tiap pagi (digestSchedule, cron). notifyAbove=nominal ambang kabar pengeluaran besar dari HALAMAN ke grup (0 = mati; jalur WhatsApp tak dikabari lagi karena sudah dibalas di grup).",
     "enabled": false,
     "groupId": "",
-    "ownerJids": ["62xxxxxxxxxx@s.whatsapp.net"],
-    "ownerLids": []
+    "ownerJids": [
+      "62xxxxxxxxxx@s.whatsapp.net"
+    ],
+    "ownerLids": [],
+    "digest": false,
+    "digestSchedule": "20 8 * * *",
+    "notifyAbove": 0
   },
   "personalFinance": {
     "_catatan": "Dompet PRIBADI pemilik yang menumpang nomor bot. Terpisah total dari saldo pelanggan (DB sendiri: personal_finance.sqlite). Kepemilikan WA sengaja TIDAK memakai ownerNumber/role admin. Perintah WA: isi groupId dengan JID grup khusus (…@g.us) agar dompet dilayani DI GRUP saja - DM pemilik sudah penuh notifikasi upstream sehingga balasan dompet tenggelam; kosongkan groupId untuk memakai DM. Halaman webnya punya LOGIN TERPISAH sendiri (database/personal_finance_auth.json, disiapkan lewat scripts/set-keuangan-pribadi-password.js) - sesi admin tidak memberi akses.",
     "enabled": false,
-    "ownerJids": ["62xxxxxxxxxx@s.whatsapp.net"],
+    "ownerJids": [
+      "62xxxxxxxxxx@s.whatsapp.net"
+    ],
     "groupId": "",
     "ownerLids": [],
     "categories": {}

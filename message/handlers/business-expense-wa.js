@@ -18,6 +18,7 @@
 const { renderResponseTemplate } = require("./template-helpers");
 const {
     TRIGGER_KAS,
+    TRIGGER_RINGKASAN,
     KATA_KONFIRMASI,
     KATA_LEWATI,
     parseKonfirmasiRutin,
@@ -30,13 +31,14 @@ const { formatRupiah } = require("../../lib/personal-finance-service");
 const TRIGGER_RE = new RegExp(`^\\s*(?:${TRIGGER_KAS.join("|")})\\b`, "i");
 
 /**
- * Regex gerbang untuk raf.js: perintah `kas` ATAU balasan konfirmasi biaya rutin.
+ * Regex gerbang untuk raf.js: perintah `kas`, permintaan RINGKASAN (`omset`/`omzet`), ATAU
+ * balasan konfirmasi biaya rutin.
  * Balasan seperti "ok"/"lewati" bukan perintah `kas`, jadi tanpa ini ia tak pernah sampai
  * ke handler. Aman dilebarkan karena gerbangnya sudah dibatasi grup kas + pemilik, DAN
  * `cobaKonfirmasiRutin` mengembalikan handled:false bila memang tak ada tagihan menunggu.
  */
 const GERBANG_RE = new RegExp(
-    `^\\s*(?:${TRIGGER_KAS.join("|")}|${KATA_KONFIRMASI.join("|")}|${KATA_LEWATI.join("|")})\\b`,
+    `^\\s*(?:${TRIGGER_KAS.join("|")}|${TRIGGER_RINGKASAN.join("|")}|${KATA_KONFIRMASI.join("|")}|${KATA_LEWATI.join("|")})\\b`,
     "i"
 );
 
@@ -78,6 +80,12 @@ const HELP_FALLBACK =
     "• *kas kemarin*\n" +
     "• *kas minggu* / *kas minggu lalu*\n" +
     "• *kas bulan* / *kas bulan 2026-06* / *kas bulan lalu*\n\n" +
+    "Tagihan tetap tiap bulan:\n" +
+    "• *kas rutin* — lihat daftarnya\n" +
+    "• *kas rutin tambah 850rb listrik tgl 20*\n" +
+    "• *kas rutin hapus 3*\n\n" +
+    "Ringkasan uang masuk & keluar:\n" +
+    "• *omset* atau *kas ringkasan* — pemasukan, perkiraan omset, tunggakan, sisa\n\n" +
     "Salah catat:\n" +
     "• *kas batal 12* — batalkan pengeluaran nomor 12\n\n" +
     "Kategori ditebak sendiri. Tercatat di *Pengeluaran* & *Rekap Keuangan* — sumber angkanya sama.";
@@ -182,7 +190,15 @@ async function handleBusinessExpenseCommand(context = {}) {
         const alasan = {
             nominal_tidak_terbaca: "Nominalnya tidak terbaca.",
             judul_kosong: "Tulis juga untuk apa pengeluarannya.",
-            id_tidak_valid: "Nomor pengeluaran tidak valid."
+            id_tidak_valid: "Nomor pengeluaran tidak valid.",
+            // Biaya rutin: keliru sedikit = tagihan jatuh tempo di hari yang salah tiap bulan,
+            // jadi tiap penolakan menyebut PERSIS apa yang kurang, bukan "perintah salah".
+            rutin_id_tidak_valid: "Nomor biaya rutin tidak valid. Contoh: *kas rutin hapus 3*.",
+            rutin_sub_tak_dikenal: "Setelah *kas rutin* tulis: (kosong untuk melihat daftar), *tambah*, atau *hapus*.",
+            rutin_nominal_tidak_terbaca: "Nominalnya tidak terbaca. Contoh: *kas rutin tambah 850rb listrik tgl 20*.",
+            rutin_nama_kosong: "Tulis juga nama tagihannya. Contoh: *kas rutin tambah 850rb listrik tgl 20*.",
+            rutin_tanggal_wajib: "Tanggal jatuh temponya belum ditulis. Tambahkan *tgl 20* di akhir.",
+            rutin_tanggal_tidak_valid: "Tanggal jatuh tempo harus 1–31."
         }[perintah.reason] || "Perintah tidak dikenali.";
         await reply(
             renderResponseTemplate(
@@ -190,6 +206,97 @@ async function handleBusinessExpenseCommand(context = {}) {
                 `⚠️ \${alasan}\n\nContoh: *kas 150rb kabel dropcore*\nKetik *kas bantuan* untuk daftar perintah.`,
                 { alasan }
             )
+        );
+        return { handled: true };
+    }
+
+    // ── RINGKASAN UANG on-demand ────────────────────────────────────────────────
+    // Angkanya DIBACA dari owner-cockpit + buku besar, tak dihitung di sini. Gagal baca
+    // dilaporkan sebagai "tak terbaca", bukan Rp0 — nol adalah kabar yang menuntut tindakan.
+    if (perintah.action === "ringkasan") {
+        const ms = (deps && deps.moneySummary) || require("../../lib/services/money-summary");
+        try {
+            const data = await ms.buildMoneySummary();
+            await reply(ms.buildMoneySummaryText(data, { judul: "SEKARANG" }));
+        } catch (e) {
+            logger.error("[KAS_RINGKASAN_ERROR]", e && e.message);
+            await reply(
+                renderResponseTemplate(
+                    "be_ringkasan_gagal",
+                    "⚠️ Ringkasan uang tak bisa dirakit sekarang. Coba lagi sebentar lagi."
+                )
+            );
+        }
+        return { handled: true };
+    }
+
+    // ── BIAYA RUTIN dari WhatsApp ────────────────────────────────────────────────
+    // Menumpang `lib/recurring-expense` yang SAMA dengan halaman /kas-usaha. Definisi yang
+    // dibuat di sini muncul di halaman dan sebaliknya — tak ada daftar tagihan kedua.
+    if (perintah.action === "rutin_list" || perintah.action === "rutin_tambah" || perintah.action === "rutin_hapus") {
+        const rutin = (deps && deps.recurring) || require("../../lib/recurring-expense");
+
+        if (perintah.action === "rutin_list") {
+            const rows = await rutin.listAll();
+            const periode = rutin.periodeSekarang();
+            const daftar = rows.length
+                ? rows.map((r) => {
+                    const tanda = !r.aktif ? " (nonaktif)" : r.last_settled_period === periode ? " ✅ bulan ini" : "";
+                    return `${r.id}. *${r.nama}* — ${formatRupiah(r.perkiraan)} · tgl ${r.tanggal}${tanda}`;
+                }).join("\n")
+                : "Belum ada biaya rutin.";
+            await reply(
+                renderResponseTemplate(
+                    "be_rutin_daftar",
+                    "🔁 *BIAYA RUTIN*\n\n${daftar}\n\nTambah: *kas rutin tambah 850rb listrik tgl 20*\nHapus: *kas rutin hapus 3*",
+                    { daftar }
+                )
+            );
+            return { handled: true };
+        }
+
+        if (perintah.action === "rutin_tambah") {
+            try {
+                const dibuat = await rutin.simpan({
+                    nama: perintah.nama,
+                    perkiraan: perintah.amount,
+                    kategori: perintah.category,
+                    tanggal: perintah.tanggal,
+                    metode: METODE_BAWAAN
+                });
+                await reply(
+                    renderResponseTemplate(
+                        "be_rutin_tambah",
+                        "✅ Biaya rutin disimpan\n\n📌 *${nama}*\n💰 ${nominal}\n📅 Tiap tanggal ${tanggal}\n📂 ${kategori}\n\n" +
+                            "Saya ingatkan di grup ini tiap jatuh tempo. Pencatatan tetap menunggu balasan *ok* dari kamu.",
+                        {
+                            nama: dibuat.nama,
+                            nominal: formatRupiah(dibuat.perkiraan),
+                            tanggal: dibuat.tanggal,
+                            kategori: dibuat.kategori
+                        }
+                    )
+                );
+            } catch (e) {
+                // Validasi recurring-expense (kategori/tanggal/nominal) dilaporkan APA ADANYA —
+                // pesan generik membuat orang mengulang kesalahan yang sama.
+                await reply(
+                    renderResponseTemplate("be_rutin_gagal", "⚠️ Gagal menyimpan biaya rutin: ${alasan}", { alasan: e.message })
+                );
+            }
+            return { handled: true };
+        }
+
+        // rutin_hapus — sengaja TIDAK menghapus pengeluaran yang terlanjur tercatat.
+        const hasil = await rutin.hapus(perintah.id);
+        await reply(
+            hasil.dihapus
+                ? renderResponseTemplate(
+                    "be_rutin_hapus",
+                    "🗑️ Biaya rutin #${id} dihapus. Pengeluaran yang sudah tercatat TIDAK ikut terhapus.",
+                    { id: perintah.id }
+                )
+                : renderResponseTemplate("be_rutin_tak_ada", "⚠️ Biaya rutin #${id} tidak ditemukan.", { id: perintah.id })
         );
         return { handled: true };
     }

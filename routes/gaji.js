@@ -330,6 +330,23 @@ router.put('/:id/pay', ensureAdmin, async (req, res) => {
             console.error('[GAJI_NOTIF] Gagal kirim struk gaji:', strukErr && strukErr.message);
         }
 
+        // Kabar ke GRUP KAS: gaji adalah pengeluaran terbesar tiap bulan, dan tanpa ini
+        // satu-satunya yang tahu uang keluar adalah orang yang menekan tombolnya.
+        // Sengaja TANPA rincian potongan — itu urusan teknisi yang bersangkutan, bukan grup.
+        try {
+            const { kabarkanKeGrupKas } = require('../lib/services/kas-group-notifier');
+            await kabarkanKeGrupKas('kas_notif_gaji', {
+                fallback: '💸 *GAJI DIBAYAR*\n\n👤 ${nama}\n📅 Periode ${periode}\n💰 ${nominal}\n\n_Rincian lengkap sudah dikirim ke teknisinya._',
+                data: {
+                    nama: payroll.teknisi_name || `Teknisi #${payroll.teknisi_id}`,
+                    periode: `${payroll.period_month}/${payroll.period_year}`,
+                    nominal: payroll.net_amount
+                }
+            });
+        } catch (grupErr) {
+            console.error('[GAJI_NOTIF] Gagal kabari grup kas:', grupErr && grupErr.message);
+        }
+
         res.json({
             status: 200,
             message: 'Payroll berhasil dibayar',

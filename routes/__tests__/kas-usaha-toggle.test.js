@@ -61,14 +61,38 @@ describe("kas usaha: seluruh setelan bisa diubah dari halaman admin", () => {
         expect(blok).toMatch(/pemilik belum ditentukan/i);
     });
 
+    test("sakelar ringkasan uang harian ada, terpisah dari sakelar utama", () => {
+        // Sebagian pemilik mau mencatat kas di grup tapi tak mau laporan tiap pagi.
+        expect(route).toMatch(/tambalan\.digest = body\.digest === true/);
+        expect(route).toMatch(/digest: cfg\.digest === true/);
+        expect(halaman).toMatch(/id="ku-digest"/);
+        expect(js).toMatch(/ku-digest/);
+    });
+
+    test("ringkasan hanya ditawarkan saat fiturnya menyala", () => {
+        // Menawarkan sakelar yang tak bisa bekerja = janji palsu di layar.
+        expect(js).toMatch(/dg\.disabled = d\.enabled !== true/);
+    });
+
     test("SUKSES SEMU dicegah: menyalakan dari halaman menjadwalkan ulang cron pengingat", () => {
         // `initRecurringExpenseReminderTask` membaca `enabled` saat DIJADWALKAN, bukan saat
         // berbunyi. Tanpa panggilan ini layar bilang "aktif" tapi tak ada pengingat sampai restart.
         const idx = route.indexOf("/api/kas-usaha/aktif");
-        const blok = route.slice(idx, idx + 2000);
+        const blok = route.slice(idx, idx + 2200);
         expect(blok).toMatch(/initRecurringExpenseReminderTask\(\)/);
+        // Ringkasan uang punya cron sendiri — ikut dijadwalkan ulang, kalau tidak sakelarnya
+        // menyala di layar tapi tak ada laporan sampai restart.
+        expect(blok).toMatch(/initMoneyDigestTask\(\)/);
         // Gagal menjadwalkan tak boleh menjatuhkan penyimpanan setelan.
         expect(blok).toMatch(/catch\s*\(/);
+    });
+
+    test("cron ringkasan juga membaca setelannya saat init (premis penjadwalan ulang)", () => {
+        const src = baca("lib", "cron", "jobs", "money-digest.js");
+        expect(src).toMatch(/cfg\.enabled !== true \|\| cfg\.digest !== true/);
+        expect(src).toMatch(/task\.stop\(\)/);
+        // Grup belum dipilih = tak mengirim ke mana pun, bukan mengarang tujuan.
+        expect(src).toMatch(/!cfg\.groupId/);
     });
 
     test("premis penjadwalan: cron memang membaca enabled saat init", () => {
@@ -160,7 +184,7 @@ describe("pemilik kas: dipilih dari halaman, @lid tak dikarang jadi nomor", () =
 
     test("JS mengirim status sakelar & memulihkan posisinya saat gagal simpan", () => {
         expect(js).toMatch(/\/api\/kas-usaha\/aktif/);
-        expect(js).toMatch(/JSON\.stringify\(\{\s*enabled:\s*mau\s*\}\)/);
+        expect(js).toMatch(/JSON\.stringify\(\{\s*enabled:\s*mau\s*,/);
         // Layar tak boleh berbohong: gagal simpan → sakelar dikembalikan.
         expect(js).toMatch(/sakelar\.checked\s*=\s*!mau/);
     });

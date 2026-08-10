@@ -306,6 +306,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 
 - [Feat 2026-08-09 (Kas usaha: seluruh setelan pindah ke halaman admin — sakelar, grup, pemilik)](docs/boundary-log.md#b203)
 - [Fix 2026-08-09 (Modul opsional per-instance + satu penerjemah nominal untuk kas usaha)](docs/boundary-log.md#b204)
+- [Feat 2026-08-10 (Grup kas: biaya rutin dari WA, ringkasan uang, notif peristiwa)](docs/boundary-log.md#b205)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

@@ -67,6 +67,10 @@
                 <input type="checkbox" id="ku-aktif">
                 <span>Aktifkan kas usaha</span>
               </label>
+              <label class="ku-sakelar" for="ku-digest">
+                <input type="checkbox" id="ku-digest">
+                <span>Kirim ringkasan uang tiap pagi</span>
+              </label>
             </div>
             <p class="ku-petunjuk">
               Saat aktif, bot mengirim pengingat biaya rutin ke grup di bawah dan menerima perintah

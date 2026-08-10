@@ -1,3 +1,15 @@
+/**
+ * Header Doc
+ * Purpose: API halaman `/pengeluaran` — CRUD pengeluaran operasional + ringkasannya.
+ *          Seluruh tulis lewat `lib/expense-manager` (tabel `expense_entries` + buku besar),
+ *          sumber angka yang SAMA dengan perintah `kas` di WhatsApp dan `/rekap-keuangan`.
+ * Caller: `routes/admin-router.js` / registry route admin.
+ * Deps: `lib/expense-manager`, `lib/activity-logger`, `lib/services/kas-group-notifier`
+ *       (kabar pengeluaran besar ke grup kas — opsional, bergerbang `businessExpense.notifyAbove`).
+ * MainFuncs: router Express (`GET /`, `POST /`, `PUT /:id`, `PUT /:id/cancel`, ringkasan).
+ * SideEffects: Menulis `expense_entries` + buku besar; mencatat activity log; mengirim kabar WA
+ *              ke grup kas untuk pengeluaran di atas ambang.
+ */
 "use strict";
 
 const express = require("express");
@@ -80,6 +92,30 @@ router.post("/", ensureAdmin, async (req, res) => {
             ipAddress: req.ip,
             userAgent: req.headers["user-agent"]
         }).catch(console.error);
+
+        // Kabari grup kas untuk pengeluaran BESAR yang dibuat dari halaman.
+        // Sengaja hanya jalur WEB: pengeluaran yang dicatat lewat `kas …` sudah dibalas di
+        // grup itu juga, jadi mengabarkannya lagi hanya menghasilkan pesan dobel.
+        // Ambangnya bisa diatur; 0/tak diisi = fitur diam.
+        try {
+            const ambang = Number(
+                (global.config && global.config.businessExpense && global.config.businessExpense.notifyAbove) || 0
+            );
+            if (ambang > 0 && Number(expense.amount) >= ambang) {
+                const { kabarkanKeGrupKas } = require("../lib/services/kas-group-notifier");
+                kabarkanKeGrupKas("kas_notif_pengeluaran_besar", {
+                    fallback: "🧾 *PENGELUARAN BESAR DICATAT*\n\n📌 ${judul}\n💰 ${nominal}\n📂 ${kategori}\n👤 oleh ${oleh}",
+                    data: {
+                        judul: expense.title,
+                        nominal: Number(expense.amount),
+                        kategori: expense.category,
+                        oleh: (getActor(req) || {}).name || req.user.username || "admin"
+                    }
+                }).catch(() => {});
+            }
+        } catch (notifErr) {
+            console.error("[EXPENSE_NOTIF]", notifErr && notifErr.message);
+        }
 
         res.status(201).json({
             status: 201,

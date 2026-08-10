@@ -1250,3 +1250,14 @@
 - **Owner nominal:** `lib/recurring-expense.js` memakai `parseAmount` dari `lib/personal-finance-service` — penerjemah yang sama dengan perintah `kas` di WhatsApp. `Number()` polos dihapus dari `simpan()` dan `konfirmasi()`.
 - **AKAR nominal:** `Number("850rb")` = NaN → halaman menolak format yang petunjuknya sendiri contohkan; di `konfirmasi()` NaN jatuh DIAM-DIAM ke perkiraan sehingga pembukuan mencatat angka yang bukan angka yang disebut orangnya.
 - **Status path lama:** tak ada; keduanya perbaikan di tempat. **Tes:** `scripts/__tests__/optional-per-instance-modules.test.js` (6), `lib/__tests__/recurring-expense.test.js` (+6).
+
+<a id="b205"></a>
+
+### Feat 2026-08-10 (Grup kas: biaya rutin dari WA, ringkasan uang, notif peristiwa)
+
+- **Owner biaya rutin dari WA:** `lib/business-expense-service.parsePerintahRutin` + cabang `rutin_*` di `message/handlers/business-expense-wa.js` — menulis lewat `lib/recurring-expense` YANG SAMA dengan halaman `/kas-usaha` (tak ada daftar tagihan kedua).
+- **Owner ringkasan:** `lib/services/money-summary.js` (BARU) — MEMBACA `owner-cockpit-service.buildIncomeOnly()` (BARU, jalur ringan tanpa MikroTik) + `financial-ledger.buildCashflowSummary`. Tak menghitung omset sendiri.
+- **Owner kabar ke grup:** `lib/services/kas-group-notifier.js` (BARU) — satu gerbang untuk `routes/gaji.js` (gaji dibayar) & `routes/expenses.js` (pengeluaran besar dari halaman).
+- **Cron:** `lib/cron/jobs/money-digest.js` (BARU), dijadwalkan ulang oleh `PUT /api/kas-usaha/aktif` bersama pengingat rutin.
+- **GOTCHA:** `uang`/`duit`/`dompet` tetap MILIK dompet pribadi — pemicu usaha `omset`/`omzet` + bentuk berprefiks `kas ringkasan`. Filter buku besar `{month,year}`, BUKAN dateFrom/dateTo (diabaikan diam-diam).
+- **Gate:** `businessExpense.digest` (default OFF) + `digestSchedule` + `notifyAbove` (0 = mati). **Tes:** money-summary 9, kas-rutin-wa 16, kas-usaha-toggle 22.

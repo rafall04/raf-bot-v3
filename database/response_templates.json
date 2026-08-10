@@ -5546,5 +5546,50 @@
     "name": "Laporan: Draft Dipromosikan (timeout foto)",
     "template": "✅ Laporan Anda tetap kami catat ya Kak.\n\nNo. Tiket: *${ticket_id}*\n\nFotonya boleh menyusul — tidak wajib. Cek status kapan saja dengan *cek tiket ${ticket_id}*.",
     "category": "pelanggan"
+  },
+  "be_rutin_daftar": {
+    "name": "Kas Usaha - Daftar Biaya Rutin",
+    "category": "business_expense",
+    "template": "🔁 *BIAYA RUTIN*\n\n${daftar}\n\nTambah: *kas rutin tambah 850rb listrik tgl 20*\nHapus: *kas rutin hapus 3*"
+  },
+  "be_rutin_tambah": {
+    "name": "Kas Usaha - Biaya Rutin Ditambahkan",
+    "category": "business_expense",
+    "template": "✅ Biaya rutin disimpan\n\n📌 *${nama}*\n💰 ${nominal}\n📅 Tiap tanggal ${tanggal}\n📂 ${kategori}\n\nSaya ingatkan di grup ini tiap jatuh tempo. Pencatatan tetap menunggu balasan *ok* dari kamu."
+  },
+  "be_rutin_gagal": {
+    "name": "Kas Usaha - Biaya Rutin Gagal Disimpan",
+    "category": "business_expense",
+    "template": "⚠️ Gagal menyimpan biaya rutin: ${alasan}"
+  },
+  "be_rutin_hapus": {
+    "name": "Kas Usaha - Biaya Rutin Dihapus",
+    "category": "business_expense",
+    "template": "🗑️ Biaya rutin #${id} dihapus. Pengeluaran yang sudah tercatat TIDAK ikut terhapus."
+  },
+  "be_rutin_tak_ada": {
+    "name": "Kas Usaha - Biaya Rutin Tidak Ditemukan",
+    "category": "business_expense",
+    "template": "⚠️ Biaya rutin #${id} tidak ditemukan."
+  },
+  "be_ringkasan_gagal": {
+    "name": "Kas Usaha - Ringkasan Uang Gagal",
+    "category": "business_expense",
+    "template": "⚠️ Ringkasan uang tak bisa dirakit sekarang. Coba lagi sebentar lagi."
+  },
+  "be_ringkasan_uang": {
+    "name": "Kas Usaha - Ringkasan Uang",
+    "category": "business_expense",
+    "template": "💰 *RINGKASAN UANG* — ${judul}\nPeriode ${periode}\n\n*MASUK*\n• Bulan ini      : ${net_paid}\n• Hari ini       : ${today_amount} (${today_count} transaksi)\n• Perkiraan omset: ${mrr}\n• Sudah lunas    : ${lunas}/${total_pelanggan} (${collection_rate}%)\n• Tunggakan      : ${tunggakan} dari ${tunggakan_pelanggan} pelanggan${tren}\n\n*KELUAR*\n• Pengeluaran    : ${total_pengeluaran}\n\n*SISA*\n• Bersih         : ${sisa_bersih}${catatan}"
+  },
+  "kas_notif_gaji": {
+    "name": "Kas Usaha - Notif Gaji Dibayar",
+    "category": "business_expense",
+    "template": "💸 *GAJI DIBAYAR*\n\n👤 ${nama}\n📅 Periode ${periode}\n💰 ${nominal}\n\n_Rincian lengkap sudah dikirim ke teknisinya._"
+  },
+  "kas_notif_pengeluaran_besar": {
+    "name": "Kas Usaha - Notif Pengeluaran Besar",
+    "category": "business_expense",
+    "template": "🧾 *PENGELUARAN BESAR DICATAT*\n\n📌 ${judul}\n💰 ${nominal}\n📂 ${kategori}\n👤 oleh ${oleh}"
   }
 }
