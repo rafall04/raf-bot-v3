@@ -64,6 +64,7 @@ Aplikasi monolit Node.js untuk operasional ISP/RTRW-Net yang menggabungkan bot W
 - Papan PSB terjadwal: `database/psb_schedule.sqlite` — owner `lib/psb-schedule-service.js` (lifecycle menunggu→ditugaskan→terpasang→batal, ref `PSB-<n>`).
 - Metrik monitoring: `database/monitoring_metrics.sqlite` — owner `lib/monitoring-service.js`.
 - Audit isolir: `database/isolir_audit.sqlite` — owner `lib/services/isolir-audit-repository.js`.
+- Pekerjaan otorisasi massal + log per pelanggan: `database/approval_jobs.sqlite` — owner `repositories/approval-job.repository.js`; worker `services/bulk-approval-job.service.js`; gate `config.bulkApprovalJob.enabled`.
 - Keuangan PRIBADI owner: `database/personal_finance.sqlite` (tabel `pf_entries` — 1 baris = 1 catatan masuk/keluar + kategori + asal `wa`/`web`). Owner `repositories/personal-finance.repository.js`; ditulis perintah WA TANPA prefix `keluar`/`masuk`/`uang` (`message/handlers/personal-finance-wa.js`) & halaman `/keuangan-pribadi` (`routes/admin-personal-finance-routes.js`); gate `config.personalFinance.enabled` (default OFF) + `ownerJids` (WA, BUKAN `ownerNumber`/role). Halaman webnya punya OTENTIKASI SENDIRI: `database/personal_finance_auth.json` (owner `lib/personal-finance-auth.js`, bcrypt + rahasia sesi terpisah, cookie `pf_session`, disiapkan lewat `scripts/set-keuangan-pribadi-password.js`) — sesi admin TIDAK memberi akses, dan sebaliknya. Path via `getDatabasePath('personal_finance.sqlite')`. **Bukan** saldo pelanggan dan SENGAJA di luar backup Telegram grup. Bukan di-bootstrap `lib/database.js`.
 - Watcher data aktif: minimal `announcements.json` dan `news.json` untuk reload runtime.
 - Lokasi fallback legacy: `config.json` dipakai bila resolver env-aware gagal load config.
@@ -320,6 +321,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Feat 2026-08-10 (Gaji: gaji pokok tetap — isi sekali, draft bulanan dibuat sendiri)](docs/boundary-log.md#b216)
 - [Fix 2026-08-10 (Gaji: empat celah siklus gaji ditutup — kasbon, struk, marketing, pembatalan)](docs/boundary-log.md#b217)
 - [Feat 2026-08-10 (Gaji: teknisi bisa cek gajinya sendiri + kabar keputusan kasbon)](docs/boundary-log.md#b218)
+- [Feat 2026-08-10 (Otorisasi massal jadi pekerjaan latar + log per pelanggan)](docs/boundary-log.md#b219)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

@@ -699,5 +699,12 @@
     "autoDraft": false,
     "draftDay": 28,
     "draftSchedule": "20 7 * * *"
+  },
+  "bulkApprovalJob": {
+    "_catatan": "Otorisasi massal dijalankan sebagai pekerjaan LATAR: permintaan HTTP balik seketika, worker memproses SELURUH pending satu per satu (tak lagi dibatasi 20), dan hasil per pelanggan tampil sebagai log di halaman otorisasi. Item yang terputus oleh restart TIDAK diulang otomatis — ditandai perlu diperiksa manual.",
+    "enabled": false,
+    "tickMs": 5000,
+    "itemDelayMs": 0,
+    "maxItemsPerJob": 500
   }
 }

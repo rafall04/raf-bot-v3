@@ -230,6 +230,33 @@
             </div>
           </div>
           
+          <!-- Log otorisasi.
+               Pengganti spinner: pekerjaan berjalan di latar, operator boleh menutup dialognya,
+               dan tiap kegagalan tercatat dengan NAMA pelanggan + alasannya — bukan pesan yang
+               lewat sekali lalu hilang. Tersembunyi sampai ada pekerjaan yang pernah jalan. -->
+          <div class="card shadow mb-4" id="kartuLogOtorisasi" style="display:none">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+              <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-list-check"></i> Log Otorisasi
+              </h6>
+              <span class="badge badge-secondary" id="logOtorisasiStatus">-</span>
+            </div>
+            <div class="card-body">
+              <div class="progress mb-2" style="height: 20px">
+                <div class="progress-bar" id="logOtorisasiBar" role="progressbar" style="width: 0%">0%</div>
+              </div>
+              <div class="mb-3" id="logOtorisasiRingkas"></div>
+              <div class="table-responsive" style="max-height: 340px; overflow-y: auto">
+                <table class="table table-sm table-bordered mb-0" id="tabelLogOtorisasi" width="100%">
+                  <thead>
+                    <tr><th>Pelanggan</th><th>Hasil</th><th>Keterangan</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
           <div class="card shadow mb-4">
             <div class="card-header py-3">
               <h6 class="m-0 font-weight-bold text-primary">Semua pengajuan</h6>

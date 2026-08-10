@@ -439,6 +439,23 @@
         contentType: 'application/json',
         data: JSON.stringify({ requestIds: pendingRequests }),
           success: function(response) {
+            // Jalur LATAR: server membalas 202 + job_id, pekerjaannya jalan sendiri. Operator
+            // tak lagi menunggu, dan hasil per pelanggan muncul di kartu Log Otorisasi.
+            if (response && response.status === 202 && response.job_id) {
+              Swal.fire({
+                icon: 'success',
+                title: 'Diproses di latar',
+                html: `<p>${response.message || ''}</p><p class="text-muted small">Anda boleh menutup dialog ini — prosesnya jalan terus. Lihat kartu <strong>Log Otorisasi</strong> di bawah.</p>`,
+                confirmButtonText: 'Lihat Log'
+              }).then(() => {
+                if (typeof window.pantauLogOtorisasi === 'function') window.pantauLogOtorisasi();
+                const kartu = document.getElementById('kartuLogOtorisasi');
+                if (kartu) kartu.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              });
+              $('#bulkApprove').prop('disabled', false).html('<i class="fas fa-check-double"></i> Approve All Pending');
+              return;
+            }
+
             const results = response.results || {};
             const approved = results.approved ? results.approved.length : 0;
             const failed = results.failed ? results.failed.length : 0;
@@ -874,3 +891,65 @@
       $(this).addClass('disabled').html('<i class="fas fa-spinner fa-spin"></i> Loading...');
     });
   });
+
+// ── Log otorisasi latar ──────────────────────────────────────────────────────────────────
+// Otorisasi massal kini berjalan di latar: permintaan balik seketika dan hasilnya ditulis per
+// pelanggan. Bagian ini yang menampilkannya. Polling sederhana, bukan Socket.IO — pekerjaannya
+// berumur menit dan hanya dilihat saat halaman ini terbuka, jadi satu permintaan tiap 3 detik
+// jauh lebih murah daripada satu kanal realtime yang harus dijaga.
+(function logOtorisasi() {
+  const LABEL = { ok: ['Berhasil', 'success'], failed: ['GAGAL', 'danger'], skipped: ['Dilewati', 'secondary'], processing: ['Diproses...', 'info'], pending: ['Antre', 'light'] };
+  let timer = null;
+
+  function render(d) {
+    if (!d) return;
+    $('#kartuLogOtorisasi').show();
+    const persen = d.total > 0 ? Math.round((d.selesai / d.total) * 100) : 0;
+    $('#logOtorisasiBar').css('width', persen + '%').text(persen + '%');
+    $('#logOtorisasiStatus').text(d.status === 'running' ? 'Sedang berjalan' : d.status === 'queued' ? 'Menunggu giliran' : 'Selesai');
+
+    const ringkas = [`${d.selesai}/${d.total} diproses`];
+    if (d.berhasil) ringkas.push(`<span class="text-success">${d.berhasil} berhasil</span>`);
+    if (d.gagal) ringkas.push(`<span class="text-danger">${d.gagal} gagal</span>`);
+    if (d.dilewati) ringkas.push(`<span class="text-muted">${d.dilewati} dilewati</span>`);
+    $('#logOtorisasiRingkas').html(ringkas.join(' · '));
+
+    // Yang GAGAL diurutkan paling atas oleh server — itu yang butuh tindakan.
+    const baris = (d.items || []).map((it) => {
+      const [teks, warna] = LABEL[it.status] || [it.status, 'secondary'];
+      return `<tr>
+        <td>${it.user_name || ('#' + it.request_id)}</td>
+        <td><span class="badge badge-${warna}">${teks}</span></td>
+        <td><small>${it.message || ''}</small></td>
+      </tr>`;
+    }).join('');
+    $('#tabelLogOtorisasi tbody').html(baris || '<tr><td colspan="3" class="text-muted">Belum ada rincian.</td></tr>');
+
+    const masihJalan = d.status === 'running' || d.status === 'queued';
+    if (!masihJalan && timer) {
+      clearInterval(timer);
+      timer = null;
+      // Segarkan tabel pengajuan lewat DataTables API, tanpa bergantung pada variabel
+      // di scope lain — pekerjaan yang selesai berarti daftar pending sudah berubah.
+      try {
+        const dt = $('#dataTable').DataTable();
+        if (dt && dt.ajax) dt.ajax.reload(null, false);
+      } catch (_e) { /* tabel belum siap — bukan kegagalan */ }
+    }
+  }
+
+  function muat() {
+    $.get('/api/requests/bulk-approve/log')
+      .done((r) => render(r && r.data))
+      .fail(() => { /* diam — log yang gagal dimuat tak boleh mengganggu halaman */ });
+  }
+
+  function mulaiPantau() {
+    muat();
+    if (timer) clearInterval(timer);
+    timer = setInterval(muat, 3000);
+  }
+
+  window.pantauLogOtorisasi = mulaiPantau;
+  $(document).ready(muat);
+})();

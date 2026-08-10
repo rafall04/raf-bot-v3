@@ -63,7 +63,11 @@ function createPaymentApprovalService(overrides = {}) {
     }
 
     return {
-        async bulkApproveRequests({ requestIds, actor }) {
+        __deps: deps,
+        // `skipTechnicianSummary`: dipakai worker otorisasi latar, yang memanggil fungsi ini
+        // SATU id sekali jalan. Tanpa opsi ini tiap item mengirim ringkasannya sendiri dan
+        // teknisi menerima puluhan pesan beruntun untuk satu klik operator.
+        async bulkApproveRequests({ requestIds, actor, skipTechnicianSummary = false }) {
             const maxPerBatch = 20;
             const totalRequested = requestIds.length;
             const requestIdsToProcess = requestIds.slice(0, maxPerBatch);
@@ -241,7 +245,7 @@ function createPaymentApprovalService(overrides = {}) {
 
             // SATU ringkasan per teknisi (bukan N pesan). Hanya saat digest aktif; never-throw.
             const digestOn = !!(global.config && global.config.paymentRequestDigest && global.config.paymentRequestDigest.enabled === true);
-            if (digestOn && results.approved.length > 0 && typeof deps.sendTechnicianBulkSummary === "function") {
+            if (!skipTechnicianSummary && digestOn && results.approved.length > 0 && typeof deps.sendTechnicianBulkSummary === "function") {
                 const perTeknisi = new Map();
                 for (const item of results.approved) {
                     if (!item.teknisiId) continue;

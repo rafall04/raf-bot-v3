@@ -664,6 +664,31 @@ router.post('/bulk-approve', ensureAdmin, rateLimit('bulk-approve', 30, 60000), 
                 });
             }
 
+            // Jalur BARU: antre lalu balas seketika. Tanpa ini operator menunggu di depan
+            // spinner selama seluruh batch menembak MikroTik satu per satu, dibatasi 20
+            // pelanggan, lalu harus mengklik lagi untuk 20 berikutnya.
+            const jobService = require('../services/bulk-approval-job.service');
+            if (jobService.aktif()) {
+                const antre = await jobService.enqueueBulkApproval({ requestIds, actor: req.user });
+                if (!antre.ok && antre.reason === 'sedang_berjalan') {
+                    return res.status(409).json({
+                        status: 409,
+                        message: 'Masih ada proses otorisasi yang berjalan. Buka log di bawah untuk melihat kemajuannya.',
+                        job_id: antre.job && antre.job.id
+                    });
+                }
+                if (!antre.ok) {
+                    return res.status(400).json({ status: 400, message: 'Tidak ada pengajuan yang bisa diproses' });
+                }
+                return res.status(202).json({
+                    status: 202,
+                    job_id: antre.job.id,
+                    total: antre.total,
+                    antre: antre.antre,
+                    message: `${antre.antre} pengajuan sedang diproses di latar. Hasil per pelanggan muncul di log di bawah.`
+                });
+            }
+
             const result = await paymentApprovalService.bulkApproveRequests({
                 requestIds,
                 actor: req.user
@@ -678,6 +703,42 @@ router.post('/bulk-approve', ensureAdmin, rateLimit('bulk-approve', 30, 60000), 
                 ? 'Sedang ada proses bulk approve lain yang berjalan. Silakan coba lagi.'
                 : 'Terjadi kesalahan saat memproses bulk approval'
         });
+    }
+});
+
+/**
+ * Log otorisasi — kemajuan + hasil PER PELANGGAN.
+ *
+ * Inilah pengganti spinner: operator menutup dialognya, pekerjaan jalan terus, dan tiap
+ * kegagalan tercatat dengan nama pelanggan + alasannya alih-alih lewat sekali lalu hilang.
+ */
+router.get('/bulk-approve/log', ensureAdmin, async (req, res) => {
+    try {
+        const repo = require('../repositories/approval-job.repository');
+        const job = req.query.job_id ? await repo.getJob(req.query.job_id) : await repo.getLatestJob();
+        if (!job) {
+            return res.json({ status: 200, data: null });
+        }
+        const items = await repo.getJobItems(job.id, { limit: 300 });
+        res.json({
+            status: 200,
+            data: {
+                id: job.id,
+                status: job.status,
+                oleh: job.actor_username,
+                total: job.total_items,
+                selesai: job.done_count,
+                berhasil: job.ok_count,
+                gagal: job.failed_count,
+                dilewati: job.skipped_count,
+                mulai: job.started_at,
+                akhir: job.finished_at,
+                items
+            }
+        });
+    } catch (error) {
+        console.error('[OTORISASI_LOG_ERROR]', error);
+        res.status(500).json({ status: 500, message: 'Gagal memuat log otorisasi' });
     }
 });
 

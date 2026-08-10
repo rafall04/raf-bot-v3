@@ -1404,3 +1404,14 @@
 - **Kata kunci:** `gaji saya`, `cek gaji`, `gaji bulan ini`, `slip gaji`, `komisi saya` di `database/wifi_templates.json` — tanpa entri ini perintahnya tak pernah sampai ke handler.
 - **GOTCHA:** entri `response_templates.json` WAJIB berbentuk `{name, template, category}`, bukan string mentah — guard `response-template-key-integrity` menangkap 3 entri yang sempat salah bentuk (termasuk `kas_notif_draft_gaji` dari b216).
 - **Tes:** `message/handlers/raf-intent-dispatch/__tests__/gaji-teknisi-intents.test.js` (8).
+
+<a id="b219"></a>
+
+### Feat 2026-08-10 (Otorisasi massal jadi pekerjaan latar + log per pelanggan)
+
+- **Owner:** `repositories/approval-job.repository.js` (BARU, `database/approval_jobs.sqlite`) + `services/bulk-approval-job.service.js` (BARU, worker didaftarkan di `lib/app-runtime.js`) → `POST /api/requests/bulk-approve` membalas **202 + job_id**, `GET /api/requests/bulk-approve/log` menyuapi kartu Log Otorisasi.
+- **AKAR:** seluruh proses dulu di dalam SATU permintaan HTTP yang diblokir, dibatasi 20 pelanggan, dan tiap pelanggan menembak MikroTik (ubah profil + putus PPPoE) berurutan — 85 penunggak berarti 5 klik + 5 penantian panjang, dan kegagalan hanya lewat sekali lalu hilang.
+- **Tanpa implementasi uang kedua:** worker memanggil `paymentApprovalService.bulkApproveRequests` yang SAMA, satu id sekali jalan; opsi baru `skipTechnicianSummary` mencegah tiap item mengirim ringkasannya sendiri (worker mengirim SEKALI di akhir).
+- **GOTCHA idempotensi:** item yang tertinggal `processing` setelah restart **TIDAK diulang otomatis** — ia bisa sudah mencatat uang tapi belum menutup pengajuannya. `markInterruptedItems` menandainya perlu diperiksa manual. Satu baris merah lebih murah daripada uang terhitung dua kali.
+- **Anti-dobel:** hanya satu pekerjaan `queued|running` boleh ada; enqueue kedua dijawab 409 + job_id yang sedang jalan.
+- **Gate:** `config.bulkApprovalJob.enabled` default OFF (jalur lama tetap jalan bila mati). **Tes:** `services/__tests__/bulk-approval-job.service.test.js` (9).
