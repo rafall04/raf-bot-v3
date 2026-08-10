@@ -198,18 +198,27 @@
     var grafikKas = null;
     var WARNA = ["#4f46e5", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6", "#f97316", "#64748b"];
 
-    function gambarGrafik(perKategori) {
+    // Grafik menampilkan DUA deret berdampingan: yang sudah benar-benar keluar, dan tagihan
+    // rutin yang masih akan jatuh tempo. Dipisah, bukan dijumlahkan — kalau digabung, batang
+    // yang terlihat seperti "sudah dibayar" sebenarnya campuran fakta dan perkiraan.
+    // Awal bulan `sudah` hampir selalu kosong, jadi tanpa deret kedua grafiknya tak berguna
+    // justru di saat perencanaan kas paling dibutuhkan.
+    function gambarGrafik(sudah, akan) {
         var kanvas = el("ku-grafik");
         var kosong = el("ku-grafik-kosong");
         if (!kanvas || typeof window.Chart === "undefined") return;
 
-        var pasangan = Object.keys(perKategori || {})
-            .map(function (k) { return { k: k, v: Number(perKategori[k]) || 0 }; })
-            .filter(function (x) { return x.v > 0; })
-            .sort(function (a, b) { return b.v - a.v; });
+        sudah = sudah || {};
+        akan = akan || {};
+        var kategori = Object.keys(sudah).concat(Object.keys(akan)).filter(function (k, i, a) { return a.indexOf(k) === i; });
+        kategori = kategori
+            .filter(function (k) { return (Number(sudah[k]) || 0) + (Number(akan[k]) || 0) > 0; })
+            .sort(function (a, b) {
+                return ((Number(sudah[b]) || 0) + (Number(akan[b]) || 0)) - ((Number(sudah[a]) || 0) + (Number(akan[a]) || 0));
+            });
 
         if (grafikKas) { grafikKas.destroy(); grafikKas = null; }
-        if (!pasangan.length) {
+        if (!kategori.length) {
             kanvas.hidden = true;
             kosong.hidden = false;
             return;
@@ -218,22 +227,34 @@
         kosong.hidden = true;
 
         grafikKas = new window.Chart(kanvas.getContext("2d"), {
-            type: "bar",
+            type: "horizontalBar",
             data: {
-                labels: pasangan.map(function (x) { return x.k; }),
-                datasets: [{
-                    data: pasangan.map(function (x) { return x.v; }),
-                    backgroundColor: pasangan.map(function (_x, i) { return WARNA[i % WARNA.length]; }),
-                    borderWidth: 0
-                }]
+                labels: kategori,
+                datasets: [
+                    {
+                        label: "Sudah keluar",
+                        data: kategori.map(function (k) { return Number(sudah[k]) || 0; }),
+                        backgroundColor: WARNA[0],
+                        borderWidth: 0
+                    },
+                    {
+                        label: "Akan jatuh tempo",
+                        data: kategori.map(function (k) { return Number(akan[k]) || 0; }),
+                        backgroundColor: WARNA[3],
+                        borderWidth: 0
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                legend: { display: false },
+                legend: { display: true, position: "bottom" },
                 tooltips: {
                     callbacks: {
-                        label: function (item) { return " " + rupiah(item.xLabel != null ? item.xLabel : item.yLabel); }
+                        label: function (item, data) {
+                            var nama = data.datasets[item.datasetIndex].label;
+                            return " " + nama + ": " + rupiah(item.xLabel != null ? item.xLabel : item.yLabel);
+                        }
                     }
                 },
                 scales: {
@@ -241,9 +262,6 @@
                 }
             }
         });
-        // Batang mendatar supaya nama kategori panjang tetap terbaca.
-        grafikKas.config.type = "horizontalBar";
-        grafikKas.update();
     }
 
     function muatArusKas() {
@@ -269,14 +287,32 @@
 
             el("ku-belum").textContent = d.belumMasuk != null ? "Belum masuk " + rupiah(d.belumMasuk) : "";
 
+            // Tagihan rutin yang BELUM dituntaskan ditulis terpisah, tidak dijumlahkan ke
+            // pengeluaran: satu baris pengeluaran berarti uang sudah benar-benar keluar.
+            // Tapi diam saja soal Rp6,9jt yang jatuh tempo tanggal 15 juga menyesatkan.
+            var keluarJejak = el("ku-keluar-jejak");
+            var bagian = [(d.jumlahCatatan != null ? d.jumlahCatatan : "—") + " catatan"];
+            if (d.akanKeluar != null && d.akanKeluar > 0) {
+                bagian.push("akan jatuh tempo " + rupiah(d.akanKeluar) + " (" + d.akanJumlah + " tagihan)");
+                if (d.akanTerlewat > 0) bagian.push(d.akanTerlewat + " sudah lewat tanggalnya");
+            }
+            keluarJejak.textContent = bagian.join(" · ");
+
             var sisaJejak = el("ku-sisa-jejak");
-            if (d.sisa == null) sisaJejak.textContent = "Belum bisa dihitung — salah satu sisinya tak terbaca.";
-            else sisaJejak.textContent = d.sisa < 0 ? "Bulan ini keluar lebih besar dari masuk." : "";
+            if (d.sisa == null) {
+                sisaJejak.textContent = "Belum bisa dihitung — salah satu sisinya tak terbaca.";
+            } else if (d.proyeksiSisa != null && d.akanKeluar > 0) {
+                // Inilah angka yang menjawab "bulan ini aman atau tidak".
+                sisaJejak.textContent = "Setelah tagihan rutin: " + rupiah(d.proyeksiSisa) +
+                    (d.proyeksiSisa < 0 ? " — akan minus" : "");
+            } else {
+                sisaJejak.textContent = d.sisa < 0 ? "Bulan ini keluar lebih besar dari masuk." : "";
+            }
 
             el("ku-grafik-meta").textContent = "Periode " + (d.periode || "") +
                 ((d.gagal || []).length ? " · sebagian angka tak terbaca (" + d.gagal.join(", ") + ")" : "");
 
-            gambarGrafik(d.perKategori);
+            gambarGrafik(d.perKategori, d.akanPerKategori);
         });
     }
 

@@ -91,7 +91,7 @@ describe("endpoint cashflow melapor jujur", () => {
     test("tersedia dan membawa semua pos arus kas", () => {
         expect(route).toContain("/api/kas-usaha/cashflow");
         const idx = route.indexOf("/api/kas-usaha/cashflow");
-        const blok = route.slice(idx, idx + 3400);
+        const blok = route.slice(idx, route.indexOf("Ringkasan kas bulan berjalan", idx));
         for (const pos of ["masuk", "keluar", "sisa", "omsetAktif", "omsetPenuh", "perKategori", "belumMasuk"]) {
             expect(blok).toContain(pos);
         }
@@ -99,13 +99,13 @@ describe("endpoint cashflow melapor jujur", () => {
 
     test("sisa TIDAK dihitung saat salah satu sisi tak terbaca", () => {
         const idx = route.indexOf("/api/kas-usaha/cashflow");
-        const blok = route.slice(idx, idx + 3400);
+        const blok = route.slice(idx, route.indexOf("Ringkasan kas bulan berjalan", idx));
         expect(blok).toMatch(/masuk != null && keluar != null \? masuk - keluar : null/);
     });
 
     test("sumber yang gagal dicatat, bukan disamarkan jadi nol", () => {
         const idx = route.indexOf("/api/kas-usaha/cashflow");
-        const blok = route.slice(idx, idx + 3400);
+        const blok = route.slice(idx, route.indexOf("Ringkasan kas bulan berjalan", idx));
         expect(blok).toMatch(/gagal\.push\("pengeluaran"\)/);
         expect(blok).toMatch(/gagal\.push\("pemasukan"\)/);
     });
@@ -135,5 +135,53 @@ describe("tampilan arus kas", () => {
     test("keadaan kosong dibedakan dari grafik yang gagal digambar", () => {
         expect(js).toMatch(/Belum ada pengeluaran|ku-grafik-kosong/);
         expect(js).toMatch(/grafikKas\.destroy\(\)/);
+    });
+});
+
+describe("tagihan yang BELUM jatuh tempo: ditampilkan, tapi tak dicampur ke pengeluaran", () => {
+    const route = baca("routes", "admin-kas-usaha-routes.js");
+    const js = baca("static", "js", "kas-usaha.js");
+    const view = baca("views", "sb-admin", "kas-usaha.php");
+
+    test("akanKeluar dihitung dari biaya rutin yang belum dituntaskan periode ini", () => {
+        const idx = route.indexOf("/api/kas-usaha/cashflow");
+        const blok = route.slice(idx, route.indexOf("Ringkasan kas bulan berjalan", idx));
+        expect(blok).toMatch(/r\.last_settled_period === periode/);
+        expect(blok).toMatch(/if \(!r\.aktif\) continue/);
+        expect(blok).toMatch(/akanPerKategori/);
+    });
+
+    test("TIDAK dijumlahkan ke `keluar` — satu baris pengeluaran = uang benar-benar keluar", () => {
+        const idx = route.indexOf("/api/kas-usaha/cashflow");
+        const blok = route.slice(idx, route.indexOf("Ringkasan kas bulan berjalan", idx));
+        // `keluar` hanya diisi dari listExpenses, tak pernah ditambah akanKeluar.
+        expect(blok).not.toMatch(/keluar \+= akanKeluar|keluar = keluar \+ akan/);
+        expect(blok).toMatch(/akanKeluar \+= n/);
+    });
+
+    test("tanggal 29-31 di bulan pendek dijepit ke hari terakhir (sama dengan cron)", () => {
+        const idx = route.indexOf("/api/kas-usaha/cashflow");
+        const blok = route.slice(idx, route.indexOf("Ringkasan kas bulan berjalan", idx));
+        expect(blok).toMatch(/Math\.min\(Number\(r\.tanggal\) \|\| 1, hariTerakhir\)/);
+    });
+
+    test("proyeksi hanya dihitung kalau kedua bahannya terbaca", () => {
+        const idx = route.indexOf("/api/kas-usaha/cashflow");
+        const blok = route.slice(idx, route.indexOf("Ringkasan kas bulan berjalan", idx));
+        expect(blok).toMatch(/sisa != null && akanKeluar != null \? sisa - akanKeluar : null/);
+    });
+
+    test("layar menyebutnya terpisah + memperingatkan kalau proyeksinya minus", () => {
+        expect(view).toMatch(/id="ku-keluar-jejak"/);
+        expect(view).toMatch(/sudah keluar/);
+        expect(js).toMatch(/akan jatuh tempo/);
+        expect(js).toMatch(/Setelah tagihan rutin/);
+        expect(js).toMatch(/akan minus/);
+    });
+
+    test("grafik memakai DUA deret, bukan satu batang campuran", () => {
+        expect(js).toMatch(/label: "Sudah keluar"/);
+        expect(js).toMatch(/label: "Akan jatuh tempo"/);
+        expect(js).toMatch(/gambarGrafik\(d\.perKategori, d\.akanPerKategori\)/);
     });
 });

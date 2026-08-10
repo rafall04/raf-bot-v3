@@ -305,6 +305,38 @@ function registerAdminKasUsahaRoutes(router, deps = {}) {
                 gagal.push("pengeluaran");
             }
 
+            // AKAN KELUAR — biaya rutin bulan ini yang BELUM dituntaskan (belum dikonfirmasi
+            // maupun dilewati). Sengaja DIPISAH dari `keluar`, tidak dijumlahkan ke dalamnya:
+            // satu baris pengeluaran adalah pernyataan bahwa uang BENAR-BENAR keluar, dan
+            // memasukkan perkiraan ke sana menghasilkan pembukuan salah yang tampak meyakinkan.
+            // Tapi menampilkan Rp0 saat ada Rp6,9jt jatuh tempo tanggal 15 juga menyesatkan —
+            // ke arah sebaliknya. Karena itu dua-duanya dilaporkan, masing-masing dengan namanya.
+            let akanKeluar = null;
+            let akanJumlah = 0;
+            let akanTerlewat = 0;
+            const akanPerKategori = {};
+            try {
+                const semua = await recurring.listAll();
+                const periode = recurring.periodeSekarang();
+                const hariIni = now.getDate();
+                const hariTerakhir = new Date(tahun, bulan, 0).getDate();
+                akanKeluar = 0;
+                for (const r of semua) {
+                    if (!r.aktif) continue;
+                    if (r.last_settled_period === periode) continue; // sudah dicatat / dilewati
+                    const n = Number(r.perkiraan) || 0;
+                    akanKeluar += n;
+                    akanJumlah += 1;
+                    akanPerKategori[r.kategori] = (akanPerKategori[r.kategori] || 0) + n;
+                    // Tanggal 29-31 di bulan pendek jatuh ke hari terakhir (sama dengan cron).
+                    const jatuh = Math.min(Number(r.tanggal) || 1, hariTerakhir);
+                    if (jatuh < hariIni) akanTerlewat += 1;
+                }
+            } catch (_e) {
+                gagal.push("biaya_rutin");
+                akanKeluar = null;
+            }
+
             // MASUK + OMSET — dari owner-cockpit (satu pemilik harga & isolir).
             let masuk = null;
             let omset = null;
@@ -324,6 +356,10 @@ function registerAdminKasUsahaRoutes(router, deps = {}) {
             const sisa = masuk != null && keluar != null ? masuk - keluar : null;
             const belumMasuk =
                 omset && masuk != null ? Math.max(0, Number(omset.omsetAktif) - masuk) : null;
+            // Proyeksi = sisa SEKARANG dikurangi tagihan rutin yang masih akan jatuh tempo.
+            // Inilah angka yang menjawab "bulan ini saya aman atau tidak", dan ia HANYA sah
+            // kalau ketiga bahannya terbaca — jangan pernah memproyeksikan dari nilai buta.
+            const proyeksiSisa = sisa != null && akanKeluar != null ? sisa - akanKeluar : null;
 
             res.json({
                 success: true,
@@ -334,6 +370,11 @@ function registerAdminKasUsahaRoutes(router, deps = {}) {
                     sisa,
                     jumlahCatatan,
                     perKategori,
+                    akanKeluar,
+                    akanJumlah,
+                    akanTerlewat,
+                    akanPerKategori,
+                    proyeksiSisa,
                     omsetAktif: omset ? omset.omsetAktif : null,
                     omsetPenuh: omset ? omset.mrr : null,
                     isolirTerbaca: omset ? omset.isolirTerbaca : false,

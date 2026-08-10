@@ -56,9 +56,12 @@
               <span class="ku-stat__jejak" id="ku-belum"></span>
             </div>
             <div class="ku-stat ku-stat--keluar">
-              <span class="ku-stat__label">Pengeluaran</span>
+              <span class="ku-stat__label">Pengeluaran <span class="ku-stat__catatan">sudah keluar</span></span>
               <span class="ku-stat__nilai" id="ku-total">—</span>
-              <span class="ku-stat__jejak"><span id="ku-jumlah">—</span> catatan · <span id="ku-tertunda">—</span> menunggu konfirmasi</span>
+              <!-- Tagihan yang belum jatuh tempo ditulis di jejak ini, TIDAK dijumlahkan ke
+                   angka di atas: satu baris pengeluaran = uang benar-benar sudah keluar. -->
+              <span class="ku-stat__jejak" id="ku-keluar-jejak"></span>
+              <span class="ku-stat__jejak" hidden><span id="ku-jumlah">—</span> · <span id="ku-tertunda">—</span></span>
             </div>
             <div class="ku-stat ku-stat--sisa">
               <span class="ku-stat__label">Sisa (masuk − keluar)</span>
