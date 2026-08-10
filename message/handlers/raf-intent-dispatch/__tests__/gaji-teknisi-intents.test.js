@@ -88,14 +88,18 @@ describe("jalur pendaftaran & teks", () => {
 
     test("template kasbon terdaftar di store — fallback saja tak pernah terkirim kalau key ada", () => {
         const store = JSON.parse(baca("database", "response_templates.json"));
-        expect(store.kasbon_teknisi_disetujui).toBeTruthy();
-        expect(store.kasbon_teknisi_ditolak).toBeTruthy();
+        // Entri WAJIB berbentuk objek {name, template, category} — string mentah ditolak guard
+        // integritas dan tak pernah dirender.
+        const setuju = store.kasbon_teknisi_disetujui;
+        const tolak = store.kasbon_teknisi_ditolak;
+        expect(setuju && typeof setuju.template).toBe("string");
+        expect(tolak && typeof tolak.template).toBe("string");
         // Yang disetujui WAJIB menyebut bahwa uangnya dipotong dari gaji — kalau tidak,
         // potongan di struk gaji datang sebagai kejutan.
-        expect(store.kasbon_teknisi_disetujui).toMatch(/dipotong dari gaji/i);
+        expect(setuju.template).toMatch(/dipotong dari gaji/i);
         for (const slot of ["${nama}", "${nominal}"]) {
-            expect(store.kasbon_teknisi_disetujui).toContain(slot);
-            expect(store.kasbon_teknisi_ditolak).toContain(slot);
+            expect(setuju.template).toContain(slot);
+            expect(tolak.template).toContain(slot);
         }
     });
 });

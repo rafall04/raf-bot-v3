@@ -46,7 +46,14 @@ describe("arrears repository contract", () => {
             subscription TEXT,
             subscription_price INTEGER,
             status TEXT,
-            account_type TEXT DEFAULT 'pelanggan'
+            account_type TEXT DEFAULT 'pelanggan',
+            -- Kolom diskon ikut dibaca repositori sejak perbaikan tunggakan-selalu-nol;
+            -- tanpa kolom ini di fixture, query-nya gagal padahal produksinya benar.
+            discount_percentage REAL,
+            discount_amount INTEGER,
+            discount_months INTEGER,
+            discount_months_used INTEGER,
+            discount_valid_until TEXT
         )`);
         await run(`CREATE TABLE payment_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
