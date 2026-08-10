@@ -339,7 +339,15 @@ router.put('/gaji-tetap', ensureAdmin, async (req, res) => {
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
         }).catch(console.error);
-        res.json({ status: 200, data: hasil, message: hasil.items.map((i) => `${i.nama}: Rp ${i.gajiPokok.toLocaleString('id-ID')}`).join(' · ') + ' tersimpan' });
+        // Penyelarasan draft WAJIB disebutkan: nominal yang benar-benar akan dibayarkan baru
+        // saja berubah, dan perubahan diam pada uang persis yang mau dihindari.
+        const selaras = (hasil.draftDiselaraskan || [])
+            .map((d) => `${d.nama} ${d.periode}: Rp ${d.sebelum.toLocaleString('id-ID')} → Rp ${d.sesudah.toLocaleString('id-ID')}`)
+            .join('; ');
+        const pesan = hasil.items.map((i) => `${i.nama}: Rp ${i.gajiPokok.toLocaleString('id-ID')}`).join(' · ') + ' tersimpan'
+            + (selaras ? `. Draft bulan ini ikut diperbarui — ${selaras}` : '');
+
+        res.json({ status: 200, data: hasil, message: pesan });
     } catch (error) {
         console.error('[GAJI_TETAP_PUT_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal menyimpan gaji tetap' });
