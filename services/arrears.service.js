@@ -13,6 +13,28 @@ const { createArrearsRepository } = require("../repositories/arrears.repository"
 function createArrearsService(overrides = {}) {
     const repository = overrides.repository || createArrearsRepository();
 
+    /**
+     * Harga yang WAJIB dipakai untuk menghitung tunggakan.
+     *
+     * Dulu layanan ini memakai `customer.subscription_price` MENTAH. Terukur di produksi
+     * 2026-08-10: kolom itu 0/kosong untuk 52 dari 55 pelanggan (Dander) dan 98 dari 98
+     * (Tanjungharjo) — harga sebenarnya tinggal di katalog paket. Akibatnya `amount_due`
+     * jadi 0, `outstanding` jadi 0, dan setiap orang tampak LUNAS.
+     *
+     * `getEffectivePrice` adalah SATU pemilik harga di aplikasi ini (subscription_price bila
+     * ada → harga paket → dikurangi diskon yang masih berlaku). Ledger pembayaran memakainya,
+     * jadi rekap tunggakan wajib memakainya juga — kalau tidak, angka yang ditagih berbeda
+     * dari angka yang dicatat.
+     */
+    const getEffectivePrice =
+        overrides.getEffectivePrice ||
+        ((customer) => require("../lib/payment-finance-service").getEffectivePrice(customer));
+
+    function hargaEfektif(customer) {
+        const n = Number(getEffectivePrice(customer));
+        return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+
     function formatPeriodKey(periodMonth, periodYear) {
         return `${periodYear}-${String(periodMonth).padStart(2, "0")}`;
     }
@@ -63,7 +85,9 @@ function createArrearsService(overrides = {}) {
             const period = key.split(":")[1];
             const reversal = reversalMap.get(key) || 0;
             const netPaid = entry.gross_paid - reversal;
-            const amountDue = Number(entry.amount_due || customer.subscription_price || 0);
+            // `amount_due` dari ledger adalah kebenaran untuk periode yang PUNYA baris pembayaran
+            // (nominal yang benar-benar ditagih saat itu). Selebihnya jatuh ke harga efektif.
+            const amountDue = Number(entry.amount_due) > 0 ? Number(entry.amount_due) : hargaEfektif(customer);
             const outstanding = Math.max(amountDue - netPaid, 0);
             periods.push({
                 period,
@@ -78,7 +102,7 @@ function createArrearsService(overrides = {}) {
 
         const currentKey = `${customer.id}:${currentPeriodKey}`;
         if (!paymentMap.has(currentKey)) {
-            const amountDue = Number(customer.subscription_price || 0);
+            const amountDue = hargaEfektif(customer);
             periods.push({
                 period: currentPeriodKey,
                 amount_due: amountDue,
@@ -108,13 +132,13 @@ function createArrearsService(overrides = {}) {
         for (const customer of customers) {
             const periods = buildCustomerPeriods(customer, paymentMap, reversalMap, currentPeriodKey);
             const currentPeriod = periods.find((period) => period.period === currentPeriodKey) || {
-                amount_due: Number(customer.subscription_price || 0),
+                amount_due: hargaEfektif(customer),
                 net_paid: 0,
-                outstanding: Number(customer.subscription_price || 0)
+                outstanding: hargaEfektif(customer)
             };
             const currentOutstanding = currentPeriod.outstanding;
 
-            totalBilledAmount += Number(currentPeriod.amount_due || customer.subscription_price || 0);
+            totalBilledAmount += Number(currentPeriod.amount_due) || hargaEfektif(customer);
             collectedAmount += Math.max(currentPeriod.net_paid || 0, 0);
             if (currentOutstanding === 0) {
                 fullyPaidCustomers += 1;

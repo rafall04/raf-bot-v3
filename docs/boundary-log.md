@@ -1261,3 +1261,14 @@
 - **Cron:** `lib/cron/jobs/money-digest.js` (BARU), dijadwalkan ulang oleh `PUT /api/kas-usaha/aktif` bersama pengingat rutin.
 - **GOTCHA:** `uang`/`duit`/`dompet` tetap MILIK dompet pribadi — pemicu usaha `omset`/`omzet` + bentuk berprefiks `kas ringkasan`. Filter buku besar `{month,year}`, BUKAN dateFrom/dateTo (diabaikan diam-diam).
 - **Gate:** `businessExpense.digest` (default OFF) + `digestSchedule` + `notifyAbove` (0 = mati). **Tes:** money-summary 9, kas-rutin-wa 16, kas-usaha-toggle 22.
+
+<a id="b206"></a>
+
+### Fix 2026-08-10 (Rekap tunggakan selalu nol — dua cacat bertumpuk)
+
+- **Owner:** `repositories/arrears.repository.listBillableCustomers` (filter status + kolom diskon) & `services/arrears.service` (harga lewat `getEffectivePrice`, bukan `subscription_price` mentah).
+- **AKAR 1:** query menyaring `status IN ('aktif','isolir')` — ejaan yang TAK PERNAH ditulis kode mana pun. Terukur: 100% baris bernilai `'active'` (60 Dander, 98 Tanjungharjo) ⇒ query memulangkan NOL baris. Kini daftar-hitam + case-insensitive (fail-open ke arah menagih).
+- **AKAR 2:** tagihan dari `subscription_price` mentah yang 0/kosong untuk 52/55 & 98/98 pelanggan — harga sebenarnya di katalog paket. Kini `getEffectivePrice` (satu pemilik harga, sama dengan ledger & cron pengingat).
+- **DAMPAK terparah:** "Broadcast Terarah → penunggak" terukur mengirim ke **0 orang** padahal 35 (Dander) & 86 (Tanjungharjo) belum bayar; Rekap Tunggakan + kartu Owner Cockpit juga selalu 0.
+- **Bukti sesudah:** total tagihan sebulan 7.125.000 / 11.840.000 — COCOK dengan MRR yang dihitung jalur independen (owner-cockpit).
+- **Gate:** tak ada (perbaikan di tempat). **Tes:** `services/__tests__/arrears-blind-spot.test.js` (10).
