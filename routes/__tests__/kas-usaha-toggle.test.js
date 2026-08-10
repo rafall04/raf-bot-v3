@@ -78,7 +78,7 @@ describe("kas usaha: seluruh setelan bisa diubah dari halaman admin", () => {
         // `initRecurringExpenseReminderTask` membaca `enabled` saat DIJADWALKAN, bukan saat
         // berbunyi. Tanpa panggilan ini layar bilang "aktif" tapi tak ada pengingat sampai restart.
         const idx = route.indexOf("/api/kas-usaha/aktif");
-        const blok = route.slice(idx, idx + 2200);
+        const blok = route.slice(idx, route.indexOf("── Biaya rutin", idx));
         expect(blok).toMatch(/initRecurringExpenseReminderTask\(\)/);
         // Ringkasan uang punya cron sendiri — ikut dijadwalkan ulang, kalau tidak sakelarnya
         // menyala di layar tapi tak ada laporan sampai restart.
@@ -108,14 +108,14 @@ describe("kas usaha: seluruh setelan bisa diubah dari halaman admin", () => {
 describe("pemilik kas: dipilih dari halaman, @lid tak dikarang jadi nomor", () => {
     test("@lid disimpan apa adanya ke ownerLids — BUKAN diubah jadi 62<lid>", () => {
         const idx = route.indexOf("/api/kas-usaha/pemilik");
-        const blok = route.slice(idx, idx + 2200);
+        const blok = route.slice(idx, route.indexOf("── Biaya rutin", idx));
         expect(blok).toMatch(/@lid\$\/i\.test\(v\)/);
         expect(blok).toMatch(/lids\.push\(v\)/);
     });
 
     test("nomor 08… dinormalkan ke 62… lalu jadi JID kanonik", () => {
         const idx = route.indexOf("/api/kas-usaha/pemilik");
-        const blok = route.slice(idx, idx + 2200);
+        const blok = route.slice(idx, route.indexOf("── Biaya rutin", idx));
         expect(blok).toMatch(/startsWith\("0"\)/);
         expect(blok).toMatch(/@s\.whatsapp\.net/);
     });
@@ -124,7 +124,7 @@ describe("pemilik kas: dipilih dari halaman, @lid tak dikarang jadi nomor", () =
         // Gerbang pemilik gagal-tertutup: nomor salah = perintah diabaikan tanpa pesan error,
         // jadi kesalahannya harus ketahuan di halaman, bukan nanti di grup.
         const idx = route.indexOf("/api/kas-usaha/pemilik");
-        const blok = route.slice(idx, idx + 2200);
+        const blok = route.slice(idx, route.indexOf("── Biaya rutin", idx));
         expect(blok).toMatch(/ditolak\.push/);
         expect(blok).toMatch(/status\(400\)/);
     });

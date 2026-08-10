@@ -67,6 +67,22 @@ function resolveBusinessExpenseOwner({ participant, plainPhone, config } = {}) {
         const n = digitsOf(entri.split("@")[0]);
         if (n && nomor && n === nomor) return { via: "nomor" };
     }
+
+    // Pemilik yang TERSIMPAN sebagai `@lid`, tapi pesannya tiba sebagai JID nomor biasa.
+    // Ini terjadi sungguhan: peserta grup terbaca dalam bentuk `<id>@lid` (itu yang tersimpan
+    // saat memilih dari daftar), sedangkan pada pesan masuk Baileys menyerahkan
+    // JID nomor kanonik `62xxx@s.whatsapp.net`. Tanpa jembatan ini, pemilik yang SUDAH dicentang
+    // tetap ditolak dan bot diam total — persis yang terjadi 2026-08-10.
+    // Tetap GAGAL-TERTUTUP: hanya cocok bila pemetaan @lid→nomor memang mengatakan
+    // keduanya orang yang sama. Tak ada pemetaan ⇒ tak cocok.
+    if (nomor) {
+        for (const lid of (cfg.ownerLids || []).map((v) => String(v || "").trim()).filter(Boolean)) {
+            try {
+                const petaan = require("../../lib/jid-utils").getStoredMappingByLid(lid);
+                if (petaan && digitsOf(petaan.phoneNumber) === nomor) return { via: "lid-nomor" };
+            } catch (_e) { /* pemetaan tak terbaca → jangan meloloskan */ }
+        }
+    }
     return null;
 }
 

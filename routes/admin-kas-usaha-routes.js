@@ -189,6 +189,21 @@ function registerAdminKasUsahaRoutes(router, deps = {}) {
                     // `@lid` disimpan APA ADANYA. Angkanya BUKAN nomor telepon — mengubahnya
                     // jadi `62<lid>` menghasilkan pemilik palsu yang tak pernah cocok.
                     if (!lids.includes(v)) lids.push(v);
+
+                    // TAPI simpan juga bentuk NOMOR-nya bila pemetaannya diketahui. Alasannya
+                    // terbukti di produksi: daftar peserta grup memberi `@lid`, sedangkan pesan
+                    // masuk tiba sebagai `62xxx@s.whatsapp.net`. Menyimpan satu bentuk saja
+                    // membuat pemilik yang SUDAH dicentang tetap ditolak dan bot diam total.
+                    // Ini BUKAN mengarang nomor dari angka @lid — hanya dipakai bila pemetaan
+                    // yang tersimpan memang menyebutkan nomornya.
+                    try {
+                        const petaan = require("../lib/jid-utils").getStoredMappingByLid(v);
+                        const digitLid = String((petaan && petaan.phoneNumber) || "").replace(/[^0-9]/g, "");
+                        if (digitLid.length >= 9 && digitLid.length <= 15) {
+                            const jidLid = `${digitLid}@s.whatsapp.net`;
+                            if (!jids.includes(jidLid)) jids.push(jidLid);
+                        }
+                    } catch (_e) { /* pemetaan tak terbaca → cukup simpan @lid-nya */ }
                     continue;
                 }
                 const digit = v.replace(/@.*$/, "").replace(/[^0-9]/g, "");

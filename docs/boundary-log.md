@@ -1291,7 +1291,7 @@
 - **Owner prefill gaji:** `routes/gaji.js` endpoint `kasbon-summary/:teknisiId` kini ikut memulangkan `gaji_pokok_terakhir` + `periode_terakhir` (menumpang permintaan yang SUDAH dipanggil saat memilih teknisi — bukan round-trip kedua); `static/js/gaji-teknisi.js` mengisi kolom yang masih kosong saja.
 - **AKAR:** modal Buat Draft tak pernah memprefill apa pun, jadi gaji pokok — angka yang nyaris tak berubah — diketik ulang 12x setahun.
 - **Metode biaya rutin:** `ku-metode` jadi `<select>` TUNAI/TRANSFER (dulu teks bebas di kolom TEXT → "TF"/"Bank" lolos). Nilai lama di luar dua pilihan tetap ditampilkan saat diedit, tak diam-diam jadi TUNAI.
-- **GOTCHA @lid:** daftar pemilik kas dulu menampilkan `114868967469112@lid` MENTAH — melanggar aturan CLAUDE.md dan mustahil dipilih dengan benar. `whatsapp.adapter.getGroupParticipants` kini memulangkan `label` (nama kontak > nomor hasil `getStoredMappingByLid` > "nomor belum dikenali"); nomor TIDAK dikarang dari angka @lid.
+- **GOTCHA @lid:** daftar pemilik kas dulu menampilkan `<id>@lid` MENTAH — melanggar aturan CLAUDE.md dan mustahil dipilih dengan benar. `whatsapp.adapter.getGroupParticipants` kini memulangkan `label` (nama kontak > nomor hasil `getStoredMappingByLid` > "nomor belum dikenali"); nomor TIDAK dikarang dari angka @lid.
 - **Gate:** tak ada. **Tes:** `routes/__tests__/keuangan-ux.test.js` (10).
 
 <a id="b209"></a>
@@ -1304,3 +1304,14 @@
 - **GOTCHA:** isolir = profil PPPoE LIVE, BUKAN `users.status`. Tak terbaca ⇒ `isolirTerbaca:false` dan `omsetAktif == mrr` — JANGAN pernah diam-diam mengurangi berdasarkan tebakan.
 - **Jujur:** `sisa` bernilai null bila salah satu sisi tak terbaca (null yang diam-diam jadi 0 melaporkan untung/rugi yang tak pernah diukur); layar menulis "—", bukan Rp0.
 - **UI:** grafik batang mendatar per kategori (Chart.js yang sudah ada di repo). **Tes:** `routes/__tests__/kas-cashflow.test.js` (12).
+
+<a id="b210"></a>
+
+### Fix 2026-08-10 (Bot DIAM di grup kas — pemilik tersimpan @lid, pesan tiba sebagai nomor)
+
+- **AKAR TERBUKTI di log produksi:** `[KAS_GRUP_MASUK] participant= <lid>@lid` diikuti `[KAS_GRUP_BUKAN_PEMILIK] participant= 62xxx@s.whatsapp.net`. Daftar peserta grup memberi `@lid` (itu yang tersimpan saat memilih), pesan masuk memberi JID nomor ⇒ resolver mencari di `ownerJids` yang KOSONG ⇒ ditolak, bot diam total.
+- **Owner:** `message/handlers/business-expense-wa.resolveBusinessExpenseOwner` — menambah jembatan: pengirim ber-JID-nomor juga dicocokkan lewat `getStoredMappingByLid` atas tiap `ownerLids`. Memperbaiki config yang SUDAH terlanjur separuh, tanpa perlu simpan ulang.
+- **Owner kedua:** `PUT /api/kas-usaha/pemilik` kini menyimpan KEDUA bentuk saat pemetaan @lid diketahui (mirip `personalFinance` yang memang berisi `ownerJids`).
+- **Tetap GAGAL-TERTUTUP:** hanya cocok bila pemetaan menyebut nomor yang sama; pemetaan tak terbaca ⇒ ditolak. Diuji: orang lain tetap ditolak.
+- **GOTCHA:** gerbang ini tak pernah bersuara ke pengguna — kegagalannya tampak seperti "fitur rusak", bukan "setelan separuh". Bandingkan `personalFinance.ownerJids` (terisi, jalan) vs `businessExpense.ownerLids` (terisi sendirian, diam).
+- **Tes:** `message/handlers/__tests__/kas-pemilik-lid.test.js` (6).
