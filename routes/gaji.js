@@ -122,11 +122,21 @@ router.get('/kasbon-summary/:teknisiId', ensureAdmin, async (req, res) => {
         const teknisiId = parseInt(req.params.teknisiId, 10);
         const month = parseInt(req.query.month, 10) || new Date().getMonth() + 1;
         const year = parseInt(req.query.year, 10) || new Date().getFullYear();
-        const [kasbon, collection, marketing] = await Promise.all([
+        const [kasbon, collection, marketing, riwayat] = await Promise.all([
             getKasbonSummary({ teknisiId }),
             getCollectionPayableSummary({ teknisiId, periodMonth: month, periodYear: year }),
-            getMarketingPayableSummary({ teknisiId })
+            getMarketingPayableSummary({ teknisiId }),
+            // Payroll TERAKHIR teknisi ini — dipakai memprefill gaji pokok. Gaji pokok nyaris
+            // selalu sama tiap bulan, jadi mengetiknya ulang 12x setahun hanya membuka peluang
+            // salah ketik pada angka yang seharusnya tak berubah.
+            getPayrollList({ teknisiId }).catch(() => [])
         ]);
+
+        // Ambil periode terbaru SELAIN periode yang sedang dibuat (kalau drafnya sudah ada,
+        // nilainya bukan "bulan lalu" lagi).
+        const sebelumnya = (Array.isArray(riwayat) ? riwayat : [])
+            .filter((r) => !(Number(r.period_month) === month && Number(r.period_year) === year))
+            .sort((a, b) => (b.period_year - a.period_year) || (b.period_month - a.period_month))[0] || null;
 
         res.json({
             status: 200,
@@ -138,7 +148,9 @@ router.get('/kasbon-summary/:teknisiId', ensureAdmin, async (req, res) => {
                 komisi_collection: collection.net_total,
                 collection_credit: collection.total_credit,
                 collection_debit: collection.total_debit,
-                komisi_marketing: marketing.net_total
+                komisi_marketing: marketing.net_total,
+                gaji_pokok_terakhir: sebelumnya ? Number(sebelumnya.gaji_pokok) || 0 : 0,
+                periode_terakhir: sebelumnya ? `${sebelumnya.period_month}/${sebelumnya.period_year}` : null
             }
         });
     } catch (error) {

@@ -225,6 +225,21 @@ $(document).ready(function() {
             createMarketingPayable = response.data.komisi_marketing || 0;
             $('#kasbonInfo').text(`Saldo hutang aktif: ${formatRupiah(response.data.total_kasbon || 0)}`);
             $('#collectionInfo').text(`Komisi collection: ${formatRupiah(createCollectionPayable)} · marketing PSB: ${formatRupiah(createMarketingPayable)}`);
+
+            // Prefill gaji pokok dari payroll TERAKHIR teknisi ini. Angka ini nyaris tak pernah
+            // berubah, jadi mengetiknya ulang tiap bulan hanya membuka peluang salah ketik.
+            // HANYA mengisi kolom yang masih kosong/0 — jangan menimpa angka yang sedang diketik.
+            const terakhir = Number(response.data.gaji_pokok_terakhir) || 0;
+            const sekarang = getInputValue('#createGajiPokok');
+            const jejak = $('#gajiPokokInfo');
+            if (terakhir > 0 && (!sekarang || Number(sekarang) === 0)) {
+                setInputValue('#createGajiPokok', terakhir);
+                jejak.text(`Diisi dari payroll ${response.data.periode_terakhir} (${formatRupiah(terakhir)}) — ubah kalau berbeda.`);
+            } else if (terakhir > 0) {
+                jejak.text(`Payroll ${response.data.periode_terakhir}: ${formatRupiah(terakhir)}`);
+            } else {
+                jejak.text('Belum ada payroll sebelumnya untuk teknisi ini.');
+            }
             calculateCreateTotal();
         });
     });

@@ -128,7 +128,12 @@
                 <input type="text" id="ku-perkiraan" class="form-control form-control-sm ku-input--kecil" placeholder="500rb" required>
                 <select id="ku-kategori" class="form-control form-control-sm ku-input--kecil"></select>
                 <input type="number" id="ku-tanggal" class="form-control form-control-sm ku-input--mini" min="1" max="31" placeholder="Tgl" required>
-                <input type="text" id="ku-metode" class="form-control form-control-sm ku-input--kecil" placeholder="TUNAI / TRANSFER">
+                <!-- Pilihan, bukan ketikan: hanya ada dua nilai sah dan mengetiknya bebas
+                     membuka jalan ke "TF"/"Bank"/salah ketik yang lolos karena kolomnya teks. -->
+                <select id="ku-metode" class="form-control form-control-sm ku-input--kecil">
+                  <option value="TUNAI">TUNAI</option>
+                  <option value="TRANSFER">TRANSFER</option>
+                </select>
                 <button type="submit" class="btn btn-sm btn-primary" id="ku-simpan-rutin">Simpan</button>
                 <button type="button" class="btn btn-sm btn-outline-secondary" id="ku-batal-edit" hidden>Batal</button>
               </div>

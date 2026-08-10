@@ -202,6 +202,9 @@
                                             <div class="input-group-prepend"><span class="input-group-text">Rp</span></div>
                                             <input type="text" class="form-control currency-input" id="createGajiPokok" value="0">
                                         </div>
+                                        <!-- Menyebut ASALNYA: angka yang muncul sendiri tanpa penjelasan
+                                             bikin orang ragu apakah itu benar untuk bulan ini. -->
+                                        <small class="text-info" id="gajiPokokInfo"></small>
                                     </div>
                                 </div>
                                 <div class="col-md-6">

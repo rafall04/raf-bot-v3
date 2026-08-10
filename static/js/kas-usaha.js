@@ -139,13 +139,16 @@
                 esc(id) + '"' + (dicentang ? " checked" : "") + "><span>" + esc(label) + "</span></label>";
         }
 
+        // Tampilkan LABEL yang dibuat server (nama kontak > nomor > penanda jujur), bukan `@lid`
+        // mentah: deretan angka acak tak berarti apa-apa dan bikin salah pilih pemilik kas.
         box.innerHTML =
             peserta.map(function (p) {
-                var nomor = p.id.indexOf("@lid") !== -1 ? p.id : p.id.split("@")[0];
-                return baris(p.id, nomor + (p.admin ? " (admin grup)" : ""), terpilih.indexOf(p.id) !== -1);
+                var label = p.label || p.id.split("@")[0];
+                return baris(p.id, label + (p.admin ? " (admin grup)" : ""), terpilih.indexOf(p.id) !== -1);
             }).join("") +
             luarGrup.map(function (j) {
-                return baris(j, j.split("@")[0] + " (di luar grup)", true);
+                var label = j.indexOf("@lid") !== -1 ? "anggota lama (nomor belum dikenali)" : j.split("@")[0];
+                return baris(j, label + " (di luar grup)", true);
             }).join("");
     }
 
@@ -337,7 +340,17 @@
             el("ku-perkiraan").value = r.perkiraan;
             el("ku-kategori").value = r.kategori;
             el("ku-tanggal").value = r.tanggal;
-            el("ku-metode").value = r.metode;
+            // Baris lama bisa menyimpan metode di luar dua pilihan (dulu kolom ini bebas ketik).
+            // Nilai asing tak boleh diam-diam berubah jadi TUNAI saat diedit — tampilkan apa adanya.
+            var selMetode = el("ku-metode");
+            var adaOpsi = Array.prototype.some.call(selMetode.options, function (o) { return o.value === r.metode; });
+            if (!adaOpsi && r.metode) {
+                var o = document.createElement("option");
+                o.value = r.metode;
+                o.textContent = r.metode + " (nilai lama)";
+                selMetode.appendChild(o);
+            }
+            selMetode.value = r.metode || "TUNAI";
             el("ku-batal-edit").hidden = false;
             el("ku-nama").focus();
             return;

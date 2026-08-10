@@ -1283,3 +1283,13 @@
 - **AKAR toast:** `.ku-alert` ber-`position: static` sehingga tiap pesan MENDORONG isi halaman **61px terukur**, tepat saat mata tertuju ke tombol yang baru ditekan. Kini `fixed` (kanan-atas; bawah-penuh di ≤576px), 0px pergeseran, bisa diklik untuk menutup, error berumur 9 dtk (dulu menetap selamanya).
 - **Jujur:** tombol "Muat grup" tak lagi selalu bilang "dimuat" — membedakan WA putus / bot belum masuk grup mana pun / N grup.
 - **Tes:** `message/handlers/__tests__/kas-rutin-wa.test.js` (18, +3 panduan).
+
+<a id="b208"></a>
+
+### Fix 2026-08-10 (Keuangan: gaji pokok terisi sendiri, metode jadi pilihan, @lid tak lagi mentah)
+
+- **Owner prefill gaji:** `routes/gaji.js` endpoint `kasbon-summary/:teknisiId` kini ikut memulangkan `gaji_pokok_terakhir` + `periode_terakhir` (menumpang permintaan yang SUDAH dipanggil saat memilih teknisi — bukan round-trip kedua); `static/js/gaji-teknisi.js` mengisi kolom yang masih kosong saja.
+- **AKAR:** modal Buat Draft tak pernah memprefill apa pun, jadi gaji pokok — angka yang nyaris tak berubah — diketik ulang 12x setahun.
+- **Metode biaya rutin:** `ku-metode` jadi `<select>` TUNAI/TRANSFER (dulu teks bebas di kolom TEXT → "TF"/"Bank" lolos). Nilai lama di luar dua pilihan tetap ditampilkan saat diedit, tak diam-diam jadi TUNAI.
+- **GOTCHA @lid:** daftar pemilik kas dulu menampilkan `114868967469112@lid` MENTAH — melanggar aturan CLAUDE.md dan mustahil dipilih dengan benar. `whatsapp.adapter.getGroupParticipants` kini memulangkan `label` (nama kontak > nomor hasil `getStoredMappingByLid` > "nomor belum dikenali"); nomor TIDAK dikarang dari angka @lid.
+- **Gate:** tak ada. **Tes:** `routes/__tests__/keuangan-ux.test.js` (10).
