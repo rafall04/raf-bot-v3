@@ -251,6 +251,10 @@ router.put('/:id/finalize', ensureAdmin, async (req, res) => {
         if (!result.finalized && result.reason === 'paid') {
             return res.status(400).json({ status: 400, message: 'Payroll yang sudah dibayar tidak dapat difinalisasi ulang' });
         }
+        // Ditolak DIAM-DIAM sebagai sukses tidak boleh: klik ganda pernah mengosongkan komisi.
+        if (!result.finalized && result.reason === 'already_finalized') {
+            return res.status(409).json({ status: 409, message: 'Payroll ini sudah difinalisasi — tidak perlu (dan tidak boleh) difinalisasi ulang.' });
+        }
 
         logActivity({
             userId: req.user.id,

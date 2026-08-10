@@ -376,7 +376,15 @@ $(document).ready(function() {
         });
     });
 
+    // Finalisasi mengunci komisi ke payroll ini dan TIDAK bisa dibatalkan lewat halaman.
+    // Kunci di sisi klien supaya klik ganda tak mengirim dua permintaan sebelum tabel
+    // sempat menyembunyikan tombolnya — dulu permintaan kedua mengosongkan komisi.
+    const finalisasiBerjalan = new Set();
     window.finalizeGaji = function(id) {
+        if (finalisasiBerjalan.has(id)) return;
+        if (!window.confirm('Finalisasi payroll ini? Komisi penarikan & marketing akan dikunci ke payroll ini dan tidak bisa diubah lagi.')) return;
+        finalisasiBerjalan.add(id);
+        $(`button[onclick="finalizeGaji(${id})"]`).prop('disabled', true);
         $.ajax({
             url: `/api/gaji/${id}/finalize`,
             method: 'PUT',
@@ -391,6 +399,8 @@ $(document).ready(function() {
             }
         }).fail((xhr) => {
             showAlert('danger', xhr.responseJSON?.message || 'Terjadi kesalahan');
+        }).always(() => {
+            finalisasiBerjalan.delete(id);
         });
     };
 
