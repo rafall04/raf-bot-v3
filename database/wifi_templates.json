@@ -1207,5 +1207,18 @@
     "category": "admin",
     "description": "Oper koneksi per SEGMEN (pool) ke jalur lain — Admin/Owner",
     "icon": "🔀"
+  },
+  {
+    "keywords": [
+      "gaji saya",
+      "cek gaji",
+      "gaji bulan ini",
+      "slip gaji",
+      "komisi saya"
+    ],
+    "intent": "GAJI_SAYA",
+    "category": "teknisi",
+    "description": "Teknisi cek gaji & komisinya sendiri",
+    "icon": "💼"
   }
 ]

@@ -1393,3 +1393,14 @@
 - **Marketing per periode:** `getUnsettledMarketingForTeknisi`/`settleMarketingToPayroll` menerima `periodMonth`/`periodYear` dan membatasi "sampai dengan" periode payroll — payroll Juli tak lagi menelan komisi Agustus. Settle mengunci ID dari snapshot, bukan mengulang filter.
 - **Pembatalan finalisasi:** kembali ke `draft` DAN melepas kunci komisi (collection `payroll_id`=NULL + marketing kembali `pending`). Tanpa pelepasan itu finalisasi kedua menemukan nol lalu menimpa komisi jadi kosong. Payroll `paid` ditolak.
 - **Tes:** `payroll-uang-benar` (7), `payroll-struk-dan-batal` (10), `marketing-periode-payroll` (5).
+
+<a id="b218"></a>
+
+### Feat 2026-08-10 (Gaji: teknisi bisa cek gajinya sendiri + kabar keputusan kasbon)
+
+- **Owner:** `message/handlers/raf-intent-dispatch/gaji-teknisi-intents.js` (BARU, intent `GAJI_SAYA`, terdaftar di dispatcher `index.js` sebagai `gajiTeknisi`) + `kabariTeknisiKasbon()` di `routes/kasbon.js`.
+- **AKAR:** teknisi hanya menerima SATU pesan seumur siklus — saat gajinya dibayar. Tak bisa memeriksa komisi, tak tahu kasbonnya disetujui/ditolak, jadi tak bisa membantah angka apa pun. Jalur kasbon nol notifikasi (grep `sendMessage` di `routes/kasbon.js` = 0).
+- **Batas:** modul intent hanya MEMBACA (dikunci tes pindai statis: tak boleh memuat `createPayrollDraft`/`finalizePayroll`/`payPayroll`/`updatePayrollDraft`). Angkanya dari service yang SAMA dengan halaman admin supaya teknisi & pemilik melihat dasar yang sama.
+- **Kata kunci:** `gaji saya`, `cek gaji`, `gaji bulan ini`, `slip gaji`, `komisi saya` di `database/wifi_templates.json` — tanpa entri ini perintahnya tak pernah sampai ke handler.
+- **GOTCHA:** entri `response_templates.json` WAJIB berbentuk `{name, template, category}`, bukan string mentah — guard `response-template-key-integrity` menangkap 3 entri yang sempat salah bentuk (termasuk `kas_notif_draft_gaji` dari b216).
+- **Tes:** `message/handlers/raf-intent-dispatch/__tests__/gaji-teknisi-intents.test.js` (8).

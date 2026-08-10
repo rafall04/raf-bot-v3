@@ -1,6 +1,13 @@
 /**
- * Kasbon Teknisi Routes
- * Header pengajuan + ledger saldo/cicilan
+ * Header Doc
+ * Purpose: Route kasbon (hutang) teknisi — pengajuan, persetujuan/penolakan, tandai lunas, dan
+ *   ledger saldo/cicilannya. Kasbon yang disetujui akan dipotong dari gaji lewat payroll.
+ * Caller: `lib/routes-registry.js` (mount admin + staf).
+ * Deps: `express`, `lib/activity-logger`, `lib/security` (rateLimit), `lib/request-lock`,
+ *   `lib/technician-finance-service`, `lib/whatsapp-critical-delivery` (kabar ke teknisi).
+ * MainFuncs: router GET/POST/PUT kasbon (`PUT /:id/approve` = titik keputusan).
+ * SideEffects: Menulis `technician_kasbon` + ledger-nya, activity log, dan mengirim WhatsApp
+ *   ke teknisi saat pengajuannya diputuskan (never-throw).
  */
 
 const express = require('express');
@@ -56,6 +63,63 @@ function ensureAdmin(req, res, next) {
         return res.status(403).json({ status: 403, message: 'Akses ditolak. Hanya admin yang diizinkan.' });
     }
     next();
+}
+
+/**
+ * Mengabari teknisi bahwa pengajuan kasbonnya disetujui atau ditolak.
+ *
+ * Jalur kasbon sebelumnya NOL notifikasi: teknisi mengajukan lalu menunggu tanpa kabar. Untuk
+ * yang disetujui itu lebih buruk lagi — uangnya akan dipotong dari gaji tanpa ia pernah tahu
+ * kapan keputusannya diambil, jadi potongan di struk gaji datang sebagai kejutan.
+ */
+async function kabariTeknisiKasbon({ kasbon, approved, notes, oleh }) {
+    const { resolveTechnicianPhones } = require('../lib/services/payroll-receipt');
+    const { sendCritical } = require('../lib/whatsapp-critical-delivery');
+    const { renderResponseTemplate } = require('../message/handlers/template-helpers');
+
+    const nomor = resolveTechnicianPhones(kasbon.teknisi_id, global.accounts);
+    if (!nomor || nomor.length === 0) {
+        console.warn(`[KASBON_NOTIF] Teknisi #${kasbon.teknisi_id} tak punya nomor WA — keputusan kasbon tak diberitahukan.`);
+        return { terkirim: false };
+    }
+
+    const nominal = 'Rp' + (Number(kasbon.amount) || 0).toLocaleString('id-ID');
+    const data = {
+        nama: kasbon.teknisi_name || 'Teknisi',
+        nominal,
+        keperluan: kasbon.description || '-',
+        catatan: String(notes || '').trim() || '-',
+        oleh: oleh || 'admin'
+    };
+
+    const teks = approved
+        ? renderResponseTemplate('kasbon_teknisi_disetujui', [
+            '✅ *KASBON DISETUJUI*',
+            '',
+            'Halo ${nama},',
+            'Pengajuan kasbon Anda sebesar *${nominal}* disetujui.',
+            'Keperluan: ${keperluan}',
+            'Catatan admin: ${catatan}',
+            '',
+            '_Nominal ini akan dipotong dari gaji Anda. Rinciannya muncul di struk gaji._'
+        ].join('\n'), data)
+        : renderResponseTemplate('kasbon_teknisi_ditolak', [
+            '❌ *KASBON DITOLAK*',
+            '',
+            'Halo ${nama},',
+            'Pengajuan kasbon Anda sebesar *${nominal}* belum bisa disetujui.',
+            'Keperluan: ${keperluan}',
+            'Alasan: ${catatan}',
+            '',
+            '_Silakan bicarakan dengan admin bila perlu._'
+        ].join('\n'), data);
+
+    let terkirim = false;
+    for (const ph of nomor) {
+        const r = await sendCritical(ph, { text: teks }, { label: 'kasbon_keputusan' });
+        if (r && r.delivered === true) terkirim = true;
+    }
+    return { terkirim };
 }
 
 function actorName(req) {
@@ -199,6 +263,16 @@ router.put('/:id/approve', ensureAdmin, async (req, res) => {
                 notes
             }
         );
+
+        // Kabari TEKNISI-nya. Sampai sekarang jalur kasbon nol notifikasi: teknisi mengajukan
+        // lalu menunggu tanpa tahu sudah disetujui atau ditolak — dan kalau disetujui, uangnya
+        // akan dipotong dari gajinya tanpa ia pernah diberi tahu kapan keputusannya diambil.
+        // NEVER-THROW: gagal kirim tak boleh membatalkan keputusan yang sudah tercatat.
+        try {
+            await kabariTeknisiKasbon({ kasbon, approved, notes, oleh: actorName(req) });
+        } catch (notifErr) {
+            console.error('[KASBON_NOTIF_ERROR]', notifErr && notifErr.message);
+        }
 
         logActivity({
             userId: req.user.id,

@@ -21,6 +21,7 @@ const { NETWORK_ADMIN_INTENT_HANDLERS } = require('./network-admin-intents');
 const { CUSTOMER_SERVICE_INTENT_HANDLERS } = require('./customer-service-intents');
 const { OWNER_ADMIN_INTENT_HANDLERS } = require('./owner-admin-intents');
 const { VERIFICATION_INTENT_HANDLERS } = require('./verification-intents');
+const { GAJI_TEKNISI_INTENT_HANDLERS } = require('./gaji-teknisi-intents');
 
 const INTENT_DISPATCH_MODULES = Object.freeze({
     conversation: CONVERSATION_INTENT_HANDLERS,
@@ -35,7 +36,8 @@ const INTENT_DISPATCH_MODULES = Object.freeze({
     networkAdmin: NETWORK_ADMIN_INTENT_HANDLERS,
     customerService: CUSTOMER_SERVICE_INTENT_HANDLERS,
     ownerAdmin: OWNER_ADMIN_INTENT_HANDLERS,
-    verification: VERIFICATION_INTENT_HANDLERS
+    verification: VERIFICATION_INTENT_HANDLERS,
+    gajiTeknisi: GAJI_TEKNISI_INTENT_HANDLERS
 });
 
 function getIntentDispatchMap() {

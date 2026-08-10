@@ -5592,5 +5592,39 @@
     "category": "business_expense",
     "template": "🧾 *PENGELUARAN BESAR DICATAT*\n\n📌 ${judul}\n💰 ${nominal}\n📂 ${kategori}\n👤 oleh ${oleh}"
   },
-  "kas_notif_draft_gaji": "🧾 *Draft Gaji Dibuat Otomatis*\n\nPeriode: ${periode}\nTeknisi: ${daftar} (${jumlah} orang)\nTotal gaji pokok: ${total}\n\nIni BARU DRAFT — belum ada uang keluar dan belum ada struk terkirim.\nBuka halaman Gaji Teknisi untuk finalisasi lalu tandai dibayar."
+  "kas_notif_draft_gaji": {
+    "name": "Kabar Draft Gaji Otomatis",
+    "template": "🧾 *Draft Gaji Dibuat Otomatis*\n\nPeriode: ${periode}\nTeknisi: ${daftar} (${jumlah} orang)\nTotal gaji pokok: ${total}\n\nIni BARU DRAFT — belum ada uang keluar dan belum ada struk terkirim.\nBuka halaman Gaji Teknisi untuk finalisasi lalu tandai dibayar.",
+    "category": "keuangan"
+  },
+  "kasbon_teknisi_disetujui": {
+    "name": "Kasbon Teknisi Disetujui",
+    "template": "✅ *KASBON DISETUJUI*\n\nHalo ${nama},\nPengajuan kasbon Anda sebesar *${nominal}* disetujui.\nKeperluan: ${keperluan}\nCatatan admin: ${catatan}\n\n_Nominal ini akan dipotong dari gaji Anda. Rinciannya muncul di struk gaji._",
+    "category": "teknisi"
+  },
+  "kasbon_teknisi_ditolak": {
+    "name": "Kasbon Teknisi Ditolak",
+    "template": "❌ *KASBON DITOLAK*\n\nHalo ${nama},\nPengajuan kasbon Anda sebesar *${nominal}* belum bisa disetujui.\nKeperluan: ${keperluan}\nAlasan: ${catatan}\n\n_Silakan bicarakan dengan admin bila perlu._",
+    "category": "teknisi"
+  },
+  "gaji_saya_bukan_teknisi": {
+    "name": "Gaji Saya - Bukan Teknisi",
+    "template": "Perintah ini khusus untuk teknisi terdaftar.",
+    "category": "teknisi"
+  },
+  "gaji_saya_akun_tak_dikenali": {
+    "name": "Gaji Saya - Akun Tak Dikenali",
+    "template": "Akun teknisi Anda belum bisa dikenali dari nomor ini. Minta admin memeriksa nomor WhatsApp di akun Anda.",
+    "category": "teknisi"
+  },
+  "gaji_saya_gagal": {
+    "name": "Gaji Saya - Gagal Baca",
+    "template": "Maaf, data gaji sedang tidak bisa dibaca. Coba lagi nanti.",
+    "category": "teknisi"
+  },
+  "gaji_saya_ringkasan": {
+    "name": "Gaji Saya - Ringkasan",
+    "template": "💼 *GAJI SAYA — ${periode}*\n\n${rincian}",
+    "category": "teknisi"
+  }
 }
