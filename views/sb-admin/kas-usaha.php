@@ -38,7 +38,9 @@
             </div>
           </div>
 
-          <div id="ku-alert" class="ku-alert" role="status" hidden></div>
+          <!-- Toast mengambang (CSS position:fixed). Bisa diklik untuk menutup lebih cepat —
+               ia melapisi konten, jadi harus ada cara membuangnya tanpa menunggu. -->
+          <div id="ku-alert" class="ku-alert" role="status" title="Klik untuk menutup" hidden></div>
 
           <!-- Ringkasan bulan berjalan -->
           <div class="ku-stats">

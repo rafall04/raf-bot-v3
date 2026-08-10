@@ -1272,3 +1272,14 @@
 - **DAMPAK terparah:** "Broadcast Terarah → penunggak" terukur mengirim ke **0 orang** padahal 35 (Dander) & 86 (Tanjungharjo) belum bayar; Rekap Tunggakan + kartu Owner Cockpit juga selalu 0.
 - **Bukti sesudah:** total tagihan sebulan 7.125.000 / 11.840.000 — COCOK dengan MRR yang dihitung jalur independen (owner-cockpit).
 - **Gate:** tak ada (perbaikan di tempat). **Tes:** `services/__tests__/arrears-blind-spot.test.js` (10).
+
+<a id="b207"></a>
+
+### Fix 2026-08-10 (Kas usaha: panduan lengkap di grup + notifikasi halaman jadi toast)
+
+- **Owner panduan:** template `be_bantuan` (kini panduan LENGKAP: catat, biaya rutin, konfirmasi, laporan, ringkasan, batal, batas gaji) + `HELP_FALLBACK` di `message/handlers/business-expense-wa.js` dibuat IDENTIK dengannya.
+- **AKAR divergensi:** template tersimpan MENIMPA fallback — Dander memakai teks lama (tanpa `kas rutin`/`omset`), Tanjungharjo jatuh ke kode. Dua bot menampilkan panduan berbeda tanpa disadari.
+- **Dikirim otomatis** oleh `PUT /api/kas-usaha/aktif` saat fitur benar-benar siap (grup + pemilik lengkap) — fitur yang cara pakainya tak diberitahukan sama saja tak ada.
+- **AKAR toast:** `.ku-alert` ber-`position: static` sehingga tiap pesan MENDORONG isi halaman **61px terukur**, tepat saat mata tertuju ke tombol yang baru ditekan. Kini `fixed` (kanan-atas; bawah-penuh di ≤576px), 0px pergeseran, bisa diklik untuk menutup, error berumur 9 dtk (dulu menetap selamanya).
+- **Jujur:** tombol "Muat grup" tak lagi selalu bilang "dimuat" — membedakan WA putus / bot belum masuk grup mana pun / N grup.
+- **Tes:** `message/handlers/__tests__/kas-rutin-wa.test.js` (18, +3 panduan).

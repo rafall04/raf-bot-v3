@@ -70,25 +70,10 @@ function resolveBusinessExpenseOwner({ participant, plainPhone, config } = {}) {
     return null;
 }
 
-const HELP_FALLBACK =
-    "🏢 *KAS USAHA*\n\n" +
-    "Mencatat pengeluaran — langsung ketik:\n" +
-    "• *kas 150rb kabel dropcore*\n" +
-    "• *kas 50rb bensin survei*\n\n" +
-    "Melihat:\n" +
-    "• *kas* — hari ini\n" +
-    "• *kas kemarin*\n" +
-    "• *kas minggu* / *kas minggu lalu*\n" +
-    "• *kas bulan* / *kas bulan 2026-06* / *kas bulan lalu*\n\n" +
-    "Tagihan tetap tiap bulan:\n" +
-    "• *kas rutin* — lihat daftarnya\n" +
-    "• *kas rutin tambah 850rb listrik tgl 20*\n" +
-    "• *kas rutin hapus 3*\n\n" +
-    "Ringkasan uang masuk & keluar:\n" +
-    "• *omset* atau *kas ringkasan* — pemasukan, perkiraan omset, tunggakan, sisa\n\n" +
-    "Salah catat:\n" +
-    "• *kas batal 12* — batalkan pengeluaran nomor 12\n\n" +
-    "Kategori ditebak sendiri. Tercatat di *Pengeluaran* & *Rekap Keuangan* — sumber angkanya sama.";
+// Panduan lengkap. SENGAJA identik dengan template tersimpan `be_bantuan`: template tersimpan
+// MENIMPA fallback ini, jadi kalau keduanya berbeda, dua instance bisa menampilkan panduan yang
+// berbeda — dan itu persis yang pernah terjadi (Dander memakai teks lama, Tanjungharjo yang baru).
+const HELP_FALLBACK = "📗 *PANDUAN KAS USAHA*\n_Semua yang bisa dilakukan di grup ini._\n\n━━━━━━━━━━━━━━\n*1. CATAT PENGELUARAN*\nLangsung ketik nominal + untuk apa:\n• *kas 150rb kabel dropcore*\n• *kas 50rb bensin survei*\n• *kas 1,2jt bayar tukang*\n\nNominal bebas ditulis: `150rb`, `1,2jt`, `150000`, `Rp150.000`.\nKategori ditebak sendiri dari katanya.\n\n━━━━━━━━━━━━━━\n*2. TAGIHAN TETAP TIAP BULAN*\nListrik, internet, sewa — cukup didaftar sekali:\n• *kas rutin tambah 850rb listrik tgl 20*\n• *kas rutin* — lihat daftarnya\n• *kas rutin hapus 3* — buang nomor 3\n\n⚠️ Tanggalnya wajib ditulis (*tgl 20*). Kalau tidak, saya menolak — lebih baik begitu daripada salah tanggal tiap bulan.\n\nTiap jatuh tempo saya mengingatkan di sini. Balas:\n• *ok* — catat sesuai perkiraan\n• *ok 920rb* — catat nominal sebenarnya\n• *lewati* — bulan ini tidak ada\n\nSaya TIDAK pernah mencatat sendiri. Selalu menunggu balasanmu.\n\n━━━━━━━━━━━━━━\n*3. LIHAT PENGELUARAN*\n• *kas* — hari ini\n• *kas kemarin*\n• *kas minggu* / *kas minggu lalu*\n• *kas bulan* / *kas bulan lalu*\n• *kas bulan 2026-06* — bulan tertentu\n\n━━━━━━━━━━━━━━\n*4. RINGKASAN UANG*\n• *omset* — atau *kas ringkasan*\n\nIsinya: uang masuk bulan ini & hari ini, perkiraan omset, berapa yang sudah lunas, tunggakan, pengeluaran, dan sisa bersih.\n\nKalau ada angka tertulis _tak terbaca_, artinya sumbernya sedang tak bisa dibaca — BUKAN nol.\n\n━━━━━━━━━━━━━━\n*5. SALAH CATAT*\n• *kas batal 12* — batalkan pengeluaran nomor 12\n\nNomornya muncul di balasan waktu dicatat.\n\n━━━━━━━━━━━━━━\n*YANG PERLU DIKETAHUI*\n• Hanya orang yang terdaftar sebagai pemilik kas yang perintahnya saya jalankan. Yang lain saya diamkan.\n• Semua angka masuk ke halaman *Pengeluaran* & *Rekap Keuangan* — sumbernya sama, tidak ada pembukuan kedua.\n• Gaji teknisi TIDAK dicatat di sini. Sudah ada halaman Gaji Teknisi sendiri; kalau dicatat di sini jadi terhitung dua kali.\n\nKetik *kas bantuan* kapan saja untuk memunculkan panduan ini lagi.";
 
 /**
  * Balasan konfirmasi biaya rutin (`ok`, `ok 620rb`, `lewati`). Dipisah dari perintah `kas`

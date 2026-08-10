@@ -10,23 +10,58 @@
  * Deps: static/css/tokens.css (via admin-theme.css).
  */
 
+/* Notifikasi MENGAMBANG (toast), bukan blok dalam alur halaman.
+   Dulu `position: static` sehingga setiap pesan MENDORONG seluruh isi halaman — terukur
+   61px — tepat saat mata sedang tertuju ke tombol yang baru ditekan. Tombolnya berpindah
+   di bawah kursor dan orang menekan hal lain. Toast melapisi, tak pernah menggeser. */
 .ku-alert {
-    margin-bottom: 1rem;
+    position: fixed;
+    top: 4.75rem;
+    right: 1.25rem;
+    z-index: 1080;
+    max-width: min(24rem, calc(100vw - 2.5rem));
     padding: 0.7rem 0.95rem;
     border-radius: var(--radius-sm);
     border: 1px solid var(--line);
     border-left: 4px solid var(--line);
-    background: var(--surface-2);
+    background: var(--surface);
     color: var(--ink);
     font-size: 0.86rem;
+    box-shadow: 0 8px 24px rgb(15 23 42 / 18%);
+    animation: ku-toast-masuk 160ms ease-out;
 }
 
+@keyframes ku-toast-masuk {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Hormati pengguna yang mematikan animasi di sistemnya. */
+@media (prefers-reduced-motion: reduce) {
+    .ku-alert { animation: none; }
+}
+
+/* Di layar sempit toast melebar penuh — 24rem di ponsel akan menabrak tepi. */
+@media (max-width: 576px) {
+    .ku-alert {
+        top: auto;
+        bottom: 1rem;
+        left: 1rem;
+        right: 1rem;
+        max-width: none;
+    }
+}
+
+/* Nada dibedakan LATAR, bukan cuma garis tepi: di mode gelap dua nada yang hanya beda
+   warna border 4px praktis tak terbedakan sekilas. */
 .ku-alert[data-tone="error"] {
     border-color: var(--color-danger);
+    background: color-mix(in srgb, var(--color-danger) 12%, var(--surface));
 }
 
 .ku-alert[data-tone="ok"] {
     border-color: var(--color-success);
+    background: color-mix(in srgb, var(--color-success) 12%, var(--surface));
 }
 
 .ku-stats {
@@ -262,3 +297,6 @@
     accent-color: var(--brand, #4f46e5);
     cursor: pointer;
 }
+
+/* Toast bisa diklik untuk ditutup — beri isyarat visualnya. */
+.ku-alert { cursor: pointer; }

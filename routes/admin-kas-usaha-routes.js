@@ -148,6 +148,15 @@ function registerAdminKasUsahaRoutes(router, deps = {}) {
             if (!be.groupId) kurang.push("grup kas belum dipilih");
             if (!((be.ownerJids || []).length + (be.ownerLids || []).length)) kurang.push("pemilik belum ditentukan");
 
+            // Kirim PANDUAN ke grup begitu fitur benar-benar siap dipakai. Tanpa ini orang di
+            // grup harus lebih dulu menebak bahwa ada perintah bernama `kas bantuan` — fitur
+            // yang cara pakainya tak pernah diberitahukan sama saja dengan tidak ada.
+            if (aktif && !kurang.length) {
+                require("../lib/services/kas-group-notifier")
+                    .kabarkanKeGrupKas("be_bantuan", { fallback: "" })
+                    .catch((e) => console.error("[KAS_AKTIF] Panduan gagal dikirim:", e && e.message));
+            }
+
             res.json({
                 success: true,
                 enabled: aktif,

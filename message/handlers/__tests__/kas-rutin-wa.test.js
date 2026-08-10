@@ -171,10 +171,40 @@ describe("handler biaya rutin — menumpang penyimpanan yang SAMA dengan halaman
 });
 
 describe("bantuan menyebut perintah baru — fitur yang tak disebut = tak ada", () => {
-    test("teks bantuan memuat kas rutin dan perintah ringkasan", () => {
+    test("panduan memuat SEMUA yang bisa dilakukan di grup", () => {
+        const t = JSON.parse(baca("database", "response_templates.json"));
+        const panduan = t.be_bantuan.template;
+        for (const wajib of [
+            "kas 150rb",            // catat pengeluaran
+            "kas rutin tambah",     // tagihan tetap
+            "ok 920rb",             // konfirmasi nominal sebenarnya
+            "lewati",               // lewati bulan ini
+            "kas bulan",            // laporan
+            "omset",                // ringkasan uang
+            "kas batal",            // salah catat
+            "pemilik kas",          // siapa yang boleh
+            "Gaji teknisi TIDAK"    // batas yang gampang salah
+        ]) {
+            expect(panduan).toContain(wajib);
+        }
+    });
+
+    test("fallback kode IDENTIK dengan template tersimpan", () => {
+        // Template tersimpan MENIMPA fallback. Kalau keduanya beda, dua instance bisa
+        // menampilkan panduan berbeda — persis yang terjadi sebelum ini (Dander teks lama,
+        // Tanjungharjo teks baru), dan tak seorang pun menyadarinya.
+        const t = JSON.parse(baca("database", "response_templates.json"));
         const src = baca("message", "handlers", "business-expense-wa.js");
-        expect(src).toMatch(/kas rutin tambah/);
-        expect(src).toMatch(/\*omset\*/);
-        expect(src).toMatch(/kas ringkasan/);
+        const awal = src.indexOf("const HELP_FALLBACK = ");
+        const literal = src.slice(awal).split("\n")[0].slice("const HELP_FALLBACK = ".length).replace(/;\s*$/, "");
+        expect(JSON.parse(literal)).toBe(t.be_bantuan.template);
+    });
+
+    test("panduan dikirim otomatis saat kas usaha siap dipakai", () => {
+        // Fitur yang cara pakainya tak pernah diberitahukan sama saja dengan tidak ada.
+        const route = baca("routes", "admin-kas-usaha-routes.js");
+        expect(route).toMatch(/kabarkanKeGrupKas\("be_bantuan"/);
+        // Hanya saat benar-benar siap (grup + pemilik lengkap), bukan asal aktif.
+        expect(route).toMatch(/if \(aktif && !kurang\.length\)/);
     });
 });

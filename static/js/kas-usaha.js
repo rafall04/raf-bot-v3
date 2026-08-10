@@ -27,9 +27,14 @@
     function rupiah(n) {
         return "Rp" + (Number(n) || 0).toLocaleString("id-ID");
     }
+    // Toast MENGAMBANG di atas halaman. Karena melapisi konten, ia wajib bisa ditutup:
+    // pesan error dulu menetap selamanya (auto-tutup hanya untuk nada "ok"), dan sebagai
+    // blok dalam alur itu tak mengganggu — sebagai lapisan, ia menutupi isi terus-menerus.
+    var jedaToast = null;
     function pesan(teks, tone) {
         var a = el("ku-alert");
         if (!a) return;
+        if (jedaToast) { clearTimeout(jedaToast); jedaToast = null; }
         if (!teks) {
             a.hidden = true;
             return;
@@ -37,7 +42,8 @@
         a.textContent = teks;
         a.setAttribute("data-tone", tone || "ok");
         a.hidden = false;
-        if (tone === "ok") setTimeout(function () { a.hidden = true; }, 3500);
+        // Error diberi umur lebih panjang (perlu dibaca), tapi tetap berakhir.
+        jedaToast = setTimeout(function () { a.hidden = true; }, tone === "error" ? 9000 : 3500);
     }
     function ambil(url, opsi) {
         return fetch(url, opsi).then(function (r) {
@@ -48,11 +54,20 @@
         });
     }
 
+    // Klik toast = tutup sekarang, tanpa menunggu jedanya habis.
+    (function () {
+        var a = el("ku-alert");
+        if (a) a.addEventListener("click", function () { a.hidden = true; });
+    })();
+
     var tertunda = [];
+    // Kesiapan WA dari muatan terakhir — dipakai tombol "Muat grup" untuk melapor jujur.
+    var terakhirWaSiap = true;
 
     function muatSetelan() {
         return ambil("/api/kas-usaha/setelan").then(function (j) {
             var d = j.data || {};
+            terakhirWaSiap = d.waSiap !== false;
             var sel = el("ku-grup");
             sel.innerHTML =
                 '<option value="">— belum dipilih —</option>' +
@@ -229,8 +244,18 @@
         });
     }
 
+    // Sengaja MELAPORKAN APA ADANYA. Dulu selalu "Daftar grup dimuat." — termasuk saat
+    // WhatsApp putus dan nol grup terbaca. Orang lalu menyangka grupnya memang tak ada dan
+    // mencari kesalahan di tempat yang salah, padahal botnya sekadar belum tersambung.
     el("ku-muat-grup").addEventListener("click", function () {
-        muatSetelan().then(function () { pesan("Daftar grup dimuat.", "ok"); }).catch(function (e) { pesan(e.message, "error"); });
+        muatSetelan()
+            .then(function () {
+                var n = el("ku-grup").querySelectorAll("option[value]:not([value=''])").length;
+                if (!terakhirWaSiap) pesan("WhatsApp belum tersambung — daftar grup tak bisa dimuat.", "error");
+                else if (n === 0) pesan("WhatsApp tersambung, tapi bot belum masuk grup mana pun.", "error");
+                else pesan(n + " grup dimuat.", "ok");
+            })
+            .catch(function (e) { pesan(e.message, "error"); });
     });
 
     el("ku-simpan-grup").addEventListener("click", function () {
