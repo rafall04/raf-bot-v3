@@ -272,6 +272,80 @@ function registerAdminKasUsahaRoutes(router, deps = {}) {
         })
     );
 
+    // ── ARUS KAS bulan berjalan ─────────────────────────────────────────────────
+    // Satu tempat untuk pertanyaan "uang saya bagaimana bulan ini": berapa yang bisa ditagih,
+    // berapa sudah masuk, berapa keluar, sisa berapa — plus rincian pengeluaran per kategori
+    // untuk grafiknya. Angka MASUK & KELUAR dibaca dari pemilik masing-masing
+    // (owner-cockpit + expense-manager); tak ada yang dihitung ulang di sini.
+    router.get(
+        "/api/kas-usaha/cashflow",
+        jaga,
+        asyncHandler(async (_req, res) => {
+            const now = new Date();
+            const p = (n) => String(n).padStart(2, "0");
+            const bulan = now.getMonth() + 1;
+            const tahun = now.getFullYear();
+            const from = `${tahun}-${p(bulan)}-01`;
+            const to = `${tahun}-${p(bulan)}-${p(new Date(tahun, bulan, 0).getDate())}`;
+
+            const gagal = [];
+
+            // KELUAR — pengeluaran nyata bulan ini, per kategori (bahan grafik).
+            let keluar = null;
+            let perKategori = {};
+            let jumlahCatatan = 0;
+            try {
+                const rows = await listExpenses({ dateFrom: from, dateTo: to, status: "active" });
+                keluar = rows.reduce((s, e) => s + Number(e.amount || 0), 0);
+                jumlahCatatan = rows.length;
+                for (const e of rows) {
+                    perKategori[e.category] = (perKategori[e.category] || 0) + Number(e.amount || 0);
+                }
+            } catch (_e) {
+                gagal.push("pengeluaran");
+            }
+
+            // MASUK + OMSET — dari owner-cockpit (satu pemilik harga & isolir).
+            let masuk = null;
+            let omset = null;
+            try {
+                const cockpit = require("../lib/owner-cockpit-service");
+                const [kartu, om] = await Promise.all([cockpit.buildIncomeOnly(), cockpit.buildOmsetAktif()]);
+                if (kartu && kartu.ok !== false) masuk = Number(kartu.netPaid) || 0;
+                else gagal.push("pemasukan");
+                omset = om && om.ok ? om : null;
+                if (!omset) gagal.push("omset");
+            } catch (_e) {
+                gagal.push("pemasukan");
+            }
+
+            // Sisa & belum-masuk hanya bermakna kalau kedua sisinya terbaca. Jangan menghitung
+            // dari null yang diam-diam jadi 0 — itu melaporkan untung/rugi yang tak pernah diukur.
+            const sisa = masuk != null && keluar != null ? masuk - keluar : null;
+            const belumMasuk =
+                omset && masuk != null ? Math.max(0, Number(omset.omsetAktif) - masuk) : null;
+
+            res.json({
+                success: true,
+                data: {
+                    periode: `${bulan}/${tahun}`,
+                    masuk,
+                    keluar,
+                    sisa,
+                    jumlahCatatan,
+                    perKategori,
+                    omsetAktif: omset ? omset.omsetAktif : null,
+                    omsetPenuh: omset ? omset.mrr : null,
+                    isolirTerbaca: omset ? omset.isolirTerbaca : false,
+                    isolirJumlah: omset ? omset.isolirJumlah : null,
+                    isolirNilai: omset ? omset.isolirNilai : null,
+                    belumMasuk,
+                    gagal
+                }
+            });
+        })
+    );
+
     // ── Ringkasan kas bulan berjalan ────────────────────────────────────────────
     router.get(
         "/api/kas-usaha/ringkasan",

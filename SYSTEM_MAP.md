@@ -310,6 +310,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-10 (Rekap tunggakan selalu nol — dua cacat bertumpuk)](docs/boundary-log.md#b206)
 - [Fix 2026-08-10 (Kas usaha: panduan lengkap di grup + notifikasi halaman jadi toast)](docs/boundary-log.md#b207)
 - [Fix 2026-08-10 (Keuangan: gaji pokok terisi sendiri, metode jadi pilihan, @lid tak lagi mentah)](docs/boundary-log.md#b208)
+- [Feat 2026-08-10 (Kas usaha: kartu arus kas + grafik pengeluaran, omset tanpa isolir)](docs/boundary-log.md#b209)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

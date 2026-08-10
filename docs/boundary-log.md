@@ -1293,3 +1293,14 @@
 - **Metode biaya rutin:** `ku-metode` jadi `<select>` TUNAI/TRANSFER (dulu teks bebas di kolom TEXT → "TF"/"Bank" lolos). Nilai lama di luar dua pilihan tetap ditampilkan saat diedit, tak diam-diam jadi TUNAI.
 - **GOTCHA @lid:** daftar pemilik kas dulu menampilkan `114868967469112@lid` MENTAH — melanggar aturan CLAUDE.md dan mustahil dipilih dengan benar. `whatsapp.adapter.getGroupParticipants` kini memulangkan `label` (nama kontak > nomor hasil `getStoredMappingByLid` > "nomor belum dikenali"); nomor TIDAK dikarang dari angka @lid.
 - **Gate:** tak ada. **Tes:** `routes/__tests__/keuangan-ux.test.js` (10).
+
+<a id="b209"></a>
+
+### Feat 2026-08-10 (Kas usaha: kartu arus kas + grafik pengeluaran, omset tanpa isolir)
+
+- **Owner:** `GET /api/kas-usaha/cashflow` (`routes/admin-kas-usaha-routes.js`) — merakit masuk/keluar/sisa/omset + `perKategori` untuk grafik; MEMBACA `owner-cockpit-service` & `expense-manager`, tak menghitung ulang.
+- **Owner omset:** `owner-cockpit-service.buildOmsetAktif()` (BARU) — omset TANPA pelanggan terisolir, memakai cache peta profil PPPoE 90 dtk yang sama (RouterOS mahal).
+- **BEDA SENGAJA:** kartu Pemasukan cockpit tetap menghitung yang terisolir (`mrr` = potensi penuh); `omsetAktif` menjawab pertanyaan lain (yang realistis ditagih). Keduanya dipulangkan bersama + selisihnya dijelaskan di layar.
+- **GOTCHA:** isolir = profil PPPoE LIVE, BUKAN `users.status`. Tak terbaca ⇒ `isolirTerbaca:false` dan `omsetAktif == mrr` — JANGAN pernah diam-diam mengurangi berdasarkan tebakan.
+- **Jujur:** `sisa` bernilai null bila salah satu sisi tak terbaca (null yang diam-diam jadi 0 melaporkan untung/rugi yang tak pernah diukur); layar menulis "—", bukan Rp0.
+- **UI:** grafik batang mendatar per kategori (Chart.js yang sudah ada di repo). **Tes:** `routes/__tests__/kas-cashflow.test.js` (12).

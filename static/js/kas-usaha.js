@@ -189,15 +189,99 @@
         });
     }
 
-    function muatRingkasan() {
-        return ambil("/api/kas-usaha/ringkasan").then(function (j) {
-            el("ku-total").textContent = rupiah(j.data.total);
-            el("ku-jumlah").textContent = j.data.jumlah;
+    // Nilai yang TAK TERBACA ditulis apa adanya, tak pernah Rp0 — nol menuntut tindakan,
+    // "tak terbaca" berarti kita sedang buta. Dua hal itu tak boleh terlihat sama.
+    function nilai(n) {
+        return n == null ? "—" : rupiah(n);
+    }
+
+    var grafikKas = null;
+    var WARNA = ["#4f46e5", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6", "#f97316", "#64748b"];
+
+    function gambarGrafik(perKategori) {
+        var kanvas = el("ku-grafik");
+        var kosong = el("ku-grafik-kosong");
+        if (!kanvas || typeof window.Chart === "undefined") return;
+
+        var pasangan = Object.keys(perKategori || {})
+            .map(function (k) { return { k: k, v: Number(perKategori[k]) || 0 }; })
+            .filter(function (x) { return x.v > 0; })
+            .sort(function (a, b) { return b.v - a.v; });
+
+        if (grafikKas) { grafikKas.destroy(); grafikKas = null; }
+        if (!pasangan.length) {
+            kanvas.hidden = true;
+            kosong.hidden = false;
+            return;
+        }
+        kanvas.hidden = false;
+        kosong.hidden = true;
+
+        grafikKas = new window.Chart(kanvas.getContext("2d"), {
+            type: "bar",
+            data: {
+                labels: pasangan.map(function (x) { return x.k; }),
+                datasets: [{
+                    data: pasangan.map(function (x) { return x.v; }),
+                    backgroundColor: pasangan.map(function (_x, i) { return WARNA[i % WARNA.length]; }),
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                legend: { display: false },
+                tooltips: {
+                    callbacks: {
+                        label: function (item) { return " " + rupiah(item.xLabel != null ? item.xLabel : item.yLabel); }
+                    }
+                },
+                scales: {
+                    xAxes: [{ ticks: { beginAtZero: true, callback: function (v) { return rupiah(v); } } }]
+                }
+            }
+        });
+        // Batang mendatar supaya nama kategori panjang tetap terbaca.
+        grafikKas.config.type = "horizontalBar";
+        grafikKas.update();
+    }
+
+    function muatArusKas() {
+        return ambil("/api/kas-usaha/cashflow").then(function (j) {
+            var d = j.data || {};
+
+            el("ku-omset").textContent = nilai(d.omsetAktif);
+            el("ku-masuk").textContent = nilai(d.masuk);
+            el("ku-total").textContent = nilai(d.keluar);
+            el("ku-sisa").textContent = nilai(d.sisa);
+            el("ku-jumlah").textContent = d.jumlahCatatan != null ? d.jumlahCatatan : "—";
+
+            // Selisih omset penuh vs tanpa isolir DIJELASKAN. Dua angka bernama "omset" yang
+            // berbeda tanpa keterangan adalah cara tercepat membuat orang tak percaya keduanya.
+            var jejak = el("ku-omset-jejak");
+            if (!d.isolirTerbaca) {
+                jejak.textContent = "Status isolir tak terbaca — angka ini masih memuat semua pelanggan.";
+            } else if (d.isolirJumlah) {
+                jejak.textContent = d.isolirJumlah + " terisolir dikeluarkan (" + rupiah(d.isolirNilai) + ")";
+            } else {
+                jejak.textContent = "Tidak ada pelanggan terisolir.";
+            }
+
+            el("ku-belum").textContent = d.belumMasuk != null ? "Belum masuk " + rupiah(d.belumMasuk) : "";
+
+            var sisaJejak = el("ku-sisa-jejak");
+            if (d.sisa == null) sisaJejak.textContent = "Belum bisa dihitung — salah satu sisinya tak terbaca.";
+            else sisaJejak.textContent = d.sisa < 0 ? "Bulan ini keluar lebih besar dari masuk." : "";
+
+            el("ku-grafik-meta").textContent = "Periode " + (d.periode || "") +
+                ((d.gagal || []).length ? " · sebagian angka tak terbaca (" + d.gagal.join(", ") + ")" : "");
+
+            gambarGrafik(d.perKategori);
         });
     }
 
     function muatSemua() {
-        Promise.all([muatSetelan(), muatRutin(), muatRingkasan()]).catch(function (e) {
+        Promise.all([muatSetelan(), muatRutin(), muatArusKas()]).catch(function (e) {
             pesan(e.message, "error");
         });
     }
@@ -371,7 +455,7 @@
                 .then(function (j) {
                     pesan("Tercatat " + rupiah(j.data.jumlah) + " (pengeluaran #" + j.data.expenseId + ").", "ok");
                     muatRutin();
-                    muatRingkasan();
+                    muatArusKas();
                 })
                 .catch(function (e) { pesan(e.message, "error"); });
         }

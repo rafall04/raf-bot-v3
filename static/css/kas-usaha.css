@@ -300,3 +300,29 @@
 
 /* Toast bisa diklik untuk ditutup — beri isyarat visualnya. */
 .ku-alert { cursor: pointer; }
+
+/* Kartu arus kas: label kecil + angka + jejak penjelas di bawahnya. Jejak itu penting —
+   angka tanpa keterangan asalnya bikin orang ragu, terutama saat isolir dikeluarkan. */
+.ku-stat__catatan {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 500;
+    color: var(--muted);
+}
+
+.ku-stat__jejak {
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    line-height: 1.35;
+}
+
+/* Warna tepi membedakan peran tiap kartu tanpa mengandalkan warna teks
+   (merah/hijau sebagai teks gagal kontras AA di permukaan terang). */
+.ku-stat--masuk { border-left-color: var(--color-success); }
+.ku-stat--keluar { border-left-color: var(--color-danger); }
+.ku-stat--sisa { border-left-color: var(--color-warning); }
+
+.ku-grafik-bungkus {
+    position: relative;
+    min-height: 9rem;
+}

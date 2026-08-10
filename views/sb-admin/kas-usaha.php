@@ -42,21 +42,42 @@
                ia melapisi konten, jadi harus ada cara membuangnya tanpa menunggu. -->
           <div id="ku-alert" class="ku-alert" role="status" title="Klik untuk menutup" hidden></div>
 
-          <!-- Ringkasan bulan berjalan -->
+          <!-- ARUS KAS bulan berjalan. Urutannya sengaja mengikuti pertanyaan pemilik:
+               berapa yang bisa ditagih -> berapa sudah masuk -> berapa keluar -> sisa berapa. -->
           <div class="ku-stats">
             <div class="ku-stat">
-              <span class="ku-stat__label">Total bulan ini</span>
+              <span class="ku-stat__label">Omset bulan ini <span class="ku-stat__catatan">tanpa isolir</span></span>
+              <span class="ku-stat__nilai" id="ku-omset">—</span>
+              <span class="ku-stat__jejak" id="ku-omset-jejak"></span>
+            </div>
+            <div class="ku-stat ku-stat--masuk">
+              <span class="ku-stat__label">Sudah masuk</span>
+              <span class="ku-stat__nilai" id="ku-masuk">—</span>
+              <span class="ku-stat__jejak" id="ku-belum"></span>
+            </div>
+            <div class="ku-stat ku-stat--keluar">
+              <span class="ku-stat__label">Pengeluaran</span>
               <span class="ku-stat__nilai" id="ku-total">—</span>
+              <span class="ku-stat__jejak"><span id="ku-jumlah">—</span> catatan · <span id="ku-tertunda">—</span> menunggu konfirmasi</span>
             </div>
-            <div class="ku-stat">
-              <span class="ku-stat__label">Jumlah catatan</span>
-              <span class="ku-stat__nilai" id="ku-jumlah">—</span>
-            </div>
-            <div class="ku-stat">
-              <span class="ku-stat__label">Menunggu konfirmasi</span>
-              <span class="ku-stat__nilai" id="ku-tertunda">—</span>
+            <div class="ku-stat ku-stat--sisa">
+              <span class="ku-stat__label">Sisa (masuk − keluar)</span>
+              <span class="ku-stat__nilai" id="ku-sisa">—</span>
+              <span class="ku-stat__jejak" id="ku-sisa-jejak"></span>
             </div>
           </div>
+
+          <!-- Grafik pengeluaran bulan ini per kategori. -->
+          <section class="ku-kartu">
+            <div class="ku-kartu__kepala">
+              <h2 class="ku-kartu__judul">Pengeluaran bulan ini</h2>
+              <span class="ku-kartu__meta" id="ku-grafik-meta"></span>
+            </div>
+            <div class="ku-grafik-bungkus">
+              <canvas id="ku-grafik" height="150"></canvas>
+              <p class="ku-kosong" id="ku-grafik-kosong" hidden>Belum ada pengeluaran bulan ini.</p>
+            </div>
+          </section>
 
           <!-- Grup WhatsApp -->
           <section class="ku-kartu">
@@ -150,6 +171,7 @@
     </div>
   </div>
 
+  <script src="/vendor/chart.js/Chart.min.js"></script>
   <script src="/vendor/jquery/jquery.min.js"></script>
   <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="/vendor/jquery-easing/jquery.easing.min.js"></script>
