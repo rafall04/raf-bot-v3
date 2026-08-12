@@ -174,3 +174,6 @@ coverage/
 
 # OLT SNMP discovery dumps (lokal, besar)
 scripts/out/
+
+# Artefak store JSON saat NODE_ENV=test (mis. psb-drafts_test.json, reboot-followups_test.json)
+database/*_test.json

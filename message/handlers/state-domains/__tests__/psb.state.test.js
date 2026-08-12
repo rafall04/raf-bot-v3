@@ -11,7 +11,7 @@
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
-const { startPsbSession, handlePsbConversationState, buildPppoeUsername, isPsbTutorialTrigger, psbTutorialText, parsePsbScheduleRef, stickerSn, snText } = require("../psb.state");
+const { startPsbSession, handlePsbConversationState, handlePsbStateTimeout, buildPppoeUsername, isPsbTutorialTrigger, psbTutorialText, parsePsbScheduleRef, stickerSn, snText } = require("../psb.state");
 
 // Push susulan WiFi (koreksi band) menyentuh GenieACS → di-mock supaya test tak menembak ACS nyata.
 jest.mock("../../../../lib/genieacs-helper", () => ({
@@ -28,6 +28,22 @@ const CANDIDATES = [
     { deviceId: "dev-B", serialNumber: "48575443BBBB0002", model: "HS8346R5", currentPPPUsername: "old@x", registeredDate: "2026-07-04T09:40:00.000Z", registeredTimestamp: Date.parse("2026-07-04T09:40:00.000Z") }
 ];
 const CAPTION = "#PSB\nNama: Budi Santoso\nDusun: Krajan\nRT/RW: 14/2\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345\nHP: 08123456789";
+
+// Draft durabel di-stub IN-MEMORY. Store aslinya menulis ke `database/psb-drafts_test.json` yang
+// dipakai bersama SELURUH suite (dan bertahan antar-run), sehingga draft sisa satu test membajak
+// `#PSB` test berikutnya — bot menawarkan LANJUT alih-alih membuka sesi baru. Stub ini membuat tiap
+// harness() mulai bersih; test yang memang menguji jalur lanjut menyuntik draft lewat `seed`.
+function memDraftStore(seed = null) {
+    let draft = seed;
+    return {
+        putDraft: jest.fn((ownerKey, d) => {
+            draft = { ownerKey, ...d, createdAt: new Date(NOW).toISOString(), updatedAt: new Date(NOW).toISOString() };
+            return draft;
+        }),
+        getDraft: jest.fn(() => draft),
+        removeDraft: jest.fn(() => { const ada = !!draft; draft = null; return ada; })
+    };
+}
 
 function harness(overrides = {}) {
     let state = null;
@@ -50,6 +66,7 @@ function harness(overrides = {}) {
             getScheduleSummary: jest.fn(async () => ({ terpasang_bulan_ini: 7, belum_kepasang: 3 }))
         },
         usersService: { upsertUserFromAdminPanel: upsert },
+        draftStore: memDraftStore(),
         // Klasifikasi asal-usul modem pakai modul ASLI, tapi dua sumber I/O-nya distub:
         // sesi PPPoE MikroTik & riwayat OLT. Tanpa ini tiap test menembak router sungguhan (~6 dtk).
         modemProvenance: {
@@ -584,7 +601,7 @@ describe("PSB gerbang asal-usul modem", () => {
 
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
         expect(h.base.usersService.upsertUserFromAdminPanel).not.toHaveBeenCalled();
-        expect(replies(h)).toMatch(/masih dipakai/i);
+        expect(replies(h)).toMatch(/masih tercatat/i);
         expect(replies(h)).toMatch(/Budi/);
     });
 
@@ -595,7 +612,47 @@ describe("PSB gerbang asal-usul modem", () => {
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "TIDAK" });
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "2" });
         expect(h.base.usersService.upsertUserFromAdminPanel).not.toHaveBeenCalled();
-        expect(replies(h)).toMatch(/masih dipakai/i);
+        expect(replies(h)).toMatch(/masih tercatat/i);
+    });
+
+    // Jebakan lingkaran (insiden Tanjungharjo 2026-08-12): `cari <pemilik lama>` mengembalikan SATU
+    // modem, modem itu diblokir, dan pesan penolakannya menyuruh "balas TIDAK untuk pilih dari
+    // daftar" — daftar yang isinya modem itu juga. Teknisi berputar sampai menyerah.
+    test("semua kandidat ⛔ → pesan tolak menyebut JALAN KELUAR, bukan menyuruh balas TIDAK", async () => {
+        global.users = [
+            { id: 5, name: "Wiji Rohani", device_id: "dev-A", pppoe_username: "wji@rafcybernet" },
+            { id: 6, name: "Sari", device_id: "dev-B", pppoe_username: "sari@rafcybernet" }
+        ];
+        const h = harness();
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+
+        const teks = replies(h);
+        expect(teks).toMatch(/\*sudah berhenti\*/i);      // jalan keluar sebenarnya
+        expect(teks).toMatch(/REFRESH/);
+        expect(teks).toMatch(/BATAL/);
+        expect(teks).not.toMatch(/balas \*TIDAK\* lalu pilih/i); // saran buntu tak boleh muncul
+    });
+
+    test("masih ada modem yang boleh dipakai → saran 'balas TIDAK' TETAP ditawarkan", async () => {
+        global.users = [{ id: 5, name: "Wiji Rohani", device_id: "dev-A", pppoe_username: "wji@rafcybernet" }];
+        const h = harness();
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        expect(replies(h)).toMatch(/balas \*TIDAK\* lalu pilih/i); // dev-B masih bebas
+    });
+
+    test("daftar bernomor yang SEMUANYA ⛔ ikut menyebut jalan keluar", async () => {
+        global.users = [
+            { id: 5, name: "Wiji Rohani", device_id: "dev-A", pppoe_username: "wji@rafcybernet" },
+            { id: 6, name: "Sari", device_id: "dev-B", pppoe_username: "sari@rafcybernet" }
+        ];
+        const h = harness();
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "TIDAK" });
+        const teks = replies(h);
+        expect(teks).toMatch(/Semua modem di daftar ini/i);
+        expect(teks).toMatch(/REFRESH/);
     });
 
     test("modem copotan → label ♻️ BEKAS + nama pemilik lama dari riwayat OLT", async () => {
@@ -827,5 +884,130 @@ describe("PSB modem bekas (insiden 2026-08-07)", () => {
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "cari wimpi" });
         expect(replies(h)).toMatch(/Pencarian gagal/i);
         expect(replies(h)).not.toMatch(/Tak ada modem cocok/i);
+    });
+});
+
+// Insiden Tanjungharjo 2026-08-12: teknisi sudah mengirim foto KTP, 7 kolom data, foto rumah, dan
+// share lokasi — lalu mentok di langkah modem karena record pelanggan lama belum ditutup. Pembebasan
+// modem itu HANYA bisa dilakukan admin dan makan >15 menit, jadi sesi mati duluan dan SELURUH kerja
+// teknisi hangus. Rangkaian test ini mengunci: kerja itu tak boleh hilang lagi.
+describe("PSB kerja teknisi DURABEL (draft + lanjut)", () => {
+    const DRAFT_LENGKAP = {
+        ownerKey: "628999@s.whatsapp.net",
+        step: "PSB_CONFIRM_MODEM",
+        tempId: "PSBDM_LAMA",
+        dir: "/tmp/psb-lama",
+        data: { nama: "Septiana Kurniawati", dusun: "Krajan", rt_rw: "14/2", paket: "PAKET-110K", wifi_ssid: "OKTA", wifi_password: "16042022", hp: "08123456789" },
+        ktpSaved: true,
+        rumahSaved: true,
+        lokasi: { lat: -7.1, lng: 111.9 },
+        staff: STAFF,
+        createdAt: new Date(NOW - 40 * 60000).toISOString(),
+        updatedAt: new Date(NOW - 20 * 60000).toISOString()
+    };
+
+    const kirimPsb = (h) => startPsbSession({ ...h.base, type: "imageMessage", caption: "#PSB", msg: imageMsg("#PSB"), staff: STAFF });
+    const jawab = (h, chats) => handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats });
+
+    test("tiap langkah ikut ditulis ke draft — dan kandidat modem SENGAJA tidak ikut", async () => {
+        const h = harness();
+        await reachConfirm(h);
+        expect(h.base.draftStore.putDraft).toHaveBeenCalled();
+        const [ownerKey, d] = h.base.draftStore.putDraft.mock.calls.at(-1);
+        expect(ownerKey).toBe("628999@s.whatsapp.net");
+        expect(d.data.nama).toBe("Budi Santoso");
+        expect(d.ktpSaved).toBe(true);
+        expect(d.rumahSaved).toBe(true);
+        expect(d.lokasi).toBeTruthy();
+        // Status modem justru hal yang BERUBAH selagi teknisi menunggu — memulihkannya dari draft
+        // akan menyajikan vonis basi (mis. tetap ⛔ padahal admin sudah membebaskannya).
+        expect(d.candidate).toBeUndefined();
+        expect(d.candidates).toBeUndefined();
+    });
+
+    test("#PSB saat draft ada → TAWARKAN lanjut, bukan minta semuanya diulang", async () => {
+        const h = harness({ draftStore: memDraftStore(DRAFT_LENGKAP) });
+        const res = await kirimPsb(h);
+        expect(res.resumeOffered).toBe(true);
+        expect(h.getState().step).toBe("PSB_RESUME_ASK");
+        const teks = h.base.reply.mock.calls.at(-1)[0];
+        expect(teks).toMatch(/Septiana Kurniawati/);
+        expect(teks).toMatch(/LANJUT/);
+        expect(teks).toMatch(/BARU/);
+    });
+
+    test("LANJUT → modem dibaca ULANG, tanpa satu pun foto/isian diminta lagi", async () => {
+        const h = harness({ draftStore: memDraftStore(DRAFT_LENGKAP) });
+        await kirimPsb(h);
+        await jawab(h, "LANJUT");
+        expect(h.base.findRecentPsbCandidates).toHaveBeenCalled();
+        expect(h.base.downloadMedia).not.toHaveBeenCalled();
+        expect(h.getState().step).toBe("PSB_CONFIRM_MODEM");
+        expect(h.getState().context.data.nama).toBe("Septiana Kurniawati");
+        expect(h.getState().context.lokasi).toEqual({ lat: -7.1, lng: 111.9 });
+    });
+
+    test("BARU → draft dibuang & teknisi diarahkan mulai dari awal", async () => {
+        const ds = memDraftStore(DRAFT_LENGKAP);
+        const h = harness({ draftStore: ds });
+        await kirimPsb(h);
+        await jawab(h, "BARU");
+        expect(ds.removeDraft).toHaveBeenCalled();
+        expect(h.base.reply.mock.calls.at(-1)[0]).toMatch(/#PSB/);
+    });
+
+    test("BATAL di layar tawaran hanya menutup pertanyaan — draft TETAP disimpan", async () => {
+        const ds = memDraftStore(DRAFT_LENGKAP);
+        const h = harness({ draftStore: ds });
+        await kirimPsb(h);
+        await jawab(h, "batal");
+        expect(ds.removeDraft).not.toHaveBeenCalled();
+        expect(h.base.reply.mock.calls.at(-1)[0]).toMatch(/tetap saya simpan/i);
+    });
+
+    test("BATAL di tengah wizard = pembatalan sungguhan → draft ikut dibuang", async () => {
+        const h = harness();
+        await reachConfirm(h);
+        await jawab(h, "batal");
+        expect(h.base.draftStore.removeDraft).toHaveBeenCalled();
+    });
+
+    test("sesi kedaluwarsa TIDAK boleh senyap: draft disimpan + cara melanjutkan diberitahukan", async () => {
+        const putDraft = jest.fn();
+        const sendReply = jest.fn(async () => {});
+        await handlePsbStateTimeout(
+            "628999@s.whatsapp.net",
+            { step: "PSB_CONFIRM_MODEM", context: { data: { nama: "Septiana" }, ktpSaved: true, rumahSaved: true, lokasi: { lat: 1, lng: 2 } } },
+            { draftStore: { putDraft }, sendReply }
+        );
+        expect(putDraft).toHaveBeenCalled();
+        const teks = sendReply.mock.calls[0][0].text;
+        expect(teks).toMatch(/tersimpan/i);
+        expect(teks).toMatch(/LANJUT/);
+    });
+
+    test("timeout tanpa konteks data → tak menyimpan sampah & tak mengirim apa pun", async () => {
+        const putDraft = jest.fn();
+        const sendReply = jest.fn(async () => {});
+        await handlePsbStateTimeout("628999@s.whatsapp.net", { step: "PSB_COLLECT_DOCS", context: null }, { draftStore: { putDraft }, sendReply });
+        expect(putDraft).not.toHaveBeenCalled();
+        expect(sendReply).not.toHaveBeenCalled();
+    });
+
+    test("provision BERHASIL → draft dihapus", async () => {
+        const h = harness();
+        await reachConfirm(h);
+        await jawab(h, "YA");
+        expect(h.base.draftStore.removeDraft).toHaveBeenCalled();
+    });
+
+    test("provision GAGAL → draft DIPERTAHANKAN (kegagalan bukan salah teknisi)", async () => {
+        const h = harness({
+            usersService: { upsertUserFromAdminPanel: jest.fn(async () => ({ status: 500, body: { message: "router mati" } })) }
+        });
+        await reachConfirm(h);
+        await jawab(h, "YA");
+        expect(h.base.draftStore.removeDraft).not.toHaveBeenCalled();
+        expect(h.base.reply.mock.calls.at(-1)[0]).toMatch(/SAYA SIMPAN/i);
     });
 });

@@ -3,12 +3,12 @@
  * Purpose: Helper context router WhatsApp untuk actor capability dan canonical sender resolution.
  * Caller: `message/raf.js`.
  * Deps: `../../lib/whatsapp-inbound-adapter` dan runtime message payload.
- * MainFuncs: `extractMessageContext`, `getOptionalJid`, dan `resolveActorCapabilities`.
+ * MainFuncs: `extractMessageContext`, `isControlEnvelope`, `getOptionalJid`, dan `resolveActorCapabilities`.
  * SideEffects: Tidak ada; helper ini hanya membaca payload runtime dan menghitung capability actor.
  */
 "use strict";
 
-const { normalizeIncomingMessage } = require("../../lib/whatsapp-inbound-adapter");
+const { normalizeIncomingMessage, isControlEnvelope } = require("../../lib/whatsapp-inbound-adapter");
 
 function getOptionalJid(msg, sender) {
     if (!sender || !sender.endsWith('@lid')) {
@@ -66,6 +66,7 @@ function resolveActorCapabilities({ ownerNumber, primarySenderId, optionalJid, p
 }
 
 module.exports = {
+    isControlEnvelope,
     extractMessageContext,
     getOptionalJid,
     resolveActorCapabilities

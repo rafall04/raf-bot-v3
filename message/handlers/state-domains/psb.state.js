@@ -9,6 +9,11 @@
  *          SN polosan tanpa `cari` ikut dicari) → tampilkan RINGKASAN data + username PPPoE rakitan + SN utk diverifikasi teknisi
  *          (YA/TIDAK/pilih-nomor) → HANYA setelah YA: buat pelanggan + secret PPPoE + push PPPoE+WiFi ke
  *          modem + welcome → ringkasan ke grup PSB. Konfirmasi = gate verifikasi sebelum sentuh apa pun.
+ *          KERJA TEKNISI DURABEL: tiap langkah ikut ditulis ke `lib/psb-draft-store` (data + jejak bukti
+ *          + lokasi), sesi yang mati karena timeout 15 menit MEMBERI KABAR + menyimpan draft, dan `#PSB`
+ *          berikutnya menawarkan LANJUT atau BARU. Alasannya: langkah modem sering menunggu ADMIN
+ *          membebaskan modem bekas — praktis selalu >15 menit — sehingga rancangan lama menjamin foto
+ *          KTP/rumah/lokasi + 7 kolom data hangus tiap kali teknisi kena ⛔ (insiden Tanjungharjo 12-08-2026).
  *          Username PPPoE dirakit bot dari Nama + Dusun jadi `<nama>-<dusun>@<realm>` (teknisi tak ketik
  *          format-nya), password pakai `config.defaultPPPoEPassword` (bukan acak). ALAMAT juga dirakit bot
  *          (`Dsn. X RT 014 RW 002 Ds. Y Kec. Z`) — teknisi hanya mengetik RT/RW, karena cuma itu yang khas
@@ -23,7 +28,9 @@
  *        boleh ditimpa), `fetchDeviceCapability` (`lib/wifi-bulk-reconcile` — SSID sadar-band:
  *        2.4G index 1 selalu, 5G index 5 hanya bila modem dual-band), `usersService` (`global.__apiUsersService`),
  *        `getConfig`, `packages`, `sendGroupSummary`. Require langsung: `./psb-caption-parser`, `fs`, `path`.
- * MainFuncs: `startPsbSession(context)`, `handlePsbConversationState(context)`, `stickerSn(sn)`/`snText(sn)`
+ * MainFuncs: `startPsbSession(context)`, `handlePsbConversationState(context)`,
+ *            `handlePsbStateTimeout(userId, state)` (terdaftar ke `registerStateTimeoutHandler`),
+ *            `stickerSn(sn)`/`snText(sn)`
  *            (SN ditampilkan dalam bentuk STIKER `HWTC…` lebih dulu, bentuk ACS 16-heksa menyusul —
  *            teknisi mencocokkan dengan mata ke stiker).
  * SideEffects: Tulis foto KTP/rumah + lokasi ke `uploads/psb/...`, buat pelanggan + push modem GenieACS +
@@ -51,7 +58,12 @@ const PSB_DATA_FIELDS = [
 const STEP_COLLECT = "PSB_COLLECT_DOCS";
 const STEP_CONFIRM = "PSB_CONFIRM_MODEM";
 const STEP_PICK = "PSB_PICK_MODEM";
-const PSB_STEPS = new Set([STEP_COLLECT, STEP_CONFIRM, STEP_PICK]);
+// Layar tawaran LANJUT/BARU saat teknisi kembali dan draft sesi lamanya masih ada.
+const STEP_RESUME = "PSB_RESUME_ASK";
+// Langkah yang KERJANYA layak diselamatkan saat sesi mati (STEP_RESUME tak ikut: isinya cuma
+// pertanyaan, drafnya sendiri sudah tersimpan).
+const RESUMABLE_STEPS = [STEP_COLLECT, STEP_CONFIRM, STEP_PICK];
+const PSB_STEPS = new Set([...RESUMABLE_STEPS, STEP_RESUME]);
 
 // Template caption PSB — dibalas bot saat teknisi belum/keliru mengisi. Tinggal salin & isi.
 const PSB_TEMPLATE = [
@@ -142,6 +154,7 @@ function withPsbDeps(context) {
         findPsbCandidatesByHint: context.findPsbCandidatesByHint || require("../../../lib/psb-genieacs-service").findPsbCandidatesByHint,
         fetchDeviceCapability: context.fetchDeviceCapability || require("../../../lib/wifi-bulk-reconcile").fetchDeviceCapability,
         scheduleService: context.scheduleService || require("../../../lib/psb-schedule-service"),
+        draftStore: context.draftStore || require("../../../lib/psb-draft-store"),
         usersService: context.usersService || global.__apiUsersService,
         getConfig: context.getConfig || (() => global.config || {}),
         packages: context.packages || global.packages || [],
@@ -335,6 +348,91 @@ async function safeReply(reply, text, logger) {
     try { if (reply) await reply(text); } catch (e) { logger?.error?.("[PSB_DM] gagal balas:", e.message); }
 }
 
+// ── Draft durabel ────────────────────────────────────────────────────────────────────────────
+// Conversation state PSB hidup di memori dan mati sendiri setelah 15 menit. Justru langkah
+// TERAKHIR-nya yang paling sering menunggu lama: modem yang masih tertaut pelanggan lama cuma bisa
+// dibebaskan ADMIN. Jadi tanpa draft, rancangan ini MENJAMIN kerja teknisi hangus setiap kali dia
+// kena ⛔ — foto KTP, 7 kolom data, foto rumah, share lokasi, semuanya diketik & difoto ulang.
+// `saveStep` sengaja menggantikan pemanggilan `setUserState` langsung supaya state in-memory dan
+// draft di disk TIDAK PERNAH terpisah; draft yang ketinggalan satu langkah sama menyesatkannya
+// dengan tak ada draft sama sekali.
+//
+// Yang TIDAK ikut disimpan: `candidate`/`candidates` (snapshot ACS). Kandidat modem cepat basi —
+// justru itu yang harus dibaca ULANG saat dilanjutkan, karena selama menunggu itulah modemnya
+// dibebaskan. NEVER-THROW: gagal menyimpan draft tak boleh menjatuhkan wizard.
+function draftFromCtx(step, ctx) {
+    return {
+        step,
+        tempId: ctx.tempId,
+        dir: ctx.dir,
+        data: ctx.data,
+        ktpSaved: ctx.ktpSaved,
+        rumahSaved: ctx.rumahSaved,
+        lokasi: ctx.lokasi,
+        scheduleId: ctx.scheduleId,
+        staff: ctx.staff
+    };
+}
+
+function saveStep(context, step, ctx) {
+    const { setUserState, stateSender, draftStore, logger = console } = context;
+    setUserState(stateSender, { step, _scope: "teknisi", context: ctx });
+    try {
+        draftStore?.putDraft?.(stateSender, draftFromCtx(step, ctx));
+    } catch (e) {
+        logger?.error?.("[PSB_DM] gagal menyimpan draft:", e.message);
+    }
+}
+
+function readDraft(context) {
+    try {
+        return context.draftStore?.getDraft?.(context.stateSender) || null;
+    } catch (e) {
+        context.logger?.error?.("[PSB_DM] gagal membaca draft:", e.message);
+        return null;
+    }
+}
+
+/**
+ * Ada draft PSB tersimpan milik teknisi ini? Dipakai `message/raf.js` supaya kata sambung
+ * `refresh`/`lanjut` hanya diterima bila memang ADA yang bisa dilanjutkan — di luar itu kata
+ * sesumum itu tak boleh membajak alur lain. NEVER-THROW.
+ */
+function hasPsbDraft(stateSender, deps = {}) {
+    try {
+        const store = deps.draftStore || require("../../../lib/psb-draft-store");
+        return !!store.getDraft(stateSender);
+    } catch (_e) {
+        return false;
+    }
+}
+
+function forgetDraft(context) {
+    try {
+        context.draftStore?.removeDraft?.(context.stateSender);
+    } catch (e) {
+        context.logger?.error?.("[PSB_DM] gagal menghapus draft:", e.message);
+    }
+}
+
+// Ringkasan draft + tawaran LANJUT/BARU. Sengaja menampilkan checklist bukti supaya teknisi
+// yakin fotonya memang masih ada (file fisiknya tak pernah ikut hilang — ia sudah di `uploads/psb`).
+function resumeOfferText(draft, nowMs) {
+    const d = (draft && draft.data) || {};
+    const tanda = (ok) => (ok ? "✅" : "⬜");
+    return [
+        `📋 Ada *PSB yang belum selesai* (terakhir ${minutesAgo(draft.updatedAt, nowMs)}):`,
+        ``,
+        `👤 ${d.nama || "-"} · Dusun ${d.dusun || "-"}`,
+        `📦 ${d.paket || "-"} · 📶 ${d.wifi_ssid || "-"}`,
+        `📱 ${d.hp || "-"}`,
+        `${tanda(draft.ktpSaved)} Foto KTP · ${tanda(draft.rumahSaved)} Foto rumah · ${tanda(!!draft.lokasi)} Lokasi`,
+        ``,
+        `▶️ Balas *LANJUT* — diteruskan dari sini, bot cek modem lagi. Tak usah foto/ketik ulang.`,
+        `🆕 Balas *BARU* — buang draft ini, mulai pelanggan lain dari awal.`
+    ].join("\n");
+}
+
 // Simpan buffer media ke folder sesi PSB (best-effort). Return path relatif atau null.
 function saveMedia(dir, filename, buffer) {
     try {
@@ -361,7 +459,7 @@ function reuseScheduleMedia(srcPath, dir, filename) {
 
 // ── C/2: mulai sesi #PSB TERHUBUNG jadwal papan (#PSB PSB-<n>) — tarik data + REUSE foto (nol ketik ulang). ──
 async function startLinkedSession(context, scheduleId) {
-    const { staff, stateSender, reply, setUserState, packages, uploadsBaseDir, scheduleService, nowMs = Date.now(), logger = console } = context;
+    const { staff, reply, packages, uploadsBaseDir, scheduleService, nowMs = Date.now(), logger = console } = context;
     let rec = null;
     try { rec = await scheduleService.getScheduleById(scheduleId); } catch (e) { logger?.error?.("[PSB_DM] baca jadwal gagal:", e.message); }
     if (!rec) { await safeReply(reply, `❌ Jadwal PSB-${scheduleId} tak ditemukan. Ketik *papan psb* untuk lihat daftar.`, logger); return { started: false }; }
@@ -380,7 +478,7 @@ async function startLinkedSession(context, scheduleId) {
     const ctx = { data: seed, staff, tempId, dir, ktpSaved, rumahSaved, lokasi, scheduleId: rec.id };
     const v = validatePsbData(ctx.data, { packages: pkgs, requireDusun: true, requireRtRw: true });
     if (v.ok) ctx.data = v.data;
-    setUserState(stateSender, { step: STEP_COLLECT, _scope: "teknisi", context: ctx });
+    saveStep(context, STEP_COLLECT, ctx);
 
     const filled = `👤 ${seed.nama} · Dusun ${seed.dusun} · 📦 ${seed.paket} · 📱 ${seed.hp}`;
     if (v.ok && ktpSaved && rumahSaved && lokasi) {
@@ -401,6 +499,16 @@ async function startPsbSession(context) {
     const linkedRefId = parsePsbScheduleRef(caption);
     if (linkedRefId && scheduleService) {
         return await startLinkedSession(context, linkedRefId);
+    }
+
+    // Draft sesi sebelumnya masih ada → TAWARKAN dulu, jangan minta semuanya diulang. Diperiksa
+    // SEBELUM syarat foto KTP, karena teknisi yang mau melanjutkan tak punya alasan memotret KTP
+    // lagi — dan justru itu beban yang membuat kegagalan di langkah modem terasa tak berujung.
+    const draftLama = readDraft(context);
+    if (draftLama) {
+        setUserState(stateSender, { step: STEP_RESUME, _scope: "teknisi", context: { draft: draftLama, staff } });
+        await safeReply(reply, resumeOfferText(draftLama, nowMs), logger);
+        return { started: true, resumeOffered: true };
     }
 
     if (type !== "imageMessage") {
@@ -430,7 +538,7 @@ async function startPsbSession(context) {
     }
 
     const ctx = { data: seed, staff, tempId, dir, ktpSaved, rumahSaved: false, lokasi: null };
-    setUserState(stateSender, { step: STEP_COLLECT, _scope: "teknisi", context: ctx });
+    saveStep(context, STEP_COLLECT, ctx);
 
     const v = validatePsbData(ctx.data, { packages: pkgs, requireDusun: true, requireRtRw: true });
     await safeReply(reply, `✅ Foto KTP diterima.\n\n${collectChecklistText(context, ctx, v)}`, logger);
@@ -518,22 +626,39 @@ function provBadge(context, candidate) {
 // GERBANG: boleh tidaknya modem ini dipakai. Mengembalikan pesan penolakan, atau null bila boleh.
 // Sengaja gagal-tertutup untuk status `terpakai`; modem tanpa klasifikasi TETAP boleh (klasifikasi
 // adalah lapisan pengaman tambahan, bukan syarat — jangan sampai router mati = PSB mati).
-function assignmentBlockReason(candidate) {
+// Ada kandidat LAIN di daftar yang boleh dipakai? Menentukan apakah menyuruh "balas TIDAK" masih
+// masuk akal — kalau semua diblokir, saran itu justru mengembalikan teknisi ke daftar yang sama.
+function adaKandidatLainYangBoleh(candidates, terblokir) {
+    return (Array.isArray(candidates) ? candidates : [])
+        .some((c) => c !== terblokir && !(c && c.provenance && c.provenance.assignable === false));
+}
+
+function assignmentBlockReason(candidate, { adaAlternatif = false } = {}) {
     const p = candidate && candidate.provenance;
     if (!p || p.assignable !== false) return null;
     const siapa = p.ownerName ? `*${p.ownerName}*` : "pelanggan lain";
     return [
-        `⛔ Modem SN \`${snText(candidate.serialNumber)}\` *masih dipakai* ${siapa}.`,
+        `⛔ Modem SN \`${snText(candidate.serialNumber)}\` *masih tercatat* milik ${siapa}.`,
         p.reason ? `Alasan: ${p.reason}.` : null,
         `Kalau dipakai sekarang, PPPoE & WiFi ${siapa} akan tertimpa dan internetnya mati.`,
         ``,
-        `👉 Cek ulang stiker modem, lalu balas *TIDAK* untuk pilih dari daftar — atau *BATAL*.`
+        // JALAN KELUAR WAJIB DISEBUT. Versi lama hanya menawarkan "balas TIDAK untuk pilih dari
+        // daftar" — padahal jalur yang membawa teknisi ke sini (`cari <pemilik lama>`) hampir selalu
+        // mengembalikan SATU modem: yang barusan diblokir. "TIDAK" lalu menampilkan daftar berisi
+        // modem itu lagi → teknisi berputar tanpa ujung dan tak pernah diberi tahu jalan keluarnya
+        // (insiden Tanjungharjo 2026-08-12, teknisi terjebak 13:48–13:50 sampai menyerah).
+        // Penyebab paling sering: pelanggan lama sudah berhenti tapi recordnya belum ditutup — dan
+        // itu HANYA bisa dibereskan admin, bukan teknisi di lapangan.
+        `👉 Kalau ${siapa} memang *sudah berhenti*: minta admin menutup pelanggan itu dulu, lalu balas *REFRESH* di sini.`,
+        `👉 Kalau *salah ambil modem*: cek ulang stiker, lalu ketik \`cari <SN stiker>\`.`,
+        adaAlternatif ? `👉 Modem lain di daftar masih boleh dipakai: balas *TIDAK* lalu pilih *angka*.` : null,
+        `❌ Batalkan: *BATAL* (datamu tetap tersimpan, bisa dilanjutkan nanti).`
     ].filter(Boolean).join("\n");
 }
 
 // ── Deteksi modem + minta konfirmasi (BELUM push apa pun) ──
 async function detectAndAskConfirm(context, ctx) {
-    const { reply, setUserState, stateSender, findRecentPsbCandidates, getConfig, nowMs = Date.now(), logger = console } = context;
+    const { reply, findRecentPsbCandidates, getConfig, nowMs = Date.now(), logger = console } = context;
     const fullCfg = (getConfig && getConfig()) || global.config || {};
     const cfg = fullCfg.psbIntake || {};
     const windowMinutes = parseInt(cfg.recencyWindowMinutes, 10) > 0 ? parseInt(cfg.recencyWindowMinutes, 10) : 120;
@@ -564,7 +689,7 @@ async function detectAndAskConfirm(context, ctx) {
     candidates = await annotateCandidates(context, candidates);
 
     if (candidates.length === 0) {
-        setUserState(stateSender, { step: STEP_CONFIRM, _scope: "teknisi", context: { ...ctx, candidate: null, candidates: [] } });
+        saveStep(context, STEP_CONFIRM, { ...ctx, candidate: null, candidates: [] });
         // KEJUJURAN: gagal-baca ACS ≠ "modemnya tidak ada". Dua pesan berbeda supaya teknisi
         // tidak memvonis modem (atau membongkar GenieACS) padahal yang sakit koneksi/ACS-nya.
         if (scanFailed) {
@@ -591,13 +716,15 @@ async function detectAndAskConfirm(context, ctx) {
     }
 
     const top = candidates[0];
-    setUserState(stateSender, { step: STEP_CONFIRM, _scope: "teknisi", context: { ...ctx, candidate: top, candidates } });
+    saveStep(context, STEP_CONFIRM, { ...ctx, candidate: top, candidates });
     await safeReply(reply, [
         `📋 *CEK DULU sebelum dieksekusi:*`,
         ...customerRecapLines(ctx),
         `📡 Modem: SN \`${snText(top.serialNumber)}\` · ${top.model} · ${detectedLabel(top, nowMs)}${provBadge(context, top)}`,
         ...(offlineWarningLine(top, nowMs) ? [offlineWarningLine(top, nowMs)] : []),
-        ...(assignmentBlockReason(top) ? [``, assignmentBlockReason(top)] : []),
+        ...(assignmentBlockReason(top, { adaAlternatif: adaKandidatLainYangBoleh(candidates, top) })
+            ? [``, assignmentBlockReason(top, { adaAlternatif: adaKandidatLainYangBoleh(candidates, top) })]
+            : []),
         ``,
         `Semua BENAR & modem cocok stiker? Balas *YA* (eksekusi) · *TIDAK* (ganti modem) · *BATAL*`
     ].join("\n"), logger);
@@ -624,7 +751,7 @@ function looksLikeSnInput(text) {
 // sudah lama), jadi satu-satunya cara menemukannya adalah dicari — lewat potongan SN di stiker,
 // atau lewat nama/PPPoE pemilik lamanya yang masih tertulis di dalam modem.
 async function searchAndList(context, ctx, hint) {
-    const { reply, setUserState, stateSender, findPsbCandidatesByHint, nowMs = Date.now(), logger = console } = context;
+    const { reply, findPsbCandidatesByHint, nowMs = Date.now(), logger = console } = context;
 
     let found = [];
     let searchFailed = false;
@@ -655,15 +782,34 @@ async function searchAndList(context, ctx, hint) {
     }
 
     const annotated = await annotateCandidates(context, found);
-    setUserState(stateSender, { step: STEP_PICK, _scope: "teknisi", context: { ...ctx, candidates: annotated } });
+    saveStep(context, STEP_PICK, { ...ctx, candidates: annotated });
     await safeReply(reply, `🔎 Hasil cari "*${hint}*":\n${candidateListText(context, annotated, nowMs)}`, logger);
 }
 
 function candidateListText(context, candidates, nowMs) {
     const nums = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
-    const lines = candidates.slice(0, 10).map((c, i) =>
+    const daftar = candidates.slice(0, 10);
+    const lines = daftar.map((c, i) =>
         `${nums[i] || (i + 1) + "."} SN \`${snText(c.serialNumber)}\` · ${c.model} · ${detectedLabel(c, nowMs)}${provBadge(context, c)}`);
-    return `Pilih modem yang cocok dgn stiker (balas *angka*), atau *REFRESH* / *BATAL*:\n${lines.join("\n")}`;
+
+    // Semua kandidat ⛔ → menyuruh "pilih angka" adalah jalan buntu: apa pun yang dipilih ditolak,
+    // dan penolakannya menyuruh kembali ke daftar ini. Sebutkan jalan keluarnya DI SINI, di layar
+    // tempat teknisi benar-benar berputar (insiden Tanjungharjo 2026-08-12).
+    const semuaDiblokir = daftar.length > 0
+        && daftar.every((c) => c && c.provenance && c.provenance.assignable === false);
+
+    return [
+        `Pilih modem yang cocok dgn stiker (balas *angka*), atau *REFRESH* / *BATAL*:`,
+        lines.join("\n"),
+        semuaDiblokir
+            ? [
+                ``,
+                `⚠️ *Semua modem di daftar ini ⛔ TERPAKAI* — tak ada yang bisa dipilih.`,
+                `👉 Pemilik lamanya sudah berhenti? minta admin menutup pelanggan itu dulu, lalu balas *REFRESH*.`,
+                `👉 Salah ambil modem? ketik \`cari <SN stiker>\`.`
+            ].join("\n")
+            : null
+    ].filter(Boolean).join("\n");
 }
 
 // Baca kapabilitas band modem dari GenieACS → indeks SSID yang wajar dikelola pelanggan.
@@ -752,14 +898,17 @@ async function provision(context, ctx, candidate) {
         });
     } catch (e) {
         logger?.error?.("[PSB_DM] provision throw:", e.message);
-        await safeReply(reply, `❌ Gagal membuat pelanggan: ${e.message}`, logger);
+        // Draft SENGAJA tidak dibuang saat gagal: kegagalannya bisa transien (router/ACS sedang
+        // ngadat), dan memaksa teknisi memotret KTP + rumah lagi adalah hukuman untuk kesalahan
+        // yang bukan miliknya.
+        await safeReply(reply, `❌ Gagal membuat pelanggan: ${e.message}\n\nDatamu SAYA SIMPAN — ketik *#PSB* lalu balas *LANJUT* untuk mencoba lagi.`, logger);
         deleteUserState(stateSender);
         return;
     }
 
     if (!result || result.status >= 400) {
         const errMsg = (result && result.body && result.body.message) || "gagal membuat pelanggan";
-        await safeReply(reply, `❌ Gagal daftar *${ctx.data.nama}*: ${errMsg}`, logger);
+        await safeReply(reply, `❌ Gagal daftar *${ctx.data.nama}*: ${errMsg}\n\nDatamu SAYA SIMPAN — ketik *#PSB* lalu balas *LANJUT* untuk mencoba lagi.`, logger);
         deleteUserState(stateSender);
         return;
     }
@@ -910,15 +1059,88 @@ async function provision(context, ctx, candidate) {
         }
     } catch (e) { logger?.error?.("[PSB_DM] ringkasan grup gagal:", e.message); }
 
+    // Pelanggan BERHASIL dibuat → draft tak berguna lagi. Dihapus hanya di sini, supaya semua
+    // jalur gagal/timeout tetap bisa dilanjutkan.
+    forgetDraft(context);
     deleteUserState(stateSender);
+}
+
+/**
+ * Jawaban atas tawaran LANJUT/BARU. Inti perbaikan "kerja teknisi hangus": draft memulihkan DATA
+ * dan BUKTI, tapi TIDAK pernah memulihkan kandidat modem — status modem justru hal yang berubah
+ * selama teknisi menunggu (itulah sebabnya dia menunggu), jadi selalu dibaca ulang dari ACS.
+ */
+async function handleResumeAnswer(context, lower) {
+    const { teknisiState, reply, deleteUserState, stateSender, packages, logger = console } = context;
+    const draft = (teknisiState && teknisiState.context && teknisiState.context.draft) || null;
+
+    if (["batal", "cancel", "ga jadi", "gajadi"].includes(lower)) {
+        // Batal di layar TAWARAN hanya menutup pertanyaannya — draftnya sengaja DIPERTAHANKAN,
+        // karena teknisi di sini belum tentu membatalkan PSB-nya (bisa jadi cuma salah ketik).
+        deleteUserState(stateSender);
+        await safeReply(reply, "❌ Oke. Draft PSB tetap saya simpan — ketik *#PSB* kapan saja untuk melanjutkan.", logger);
+        return { handled: true };
+    }
+
+    if (["baru", "mulai baru", "ulang", "mulai dari awal"].includes(lower)) {
+        forgetDraft(context);
+        deleteUserState(stateSender);
+        await safeReply(reply, "🗑️ Draft lama dibuang. Kirim *#PSB* + *foto KTP* untuk mulai dari awal.", logger);
+        return { handled: true };
+    }
+
+    if (!["lanjut", "lanjutkan", "teruskan", "terusin", "resume", "ya", "y", "ok", "oke"].includes(lower)) {
+        await safeReply(reply, "Balas *LANJUT* (teruskan yang tadi) atau *BARU* (mulai pelanggan lain dari awal).", logger);
+        return { handled: true };
+    }
+
+    if (!draft || !draft.data) {
+        forgetDraft(context);
+        deleteUserState(stateSender);
+        await safeReply(reply, "⚠️ Draftnya sudah tidak ada. Mulai lagi: *#PSB* + foto KTP.", logger);
+        return { handled: true };
+    }
+
+    const ctx = {
+        data: draft.data,
+        staff: draft.staff || (teknisiState.context && teknisiState.context.staff),
+        tempId: draft.tempId,
+        dir: draft.dir,
+        ktpSaved: !!draft.ktpSaved,
+        rumahSaved: !!draft.rumahSaved,
+        lokasi: draft.lokasi || null,
+        scheduleId: draft.scheduleId || null
+    };
+
+    const v = validatePsbData(ctx.data, { packages: packages || global.packages || [], requireDusun: true, requireRtRw: true });
+    if (v.ok) ctx.data = v.data;
+
+    if (v.ok && ctx.ktpSaved && ctx.rumahSaved && ctx.lokasi) {
+        await safeReply(reply, "🔄 Dilanjutkan — data & bukti yang tadi dipakai lagi. Saya cek modemnya sekarang…", logger);
+        await detectAndAskConfirm(context, ctx);
+    } else {
+        saveStep(context, STEP_COLLECT, ctx);
+        await safeReply(reply, `🔄 Dilanjutkan. Tinggal lengkapi yang kurang:\n\n${collectChecklistText(context, ctx, v)}`, logger);
+    }
+    return { handled: true };
 }
 
 // ── Router state (owner "psb") ──
 async function handlePsbConversationState(context) {
     context = withPsbDeps(context);
-    const { stateStep, teknisiState, type, msg, chats, reply, downloadMedia, setUserState, deleteUserState, stateSender, nowMs = Date.now(), logger = console } = context;
+    const { stateStep, teknisiState, type, msg, chats, reply, downloadMedia, deleteUserState, stateSender, nowMs = Date.now(), logger = console } = context;
 
     if (!PSB_STEPS.has(stateStep)) return { handled: false };
+
+    const text = String(chats || "").trim();
+    const lower = text.toLowerCase();
+
+    // Tawaran LANJUT/BARU ditangani PALING DULU: konteks step ini berisi `draft`, bukan `data`,
+    // sehingga gerbang "konteks rusak" di bawah akan salah memvonisnya sesi yang terputus.
+    if (stateStep === STEP_RESUME) {
+        return await handleResumeAnswer(context, lower);
+    }
+
     const ctx = (teknisiState && teknisiState.context) || null;
     if (!ctx || !ctx.data) {
         // Sesi PSB hilang di tengah jalan (state terhapus / konteks rusak). Dulu di sini hanya
@@ -934,9 +1156,10 @@ async function handlePsbConversationState(context) {
         return { handled: true };
     }
 
-    const text = String(chats || "").trim();
-    const lower = text.toLowerCase();
     if (["batal", "cancel", "ga jadi", "gajadi"].includes(lower)) {
+        // BATAL EKSPLISIT = teknisi memang membatalkan → draft ikut dibuang. Bedakan dari sesi yang
+        // MATI SENDIRI karena timeout: di sana draft justru diselamatkan (lihat handlePsbStateTimeout).
+        forgetDraft(context);
         deleteUserState(stateSender);
         await safeReply(reply, "❌ PSB dibatalkan. Tidak ada data/perubahan yang disimpan.", logger);
         return { handled: true };
@@ -976,7 +1199,7 @@ async function handlePsbConversationState(context) {
         // Cek kelengkapan tiap pesan. Bila lengkap → adopsi nilai ternormalisasi (paket resolved, hp joined).
         const v = validatePsbData(ctx.data, { packages: pkgs, requireDusun: true, requireRtRw: true });
         if (v.ok) ctx.data = v.data;
-        setUserState(stateSender, { step: STEP_COLLECT, _scope: "teknisi", context: ctx });
+        saveStep(context, STEP_COLLECT, ctx);
 
         if (v.ok && ctx.ktpSaved && ctx.rumahSaved && ctx.lokasi) {
             await detectAndAskConfirm(context, ctx);
@@ -991,14 +1214,14 @@ async function handlePsbConversationState(context) {
         if (["ya", "yes", "ok", "oke", "cocok", "y"].includes(lower)) {
             if (!ctx.candidate) { await safeReply(reply, "Belum ada modem terbaca. Balas *REFRESH* setelah modem online.", logger); return { handled: true }; }
             // GERBANG: modem yang masih melayani pelanggan lain TIDAK boleh ditimpa. Tak ada opsi paksa dari WA.
-            const blocked = assignmentBlockReason(ctx.candidate);
+            const blocked = assignmentBlockReason(ctx.candidate, { adaAlternatif: adaKandidatLainYangBoleh(ctx.candidates, ctx.candidate) });
             if (blocked) { await safeReply(reply, blocked, logger); return { handled: true }; }
             await provision(context, ctx, ctx.candidate);
             return { handled: true };
         }
         if (["tidak", "beda", "no", "n", "salah"].includes(lower)) {
             if (!ctx.candidates || ctx.candidates.length === 0) { await safeReply(reply, "Tak ada kandidat lain. Balas *REFRESH* atau *BATAL*.", logger); return { handled: true }; }
-            setUserState(stateSender, { step: STEP_PICK, _scope: "teknisi", context: ctx });
+            saveStep(context, STEP_PICK, ctx);
             await safeReply(reply, candidateListText(context, ctx.candidates, nowMs), logger);
             return { handled: true };
         }
@@ -1024,7 +1247,7 @@ async function handlePsbConversationState(context) {
         if (Number.isInteger(n) && n >= 1 && n <= (ctx.candidates || []).length) {
             const picked = ctx.candidates[n - 1];
             // Gerbang yang sama berlaku di jalur pilih-nomor — jangan cuma dijaga di jalur YA.
-            const blocked = assignmentBlockReason(picked);
+            const blocked = assignmentBlockReason(picked, { adaAlternatif: adaKandidatLainYangBoleh(ctx.candidates, picked) });
             if (blocked) { await safeReply(reply, blocked, logger); return { handled: true }; }
             await provision(context, ctx, picked);
             return { handled: true };
@@ -1036,8 +1259,56 @@ async function handlePsbConversationState(context) {
     return { handled: false };
 }
 
+// ── Sesi kedaluwarsa TIDAK BOLEH senyap ──────────────────────────────────────────────────────
+// `conversation-handler` menghapus state setelah 15 menit dan SUDAH menyediakan registry handler
+// timeout (`registerStateTimeoutHandler`) — tapi PSB tak pernah mendaftar apa pun ke situ. Akibatnya
+// sesi lenyap tanpa sepatah kata: teknisi mengetik `ya`/`refresh` dan bot DIAM TOTAL (terekam di prod
+// 2026-08-12 14:23–14:26: `Final intent: undefined` lalu tak ada balasan sama sekali), lalu wajar
+// menyimpulkan botnya rusak. Dua hal yang dikerjakan di sini: SIMPAN draftnya, lalu BERI TAHU cara
+// melanjutkan. NEVER-THROW — ini jalan di timer, tak ada pemanggil yang bisa menangkap errornya.
+async function handlePsbStateTimeout(userId, state, deps = {}) {
+    const ctx = (state && state.context) || null;
+    if (!ctx || !ctx.data) return;
+
+    try {
+        const store = deps.draftStore || require("../../../lib/psb-draft-store");
+        store.putDraft(userId, draftFromCtx(state.step, ctx));
+    } catch (e) {
+        console.error("[PSB_DM] simpan draft saat timeout gagal:", e.message);
+    }
+
+    try {
+        const sendReply = deps.sendReply || require("../reply-runtime").sendReply;
+        await sendReply({
+            recipient: userId,
+            text: [
+                `⏳ Sesi *PSB${ctx.data.nama ? ` ${ctx.data.nama}` : ""}* berhenti karena 15 menit tak ada balasan.`,
+                ``,
+                `✅ Tenang — *datanya tersimpan*: foto KTP, foto rumah, lokasi, dan semua isian TIDAK hilang.`,
+                ``,
+                `▶️ Mau lanjut (mis. modemnya sudah dibebaskan admin)? ketik *#PSB* lalu balas *LANJUT*.`
+            ].join("\n")
+        });
+    } catch (e) {
+        console.error("[PSB_DM] kabar sesi kedaluwarsa gagal:", e.message);
+    }
+}
+
+// Daftarkan ke registry timeout milik conversation-handler. Hanya langkah yang MENYIMPAN KERJA
+// teknisi (STEP_RESUME tak ikut — isinya cuma pertanyaan, draftnya sudah aman di disk).
+try {
+    const { registerStateTimeoutHandler } = require("../conversation-handler");
+    if (typeof registerStateTimeoutHandler === "function") {
+        RESUMABLE_STEPS.forEach((step) => registerStateTimeoutHandler(step, handlePsbStateTimeout));
+    }
+} catch (e) {
+    console.error("[PSB_DM] gagal mendaftarkan handler timeout PSB:", e.message);
+}
+
 module.exports = {
     handlePsbConversationState,
+    handlePsbStateTimeout,
+    hasPsbDraft,
     startPsbSession,
     parsePsbScheduleRef,
     buildPppoeUsername,
@@ -1047,7 +1318,9 @@ module.exports = {
     isPsbTutorialTrigger,
     psbTutorialText,
     PSB_STEPS,
+    RESUMABLE_STEPS,
     STEP_COLLECT,
     STEP_CONFIRM,
-    STEP_PICK
+    STEP_PICK,
+    STEP_RESUME
 };

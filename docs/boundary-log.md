@@ -1415,3 +1415,14 @@
 - **GOTCHA idempotensi:** item yang tertinggal `processing` setelah restart **TIDAK diulang otomatis** — ia bisa sudah mencatat uang tapi belum menutup pengajuannya. `markInterruptedItems` menandainya perlu diperiksa manual. Satu baris merah lebih murah daripada uang terhitung dua kali.
 - **Anti-dobel:** hanya satu pekerjaan `queued|running` boleh ada; enqueue kedua dijawab 409 + job_id yang sedang jalan.
 - **Gate:** `config.bulkApprovalJob.enabled` default OFF (jalur lama tetap jalan bila mati). **Tes:** `services/__tests__/bulk-approval-job.service.test.js` (9).
+
+<a id="b220"></a>
+
+### Fix 2026-08-12 (PSB: kerja teknisi durabel + envelope kontrol tak lagi jadi pesan)
+
+- **Owner:** `lib/psb-draft-store.js` (BARU, `database/psb-drafts.json`) menyimpan draft wizard PSB per teknisi; `psb.state.js` menulis lewat `saveStep` (menggantikan `setUserState` langsung), mendaftar `handlePsbStateTimeout` ke `registerStateTimeoutHandler`, dan menambah step `PSB_RESUME_ASK` (LANJUT/BARU).
+- **AKAR:** langkah modem sering menunggu ADMIN membebaskan modem bekas — praktis selalu >15 menit — sehingga state in-memory mati duluan dan foto KTP/rumah + lokasi + 7 kolom data PASTI hangus. Sesi mati pun senyap: PSB tak pernah mendaftar handler timeout.
+- **Owner kedua:** `lib/whatsapp-inbound-adapter.js` kini membuang `protocolMessage`/`senderKeyDistributionMessage`/`reactionMessage` (`isControlEnvelope`, dipakai `message/raf.js` sejajar skip status/broadcast). Terukur 24% pesan masuk prod = envelope kontrol yang dulu lolos sebagai teks kosong → wizard membalas dua kali.
+- **Juga ditutup:** pesan tolak modem menyebut jalan keluar nyata (admin tutup pelanggan lama → `REFRESH`) alih-alih "balas TIDAK" ke daftar yang isinya modem terblokir itu sendiri; `psb` tanpa pagar TAPI berfoto tetap memicu wizard; `refresh`/`lanjut` diterima bila `hasPsbDraft`.
+- **Draft dihapus HANYA saat provision sukses / BARU / BATAL di tengah wizard** — gagal & timeout justru mempertahankannya. TTL 48 jam.
+- **Tes:** `lib/__tests__/psb-draft-store.test.js` (9), `lib/__tests__/whatsapp-inbound-adapter.test.js` (+6), `message/handlers/state-domains/__tests__/psb.state.test.js` (+13).

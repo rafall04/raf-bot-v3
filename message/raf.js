@@ -127,6 +127,7 @@ const { handleTopup, handleDelSaldo, handleTransfer } = require('./handlers/bala
 const { handleProsesTicket, handleOTW, handleSampaiLokasi, handleVerifikasiOTP, handleSelesaiTicket, handleCompleteTicket, handleTeknisiPhotoUpload, handleTeknisiResolutionNotesState, handleTeknisiCompletionConfirmationState } = require('./handlers/teknisi-workflow-handler');
 const {
     extractMessageContext,
+    isControlEnvelope,
     getOptionalJid,
     resolveActorCapabilities
 } = require('./handlers/raf-context');
@@ -280,6 +281,18 @@ module.exports = async (raf, msg, m, options = {}) => {
     if (inboundRemoteJid === 'status@broadcast'
         || inboundRemoteJid.endsWith('@broadcast')
         || inboundRemoteJid.endsWith('@newsletter')) {
+        return;
+    }
+
+    // ── Abaikan envelope KONTROL (protocolMessage / senderKeyDistributionMessage / reaksi) ──
+    // Bukan pesan manusia dan tak pernah berisi teks, tapi Baileys tetap mengantarkannya lewat
+    // `messages.upsert` — `protocolMessage` bahkan menyusul ±2 detik sesudah hampir tiap pesan nyata.
+    // Dulu ia lolos sebagai pesan berteks KOSONG dan ikut masuk ke conversation state: teks kosong
+    // tak cocok YA/TIDAK/angka, jadi wizard jatuh ke cabang "balasan tak dikenal" dan mengirim teks
+    // bantuannya UNTUK KEDUA KALINYA — itulah pesan dobel di wizard PSB (Tanjungharjo 2026-08-12).
+    // Ditaruh sejajar dengan skip status/broadcast/newsletter di atas: dibuang SEBELUM context
+    // dibangun, di-log, atau di-resolve, supaya SEMUA state domain ikut terlindungi sekaligus.
+    if (isControlEnvelope(msg)) {
         return;
     }
 
@@ -853,10 +866,24 @@ module.exports = async (raf, msg, m, options = {}) => {
             const psbDmCfg = (global.config && global.config.psbIntake) || {};
             const psbCaption = chats || msg.message?.imageMessage?.caption || '';
             const isPsbCmd = /^\s*#psb\b/i.test(String(psbCaption));
+            // `psb` TANPA pagar, TAPI berfoto: tetap dihitung mulai PSB. Bare "psb" sengaja tak memicu
+            // sebagai TEKS (terlalu sering muncul di kalimat biasa) — namun sebuah FOTO ber-caption
+            // "psb" dari akun staf tak punya arti lain. Tanpa keringanan ini teknisi yang salah ketik
+            // satu karakter tidak mendapat balasan APA PUN dan menyimpulkan botnya rusak
+            // (terekam prod 2026-08-12 14:25:51: imageMessage caption "psb" → intent undefined, senyap).
+            const isPsbFotoTanpaPagar = type === 'imageMessage' && /^\s*psb\b/i.test(String(psbCaption));
             // C/2: "#PSB PSB-<n>" boleh mulai via TEKS (tanpa foto) — bukti diambil dari jadwal papan.
             let psbLinkedRef = null;
             if (isPsbCmd) { try { psbLinkedRef = require('./handlers/state-domains/psb.state').parsePsbScheduleRef(psbCaption); } catch (_e) { psbLinkedRef = null; } }
-            if (psbDmCfg.enabled === true && isPsbCmd && (type === 'imageMessage' || psbLinkedRef)) {
+            // Kata sambung sesi: teknisi yang sesinya mati sering mengetik `refresh`/`lanjut` begitu
+            // hambatannya beres. Hanya diterima bila memang ADA draft tersimpan miliknya — di luar itu
+            // kata-kata ini tak boleh membajak alur lain.
+            let psbLanjutDraft = false;
+            if (!isPsbCmd && !isPsbFotoTanpaPagar && psbDmCfg.enabled === true
+                && type !== 'imageMessage' && /^\s*(refresh|lanjut|lanjutkan|terusin|teruskan)\s*$/i.test(String(chats || ''))) {
+                try { psbLanjutDraft = require('./handlers/state-domains/psb.state').hasPsbDraft(stateSender); } catch (_e) { psbLanjutDraft = false; }
+            }
+            if (psbDmCfg.enabled === true && (isPsbCmd || isPsbFotoTanpaPagar || psbLanjutDraft) && (type === 'imageMessage' || psbLinkedRef || psbLanjutDraft)) {
                 const { resolveAuthorizedStaff } = require('./handlers/psb-group-intake');
                 const psbStaff = resolveAuthorizedStaff({ participant: optionalJid || sender, plainPhone: plainSenderNumber, accounts, allowedRoles: psbDmCfg.allowedRoles });
                 if (psbStaff) {
