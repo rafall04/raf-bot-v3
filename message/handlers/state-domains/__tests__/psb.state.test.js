@@ -620,7 +620,7 @@ describe("PSB gerbang asal-usul modem", () => {
     // daftar" — daftar yang isinya modem itu juga. Teknisi berputar sampai menyerah.
     test("semua kandidat ⛔ → pesan tolak menyebut JALAN KELUAR, bukan menyuruh balas TIDAK", async () => {
         global.users = [
-            { id: 5, name: "Wiji Rohani", device_id: "dev-A", pppoe_username: "wji@rafcybernet" },
+            { id: 5, name: "Warsito Hadi", device_id: "dev-A", pppoe_username: "wji@rafcybernet" },
             { id: 6, name: "Sari", device_id: "dev-B", pppoe_username: "sari@rafcybernet" }
         ];
         const h = harness();
@@ -635,7 +635,7 @@ describe("PSB gerbang asal-usul modem", () => {
     });
 
     test("masih ada modem yang boleh dipakai → saran 'balas TIDAK' TETAP ditawarkan", async () => {
-        global.users = [{ id: 5, name: "Wiji Rohani", device_id: "dev-A", pppoe_username: "wji@rafcybernet" }];
+        global.users = [{ id: 5, name: "Warsito Hadi", device_id: "dev-A", pppoe_username: "wji@rafcybernet" }];
         const h = harness();
         await reachConfirm(h);
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
@@ -644,7 +644,7 @@ describe("PSB gerbang asal-usul modem", () => {
 
     test("daftar bernomor yang SEMUANYA ⛔ ikut menyebut jalan keluar", async () => {
         global.users = [
-            { id: 5, name: "Wiji Rohani", device_id: "dev-A", pppoe_username: "wji@rafcybernet" },
+            { id: 5, name: "Warsito Hadi", device_id: "dev-A", pppoe_username: "wji@rafcybernet" },
             { id: 6, name: "Sari", device_id: "dev-B", pppoe_username: "sari@rafcybernet" }
         ];
         const h = harness();
@@ -897,7 +897,7 @@ describe("PSB kerja teknisi DURABEL (draft + lanjut)", () => {
         step: "PSB_CONFIRM_MODEM",
         tempId: "PSBDM_LAMA",
         dir: "/tmp/psb-lama",
-        data: { nama: "Septiana Kurniawati", dusun: "Krajan", rt_rw: "14/2", paket: "PAKET-110K", wifi_ssid: "OKTA", wifi_password: "16042022", hp: "08123456789" },
+        data: { nama: "Sinta Lestari", dusun: "Krajan", rt_rw: "14/2", paket: "PAKET-110K", wifi_ssid: "SintaNet", wifi_password: "wifi12345", hp: "08123456789" },
         ktpSaved: true,
         rumahSaved: true,
         lokasi: { lat: -7.1, lng: 111.9 },
@@ -931,7 +931,7 @@ describe("PSB kerja teknisi DURABEL (draft + lanjut)", () => {
         expect(res.resumeOffered).toBe(true);
         expect(h.getState().step).toBe("PSB_RESUME_ASK");
         const teks = h.base.reply.mock.calls.at(-1)[0];
-        expect(teks).toMatch(/Septiana Kurniawati/);
+        expect(teks).toMatch(/Sinta Lestari/);
         expect(teks).toMatch(/LANJUT/);
         expect(teks).toMatch(/BARU/);
     });
@@ -943,7 +943,7 @@ describe("PSB kerja teknisi DURABEL (draft + lanjut)", () => {
         expect(h.base.findRecentPsbCandidates).toHaveBeenCalled();
         expect(h.base.downloadMedia).not.toHaveBeenCalled();
         expect(h.getState().step).toBe("PSB_CONFIRM_MODEM");
-        expect(h.getState().context.data.nama).toBe("Septiana Kurniawati");
+        expect(h.getState().context.data.nama).toBe("Sinta Lestari");
         expect(h.getState().context.lokasi).toEqual({ lat: -7.1, lng: 111.9 });
     });
 
@@ -977,7 +977,7 @@ describe("PSB kerja teknisi DURABEL (draft + lanjut)", () => {
         const sendReply = jest.fn(async () => {});
         await handlePsbStateTimeout(
             "628999@s.whatsapp.net",
-            { step: "PSB_CONFIRM_MODEM", context: { data: { nama: "Septiana" }, ktpSaved: true, rumahSaved: true, lokasi: { lat: 1, lng: 2 } } },
+            { step: "PSB_CONFIRM_MODEM", context: { data: { nama: "Sinta" }, ktpSaved: true, rumahSaved: true, lokasi: { lat: 1, lng: 2 } } },
             { draftStore: { putDraft }, sendReply }
         );
         expect(putDraft).toHaveBeenCalled();
