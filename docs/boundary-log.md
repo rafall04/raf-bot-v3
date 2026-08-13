@@ -1426,3 +1426,14 @@
 - **Juga ditutup:** pesan tolak modem menyebut jalan keluar nyata (admin tutup pelanggan lama → `REFRESH`) alih-alih "balas TIDAK" ke daftar yang isinya modem terblokir itu sendiri; `psb` tanpa pagar TAPI berfoto tetap memicu wizard; `refresh`/`lanjut` diterima bila `hasPsbDraft`.
 - **Draft dihapus HANYA saat provision sukses / BARU / BATAL di tengah wizard** — gagal & timeout justru mempertahankannya. TTL 48 jam.
 - **Tes:** `lib/__tests__/psb-draft-store.test.js` (9), `lib/__tests__/whatsapp-inbound-adapter.test.js` (+6), `message/handlers/state-domains/__tests__/psb.state.test.js` (+13).
+
+<a id="b221"></a>
+
+### Fix 2026-08-13 (PSB: kabar welcome ikut bukti, bentrok HP dihadang di awal + halaman Panduan Admin)
+
+- **AKAR (terukur di produksi, uji end-to-end wizard #PSB pada modem uji):** baris "Welcome dikirim ke pelanggan" dicetak semata-mata karena `device_config.ok` — push modem dan pengiriman WA dua hal tak berhubungan. Saat bot lepas dari WhatsApp, loop pengirim di `create-user-persist` dilewati **tanpa satu pun log**, dan teknisi tetap dibalas "terkirim".
+- **Owner:** `services/api-users/create-user-persist.js` kini melaporkan `welcome:{enabled,dispatched,recipients,reason}` di respons + menulis `[WELCOME_SKIPPED]` saat WA putus. `dispatched` = diserahkan ke pengirim, BUKAN diterima. `psb.state.js` membaca field itu (`welcomeLine()`); respons tanpa field = tak mengklaim apa pun (kompatibel service lama).
+- **Bentrok nomor HP** pindah dari ujung jalur create ke `STEP_COLLECT` + caption pembuka (`cariBentrokNomor`/`pesanBentrokNomor`, cocok 9 digit terakhir, ikut `alternative_phone`). Dulu ditolak `lib/phone-validator-international` SETELAH foto KTP+rumah+lokasi+cocok modem, dalam bahasa Inggris.
+- **Juga ditutup:** `services/api-users/send-welcome.js` membaca `pkg.displayProfile` (camelCase, sesuai `packages.json`) — sebelumnya `display_profile` snake yang SELALU undefined → tombol "Kirim Welcome" menyebar profil MikroTik (`35Mbps`) alih-alih produk (`Up To 35Mbps`). Cacat sama sudah diperbaiki di jalur create tapi jalur kirim-ulang terlewat.
+- **Owner baru (dokumentasi):** `views/sb-admin/admin-tutorial.php` + rute `/admin-tutorial` (`routes/pages.js`, admin/owner/superadmin) + menu di `_navbar.php`; varian `.f-admin` & komponen `.grid/.card/.trap/.why` di `static/css/tutorial.css` (JS dipakai ulang dari `teknisi-tutorial.js`). Melengkapi `/teknisi-tutorial` & `/agen-tutorial` yang sudah ada.
+- **Tes:** `message/handlers/state-domains/__tests__/psb.state.test.js` (+9 — kejujuran welcome & bentrok nomor), suite lama tetap hijau (80).

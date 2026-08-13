@@ -28,7 +28,14 @@ async function sendCustomerWelcome(deps, { user }) {
     try {
         const pkgs = (deps.getPackages && deps.getPackages()) || [];
         const pkg = pkgs.find((p) => p.name === user.subscription);
-        if (pkg) displayProfile = pkg.display_profile || pkg.profile || "-";
+        // `packages.json` memakai camelCase `displayProfile`. Membaca `display_profile` (snake)
+        // SELALU undefined, sehingga jatuh ke `pkg.profile` — nama profil MikroTik. Akibatnya
+        // pelanggan diberi tahu angka yang BUKAN produk yang dijual, dan konsisten LEBIH TINGGI
+        // (PAKET-110K: "16Mbps" padahal yang dijual "Up To 15Mbps"). Cacat yang sama sudah
+        // diperbaiki di jalur CREATE (create-user-persist.js) tapi jalur kirim-ulang ini terlewat,
+        // jadi tombol "Kirim Welcome" tetap menyebar angka yang salah. Snake dipertahankan sebagai
+        // cadangan supaya katalog paket lama tetap terbaca.
+        if (pkg) displayProfile = pkg.displayProfile || pkg.display_profile || pkg.profile || "-";
     } catch (_e) { /* noop */ }
 
     const templateData = {

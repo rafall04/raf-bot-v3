@@ -36,7 +36,8 @@
  * SideEffects: Tulis foto KTP/rumah + lokasi ke `uploads/psb/...`, buat pelanggan + push modem GenieACS +
  *              kirim WA (welcome pelanggan + ringkasan grup). Reply teknisi & ringkasan grup JUJUR ikut
  *              hasil push modem (`body.device_config{attempted,ok}`): klaim "online/di-push" hanya bila
- *              `ok`, selain itu minta set manual (anti sukses-semu). NEVER-THROW.
+ *              `ok`, selain itu minta set manual (anti sukses-semu). Kabar welcome ikut `body.welcome`
+ *              (bukan disimpulkan dari push modem — dua hal yang tak berhubungan). NEVER-THROW.
  */
 "use strict";
 
@@ -257,6 +258,55 @@ function buildPppoeUsername(nama, dusun, realm, existingUsers) {
     let n = 1;
     while (taken.has(candidate.toLowerCase())) { n += 1; candidate = `${localBase}${n}${suffix}`; }
     return candidate;
+}
+
+// ── Bentrok nomor HP: dicek SAAT DIKUMPULKAN, bukan saat eksekusi ────────────────────────────
+// Nomor duplikat ditolak oleh `lib/phone-validator-international` di ujung jalur create — jadi
+// dulu teknisi baru tahu SETELAH memotret KTP + rumah, share lokasi, dan mencocokkan SN modem.
+// Balasannya pun berbahasa Inggris ("Phone number ... is already registered to ..."), satu-satunya
+// pesan asing di sepanjang wizard. Terbukti pada uji produksi 13-08-2026.
+// Dicocokkan lewat 9 digit terakhir supaya `62812…`, `0812…`, dan `+62 812-…` dianggap sama.
+function ekorNomor(nilai) {
+    const digit = String(nilai === null || nilai === undefined ? "" : nilai).replace(/\D/g, "");
+    return digit.length >= 9 ? digit.slice(-9) : "";
+}
+
+// Pelanggan yang sudah memakai salah satu nomor pada `hp` (boleh berisi >1 nomor dipisah `|`).
+// null bila bebas. NEVER-THROW: gagal memeriksa tak boleh menjatuhkan wizard — jalur create
+// tetap menjadi penjaga terakhir.
+function cariBentrokNomor(context, hp) {
+    try {
+        const ekorBaru = String(hp || "").split("|").map(ekorNomor).filter(Boolean);
+        if (!ekorBaru.length) return null;
+        const daftar = context.getUsers ? context.getUsers() : (global.users || []);
+        for (const u of (Array.isArray(daftar) ? daftar : [])) {
+            const ekorLama = [u && u.phone_number, u && u.alternative_phone]
+                .flatMap((v) => String(v || "").split("|"))
+                .map(ekorNomor)
+                .filter(Boolean);
+            const kena = ekorBaru.find((e) => ekorLama.includes(e));
+            if (kena) return { user: u, ekor: kena };
+        }
+        return null;
+    } catch (e) {
+        context.logger?.error?.("[PSB_DM] cek bentrok nomor gagal:", e.message);
+        return null;
+    }
+}
+
+function pesanBentrokNomor(bentrok, hp) {
+    const nama = (bentrok.user && bentrok.user.name) || "pelanggan lain";
+    return [
+        `⚠️ Nomor *${hp}* sudah terdaftar atas nama *${nama}*.`,
+        ``,
+        `Satu nomor tak boleh dipakai dua pelanggan — kalau diteruskan, pendaftaran pasti ditolak di langkah terakhir.`,
+        ``,
+        `👉 Nomor pelanggan baru memang beda? kirim ulang: \`HP: <nomor yang benar>\``,
+        `👉 Ini memang orang yang sama (pasang titik kedua)? minta *admin* yang mendaftarkan dari panel.`,
+        `👉 Data lamanya sudah tak terpakai? minta admin merapikan dulu, lalu kirim ulang \`HP: ...\` di sini.`,
+        ``,
+        `❌ Batalkan: *BATAL* (datamu tetap tersimpan).`
+    ].join("\n");
 }
 
 // Daftar dusun per area dari config (`psbIntake.dusunList`) — disajikan sebagai PILIHAN BERNOMOR.
@@ -541,7 +591,15 @@ async function startPsbSession(context) {
     saveStep(context, STEP_COLLECT, ctx);
 
     const v = validatePsbData(ctx.data, { packages: pkgs, requireDusun: true, requireRtRw: true });
-    await safeReply(reply, `✅ Foto KTP diterima.\n\n${collectChecklistText(context, ctx, v)}`, logger);
+    // Caption pembuka sering sudah memuat HP — kalau nomornya bentrok, katakan SEKARANG. Menunggu
+    // sampai pesan berikutnya berarti teknisi terlanjur memotret rumah dulu untuk data yang mati.
+    const bentrokAwal = ctx.data.hp ? cariBentrokNomor(context, ctx.data.hp) : null;
+    await safeReply(
+        reply,
+        `✅ Foto KTP diterima.\n\n${collectChecklistText(context, ctx, v)}`
+        + (bentrokAwal ? `\n\n${pesanBentrokNomor(bentrokAwal, ctx.data.hp)}` : ""),
+        logger
+    );
     return { started: true };
 }
 
@@ -1003,6 +1061,29 @@ async function provision(context, ctx, candidate) {
         : "";
     const snLine = candidate ? `Modem: SN \`${snText(candidate.serialNumber)}\` (${candidate.model})${bekasNote}` : "Modem: (tak ada device terpilih)";
 
+    // ── Kabar welcome IKUT BUKTI, bukan disimpulkan ──
+    // Baris "Welcome dikirim ke pelanggan" dulu dicetak semata-mata karena push modem berhasil.
+    // Dua hal itu tak berhubungan sama sekali: modem bisa ter-set sempurna sementara pesannya tak
+    // pernah berangkat karena bot sedang putus dari WhatsApp — dan teknisi, merasa sudah beres,
+    // tak pernah menyusulkan kredensial ke pelanggan. Terbukti pada uji produksi 13-08-2026.
+    // `create-user-persist` kini melaporkan `body.welcome`; pakai itu.
+    const ALASAN_WELCOME = {
+        welcome_dimatikan: "fitur pesan selamat datang sedang dimatikan",
+        nomor_pelanggan_kosong: "nomor HP pelanggan kosong",
+        ditahan_push_modem_gagal: "ditahan karena setelan modem gagal",
+        kredensial_portal_belum_ada: "kredensial portal pelanggan belum terbentuk",
+        whatsapp_tidak_tersambung: "bot sedang tidak tersambung ke WhatsApp"
+    };
+    function welcomeLine() {
+        const wc = body.welcome;
+        // Respons tanpa jejak welcome (versi service lama) → JANGAN mengklaim apa pun.
+        if (!wc) return null;
+        if (wc.dispatched) return "Pesan selamat datang sudah dikirim ke pelanggan.";
+        const alasan = ALASAN_WELCOME[wc.reason]
+            || (String(wc.reason || "").startsWith("template_tak_ada") ? "template pesannya belum ada" : "sebab tak diketahui");
+        return `⚠️ Pesan selamat datang *BELUM* sampai ke pelanggan (${alasan}) — sampaikan langsung ke pelanggan, atau kirim ulang dari panel admin.`;
+    }
+
     let replyLines;
     if (pushFailed) {
         // Pelanggan TERDAFTAR, tapi konfigurasi ke modem GAGAL → jangan bilang "online".
@@ -1017,7 +1098,8 @@ async function provision(context, ctx, candidate) {
             `✅ *${ctx.data.nama}* online!`,
             ...credLines,
             snLine,
-            `PPPoE + WiFi (${bandLabel || `SSID ${ssidIndices.join(",")}`}) sudah di-push ke modem. Welcome dikirim ke pelanggan.`,
+            `PPPoE + WiFi (${bandLabel || `SSID ${ssidIndices.join(",")}`}) sudah di-push ke modem.`,
+            welcomeLine(),
             bandDetected ? null : "ℹ️ Band modem tak terbaca — bila modem dual-band, cek WiFi 5GHz manual."
         ].filter(Boolean);
     } else if (candidate) {
@@ -1026,15 +1108,17 @@ async function provision(context, ctx, candidate) {
             `✅ *${ctx.data.nama}* terdaftar.`,
             ...credLines,
             snLine,
-            `⚠️ Konfigurasi ke modem belum terkonfirmasi — cek WiFi/PPPoE di modem.`
-        ];
+            `⚠️ Konfigurasi ke modem belum terkonfirmasi — cek WiFi/PPPoE di modem.`,
+            welcomeLine()
+        ].filter(Boolean);
     } else {
         replyLines = [
             `✅ *${ctx.data.nama}* terdaftar.`,
             ...credLines,
             snLine,
-            `Set WiFi manual pakai data di atas; PPPoE di modem minta *admin* (akses terbatas).`
-        ];
+            `Set WiFi manual pakai data di atas; PPPoE di modem minta *admin* (akses terbatas).`,
+            welcomeLine()
+        ].filter(Boolean);
     }
     if (linkedRef) replyLines.push(`📋 Jadwal *${linkedRef}* ditutup (terpasang).`);
     await safeReply(reply, replyLines.join("\n"), logger);
@@ -1200,6 +1284,14 @@ async function handlePsbConversationState(context) {
         const v = validatePsbData(ctx.data, { packages: pkgs, requireDusun: true, requireRtRw: true });
         if (v.ok) ctx.data = v.data;
         saveStep(context, STEP_COLLECT, ctx);
+
+        // Bentrok nomor dihadang DI SINI — sebelum teknisi disuruh memotret rumah, share lokasi,
+        // dan mencocokkan SN modem untuk pendaftaran yang sudah pasti ditolak di ujung.
+        const bentrok = ctx.data.hp ? cariBentrokNomor(context, ctx.data.hp) : null;
+        if (bentrok) {
+            await safeReply(reply, pesanBentrokNomor(bentrok, ctx.data.hp), logger);
+            return { handled: true };
+        }
 
         if (v.ok && ctx.ktpSaved && ctx.rumahSaved && ctx.lokasi) {
             await detectAndAskConfirm(context, ctx);

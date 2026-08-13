@@ -323,6 +323,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Feat 2026-08-10 (Gaji: teknisi bisa cek gajinya sendiri + kabar keputusan kasbon)](docs/boundary-log.md#b218)
 - [Feat 2026-08-10 (Otorisasi massal jadi pekerjaan latar + log per pelanggan)](docs/boundary-log.md#b219)
 - [Fix 2026-08-12 (PSB: kerja teknisi durabel + envelope kontrol tak lagi jadi pesan)](docs/boundary-log.md#b220)
+- [Fix 2026-08-13 (PSB: kabar welcome ikut bukti, bentrok HP dihadang di awal + halaman Panduan Admin)](docs/boundary-log.md#b221)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

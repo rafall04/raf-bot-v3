@@ -1,20 +1,25 @@
 /*
  * Header Doc
- * Purpose: Style bersama halaman panduan per-role (teknisi, agen) — di-scope `.tut` supaya tak
- *          bentrok Bootstrap/sb-admin. Varian warna per alur: .f-psb (emerald), .f-repair (amber),
- *          .f-agen (biru). Dipakai teknisi-tutorial.php & agen-tutorial.php.
- * Caller: views/sb-admin/teknisi-tutorial.php, views/sb-admin/agen-tutorial.php.
+ * Purpose: Style bersama halaman panduan per-role (teknisi, agen, admin) — di-scope `.tut` supaya
+ *          tak bentrok Bootstrap/sb-admin. Varian warna per alur: .f-psb (emerald), .f-repair
+ *          (amber), .f-agen (biru), .f-admin (indigo — warna brand, dipakai panduan admin yang
+ *          menaungi banyak bagian sekaligus).
+ * Caller: views/sb-admin/teknisi-tutorial.php, views/sb-admin/agen-tutorial.php,
+ *         views/sb-admin/admin-tutorial.php.
  */
 .tut {
     --psb: #0E8A63; --psb-soft: #E6F4EE; --psb-ink: #0A5C43;
     --repair: #C96A18; --repair-soft: #FBEEDF; --repair-ink: #8F4A0E;
     --agen: #245C9C; --agen-soft: #E4EDF6; --agen-ink: #17416F;
+    /* Indigo = warna brand (tokens.css). Dipakai panduan admin. */
+    --adm: var(--indigo-600); --adm-soft: var(--indigo-50); --adm-ink: var(--indigo-700);
     --tline: #E0E9E4; --tink: #17251F; --tsoft: #52635C; --tfaint: var(--muted);
     --chat: #DEF1E4; --tmono: "SFMono-Regular", "Roboto Mono", ui-monospace, Menlo, Consolas, monospace;
     max-width: 780px;
 }
 body.tk-dark .tut {
     --psb-soft: rgba(14,138,99,.16); --repair-soft: rgba(201,106,24,.16); --agen-soft: rgba(36,92,156,.18);
+    --adm-soft: var(--brand-soft-2);
     --tline: var(--d-line, #2b3a34); --tink: var(--d-ink, #e6efe9); --tsoft: var(--d-ink-soft, #9fb0a8);
     --tfaint: var(--muted); --chat: rgba(14,138,99,.14);
     /* Aksen `-ink` adalah shade PEKAT untuk teks di atas latar `-soft` pastel. Saat gelap
@@ -24,12 +29,14 @@ body.tk-dark .tut {
     --psb-ink: var(--emerald-300);
     --repair-ink: var(--amber-300);
     --agen-ink: var(--blue-300);
+    --adm-ink: var(--indigo-300);
 }
 .tut .jump { display: flex; gap: .5rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
 .tut .jump a { flex: 1; min-width: 130px; text-align: center; text-decoration: none; font-weight: 700; font-size: .88rem; padding: .55rem .5rem; border-radius: 10px; border: 1px solid var(--tline); color: var(--tink); }
 .tut .jump a.j-psb { color: var(--psb-ink); border-color: #BFE3D3; background: var(--psb-soft); }
 .tut .jump a.j-repair { color: var(--repair-ink); border-color: #F0D3AE; background: var(--repair-soft); }
 .tut .jump a.j-agen { color: var(--agen-ink); border-color: #C3D6EA; background: var(--agen-soft); }
+.tut .jump a.j-admin { color: var(--adm-ink); border-color: var(--indigo-200); background: var(--adm-soft); }
 .tut .rules { display: grid; gap: .5rem; margin-bottom: 1.6rem; }
 .tut .rule { display: flex; gap: .6rem; align-items: flex-start; border: 1px solid var(--tline); border-radius: 11px; padding: .7rem .85rem; font-size: .9rem; color: var(--tink); }
 .tut .rule .ic { flex: none; width: 24px; text-align: center; }
@@ -38,10 +45,12 @@ body.tk-dark .tut {
 .tut .flow.f-psb .flow-tag { background: var(--psb-tag, #0B6E4F); } /* dipekatkan dari #0E8A63: putih di atasnya hanya 4.34:1 */
 .tut .flow.f-repair .flow-tag { background: #A0540E; } /* dipekatkan dari #C96A18: putih di atasnya hanya 3.78:1 */
 .tut .flow.f-agen .flow-tag { background: var(--agen); }
+.tut .flow.f-admin .flow-tag { background: var(--indigo-700); } /* putih di atas indigo-700 = 8.6:1 */
 .tut .flow h2 { font-size: 1.3rem; font-weight: 800; margin: .5rem 0 .2rem; color: var(--tink); }
 .tut .flow-sub { color: var(--tsoft); font-size: .92rem; margin: 0 0 1.2rem; }
 .tut code.kbd, .tut .flow-sub code, .tut .rule code, .tut .step-d code, .tut .note code { font-family: var(--tmono); font-size: .85em; background: var(--psb-soft); padding: .1em .4em; border-radius: 5px; }
 .tut .flow.f-agen code { background: var(--agen-soft); }
+.tut .flow.f-admin code, .tut .flow.f-admin code.kbd { background: var(--adm-soft); color: var(--adm-ink); }
 .tut ol.steps { list-style: none; counter-reset: s; margin: 0; padding: 0; position: relative; }
 .tut ol.steps::before { content: ""; position: absolute; left: 16px; top: 6px; bottom: 24px; width: 2px; background: var(--tline); }
 .tut ol.steps > li { position: relative; padding: 0 0 1.2rem 2.9rem; counter-increment: s; }
@@ -49,6 +58,7 @@ body.tk-dark .tut {
 .tut .flow.f-psb ol.steps > li::before { background: var(--psb); }
 .tut .flow.f-repair ol.steps > li::before { background: var(--repair); }
 .tut .flow.f-agen ol.steps > li::before { background: var(--agen); }
+.tut .flow.f-admin ol.steps > li::before { background: var(--adm); }
 .tut .step-t { font-weight: 700; font-size: 1rem; margin: .3rem 0 .25rem; color: var(--tink); }
 .tut .step-d { color: var(--tsoft); font-size: .9rem; margin: 0 0 .3rem; }
 .tut .step-d strong { color: var(--tink); }
@@ -58,6 +68,7 @@ body.tk-dark .tut {
 .tut .cmd { font-family: var(--tmono); font-size: .88rem; font-weight: 600; display: inline-flex; align-items: center; gap: .5rem; margin: .45rem 0 .1rem; background: var(--chat); color: var(--psb-ink); border: 1px solid #C4E4D3; padding: .4rem .65rem; border-radius: 8px; cursor: pointer; max-width: 100%; overflow-x: auto; }
 .tut .flow.f-repair .cmd { background: var(--repair-soft); color: var(--repair-ink); border-color: #EFD1AB; }
 .tut .flow.f-agen .cmd { background: var(--agen-soft); color: var(--agen-ink); border-color: #C3D6EA; }
+.tut .flow.f-admin .cmd { background: var(--adm-soft); color: var(--adm-ink); border-color: var(--indigo-200); }
 .tut .cmd::after { content: "salin"; font-family: "Nunito", sans-serif; font-size: .64rem; font-weight: 700; text-transform: uppercase; opacity: .55; border-left: 1px solid currentColor; padding-left: .5rem; }
 .tut .cmd.copied::after { content: "tersalin ✓"; opacity: 1; }
 .tut .bubble { border: 1px solid var(--tline); border-radius: 11px; padding: .85rem .95rem; margin: .75rem 0 0; }
@@ -68,6 +79,7 @@ body.tk-dark .tut {
 .tut .note.tip { background: var(--psb-soft); color: var(--psb-ink); }
 .tut .flow.f-repair .note.tip { background: var(--repair-soft); color: var(--repair-ink); }
 .tut .flow.f-agen .note.tip { background: var(--agen-soft); color: var(--agen-ink); }
+.tut .flow.f-admin .note.tip { background: var(--adm-soft); color: var(--adm-ink); }
 /* Dulu pastel + teks pekat TETAP → tak ikut membalik. Latar --surface-2 (membalik)
    + aksen di garis kiri, pola yang sama dengan .alert-* di components-modern.css. */
 .tut .note.warn { background: var(--surface-2); color: var(--accent-warning-ink); box-shadow: inset 3px 0 0 var(--color-warning); }
@@ -89,3 +101,28 @@ body.tk-dark .tut {
 .tut td.k { font-family: var(--tmono); font-weight: 600; color: var(--psb-ink); white-space: nowrap; }
 .tut td.k.r { color: var(--repair-ink); }
 .tut td.k.a { color: var(--agen-ink); }
+.tut td.k.ad { color: var(--adm-ink); }
+
+/* ── Katalog fitur (khusus panduan admin) ─────────────────────────────────────────────────────
+   Panduan admin menaungi puluhan halaman sekaligus; kalau semuanya ditulis sebagai <ol.steps>
+   halaman jadi gulungan tanpa ujung. Bentuk kartu dipakai untuk bagian RUJUKAN (apa gunanya,
+   kapan dipakai, jebakannya), sedangkan <ol.steps> tetap dipakai untuk yang benar-benar berurutan. */
+.tut.tut-wide { max-width: 1040px; }
+.tut .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: .75rem; margin: .9rem 0 0; }
+.tut .card { border: 1px solid var(--tline); border-radius: 12px; padding: .8rem .9rem; background: var(--surface); }
+.tut .card h3 { font-size: .95rem; font-weight: 800; margin: 0 0 .35rem; color: var(--tink); }
+.tut .card .where { font-family: var(--tmono); font-size: .78rem; font-weight: 600; color: var(--adm-ink); background: var(--adm-soft); border-radius: 6px; padding: .12em .45em; display: inline-block; margin-bottom: .45rem; word-break: break-all; }
+/* Isi kartu memuat perintah & path panjang tanpa spasi (mis. `verifikasi [ID] [OTP]`,
+   /pembayaran/otorisasi). Tanpa pemutus paksa, token semacam itu melebarkan kartu di layar HP. */
+.tut .card p, .tut .card li { overflow-wrap: anywhere; }
+.tut .card p { margin: 0 0 .35rem; font-size: .86rem; color: var(--tsoft); }
+.tut .card p.when { color: var(--tink); }
+.tut .card p.when b { font-weight: 700; }
+.tut .card .trap { display: flex; gap: .45rem; font-size: .82rem; margin-top: .5rem; padding-top: .5rem; border-top: 1px dashed var(--tline); color: var(--accent-warning-ink); }
+/* `min-width:0` WAJIB: anak flex bawaannya min-width:auto, jadi teks panjang mendorong
+   lebar kartu alih-alih membungkus (terukur luber 12px di viewport 375px). */
+.tut .card .trap > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.tut .card .trap .ic { flex: none; }
+
+/* Alur hari pertama: langkah bernomor yang saling bergantung, dengan alasan "kenapa". */
+.tut .why { display: block; margin-top: .3rem; font-size: .84rem; color: var(--tfaint); font-style: italic; }

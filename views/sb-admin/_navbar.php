@@ -135,6 +135,16 @@ function isParentActive($pages, $current) {
         </a>
     </li>
 
+    <!-- Ditaruh TEPAT di bawah Dashboard, bukan di grup "Sistem" paling bawah: pembaca yang
+         paling butuh halaman ini adalah admin yang baru pertama kali membuka panel, dan dia
+         belum tahu grup mana yang harus dibuka. -->
+    <li class="nav-item <?php echo isActive('/admin-tutorial', $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link" href="/admin-tutorial">
+            <i class="fas fa-fw fa-book-open"></i>
+            <span>Panduan Admin</span>
+        </a>
+    </li>
+
     <li class="nav-item <?php echo isActive('/owner', $current_page) ? 'active' : ''; ?>">
         <a class="nav-link" href="/owner">
             <i class="fas fa-fw fa-crown"></i>

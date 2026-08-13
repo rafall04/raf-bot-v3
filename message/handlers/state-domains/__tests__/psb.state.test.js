@@ -1011,3 +1011,109 @@ describe("PSB kerja teknisi DURABEL (draft + lanjut)", () => {
         expect(h.base.reply.mock.calls.at(-1)[0]).toMatch(/SAYA SIMPAN/i);
     });
 });
+
+// ── Kabar welcome harus IKUT BUKTI, bukan disimpulkan dari push modem ────────────────────────
+// Uji produksi 13-08-2026: push modem berhasil, WhatsApp bot sedang tak tersambung, welcome tak
+// pernah berangkat — tapi teknisi tetap dibalas "Welcome dikirim ke pelanggan". Dia lalu pulang
+// tanpa menyusulkan kredensial, dan pelanggan tak pernah menerima apa pun.
+describe("psb.state — kejujuran kabar welcome", () => {
+    function harnessWelcome(welcome) {
+        return harness({
+            usersService: {
+                upsertUserFromAdminPanel: jest.fn(async () => ({
+                    status: 201,
+                    body: { data: { id: 99 }, device_config: { attempted: true, ok: true, message: "ok" }, ...(welcome === undefined ? {} : { welcome }) }
+                }))
+            }
+        });
+    }
+    const balasanTerakhir = (h) => h.base.reply.mock.calls.at(-1)[0];
+
+    test("welcome BERANGKAT → boleh bilang sudah dikirim", async () => {
+        const h = harnessWelcome({ enabled: true, dispatched: true, recipients: 1, reason: null });
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        const teks = balasanTerakhir(h);
+        expect(teks).toMatch(/Pesan selamat datang sudah dikirim/i);
+        expect(teks).not.toMatch(/BELUM\* sampai/i);
+    });
+
+    test("WhatsApp putus → JANGAN klaim terkirim, sebutkan sebabnya + apa yang harus dilakukan", async () => {
+        const h = harnessWelcome({ enabled: true, dispatched: false, recipients: 0, reason: "whatsapp_tidak_tersambung" });
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        const teks = balasanTerakhir(h);
+        // Pelanggannya tetap online — itu benar dan boleh disebut.
+        expect(teks).toMatch(/online!/);
+        // Tapi welcome TIDAK boleh diklaim terkirim.
+        expect(teks).not.toMatch(/sudah dikirim ke pelanggan/i);
+        expect(teks).toMatch(/BELUM/);
+        expect(teks).toMatch(/tidak tersambung ke WhatsApp/i);
+    });
+
+    test("nomor pelanggan kosong → sebabnya disebut apa adanya", async () => {
+        const h = harnessWelcome({ enabled: true, dispatched: false, recipients: 0, reason: "nomor_pelanggan_kosong" });
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        expect(balasanTerakhir(h)).toMatch(/nomor HP pelanggan kosong/i);
+    });
+
+    test("respons TANPA jejak welcome (service versi lama) → tak mengklaim apa pun soal welcome", async () => {
+        const h = harnessWelcome(undefined);
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        const teks = balasanTerakhir(h);
+        expect(teks).toMatch(/online!/);
+        expect(teks).not.toMatch(/selamat datang/i);
+    });
+});
+
+// ── Bentrok nomor HP dihadang saat DIKUMPULKAN, bukan saat eksekusi ──────────────────────────
+// Uji produksi 13-08-2026: penolakan "Phone number ... is already registered to ..." baru muncul
+// SETELAH foto KTP, foto rumah, share lokasi, dan pencocokan SN modem — seluruh pekerjaan lapangan
+// terbuang untuk pendaftaran yang sejak awal pasti ditolak.
+describe("psb.state — bentrok nomor HP", () => {
+    const CAPTION_TANPA_HP = "#PSB\nNama: Budi Santoso\nDusun: Krajan\nRT/RW: 14/2\nPaket: PAKET-110K\nWiFi: BudiNet\nSandi: budi12345";
+
+    test("nomor sudah dipakai pelanggan lain → diberitahu di layar PERTAMA, bukan setelah semuanya", async () => {
+        global.users = [{ id: 7, name: "Sudarmi", phone_number: "628123456789" }];
+        const h = harness();
+        await startPsbSession({ ...h.base, type: "imageMessage", caption: CAPTION, msg: imageMsg(CAPTION), staff: STAFF });
+        const teks = h.base.reply.mock.calls.at(-1)[0];
+        // Format berbeda (`08123456789` vs `628123456789`) tetap harus dikenali sebagai nomor yang sama.
+        expect(teks).toMatch(/sudah terdaftar atas nama \*Sudarmi\*/);
+        expect(teks).toMatch(/HP: <nomor yang benar>/);
+    });
+
+    test("nomor bentrok → wizard TIDAK maju ke pencarian modem meski dokumen lengkap", async () => {
+        global.users = [{ id: 7, name: "Sudarmi", phone_number: "628123456789" }];
+        const h = harness();
+        await reachConfirm(h);
+        // Deteksi modem tak boleh dipanggil sama sekali — pendaftarannya toh akan ditolak.
+        expect(h.base.findRecentPsbCandidates).not.toHaveBeenCalled();
+        expect(h.getState().step).toBe("PSB_COLLECT_DOCS");
+        expect(h.base.reply.mock.calls.at(-1)[0]).toMatch(/sudah terdaftar atas nama/);
+    });
+
+    test("nomor bebas → alur normal, tak ada peringatan bentrok", async () => {
+        global.users = [{ id: 7, name: "Sudarmi", phone_number: "6287777777777" }];
+        const h = harness();
+        await reachConfirm(h);
+        expect(h.getState().step).toBe("PSB_CONFIRM_MODEM");
+        expect(h.base.reply.mock.calls.map((c) => c[0]).join("\n")).not.toMatch(/sudah terdaftar atas nama/);
+    });
+
+    test("nomor pelanggan yang sama di kolom alternatif juga terhitung bentrok", async () => {
+        global.users = [{ id: 8, name: "Parmin", phone_number: "6281111111111", alternative_phone: "08123456789" }];
+        const h = harness();
+        await startPsbSession({ ...h.base, type: "imageMessage", caption: CAPTION, msg: imageMsg(CAPTION), staff: STAFF });
+        expect(h.base.reply.mock.calls.at(-1)[0]).toMatch(/atas nama \*Parmin\*/);
+    });
+
+    test("HP belum diisi → tak ada tuduhan bentrok", async () => {
+        global.users = [{ id: 7, name: "Sudarmi", phone_number: "628123456789" }];
+        const h = harness();
+        await startPsbSession({ ...h.base, type: "imageMessage", caption: CAPTION_TANPA_HP, msg: imageMsg(CAPTION_TANPA_HP), staff: STAFF });
+        expect(h.base.reply.mock.calls.at(-1)[0]).not.toMatch(/sudah terdaftar atas nama/);
+    });
+});

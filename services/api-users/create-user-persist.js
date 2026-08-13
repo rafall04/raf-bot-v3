@@ -5,6 +5,7 @@
  * Deps: `deps.repository.insertUserRecord`/`getUsersSnapshot`/`replaceUsersSnapshot`/`deleteUserRecord`, `deps.applyPaymentStatusChange`, `deps.handlePaidStatusChange`, `deps.getPeriodParts`, `deps.getEffectivePrice`, `deps.logActivity`, `deps.getConfig`, `deps.getPackages`, `deps.renderTemplate`, `deps.sendMessage`, `deps.getStatusSnapshot`, `deps.logger`, lazy-require `../../lib/utils` (normalizePhoneNumber).
  * MainFuncs: `persistAndNotifyNewUser(deps, { newUser, plainTextPassword, finalUsername, paymentMethod, registrationMode, mikrotikSync, deviceConfig, syncEnabled, userData, actor, requestMeta })`.
  * SideEffects: DB insert + snapshot replace, finance boundary call (paid path), activity log, WhatsApp send (async/fire-and-forget). Rollback paid path: hapus user dari DB+snapshot jika applyPaymentStatusChange gagal — throw final error. Welcome mode `new` DITAHAN bila `deviceConfig.attempted && !deviceConfig.ok` (push modem gagal → jangan janjikan WiFi aktif); respons membawa `device_config` + `warning:"device_config_failed"` agar teknisi/admin tahu harus set modem manual.
+ *              Respons juga membawa `welcome: {enabled, dispatched, recipients, reason}` — dispatched=true berarti pesan DISERAHKAN ke pengirim, BUKAN jaminan diterima (pengiriman fire-and-forget). Pemanggil WAJIB memakai field ini untuk berbicara jujur ke teknisi; jangan menyimpulkan welcome dari keberhasilan push modem. `reason` terisi saat welcome tak jadi dikirim: welcome_dimatikan / nomor_pelanggan_kosong / ditahan_push_modem_gagal / kredensial_portal_belum_ada / template_tak_ada:<key> / whatsapp_tidak_tersambung.
  */
 "use strict";
 
@@ -116,10 +117,21 @@ async function persistAndNotifyNewUser(deps, { newUser, plainTextPassword, final
 
     const appConfig = deps.getConfig();
     const welcomeEnabled = appConfig.welcomeMessage?.enabled !== false;
+
+    // JEJAK WELCOME YANG JUJUR. Pengiriman welcome itu fire-and-forget (lihat `void (async ...)`
+    // di bawah), jadi respons ini TIDAK pernah tahu pesannya sampai atau tidak. Dulu respons juga
+    // tak membawa keterangan apa pun — akibatnya pemanggil (wizard PSB) menyimpulkan "welcome
+    // terkirim" dari keberhasilan push modem, dua hal yang sama sekali tak berhubungan. Terbukti
+    // saat uji coba produksi 13-08-2026: koneksi WhatsApp tidak ada, loop pengirim dilewati TANPA
+    // SATU PUN LOG, dan teknisi tetap dibalas "Welcome dikirim ke pelanggan".
+    // `dispatched` = "sudah diserahkan ke antrean pengirim", BUKAN "sudah diterima pelanggan".
+    const welcomeStatus = { enabled: welcomeEnabled, dispatched: false, recipients: 0, reason: null };
     // Push konfigurasi ke modem GAGAL → jangan kirim welcome yang menjanjikan "WiFi aktif"
     // (pelanggan akan diberi sandi WiFi yang belum di-set di modem). Kegagalan dimunculkan ke
     // teknisi/admin via `device_config` di respons. Keputusan user: "Tahan + beri tahu teknisi".
     const devicePushFailed = Boolean(deviceConfig?.attempted && !deviceConfig.ok);
+    if (!welcomeEnabled) welcomeStatus.reason = "welcome_dimatikan";
+    else if (!newUser.phone_number) welcomeStatus.reason = "nomor_pelanggan_kosong";
     if (welcomeEnabled && newUser.phone_number) {
         try {
             const { normalizePhoneNumber } = require("../../lib/utils");
@@ -129,6 +141,7 @@ async function persistAndNotifyNewUser(deps, { newUser, plainTextPassword, final
             if (registrationMode === "new" && userData.wifi_ssid && userData.wifi_password) {
                 if (devicePushFailed) {
                     deps.logger.warn?.(`[WELCOME_HELD] psb_welcome ditahan utk pelanggan ${newUser.id}: push modem gagal (${deviceConfig?.message || "-"}). Set WiFi/PPPoE di modem manual dulu, lalu kirim welcome dari tombol.`);
+                    welcomeStatus.reason = "ditahan_push_modem_gagal";
                     throw new Error("Skip welcome message");
                 }
                 templateName = "psb_welcome";
@@ -165,6 +178,7 @@ async function persistAndNotifyNewUser(deps, { newUser, plainTextPassword, final
                 };
             } else {
                 if (!newUser.username || !plainTextPassword) {
+                    welcomeStatus.reason = "kredensial_portal_belum_ada";
                     throw new Error("Skip welcome message");
                 }
                 const portalUrl = appConfig.welcomeMessage?.customerPortalUrl || appConfig.company?.website || appConfig.site_url_bot || "https://rafnet.my.id/customer";
@@ -180,10 +194,24 @@ async function persistAndNotifyNewUser(deps, { newUser, plainTextPassword, final
 
             const messageText = deps.renderTemplate(templateName, templateData);
             if (!messageText) {
+                welcomeStatus.reason = `template_tak_ada:${templateName}`;
                 throw new Error("Template not found");
             }
 
             const phoneNumbers = newUser.phone_number.split("|").map((item) => item.trim()).filter(Boolean);
+
+            // Sambungan WhatsApp diperiksa DI SINI juga, bukan hanya di dalam loop. Pemeriksaan di
+            // dalam loop tetap dipertahankan (keadaan bisa berubah selama jeda 1 detik), tapi ia
+            // tak bisa menceritakan apa pun ke pemanggil — dan bila putus, ia melewati pengiriman
+            // secara total senyap. Yang di sini murni untuk KEJUJURAN respons + satu baris log.
+            if (deps.getStatusSnapshot()?.connectionState !== "open") {
+                deps.logger.warn?.(`[WELCOME_SKIPPED] Welcome utk pelanggan ${newUser.id} TIDAK dikirim: WhatsApp tidak tersambung. Kirim ulang lewat tombol welcome setelah bot tersambung.`);
+                welcomeStatus.reason = "whatsapp_tidak_tersambung";
+                throw new Error("Skip welcome message");
+            }
+
+            welcomeStatus.dispatched = true;
+            welcomeStatus.recipients = phoneNumbers.length;
             void (async () => {
                 for (const number of phoneNumbers) {
                     const normalizedNumber = normalizePhoneNumber(number);
@@ -227,6 +255,7 @@ async function persistAndNotifyNewUser(deps, { newUser, plainTextPassword, final
             sync_message: mikrotikSync.message,
             mikrotik_sync: mikrotikSync,
             device_config: deviceConfig,
+            welcome: welcomeStatus,
             ...(devicePushFailed ? {
                 warning: "device_config_failed",
                 provisioning_note: "Konfigurasi WiFi/PPPoE ke modem GAGAL dikirim. Set manual di modem; pesan WiFi ke pelanggan DITAHAN sampai modem beres."

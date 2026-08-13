@@ -95,6 +95,13 @@ router.get('/', (req, res) => {
 });
 
 // Admin-only pages
+// Panduan admin — rujukan lengkap dari nol sampai operasional harian. Sengaja TIDAK dibuka untuk
+// teknisi/agen: isinya menyeluruh (akun, keuangan, konfigurasi sistem), sedangkan mereka sudah
+// punya halaman sendiri (`/teknisi-tutorial`, `/agen-tutorial`).
+router.get('/admin-tutorial', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/admin-tutorial.php');
+});
+
 router.get('/kompensasi', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/kompensasi.php');
 });
