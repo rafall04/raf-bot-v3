@@ -34,7 +34,12 @@ async function updateUserById(deps, { id, userData, actor, requestMeta }) {
         phone_number: userToUpdate.phone_number,
         subscription: userToUpdate.subscription,
         paid: oldPaidStatus,
-        pppoe_username: userToUpdate.pppoe_username
+        pppoe_username: userToUpdate.pppoe_username,
+        // WAJIB ada: `odpChanged` di bawah membandingkan draft dengan snapshot ini. Tanpa
+        // field ini pembandingnya selalu `undefined` → `""`, jadi setiap update pelanggan yang
+        // PUNYA ODP dianggap "pindah ODP" — memicu `assertOdpAssignable` berulang kali dan
+        // bisa menolak update dengan "ODP penuh" padahal ODP-nya tak disentuh sama sekali.
+        connected_odp_id: userToUpdate.connected_odp_id
     };
     const draftUser = {
         ...userToUpdate,

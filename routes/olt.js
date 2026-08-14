@@ -21,6 +21,7 @@
 
 const express = require('express');
 const router = express.Router();
+const { assertBolehAksesPelanggan } = require('./api-route-helpers');
 const fs = require('fs');
 const path = require('path');
 
@@ -1240,11 +1241,18 @@ router.get('/onus', async (req, res) => {
  */
 router.get('/customer/:userId', async (req, res) => {
     try {
-        if (!req.user && !req.customer) {
-            return res.status(401).json({ status: 401, message: 'Unauthorized' });
-        }
-
         const { userId } = req.params;
+
+        // GERBANG KEPEMILIKAN. Handler ini sengaja menerima `req.customer` (niatnya agar panel
+        // pelanggan bisa cek redaman sendiri) tapi tak pernah membandingkan `userId` dengan
+        // `req.customer.id`. Responsnya memuat `customer_name`, `pppoe_username`,
+        // `mac_mikrotik`, `mac_olt`, `rx_power`, `slot_id`, `onu_id` — jadi pelanggan id 12
+        // bisa memanggil /api/olt/customer/97 dan memetakan seluruh jaringan tetangganya.
+        // Melanggar aturan "tampilan ke pelanggan tak boleh memuat PPPoE/identitas perangkat".
+        const izin = assertBolehAksesPelanggan(req, userId);
+        if (!izin.ok) {
+            return res.status(izin.status).json({ status: izin.status, message: izin.message });
+        }
         const forceRefresh = req.query.force === 'true';
         const config = loadConfig();
         const oltConfig = config.olt;
@@ -1312,8 +1320,11 @@ router.get('/customer/:userId', async (req, res) => {
  */
 router.post('/refresh-single', async (req, res) => {
     try {
-        if (!req.user && !req.customer) {
-            return res.status(401).json({ status: 401, message: 'Unauthorized' });
+        // STAF saja. Dulu meloloskan `req.customer`, padahal parameternya slot/ONU — bukan
+        // userId — sehingga pelanggan bisa menyisir seluruh ONU di OLT tanpa terikat miliknya
+        // sendiri. Satu-satunya konsumen memang halaman staf (admin-olt.js, teknisi-olt.js).
+        if (!req.user || !['admin', 'owner', 'superadmin', 'teknisi'].includes(req.user.role)) {
+            return res.status(403).json({ status: 403, message: 'Akses ditolak.' });
         }
 
         const { slotId, onuId, mac } = req.body;

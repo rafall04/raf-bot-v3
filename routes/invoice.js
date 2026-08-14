@@ -25,6 +25,7 @@ const { sendMessageToMany } = require('../lib/whatsapp-delivery-service');
 const { normalizeUserPaymentMethod } = require('../lib/payment-finance-service');
 
 const router = express.Router();
+const { assertBolehAksesPelanggan } = require('./api-route-helpers');
 
 // Configure multer for logo upload
 const logoStorage = multer.diskStorage({
@@ -73,6 +74,17 @@ router.get('/get-latest-invoice', async (req, res) => {
         if (!userId) {
             return res.status(400).json({ message: 'User ID required' });
         }
+
+        // GERBANG KEPEMILIKAN. Ketiga endpoint invoice dulu tanpa penjaga sama sekali —
+        // padahal `ensureAdmin` sudah ada di berkas ini dan dipakai rute tetangganya.
+        // Gerbang global hanya mensyaratkan `req.user || req.customer`, jadi pelanggan yang
+        // login bisa menyisir `?userId=1..2000` dan memanen nama, alamat, nomor HP, paket,
+        // harga langganan, dan NPWP seluruh pelanggan — plus `invoiceNumber` yang lalu
+        // dipakai merender HTML/PDF-nya lewat /api/view-invoice.
+        const izin = assertBolehAksesPelanggan(req, userId);
+        if (!izin.ok) {
+            return res.status(izin.status).json({ status: izin.status, message: izin.message });
+        }
         
         // Load invoices
         const invoicesPath = './database/invoices.json';
@@ -120,6 +132,17 @@ router.get('/view-invoice', async (req, res) => {
         
         if (!invoiceId || !userId) {
             return res.status(400).json({ message: 'Invalid parameters' });
+        }
+
+        // GERBANG KEPEMILIKAN. Ketiga endpoint invoice dulu tanpa penjaga sama sekali —
+        // padahal `ensureAdmin` sudah ada di berkas ini dan dipakai rute tetangganya.
+        // Gerbang global hanya mensyaratkan `req.user || req.customer`, jadi pelanggan yang
+        // login bisa menyisir `?userId=1..2000` dan memanen nama, alamat, nomor HP, paket,
+        // harga langganan, dan NPWP seluruh pelanggan — plus `invoiceNumber` yang lalu
+        // dipakai merender HTML/PDF-nya lewat /api/view-invoice.
+        const izin = assertBolehAksesPelanggan(req, userId);
+        if (!izin.ok) {
+            return res.status(izin.status).json({ status: izin.status, message: izin.message });
         }
         
         // Load invoices
@@ -178,6 +201,17 @@ router.get('/download-invoice-pdf', async (req, res) => {
         
         if (!invoiceId || !userId) {
             return res.status(400).json({ message: 'Invalid parameters' });
+        }
+
+        // GERBANG KEPEMILIKAN. Ketiga endpoint invoice dulu tanpa penjaga sama sekali —
+        // padahal `ensureAdmin` sudah ada di berkas ini dan dipakai rute tetangganya.
+        // Gerbang global hanya mensyaratkan `req.user || req.customer`, jadi pelanggan yang
+        // login bisa menyisir `?userId=1..2000` dan memanen nama, alamat, nomor HP, paket,
+        // harga langganan, dan NPWP seluruh pelanggan — plus `invoiceNumber` yang lalu
+        // dipakai merender HTML/PDF-nya lewat /api/view-invoice.
+        const izin = assertBolehAksesPelanggan(req, userId);
+        if (!izin.ok) {
+            return res.status(izin.status).json({ status: izin.status, message: izin.message });
         }
         
         // Load invoices

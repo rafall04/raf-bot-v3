@@ -267,13 +267,31 @@ function createApiUsersRepository(overrides = {}) {
             // kolom karena daftar diketik manual). Kalau menambah kolom baru ke tabel users dan ingin
             // bisa diedit, DAFTARKAN DI SINI — jangan mengandalkan snapshot memori.
             const validColumns = [
-                "name", "phone_number", "address", "subscription", "pppoe_username",
+                "name", "phone_number", "address", "dusun", "subscription", "pppoe_username",
                 "device_id", "paid", "username", "password", "otp", "otpTimestamp",
-                "bulk", "connected_odp_id", "latitude", "longitude", "maps_url", "pppoe_password",
+                "bulk", "connected_odp_id", "latitude", "longitude", "maps_url",
+                "location_source", "location_updated_at", "pppoe_password",
                 "send_invoice", "is_corporate", "corporate_name", "corporate_address",
                 "corporate_npwp", "corporate_pic_name", "corporate_pic_phone",
                 "corporate_pic_email", "notify_outage", "account_type"
             ];
+
+            // TIGA kolom yang baru ditambahkan di atas, dan kenapa:
+            //
+            // `dusun`  — ADA di USER_INSERT_COLUMNS (tersimpan saat CREATE) dan DIKIRIM form edit
+            //   (`name="dusun"` di views/sb-admin/users.php), tapi tak pernah ada di sini. Admin
+            //   memperbaiki kolom Dusun, layar bilang tersimpan (respons 200 memulangkan
+            //   `draftUser` berisi nilai baru), SQLite tak berubah, dan nilai lama kembali saat
+            //   bot restart — 7–13x sehari di produksi. Dampak lanjutan: pengelompokan broadcast
+            //   per dusun, penentuan area gangguan, dan konvensi `<nama>-<dusun>@realm` semuanya
+            //   memakai data yang salah.
+            //
+            // `location_source` / `location_updated_at` — kolomnya ada di tabel
+            //   (lib/database-migration-manager.js) dan ditulis saat CREATE, tapi jalur update
+            //   lokasi tak bisa menyentuhnya. Akibatnya `Date.parse(location_updated_at)` di
+            //   lib/customer-location-service.js selalu NaN, sehingga deteksi "titik berulang"
+            //   — penjaga anti pola "stempel dari tempat saya duduk" yang dibangun setelah 92
+            //   pelanggan menumpuk di satu titik — TIDAK PERNAH menyala untuk input web.
             const updateFields = [];
             const updateValues = [];
 
@@ -285,6 +303,14 @@ function createApiUsersRepository(overrides = {}) {
                 else dbField = field.replace(/-/g, "_");
 
                 if (!validColumns.includes(dbField)) {
+                    // JANGAN diam. `return` polos di sini adalah alasan `dusun` hilang tanpa
+                    // seorang pun tahu selama berbulan-bulan: klien mengirim field, server
+                    // membuangnya, responsnya tetap 200 dengan nilai baru. Sekarang setiap
+                    // penolakan meninggalkan jejak yang bisa dicari di log PM2.
+                    console.warn(
+                        `[UPDATE_USER] Field "${field}" (kolom "${dbField}") DIBUANG — tidak ada di whitelist UPDATE. ` +
+                        `Kalau memang harus bisa diedit, daftarkan di validColumns (repositories/api-users.repository.js).`
+                    );
                     return;
                 }
 
