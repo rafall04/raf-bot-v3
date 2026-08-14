@@ -88,19 +88,42 @@ const storage = multer.diskStorage({
         }
         
         // Use structured path: uploads/tickets/YEAR/MONTH/TICKET_ID/
-        const uploadDir = getTicketsUploadsPathByTicket(year, month, ticketId, __dirname);
-        
-        // Create directory if it doesn't exist
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
+        //
+        // `ticketId` datang dari query/body/header — sepenuhnya dikendalikan klien — dan dulu
+        // diserahkan mentah ke `path.join`, yang MERESOLVE `..`. Dengan
+        // `?ticketId=../../../../views/sb-admin` foldernya benar-benar dibuat dan berkasnya
+        // ditulis di luar `uploads/` (mis. ke direktori yang dirender php-express), sebelum
+        // handler sempat memvalidasi apa pun. `getTicketsUploadsPathByTicket` kini MELEMPAR
+        // untuk segmen tak aman; tolak request di sini alih-alih menyimpan ke lokasi tebakan.
+        let uploadDir;
+        try {
+            uploadDir = getTicketsUploadsPathByTicket(year, month, ticketId, __dirname);
+        } catch (err) {
+            console.warn(`[TICKET_UPLOAD] Tujuan upload ditolak: ${err.message}`);
+            return cb(new Error('ID tiket tidak valid.'), null);
         }
-        cb(null, uploadDir);
+
+        try {
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+            }
+        } catch (err) {
+            console.error('[TICKET_UPLOAD] Gagal menyiapkan folder upload:', err);
+            return cb(new Error('Gagal menyiapkan folder upload.'), null);
+        }
+
+        return cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
         // Generate unique filename: photo_TIMESTAMP_RANDOM.ext
         const timestamp = Date.now();
         const random = Math.random().toString(36).substring(7);
-        const ext = path.extname(file.originalname);
+        // Ekstensi diambil dari `originalname` yang dikirim klien. `fileFilter` di bawah hanya
+        // memeriksa mimetype — dan mimetype pun dikirim klien. Tanpa allowlist ini, nama
+        // `pwn.php` bertipe `image/png` menghasilkan berkas `.php` di disk.
+        const EKSTENSI_GAMBAR = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic']);
+        const extAsli = String(path.extname(file.originalname) || '').toLowerCase();
+        const ext = EKSTENSI_GAMBAR.has(extAsli) ? extAsli : '.jpg';
         cb(null, `photo_${timestamp}_${random}${ext}`);
     }
 });

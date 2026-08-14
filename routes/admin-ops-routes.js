@@ -34,7 +34,36 @@ function registerAdminOpsRoutes(router, deps) {
         }
     }
 
-    router.delete("/api/:category/:id", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+    // Kategori LEGACY yang memang tak punya pemilik lain. Sengaja allowlist, bukan blocklist:
+    // router ini di-mount PALING AWAL (lib/routes-registry.js baris 57), jadi pola
+    // `/api/:category/:id` menangkap apa pun yang huruf-per-huruf cocok — termasuk milik
+    // router yang di-mount SETELAHNYA.
+    //
+    // Yang dulu terbayangi dan kini dikembalikan ke pemiliknya:
+    //   - `users`    → services/api-users/delete-user-by-id.js (memutus sesi PPPoE, MENGHAPUS
+    //                  secret di MikroTik, menghitung ulang port ODP, dan melaporkan `langkah`).
+    //                  Selama terbayangi, jalur web hanya menghapus baris SQLite: secret PPPoE
+    //                  tertinggal di router = "modem hantu" yang harus dibersihkan manual, dan
+    //                  static/js/users.js menampilkan semua langkah sebagai "–" karena respons
+    //                  catch-all tak membawa `langkah`.
+    //   - `accounts` → routes/accounts.js (adminOnly + pembersihan turunannya).
+    //   - `packages` → routes/packages.js.
+    const KATEGORI_LEGACY_TANPA_PEMILIK = new Set([
+        "payment", "statik", "voucher", "atm", "payment-method", "mikrotik-devices"
+    ]);
+
+    // Gerbang kepemilikan dipasang SEBELUM auth: kalau kategorinya bukan milik router ini,
+    // biarkan pemilik sebenarnya yang memutuskan otorisasinya. `next("router")` keluar dari
+    // adminApiRouter dan mengembalikan kendali ke app — bukan `next()`/`next("route")`, yang
+    // dua-duanya tetap berada di dalam router ini.
+    function lepaskanKePemilikSebenarnya(req, res, next) {
+        if (!KATEGORI_LEGACY_TANPA_PEMILIK.has(req.params.category)) {
+            return next("router");
+        }
+        return next();
+    }
+
+    router.delete("/api/:category/:id", lepaskanKePemilikSebenarnya, ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
         requireAdmin(req);
         const result = await adminOpsService.deleteEntityByCategory({
             category: req.params.category,
