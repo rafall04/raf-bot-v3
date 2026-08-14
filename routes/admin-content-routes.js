@@ -153,7 +153,11 @@ function registerAdminContentRoutes(router, deps) {
         }
     });
 
+    // Template TERSIMPAN MENIMPA fallback di kode, jadi menulis ke sini berarti mengubah
+    // SELURUH teks yang dibaca pelanggan (tagihan, isolir, pesan selamat datang yang memuat
+    // kredensial portal) secara permanen. Bukan wewenang teknisi. Pembacaan (GET) tetap staf.
     router.post("/api/templates", ensureAuthenticatedStaff, (req, res) => {
+        requireAdmin(req);
         try {
             const {
                 notificationTemplates,
@@ -240,6 +244,7 @@ function registerAdminContentRoutes(router, deps) {
     });
 
     router.post("/api/announcements", ensureAuthenticatedStaff, (req, res) => {
+        requireAdmin(req);
         const { message } = req.body;
         if (!message || typeof message !== "string" || message.trim() === "") {
             return res.status(400).json({ status: 400, message: "Pesan tidak boleh kosong." });
@@ -261,6 +266,7 @@ function registerAdminContentRoutes(router, deps) {
     });
 
     router.post("/api/announcements/:id", ensureAuthenticatedStaff, (req, res) => {
+        requireAdmin(req);
         const { id } = req.params;
         const { message } = req.body;
         if (!message || typeof message !== "string" || message.trim() === "") {
@@ -282,6 +288,7 @@ function registerAdminContentRoutes(router, deps) {
     });
 
     router.delete("/api/announcements/:id", ensureAuthenticatedStaff, (req, res) => {
+        requireAdmin(req);
         const { id } = req.params;
         try {
             const currentAnnouncements = announcementsRepo.getAll();
@@ -299,6 +306,7 @@ function registerAdminContentRoutes(router, deps) {
     });
 
     router.post("/api/news", ensureAuthenticatedStaff, (req, res) => {
+        requireAdmin(req);
         const { title, news_content: newsContent } = req.body;
         if (!title || typeof title !== "string" || title.trim() === "") {
             return res.status(400).json({ status: 400, message: "Judul tidak boleh kosong." });
@@ -324,6 +332,7 @@ function registerAdminContentRoutes(router, deps) {
     });
 
     router.post("/api/news/:id", ensureAuthenticatedStaff, (req, res) => {
+        requireAdmin(req);
         const { id } = req.params;
         const { title, news_content: newsContent } = req.body;
         if (!title || typeof title !== "string" || title.trim() === "") {
@@ -348,6 +357,7 @@ function registerAdminContentRoutes(router, deps) {
     });
 
     router.delete("/api/news/:id", ensureAuthenticatedStaff, (req, res) => {
+        requireAdmin(req);
         const { id } = req.params;
         try {
             const currentNews = newsRepo.getAll();
@@ -427,7 +437,13 @@ function registerAdminContentRoutes(router, deps) {
         };
     }
 
+    // Broadcast = pesan massal ke pelanggan yang TIDAK BISA DITARIK KEMBALI, dan
+    // `allow_sensitive` melewati penjaga data internal (#b191). Dulu hanya
+    // `ensureAuthenticatedStaff`, yang meloloskan `teknisi`: satu request
+    // `{"mode":"all"}` menjangkau SELURUH pelanggan. Preview ikut digerbangi karena ia
+    // memulangkan daftar penerima berikut datanya.
     router.post("/api/broadcast/preview", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        requireAdmin(req);
         const payload = buildBroadcastPayload(req);
         const result = adminBroadcastService.previewBroadcast(payload);
         return res.status(result.status).json(result);
@@ -446,6 +462,7 @@ function registerAdminContentRoutes(router, deps) {
     }));
 
     router.post("/api/broadcast", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        requireAdmin(req);
         const payload = buildBroadcastPayload(req);
         payload.dryRun = req.body?.dry_run === true || req.body?.dryRun === true;
         const result = await adminBroadcastService.queueBroadcast(payload);

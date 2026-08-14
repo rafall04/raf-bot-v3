@@ -1,15 +1,50 @@
+/**
+ * Header Doc
+ * Purpose: CRUD agen reseller + pengelolaan PIN agen (kredensial yang mengotorisasi konfirmasi
+ *          transaksi saldo/voucher lewat WhatsApp).
+ * Caller: `lib/routes-registry.js` (`app.use("/api/agents", agentsRouter)`); konsumen UI =
+ *         halaman admin `agent-management` dan `saldo-management`.
+ * Deps: `lib/agent-manager`, `lib/agent-transaction-manager`, `lib/logger`.
+ * MainFuncs: `isAuthenticated` (gerbang admin), route list/detail/add/update/delete/statistics
+ *            dan `:id/pin/{status,create,reset,change}`.
+ * SideEffects: Menulis data agen dan hash PIN lewat agent-manager; menulis log peringatan
+ *              untuk setiap penolakan peran.
+ * INVARIAN: SELURUH router ini admin-saja. PIN + nomor WhatsApp agen adalah kredensial UANG —
+ *           `confirmTransaction` memakainya untuk mengkredit saldo pelanggan dan mengaktifkan
+ *           stok voucher. Jangan pernah menurunkan gerbangnya ke "sekadar login".
+ */
 const express = require('express');
 const router = express.Router();
 const agentManager = require('../lib/agent-manager');
 const agentTransactionManager = require('../lib/agent-transaction-manager');
 const { logger } = require('../lib/logger');
 
-// Middleware to check if user is logged in (JWT-based)
+// GERBANG: seluruh router ini ADMIN-saja.
+//
+// Dulu penjaganya cuma `isAuthenticated` — sekadar "ada req.user". Middleware auth global
+// mengisi `req.user` untuk SETIAP akun di accounts.json, termasuk peran `teknisi` dan `agen`.
+// Artinya seorang agen penagih bisa memanggil `POST /api/agents/:id/pin/create` dengan
+// nomor WhatsApp-nya sendiri untuk outlet MANA PUN, atau `PUT /:id/pin/reset` (yang memang
+// tak meminta PIN lama). PIN + nomor WA itulah yang mengotorisasi
+// `lib/agent-transaction-manager.confirmTransaction` — yang MENGKREDIT saldo pelanggan dan
+// mengaktifkan stok voucher reseller. `DELETE /delete/:id` juga bisa dipakai menonaktifkan
+// pesaing. Komentar di rute reset PIN bahkan sudah menulis "admin only"; middleware-nya yang
+// tak pernah menegakkannya.
+//
+// Aman dinaikkan ke admin: seluruh konsumen `/api/agents/*` adalah halaman admin
+// (static/js/agent-management.js dan static/js/saldo-management.js). Bot WhatsApp tidak
+// lewat HTTP — ia memanggil lib/agent-manager langsung.
 function isAuthenticated(req, res, next) {
-    if (req.user) {
-        return next();
+    if (!req.user) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
-    res.status(401).json({ success: false, message: 'Unauthorized' });
+    if (!['admin', 'owner', 'superadmin'].includes(req.user.role)) {
+        logger.warn(
+            `[AGENTS_AUTH] Peran "${req.user.role}" (${req.user.username}) ditolak di ${req.method} ${req.originalUrl}`
+        );
+        return res.status(403).json({ success: false, message: 'Akses ditolak.' });
+    }
+    return next();
 }
 
 // Get all agents

@@ -159,7 +159,15 @@ function registerAdminDatabaseRoutes(router, deps) {
         }
     }));
 
-    router.post("/api/database/migrate-schema", ensureAuthenticatedStaff, asyncHandler(async (_req, res) => {
+    // Keempat operasi di bawah MENIMPA data pelanggan (schema, berkas SQLite, isi memori).
+    // Dulu semuanya hanya `ensureAuthenticatedStaff` — yang eksplisit meloloskan `teknisi` —
+    // sehingga akun teknisi bisa mengunggah SQLite buatan sendiri dan menggantikan seluruh
+    // data pelanggan (harga langganan, status bayar, kredensial PPPoE/portal), atau memutar
+    // mundur database sehingga pembayaran yang sudah tercatat lenyap. `requireAdmin` sudah ada
+    // di berkas ini (dipakai /api/debug/database & /api/migrate-users), jadi ini kelalaian
+    // pemasangan, bukan kebijakan. Halaman /migrate memang admin-only — API-nya yang tidak.
+    router.post("/api/database/migrate-schema", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        requireAdmin(req);
         try {
             const { columnResult, versionResults, versionError } = await runDatabaseMigrations();
 
@@ -210,6 +218,7 @@ function registerAdminDatabaseRoutes(router, deps) {
     }));
 
     router.post("/api/database/upload", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        requireAdmin(req);
         try {
             const multer = require("multer");
             const upload = multer({
@@ -296,7 +305,8 @@ function registerAdminDatabaseRoutes(router, deps) {
         }
     }));
 
-    router.post("/api/database/reload", ensureAuthenticatedStaff, asyncHandler(async (_req, res) => {
+    router.post("/api/database/reload", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        requireAdmin(req);
         try {
             const { reloadUsersFromDatabase } = require("../lib/database-reload");
             const result = await reloadUsersFromDatabase();
@@ -318,6 +328,7 @@ function registerAdminDatabaseRoutes(router, deps) {
     }));
 
     router.post("/api/database/restore", ensureAuthenticatedStaff, (req, res) => {
+        requireAdmin(req);
         try {
             const { filename } = req.body;
             if (!filename) return res.status(400).json({ status: 400, message: "Filename is required", data: null });
