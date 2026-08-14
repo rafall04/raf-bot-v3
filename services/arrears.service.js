@@ -82,14 +82,84 @@ function createArrearsService(overrides = {}) {
         return { paymentMap, reversalMap, waiverSet };
     }
 
+    // ── Enumerasi periode dari KALENDER, bukan dari kunci ledger ────────────────────────────
+    //
+    // `buildCustomerPeriods` dulu membangun daftar periode HANYA dari kunci `paymentMap`
+    // (plus periode acuan). Artinya periode yang TAK punya baris pembayaran tidak pernah
+    // muncul — padahal justru periode itulah yang menunggak. Tak ada kode non-test yang
+    // membuat baris `payment_history` kosong per periode, jadi lubang di tengah riwayat
+    // (bayar Juni, bolos Juli, bayar Agustus) hilang sepenuhnya dari rekap: Juli tak dihitung
+    // menunggak, `unpaid_period_count` kurang, dan aging bucket-nya terlalu ringan —
+    // membalik prioritas penagihan.
+    //
+    // BATASNYA BUKTI, BUKAN TEBAKAN. Terukur di produksi 2026-08-14: `registration_date`
+    // kosong pada 59 dari 60 pelanggan dan `created_at` kosong pada 56 — jadi "sejak kapan
+    // pelanggan ini ditagih" TIDAK bisa dijawab untuk hampir semua orang. Mengarang titik
+    // awal akan memunculkan tunggakan yang tak pernah ditagihkan. Karena itu enumerasi
+    // dimulai dari bukti paling awal yang benar-benar ada, dan periode acuan dipakai bila
+    // tak ada bukti sama sekali.
+    const MAKS_PERIODE_DIENUMERASI = 24;
+
+    function keyKePeriodeAngka(periodKey) {
+        const [tahun, bulan] = String(periodKey).split("-").map((x) => parseInt(x, 10));
+        return { tahun, bulan };
+    }
+
+    function periodeBerikutnya({ tahun, bulan }) {
+        return bulan >= 12 ? { tahun: tahun + 1, bulan: 1 } : { tahun, bulan: bulan + 1 };
+    }
+
+    function urutanBulan({ tahun, bulan }) {
+        return tahun * 12 + bulan;
+    }
+
+    /** Seluruh periode dari `dari` s/d `sampai` (inklusif), dibatasi MAKS_PERIODE_DIENUMERASI. */
+    function rentangPeriode(dariKey, sampaiKey) {
+        const hasil = [];
+        let kursor = keyKePeriodeAngka(dariKey);
+        const akhir = keyKePeriodeAngka(sampaiKey);
+
+        if (!kursor.tahun || !akhir.tahun || urutanBulan(kursor) > urutanBulan(akhir)) {
+            return [sampaiKey];
+        }
+
+        while (urutanBulan(kursor) <= urutanBulan(akhir) && hasil.length < MAKS_PERIODE_DIENUMERASI) {
+            hasil.push(formatPeriodKey(kursor.bulan, kursor.tahun));
+            kursor = periodeBerikutnya(kursor);
+        }
+
+        // Dibatasi dari BELAKANG: yang terbaru selalu ikut, yang paling tua yang dipotong.
+        return hasil.length < MAKS_PERIODE_DIENUMERASI
+            ? hasil
+            : hasil.slice(-MAKS_PERIODE_DIENUMERASI);
+    }
+
+    /** Periode paling awal yang PUNYA bukti (pembayaran/pembalikan/pembebasan) untuk pelanggan ini. */
+    function periodeBuktiPalingAwal(customerId, paymentMap, reversalMap, waiverSet) {
+        const prefiks = `${customerId}:`;
+        let paling = null;
+
+        for (const sumber of [paymentMap.keys(), reversalMap.keys(), waiverSet.values()]) {
+            for (const key of sumber) {
+                if (!String(key).startsWith(prefiks)) continue;
+                const periode = String(key).split(":")[1];
+                if (!paling || periode < paling) paling = periode;
+            }
+        }
+
+        return paling;
+    }
+
     function buildCustomerPeriods(customer, paymentMap, reversalMap, currentPeriodKey, waiverSet = new Set()) {
         const periods = [];
+        const sudahDibuat = new Set();
 
         for (const [key, entry] of paymentMap.entries()) {
             if (!key.startsWith(`${customer.id}:`)) {
                 continue;
             }
             const period = key.split(":")[1];
+            sudahDibuat.add(period);
             const reversal = reversalMap.get(key) || 0;
             const netPaid = entry.gross_paid - reversal;
             // `amount_due` dari ledger adalah kebenaran untuk periode yang PUNYA baris pembayaran
@@ -109,19 +179,31 @@ function createArrearsService(overrides = {}) {
             });
         }
 
-        const currentKey = `${customer.id}:${currentPeriodKey}`;
-        if (!paymentMap.has(currentKey)) {
+        // Periode TANPA baris pembayaran: dari bukti paling awal s/d periode acuan.
+        // Tanpa ini, periode yang dibolos di tengah riwayat (bayar Juni, bolos Juli, bayar
+        // Agustus) tak pernah muncul sama sekali — bukan "lunas", melainkan tak terhitung.
+        const buktiAwal = periodeBuktiPalingAwal(customer.id, paymentMap, reversalMap, waiverSet);
+        const mulaiDari = buktiAwal && buktiAwal < currentPeriodKey ? buktiAwal : currentPeriodKey;
+
+        for (const period of rentangPeriode(mulaiDari, currentPeriodKey)) {
+            if (sudahDibuat.has(period)) {
+                continue;
+            }
+
+            const key = `${customer.id}:${period}`;
             const amountDue = hargaEfektif(customer);
+            const reversal = reversalMap.get(key) || 0;
             // Pembebasan berlaku juga untuk periode yang belum punya baris pembayaran —
             // justru itu bentuk yang paling umum: "Bebaskan tagihan bulan ini" saat mendaftar.
-            const dibebaskan = waiverSet.has(currentKey);
+            const dibebaskan = waiverSet.has(key);
+            const netPaid = -reversal;
             periods.push({
-                period: currentPeriodKey,
+                period,
                 amount_due: amountDue,
                 gross_paid: 0,
-                total_reversal: 0,
-                net_paid: 0,
-                outstanding: dibebaskan ? 0 : amountDue,
+                total_reversal: reversal,
+                net_paid: netPaid,
+                outstanding: dibebaskan ? 0 : Math.max(amountDue - netPaid, 0),
                 dibebaskan,
                 status: dibebaskan ? "DIBEBASKAN" : amountDue > 0 ? "MENUNGGAK" : "LUNAS"
             });
