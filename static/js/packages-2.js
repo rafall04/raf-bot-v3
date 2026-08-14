@@ -20,7 +20,20 @@
             }
           },
           {
-            data: 'profile'
+            // Profil yang TIDAK ada di router ditandai di sini. Tanpa ini, paket yang menunjuk
+            // profil salah-ketik terlihat normal — kegagalannya baru terasa saat sinkronisasi
+            // profil pelanggan diam-diam tak pernah cocok. `profilRouter` disediakan packages-1.js
+            // (dimuat lebih dulu); `null` = daftar belum/gagal terbaca, jadi JANGAN menuduh apa pun.
+            data: 'profile',
+            render: function (data) {
+              var nilai = data || '';
+              if (!nilai) return '<span class="text-muted">—</span>';
+              var daftar = window.profilRouter || null;
+              if (!daftar) return nilai;
+              if (daftar.indexOf(nilai) !== -1) return nilai;
+              return '<span class="text-danger" title="Profil ini tidak ditemukan di router">'
+                + '<i class="fas fa-exclamation-triangle"></i> ' + nilai + '</span>';
+            }
           },
           {
             data: 'description',
@@ -61,6 +74,14 @@
             }
           }
         ]
+      });
+
+      // Daftar profil router tiba SESUDAH tabel tergambar (dua fetch terpisah). Tanpa gambar-ulang
+      // ini, penanda "profil tak ada di router" baru muncul saat tabel kebetulan di-reload.
+      // `invalidate()` WAJIB: DataTables menyimpan hasil render tiap sel, jadi `draw()` sendirian
+      // menggambar ulang baris TANPA memanggil ulang fungsi render — terukur 0 penanda vs 1.
+      $(document).on('profil-router-siap', function () {
+        try { dataTable.rows().invalidate().draw(false); } catch (_e) { /* tabel belum siap */ }
       });
 
       window.deleteData = function(id) {

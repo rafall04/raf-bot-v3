@@ -151,8 +151,11 @@
           </div>
           <div class="mb-3">
             <label for="create-profile" class="form-label">Profil MikroTik</label>
-            <input type="text" class="form-control" id="create-profile" name="profile" placeholder="Contoh: 10Mbps, 20Mbps" />
-            <small class="text-muted">Profil teknis untuk MikroTik (nama profile di router)</small>
+            <select class="form-control" id="create-profile" name="profile" data-profil-select>
+              <option value="">Memuat profil dari router…</option>
+            </select>
+            <input type="text" class="form-control mt-2 d-none" id="create-profile-manual" data-profil-manual placeholder="Ketik nama profil persis seperti di router" />
+            <small class="text-muted" id="create-profile-note">Diambil langsung dari router — pilih, jangan diketik, supaya tak ada salah ketik.</small>
           </div>
           <div class="mb-3">
             <label for="create-displayProfile" class="form-label">Profil Display</label>
@@ -208,8 +211,11 @@
           </div>
           <div class="mb-3">
             <label for="profile" class="form-label">Profil MikroTik</label>
-            <input type="text" class="form-control" id="profile" name="profile" placeholder="Contoh: 10Mbps, 20Mbps" />
-            <small class="text-muted">Profil teknis untuk MikroTik (nama profile di router)</small>
+            <select class="form-control" id="profile" name="profile" data-profil-select>
+              <option value="">Memuat profil dari router…</option>
+            </select>
+            <input type="text" class="form-control mt-2 d-none" id="profile-manual" data-profil-manual placeholder="Ketik nama profil persis seperti di router" />
+            <small class="text-muted" id="profile-note">Diambil langsung dari router — pilih, jangan diketik, supaya tak ada salah ketik.</small>
           </div>
           <div class="mb-3">
             <label for="displayProfile" class="form-label">Profil Display</label>

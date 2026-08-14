@@ -1509,3 +1509,15 @@
 - **Halaman `/sisa-pppoe`** (admin) + `static/js/sisa-pppoe.js`: daftar kredensial yatim dengan status sesi bertiga (dipakai / tak ada sesi / TAK TERBACA), tombol hapus HANYA aktif untuk yang terbukti tak dipakai, dan kegagalan baca router tampil sebagai peringatan merah — bukan tabel kosong yang menenangkan. Terpasang di grup Sistem sidebar.
 - **Terukur di produksi sebelum dirilis:** 67 secret vs 59 pelanggan → 6 "yatim", TAPI 3 di antaranya bersesi hidup dan satu lagi VPN operator (`laptop-aldi`, profil `vpn monitor`). Itulah sebabnya halaman ini menolak menyebut mereka sampah.
 - **Tes:** `message/handlers/state-domains/__tests__/customer-removal.state.test.js` (24).
+
+<a id="b228"></a>
+
+### Fix 2026-08-14 (Paket: Profil MikroTik dipilih dari router, bukan diketik bebas)
+
+- **AKAR:** field "Profil MikroTik" di `views/sb-admin/packages.php` (form TAMBAH dan EDIT) adalah `<input type="text">` bebas. Salah ketik satu huruf membuat paket menunjuk profil yang tak ada di router, dan kegagalannya SENYAP — paket tersimpan rapi, tapi profil pelanggan tak pernah cocok saat disinkronkan.
+- **Tanpa endpoint baru:** memakai `GET /api/mikrotik/ppp-profiles` yang SUDAH ada (owner `routes/admin-wifi-ops-routes.js`; `routes/admin.js` sudah stub 410). Terukur di produksi: 38 profil, bentuk `{status,message,data:[{name}]}`. `static/js/users.js` sempat mengambil endpoint yang sama tapi hasilnya tak pernah dipakai.
+- **Owner:** `static/js/packages-1.js` — `isiSelectProfil()`/`ambilProfil()` + selector form ikut diganti (lama `input[name="profile"]` tak akan menangkap `<select>`). Satu sumber nilai: dropdown ATAU isian manual.
+- **Tiga sifat yang dijaga:** (1) profil tersimpan yang TAK ADA di router tetap terpilih & ditandai `⚠ … tidak ada di router` — membuka form tidak boleh diam-diam mengubah data paket yang sudah jalan; (2) opsi `… ketik manual` tetap ada untuk profil yang belum dibuat di router; (3) router tak terbaca ⇒ dropdown disembunyikan dan turun ke isian manual berisi nilai lama — BUKAN dropdown kosong yang tampak seperti "tak ada profil".
+- **Kolom Profil di tabel** menandai paket yang menunjuk profil tak dikenal (`static/js/packages-2.js`). **GOTCHA terukur:** DataTables menyimpan hasil render tiap sel, jadi `draw()` sendirian menggambar ulang baris TANPA memanggil ulang fungsi render — penanda tak pernah muncul (0 vs 1). Wajib `rows().invalidate().draw(false)`, dipicu event `profil-router-siap` karena daftar profil tiba sesudah tabel tergambar.
+- **Diverifikasi dengan data produksi asli** (38 profil, 10 paket): dropdown 38+2 opsi, keempat perilaku form lolos, penanda tabel muncul & hilang sesuai daftar, kontras penanda 6,47 (terang) / 9,08 (gelap). Nol paket Dander yang profilnya tak cocok hari ini.
+- **Tes:** `views/__tests__/packages-profile-picker.test.js` (7).

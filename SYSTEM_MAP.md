@@ -330,6 +330,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-14 (PSB: modem tertaut pelanggan → VERIFIKASI stiker, tak ada lagi jalan buntu)](docs/boundary-log.md#b225)
 - [Fix 2026-08-14 (Copot pelanggan: hasil per-langkah + alat pembersih sisa PPPoE "modem hantu")](docs/boundary-log.md#b226)
 - [Feat 2026-08-14 (Copot pelanggan via WhatsApp + halaman Sisa PPPoE)](docs/boundary-log.md#b227)
+- [Fix 2026-08-14 (Paket: Profil MikroTik dipilih dari router, bukan diketik bebas)](docs/boundary-log.md#b228)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
