@@ -234,22 +234,83 @@ describe("jalur .php tak boleh jadi pintu kedua ke halaman panel", () => {
         expect(r.aksi).not.toBe("next");
     });
 
-    // Endpoint helper `.php` di views/ ROOT dipanggil halaman teknisi lewat AJAX — jangan ikut mati.
-    test.each(["/mikrotik_helper.php", "/get_ppp_active.php", "/api-monitoring-live.php"])(
-        "endpoint helper %s TETAP jalan untuk staf", async (jalur) => {
-            const r = await jalankan(STAF, jalur);
-            expect(r.aksi).toBe("next");
-        });
-
-    test("sesi PELANGGAN tetap ditolak di endpoint helper", async () => {
-        const r = await jalankan({ customer: { id: 9 } }, "/mikrotik_helper.php");
-        expect(r.status).toBe(403);
-        expect(r.aksi).toBe("send");
+    // KEBIJAKAN BARU: helper `.php` di views/ ROOT pun ditutup dari HTTP.
+    //
+    // Blok ini dulu berbunyi "dipanggil halaman teknisi lewat AJAX — jangan ikut mati", asumsi
+    // yang juga tertulis di komentar sumbernya. Penelusuran seluruh pemanggil membantahnya:
+    // NOL berkas .php di-fetch dari static/js. Semuanya dipanggil server-side (spawn PHP CLI /
+    // exec / include __DIR__). Selama asumsi itu dipercaya, peran `agen` pun bisa membuka
+    // /delete_pppoe_secret.php?username=<korban> dan /user-hotspot.php (dump seluruh
+    // username+password voucher).
+    test.each([
+        "/mikrotik_helper.php",
+        "/get_ppp_active.php",
+        "/api-monitoring-live.php",
+        "/delete_pppoe_secret.php",
+        "/update_pppoe_profile.php",
+        "/user-hotspot.php",
+        "/mikrotik_route_switch.php"
+    ])("helper %s ditutup dari HTTP bahkan untuk staf", async (jalur) => {
+        const r = await jalankan(STAF, jalur);
+        expect(r.status).toBe(404);
+        expect(r.aksi).not.toBe("next");
     });
 
-    test("tanpa sesi apa pun → diarahkan ke login", async () => {
-        const r = await jalankan({}, "/mikrotik_helper.php");
-        expect(r.aksi).toBe("redirect");
-        expect(r.nilai).toBe("/login");
+    test.each([
+        ["peran agen", { user: { id: 8, role: "agen" } }],
+        ["sesi PELANGGAN", { customer: { id: 9 } }],
+        ["tanpa sesi apa pun", {}]
+    ])("%s ditolak 404 di endpoint helper", async (_nama, req) => {
+        const r = await jalankan(req, "/delete_pppoe_secret.php");
+        expect(r.status).toBe(404);
+        expect(r.aksi).not.toBe("next");
+    });
+
+    test("pemanggil internal tepercaya TETAP dilewatkan", async () => {
+        const r = await jalankan({ internalService: true }, "/mikrotik_helper.php");
+        expect(r.aksi).toBe("next");
+    });
+});
+
+// Penjaga asumsi. Kebijakan "tak ada .php lewat HTTP" hanya sah selama tak ada kode sisi
+// browser yang benar-benar mem-fetch berkas .php. Kalau suatu saat ada yang menambahkannya,
+// tes ini merah SEBELUM fiturnya diam-diam mati di produksi.
+describe("tak ada kode sisi browser yang mem-fetch .php", () => {
+    const fs = require("fs");
+    const path = require("path");
+
+    test("static/js bersih dari fetch/ajax ke berkas .php", () => {
+        const dir = path.join(__dirname, "..", "..", "static", "js");
+        const berkas = [];
+        (function pindai(d) {
+            for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+                const p = path.join(d, e.name);
+                if (e.isDirectory()) pindai(p);
+                else if (e.name.endsWith(".js")) berkas.push(p);
+            }
+        })(dir);
+
+        // Hanya literal BERBENTUK URL (diawali `/`). Rujukan seperti `views/sb-admin/x.php`
+        // di Header Doc bukan pemanggilan, jadi tak dihitung.
+        const pola = /['"`](\/[\w./-]*\.php)(?:[?#][^'"`\n]*)?['"`]/g;
+
+        // Pengecualian terdokumentasi: endpoint ini TIDAK PERNAH ADA. Berkas nyatanya
+        // `views/api-monitoring-wrapper.php` (di-include PHP, bukan disajikan), dan tak ada
+        // satu pun rute Express `/api/monitoring-wrapper.php`. Jadi fetch-nya sudah mati
+        // sejak dulu — bukan sesuatu yang dimatikan oleh penutupan jalur .php. Dicatat di
+        // sini alih-alih disembunyikan, dan dihapus saat fungsi matinya dibersihkan.
+        const DIKETAHUI_MATI = new Set(["/api/monitoring-wrapper.php"]);
+
+        const pelanggar = [];
+        for (const p of berkas) {
+            const isi = fs.readFileSync(p, "utf8");
+            for (const cocok of isi.matchAll(pola)) {
+                if (!DIKETAHUI_MATI.has(cocok[1])) {
+                    pelanggar.push(`${path.basename(p)}: ${cocok[1]}`);
+                }
+            }
+        }
+
+        expect(pelanggar).toEqual([]);
     });
 });
