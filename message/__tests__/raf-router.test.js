@@ -28,6 +28,10 @@ jest.mock('../handlers/conversation-handler', () => ({
     getUserState: jest.fn(),
     setUserState: jest.fn(),
     deleteUserState: jest.fn(),
+    // Kata batal universal kini memberi pemilik state kesempatan menutup dirinya sendiri lebih dulu.
+    // Default `handled:false` = tak ada domain yang membalas → raf tetap mengirim kabar generik,
+    // persis perilaku yang diasersi test pembatalan di bawah.
+    runCancelHandler: jest.fn().mockResolvedValue({ handled: false }),
     createScopedStateProxy: jest.fn().mockImplementation(() => ({}))
 }));
 

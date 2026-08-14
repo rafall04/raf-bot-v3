@@ -193,7 +193,15 @@ async function persistAndNotifyNewUser(deps, { newUser, plainTextPassword, final
             }
 
             const messageText = deps.renderTemplate(templateName, templateData);
-            if (!messageText) {
+            // `renderTemplate` TIDAK mengembalikan null saat key hilang — ia mengembalikan STRING
+            // `Error: Template "..." not found. Please check message_templates.json.`
+            // (lib/templating.js:149). String itu truthy, jadi penjaga `if (!messageText)` saja tak
+            // pernah menyala dan teks error itu diteruskan apa adanya ke WhatsApp PELANGGAN sebagai
+            // pesan pertama dari ISP. Saudaranya `send-welcome.js` sudah menjaga ini sejak awal —
+            // di sini terlewat. Pemicunya bukan cuma key terhapus: `renderCategoryTemplate` juga
+            // `found:false` bila message_templates.json rusak/JSON invalid setelah diedit langsung
+            // di produksi (di sana templates memang di-merge per-kunci, bukan ditimpa).
+            if (!messageText || String(messageText).startsWith("Error:")) {
                 welcomeStatus.reason = `template_tak_ada:${templateName}`;
                 throw new Error("Template not found");
             }

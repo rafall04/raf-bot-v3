@@ -325,6 +325,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-12 (PSB: kerja teknisi durabel + envelope kontrol tak lagi jadi pesan)](docs/boundary-log.md#b220)
 - [Fix 2026-08-13 (PSB: kabar welcome ikut bukti, bentrok HP dihadang di awal + halaman Panduan Admin)](docs/boundary-log.md#b221)
 - [Fix 2026-08-14 (Halaman panel gagal-tertutup: peran ditegakkan di handler generik + jalur `.php` ditutup)](docs/boundary-log.md#b222)
+- [Fix 2026-08-14 (PSB: gerbang modem sadar LINTAS-AREA, jalan keluar ⛔ yang benar-benar bekerja, BATAL satu kontrak)](docs/boundary-log.md#b223)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

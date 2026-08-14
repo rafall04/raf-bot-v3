@@ -30,6 +30,11 @@
  *        `getConfig`, `packages`, `sendGroupSummary`. Require langsung: `./psb-caption-parser`, `fs`, `path`.
  * MainFuncs: `startPsbSession(context)`, `handlePsbConversationState(context)`,
  *            `handlePsbStateTimeout(userId, state)` (terdaftar ke `registerStateTimeoutHandler`),
+ *            `handlePsbStateCancel(userId, state, deps)` (terdaftar ke `registerStateCancelHandler` —
+ *            kata batal universal dicegat `raf.js` sebelum router state, jadi tanpa hook ini cabang
+ *            BATAL wizard tak pernah jalan dan jawabannya jatuh ke kalimat generik),
+ *            `isPsbBareCommand(text)` (`#psb` polos = minta LANJUT bila ada draft; permintaan
+ *            panduan eksplisit seperti `panduan psb` sengaja TIDAK termasuk),
  *            `stickerSn(sn)`/`snText(sn)`
  *            (SN ditampilkan dalam bentuk STIKER `HWTC…` lebih dulu, bentuk ACS 16-heksa menyusul —
  *            teknisi mencocokkan dengan mata ke stiker).
@@ -85,6 +90,15 @@ const PSB_TEMPLATE = [
 function isPsbTutorialTrigger(text) {
     return /^(#psb|(?:#?psb\s+(?:tutorial|panduan|format|cara|help|bantuan))|(?:tutorial|panduan|format|cara|bantuan)\s+psb)$/i
         .test(String(text || "").trim());
+}
+
+// `#psb` POLOS — persis itu, tanpa embel-embel. Dibedakan dari `isPsbTutorialTrigger` yang juga
+// cocok untuk `panduan psb` / `psb cara` / `psb format`: permintaan panduan yang EKSPLISIT harus
+// tetap dijawab panduan meski teknisinya punya draft. Yang ambigu hanya `#psb` polos — dan bot
+// sendiri yang mengajarkan kalimat itu sebagai cara MELANJUTKAN ("ketik *#PSB* lalu balas *LANJUT*",
+// bahkan "ketik *#PSB* kapan saja untuk melanjutkan").
+function isPsbBareCommand(text) {
+    return /^#psb$/i.test(String(text || "").trim());
 }
 
 // C/2: ekstrak ref jadwal papan dari "#PSB PSB-<n>" (butuh HYPHEN — sesuai format ref yang teknisi
@@ -483,6 +497,20 @@ function resumeOfferText(draft, nowMs) {
     ].join("\n");
 }
 
+// Balasan tunggal untuk SEMUA jalur pembatalan PSB — baik yang lewat cabang wizard maupun yang
+// dicegat kata batal universal di `message/raf.js`. Satu teks, satu kontrak: sesi ditutup, kerjanya
+// TIDAK dibuang, dan dua jalan lanjutannya disebutkan supaya tak ada yang menebak.
+function pesanBatalPsb() {
+    return [
+        "❌ Sesi PSB ditutup.",
+        "",
+        "✅ Pekerjaanmu *tidak dibuang* — foto KTP, foto rumah, lokasi, dan semua isian tetap tersimpan.",
+        "",
+        "▶️ Mau melanjutkan nanti? ketik *#PSB*, lalu balas *LANJUT*.",
+        "🗑️ Mau membuangnya dan mulai pelanggan lain? ketik *#PSB*, lalu balas *BARU*."
+    ].join("\n");
+}
+
 // Simpan buffer media ke folder sesi PSB (best-effort). Return path relatif atau null.
 function saveMedia(dir, filename, buffer) {
     try {
@@ -691,25 +719,55 @@ function adaKandidatLainYangBoleh(candidates, terblokir) {
         .some((c) => c !== terblokir && !(c && c.provenance && c.provenance.assignable === false));
 }
 
+// Jalan keluar HARUS berupa perintah yang benar-benar bekerja untuk kasusnya.
+//
+// Versi lama menyuruh *REFRESH* untuk kasus "pemilik lama sudah berhenti" — dan REFRESH secara
+// STRUKTURAL tak bisa memunculkan modem itu. REFRESH memanggil `findRecentPsbCandidates`, yang cuma
+// punya tiga jalur: `_registered` baru, `_lastBootstrap` baru, dan PPPoE bawaan `tes@hw`. Modem
+// bekas yang baru dibebaskan admin tak memenuhi satu pun (registrasinya berumur bulan/tahun,
+// `_lastBootstrap` di ACS ini terbukti tak pernah bergerak, dan PPPoE di dalam modem MASIH nama
+// pemilik lama — menghapus baris pelanggan tak mengubah apa pun di dalam modem). Terbukti langsung:
+// uji produksi 13-08-2026, `findRecentPsbCandidates` mengembalikan 0 kandidat untuk modem yang
+// `cari <SN>` temukan seketika. Jadi teknisi yang menurut disuruh REFRESH justru melihat
+// "belum ada modem terbaca" dan menyimpulkan admin belum mengerjakan.
+function jalanKeluarModemDiblokir(candidate, p, adaAlternatif) {
+    const sn = snText(candidate.serialNumber);
+    const cariLagi = `ketik \`cari ${sn.split(" ")[0]}\` lagi di sini`;
+
+    // Kasus LINTAS-AREA: modemnya sedang memegang sesi hidup, tapi bukan pelanggan area ini —
+    // menyuruh "minta admin menutup pelanggan itu" salah alamat, admin di sini tak memilikinya.
+    if (p.ownerSource === "sesi_modem_aktif") {
+        return [
+            `👉 Modem ini kemungkinan besar milik pelanggan *area lain* (GenieACS dipakai bersama).`,
+            `👉 Cek ulang stiker modem yang ada di tanganmu — kalau ternyata beda, ketik \`cari <SN stiker>\`.`,
+            `👉 Kalau modem ini MEMANG copotan yang sudah tak dipakai: cabut dari jaringan lama dulu, atau minta admin menyetel PPPoE-nya ke \`tes@hw\`. Setelah sesinya mati, ${cariLagi}.`,
+            adaAlternatif ? `👉 Modem lain di daftar masih boleh dipakai: balas *TIDAK* lalu pilih *angka*.` : null
+        ].filter(Boolean);
+    }
+
+    const siapa = p.ownerName ? `*${p.ownerName}*` : "pelanggan lain";
+    return [
+        // Penyebab paling sering: pelanggan lama sudah berhenti tapi recordnya belum ditutup — dan
+        // itu HANYA bisa dibereskan admin, bukan teknisi di lapangan.
+        `👉 Kalau ${siapa} memang *sudah berhenti*: minta admin menutup pelanggan itu dulu, lalu ${cariLagi}.`,
+        `👉 Kalau *salah ambil modem*: cek ulang stiker, lalu ketik \`cari <SN stiker>\`.`,
+        adaAlternatif ? `👉 Modem lain di daftar masih boleh dipakai: balas *TIDAK* lalu pilih *angka*.` : null
+    ].filter(Boolean);
+}
+
 function assignmentBlockReason(candidate, { adaAlternatif = false } = {}) {
     const p = candidate && candidate.provenance;
     if (!p || p.assignable !== false) return null;
-    const siapa = p.ownerName ? `*${p.ownerName}*` : "pelanggan lain";
+    const lintasArea = p.ownerSource === "sesi_modem_aktif";
+    const siapa = p.ownerName ? `*${p.ownerName}*` : (lintasArea ? "pelanggan lain" : "pelanggan lain");
     return [
-        `⛔ Modem SN \`${snText(candidate.serialNumber)}\` *masih tercatat* milik ${siapa}.`,
+        lintasArea
+            ? `⛔ Modem SN \`${snText(candidate.serialNumber)}\` *sedang dipakai* — sesi internetnya hidup.`
+            : `⛔ Modem SN \`${snText(candidate.serialNumber)}\` *masih tercatat* milik ${siapa}.`,
         p.reason ? `Alasan: ${p.reason}.` : null,
         `Kalau dipakai sekarang, PPPoE & WiFi ${siapa} akan tertimpa dan internetnya mati.`,
         ``,
-        // JALAN KELUAR WAJIB DISEBUT. Versi lama hanya menawarkan "balas TIDAK untuk pilih dari
-        // daftar" — padahal jalur yang membawa teknisi ke sini (`cari <pemilik lama>`) hampir selalu
-        // mengembalikan SATU modem: yang barusan diblokir. "TIDAK" lalu menampilkan daftar berisi
-        // modem itu lagi → teknisi berputar tanpa ujung dan tak pernah diberi tahu jalan keluarnya
-        // (insiden Tanjungharjo 2026-08-12, teknisi terjebak 13:48–13:50 sampai menyerah).
-        // Penyebab paling sering: pelanggan lama sudah berhenti tapi recordnya belum ditutup — dan
-        // itu HANYA bisa dibereskan admin, bukan teknisi di lapangan.
-        `👉 Kalau ${siapa} memang *sudah berhenti*: minta admin menutup pelanggan itu dulu, lalu balas *REFRESH* di sini.`,
-        `👉 Kalau *salah ambil modem*: cek ulang stiker, lalu ketik \`cari <SN stiker>\`.`,
-        adaAlternatif ? `👉 Modem lain di daftar masih boleh dipakai: balas *TIDAK* lalu pilih *angka*.` : null,
+        ...jalanKeluarModemDiblokir(candidate, p, adaAlternatif),
         `❌ Batalkan: *BATAL* (datamu tetap tersimpan, bisa dilanjutkan nanti).`
     ].filter(Boolean).join("\n");
 }
@@ -863,7 +921,9 @@ function candidateListText(context, candidates, nowMs) {
             ? [
                 ``,
                 `⚠️ *Semua modem di daftar ini ⛔ TERPAKAI* — tak ada yang bisa dipilih.`,
-                `👉 Pemilik lamanya sudah berhenti? minta admin menutup pelanggan itu dulu, lalu balas *REFRESH*.`,
+                // BUKAN *REFRESH*: perintah itu membaca daftar "modem baru terdeteksi", dan modem
+                // bekas yang barusan dibebaskan tak pernah masuk ke sana. `cari <SN>` yang bekerja.
+                `👉 Pemilik lamanya sudah berhenti? minta admin menutup pelanggan itu dulu, lalu ketik \`cari <SN stiker>\` lagi.`,
                 `👉 Salah ambil modem? ketik \`cari <SN stiker>\`.`
             ].join("\n")
             : null
@@ -1240,12 +1300,15 @@ async function handlePsbConversationState(context) {
         return { handled: true };
     }
 
-    if (["batal", "cancel", "ga jadi", "gajadi"].includes(lower)) {
-        // BATAL EKSPLISIT = teknisi memang membatalkan → draft ikut dibuang. Bedakan dari sesi yang
-        // MATI SENDIRI karena timeout: di sana draft justru diselamatkan (lihat handlePsbStateTimeout).
-        forgetDraft(context);
+    if (["batal", "cancel", "ga jadi", "gak jadi", "gajadi"].includes(lower)) {
+        // BATAL menutup SESI-nya, bukan membuang pekerjaannya. Dulu cabang ini membuang draft dan
+        // berkata "Tidak ada data/perubahan yang disimpan" — bertabrakan dengan layar ⛔ dan layar
+        // bentrok nomor yang justru menjanjikan "*BATAL* (datamu tetap tersimpan)". Padahal di situlah
+        // BATAL paling sering dipakai: teknisi mundur sambil menunggu admin membebaskan modem.
+        // Membuang draft di sana persis menghidupkan lagi masalah yang #b220 tutup (kerja hangus).
+        // Jalan membuang tetap ada dan ditawarkan tepat saat relevan: balas *BARU* di layar tawaran.
         deleteUserState(stateSender);
-        await safeReply(reply, "❌ PSB dibatalkan. Tidak ada data/perubahan yang disimpan.", logger);
+        await safeReply(reply, pesanBatalPsb(), logger);
         return { handled: true };
     }
 
@@ -1386,15 +1449,39 @@ async function handlePsbStateTimeout(userId, state, deps = {}) {
     }
 }
 
-// Daftarkan ke registry timeout milik conversation-handler. Hanya langkah yang MENYIMPAN KERJA
-// teknisi (STEP_RESUME tak ikut — isinya cuma pertanyaan, draftnya sudah aman di disk).
+/**
+ * Pembatalan lewat kata batal UNIVERSAL (`batal`/`cancel`/`ga jadi`/`gak jadi`) — dicegat
+ * `message/raf.js` sebelum router state, jadi cabang BATAL wizard tak pernah kebagian. Handler ini
+ * yang memastikan jawabannya sama persis lewat jalur mana pun: sesi ditutup, draft DIPERTAHANKAN,
+ * dan teknisi diberi tahu dua jalan lanjutannya. NEVER-THROW.
+ */
+async function handlePsbStateCancel(userId, state, deps = {}) {
+    const kirim = deps.reply || (async (teks) => {
+        const { sendReply } = require("../reply-runtime");
+        return sendReply({ recipient: userId, text: teks });
+    });
+    try {
+        await kirim(pesanBatalPsb());
+        return { handled: true };
+    } catch (e) {
+        console.error("[PSB_DM] balasan pembatalan gagal:", e.message);
+        return { handled: false };
+    }
+}
+
+// Daftarkan ke registry timeout & pembatalan milik conversation-handler. Hanya langkah yang
+// MENYIMPAN KERJA teknisi (STEP_RESUME tak ikut — isinya cuma pertanyaan, draftnya sudah aman
+// di disk, dan pembatalan di sana sudah punya balasannya sendiri).
 try {
-    const { registerStateTimeoutHandler } = require("../conversation-handler");
+    const { registerStateTimeoutHandler, registerStateCancelHandler } = require("../conversation-handler");
     if (typeof registerStateTimeoutHandler === "function") {
         RESUMABLE_STEPS.forEach((step) => registerStateTimeoutHandler(step, handlePsbStateTimeout));
     }
+    if (typeof registerStateCancelHandler === "function") {
+        RESUMABLE_STEPS.forEach((step) => registerStateCancelHandler(step, handlePsbStateCancel));
+    }
 } catch (e) {
-    console.error("[PSB_DM] gagal mendaftarkan handler timeout PSB:", e.message);
+    console.error("[PSB_DM] gagal mendaftarkan handler timeout/batal PSB:", e.message);
 }
 
 module.exports = {
@@ -1408,6 +1495,8 @@ module.exports = {
     snText,
     looksLikeSnInput,
     isPsbTutorialTrigger,
+    isPsbBareCommand,
+    handlePsbStateCancel,
     psbTutorialText,
     PSB_STEPS,
     RESUMABLE_STEPS,

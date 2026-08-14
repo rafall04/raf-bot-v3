@@ -41,7 +41,7 @@ const {
     handleRemoteRequest: _handleRemoteRequest,
     handleRemoteResponse
 } = require('./handlers/ticket-process-handler');
-const { getUserState, setUserState, deleteUserState } = require('./handlers/conversation-handler');
+const { getUserState, setUserState, deleteUserState, runCancelHandler } = require('./handlers/conversation-handler');
 const { handleConversationState } = require('./handlers/conversation-state-handler');
 const { buildBotContext } = require('./handlers/bot-context');
 const { routeManagedState, runGlobalInterceptors } = require('./handlers/bot-pipeline');
@@ -608,8 +608,17 @@ module.exports = async (raf, msg, m, options = {}) => {
 
         if (isCancellationKeyword(chats)) {
             isGlobalCommand = true;
+            // Pemilik state diberi kesempatan menutup dirinya SENDIRI lebih dulu. Tanpa ini,
+            // pembatalan universal memotong cabang BATAL milik domain: pembersihannya tak jalan
+            // (mis. draft PSB di disk) dan pemakai hanya menerima kalimat umum yang tak menjelaskan
+            // nasib pekerjaannya. Asimetrinya sempat nyata — `gajadi` (tanpa spasi) tak ada di
+            // daftar kata batal raf, sehingga ia jatuh ke domain dan berperilaku BEDA dari
+            // `ga jadi`. Handler mengembalikan handled=true bila sudah membalas sendiri.
+            const { handled: batalDitangani } = await runCancelHandler(stateSender, { reply });
             deleteUserState(stateSender);
-            await reply(format('success_process_cancelled') || 'Baik, proses sebelumnya sudah dibatalkan.');
+            if (!batalDitangani) {
+                await reply(format('success_process_cancelled') || 'Baik, proses sebelumnya sudah dibatalkan.');
+            }
             clearProcessing(stateSender);
             return;
         }
@@ -699,8 +708,15 @@ module.exports = async (raf, msg, m, options = {}) => {
         // Balas panduan lengkap format + alur, sebelum wizard. Gated sama (feature ON + akun staf) + NON-THROWING.
         try {
             const psbDmCfg = (global.config && global.config.psbIntake) || {};
-            const { isPsbTutorialTrigger } = require('./handlers/state-domains/psb.state');
-            if (psbDmCfg.enabled === true && type !== 'imageMessage' && isPsbTutorialTrigger(chats)) {
+            const { isPsbTutorialTrigger, isPsbBareCommand, hasPsbDraft } = require('./handlers/state-domains/psb.state');
+            // `#psb` POLOS dari teknisi yang PUNYA draft = permintaan MELANJUTKAN, bukan minta panduan.
+            // Tanpa pengecualian ini, gerbang tutorial menyala lebih dulu lalu `return`, dan gerbang
+            // wizard di bawah tak bisa menampungnya (ia mensyaratkan foto/ref jadwal), sehingga
+            // tawaran LANJUT/BARU secara STRUKTURAL tak pernah muncul lewat kalimat yang bot sendiri
+            // ajarkan — teknisi malah dapat panduan 30 baris yang menyuruhnya memotret KTP lagi.
+            // Permintaan panduan EKSPLISIT (`panduan psb`, `psb cara`, …) sengaja TIDAK dikecualikan.
+            const psbMintaLanjut = isPsbBareCommand(chats) && hasPsbDraft(stateSender);
+            if (psbDmCfg.enabled === true && type !== 'imageMessage' && isPsbTutorialTrigger(chats) && !psbMintaLanjut) {
                 const { resolveAuthorizedStaff } = require('./handlers/psb-group-intake');
                 const psbStaff = resolveAuthorizedStaff({ participant: optionalJid || sender, plainPhone: plainSenderNumber, accounts, allowedRoles: psbDmCfg.allowedRoles });
                 if (psbStaff) {
@@ -879,8 +895,15 @@ module.exports = async (raf, msg, m, options = {}) => {
             // hambatannya beres. Hanya diterima bila memang ADA draft tersimpan miliknya — di luar itu
             // kata-kata ini tak boleh membajak alur lain.
             let psbLanjutDraft = false;
-            if (!isPsbCmd && !isPsbFotoTanpaPagar && psbDmCfg.enabled === true
-                && type !== 'imageMessage' && /^\s*(refresh|lanjut|lanjutkan|terusin|teruskan)\s*$/i.test(String(chats || ''))) {
+            // `#psb` POLOS tanpa foto ikut dihitung sebagai permintaan MELANJUTKAN bila ada draft:
+            // itu kalimat yang bot sendiri ajarkan di pesan gagal/timeout. Tanpa ini, kombinasi
+            // "#PSB teks + ada draft" tak lolos syarat di bawah (butuh foto / ref jadwal) sehingga
+            // tawaran LANJUT/BARU tak pernah tercapai lewat jalur yang diajarkan.
+            const psbSambungan = !isPsbCmd && !isPsbFotoTanpaPagar
+                && /^\s*(refresh|lanjut|lanjutkan|terusin|teruskan)\s*$/i.test(String(chats || ''));
+            let psbBarePsb = false;
+            try { psbBarePsb = require('./handlers/state-domains/psb.state').isPsbBareCommand(psbCaption); } catch (_e) { psbBarePsb = false; }
+            if ((psbSambungan || psbBarePsb) && psbDmCfg.enabled === true && type !== 'imageMessage') {
                 try { psbLanjutDraft = require('./handlers/state-domains/psb.state').hasPsbDraft(stateSender); } catch (_e) { psbLanjutDraft = false; }
             }
             if (psbDmCfg.enabled === true && (isPsbCmd || isPsbFotoTanpaPagar || psbLanjutDraft) && (type === 'imageMessage' || psbLinkedRef || psbLanjutDraft)) {

@@ -1,8 +1,20 @@
 "use strict";
 
 /**
- * Conversation State Handler
- * Menangani percakapan multi-step dengan user
+ * Header Doc
+ * Purpose: Penyimpan & siklus hidup conversation state multi-langkah (in-memory, per pengirim).
+ *          Menyediakan get/set/delete + varian ber-scope, kedaluwarsa otomatis 15 menit, serta DUA
+ *          registry hook per `state.step` agar domain pemilik state bisa menutup dirinya sendiri:
+ *          `registerStateTimeoutHandler` (sesi mati sendiri) dan `registerStateCancelHandler`
+ *          (pemakai mengetik kata batal universal, yang dicegat lebih dulu di `message/raf.js`).
+ * Caller: `message/raf.js`, `message/handlers/conversation-state-router.js`, seluruh state domain
+ *         di `message/handlers/state-domains/*`.
+ * Deps: `lib/templating` (templatesCache, untuk helper `format`).
+ * MainFuncs: `getUserState`, `setUserState`, `updateUserState`, `deleteUserState`,
+ *            `getScopedState`/`setScopedState`/`deleteScopedState`/`createScopedStateProxy`,
+ *            `registerStateTimeoutHandler`, `registerStateCancelHandler`, `runCancelHandler`.
+ * SideEffects: Menyimpan state di memori proses + timer kedaluwarsa; menjalankan handler domain
+ *              (yang boleh mengirim WhatsApp / menulis draft ke disk). NEVER-THROW di jalur handler.
  */
 
 const { templatesCache } = require("../../lib/templating");
@@ -63,6 +75,40 @@ async function runTimeoutHandlerThenDelete(userId) {
     }
     console.log(`[AUTO-CLEANUP] Removing inactive state for user: ${userId}`);
     deleteUserState(userId);
+}
+
+// Registry handler PEMBATALAN per `state.step` — kembaran `stateTimeoutHandlers`.
+// Alasannya: kata batal universal (`batal`/`cancel`/`ga jadi`/`gak jadi`) dicegat di `message/raf.js`
+// JAUH sebelum `routeConversationState`, lalu langsung `deleteUserState` + balasan generik. Cabang
+// BATAL milik domain karena itu TIDAK PERNAH jalan — jadi pembersihan miliknya (mis. draft PSB di
+// disk) terlewat, dan pemakai menerima balasan umum yang tak menjelaskan nasib pekerjaannya.
+// Terbukti asimetris: `gajadi` (tanpa spasi) tidak ada di daftar raf sehingga jatuh ke domain dan
+// berperilaku BEDA dari `ga jadi` — perbedaan yang lahir hanya dari satu spasi.
+// Handler mengembalikan `{ handled: true }` bila ia sudah membalas sendiri, supaya pemanggil tak
+// mengirim balasan generik di atasnya (dua pesan untuk satu perintah).
+const stateCancelHandlers = Object.create(null);
+
+function registerStateCancelHandler(step, handler) {
+    if (typeof handler !== 'function') return;
+    stateCancelHandlers[step] = handler;
+}
+
+/**
+ * Beri domain pemilik state kesempatan menutup dirinya sendiri sebelum state dihapus.
+ * NEVER-THROW: kegagalan handler tak boleh menggagalkan pembatalan itu sendiri.
+ * @returns {Promise<{handled: boolean}>} handled=true → domain sudah membalas.
+ */
+async function runCancelHandler(userId, deps = {}) {
+    const state = stateStore[userId];
+    const handler = state?.step ? stateCancelHandlers[state.step] : null;
+    if (!handler) return { handled: false };
+    try {
+        const hasil = await handler(userId, state, deps);
+        return { handled: !!(hasil && hasil.handled) };
+    } catch (error) {
+        console.error('[STATE_CANCEL_HANDLER_ERROR]', { userId, step: state.step, error: error?.message });
+        return { handled: false };
+    }
 }
 
 /**
@@ -339,6 +385,8 @@ module.exports = {
     format,
     STATE_TIMEOUT,
     registerStateTimeoutHandler,
+    registerStateCancelHandler,
+    runCancelHandler,
     // Aliases for compatibility
     setState: setUserState,
     updateState: updateUserState,

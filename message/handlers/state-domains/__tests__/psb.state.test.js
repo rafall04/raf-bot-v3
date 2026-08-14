@@ -629,7 +629,13 @@ describe("PSB gerbang asal-usul modem", () => {
 
         const teks = replies(h);
         expect(teks).toMatch(/\*sudah berhenti\*/i);      // jalan keluar sebenarnya
-        expect(teks).toMatch(/REFRESH/);
+        // Jalan keluarnya HARUS `cari <SN>`, BUKAN *REFRESH*. REFRESH membaca daftar "modem baru
+        // terdeteksi" (`findRecentPsbCandidates`), dan modem bekas yang barusan dibebaskan admin tak
+        // pernah masuk ke sana: `_registered`-nya kuno, `_lastBootstrap` tak bergerak, dan PPPoE di
+        // dalamnya masih nama pemilik lama. Terukur di produksi 13-08-2026: REFRESH mengembalikan
+        // 0 kandidat untuk modem yang `cari <SN>` temukan seketika.
+        expect(teks).toMatch(/cari /i);
+        expect(teks).not.toMatch(/balas \*REFRESH\*/i);
         expect(teks).toMatch(/BATAL/);
         expect(teks).not.toMatch(/balas \*TIDAK\* lalu pilih/i); // saran buntu tak boleh muncul
     });
@@ -965,12 +971,34 @@ describe("PSB kerja teknisi DURABEL (draft + lanjut)", () => {
         expect(h.base.reply.mock.calls.at(-1)[0]).toMatch(/tetap saya simpan/i);
     });
 
-    test("BATAL di tengah wizard = pembatalan sungguhan → draft ikut dibuang", async () => {
+    // KONTRAK BATAL: menutup SESI, bukan membuang pekerjaan.
+    // Dulu cabang ini membuang draft dan berkata "Tidak ada data/perubahan yang disimpan" — padahal
+    // layar ⛔ dan layar bentrok nomor, tempat BATAL paling sering dipakai (teknisi mundur sambil
+    // menunggu admin membebaskan modem), justru menjanjikan "*BATAL* (datamu tetap tersimpan)".
+    // Membuangnya di situ menghidupkan lagi masalah yang #b220 tutup. Jalan membuang tetap ada dan
+    // ditawarkan tepat saat relevan: balas *BARU* di layar tawaran.
+    test("BATAL menutup sesi tapi draft DIPERTAHANKAN, dan teknisi diberi tahu dua jalannya", async () => {
         const h = harness();
         await reachConfirm(h);
         await jawab(h, "batal");
-        expect(h.base.draftStore.removeDraft).toHaveBeenCalled();
+        expect(h.base.draftStore.removeDraft).not.toHaveBeenCalled();
+        const teks = h.base.reply.mock.calls.at(-1)[0];
+        expect(teks).toMatch(/tidak dibuang/i);
+        expect(teks).toMatch(/LANJUT/);
+        expect(teks).toMatch(/BARU/);
+        expect(teks).not.toMatch(/Tidak ada data\/perubahan yang disimpan/i);
     });
+
+    // Perilakunya tak boleh bergantung pada satu spasi. `ga jadi` dicegat kata batal universal di
+    // raf.js, `gajadi` tidak — dulu keduanya berakhir beda (draft dibuang vs dipertahankan).
+    test.each(["batal", "cancel", "ga jadi", "gak jadi", "gajadi"])(
+        "sinonim batal '%s' berakhir sama: draft dipertahankan", async (kata) => {
+            const h = harness();
+            await reachConfirm(h);
+            await jawab(h, kata);
+            expect(h.base.draftStore.removeDraft).not.toHaveBeenCalled();
+            expect(h.base.reply.mock.calls.at(-1)[0]).toMatch(/tidak dibuang/i);
+        });
 
     test("sesi kedaluwarsa TIDAK boleh senyap: draft disimpan + cara melanjutkan diberitahukan", async () => {
         const putDraft = jest.fn();
@@ -1115,5 +1143,54 @@ describe("psb.state — bentrok nomor HP", () => {
         const h = harness();
         await startPsbSession({ ...h.base, type: "imageMessage", caption: CAPTION_TANPA_HP, msg: imageMsg(CAPTION_TANPA_HP), staff: STAFF });
         expect(h.base.reply.mock.calls.at(-1)[0]).not.toMatch(/sudah terdaftar atas nama/);
+    });
+});
+
+// ── `#psb` polos vs permintaan panduan ────────────────────────────────────────────────────────
+// Bot mengajarkan "ketik *#PSB* lalu balas *LANJUT*" dan bahkan "ketik *#PSB* kapan saja untuk
+// melanjutkan". Sebelum ini, `#psb` polos selalu dicegat gerbang tutorial di raf.js lalu `return`,
+// dan gerbang wizard tak bisa menampungnya (ia mensyaratkan foto / ref jadwal) — jadi tawaran
+// LANJUT/BARU secara STRUKTURAL tak pernah tercapai lewat kalimat yang bot sendiri ajarkan.
+// Pembedanya harus SEMPIT: hanya `#psb` polos yang dialihkan; permintaan panduan yang eksplisit
+// tetap dijawab panduan meski teknisinya punya draft.
+describe("isPsbBareCommand — hanya `#psb` polos", () => {
+    const { isPsbBareCommand, isPsbTutorialTrigger } = require("../psb.state");
+
+    test.each(["#psb", "#PSB", "  #Psb  "])("'%s' dianggap polos", (t) => {
+        expect(isPsbBareCommand(t)).toBe(true);
+    });
+
+    test.each([
+        "panduan psb", "psb panduan", "psb tutorial", "psb cara", "tutorial psb",
+        "#psb PSB-12", "#psb\nNama: Budi", "psb"
+    ])("'%s' BUKAN `#psb` polos", (t) => {
+        expect(isPsbBareCommand(t)).toBe(false);
+    });
+
+    test("permintaan panduan eksplisit tetap memicu tutorial (jangan ikut dialihkan)", () => {
+        expect(isPsbTutorialTrigger("panduan psb")).toBe(true);
+        expect(isPsbBareCommand("panduan psb")).toBe(false);
+    });
+});
+
+// Pembatalan lewat kata batal UNIVERSAL: raf.js mencegatnya sebelum router state, jadi jawabannya
+// harus datang dari handler yang terdaftar — bukan kalimat generik yang tak menjelaskan apa pun.
+describe("handlePsbStateCancel — jawaban pembatalan lewat jalur raf.js", () => {
+    const { handlePsbStateCancel } = require("../psb.state");
+
+    test("membalas sendiri (handled) dan menyebut kedua jalan lanjutan", async () => {
+        const reply = jest.fn(async () => {});
+        const hasil = await handlePsbStateCancel("628999@s.whatsapp.net", { step: "PSB_COLLECT_DOCS" }, { reply });
+        expect(hasil).toEqual({ handled: true });
+        const teks = reply.mock.calls[0][0];
+        expect(teks).toMatch(/tidak dibuang/i);
+        expect(teks).toMatch(/LANJUT/);
+        expect(teks).toMatch(/BARU/);
+    });
+
+    test("gagal membalas → handled:false supaya pemanggil tetap memberi kabar generik", async () => {
+        const reply = jest.fn(async () => { throw new Error("wa mati"); });
+        const hasil = await handlePsbStateCancel("628999@s.whatsapp.net", { step: "PSB_COLLECT_DOCS" }, { reply });
+        expect(hasil).toEqual({ handled: false });
     });
 });

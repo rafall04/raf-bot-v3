@@ -147,3 +147,56 @@ describe('create-user-persist — welcome jujur saat push modem gagal (device_co
         expect(deps.renderTemplate).toHaveBeenCalledWith('customer_welcome', expect.objectContaining({ username: 'legacy' }));
     });
 });
+
+// ── String error template TIDAK boleh sampai ke WhatsApp pelanggan ─────────────────────────────
+// `renderTemplate` tidak mengembalikan null saat key hilang — ia mengembalikan STRING
+// `Error: Template "..." not found. Please check message_templates.json.` (lib/templating.js:149).
+// String itu truthy, jadi penjaga `if (!messageText)` saja tak pernah menyala dan teks error itu
+// diteruskan apa adanya sebagai pesan PERTAMA pelanggan dari ISP-nya.
+describe('create-user-persist — string error template tak boleh terkirim ke pelanggan', () => {
+    const ERR = 'Error: Template "psb_welcome" not found. Please check message_templates.json.';
+
+    // `welcomeDeps` milik describe di atas tak terlihat dari sini; dirakit ulang seperlunya.
+    const depsWelcome = (overrides = {}) => makeDeps({
+        getConfig: jest.fn(() => ({ welcomeMessage: { enabled: true }, nama: 'RAFNET', namabot: 'BOT' })),
+        getStatusSnapshot: jest.fn(() => ({ connectionState: 'open' })),
+        logger: { error: jest.fn(), warn: jest.fn() },
+        ...overrides
+    });
+
+    function depsTemplateHilang() {
+        return depsWelcome({ renderTemplate: jest.fn(() => ERR) });
+    }
+
+    test('template hilang → sendMessage TIDAK dipanggil sama sekali', async () => {
+        const deps = depsTemplateHilang();
+        const newUser = { id: 21, name: 'Sari', paid: false, subscription: 'PAKET-100K', phone_number: '08123456789' };
+        const res = await persistAndNotifyNewUser(deps, buildArgs(newUser, { wifi_ssid: 'SariNet', wifi_password: 'sari12345' }, {
+            registrationMode: 'new',
+            deviceConfig: { attempted: true, ok: true, message: 'ok' }
+        }));
+        expect(res.status).toBe(201);            // pelanggannya tetap dibuat
+        expect(deps.sendMessage).not.toHaveBeenCalled();
+    });
+
+    test('template hilang → respons melaporkan sebabnya, bukan mengaku terkirim', async () => {
+        const deps = depsTemplateHilang();
+        const newUser = { id: 22, name: 'Sari', paid: false, subscription: 'PAKET-100K', phone_number: '08123456789' };
+        const res = await persistAndNotifyNewUser(deps, buildArgs(newUser, { wifi_ssid: 'SariNet', wifi_password: 'sari12345' }, {
+            registrationMode: 'new',
+            deviceConfig: { attempted: true, ok: true, message: 'ok' }
+        }));
+        expect(res.body.welcome.dispatched).toBe(false);
+        expect(res.body.welcome.reason).toMatch(/^template_tak_ada:/);
+    });
+
+    test('template SEHAT tetap terkirim — penjaga tidak kebablasan', async () => {
+        const deps = depsWelcome({ renderTemplate: jest.fn(() => 'Selamat datang di RAF NET!') });
+        const newUser = { id: 23, name: 'Sari', paid: false, subscription: 'PAKET-100K', phone_number: '08123456789' };
+        const res = await persistAndNotifyNewUser(deps, buildArgs(newUser, { wifi_ssid: 'SariNet', wifi_password: 'sari12345' }, {
+            registrationMode: 'new',
+            deviceConfig: { attempted: true, ok: true, message: 'ok' }
+        }));
+        expect(res.body.welcome.dispatched).toBe(true);
+    });
+});
