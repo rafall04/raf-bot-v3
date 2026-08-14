@@ -816,8 +816,17 @@ async function handleSaleConfirm(msg, sender, reply, chats, _raf = null, global 
         );
         
         // Send to customer via WhatsApp
+        //
+        // Hasilnya WAJIB dibawa keluar dari blok ini. Dulu `delivery.sent === false` hanya
+        // masuk `logger.warn`, lalu pesan sukses ke agen dikirim TANPA SYARAT — berbunyi
+        // "Voucher sudah dikirim ke customer." padahal tidak. `lib/whatsapp-delivery-service`
+        // MENGEMBALIKAN `{sent:false}`, tidak melempar, jadi try/catch di sekelilingnya pun
+        // tak menangkapnya. Pelanggan sudah membayar tunai tapi tak pernah menerima
+        // username/password voucher, dan tak ada satu pun jalur kirim ulang.
+        let voucherTerkirim = false;
         try {
             const delivery = await sendMessage(userState.customerId, { text: customerMessage });
+            voucherTerkirim = Boolean(delivery && delivery.sent);
             if (!delivery.sent) {
                 logger.warn('Cannot send voucher to customer - delivery not sent', {
                     customerId: userState.customerId,
@@ -844,8 +853,27 @@ async function handleSaleConfirm(msg, sender, reply, chats, _raf = null, global 
             // Continue even if notification fails - sale is already completed
         }
         
-        // Send confirmation to agent
-        const agentMessage = renderResponseTemplate(
+        // Send confirmation to agent — DUA jalur, ditentukan bukti pengiriman.
+        //
+        // Saat pengiriman ke pelanggan GAGAL, agen harus tahu SEKARANG dan punya cara
+        // menyelamatkannya: kredensial vouchernya ditampilkan langsung supaya bisa
+        // diteruskan manual. Penjualan sendiri tetap sah — uangnya sudah berpindah tangan,
+        // stok sudah dipotong, dan membatalkan pencatatan justru bikin ledger tak cocok.
+        const agentMessage = !voucherTerkirim
+            ? renderResponseTemplate(
+                'agent_voucher_sale_delivery_failed_agent',
+                `⚠️ *VOUCHER TERJUAL, TAPI GAGAL TERKIRIM*\n\nCustomer: ${userState.customerName}\nVoucher: ${userState.selectedVoucher.voucherProfileName}\nJumlah: ${quantitySold} voucher\nTotal: ${formatCurrency(userState.selectedVoucher.hargaJual * quantitySold)}\n\n*Pesan ke pelanggan TIDAK terkirim.* Tolong teruskan kode berikut secara manual:\n\n${voucherCredentials}\n\nWiFi: ${wifiName}\nStok saat ini: ${result.inventory.totalStok} voucher`,
+                {
+                    customerName: userState.customerName,
+                    voucherName: userState.selectedVoucher.voucherProfileName,
+                    quantity: quantitySold,
+                    totalHarga: formatCurrency(userState.selectedVoucher.hargaJual * quantitySold),
+                    voucherCredentials,
+                    wifiName,
+                    currentStock: result.inventory.totalStok
+                }
+            )
+            : renderResponseTemplate(
             'agent_voucher_sale_success_agent',
             `✅ *VOUCHER BERHASIL DIJUAL!*\n\nCustomer: ${userState.customerName}\nVoucher: ${userState.selectedVoucher.voucherProfileName}\nJumlah: ${quantitySold} voucher\nHarga Jual: ${formatCurrency(userState.selectedVoucher.hargaJual)}/voucher\nTotal: ${formatCurrency(userState.selectedVoucher.hargaJual * quantitySold)}\nProfit: ${formatCurrency(result.totalProfit || (result.sale.profit * quantitySold))}\n\nVoucher sudah dikirim ke customer.\nStok saat ini: ${result.inventory.totalStok} voucher\n\nKetik *stok voucher* untuk melihat inventory lengkap.`,
             {

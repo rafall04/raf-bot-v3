@@ -5,11 +5,17 @@
  * Deps: Express dan `../services/arrears.service`.
  * MainFuncs: `GET /read-model`, `GET /summary`, `GET /customer/:id`.
  * SideEffects: Tidak ada; read-model only.
+ * INVARIAN: ketiga handler WAJIB dibungkus `asyncHandler`. Express 4 hanya menangkap lemparan
+ *           SINKRON, jadi handler `async` polos yang menolak akan membuat request MENGGANTUNG:
+ *           tanpa 500, tanpa body. Saat users.sqlite bermasalah (SQLITE_IOERR / WAL yatim —
+ *           insiden yang sudah pernah terjadi), halaman rekap berputar terus dan admin
+ *           menyimpulkan "tidak ada tunggakan" alih-alih "database rusak".
  */
 "use strict";
 
 const express = require("express");
 const { createArrearsService } = require("../services/arrears.service");
+const { asyncHandler } = require("../lib/error-handler");
 
 function ensureAdmin(req, res, next) {
     if (!req.user || !["admin", "owner", "superadmin"].includes(req.user.role)) {
@@ -27,7 +33,7 @@ function createArrearsRouter(overrides = {}) {
     const router = express.Router();
     const service = overrides.service || createArrearsService();
 
-    router.get("/read-model", ensureAdmin, async (req, res) => {
+    router.get("/read-model", ensureAdmin, asyncHandler(async (req, res) => {
         const periodMonth = parsePeriod(req.query.period_month);
         const periodYear = parsePeriod(req.query.period_year);
         if (!periodMonth || !periodYear) {
@@ -36,9 +42,9 @@ function createArrearsRouter(overrides = {}) {
 
         const data = await service.getArrearsReadModel({ periodMonth, periodYear });
         return res.json({ status: 200, data });
-    });
+    }));
 
-    router.get("/summary", ensureAdmin, async (req, res) => {
+    router.get("/summary", ensureAdmin, asyncHandler(async (req, res) => {
         const periodMonth = parsePeriod(req.query.period_month);
         const periodYear = parsePeriod(req.query.period_year);
         if (!periodMonth || !periodYear) {
@@ -47,9 +53,9 @@ function createArrearsRouter(overrides = {}) {
 
         const data = await service.getArrearsReadModel({ periodMonth, periodYear });
         return res.json({ status: 200, data: data.summary });
-    });
+    }));
 
-    router.get("/customer/:id", ensureAdmin, async (req, res) => {
+    router.get("/customer/:id", ensureAdmin, asyncHandler(async (req, res) => {
         const periodMonth = parsePeriod(req.query.period_month);
         const periodYear = parsePeriod(req.query.period_year);
         if (!periodMonth || !periodYear) {
@@ -62,7 +68,7 @@ function createArrearsRouter(overrides = {}) {
             periodYear
         });
         return res.json({ status: 200, data });
-    });
+    }));
 
     return router;
 }

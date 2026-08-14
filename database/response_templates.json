@@ -5626,5 +5626,19 @@
     "name": "Gaji Saya - Ringkasan",
     "template": "💼 *GAJI SAYA — ${periode}*\n\n${rincian}",
     "category": "teknisi"
+  },
+  "agent_voucher_sale_delivery_failed_agent": {
+    "name": "Agent Voucher: Terjual tapi Gagal Terkirim",
+    "category": "agent_voucher",
+    "template": "⚠️ *VOUCHER TERJUAL, TAPI GAGAL TERKIRIM*\n\nCustomer: ${customerName}\nVoucher: ${voucherName}\nJumlah: ${quantity} voucher\nTotal: ${totalHarga}\n\n*Pesan ke pelanggan TIDAK terkirim.* Tolong teruskan kode berikut secara manual:\n\n${voucherCredentials}\n\nWiFi: ${wifiName}\nStok saat ini: ${currentStock} voucher",
+    "placeholders": [
+      "customerName",
+      "voucherName",
+      "quantity",
+      "totalHarga",
+      "voucherCredentials",
+      "wifiName",
+      "currentStock"
+    ]
   }
 }
