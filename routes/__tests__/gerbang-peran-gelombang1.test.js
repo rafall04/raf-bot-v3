@@ -4,8 +4,8 @@
  *          dulu terbuka (katalog paket, config, handler generik `/api/:type`) menolak
  *          anonim/pelanggan/teknisi sesuai kewenangannya, dan TETAP melayani peran yang berhak.
  * Caller: Jest test runner.
- * Deps: `express`, `http`, router asli `../packages` & `../stats`.
- * MainFuncs: `bangunApp`, `mulaiServer`, `hentikanServer`, `panggil`.
+ * Deps: `express`, `./helpers/panggil-http`, router asli `../packages` & `../stats`.
+ * MainFuncs: `bangunApp`, `panggil`.
  * SideEffects: Membuka server HTTP ephemeral di 127.0.0.1 dan menulis `global.packages`/
  *              `global.config`/`global.accounts` di memori tes. Tidak menyentuh berkas/DB.
  *
@@ -20,7 +20,7 @@
 
 const fs = require("fs");
 const express = require("express");
-const http = require("http");
+const { panggilHttp } = require("./helpers/panggil-http");
 
 // Bendung SEMUA penulisan ke database/packages.json selama suite ini berjalan.
 let penulisanTercegat = [];
@@ -70,36 +70,11 @@ function bangunApp(router, mountPath, peran) {
     return app;
 }
 
-async function mulaiServer(app) {
-    const server = http.createServer(app);
-    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-    return { server, baseUrl: `http://127.0.0.1:${server.address().port}` };
-}
-
-async function hentikanServer(server) {
-    await new Promise((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
-}
-
-// Menjalankan satu request terhadap router, lalu selalu menutup servernya.
+// Request lewat helper bersama (http.request TANPA keep-alive). Versi pertama memakai
+// `fetch`, yang connection pool-nya sesekali menabrak server yang sudah ditutup
+// (`TypeError: fetch failed`) — flaky, dan tes flaky sama tak bergunanya dengan tes salah.
 async function panggil(router, mountPath, peran, metode, path, badan) {
-    const { server, baseUrl } = await mulaiServer(bangunApp(router, mountPath, peran));
-    try {
-        const res = await fetch(`${baseUrl}${path}`, {
-            method: metode,
-            headers: badan ? { "Content-Type": "application/json" } : undefined,
-            body: badan ? JSON.stringify(badan) : undefined,
-        });
-        const teks = await res.text();
-        let json = null;
-        try {
-            json = JSON.parse(teks);
-        } catch (_err) {
-            json = null;
-        }
-        return { status: res.status, teks, json };
-    } finally {
-        await hentikanServer(server);
-    }
+    return panggilHttp(bangunApp(router, mountPath, peran), metode, path, badan);
 }
 
 describe("Gelombang 1 — gerbang katalog paket (routes/packages.js)", () => {

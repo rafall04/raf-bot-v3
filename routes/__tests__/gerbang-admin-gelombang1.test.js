@@ -4,7 +4,8 @@
  *          seharusnya admin — PIN agen (kredensial uang), penimpaan database pelanggan,
  *          broadcast massal, dan penulisan ulang template pesan pelanggan.
  * Caller: Jest test runner.
- * Deps: `express`, `http`, `../agents`, `../admin-database-routes`, `../admin-content-routes`.
+ * Deps: `express`, `./helpers/panggil-http`, `../agents`, `../admin-database-routes`,
+ *       `../admin-content-routes`.
  * MainFuncs: `panggil`.
  * SideEffects: Server HTTP ephemeral di 127.0.0.1. Service di-mock — yang diuji GERBANGNYA,
  *              dan justru dibuktikan lewat "service tak pernah terpanggil".
@@ -12,7 +13,7 @@
 "use strict";
 
 const express = require("express");
-const http = require("http");
+const { panggilHttp } = require("./helpers/panggil-http");
 
 const PERAN = {
     teknisi: { id: 9, username: "teknisi1", role: "teknisi" },
@@ -20,19 +21,11 @@ const PERAN = {
     admin: { id: 1, username: "admin", role: "admin" },
 };
 
+// Request lewat helper bersama (http.request tanpa keep-alive). Versi pertama memakai
+// `fetch`, yang connection pool-nya sesekali menabrak server yang sudah ditutup
+// (`TypeError: fetch failed`, 1 dari 3 putaran) — flaky.
 async function panggil(app, metode, path, badan) {
-    const server = http.createServer(app);
-    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-    try {
-        const res = await fetch(`http://127.0.0.1:${server.address().port}${path}`, {
-            method: metode,
-            headers: { "Content-Type": "application/json" },
-            body: badan ? JSON.stringify(badan) : undefined,
-        });
-        return { status: res.status, teks: await res.text() };
-    } finally {
-        await new Promise((resolve, reject) => server.close((e) => (e ? reject(e) : resolve())));
-    }
+    return panggilHttp(app, metode, path, badan);
 }
 
 function bungkus(mount, router, peran) {

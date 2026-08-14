@@ -4,7 +4,7 @@
  *          domain yang di-mount setelahnya (users/accounts/packages), sementara kategori legacy
  *          yang memang tak punya pemilik TETAP dilayaninya.
  * Caller: Jest test runner.
- * Deps: `express`, `http`, `../admin-ops-routes`.
+ * Deps: `express`, `./helpers/panggil-http`, `../admin-ops-routes`.
  * MainFuncs: `bangunAppUrutanNyata`.
  * SideEffects: Server HTTP ephemeral di 127.0.0.1. Service admin-ops di-mock — tes ini menguji
  *              PERUTEAN, bukan penghapusan.
@@ -29,7 +29,7 @@ jest.mock("../../services/admin-ops.service", () => ({
 }));
 
 const express = require("express");
-const http = require("http");
+const { panggilHttp } = require("./helpers/panggil-http");
 const { registerAdminOpsRoutes } = require("../admin-ops-routes");
 
 function bangunAppUrutanNyata(peran = { id: 1, username: "admin", role: "admin" }) {
@@ -67,15 +67,10 @@ function bangunAppUrutanNyata(peran = { id: 1, username: "admin", role: "admin" 
     return app;
 }
 
+// Helper bersama: http.request TANPA keep-alive. Pola "server baru per request" + `fetch`
+// (yang memakai connection pool) sesekali gagal `TypeError: fetch failed`.
 async function hapus(app, path) {
-    const server = http.createServer(app);
-    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-    try {
-        const res = await fetch(`http://127.0.0.1:${server.address().port}${path}`, { method: "DELETE" });
-        return { status: res.status, json: await res.json() };
-    } finally {
-        await new Promise((resolve, reject) => server.close((e) => (e ? reject(e) : resolve())));
-    }
+    return panggilHttp(app, "DELETE", path);
 }
 
 describe("DELETE /api/:category/:id tidak lagi membayangi pemilik domain", () => {
