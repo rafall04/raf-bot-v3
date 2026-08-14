@@ -5,6 +5,13 @@
  * Deps: Express router, helper jaringan/diagnostik, `../lib/whatsapp-gateway`, dan `../lib/whatsapp-bootstrap`.
  * MainFuncs: Endpoint status bot (`start`, `stop`, `sync-status`, `bot-status`, `stats`) dan diagnostik jaringan.
  * SideEffects: Dapat memicu start/reconnect bot dan menutup socket aktif lewat gateway runtime.
+ * INVARIAN: `statsRouter` di-mount PALING AKHIR di `lib/routes-registry.js`, jadi handler generik
+ *           `/:type/:id?` di berkas ini adalah PENAMPUNG TERAKHIR seluruh `/api` — setiap path
+ *           yang tak diklaim router lain mendarat di sini. Karena itu gerbangnya dipasang di
+ *           level route (`ensureAuthenticatedStaff`), bukan per-`case`: `case` baru harus lahir
+ *           sudah tertutup. Tipe yang lebih sensitif didaftarkan di `TIPE_KHUSUS_ADMIN`.
+ *           `/stats/config` menyajikan ALLOWLIST kunci (`KUNCI_CONFIG_UNTUK_STAF`), tak pernah
+ *           config mentah — di dalamnya ada `jwt` yang bisa dipakai menempa token admin.
  */
 const express = require('express');
 const path = require('path');
@@ -17,6 +24,7 @@ const { getPppStats, getHotspotStats, getMikrotikDiagnostics } = require('../lib
 const { getStatusSnapshot, canReconnect, closeActiveSocket } = require('../lib/whatsapp-gateway');
 const { triggerWhatsAppReconnect } = require('../lib/whatsapp-bootstrap');
 const { isInfrastructure } = require('../lib/account-classification');
+const { ensureAuthenticatedStaff } = require('./api-route-helpers');
 
 const router = express.Router();
 const execPromise = util.promisify(exec);
@@ -74,49 +82,96 @@ router.get('/me', ensureAuthenticated, (req, res) => {
     }
 });
 
-router.get('/stats/config', async (req, res) => {
+// Kunci config yang boleh dibaca STAF lewat `/api/stats/config`.
+//
+// SENGAJA allowlist, bukan blocklist. Endpoint ini dulu mengembalikan hasil merge MENTAH
+// `config.json` + `cron.json` tanpa redaksi dan tanpa cek peran — sementara gerbang global
+// hanya mensyaratkan `req.user || req.customer`. Artinya sesi PELANGGAN pun menerima
+// `jwt` (kunci penanda-tangan token), `ipaymuSecret`, serta kredensial MikroTik/GenieACS/
+// SSH/SNMP; dengan `jwt` di tangan, siapa pun bisa menandatangani token admin sendiri.
+//
+// Blocklist tidak dipakai karena config bertambah terus: satu kunci rahasia baru yang lupa
+// didaftarkan langsung bocor lagi. Dengan allowlist, kunci baru default-nya TIDAK tersaji.
+// Penyunting config penuh tetap ada di `case "config"` handler generik — dan itu admin-saja.
+const KUNCI_CONFIG_UNTUK_STAF = [
+    // Identitas tampilan
+    "botName", "nama", "namabot",
+    // Tanggal siklus tagihan (teknisi-pembayaran & otorisasi membacanya)
+    "tanggal_pengingat", "tanggal_batas_bayar", "tanggal_isolir",
+    // Batas & tampilan daftar (import-mikrotik membaca accessLimit)
+    "accessLimit", "listPelangganPerPage", "defaultBulkSSID", "rx_tolerance",
+    // Sakelar yang menentukan tombol mana muncul di panel
+    "showPaymentStatus", "showDueDate",
+    "genieacsEnabled", "genieacsCustomerRebootEnabled", "genieacsAdminRebootEnabled",
+    "genieacsWifiManagementEnabled", "custom_wifi_modification",
+    "isolirFeatureEnabled", "isolirManualEnabled", "isolirManualDefaultProfile",
+    "isolirManualAllowCustomProfile", "isolirManualDefaultDisconnect",
+    "isolirManualDefaultReboot", "isolirOpenDefaultReboot",
+    "teknisiTutorialUrl"
+];
+
+function ambilKunciTerdaftar(sumber) {
+    const hasil = {};
+    for (const kunci of KUNCI_CONFIG_UNTUK_STAF) {
+        if (sumber && Object.prototype.hasOwnProperty.call(sumber, kunci)) {
+            hasil[kunci] = sumber[kunci];
+        }
+    }
+    return hasil;
+}
+
+router.get('/stats/config', ensureAuthenticatedStaff, async (req, res) => {
     try {
         let mainConfig = global.config || {};
-        let cronConfig = global.cronConfig || {};
-        
+
         try {
-            // Try to read from file to get latest config
+            // Baca dari berkas supaya nilai terbaru ikut terbawa (global.config bisa tertinggal
+            // setelah simpan). cron.json TIDAK lagi di-merge: tak ada konsumen `/api/stats/config`
+            // yang membacanya, dan halaman Cron punya endpoint sendiri (`/api/cron`).
             const mainConfigPath = path.join(__dirname, '..', 'config.json');
             if (fs.existsSync(mainConfigPath)) {
                 mainConfig = JSON.parse(fs.readFileSync(mainConfigPath, 'utf8'));
             }
         } catch (err) {
-            console.warn('[STATS_CONFIG] Failed to read config.json, using global.config:', err.message);
+            console.warn('[STATS_CONFIG] Gagal membaca config.json, memakai global.config:', err.message);
         }
-        
-        try {
-            // Try to read from file to get latest cron config
-            const cronConfigPath = path.join(__dirname, '..', 'database', 'cron.json');
-            if (fs.existsSync(cronConfigPath)) {
-                cronConfig = JSON.parse(fs.readFileSync(cronConfigPath, 'utf8'));
-            }
-        } catch (err) {
-            console.warn('[STATS_CONFIG] Failed to read cron.json, using global.cronConfig:', err.message);
-        }
-        
-        // Merge configs: mainConfig first, then cronConfig (cronConfig can override)
-        // But accessLimit should be in mainConfig, so we prioritize mainConfig for accessLimit
-        const mergedConfig = { ...mainConfig, ...cronConfig };
-        // Ensure accessLimit from mainConfig is preserved if it exists
-        if (mainConfig?.accessLimit !== undefined) {
-            mergedConfig.accessLimit = mainConfig.accessLimit;
-        }
-        
-        return res.json({ data: mergedConfig });
+
+        return res.json({ data: ambilKunciTerdaftar(mainConfig) });
     } catch (err) {
         console.error('[STATS_CONFIG_ERROR]', err);
-        return res.status(500).json({ status: 500, message: 'Gagal mengambil konfigurasi.', error: err.message });
+        // Pesan galat tak lagi membawa `err.message` ke klien — isinya bisa memuat path berkas.
+        return res.status(500).json({ status: 500, message: 'Gagal mengambil konfigurasi.' });
     }
 });
 
+// Tipe pada handler generik yang isinya HANYA boleh untuk admin. `config` = seluruh
+// config.json (penyunting setelan), `accounts` = daftar akun staf, `atm`/`payment`/
+// `payment-method`/`voucher`/`statik` = data operasional keuangan.
+// Ditambah kendali hidup-mati bot: `start` hanya dipanggil dashboard admin
+// (static/js/index.js), sementara `stop` sama sekali tak punya konsumen UI — teknisi
+// tak punya urusan mematikan koneksi WhatsApp seluruh sistem. `reboot` TIDAK masuk sini:
+// teknisi memang me-reboot modem pelanggan dari teknisi-pelanggan & teknisi-map-viewer.
+const TIPE_KHUSUS_ADMIN = new Set([
+    "config", "accounts", "atm", "payment", "payment-method", "voucher", "statik", "cron",
+    "start", "stop", "sync-status"
+]);
+
 // GET /api/:type/:id?
-router.get('/:type/:id?', async (req, res) => {
+//
+// GERBANG: `ensureAuthenticatedStaff` dipasang di sini karena handler ini adalah PENAMPUNG
+// TERAKHIR di bawah `/api` (statsRouter di-mount paling akhir di lib/routes-registry.js).
+// Sebelumnya ia tanpa middleware apa pun, sedangkan gerbang global meloloskan
+// `req.user || req.customer` — sehingga sesi PELANGGAN bisa memanggil `/api/stop`
+// (menutup socket WhatsApp: reminder, isolir, konfirmasi bayar semua mati) dan `/api/reboot/:id`.
+// Cabang `default` bahkan mengembalikan `global.users` / `global.accounts` utuh.
+// Setiap `case` baru sekarang lahir sudah ber-gerbang staf; yang lebih sensitif WAJIB
+// didaftarkan di TIPE_KHUSUS_ADMIN di atas.
+router.get('/:type/:id?', ensureAuthenticatedStaff, async (req, res) => {
     const { type, id } = req.params;
+
+    if (TIPE_KHUSUS_ADMIN.has(type) && !['admin', 'owner', 'superadmin'].includes(req.user.role)) {
+        return res.status(403).json({ status: 403, message: "Akses ditolak." });
+    }
     try {
         switch(type){
             case "start": {

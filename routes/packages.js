@@ -1,7 +1,24 @@
+/**
+ * Header Doc
+ * Purpose: CRUD katalog paket langganan (`database/packages.json` / `global.packages`) plus
+ *          varian publik yang sudah meredaksi field internal.
+ * Caller: `lib/routes-registry.js` (`app.use("/", packagesRouter)`); konsumen UI = halaman admin
+ *         (packages, users, payment-status, admin-diskon, kompensasi, speed-boost-config) dan
+ *         halaman TEKNISI (teknisi-pelanggan, teknisi-pembayaran).
+ * Deps: `routes/api-route-helpers` (ensureAdmin/ensureAuthenticatedStaff), `global.packages`.
+ * MainFuncs: `savePackages`, handler GET/POST/PUT/DELETE `/api/packages`.
+ * SideEffects: Menulis `database/packages.json` dan memutakhirkan `global.packages`.
+ * INVARIAN: Harga di katalog ini dipakai `getPackagePrice`/`getEffectivePrice`, cron pengingat,
+ *           rekap tunggakan, dan broadcast tagihan — jadi MUTASI wajib admin. Berkas ini dulu
+ *           TANPA satu pun penjaga sementara `/api/packages` terdaftar publik di
+ *           `lib/http-auth-bootstrap.js`, sehingga POST/PUT/DELETE terbuka tanpa login.
+ *           Hanya `/api/packages/public` yang boleh anonim.
+ */
 const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const path = require('path');
+const { ensureAdmin, ensureAuthenticatedStaff } = require('./api-route-helpers');
 
 // Helper function to save packages
 function savePackages() {
@@ -15,8 +32,9 @@ function savePackages() {
     }
 }
 
-// GET /api/packages - Get all packages (admin)
-router.get('/api/packages', (req, res) => {
+// GET /api/packages - katalog LENGKAP (membawa `profile` MikroTik internal).
+// Staf, bukan admin-saja: halaman teknisi-pelanggan & teknisi-pembayaran ikut memakainya.
+router.get('/api/packages', ensureAuthenticatedStaff, (req, res) => {
     try {
         const packages = global.packages || [];
         res.json({ data: packages });
@@ -36,9 +54,12 @@ router.get('/api/packages/public', (req, res) => {
                 id: pkg.id,
                 name: pkg.name,
                 price: pkg.price,
-                profile: pkg.displayProfile || pkg.profile || '',  // Use displayProfile for public
+                // HANYA label tampilan. Dulu di sini ada fallback `|| pkg.profile`, sehingga
+                // paket yang belum diisi `displayProfile` justru menyiarkan nama profil
+                // MikroTik ASLI ke endpoint tanpa login — persis yang hendak disembunyikan.
+                // Kosong lebih baik daripada bocor: tak ada konsumen yang mewajibkan isi.
+                profile: pkg.displayProfile || '',
                 description: pkg.description || '',
-                // Hide internal/technical fields like actual MikroTik profile
             }));
         
         res.json({ 
@@ -55,7 +76,7 @@ router.get('/api/packages/public', (req, res) => {
 });
 
 // POST /api/packages - Create new package
-router.post('/api/packages', (req, res) => {
+router.post('/api/packages', ensureAdmin, (req, res) => {
     try {
         const newPackage = {
             id: Date.now().toString(),
@@ -83,7 +104,7 @@ router.post('/api/packages', (req, res) => {
 });
 
 // PUT /api/packages/:id - Update package
-router.put('/api/packages/:id', (req, res) => {
+router.put('/api/packages/:id', ensureAdmin, (req, res) => {
     try {
         const packageId = req.params.id;
         const packageIndex = global.packages.findIndex(p => p.id == packageId);
@@ -124,7 +145,7 @@ router.put('/api/packages/:id', (req, res) => {
 });
 
 // DELETE /api/packages/:id - Delete package
-router.delete('/api/packages/:id', (req, res) => {
+router.delete('/api/packages/:id', ensureAdmin, (req, res) => {
     try {
         const packageId = req.params.id;
         const packageIndex = global.packages.findIndex(p => p.id == packageId);
