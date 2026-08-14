@@ -559,6 +559,48 @@ router.get('/supported-countries', (req, res) => {
     });
 });
 
+// ── Sisa PPPoE (modem hantu) ──────────────────────────────────────────────────────────────────
+// Didaftarkan SEBELUM `/users/:id` supaya `orphan-pppoe` tak tertelan pola parameter itu.
+// GET /api/users/orphan-pppoe — secret PPPoE yang tak lagi punya baris pelanggan.
+router.get('/users/orphan-pppoe', ensureAdmin, async (req, res) => {
+    try {
+        const { listOrphanSecrets } = require('../lib/orphan-pppoe-service');
+        const hasil = await listOrphanSecrets({});
+        // Router tak terbaca ≠ "tidak ada sisa". Balas 502 supaya UI tak menampilkan daftar kosong
+        // yang menenangkan padahal pemeriksaannya sendiri gagal.
+        if (!hasil.ok) return res.status(502).json({ status: 502, message: hasil.message });
+        return res.json({ status: 200, ...hasil });
+    } catch (error) {
+        console.error('[API_ORPHAN_PPPOE_LIST_ERROR]', error);
+        return res.status(500).json({ status: 500, message: 'Gagal membaca sisa PPPoE', error: error.message });
+    }
+});
+
+// DELETE /api/users/orphan-pppoe/:username — hapus SATU secret yatim (tak ada aksi massal).
+router.delete('/users/orphan-pppoe/:username', ensureAdmin, async (req, res) => {
+    try {
+        const { removeOrphanSecret } = require('../lib/orphan-pppoe-service');
+        const hasil = await removeOrphanSecret(req.params.username, {});
+        if (!hasil.ok) return res.status(409).json({ status: 409, message: hasil.message });
+
+        try {
+            const { logActivity } = require('../lib/activity-logger');
+            await logActivity({
+                userId: req.user?.id, username: req.user?.username, role: req.user?.role,
+                actionType: 'DELETE', resourceType: 'pppoe_secret', resourceId: req.params.username,
+                resourceName: req.params.username,
+                description: `Hapus sisa secret PPPoE ${req.params.username} (tanpa pelanggan)`,
+                ipAddress: req.ip, userAgent: req.headers['user-agent']
+            });
+        } catch (logErr) { console.error('[API_ORPHAN_PPPOE_LOG_ERROR]', logErr.message); }
+
+        return res.json({ status: 200, message: hasil.message });
+    } catch (error) {
+        console.error('[API_ORPHAN_PPPOE_DELETE_ERROR]', error);
+        return res.status(500).json({ status: 500, message: 'Gagal menghapus sisa PPPoE', error: error.message });
+    }
+});
+
 // DELETE /api/users/:id - Delete a user
 router.delete('/users/:id', ensureAdmin, async (req, res) => {
     try {

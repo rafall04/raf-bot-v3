@@ -1484,3 +1484,16 @@
 - **Peringatan tidak lagi ditumpuk di dua layar.** Blok penolakan di layar "CEK DULU" dihapus — menumpuk peringatan di layar pertama membuat layar kedua ikut dilewati mata.
 - **Kode yatim dibersihkan:** `assignmentBlockReason`, `jalanKeluarModemDiblokir`, dan `adaKandidatLainYangBoleh` dihapus beserta kedua pemanggilnya (semuanya jadi mati begitu tak ada vonis TOLAK).
 - **Tes:** `message/handlers/state-domains/__tests__/psb.state.test.js` (103) & `lib/__tests__/psb-modem-provenance.test.js` (33) — termasuk "YA ditolak di layar penegasan" dan "tak ada lagi jalan buntu".
+
+<a id="b226"></a>
+
+### Fix 2026-08-14 (Copot pelanggan: hasil per-langkah + alat pembersih sisa PPPoE "modem hantu")
+
+- **KOREKSI ASUMSI:** tombol hapus di panel TERNYATA SUDAH ADA (`deleteData()` di `static/js/users.js`, tombol ber-title "Hapus User") — pemeriksaan sebelumnya mencari nama `deleteUser`/"hapus pelanggan" dan menyimpulkan keliru. Yang tidak ada adalah KUALITASNYA, bukan tombolnya. Perintah WhatsApp memang benar-benar tak ada.
+- **AKAR MODEM HANTU:** `deleteUserById` membersihkan sesi + secret PPPoE best-effort & never-throw, lalu SELALU menjawab "User berhasil dihapus". Bila MikroTik tak terjangkau, baris pelanggan lenyap TAPI secretnya selamat → modem terus konek atas nama orang yang sudah tak ada → wizard PSB memvonisnya milik "pelanggan tak dikenal" selamanya, dan tak seorang pun bisa menutup pelanggan yang barisnya sudah hilang.
+- **Owner:** `services/api-users/delete-user-by-id.js` kini mengembalikan `langkah{sesi_diputus,secret_dihapus,baris_dihapus,port_odp}` + `perlu_dibersihkan` + `pppoe_tertinggal`, dan MENGIRIM alert `PPPOE_SECRET_TERTINGGAL` ke admin saat secret gagal dihapus. Baris pelanggan TETAP dihapus walau MikroTik gagal (disengaja) — yang berubah hanya kejujuran laporannya.
+- **Owner baru:** `lib/orphan-pppoe-service.js` (`listOrphanSecrets`/`removeOrphanSecret`) + endpoint `GET /api/users/orphan-pppoe` & `DELETE /api/users/orphan-pppoe/:username` (ensureAdmin, didaftarkan SEBELUM `/users/:id`). Daftar diturunkan LANGSUNG dari keadaan sekarang (secret MikroTik ⨯ tabel users) — bukan penanda tersimpan — jadi ia menangkap sisa yang terjadi sebelum alat ini ada dan sembuh sendiri setelah dibersihkan.
+- **Dua pengaman alat itu:** `tes@hw`/`tes-rumah` masuk `SECRET_DILINDUNGI` (kredensial bawaan modem polos — menghapusnya mematikan SELURUH alur PSB), dan `removeOrphanSecret` MEMVERIFIKASI ULANG keyatiman sebelum menghapus (daftar yang dilihat admin bisa basi). Router tak terbaca ⇒ `ok:false`/502, BUKAN daftar kosong yang menyamar jadi "tak ada sisa".
+- **Panel:** konfirmasi kini menyebut nama + PPPoE + modem tertaut dan mendaftar 4 langkah yang akan dikerjakan; hasilnya ditampilkan per langkah (✅/❌ + alasan), dengan peringatan khusus bila kredensial tertinggal. Riwayat tagihan (`payment_history` di saldo.sqlite, `invoices.json`) terverifikasi TIDAK ikut terhapus — keduanya keyed `user_id`/`customer.id` di store terpisah, jadi arsip/soft-delete tidak diperlukan untuk itu.
+- **BELUM:** perintah WhatsApp copot pelanggan (item 2 permintaan) belum dibuat — lihat catatan di ringkasan sesi.
+- **Tes:** `services/api-users/__tests__/delete-user-by-id.test.js` (7), `lib/__tests__/orphan-pppoe-service.test.js` (8).

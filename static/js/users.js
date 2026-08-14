@@ -2046,7 +2046,7 @@
                             // Close the action group div. The delete button now sits outside this flex container
                             // to ensure it's on a new line, but still within the overall cell.
                             actionButtonsHtml += `</div>
-                                <button onclick="deleteData('${row.id}', event)" class="btn btn-danger btn-sm mt-1" title="Hapus User"><i class="fas fa-trash"></i></button>`;
+                                <button onclick="deleteData('${row.id}', event, ${JSON.stringify(JSON.stringify({ nama: row.name || '', pppoe: row.pppoe_username || '', device: row.device_id || '' }))})" class="btn btn-danger btn-sm mt-1" title="Copot Pelanggan"><i class="fas fa-trash"></i></button>`;
 
                             return actionButtonsHtml;
                         }
@@ -3324,28 +3324,71 @@
             });
         });
 
-        function deleteData(id, event) {
+        // COPOT PELANGGAN.
+        // Dulu: `confirm('Anda yakin ingin menghapus pengguna ini?')` — tanpa menyebut SIAPA, lalu
+        // melaporkan "User berhasil dihapus" apa pun yang terjadi di MikroTik. Dua-duanya berbahaya:
+        // konfirmasi tanpa nama gampang disetujui pada baris yang salah, dan klaim sukses datar
+        // menyembunyikan secret PPPoE yang gagal dihapus — yang lalu jadi "modem hantu" (modem terus
+        // konek atas nama pelanggan yang barisnya sudah lenyap, dan wizard PSB memvonisnya milik
+        // pelanggan tak dikenal selamanya).
+        function deleteData(id, event, infoJson) {
             event.preventDefault();
-            if (confirm('Anda yakin ingin menghapus pengguna ini?')) {
-                fetch('/api/users/' + id, { 
-                    method: 'DELETE',
-                    credentials: 'include'
-                })
-                .then(response => response.json().then(data => ({ok: response.ok, data})))
+            let info = {};
+            try { info = JSON.parse(infoJson || '{}'); } catch (e) { info = {}; }
+
+            const rincian = [
+                'COPOT PELANGGAN — tindakan ini tidak bisa dibatalkan.',
+                '',
+                'Nama    : ' + (info.nama || '(tanpa nama)'),
+                'PPPoE   : ' + (info.pppoe || '(tidak ada)'),
+                'Modem   : ' + (info.device || '(belum tertaut)'),
+                '',
+                'Yang akan dikerjakan:',
+                '  1. Putuskan sesi internetnya sekarang',
+                '  2. Hapus kredensial PPPoE di MikroTik',
+                '  3. Hapus data pelanggan',
+                '  4. Hitung ulang pemakaian port ODP',
+                '',
+                'Riwayat tagihan & invoice TIDAK ikut terhapus.',
+                '',
+                'Lanjutkan?'
+            ].join('\n');
+            if (!confirm(rincian)) return;
+
+            fetch('/api/users/' + id, { method: 'DELETE', credentials: 'include' })
+                .then(response => response.json().then(data => ({ ok: response.ok, data })))
                 .then(result => {
-                    if (result.ok) {
-                        displayGlobalUserMessage(result.data.message || 'Pengguna berhasil dihapus.', 'success', true);
-                        // Call refreshAllData with `true` to force it to run even if no filters are active,
-                        // and suppress the "no filter active" message.
-                        refreshAllData(true); 
-                    } else {
-                        displayGlobalUserMessage(result.data.message || 'Gagal menghapus pengguna.', 'danger', true);
+                    if (!result.ok) {
+                        displayGlobalUserMessage(result.data.message || 'Gagal mencopot pelanggan.', 'danger', true);
+                        return;
                     }
+                    // Tampilkan HASIL PER LANGKAH, bukan satu kata "berhasil". Kalau ada langkah yang
+                    // gagal, admin harus melihatnya SEKARANG — bukan menemukannya berbulan kemudian
+                    // lewat teknisi yang buntu di lapangan.
+                    const L = result.data.langkah || {};
+                    const tanda = (s) => !s || !s.dijalankan ? '–' : (s.ok ? '✅' : '❌');
+                    const alasan = (s) => (s && s.dijalankan && !s.ok && s.pesan) ? ' (' + s.pesan + ')' : '';
+                    const baris = [
+                        tanda(L.sesi_diputus) + ' Sesi diputus' + alasan(L.sesi_diputus),
+                        tanda(L.secret_dihapus) + ' Kredensial PPPoE dihapus' + alasan(L.secret_dihapus),
+                        tanda(L.baris_dihapus) + ' Data pelanggan dihapus',
+                        tanda(L.port_odp) + ' Port ODP dihitung ulang' + alasan(L.port_odp)
+                    ].join('<br>');
+
+                    const perluBersih = result.data.perlu_dibersihkan;
+                    const pesan = (perluBersih
+                        ? '<b>Pelanggan dicopot, TAPI belum tuntas.</b><br>' + baris
+                          + '<br><br>⚠️ Kredensial <code>' + (result.data.pppoe_tertinggal || '') + '</code> masih ada di MikroTik — '
+                          + 'modemnya <b>masih bisa konek</b>. Bersihkan lewat <b>Sisa PPPoE</b> atau hapus manual di router, '
+                          + 'kalau tidak modem itu akan terus dianggap milik pelanggan tak dikenal saat dipakai PSB.'
+                        : '<b>Pelanggan dicopot.</b><br>' + baris);
+
+                    displayGlobalUserMessage(pesan, perluBersih ? 'warning' : 'success', true);
+                    refreshAllData(true);
                 })
                 .catch(error => {
                     displayGlobalUserMessage('Terjadi kesalahan: ' + error.message, 'danger', true);
                 });
-            }
         }
 
         $('#confirmDeleteAllUsers').on('click', function() {

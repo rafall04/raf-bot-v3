@@ -119,13 +119,18 @@ describe("api-users service", () => {
         expect(syncPortUsage).toHaveBeenCalledTimes(1);
         expect(syncPortUsage.mock.calls[0][0].getUsers()).toEqual([{ id: "u-2", name: "User 2" }]);
         expect(logActivity).toHaveBeenCalled();
-        expect(result).toEqual({
+        // Respons kini membawa hasil PER LANGKAH + penanda sisa (`perlu_dibersihkan`), jadi
+        // pencocokan ketat tak lagi tepat: yang jadi kontrak di sini adalah status + pesan sukses,
+        // dan bahwa jalur bersih TIDAK menandai adanya sisa. Kejujuran saat MikroTik gagal diuji
+        // terpisah di `services/api-users/__tests__/delete-user-by-id.test.js`.
+        expect(result.status).toBe(200);
+        expect(result.body).toMatchObject({
             status: 200,
-            body: {
-                status: 200,
-                message: "User berhasil dihapus"
-            }
+            message: "User berhasil dihapus",
+            perlu_dibersihkan: false,
+            pppoe_tertinggal: null
         });
+        expect(result.body.langkah.secret_dihapus).toMatchObject({ dijalankan: true, ok: true });
     });
 
     test("deleteAllUsers validates admin password, clears users, and resets network assets", async () => {
