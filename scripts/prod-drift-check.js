@@ -10,8 +10,9 @@
  *      (lalu salin manifest + skrip ini ke server)
  *   2) di server   :  node prod-drift-check.js audit /tmp/manifest.tsv /root/bot/<bot>
  *      Tambah `--json` untuk keluaran mesin (dipakai langkah klasifikasi di dev).
- *   3) di mesin dev:  node scripts/prod-drift-check.js classify /tmp/manifest.tsv audit.json
+ *   3) di mesin dev:  node scripts/prod-drift-check.js classify audit.json
  *      → memisahkan TERTINGGAL (blob ada di riwayat git) dari DRIFT-ASLI (tak pernah ada).
+ *      (`classify` hanya menerima audit.json — manifest TIDAK dipakai di langkah ini.)
  * Deps: `child_process` (hanya di mode manifest/classify, memanggil `git`), `crypto`, `fs`, `path`.
  * MainFuncs: `buildManifest`, `auditDir`, `classify`.
  * SideEffects: READ-ONLY. Tidak pernah menulis ke direktori bot.
