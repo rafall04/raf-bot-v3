@@ -31,6 +31,10 @@ function extractMessageContext(msg) {
     return normalizeIncomingMessage(msg);
 }
 
+// Peran yang boleh menjalankan perintah teknisi lewat WhatsApp. `agen` SENGAJA tak ada:
+// agen menagih pembayaran, bukan mengerjakan tiket gangguan.
+const PERAN_BERKAPABILITAS_TEKNISI = ["teknisi", "admin", "owner", "superadmin"];
+
 function resolveActorCapabilities({ ownerNumber, primarySenderId, optionalJid, plainSenderNumber, accounts }) {
     const isOwner =
         ownerNumber.includes(primarySenderId) ||
@@ -39,6 +43,20 @@ function resolveActorCapabilities({ ownerNumber, primarySenderId, optionalJid, p
 
     const isTeknisi = accounts.find((account) => {
         if (!account) {
+            return false;
+        }
+
+        // FILTER PERAN. Dulu blok ini sama sekali tak melihat `account.role`: SIAPA PUN yang
+        // nomornya terdaftar di accounts.json dianggap teknisi — termasuk peran `agen`.
+        // Akibatnya akun agen bisa `list tiket` (melihat seluruh antrean gangguan berikut nama,
+        // alamat, prioritas), lalu `proses TKT-0001` — dan karena akun itu dioper sebagai
+        // `teknisiAccount`, `resolveTeknisiFromSender` (satu-satunya yang menolak role bukan
+        // teknisi) tak pernah dijalankan. Tiketnya terkunci atas nama agen, pelanggan menerima
+        // OTP yang menyebutnya "Teknisi", dan teknisi asli dijawab "sudah diproses teknisi lain".
+        //
+        // admin/owner/superadmin sengaja IKUT: banyak handler menggerbangi dengan
+        // `isTeknisi || isOwner`, dan mencabut admin dari sini akan mematahkan alur mereka.
+        if (!PERAN_BERKAPABILITAS_TEKNISI.includes(account.role)) {
             return false;
         }
 

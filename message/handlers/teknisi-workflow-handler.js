@@ -69,6 +69,41 @@ function resolveTeknisiFromSender(sender) {
  * @param teknisiAccount Optional. Account teknisi yang sudah di-resolve di pipeline.
  *                      Disarankan pass dari dispatcher supaya LID-aware (lihat raf-context.resolveActorCapabilities).
  */
+/**
+ * Nomor kontak teknisi yang AMAN ditampilkan ke PELANGGAN (dipakai sebagai `wa.me/<nomor>`).
+ *
+ * Dulu dibangun dari `sender` mentah: `sender.replace('@s.whatsapp.net','')` tidak menyentuh
+ * akhiran `@lid`, lalu cabang else menempelkan `62` di depannya. Teknisi ber-JID
+ * `123456789012345@lid` membuat pelanggan menerima `wa.me/62123456789012345@lid` — tautan mati
+ * SEKALIGUS membocorkan identifier internal, melanggar aturan "@lid tak boleh ditampilkan ke
+ * user". Terulang di notifikasi proses, OTW, dan "teknisi sudah tiba".
+ *
+ * Sumber kebenarannya `account.phone_number` (nomor asli, memang tersedia untuk akun staf).
+ * `sender` hanya dipakai bila ia JID telepon sungguhan — JID `@lid` TIDAK PERNAH dipakai.
+ * Kalau tak ada yang bisa dipakai, kembalikan string kosong: "wa.me/" yang tak berguna jauh
+ * lebih baik daripada menyiarkan identifier internal ke pelanggan.
+ */
+function resolveNomorKontakTeknisi(account, sender) {
+    const normalkan = (nilai) => {
+        const angka = String(nilai || "").replace(/[^0-9]/g, "");
+        if (!angka) return "";
+        if (angka.startsWith("62")) return angka;
+        if (angka.startsWith("0")) return `62${angka.slice(1)}`;
+        return `62${angka}`;
+    };
+
+    const dariAkun = normalkan(account && account.phone_number);
+    if (dariAkun) return dariAkun;
+
+    // Hanya JID telepon sungguhan. `@lid` sengaja tak punya cabang apa pun di sini.
+    const jid = String(sender || "");
+    if (jid.endsWith("@s.whatsapp.net")) {
+        return normalkan(jid.replace("@s.whatsapp.net", ""));
+    }
+
+    return "";
+}
+
 async function handleProsesTicket(sender, ticketId, reply, teknisiAccount = null) {
     try {
         // Find ticket
@@ -121,16 +156,7 @@ async function handleProsesTicket(sender, ticketId, reply, teknisiAccount = null
         Object.assign(ticket, updatedTicket);
         
         // Get teknisi phone number for customer contact
-        const teknisiPhone = (() => {
-            const senderNum = sender.replace('@s.whatsapp.net', '');
-            if (senderNum.startsWith('62')) {
-                return senderNum;
-            } else if (senderNum.startsWith('0')) {
-                return '62' + senderNum.substring(1);
-            } else {
-                return '62' + senderNum;
-            }
-        })();
+        const teknisiPhone = resolveNomorKontakTeknisi(teknisi, sender);
         
         // Notify customer with OTP - Send to ALL registered numbers
         const customerMessage = renderResponseTemplate('teknisi_workflow_process_customer_otp', `Tiket *${ticketId}* sedang diproses.
@@ -239,16 +265,10 @@ async function handleOTW(sender, ticketId, locationUrl, _reply, stateSender = se
         Object.assign(ticket, updatedTicket);
         
         // Get teknisi phone for customer contact
-        const teknisiPhone = (() => {
-            const senderNum = sender.replace('@s.whatsapp.net', '');
-            if (senderNum.startsWith('62')) {
-                return senderNum;
-            } else if (senderNum.startsWith('0')) {
-                return '62' + senderNum.substring(1);
-            } else {
-                return '62' + senderNum;
-            }
-        })();
+        const teknisiPhone = resolveNomorKontakTeknisi(
+            global.accounts?.find((a) => String(a.id) === String(ticket.processedByTeknisiId)) || null,
+            sender
+        );
         
         // Notify customer with SAME MESSAGE as mulai perjalanan
         const customerMessage = renderResponseTemplate('teknisi_workflow_otw_customer', `Petugas sedang menuju lokasi Anda.
@@ -340,16 +360,10 @@ async function handleSampaiLokasi(sender, ticketId, _reply) {
         const teknisiName = ticket.teknisiName || ticket.processedByTeknisiName || 'Teknisi';
         
         // Get teknisi phone number for customer contact
-        const teknisiPhone = (() => {
-            const teknisiSender = sender.replace('@s.whatsapp.net', '');
-            if (teknisiSender.startsWith('62')) {
-                return teknisiSender; // Already in correct format
-            } else if (teknisiSender.startsWith('0')) {
-                return '62' + teknisiSender.substring(1);
-            } else {
-                return '62' + teknisiSender;
-            }
-        })();
+        const teknisiPhone = resolveNomorKontakTeknisi(
+            global.accounts?.find((a) => String(a.id) === String(ticket.processedByTeknisiId)) || null,
+            sender
+        );
         
         // Prepare OTP display with fallback
         const otpDisplay = ticket.otp || 'XXXXXX';
@@ -1010,5 +1024,7 @@ module.exports = {
     handleTeknisiResolutionNotesState,
     handleTeknisiCompletionConfirmationState,
     handleCompleteTicket,
-    sendCustomerNotification
+    sendCustomerNotification,
+    // Diekspor untuk diuji: aturan "@lid tak boleh sampai ke pelanggan" inilah yang dulu bocor.
+    resolveNomorKontakTeknisi
 };

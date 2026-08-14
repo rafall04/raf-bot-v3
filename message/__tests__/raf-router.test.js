@@ -208,9 +208,11 @@ describe('raf-router.test.js - Main Router Integration', () => {
         it('should allow teknisi to access restricted intents', async () => {
             const { getIntentFromKeywords } = require('../../lib/wifi_template_handler');
             
-            // Mock as teknisi
-            global.accounts = [{ phone_number: sender, username: 'tech1' }];
-            
+            // Mock as teknisi. `role` WAJIB ada: kapabilitas teknisi kini ditentukan peran,
+            // bukan sekadar "nomornya terdaftar di accounts.json". Fixture lama tanpa `role`
+            // mencerminkan asumsi longgar yang membuat akun `agen` bisa mengunci tiket.
+            global.accounts = [{ phone_number: sender, username: 'tech1', role: 'teknisi' }];
+
             getIntentFromKeywords.mockReturnValue({ intent: 'LIST_TIKET', matchedKeywordLength: 1 });
             
             const m = {
@@ -221,6 +223,30 @@ describe('raf-router.test.js - Main Router Integration', () => {
             await rafRouter(raf, m, { messages: [m], type: 'notify' });
 
             expect(raf.sendMessage).toHaveBeenCalledWith(sender, expect.objectContaining({ text: expect.stringMatching(/DAFTAR TIKET|TIDAK ADA TIKET/) }), expect.anything());
+        });
+
+        it('akun ber-peran AGEN tidak boleh membuka antrean tiket', async () => {
+            const { getIntentFromKeywords } = require('../../lib/wifi_template_handler');
+
+            // Agen menagih pembayaran, bukan mengerjakan tiket gangguan. Sebelum filter peran,
+            // akun ini lolos sebagai teknisi: bisa melihat seluruh antrean (nama, alamat,
+            // prioritas) lalu mengunci tiket atas namanya.
+            global.accounts = [{ phone_number: sender, username: 'agen1', role: 'agen' }];
+
+            getIntentFromKeywords.mockReturnValue({ intent: 'LIST_TIKET', matchedKeywordLength: 1 });
+
+            const m = {
+                key: { remoteJid: sender, fromMe: false, id: 'ABC5' },
+                message: { conversation: 'list tiket' },
+                pushName: 'Agen'
+            };
+            await rafRouter(raf, m, { messages: [m], type: 'notify' });
+
+            expect(raf.sendMessage).not.toHaveBeenCalledWith(
+                sender,
+                expect.objectContaining({ text: expect.stringMatching(/DAFTAR TIKET|TIDAK ADA TIKET/) }),
+                expect.anything()
+            );
         });
     });
 
