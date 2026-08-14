@@ -7,6 +7,44 @@
  * SideEffects: Membaca/menulis request pembayaran, update ledger/status pembayaran, log activity, dan emit event notifikasi WhatsApp.
  */
 
+/**
+ * Menentukan periode tagihan yang dituju sebuah pengajuan pembayaran.
+ *
+ * Menerima `period_month`/`period_year` (atau camelCase) dari klien. Bila tak dikirim,
+ * jatuh ke periode BERJALAN — halaman teknisi memang tak punya pemilih periode. Bila
+ * dikirim, nilainya divalidasi: bulan 1-12, tahun wajar, dan TIDAK di masa depan
+ * (salah ketik tahun akan menyembunyikan pembayaran di periode yang tak pernah ditagih).
+ *
+ * @returns {{periodMonth: number, periodYear: number}|{error: string}}
+ */
+function resolvePeriodeDiminta(body = {}) {
+    const sekarang = new Date();
+    const bulanKini = sekarang.getMonth() + 1;
+    const tahunKini = sekarang.getFullYear();
+
+    const bulanMentah = body.period_month ?? body.periodMonth;
+    const tahunMentah = body.period_year ?? body.periodYear;
+
+    if (bulanMentah === undefined || bulanMentah === null || bulanMentah === '') {
+        return { periodMonth: bulanKini, periodYear: tahunKini };
+    }
+
+    const periodMonth = parseInt(bulanMentah, 10);
+    const periodYear = parseInt(tahunMentah, 10);
+
+    if (!Number.isInteger(periodMonth) || periodMonth < 1 || periodMonth > 12) {
+        return { error: 'period_month harus angka 1-12.' };
+    }
+    if (!Number.isInteger(periodYear) || periodYear < 2020 || periodYear > tahunKini + 1) {
+        return { error: 'period_year tidak masuk akal.' };
+    }
+    if (periodYear > tahunKini || (periodYear === tahunKini && periodMonth > bulanKini)) {
+        return { error: 'Periode tagihan tidak boleh di masa depan.' };
+    }
+
+    return { periodMonth, periodYear };
+}
+
 const express = require('express');
 const router = express.Router();
 const { loadJSON, saveJSON } = require('../lib/database');
@@ -148,8 +186,24 @@ router.post('/request', ensureAuthenticatedStaff, rateLimit('partial-payment', 3
     try {
         return await withLock(`partial-payment-${userId}`, async () => {
             const packagePrice = getEffectivePrice(user);
-            const currentMonth = new Date().getMonth() + 1;
-            const currentYear = new Date().getFullYear();
+            // PERIODE DARI KLIEN, bukan selalu bulan berjalan.
+            //
+            // Dulu keduanya di-hardcode `new Date()`, sementara halaman Status Pembayaran
+            // punya pemilih periode. Admin memilih Juli, melihat pelanggan "Belum Bayar",
+            // memasukkan Rp75.000 tunai untuk tagihan Juli — server menulisnya ke Agustus.
+            // Juli tetap menunggak di ledger & rekap tunggakan, Agustus jadi setengah
+            // terbayar, dan struk yang dikirim ke pelanggan menyebut periode yang salah.
+            // Tanpa jejak koreksi apa pun.
+            //
+            // Bulan berjalan tetap jadi default: halaman TEKNISI tak punya pemilih periode
+            // (penagihan di lapangan selalu periode berjalan), jadi menolak 400 saat periode
+            // tak dikirim akan mematahkan alur lapangan.
+            const periodeDiminta = resolvePeriodeDiminta(req.body);
+            if (periodeDiminta.error) {
+                return res.status(400).json({ status: 400, message: periodeDiminta.error });
+            }
+            const currentMonth = periodeDiminta.periodMonth;
+            const currentYear = periodeDiminta.periodYear;
             const position = await getPaymentPositionForPeriod(user, currentMonth, currentYear, {
                 amountDue: packagePrice
             });
@@ -416,4 +470,8 @@ async function notifyAdminsPartialPayment(teknisi, user, amountPaid, packagePric
     }
 }
 
+// Router tetap ekspor utama (dipakai lib/routes-registry). `resolvePeriodeDiminta`
+// ditempelkan agar bisa diuji langsung — aturan periode ini yang dulu salah dan
+// menyebabkan pembayaran mendarat di bulan yang keliru.
 module.exports = router;
+module.exports.resolvePeriodeDiminta = resolvePeriodeDiminta;

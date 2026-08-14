@@ -458,7 +458,13 @@
                     body: JSON.stringify({
                         userId: selectedCustomerId,
                         amountPaid: partialAmount,
-                        notes: notes
+                        notes: notes,
+                        // Dikirim EKSPLISIT walau nilainya sama dengan default server.
+                        // Penagihan teknisi memang selalu periode berjalan (halaman ini tak
+                        // punya pemilih periode), tapi menuliskannya di sini membuat periode
+                        // tujuan terbaca dari payload — bukan tersirat dari jam server.
+                        period_month: new Date().getMonth() + 1,
+                        period_year: new Date().getFullYear()
                     })
                 })
                 .then(res => res.json())

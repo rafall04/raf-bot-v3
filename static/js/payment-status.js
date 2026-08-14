@@ -1356,7 +1356,10 @@ async function submitPartialPayment(userId, maxAmount) {
     }
     
     $('#ppConfirmBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Memproses...');
-    
+
+    // Dibaca SEKALI supaya bulan dan tahun yang dikirim pasti berasal dari pembacaan yang sama.
+    const periodeDipilih = getSelectedPeriod();
+
     try {
         const response = await fetch('/api/partial-payment/request', {
             method: 'POST',
@@ -1366,7 +1369,12 @@ async function submitPartialPayment(userId, maxAmount) {
                 userId: userId,
                 amountPaid: amountToPay,
                 paymentMethod: paymentMethod,
-                notes: notes
+                notes: notes,
+                // Periode yang SEDANG DILIHAT admin. Tanpa ini server memakai bulan berjalan,
+                // sehingga pembayaran untuk periode lama tercatat di bulan sekarang: periode
+                // aslinya tetap menunggak dan struk ke pelanggan menyebut periode yang salah.
+                period_month: periodeDipilih.periodMonth,
+                period_year: periodeDipilih.periodYear
             })
         });
         
