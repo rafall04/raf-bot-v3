@@ -707,7 +707,7 @@ function redrawMarkers(markerType) {
                 // Set tooltip content and visibility for asset
                 if (marker.assetData.name) {
                     if (!marker.getTooltip()) {
-                        marker.bindTooltip(marker.assetData.name, {
+                        marker.bindTooltip(rafEscapeHtml(marker.assetData.name), {
                             permanent: true,
                             direction: 'top',
                             className: 'marker-label-tooltip',
@@ -1877,8 +1877,8 @@ function redrawMarkers(markerType) {
                         }
 
 
-                        let popupContent = `<b>${asset.name || 'Aset'} (${asset.type})</b><p>ID: ${asset.id}</p>` +
-                                         (asset.address ? `<p>Alamat: ${asset.address}</p>` : '') +
+                        let popupContent = `<b>${rafEscapeHtml(asset.name || 'Aset')} (${rafEscapeHtml(asset.type)})</b><p>ID: ${asset.id}</p>` +
+                                         (asset.address ? `<p>Alamat: ${rafEscapeHtml(asset.address)}</p>` : '') +
                                          `<p>Kapasitas: ${asset.capacity_ports || 'N/A'} Port / Status: ${portsUsedDisplay}</p>`;
 
                         // VONIS DULUAN, daftar belakangan. Yang dicari orang saat membuka popup ODP
@@ -1926,7 +1926,7 @@ function redrawMarkers(markerType) {
                                     if (jalur && jalur.meters) {
                                         popupContent += `<p><i class="fas fa-route text-primary"></i> Jalur kabel terekam: <strong>${jalur.meters} m</strong> (${jalur.points.length} titik)</p>`;
                                     } else {
-                                        popupContent += `<p class="text-muted small"><i class="fas fa-route"></i> Jalur kabel belum direkam — WhatsApp: <code>#JALUR ${asset.name || ''}</code></p>`;
+                                        popupContent += `<p class="text-muted small"><i class="fas fa-route"></i> Jalur kabel belum direkam — WhatsApp: <code>#JALUR ${rafEscapeHtml(asset.name || '')}</code></p>`;
                                     }
                                 }
                             }
@@ -1951,7 +1951,7 @@ function redrawMarkers(markerType) {
                                     const statusColor = onlineStatus === 'online' ? 'text-success' : (onlineStatus === 'offline' ? 'text-danger' : 'text-muted');
                                     // Use pppoe_username if available, otherwise fallback to customer name
                                     const customerDisplayId = customer.pppoe_username || customer.name || `Cust. ID ${customer.id}`;
-                                    popupContent += `<li>- ${customerDisplayId} <span class="${statusColor}" style="font-weight:bold;">(${onlineStatus.charAt(0).toUpperCase() + onlineStatus.slice(1)})</span></li>`;
+                                    popupContent += `<li>- ${rafEscapeHtml(customerDisplayId)} <span class="${statusColor}" style="font-weight:bold;">(${onlineStatus.charAt(0).toUpperCase() + onlineStatus.slice(1)})</span></li>`;
                                 });
                                 popupContent += `</ul>`;
                             } else {
@@ -1960,10 +1960,10 @@ function redrawMarkers(markerType) {
                         }
 
                         popupContent += `<p>Lat: ${parseFloat(asset.latitude).toFixed(5)}, Lng: ${parseFloat(asset.longitude).toFixed(5)}</p>`;
-                        if(asset.notes) popupContent += `<p>Catatan: ${asset.notes}</p>`;
-                        if(asset.createdBy) popupContent += `<p><small>Dibuat: ${asset.createdBy} (${new Date(asset.createdAt).toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'})})</small></p>`;
+                        if(asset.notes) popupContent += `<p>Catatan: ${rafEscapeHtml(asset.notes)}</p>`;
+                        if(asset.createdBy) popupContent += `<p><small>Dibuat: ${rafEscapeHtml(asset.createdBy)} (${new Date(asset.createdAt).toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'})})</small></p>`;
                         if(asset.updatedBy && asset.updatedAt && asset.createdAt && new Date(asset.updatedAt).getTime() !== new Date(asset.createdAt).getTime()) {
-                            popupContent += `<p><small>Diupdate: ${asset.updatedBy} (${new Date(asset.updatedAt).toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'})})</small></p>`;
+                            popupContent += `<p><small>Diupdate: ${rafEscapeHtml(asset.updatedBy)} (${new Date(asset.updatedAt).toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'})})</small></p>`;
                         }
                         popupContent += `<button class="btn btn-sm btn-primary btn-edit-asset">Edit Aset Ini</button>`;
 
@@ -1971,7 +1971,7 @@ function redrawMarkers(markerType) {
                         marker.assetData = JSON.parse(JSON.stringify(asset));
                         // Bind tooltip for assets (ODC/ODP)
                         if (asset.name) {
-                            marker.bindTooltip(asset.name, {
+                            marker.bindTooltip(rafEscapeHtml(asset.name), {
                                 permanent: true, // Always show unless hidden by control
                                 direction: 'top',
                                 className: 'marker-label-tooltip',

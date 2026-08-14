@@ -513,8 +513,8 @@
                     portsUsedDisplay = `${asset.ports_used || 0} (status tidak diketahui)`;
                 }
 
-                let popupContent = `<b>${asset.name || 'Aset'} (${asset.type})</b><p>ID: ${asset.id}</p>` +
-                                 (asset.address ? `<p>Alamat: ${asset.address}</p>` : '') +
+                let popupContent = `<b>${rafEscapeHtml(asset.name || 'Aset')} (${rafEscapeHtml(asset.type)})</b><p>ID: ${asset.id}</p>` +
+                                 (asset.address ? `<p>Alamat: ${rafEscapeHtml(asset.address)}</p>` : '') +
                                  `<p>Kapasitas: ${asset.capacity_ports || 'N/A'} Port</p>` +
                                  `<p>Status Port: ${portsUsedDisplay}</p>`;
 

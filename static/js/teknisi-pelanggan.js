@@ -1127,9 +1127,9 @@
                                 s.associatedDevices.forEach(dev => {
                                     if (!dev || typeof dev !== 'object') return; // Skip invalid device entry
                                     contentHtml += `<li class="list-group-item py-1 px-0">
-                                                        ${dev.hostName || 'Tanpa Nama'} <br>
+                                                        ${rafEscapeHtml(dev.hostName || 'Tanpa Nama')} <br>
                                                         <small class="text-muted" style="font-size:0.9em;">
-                                                            (MAC: ${dev.mac || '-'}, IP: ${dev.ip || '-'}, Sinyal: ${dev.signal ? dev.signal + ' dBm' : '-'})
+                                                            (MAC: ${rafEscapeHtml(dev.mac || '-')}, IP: ${rafEscapeHtml(dev.ip || '-')}, Sinyal: ${dev.signal ? dev.signal + ' dBm' : '-'})
                                                         </small>
                                                     </li>`;
                                 });
@@ -1960,7 +1960,7 @@
                         const ssidField = `
                             <div class="form-group">
                                 <label for="modal_ssid_${s.id}" class="form-label">Nama SSID Baru (ID: ${s.id})</label>
-                                <input type="text" class="form-control form-control-sm" id="modal_ssid_${s.id}" name="ssid_${s.id}" value="${s.name || ''}">
+                                <input type="text" class="form-control form-control-sm" id="modal_ssid_${s.id}" name="ssid_${s.id}" value="${rafEscapeHtml(s.name || '')}">
                             </div>`;
                         ssidContainer.append(ssidField);
 
