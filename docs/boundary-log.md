@@ -1473,3 +1473,14 @@
 - **`lastInform` tak terbaca BUKAN bukti bebas.** Penurunan ke penegasan hanya lewat `terbuktiLamaHilang()` (butuh stempel yang benar-benar terbaca DAN lewat ambang). Ketiadaan data tetap ditolak keras.
 - **Langkah baru `PSB_CONFIRM_TAKEOVER`** (`message/handlers/state-domains/psb.state.js`): bot menyebut fakta konkret (SN, pemilik kredensial, kapan terakhir terlihat, modem mana yang tercatat untuk pelanggan itu) lalu menanyakan SATU hal yang hanya bisa dijawab pemegang modemnya. Kata penegasannya `SUDAH LEPAS` — SENGAJA bukan `YA`, karena `YA` dipakai di layar lain dan dijawab refleks. Penegasan dicatat ke log atas nama teknisi. `TIDAK` mengarahkan cek lapangan tanpa membuang draft. Badge `⚠️ PERLU DIPASTIKAN` dibedakan dari `⛔ TERPAKAI`.
 - **Tes:** `lib/__tests__/psb-modem-provenance.test.js` (33 — termasuk matriks bukti segar/basi/tak-terbaca & pola tukar modem), `message/handlers/state-domains/__tests__/psb.state.test.js` (103 — termasuk "YA ditolak di layar penegasan").
+
+<a id="b225"></a>
+
+### Fix 2026-08-14 (PSB: modem tertaut pelanggan → VERIFIKASI stiker, tak ada lagi jalan buntu)
+
+- **Kenapa penolakan dihapus seluruhnya:** kasus paling sering di lapangan adalah pelanggan sudah berhenti tapi barisnya BELUM ditutup admin. Menolaknya membuat teknisi buntu untuk pekerjaan yang sah, sementara bot tak pernah bisa tahu di mana modem itu berada SECARA FISIK — dan hanya itu yang menentukan. `tolakKeras` kini selalu `false`; semua vonis `terpakai` menjadi `butuhKonfirmasi`.
+- **Pengaman penggantinya = STIKER.** Layar `PSB_CONFIRM_TAKEOVER` menampilkan SN dalam bentuk stiker (besar, plus bentuk ACS-nya) lalu menyuruh teknisi mencocokkan ke belakang modem yang ada di tangannya. Kata penegasannya **`VERIFIKASI`** (sebelumnya `SUDAH LEPAS`) — tetap BUKAN `YA`, yang dipakai layar lain dan dijawab refleks. Dicatat ke log atas nama teknisi.
+- **MAC DIPERTIMBANGKAN LALU DIBATALKAN** sebagai pembeda otomatis "modem di tangan vs modem di rumah pelanggan": terukur hanya **34/160** device mengekspos MAC di ACS, dan yang terbaca adalah MAC LAN yang beda satu bit dari `caller_id` PPPoE MikroTik (**1 cocok vs 16 beda**, mis. `…CA` vs `…CB`). Dasar yang terlalu rapuh; stiker fisik lebih kuat.
+- **Peringatan tidak lagi ditumpuk di dua layar.** Blok penolakan di layar "CEK DULU" dihapus — menumpuk peringatan di layar pertama membuat layar kedua ikut dilewati mata.
+- **Kode yatim dibersihkan:** `assignmentBlockReason`, `jalanKeluarModemDiblokir`, dan `adaKandidatLainYangBoleh` dihapus beserta kedua pemanggilnya (semuanya jadi mati begitu tak ada vonis TOLAK).
+- **Tes:** `message/handlers/state-domains/__tests__/psb.state.test.js` (103) & `lib/__tests__/psb-modem-provenance.test.js` (33) — termasuk "YA ditolak di layar penegasan" dan "tak ada lagi jalan buntu".

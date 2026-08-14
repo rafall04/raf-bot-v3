@@ -327,6 +327,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-14 (Halaman panel gagal-tertutup: peran ditegakkan di handler generik + jalur `.php` ditutup)](docs/boundary-log.md#b222)
 - [Fix 2026-08-14 (PSB: gerbang modem sadar LINTAS-AREA, jalan keluar ⛔ yang benar-benar bekerja, BATAL satu kontrak)](docs/boundary-log.md#b223)
 - [Fix 2026-08-14 (PSB: modem "sedang dipakai" jadi PENEGASAN, bukan penolakan — plus koreksi bukti basi)](docs/boundary-log.md#b224)
+- [Fix 2026-08-14 (PSB: modem tertaut pelanggan → VERIFIKASI stiker, tak ada lagi jalan buntu)](docs/boundary-log.md#b225)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

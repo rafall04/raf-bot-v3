@@ -593,15 +593,16 @@ describe("PSB alamat & dusun", () => {
 describe("PSB gerbang asal-usul modem", () => {
     const replies = (h) => h.base.reply.mock.calls.map((c) => c[0]).join("\n");
 
-    test("modem masih tertaut pelanggan → ditandai TERPAKAI & YA DITOLAK (tanpa provisioning)", async () => {
+    test("modem masih tertaut pelanggan → DITAHAN untuk diverifikasi (provisioning belum jalan)", async () => {
         global.users = [{ id: 5, name: "Budi", device_id: "dev-A", pppoe_username: "budi@rafcybernet" }];
         const h = harness();
         await reachConfirm(h);
-        expect(replies(h)).toMatch(/TERPAKAI/);
+        expect(replies(h)).toMatch(/PERLU DIPASTIKAN/);
 
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
         expect(h.base.usersService.upsertUserFromAdminPanel).not.toHaveBeenCalled();
-        expect(replies(h)).toMatch(/masih tercatat/i);
+        expect(replies(h)).toMatch(/CEK STIKER DI BELAKANG MODEM/);
+        expect(replies(h)).toMatch(/VERIFIKASI/);
         expect(replies(h)).toMatch(/Budi/);
     });
 
@@ -612,13 +613,14 @@ describe("PSB gerbang asal-usul modem", () => {
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "TIDAK" });
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "2" });
         expect(h.base.usersService.upsertUserFromAdminPanel).not.toHaveBeenCalled();
-        expect(replies(h)).toMatch(/masih tercatat/i);
+        expect(replies(h)).toMatch(/CEK STIKER DI BELAKANG MODEM/);
     });
 
-    // Jebakan lingkaran (insiden Tanjungharjo 2026-08-12): `cari <pemilik lama>` mengembalikan SATU
-    // modem, modem itu diblokir, dan pesan penolakannya menyuruh "balas TIDAK untuk pilih dari
-    // daftar" — daftar yang isinya modem itu juga. Teknisi berputar sampai menyerah.
-    test("semua kandidat ⛔ → pesan tolak menyebut JALAN KELUAR, bukan menyuruh balas TIDAK", async () => {
+    // Jebakan lingkaran Tanjungharjo 2026-08-12 (`cari <pemilik lama>` → satu modem → diblokir →
+    // disuruh "balas TIDAK" ke daftar berisi modem itu juga) kini tertutup dari akarnya: tak ada
+    // lagi vonis TOLAK, jadi tak ada lingkaran untuk diputar. Yang menggantikannya adalah layar
+    // penegasan — lihat describe "penegasan ambil-alih modem" di bawah.
+    test("tak ada lagi jalan buntu: modem tertaut pelanggan SELALU menawarkan jalan maju", async () => {
         global.users = [
             { id: 5, name: "Warsito Hadi", device_id: "dev-A", pppoe_username: "wji@rafcybernet" },
             { id: 6, name: "Sari", device_id: "dev-B", pppoe_username: "sari@rafcybernet" }
@@ -628,24 +630,13 @@ describe("PSB gerbang asal-usul modem", () => {
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
 
         const teks = replies(h);
-        expect(teks).toMatch(/\*sudah berhenti\*/i);      // jalan keluar sebenarnya
-        // Jalan keluarnya HARUS `cari <SN>`, BUKAN *REFRESH*. REFRESH membaca daftar "modem baru
-        // terdeteksi" (`findRecentPsbCandidates`), dan modem bekas yang barusan dibebaskan admin tak
-        // pernah masuk ke sana: `_registered`-nya kuno, `_lastBootstrap` tak bergerak, dan PPPoE di
-        // dalamnya masih nama pemilik lama. Terukur di produksi 13-08-2026: REFRESH mengembalikan
-        // 0 kandidat untuk modem yang `cari <SN>` temukan seketika.
-        expect(teks).toMatch(/cari /i);
-        expect(teks).not.toMatch(/balas \*REFRESH\*/i);
+        expect(teks).toMatch(/VERIFIKASI/);                  // ada jalan maju
+        expect(teks).toMatch(/CEK STIKER DI BELAKANG MODEM/); // syaratnya jelas & bisa dikerjakan
         expect(teks).toMatch(/BATAL/);
-        expect(teks).not.toMatch(/balas \*TIDAK\* lalu pilih/i); // saran buntu tak boleh muncul
-    });
-
-    test("masih ada modem yang boleh dipakai → saran 'balas TIDAK' TETAP ditawarkan", async () => {
-        global.users = [{ id: 5, name: "Warsito Hadi", device_id: "dev-A", pppoe_username: "wji@rafcybernet" }];
-        const h = harness();
-        await reachConfirm(h);
-        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
-        expect(replies(h)).toMatch(/balas \*TIDAK\* lalu pilih/i); // dev-B masih bebas
+        // *REFRESH* tak boleh ditawarkan sebagai jalan keluar: ia membaca daftar "modem baru
+        // terdeteksi", dan modem bekas tak pernah masuk ke sana (terukur di produksi 13-08-2026 —
+        // 0 kandidat untuk modem yang `cari <SN>` temukan seketika).
+        expect(teks).not.toMatch(/balas \*REFRESH\*/i);
     });
 
     test("daftar bernomor yang SEMUANYA ⛔ ikut menyebut jalan keluar", async () => {
@@ -1225,9 +1216,9 @@ describe("psb.state — penegasan ambil-alih modem", () => {
         expect(h.base.usersService.upsertUserFromAdminPanel).not.toHaveBeenCalled();
         expect(h.getState().step).toBe("PSB_CONFIRM_TAKEOVER");
         const teks = h.base.reply.mock.calls.at(-1)[0];
-        expect(teks).toMatch(/PERLU DIPASTIKAN/i);
-        expect(teks).toMatch(/SUDAH LEPAS/);
-        expect(teks).toMatch(/modem LAIN/i);        // pola tukar modem ikut dijelaskan
+        expect(teks).toMatch(/TAHAN DULU/i);
+        expect(teks).toMatch(/VERIFIKASI/);
+        expect(teks).toMatch(/CEK STIKER DI BELAKANG MODEM/);   // pengaman sebenarnya: stiker fisik
     });
 
     test("'YA' TIDAK diterima di layar penegasan — harus kata yang diketik sadar", async () => {
@@ -1236,14 +1227,14 @@ describe("psb.state — penegasan ambil-alih modem", () => {
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "ya" });
         expect(h.base.usersService.upsertUserFromAdminPanel).not.toHaveBeenCalled();
-        expect(h.base.reply.mock.calls.at(-1)[0]).toMatch(/SUDAH LEPAS/);
+        expect(h.base.reply.mock.calls.at(-1)[0]).toMatch(/VERIFIKASI/);
     });
 
-    test("'SUDAH LEPAS' → provisioning jalan pada modem yang SAMA dengan yang ditanyakan", async () => {
+    test("'VERIFIKASI' → provisioning jalan pada modem yang SAMA dengan yang ditanyakan", async () => {
         const h = harnessKonfirmasi();
         await reachConfirm(h);
         await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
-        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "sudah lepas" });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "verifikasi" });
         expect(h.base.usersService.upsertUserFromAdminPanel).toHaveBeenCalledTimes(1);
         expect(h.base.usersService.upsertUserFromAdminPanel.mock.calls[0][0].userData.device_id).toBe("dev-B");
     });

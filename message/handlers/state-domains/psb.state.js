@@ -72,7 +72,7 @@ const STEP_RESUME = "PSB_RESUME_ASK";
 const STEP_TAKEOVER = "PSB_CONFIRM_TAKEOVER";
 // SENGAJA bukan "YA": kata itu dipakai di layar konfirmasi biasa dan dijawab refleks. Penegasan yang
 // menanggung risiko mematikan pelanggan lain harus diketik sadar.
-const KATA_AMBIL_ALIH = "sudah lepas";
+const KATA_AMBIL_ALIH = "verifikasi";
 // Langkah yang KERJANYA layak diselamatkan saat sesi mati (STEP_RESUME tak ikut: isinya cuma
 // pertanyaan, drafnya sendiri sudah tersimpan).
 const RESUMABLE_STEPS = [STEP_COLLECT, STEP_CONFIRM, STEP_PICK, STEP_TAKEOVER];
@@ -716,52 +716,6 @@ function provBadge(context, candidate) {
     return badge ? ` · ${badge}` : "";
 }
 
-// GERBANG: boleh tidaknya modem ini dipakai. Mengembalikan pesan penolakan, atau null bila boleh.
-// Sengaja gagal-tertutup untuk status `terpakai`; modem tanpa klasifikasi TETAP boleh (klasifikasi
-// adalah lapisan pengaman tambahan, bukan syarat — jangan sampai router mati = PSB mati).
-// Ada kandidat LAIN di daftar yang boleh dipakai? Menentukan apakah menyuruh "balas TIDAK" masih
-// masuk akal — kalau semua diblokir, saran itu justru mengembalikan teknisi ke daftar yang sama.
-function adaKandidatLainYangBoleh(candidates, terblokir) {
-    return (Array.isArray(candidates) ? candidates : [])
-        .some((c) => c !== terblokir && !(c && c.provenance && c.provenance.assignable === false));
-}
-
-// Jalan keluar HARUS berupa perintah yang benar-benar bekerja untuk kasusnya.
-//
-// Versi lama menyuruh *REFRESH* untuk kasus "pemilik lama sudah berhenti" — dan REFRESH secara
-// STRUKTURAL tak bisa memunculkan modem itu. REFRESH memanggil `findRecentPsbCandidates`, yang cuma
-// punya tiga jalur: `_registered` baru, `_lastBootstrap` baru, dan PPPoE bawaan `tes@hw`. Modem
-// bekas yang baru dibebaskan admin tak memenuhi satu pun (registrasinya berumur bulan/tahun,
-// `_lastBootstrap` di ACS ini terbukti tak pernah bergerak, dan PPPoE di dalam modem MASIH nama
-// pemilik lama — menghapus baris pelanggan tak mengubah apa pun di dalam modem). Terbukti langsung:
-// uji produksi 13-08-2026, `findRecentPsbCandidates` mengembalikan 0 kandidat untuk modem yang
-// `cari <SN>` temukan seketika. Jadi teknisi yang menurut disuruh REFRESH justru melihat
-// "belum ada modem terbaca" dan menyimpulkan admin belum mengerjakan.
-function jalanKeluarModemDiblokir(candidate, p, adaAlternatif) {
-    const sn = snText(candidate.serialNumber);
-    const cariLagi = `ketik \`cari ${sn.split(" ")[0]}\` lagi di sini`;
-
-    // Kasus LINTAS-AREA: modemnya sedang memegang sesi hidup, tapi bukan pelanggan area ini —
-    // menyuruh "minta admin menutup pelanggan itu" salah alamat, admin di sini tak memilikinya.
-    if (p.ownerSource === "sesi_modem_aktif") {
-        return [
-            `👉 Modem ini kemungkinan besar milik pelanggan *area lain* (GenieACS dipakai bersama).`,
-            `👉 Cek ulang stiker modem yang ada di tanganmu — kalau ternyata beda, ketik \`cari <SN stiker>\`.`,
-            `👉 Kalau modem ini MEMANG copotan yang sudah tak dipakai: cabut dari jaringan lama dulu, atau minta admin menyetel PPPoE-nya ke \`tes@hw\`. Setelah sesinya mati, ${cariLagi}.`,
-            adaAlternatif ? `👉 Modem lain di daftar masih boleh dipakai: balas *TIDAK* lalu pilih *angka*.` : null
-        ].filter(Boolean);
-    }
-
-    const siapa = p.ownerName ? `*${p.ownerName}*` : "pelanggan lain";
-    return [
-        // Penyebab paling sering: pelanggan lama sudah berhenti tapi recordnya belum ditutup — dan
-        // itu HANYA bisa dibereskan admin, bukan teknisi di lapangan.
-        `👉 Kalau ${siapa} memang *sudah berhenti*: minta admin menutup pelanggan itu dulu, lalu ${cariLagi}.`,
-        `👉 Kalau *salah ambil modem*: cek ulang stiker, lalu ketik \`cari <SN stiker>\`.`,
-        adaAlternatif ? `👉 Modem lain di daftar masih boleh dipakai: balas *TIDAK* lalu pilih *angka*.` : null
-    ].filter(Boolean);
-}
-
 // Layar PENEGASAN AMBIL-ALIH. Bukan penolakan: bot menyebut apa yang IA lihat, lalu menanyakan satu
 // hal yang cuma bisa dijawab orang yang memegang modemnya. Fakta konkret (nama, SN, kapan terakhir
 // terlihat, modem mana yang tercatat untuk pelanggan itu) sengaja ditulis lengkap supaya jawaban
@@ -770,45 +724,31 @@ function takeoverConfirmText(candidate, nowMs) {
     const p = (candidate && candidate.provenance) || {};
     const siapa = p.ownerName ? `*${p.ownerName}*` : "pelanggan lain (kemungkinan area sebelah)";
     const kredensial = p.previousPppoe ? ` (\`${p.previousPppoe}\`)` : "";
-    const tukar = p.deviceTercatatPemilik && p.deviceTercatatPemilik !== candidate.deviceId;
+    const stiker = stickerSn(candidate.serialNumber);
     return [
-        `⚠️ *TAHAN DULU — modem ini perlu dipastikan.*`,
+        `⚠️ *TAHAN DULU* — modem ini masih tertaut ${siapa}.`,
         ``,
-        `📡 SN \`${snText(candidate.serialNumber)}\``,
-        `👤 Kredensial di dalamnya milik ${siapa}${kredensial}`,
+        `📡 *SN modem yang kamu pilih:*`,
+        stiker ? `   *${stiker}*` : `   *${candidate.serialNumber}*`,
+        stiker ? `   (di sistem tertulis ${candidate.serialNumber})` : null,
+        ``,
+        `👤 Masih tertaut: ${siapa}${kredensial}`,
         `🕐 Terakhir terlihat di jaringan: ${minutesAgo(candidate.lastInform, nowMs)}`,
         p.reason ? `ℹ️ ${p.reason}.` : null,
-        tukar
-            ? `🔄 Catatan kami: pelanggan itu sekarang tercatat memakai modem LAIN — jadi modem di tanganmu kemungkinan besar modem lamanya yang sudah bebas.`
+        p.deviceTercatatPemilik && p.deviceTercatatPemilik !== candidate.deviceId
+            ? `🔄 Catatan kami: pelanggan itu sekarang tercatat memakai modem LAIN — modem di tanganmu kemungkinan besar modem lamanya.`
             : null,
         ``,
-        `❓ *Pertanyaannya satu:* apakah modem ini *sudah benar-benar dilepas* dari ${siapa} — kabel opticnya sudah dicabut dari sana, dan pelanggan itu sudah dapat modem pengganti (atau memang sudah berhenti)?`,
+        // Ini inti pengamannya. Bot tak pernah tahu di mana modem berada secara fisik; yang mengikat
+        // keputusan ke modem yang benar hanyalah stiker yang dibaca teknisi saat itu juga.
+        `👉 *CEK STIKER DI BELAKANG MODEM* yang ada di tanganmu sekarang.`,
+        `   Sama persis dengan SN di atas?`,
         ``,
-        `✅ Kalau YA, ketik: *${KATA_AMBIL_ALIH.toUpperCase()}*`,
-        `   Kredensial & WiFi modem ini akan ditimpa, dan penegasan ini tercatat atas namamu.`,
-        `❌ Kalau ragu sedikit pun: *BATAL* — cek dulu ke lapangan. Datamu tetap tersimpan.`,
+        `✅ *SAMA* → ketik *${KATA_AMBIL_ALIH.toUpperCase()}* untuk melanjutkan.`,
+        `   PPPoE & WiFi modem ini akan ditimpa, dan penegasan itu tercatat atas namamu.`,
+        `❌ *BEDA* atau ragu → *BATAL*, lalu ketik \`cari <SN stiker>\`. Datamu tetap tersimpan.`,
         ``,
-        `⛔ Kalau ternyata modem itu masih terpasang di rumah ${siapa}, meneruskan = internetnya MATI dan kamu yang menanggungnya.`
-    ].filter(Boolean).join("\n");
-}
-
-// HANYA untuk penolakan KERAS. Kandidat yang cuma `butuhKonfirmasi` bukan urusan fungsi ini —
-// ia ditangani layar penegasan (`takeoverConfirmText`), supaya pekerjaan yang sah (tukar modem)
-// tidak ikut dimatikan oleh pesan penolakan.
-function assignmentBlockReason(candidate, { adaAlternatif = false } = {}) {
-    const p = candidate && candidate.provenance;
-    if (!p || p.assignable !== false || p.butuhKonfirmasi) return null;
-    const lintasArea = p.ownerSource === "sesi_modem_aktif";
-    const siapa = p.ownerName ? `*${p.ownerName}*` : (lintasArea ? "pelanggan lain" : "pelanggan lain");
-    return [
-        lintasArea
-            ? `⛔ Modem SN \`${snText(candidate.serialNumber)}\` *sedang dipakai* — sesi internetnya hidup.`
-            : `⛔ Modem SN \`${snText(candidate.serialNumber)}\` *masih tercatat* milik ${siapa}.`,
-        p.reason ? `Alasan: ${p.reason}.` : null,
-        `Kalau dipakai sekarang, PPPoE & WiFi ${siapa} akan tertimpa dan internetnya mati.`,
-        ``,
-        ...jalanKeluarModemDiblokir(candidate, p, adaAlternatif),
-        `❌ Batalkan: *BATAL* (datamu tetap tersimpan, bisa dilanjutkan nanti).`
+        `⛔ Kalau SN-nya ternyata beda, kamu sedang menimpa modem yang masih terpasang di rumah orang.`
     ].filter(Boolean).join("\n");
 }
 
@@ -892,9 +832,10 @@ async function detectAndAskConfirm(context, ctx) {
         ...customerRecapLines(ctx),
         `📡 Modem: SN \`${snText(top.serialNumber)}\` · ${top.model} · ${detectedLabel(top, nowMs)}${provBadge(context, top)}`,
         ...(offlineWarningLine(top, nowMs) ? [offlineWarningLine(top, nowMs)] : []),
-        ...(assignmentBlockReason(top, { adaAlternatif: adaKandidatLainYangBoleh(candidates, top) })
-            ? [``, assignmentBlockReason(top, { adaAlternatif: adaKandidatLainYangBoleh(candidates, top) })]
-            : []),
+        // Modem yang masih tertaut orang lain TIDAK lagi diributkan di layar ini. Peringatannya
+        // dipindah ke layar penegasan sesudah teknisi menjawab YA — di sana SN-nya ditampilkan
+        // besar dan dia diminta mencocokkan stiker, satu-satunya bukti yang mengikat modem fisik.
+        // Menumpuk peringatan di dua layar hanya membuat yang kedua ikut dilewati.
         ``,
         `Semua BENAR & modem cocok stiker? Balas *YA* (eksekusi) · *TIDAK* (ganti modem) · *BATAL*`
     ].join("\n"), logger);
@@ -1422,9 +1363,6 @@ async function handlePsbConversationState(context) {
     if (stateStep === STEP_CONFIRM) {
         if (["ya", "yes", "ok", "oke", "cocok", "y"].includes(lower)) {
             if (!ctx.candidate) { await safeReply(reply, "Belum ada modem terbaca. Balas *REFRESH* setelah modem online.", logger); return { handled: true }; }
-            // GERBANG: modem yang masih melayani pelanggan lain TIDAK boleh ditimpa. Tak ada opsi paksa dari WA.
-            const blocked = assignmentBlockReason(ctx.candidate, { adaAlternatif: adaKandidatLainYangBoleh(ctx.candidates, ctx.candidate) });
-            if (blocked) { await safeReply(reply, blocked, logger); return { handled: true }; }
             if (await mintaPenegasanAmbilAlih(context, ctx, ctx.candidate, nowMs)) return { handled: true };
             await provision(context, ctx, ctx.candidate);
             return { handled: true };
@@ -1456,9 +1394,6 @@ async function handlePsbConversationState(context) {
         const n = parseInt(text, 10);
         if (Number.isInteger(n) && n >= 1 && n <= (ctx.candidates || []).length) {
             const picked = ctx.candidates[n - 1];
-            // Gerbang yang sama berlaku di jalur pilih-nomor — jangan cuma dijaga di jalur YA.
-            const blocked = assignmentBlockReason(picked, { adaAlternatif: adaKandidatLainYangBoleh(ctx.candidates, picked) });
-            if (blocked) { await safeReply(reply, blocked, logger); return { handled: true }; }
             if (await mintaPenegasanAmbilAlih(context, ctx, picked, nowMs)) return { handled: true };
             await provision(context, ctx, picked);
             return { handled: true };
