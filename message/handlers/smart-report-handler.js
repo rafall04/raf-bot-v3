@@ -12,6 +12,11 @@ const { getResponseTimeMessage } = require('../../lib/working-hours-helper');
 const { createCustomerReportTicket } = require('../../lib/report-orchestration-service');
 const { notifyNewReport } = require('../../lib/report-notification-service');
 const { sendMessageToMany } = require('../../lib/whatsapp-delivery-service');
+const {
+    simpanDraft: simpanDraftLaporan,
+    hapusDraft: hapusDraftLaporan,
+    listDraftKedaluwarsa
+} = require('../../lib/laporan-draft-store');
 
 function renderResponseTemplate(key, fallback, data = {}) {
     const rendered = format(key, data);
@@ -118,6 +123,32 @@ async function handleGangguanMatiOfflineResponse({ sender, body, reply: _reply, 
             },
             uploadedPhotos: []
         });
+
+        // DURABEL: draft juga ditulis ke disk. `setUserState` hanya menaruhnya di stateStore
+        // (objek memori) dengan promosi lewat setTimeout 15 menit — keduanya lenyap saat
+        // `pm2 restart`, yang terjadi 7-13x/hari di produksi. Tanpa ini, pelanggan yang sudah
+        // menerima balasan "laporan diproses" bisa kehilangan laporannya tanpa satu baris log.
+        try {
+            simpanDraftLaporan(sender, {
+                step: 'GANGGUAN_MATI_AWAITING_PHOTO',
+                ticketData: {
+                    ticketId,
+                    pelangganUserId: state.targetUser.id,
+                    pelangganId: sender,
+                    laporanText: `Internet mati total - Device OFFLINE\nTerakhir online: ${state.deviceStatus.minutesAgo || 'lebih dari 30'} menit yang lalu\nTroubleshooting sudah dilakukan.\nSumber: ${reportSource}`,
+                    issueType: 'MATI',
+                    priority: 'HIGH',
+                    deviceOnline: false,
+                    troubleshootingDone: true,
+                    autoRedirected: state.autoRedirected || false
+                },
+                targetUser: state.targetUser,
+                deviceStatus: state.deviceStatus
+            });
+        } catch (error) {
+            // Gagal menulis draft TIDAK boleh menjatuhkan alur laporan pelanggan.
+            console.error('[MATI_DRAFT_PERSIST] gagal menulis draft durabel:', error?.message);
+        }
 
         // Don't save yet - wait for photo upload or skip
         // Return message prompting for optional photo upload
@@ -694,9 +725,60 @@ async function promoteMatiDraftOnTimeout(userId, state) {
             }
         });
         console.log(`[MATI_TIMEOUT_PROMOTE] Tiket ${report.ticketId} dibuat dari draft timeout untuk ${userId}`);
+        // Sudah jadi tiket — draft durabelnya tak perlu lagi.
+        hapusDraftLaporan(userId);
     } catch (error) {
+        // Draft SENGAJA tidak dihapus saat gagal: biarkan pemindaian berikutnya mencobanya lagi.
         console.error('[MATI_TIMEOUT_PROMOTE] gagal promote draft jadi tiket', { userId, error: error?.message });
     }
+}
+
+/**
+ * Jaring pengaman pengganti `setTimeout` yang hilang saat restart.
+ *
+ * Dipanggil saat BOOT dan pada tick berkala: setiap draft yang sudah melewati batas tunggu
+ * dipromosikan jadi tiket. Inilah yang membuat laporan pelanggan bertahan melewati
+ * `pm2 restart` — tanpa ini, restart di tengah jendela 15 menit membuang laporan tanpa jejak.
+ *
+ * Sengaja TAHAN-GAGAL per-draft: satu draft rusak tak boleh menghentikan sisanya.
+ */
+async function pindaiDraftLaporanTertunda(now = Date.now()) {
+    let dipromosikan = 0;
+    let gagal = 0;
+
+    let kedaluwarsa = [];
+    try {
+        kedaluwarsa = listDraftKedaluwarsa(now);
+    } catch (error) {
+        console.error('[MATI_DRAFT_SCAN] gagal membaca store draft:', error?.message);
+        return { dipromosikan: 0, gagal: 0, diperiksa: 0 };
+    }
+
+    for (const draft of kedaluwarsa) {
+        try {
+            await promoteMatiDraftOnTimeout(draft.userId, {
+                ticketData: draft.ticketData,
+                targetUser: draft.targetUser,
+                deviceStatus: draft.deviceStatus
+            });
+            dipromosikan += 1;
+        } catch (error) {
+            gagal += 1;
+            console.error('[MATI_DRAFT_SCAN] gagal promote satu draft', {
+                userId: draft.userId,
+                error: error?.message
+            });
+        }
+    }
+
+    if (kedaluwarsa.length) {
+        console.log(
+            `[MATI_DRAFT_SCAN] ${kedaluwarsa.length} draft kedaluwarsa diperiksa — ` +
+            `${dipromosikan} jadi tiket, ${gagal} gagal (akan dicoba lagi tick berikutnya)`
+        );
+    }
+
+    return { dipromosikan, gagal, diperiksa: kedaluwarsa.length };
 }
 
 async function promoteLemotDraftOnTimeout(userId, state) {
@@ -742,5 +824,8 @@ module.exports = {
     handleGangguanMatiOfflineResponse,
     handleGangguanMatiOnlineResponse,
     handleLemotPhotoUpload,
-    handleGangguanLemotResponse
+    handleGangguanLemotResponse,
+    // Dipanggil saat boot & tick berkala — jaring pengaman yang menggantikan setTimeout
+    // yang hilang saat pm2 restart.
+    pindaiDraftLaporanTertunda
 };
