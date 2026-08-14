@@ -54,7 +54,12 @@ function getIntentDispatchMap() {
         ...INTENT_DISPATCH_MODULES.networkAdmin,
         ...INTENT_DISPATCH_MODULES.customerService,
         ...INTENT_DISPATCH_MODULES.ownerAdmin,
-        ...INTENT_DISPATCH_MODULES.verification
+        ...INTENT_DISPATCH_MODULES.verification,
+        // Terdaftar di INTENT_DISPATCH_MODULES sejak #b218 tapi TAK PERNAH di-spread ke sini,
+        // sehingga `gaji saya` / `cek gaji` / `slip gaji` / `komisi saya` mencetak
+        // "[INTENT_DEBUG] Final intent: GAJI_SAYA" lalu dispatchIntent tak menemukan handler
+        // dan bot DIAM. Fiturnya tak pernah bisa dipakai teknisi.
+        ...INTENT_DISPATCH_MODULES.gajiTeknisi
     };
 }
 

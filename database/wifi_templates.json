@@ -851,6 +851,17 @@
   },
   {
     "keywords": [
+      "verifikasi",
+      "verif"
+    ],
+    "intent": "VERIFIKASI_OTP",
+    "category": "teknisi",
+    "description": "Teknisi memverifikasi OTP pelanggan di lokasi",
+    "icon": "🔐",
+    "customizable": true
+  },
+  {
+    "keywords": [
       "tiket saya",
       "tiketsaya",
       "my ticket",

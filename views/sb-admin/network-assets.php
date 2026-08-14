@@ -116,8 +116,14 @@
             <footer class="sticky-footer bg-white">
                 <div class="container my-auto">
                     <div class="copyright text-center my-auto">
-                        <span>Copyright &copy; RAF BOT <script src="<?= rafAssetUrl('/js/network-assets.js') ?>"></script>
-</span>
+                        <!-- Dulu ada <script src=".../network-assets.js"> terselip DI DALAM span ini,
+                             dimuat SEBELUM jQuery. Skrip #1 sempat mendeklarasikan binding `let` di
+                             lingkup global lalu melempar `$ is not defined`; skrip #2 di bawah
+                             kemudian gagal PARSE ("Identifier 'addAssetMapInstance' has already been
+                             declared") sehingga tak pernah dieksekusi sama sekali — DataTable tak
+                             pernah di-init, daftar ODC/ODP kosong, tombol & peta mati total.
+                             Pemuatan yang benar ada satu, di akhir body setelah dependensinya. -->
+                        <span>Copyright &copy; RAF NET <?php echo date('Y'); ?></span>
                     </div>
                 </div>
             </footer>
@@ -254,6 +260,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-    <script src="/js/network-assets.js"></script>
+    <script src="<?= rafAssetUrl('/js/network-assets.js') ?>"></script>
 </body>
 </html>

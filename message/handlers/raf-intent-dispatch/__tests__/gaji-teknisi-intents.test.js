@@ -56,10 +56,24 @@ describe("teknisi bisa memeriksa gajinya sendiri", () => {
 });
 
 describe("jalur pendaftaran & teks", () => {
-    test("modul intent tersambung ke dispatcher", () => {
-        const index = baca("message", "handlers", "raf-intent-dispatch", "index.js");
-        expect(index).toMatch(/gaji-teknisi-intents/);
-        expect(index).toMatch(/gajiTeknisi:/);
+    // Assertion ini dulu mencocokkan TEKS SUMBER (`/gajiTeknisi:/`) dan karena itu tetap HIJAU
+    // selama berbulan-bulan sementara fiturnya mati total: modulnya memang terdaftar di
+    // INTENT_DISPATCH_MODULES, tapi tak pernah di-spread ke getIntentDispatchMap(). Yang harus
+    // diperiksa adalah PETA YANG DIPAKAI dispatcher saat runtime, bukan isi berkasnya.
+    test("modul intent benar-benar tersambung ke peta dispatch runtime", () => {
+        const { getIntentDispatchMap } = require("../index");
+        const peta = getIntentDispatchMap();
+
+        expect(typeof peta.GAJI_SAYA).toBe("function");
+    });
+
+    test("SETIAP intent yang terdaftar di modul ikut tersedia di peta dispatch", () => {
+        const { getIntentDispatchMap } = require("../index");
+        const peta = getIntentDispatchMap();
+
+        // Menangkap modul lain yang lupa di-spread, bukan hanya gaji teknisi.
+        const hilang = Object.keys(GAJI_TEKNISI_INTENT_HANDLERS).filter((k) => !peta[k]);
+        expect(hilang).toEqual([]);
     });
 
     test("kata kunci GAJI_SAYA terdaftar — tanpa itu perintahnya tak pernah sampai", () => {

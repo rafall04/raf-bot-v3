@@ -400,9 +400,12 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <!-- Page level custom scripts -->
-  <script src="/static/js/saldo-management.js"></script>
-
-    <script src="/js/saldo-management.js"></script>
+  <!-- Dulu dimuat DUA KALI lewat dua URL berbeda (`/static/js/...` dan `/js/...`) yang
+       menunjuk berkas yang sama — keduanya di-mount di lib/http-security.js. Muatan kedua
+       selalu gagal parse ("Identifier 'agentSaldoTable' has already been declared") dan
+       menyisakan SyntaxError di konsol setiap kali halaman saldo dibuka. Satu pemuatan,
+       lewat rafAssetUrl agar ikut cache-bust filemtime seperti halaman lain. -->
+  <script src="<?= rafAssetUrl('/js/saldo-management.js') ?>"></script>
 
 </body>
 
