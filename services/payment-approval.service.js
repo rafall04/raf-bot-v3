@@ -21,6 +21,46 @@ const {
 } = require("../lib/payment-finance-service");
 const { createRuntimeCacheRepository } = require("../repositories/runtime-cache.repository");
 
+/**
+ * Menentukan arah persetujuan sebuah pengajuan: mencatat uang masuk (KREDIT) atau
+ * membalikkan pembayaran (PEMBALIKAN).
+ *
+ * KENAPA TIDAK CUKUP `newStatus`:
+ * `routes/partial-payment.js` menyimpan pengajuan cicilan dengan `newStatus: isFullyPaid`,
+ * yaitu `false` justru ketika teknisi MENERIMA UANG tapi belum melunasi periodenya. Kedua
+ * jalur approve (`POST /approve-paid-change` dan `bulkApproveRequests`) dulu hanya melihat
+ * `newStatus === true` untuk memilih kredit vs pembalikan — sehingga SETIAP pengajuan
+ * cicilan masuk ke cabang `paid: false`, yaitu PEMBALIKAN. Nominal yang sudah diterima
+ * teknisi di lapangan tak pernah masuk ledger, dan bila periode itu sudah punya pembayaran
+ * sah sebelumnya, pembayaran tersebut justru TERHAPUS.
+ *
+ * Arahnya kini ditentukan oleh JENIS pengajuan, bukan oleh boolean status akhir.
+ *
+ * @returns {{arah: 'kredit'|'pembalikan'|'tolak', alasan: string}}
+ */
+function resolveArahPersetujuan(request) {
+    const adalahCicilan =
+        request?.request_type === "partial_payment" || request?.is_partial_payment === true;
+
+    if (adalahCicilan) {
+        const nominalDiterima = Number(request?.amount_paid) || 0;
+        if (nominalDiterima > 0) {
+            return { arah: "kredit", alasan: "pengajuan cicilan dengan nominal diterima" };
+        }
+        // GAGAL KERAS, bukan diam-diam jatuh ke pembalikan. Pengajuan cicilan tanpa nominal
+        // adalah data rusak; membalikkan pembayaran karenanya jauh lebih merugikan daripada
+        // menolak dan meminta admin memeriksa.
+        return {
+            arah: "tolak",
+            alasan: "pengajuan cicilan tanpa amount_paid yang sah — tidak diproses sebagai pembalikan"
+        };
+    }
+
+    return request?.newStatus === true
+        ? { arah: "kredit", alasan: "pengajuan tandai lunas" }
+        : { arah: "pembalikan", alasan: "pengajuan tandai belum bayar" };
+}
+
 function defaultDeps() {
     const runtime = global.__appRuntime || null;
     const runtimeScope = runtime?.globalScope || global;
@@ -120,13 +160,22 @@ function createPaymentApprovalService(overrides = {}) {
                     };
                     const sendInvoiceValue = user.send_invoice ? 1 : 0;
 
-                    if (request.newStatus === true) {
+                    const arahPersetujuan = resolveArahPersetujuan(request);
+                    if (arahPersetujuan.arah === "tolak") {
+                        results.failed.push({ id: requestId, reason: arahPersetujuan.alasan });
+                        continue;
+                    }
+
+                    if (arahPersetujuan.arah === "kredit") {
                         // Kolektor: teknisi ATAU agen (tak pernah keduanya) → komisi ke ledger yang tepat.
                         const isAgenRequest = approvedRequest.collector_role === "agen" || !!approvedRequest.requested_by_agen_id;
                         const collectorId = isAgenRequest ? approvedRequest.requested_by_agen_id : approvedRequest.requested_by_teknisi_id;
                         const collectorAccount = collectorId ? deps.accountRepository.getById(collectorId) : null;
                         let paymentMethod = deps.normalizeUserPaymentMethod(approvedRequest.payment_method);
-                        if (!paymentMethod && collectorId && approvedRequest.newStatus === true) {
+                        // Ada kolektor di lapangan = uang tunai. Syarat `newStatus === true`
+                        // dicabut: pengajuan cicilan menyimpan `false` padahal justru itulah
+                        // penagihan tunai oleh teknisi/agen.
+                        if (!paymentMethod && collectorId) {
                             paymentMethod = "CASH";
                         }
                         if (!paymentMethod) {
@@ -292,5 +341,6 @@ function createPaymentApprovalService(overrides = {}) {
 }
 
 module.exports = {
-    createPaymentApprovalService
+    createPaymentApprovalService,
+    resolveArahPersetujuan
 };

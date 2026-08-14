@@ -15,7 +15,7 @@ const { withLock } = require('../lib/request-lock');
 const { sendMessageToMany } = require('../lib/whatsapp-delivery-service');
 const { hasAuthenticatedSession } = require('../lib/whatsapp-gateway');
 const { renderCategoryTemplate } = require('../lib/template-service');
-const { createPaymentApprovalService } = require('../services/payment-approval.service');
+const { createPaymentApprovalService, resolveArahPersetujuan } = require('../services/payment-approval.service');
 const {
     getPeriodParts
 } = require('../lib/technician-collection-settlement');
@@ -466,7 +466,15 @@ router.post('/approve-paid-change', rateLimit('approve-request', 20, 60000), asy
             }
 
             if (approved && userToUpdate) {
-                const newPaidStatus = requestToUpdate.newStatus === true ? 1 : 0;
+                // Arah persetujuan ditentukan JENIS pengajuan, bukan boolean `newStatus`.
+                // `routes/partial-payment.js` menyimpan cicilan dengan `newStatus: isFullyPaid`
+                // = false justru saat teknisi MENERIMA uang, sehingga pemetaan lama
+                // (`newStatus === true ? 1 : 0`) mengirim setiap cicilan ke cabang PEMBALIKAN.
+                const arahPersetujuan = resolveArahPersetujuan(requestToUpdate);
+                if (arahPersetujuan.arah === "tolak") {
+                    return res.status(400).json({ status: 400, message: arahPersetujuan.alasan });
+                }
+                const newPaidStatus = arahPersetujuan.arah === "kredit" ? 1 : 0;
                 try {
             // Check if send_invoice column exists
             const checkSendInvoiceColumn = async () => {
@@ -507,7 +515,9 @@ router.post('/approve-paid-change', rateLimit('approve-request', 20, 60000), asy
                         }
                         if (!paymentMethod && nextRequestState.payment_method) {
                             paymentMethod = normalizeUserPaymentMethod(nextRequestState.payment_method);
-                        } else if ((nextRequestState.requested_by_teknisi_id || nextRequestState.requested_by_agen_id) && nextRequestState.newStatus === true) {
+                        } else if (nextRequestState.requested_by_teknisi_id || nextRequestState.requested_by_agen_id) {
+                            // Ada kolektor di lapangan = tunai. Syarat `newStatus === true`
+                            // dicabut: cicilan menyimpan `false` padahal itu penagihan tunai.
                             paymentMethod = 'CASH';
                         }
                         if (!paymentMethod) {
