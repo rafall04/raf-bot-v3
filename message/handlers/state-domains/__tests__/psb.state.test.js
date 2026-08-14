@@ -1194,3 +1194,66 @@ describe("handlePsbStateCancel — jawaban pembatalan lewat jalur raf.js", () =>
         expect(hasil).toEqual({ handled: false });
     });
 });
+
+// ── Penegasan AMBIL-ALIH modem ────────────────────────────────────────────────────────────────
+// Bukti yang cukup untuk MENAHAN tapi tidak cukup untuk MENOLAK (pola tukar modem, atau modem
+// milik area sebelah) tidak boleh membatalkan pekerjaan teknisi — ia ditahan satu langkah dan
+// teknisi yang menegaskan, karena hanya dia yang bisa melihat kabelnya.
+describe("psb.state — penegasan ambil-alih modem", () => {
+    // Kandidat yang provenance-nya minta konfirmasi: dev-A dipakai pelanggan, tapi baris pelanggan
+    // menunjuk modem LAIN → pola tukar modem.
+    function harnessKonfirmasi() {
+        global.users = [{ id: 5, name: "Chozin", device_id: "dev-MODEM-BARU", pppoe_username: "old@x" }];
+        return harness({
+            findRecentPsbCandidates: jest.fn(async () => ([
+                { deviceId: "dev-B", serialNumber: "48575443BBBB0002", model: "HS8346R5", currentPPPUsername: "old@x", lastInform: new Date(NOW - 5 * 60 * 1000).toISOString(), registeredDate: "2026-07-04T09:40:00.000Z", registeredTimestamp: Date.parse("2026-07-04T09:40:00.000Z") }
+            ])).mockImplementation(async () => ({
+                ok: true,
+                data: [{ deviceId: "dev-B", serialNumber: "48575443BBBB0002", model: "HS8346R5", currentPPPUsername: "old@x", lastInform: new Date(NOW - 5 * 60 * 1000).toISOString(), registeredDate: "2026-07-04T09:40:00.000Z", registeredTimestamp: Date.parse("2026-07-04T09:40:00.000Z") }]
+            })),
+            modemProvenance: {
+                ...require("../../../../lib/psb-modem-provenance"),
+                loadActivePppoeUsernames: jest.fn(async () => new Set(["old@x"]))
+            }
+        });
+    }
+
+    test("modem yang perlu dipastikan → bot MENAHAN & bertanya, provisioning belum jalan", async () => {
+        const h = harnessKonfirmasi();
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        expect(h.base.usersService.upsertUserFromAdminPanel).not.toHaveBeenCalled();
+        expect(h.getState().step).toBe("PSB_CONFIRM_TAKEOVER");
+        const teks = h.base.reply.mock.calls.at(-1)[0];
+        expect(teks).toMatch(/PERLU DIPASTIKAN/i);
+        expect(teks).toMatch(/SUDAH LEPAS/);
+        expect(teks).toMatch(/modem LAIN/i);        // pola tukar modem ikut dijelaskan
+    });
+
+    test("'YA' TIDAK diterima di layar penegasan — harus kata yang diketik sadar", async () => {
+        const h = harnessKonfirmasi();
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "ya" });
+        expect(h.base.usersService.upsertUserFromAdminPanel).not.toHaveBeenCalled();
+        expect(h.base.reply.mock.calls.at(-1)[0]).toMatch(/SUDAH LEPAS/);
+    });
+
+    test("'SUDAH LEPAS' → provisioning jalan pada modem yang SAMA dengan yang ditanyakan", async () => {
+        const h = harnessKonfirmasi();
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "sudah lepas" });
+        expect(h.base.usersService.upsertUserFromAdminPanel).toHaveBeenCalledTimes(1);
+        expect(h.base.usersService.upsertUserFromAdminPanel.mock.calls[0][0].userData.device_id).toBe("dev-B");
+    });
+
+    test("'TIDAK' → tak dieksekusi, teknisi diarahkan mengecek lapangan dulu", async () => {
+        const h = harnessKonfirmasi();
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "tidak" });
+        expect(h.base.usersService.upsertUserFromAdminPanel).not.toHaveBeenCalled();
+        expect(h.base.reply.mock.calls.at(-1)[0]).toMatch(/cek dulu ke lapangan/i);
+    });
+});

@@ -66,9 +66,16 @@ const STEP_CONFIRM = "PSB_CONFIRM_MODEM";
 const STEP_PICK = "PSB_PICK_MODEM";
 // Layar tawaran LANJUT/BARU saat teknisi kembali dan draft sesi lamanya masih ada.
 const STEP_RESUME = "PSB_RESUME_ASK";
+// Penegasan ambil-alih modem: bukti cukup untuk MENAHAN, tapi tidak cukup untuk MENOLAK
+// (mis. pola tukar modem — pelanggan sudah pindah ke modem baru, yang di tangan teknisi modem lama).
+// Hanya teknisi yang bisa melihat kabelnya, jadi dialah yang menegaskan — dan namanya ikut tercatat.
+const STEP_TAKEOVER = "PSB_CONFIRM_TAKEOVER";
+// SENGAJA bukan "YA": kata itu dipakai di layar konfirmasi biasa dan dijawab refleks. Penegasan yang
+// menanggung risiko mematikan pelanggan lain harus diketik sadar.
+const KATA_AMBIL_ALIH = "sudah lepas";
 // Langkah yang KERJANYA layak diselamatkan saat sesi mati (STEP_RESUME tak ikut: isinya cuma
 // pertanyaan, drafnya sendiri sudah tersimpan).
-const RESUMABLE_STEPS = [STEP_COLLECT, STEP_CONFIRM, STEP_PICK];
+const RESUMABLE_STEPS = [STEP_COLLECT, STEP_CONFIRM, STEP_PICK, STEP_TAKEOVER];
 const PSB_STEPS = new Set([...RESUMABLE_STEPS, STEP_RESUME]);
 
 // Template caption PSB — dibalas bot saat teknisi belum/keliru mengisi. Tinggal salin & isi.
@@ -755,9 +762,42 @@ function jalanKeluarModemDiblokir(candidate, p, adaAlternatif) {
     ].filter(Boolean);
 }
 
+// Layar PENEGASAN AMBIL-ALIH. Bukan penolakan: bot menyebut apa yang IA lihat, lalu menanyakan satu
+// hal yang cuma bisa dijawab orang yang memegang modemnya. Fakta konkret (nama, SN, kapan terakhir
+// terlihat, modem mana yang tercatat untuk pelanggan itu) sengaja ditulis lengkap supaya jawaban
+// yang keliru terlihat keliru — pertanyaan tanpa fakta hanya memancing "ya" refleks.
+function takeoverConfirmText(candidate, nowMs) {
+    const p = (candidate && candidate.provenance) || {};
+    const siapa = p.ownerName ? `*${p.ownerName}*` : "pelanggan lain (kemungkinan area sebelah)";
+    const kredensial = p.previousPppoe ? ` (\`${p.previousPppoe}\`)` : "";
+    const tukar = p.deviceTercatatPemilik && p.deviceTercatatPemilik !== candidate.deviceId;
+    return [
+        `⚠️ *TAHAN DULU — modem ini perlu dipastikan.*`,
+        ``,
+        `📡 SN \`${snText(candidate.serialNumber)}\``,
+        `👤 Kredensial di dalamnya milik ${siapa}${kredensial}`,
+        `🕐 Terakhir terlihat di jaringan: ${minutesAgo(candidate.lastInform, nowMs)}`,
+        p.reason ? `ℹ️ ${p.reason}.` : null,
+        tukar
+            ? `🔄 Catatan kami: pelanggan itu sekarang tercatat memakai modem LAIN — jadi modem di tanganmu kemungkinan besar modem lamanya yang sudah bebas.`
+            : null,
+        ``,
+        `❓ *Pertanyaannya satu:* apakah modem ini *sudah benar-benar dilepas* dari ${siapa} — kabel opticnya sudah dicabut dari sana, dan pelanggan itu sudah dapat modem pengganti (atau memang sudah berhenti)?`,
+        ``,
+        `✅ Kalau YA, ketik: *${KATA_AMBIL_ALIH.toUpperCase()}*`,
+        `   Kredensial & WiFi modem ini akan ditimpa, dan penegasan ini tercatat atas namamu.`,
+        `❌ Kalau ragu sedikit pun: *BATAL* — cek dulu ke lapangan. Datamu tetap tersimpan.`,
+        ``,
+        `⛔ Kalau ternyata modem itu masih terpasang di rumah ${siapa}, meneruskan = internetnya MATI dan kamu yang menanggungnya.`
+    ].filter(Boolean).join("\n");
+}
+
+// HANYA untuk penolakan KERAS. Kandidat yang cuma `butuhKonfirmasi` bukan urusan fungsi ini —
+// ia ditangani layar penegasan (`takeoverConfirmText`), supaya pekerjaan yang sah (tukar modem)
+// tidak ikut dimatikan oleh pesan penolakan.
 function assignmentBlockReason(candidate, { adaAlternatif = false } = {}) {
     const p = candidate && candidate.provenance;
-    if (!p || p.assignable !== false) return null;
+    if (!p || p.assignable !== false || p.butuhKonfirmasi) return null;
     const lintasArea = p.ownerSource === "sesi_modem_aktif";
     const siapa = p.ownerName ? `*${p.ownerName}*` : (lintasArea ? "pelanggan lain" : "pelanggan lain");
     return [
@@ -770,6 +810,20 @@ function assignmentBlockReason(candidate, { adaAlternatif = false } = {}) {
         ...jalanKeluarModemDiblokir(candidate, p, adaAlternatif),
         `❌ Batalkan: *BATAL* (datamu tetap tersimpan, bisa dilanjutkan nanti).`
     ].filter(Boolean).join("\n");
+}
+
+/**
+ * Kandidat yang cuma `butuhKonfirmasi` ditahan SATU langkah: bot menyebut buktinya, teknisi yang
+ * menegaskan. Mengembalikan true bila penegasan diminta (pemanggil harus berhenti di situ).
+ * Kandidat terpilih disimpan di `ctx.candidate` supaya langkah penegasan mengeksekusi modem yang
+ * SAMA dengan yang ditanyakan — bukan hasil pembacaan ulang yang bisa berbeda.
+ */
+async function mintaPenegasanAmbilAlih(context, ctx, candidate, nowMs) {
+    const p = candidate && candidate.provenance;
+    if (!p || !p.butuhKonfirmasi) return false;
+    saveStep(context, STEP_TAKEOVER, { ...ctx, candidate });
+    await safeReply(context.reply, takeoverConfirmText(candidate, nowMs), context.logger || console);
+    return true;
 }
 
 // ── Deteksi modem + minta konfirmasi (BELUM push apa pun) ──
@@ -1371,6 +1425,7 @@ async function handlePsbConversationState(context) {
             // GERBANG: modem yang masih melayani pelanggan lain TIDAK boleh ditimpa. Tak ada opsi paksa dari WA.
             const blocked = assignmentBlockReason(ctx.candidate, { adaAlternatif: adaKandidatLainYangBoleh(ctx.candidates, ctx.candidate) });
             if (blocked) { await safeReply(reply, blocked, logger); return { handled: true }; }
+            if (await mintaPenegasanAmbilAlih(context, ctx, ctx.candidate, nowMs)) return { handled: true };
             await provision(context, ctx, ctx.candidate);
             return { handled: true };
         }
@@ -1404,10 +1459,41 @@ async function handlePsbConversationState(context) {
             // Gerbang yang sama berlaku di jalur pilih-nomor — jangan cuma dijaga di jalur YA.
             const blocked = assignmentBlockReason(picked, { adaAlternatif: adaKandidatLainYangBoleh(ctx.candidates, picked) });
             if (blocked) { await safeReply(reply, blocked, logger); return { handled: true }; }
+            if (await mintaPenegasanAmbilAlih(context, ctx, picked, nowMs)) return { handled: true };
             await provision(context, ctx, picked);
             return { handled: true };
         }
         await safeReply(reply, candidateListText(context, ctx.candidates || [], nowMs), logger);
+        return { handled: true };
+    }
+
+    // ── Fase penegasan ambil-alih modem ──
+    if (stateStep === STEP_TAKEOVER) {
+        // Hanya kata penegasan yang PERSIS diterima. Sengaja tidak menerima "ya"/"ok"/"oke":
+        // penegasan yang menanggung risiko mematikan pelanggan lain tak boleh bisa dijawab refleks
+        // dengan kata yang dipakai di layar-layar lain.
+        if (lower.replace(/\s+/g, " ") === KATA_AMBIL_ALIH) {
+            if (!ctx.candidate) { await safeReply(reply, "Modem yang tadi ditanyakan sudah tak ada di sesi ini. Balas *REFRESH* atau ketik `cari <SN stiker>`.", logger); return { handled: true }; }
+            const p = ctx.candidate.provenance || {};
+            // Jejak siapa yang menegaskan — ini keputusan berisiko, jadi harus ada namanya.
+            logger?.log?.(`[PSB_DM] AMBIL ALIH MODEM ditegaskan oleh ${ctx.staff && (ctx.staff.name || ctx.staff.username)} (id ${ctx.staff && ctx.staff.id}): SN ${ctx.candidate.serialNumber} (${ctx.candidate.deviceId}) — kredensial lama ${p.previousPppoe || "?"}, pemilik tercatat ${p.ownerName || "tak dikenal"}`);
+            await provision(context, ctx, ctx.candidate);
+            return { handled: true };
+        }
+        if (["tidak", "belum", "no", "n"].includes(lower)) {
+            await safeReply(reply, [
+                `👍 Bagus — jangan diteruskan kalau belum pasti.`,
+                ``,
+                `Cek dulu ke lapangan, lalu kembali ke sini dan ketik \`cari <SN stiker>\`.`,
+                `Datamu tetap tersimpan.`
+            ].join("\n"), logger);
+            return { handled: true };
+        }
+        if (lower === "refresh") { await detectAndAskConfirm(context, ctx); return { handled: true }; }
+        const hintTakeover = parseSearchHint(text);
+        if (hintTakeover) { await searchAndList(context, ctx, hintTakeover); return { handled: true }; }
+        if (looksLikeSnInput(text)) { await searchAndList(context, ctx, text); return { handled: true }; }
+        await safeReply(reply, `Ketik *${KATA_AMBIL_ALIH.toUpperCase()}* kalau modem itu sudah benar-benar dilepas dari pemilik lamanya, *TIDAK* kalau belum yakin, atau *BATAL*.`, logger);
         return { handled: true };
     }
 
