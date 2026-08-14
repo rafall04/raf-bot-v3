@@ -131,6 +131,11 @@ router.get('/admin-tutorial', checkRole(['admin', 'owner', 'superadmin']), (req,
     res.render('sb-admin/admin-tutorial.php');
 });
 
+// Sisa PPPoE — kredensial di MikroTik yang tak lagi punya pelanggan ("modem hantu").
+router.get('/sisa-pppoe', checkRole(PERAN_ADMIN), (req, res) => {
+    res.render('sb-admin/sisa-pppoe.php');
+});
+
 router.get('/kompensasi', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/kompensasi.php');
 });

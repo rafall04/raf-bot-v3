@@ -83,6 +83,10 @@ async function routeConversationState(context) {
     if (owner === "speed-boost") {
         return { owner, ...(await handleSpeedBoostConversationState(domainContext)) };
     }
+    if (owner === "customer-removal") {
+        const { handleCustomerRemovalState } = require("./state-domains/customer-removal.state");
+        return { owner, ...(await handleCustomerRemovalState(domainContext)) };
+    }
 
     return { handled: false, owner };
 }

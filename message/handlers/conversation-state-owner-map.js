@@ -76,6 +76,7 @@ const CONVERSATION_STATE_PREFIX_OWNER_MAP = {
     PAYPROOF_: "payment-proof",
     PKGREQ_: "package-request",
     REBOOTFU_: "reboot-followup",
+    COPOT_: "customer-removal", // wizard WA `copot <nama/HP/ID>` — copot pelanggan (admin)
     SODB_: "speed-boost" // Speed on Demand pelanggan (menggantikan step SOD legacy di other-state-handler)
 };
 

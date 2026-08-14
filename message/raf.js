@@ -874,6 +874,34 @@ module.exports = async (raf, msg, m, options = {}) => {
             console.error('[PSB_ASSIGN_TRIGGER_ERROR]', psbAssignErr.message);
         }
 
+        // ── Trigger COPOT PELANGGAN via DM (ADMIN saja) ──
+        // `copot <nama/HP/ID>`. Sengaja TIDAK dibuka untuk teknisi: ini menghapus data pelanggan
+        // dan memutus internetnya. Penegasannya kode acak (lihat customer-removal.state.js), bukan
+        // kata seperti YA. NON-THROWING — kegagalan gerbang ini tak boleh menjatuhkan pesan lain.
+        try {
+            const { isCustomerRemovalTrigger } = require('./handlers/state-domains/customer-removal.state');
+            if (isCustomerRemovalTrigger(chats)) {
+                const { resolveAuthorizedStaff } = require('./handlers/psb-group-intake');
+                const copotStaff = resolveAuthorizedStaff({
+                    participant: optionalJid || sender,
+                    plainPhone: plainSenderNumber,
+                    accounts,
+                    allowedRoles: ['admin', 'owner', 'superadmin']
+                });
+                if (copotStaff) {
+                    const { startCustomerRemoval } = require('./handlers/state-domains/customer-removal.state');
+                    await startCustomerRemoval({
+                        chats, staff: copotStaff, stateSender, reply, setUserState,
+                        getUsers: () => global.users || [],
+                        usersService: global.__apiUsersService
+                    });
+                    return;
+                }
+            }
+        } catch (copotErr) {
+            console.error('[COPOT_TRIGGER_ERROR]', copotErr.message);
+        }
+
         // ── Trigger wizard PSB via DM teknisi (Fase 2 [[psb-simplification-plan]]) ──
         // #PSB + foto KTP dari teknisi (DM, BUKAN grup) → buka sesi PSB (step PSB_COLLECT_DOCS);
         // lanjutan (foto rumah/lokasi/konfirmasi) dirutekan otomatis oleh routeConversationState

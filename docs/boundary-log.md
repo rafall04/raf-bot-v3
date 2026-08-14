@@ -1497,3 +1497,15 @@
 - **Panel:** konfirmasi kini menyebut nama + PPPoE + modem tertaut dan mendaftar 4 langkah yang akan dikerjakan; hasilnya ditampilkan per langkah (✅/❌ + alasan), dengan peringatan khusus bila kredensial tertinggal. Riwayat tagihan (`payment_history` di saldo.sqlite, `invoices.json`) terverifikasi TIDAK ikut terhapus — keduanya keyed `user_id`/`customer.id` di store terpisah, jadi arsip/soft-delete tidak diperlukan untuk itu.
 - **BELUM:** perintah WhatsApp copot pelanggan (item 2 permintaan) belum dibuat — lihat catatan di ringkasan sesi.
 - **Tes:** `services/api-users/__tests__/delete-user-by-id.test.js` (7), `lib/__tests__/orphan-pppoe-service.test.js` (8).
+
+<a id="b227"></a>
+
+### Feat 2026-08-14 (Copot pelanggan via WhatsApp + halaman Sisa PPPoE)
+
+- **Owner baru:** `message/handlers/state-domains/customer-removal.state.js` — wizard `copot <nama/HP/ID>` untuk ADMIN (bukan teknisi: ini menghapus data & memutus internet). Prefix state `COPOT_` didaftarkan di `conversation-state-owner-map.js` + `conversation-state-router.js`; trigger di `message/raf.js` di-gate `['admin','owner','superadmin']`.
+- **Penegasan = KODE ACAK 4 digit**, bukan kata. `YA`/`OK`/`OKE` sengaja DITOLAK (ada tesnya): kata-kata itu dipakai di layar lain dan dijawab refleks, sedangkan tindakan ini memutus internet seseorang. Kode memaksa layarnya dibaca.
+- **Pencarian** cocok lewat nama sebagian, ID persis, atau nomor HP dengan 9 digit terakhir (`0812…` = `62812…`). Banyak hasil → daftar bernomor dulu; satu hasil → langsung layar rincian + kode.
+- **Hasil dilaporkan PER LANGKAH** (sesi, kredensial PPPoE, data, port ODP) memakai `body.langkah` dari `deleteUserById` (#b226). Bila kredensial gagal dihapus, balasannya menyebut kredensial yang tertinggal + mengarahkan ke menu Sisa PPPoE — bukan "berhasil".
+- **Halaman `/sisa-pppoe`** (admin) + `static/js/sisa-pppoe.js`: daftar kredensial yatim dengan status sesi bertiga (dipakai / tak ada sesi / TAK TERBACA), tombol hapus HANYA aktif untuk yang terbukti tak dipakai, dan kegagalan baca router tampil sebagai peringatan merah — bukan tabel kosong yang menenangkan. Terpasang di grup Sistem sidebar.
+- **Terukur di produksi sebelum dirilis:** 67 secret vs 59 pelanggan → 6 "yatim", TAPI 3 di antaranya bersesi hidup dan satu lagi VPN operator (`laptop-aldi`, profil `vpn monitor`). Itulah sebabnya halaman ini menolak menyebut mereka sampah.
+- **Tes:** `message/handlers/state-domains/__tests__/customer-removal.state.test.js` (24).

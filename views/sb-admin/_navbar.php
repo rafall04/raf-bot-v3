@@ -552,12 +552,12 @@ function isParentActive($pages, $current) {
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseSistem" aria-expanded="<?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseSistem">
+    <li class="nav-item <?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/sisa-pppoe', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseSistem" aria-expanded="<?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/sisa-pppoe', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseSistem">
             <i class="fas fa-fw fa-cogs"></i>
             <span>Pengaturan</span>
         </a>
-        <div id="collapseSistem" class="collapse <?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingSistem" data-parent="#accordionSidebar">
+        <div id="collapseSistem" class="collapse <?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/sisa-pppoe', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingSistem" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/accounts', $current_page) ? 'active' : ''; ?>" href="/accounts">
                     <i class="fas fa-fw fa-users-cog mr-2"></i>
@@ -570,6 +570,10 @@ function isParentActive($pages, $current) {
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/parameter-management', $current_page) ? 'active' : ''; ?>" href="/parameter-management">
                     <i class="fas fa-fw fa-sliders-h mr-2"></i>
                     <span>Parameter Management</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/sisa-pppoe', $current_page) ? 'active' : ''; ?>" href="/sisa-pppoe">
+                    <i class="fas fa-fw fa-broom mr-2"></i>
+                    <span>Sisa PPPoE</span>
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/cron', $current_page) ? 'active' : ''; ?>" href="/cron">
                     <i class="fas fa-fw fa-clock mr-2"></i>
