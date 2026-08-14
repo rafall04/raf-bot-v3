@@ -53,3 +53,9 @@ require_once __DIR__ . '/_asset.php';
 <?php endif; ?>
     <!-- Lapisan komponen bersama (Tahap 2 redesign) — dimuat PALING AKHIR di kedua peran -->
     <link href="<?= rafAssetUrl('/css/components-modern.css') ?>" rel="stylesheet">
+    <!-- Helper escaping bersama (rafEscapeHtml/rafEscapeJsString/rafText). Sengaja di <head>
+         TANPA defer: skrip halaman boleh memanggilnya saat render pertama, dan berkasnya
+         kecil serta tanpa dependensi. Menggantikan salinan `escapeHtml` berbasis
+         textContent yang tersebar di belasan berkas — pola itu meloloskan " dan ',
+         sehingga nama ber-apostrof (Ma'ruf, Nur'aini) memutus handler inline. -->
+    <script src="<?= rafAssetUrl('/js/html-escape.js') ?>"></script>

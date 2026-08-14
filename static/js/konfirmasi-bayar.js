@@ -45,13 +45,24 @@
   }
 
   function card(rec) {
-    var namaArg = esc(rec.userName).replace(/'/g, "\\'");
+    // AKSI LEWAT data-* + DELEGASI, bukan onclick inline.
+    //
+    // Dulu nama pelanggan disisipkan sebagai argumen string di dalam atribut onclick:
+    //   var namaArg = esc(rec.userName).replace(/'/g, "\\'");
+    // `esc()` sudah mengubah `'` menjadi `&#39;`, jadi replace-nya TAK PERNAH cocok —
+    // sementara parser HTML men-DECODE `&#39;` kembali menjadi `'` SEBELUM JS di-parse.
+    // Untuk pelanggan bernama Ma'ruf / Sa'diyah (lazim di basis pelanggan ini) string
+    // handler putus dan ketiga tombol DIAM TOTAL tanpa pesan galat apa pun: pembayaran
+    // tak pernah tercatat lunas dan pelanggan tetap kena isolir. Kartunya tampak normal
+    // karena bagian teks memakai esc() dengan benar — jadi admin tak melihat gejala.
+    // Varian jahat `x',alert(document.cookie),'` pun ikut dieksekusi.
+    var namaAttr = esc(rec.userName);
     var actions =
-      '<button class="btn btn-sm btn-success" onclick="konfirmasiBukti(\'' + esc(rec.id) + '\',\'' + namaArg + '\',' + Number(rec.amountDue || 0) + ')">' +
+      '<button class="btn btn-sm btn-success" data-aksi="konfirmasi" data-id="' + esc(rec.id) + '" data-nama="' + namaAttr + '" data-amount="' + Number(rec.amountDue || 0) + '">' +
         '<i class="fas fa-check"></i> Konfirmasi Lunas</button>' +
-      '<button class="btn btn-sm btn-outline-danger" onclick="tolakBukti(\'' + esc(rec.id) + '\',\'' + namaArg + '\')">' +
+      '<button class="btn btn-sm btn-outline-danger" data-aksi="tolak" data-id="' + esc(rec.id) + '" data-nama="' + namaAttr + '">' +
         '<i class="fas fa-times"></i> Tolak</button>' +
-      '<button class="btn btn-sm btn-outline-secondary" onclick="hapusBukti(\'' + esc(rec.id) + '\',\'' + namaArg + '\')">' +
+      '<button class="btn btn-sm btn-outline-secondary" data-aksi="hapus" data-id="' + esc(rec.id) + '" data-nama="' + namaAttr + '">' +
         '<i class="fas fa-trash"></i> Hapus (bukan bukti bayar)</button>';
 
     return '' +
@@ -85,6 +96,31 @@
       return;
     }
     wrap.innerHTML = items.map(card).join("");
+  }
+
+  // Satu listener terdelegasi untuk seluruh daftar. Karena nilainya dibaca dari `dataset`
+  // (bukan diurai ulang sebagai kode), karakter apa pun di nama pelanggan — apostrof, kutip,
+  // tanda kurung — tak bisa lagi memutus handler maupun dieksekusi.
+  function pasangDelegasiAksi() {
+    var wrap = document.getElementById("proof-list");
+    if (!wrap || wrap.dataset.delegasiTerpasang === "1") return;
+    wrap.dataset.delegasiTerpasang = "1";
+
+    wrap.addEventListener("click", function (ev) {
+      var tombol = ev.target.closest("[data-aksi]");
+      if (!tombol || !wrap.contains(tombol)) return;
+
+      var id = tombol.dataset.id;
+      var nama = tombol.dataset.nama || "";
+
+      if (tombol.dataset.aksi === "konfirmasi") {
+        window.konfirmasiBukti(id, nama, Number(tombol.dataset.amount || 0));
+      } else if (tombol.dataset.aksi === "tolak") {
+        window.tolakBukti(id, nama);
+      } else if (tombol.dataset.aksi === "hapus") {
+        window.hapusBukti(id, nama);
+      }
+    });
   }
 
   async function loadList() {
@@ -199,6 +235,9 @@
   };
 
   document.addEventListener("DOMContentLoaded", function () {
+    // Dipasang SEKALI di kontainer, sebelum daftar pertama dirender. Karena delegasi,
+    // kartu yang digambar ulang tiap 30 detik tak perlu di-bind ulang.
+    pasangDelegasiAksi();
     loadList();
     var btn = document.getElementById("refresh-btn");
     if (btn) btn.addEventListener("click", loadList);

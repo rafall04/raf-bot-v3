@@ -293,11 +293,36 @@
             });
         }
 
+        // Delegasi ke helper bersama (static/js/html-escape.js, dimuat lewat _head.php).
+
+
+        // Implementasi lama memakai `div.textContent -> div.innerHTML`, yang HANYA meloloskan
+
+
+        // & < > — TIDAK " maupun '. Dipakai untuk atribut atau argumen handler inline, nama
+
+
+        // ber-apostrof (Ma'ruf, Nur'aini) memutus string dan tombolnya diam total.
+
+
         function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+
+
+            return typeof rafEscapeHtml === 'function'
+
+
+                ? rafEscapeHtml(text)
+
+
+                : String(text == null ? '' : text).replace(/[&<>"']/g, function (c) {
+
+
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+
+
+                });
+
+
         }
 
         function showAlert(type, message) {

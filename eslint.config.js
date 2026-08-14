@@ -60,7 +60,10 @@ const browserGlobals = {
     // DOMPurify dimuat dari CDN di halaman pembayaran teknisi. Baru terlihat ESLint
     // setelah blok <script>-nya dieksternalkan dari .php ke static/js/.
     DOMPurify: 'readonly',
-    toastr: 'readonly', Notification: 'readonly'
+    toastr: 'readonly', Notification: 'readonly',
+    // Helper escaping bersama dari static/js/html-escape.js, dimuat di <head> lewat
+    // views/sb-admin/_head.php sehingga tersedia di semua halaman panel.
+    rafEscapeHtml: 'readonly', rafEscapeJsString: 'readonly', rafText: 'readonly'
 };
 
 module.exports = [
