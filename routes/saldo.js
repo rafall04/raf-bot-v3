@@ -2,9 +2,11 @@
  * Header Doc
  * Purpose: Router saldo/topup/voucher untuk operasi admin dan notifikasi outbound WhatsApp terkait saldo.
  * Caller: Express route registry.
- * Deps: saldo-manager, voucher-manager, agent-manager, upload-helper, templating, template-service, whatsapp-delivery-service.
+ * Deps: saldo-manager, voucher-manager, agent-manager, upload-helper, templating, template-service, whatsapp-delivery-service, `./api-route-helpers` (ensureAdmin).
  * MainFuncs: resolveStoredUploadPath, routes saldo statistics/users/topup/manual/voucher/agent-topup.
  * SideEffects: Menulis saldo/topup/voucher state, menyimpan upload bukti, mengirim notifikasi WhatsApp.
+ * INVARIAN: `router.use(ensureAdmin)` menjaga SELURUH endpoint di file ini (admin/owner/superadmin).
+ *           Jangan melepasnya — endpoint di sini memutasi saldo tanpa memeriksa peran sendiri.
  */
 const express = require('express');
 const router = express.Router();
@@ -18,6 +20,20 @@ const { getUploadDir, getUploadPath, generateFilename } = require('../lib/upload
 const { renderTemplate } = require('../lib/templating');
 const { renderCategoryTemplate } = require('../lib/template-service');
 const { sendMessage, sendMessageToMany } = require('../lib/whatsapp-delivery-service');
+const { ensureAdmin } = require('./api-route-helpers');
+
+// SELURUH router ini admin-only.
+// Dulu dipasang di `/api/saldo` TANPA satu pun middleware, dan tak satu handler pun memeriksa
+// peran sendiri. Akibatnya `POST /api/saldo/add-manual` — menambah saldo ke userId mana pun,
+// nominal bebas — terbuka untuk SETIAP principal yang lolos auth global: akun teknisi, akun agen,
+// bahkan sesi PELANGGAN (middleware auth meneruskan `req.customer` juga). Begitu pula
+// `/verify-topup`, `/add-voucher`, dan `/agent-topup`.
+// Aman dijaga penuh: satu-satunya pemakai sah di repo ini adalah halaman admin /saldo-management
+// (`static/js/saldo-management.js` → `/agents` + `/agent-topup`). Topup pelanggan TIDAK lewat sini
+// — ia berjalan lewat callback pembayaran di `routes/public.js` (tag `topup`).
+// Kalau kelak ada jalur pelanggan yang sah, kecualikan endpoint itu SATU PER SATU, jangan
+// melepas guard tingkat router ini.
+router.use(ensureAdmin);
 
 function renderResponseTemplate(key, data = {}) {
     return renderCategoryTemplate("responseTemplates", key, data).text;

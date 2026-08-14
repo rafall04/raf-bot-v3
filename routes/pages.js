@@ -4,8 +4,12 @@
  * Caller: `lib/routes-registry.js`.
  * Deps: Express, filesystem view lookup, middleware role lokal, dan
  *       `lib/http-error-page` untuk layar 403 ber-tema.
- * MainFuncs: `checkRole` dan route render halaman admin/teknisi.
+ * MainFuncs: `checkRole`, `tolakHalamanBergerbangSendiri`, dan route render halaman admin/teknisi.
  * SideEffects: Merender view PHP atau mengembalikan halaman 404/403.
+ * INVARIAN: handler generik `/:type([^.]+)` GAGAL-TERTUTUP — bawaannya `PERAN_ADMIN`. Halaman yang
+ *           boleh dibuka teknisi/agen WAJIB diberi rute eksplisit ber-`checkRole` di file ini; jangan
+ *           melonggarkan handler generik. Halaman bergerbang-sendiri (dompet pribadi owner) terdaftar
+ *           di `HALAMAN_BERGERBANG_SENDIRI` dan dijawab 404 agar keberadaannya tidak bocor.
  */
 const express = require('express');
 const fs = require('fs');
@@ -65,6 +69,31 @@ function checkRole(allowedRoles) {
         
         next();
     };
+}
+
+// Peran bawaan untuk halaman yang TIDAK punya rute eksplisit (lihat handler generik di bawah).
+const PERAN_ADMIN = ['admin', 'owner', 'superadmin'];
+
+// Halaman yang punya GERBANG SENDIRI di jalur resminya. Handler generik tak boleh jadi pintu
+// belakang ke sana — bahkan untuk admin, karena dompet PRIBADI owner memang bukan milik admin.
+// Dijawab 404 (bukan 403) mengikuti keputusan yang sudah ada di `renderKeuanganPribadi`:
+// "akses ditolak" justru memberi tahu orang lain bahwa halaman itu ada.
+const HALAMAN_BERGERBANG_SENDIRI = new Set([
+    'keuangan-pribadi',
+    'keuangan-pribadi-login',
+    'keuangan-pribadi-catatan',
+    'keuangan-pribadi-anggaran',
+    'keuangan-pribadi-panduan',
+    'keuangan-pribadi-pengaturan',
+]);
+
+// Dipasang SEBELUM checkRole supaya jawabannya 404 untuk SEMUA peran. Kalau urutannya dibalik,
+// teknisi/agen menerima 403 — dan 403 itu sendiri sudah membocorkan bahwa halamannya ada.
+function tolakHalamanBergerbangSendiri(req, res, next) {
+    if (HALAMAN_BERGERBANG_SENDIRI.has(String(req.params.type || ''))) {
+        return res.status(404).render('sb-admin/404.php');
+    }
+    return next();
 }
 
 // Public pages (no auth required)
@@ -197,7 +226,9 @@ router.get('/infra-monitor', checkRole(['admin', 'owner', 'superadmin']), (req, 
     res.render('sb-admin/infra-monitor.php');
 });
 
-router.get('/agent-management', (req, res) => {
+// Halaman ini memuat sidebar ADMIN (`_navbar.php`) dan mengelola akun agen + saldo mereka,
+// tapi rutenya dulu sama sekali tanpa `checkRole` — cukup login sebagai peran apa pun.
+router.get('/agent-management', checkRole(PERAN_ADMIN), (req, res) => {
     res.render('sb-admin/agent-management.php');
 });
 
@@ -481,7 +512,9 @@ router.get('/teknisi-working-hours', checkRole(['admin', 'owner', 'superadmin'])
 });
 
 // Payment status page
-router.get('/payment-status', (req, res) => {
+// Status Pembayaran = tempat menandai lunas & memilih metode bayar (sidebar ADMIN). Teknisi punya
+// halaman penagihannya sendiri (`/pembayaran/teknisi`), agen punya `/agen-pembayaran`.
+router.get('/payment-status', checkRole(PERAN_ADMIN), (req, res) => {
     res.render('sb-admin/payment-status.php');
 });
 
@@ -489,8 +522,11 @@ router.get('/rekap-tunggakan', checkRole(['admin', 'owner', 'superadmin']), (req
     res.render('sb-admin/rekap-tunggakan.php');
 });
 
-// View invoice page
-router.get('/views/sb-admin/view-invoice.php', (req, res) => {
+// View invoice page — cangkang kosong yang mengambil isinya lewat JS. Alur cetak yang sebenarnya
+// memakai `/api/view-invoice?id=...&userId=...` (endpoint itu merakit dokumennya sendiri), jadi
+// rute halaman ini praktis tak terpakai. Tetap dijaga: dulu tanpa `checkRole` sama sekali, dan
+// path-nya berakhiran `.php` sehingga TIDAK tertangkap handler generik `[^.]+` di bawah.
+router.get('/views/sb-admin/view-invoice.php', checkRole([...PERAN_ADMIN, 'teknisi']), (req, res) => {
     res.render('sb-admin/view-invoice.php');
 });
 
@@ -520,8 +556,26 @@ router.get('/logout', async (req, res) => {
     return res.redirect("/login");
 });
 
-// Generic page handler
-router.get('/:type([^.]+)', (req, res) => {
+// Generic page handler — satu-satunya pintu untuk halaman .php yang tak punya rute eksplisit.
+//
+// GAGAL-TERTUTUP. Dulu handler ini sama sekali tanpa penjagaan peran: middleware auth global
+// (`lib/http-auth-bootstrap.js`) hanya MENGISI `req.user`, ia tidak menegakkan peran. Akibatnya
+// setiap akun staf yang login — termasuk `teknisi` dan `agen` — bisa membuka halaman apa pun di
+// `views/sb-admin/`. Terukur 30 halaman jatuh ke sini, di antaranya `accounts`, `config`,
+// `saldo-management`, `owner-cockpit`, dan seluruh dompet pribadi owner.
+//
+// Dua sifat pola lama yang membuatnya mudah terlewat:
+//   1. `:type([^.]+)` IKUT mencocokkan garis miring, jadi halaman bersarang seperti
+//      `views/sb-admin/pembayaran/otorisasi.php` juga terlayani di sini.
+//   2. Halaman yang PUNYA rute ber-checkRole tapi path rutenya berbeda dari nama berkasnya tetap
+//      bisa ditembus lewat nama berkas — mis. `/owner` dijaga, `/owner-cockpit` tidak.
+//
+// Halaman yang memang boleh dibuka teknisi/agen TIDAK terkena: semuanya sudah punya rute
+// eksplisit sendiri di atas (`/teknisi-*`, `/agen-*`, `/papan-psb`, `/pembayaran/teknisi`,
+// `/admin/teknisi-request-paket`), dan rute eksplisit selalu menang karena terdaftar lebih dulu.
+// Menambah halaman baru ke `views/sb-admin/` kini otomatis admin-only sampai seseorang sengaja
+// memberinya rute dengan peran yang lebih longgar.
+router.get('/:type([^.]+)', tolakHalamanBergerbangSendiri, checkRole(PERAN_ADMIN), (req, res) => {
     const { type } = req.params;
     const filePath = path.join(__dirname, '..', 'views', 'sb-admin', `${type}.php`);
     if (fs.existsSync(filePath)) {
