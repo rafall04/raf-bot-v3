@@ -382,6 +382,7 @@ router.route('/invoice-settings')
                     showServiceDescription: config.pdfCustomization?.showServiceDescription !== false,
                     showNPWP: config.pdfCustomization?.showNPWP !== false,
                     showDueDate: config.pdfCustomization?.showDueDate !== false,
+                    showPaymentMethods: config.pdfCustomization?.showPaymentMethods === true,
                     paymentMethods: config.pdfCustomization?.paymentMethods || 'cash_transfer',
                     showNotes: config.pdfCustomization?.showNotes !== false,
                     additionalNotes: config.pdfCustomization?.additionalNotes || ''
@@ -402,7 +403,7 @@ router.route('/invoice-settings')
                 bankName, bankAccountNumber, bankAccountName, bankBranch, paymentInstructions,
                 pdfTheme, logoUrl, headerText, footerText, billingTitle, serviceTitle,
                 showCustomerID, showCustomerPhone, showServiceSpeed, showServiceDescription, 
-                showNPWP, showDueDate, paymentMethods, showNotes, additionalNotes
+                showNPWP, showDueDate, showPaymentMethods, paymentMethods, showNotes, additionalNotes
             } = req.body;
 
             const config = global.config;
@@ -473,6 +474,7 @@ router.route('/invoice-settings')
                 showServiceDescription: keepBool(showServiceDescription, prevPdf.showServiceDescription, true),
                 showNPWP: keepBool(showNPWP, prevPdf.showNPWP, true),
                 showDueDate: keepBool(showDueDate, prevPdf.showDueDate, true),
+                showPaymentMethods: keepBool(showPaymentMethods, prevPdf.showPaymentMethods, false),
                 paymentMethods: keepReq(paymentMethods, prevPdf.paymentMethods, 'cash_transfer'),
                 showNotes: keepBool(showNotes, prevPdf.showNotes, true),
                 additionalNotes: keep(additionalNotes, prevPdf.additionalNotes, '')

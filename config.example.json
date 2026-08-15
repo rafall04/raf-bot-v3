@@ -76,6 +76,7 @@
     "showServiceDescription": false,
     "showNPWP": false,
     "showDueDate": true,
+    "showPaymentMethods": false,
     "paymentMethods": "cash_transfer",
     "showNotes": false,
     "additionalNotes": ""

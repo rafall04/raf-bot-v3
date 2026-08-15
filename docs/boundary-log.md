@@ -1597,3 +1597,13 @@
 - **`ipaymuProduction` di panel adalah input TEKS BEBAS** (`views/sb-admin/config.php`), sementara penyimpannya mengoerksi `=== 'yes'` — mengetik "Yes"/"true"/"ya" melempar SELURUH transaksi iPaymu ke sandbox tanpa peringatan. Disamakan jadi `<select>` seperti Tripay/Mayar yang sudah benar. Config produksi saat ini `true` (boolean) → kedua bot TIDAK di sandbox.
 - **`iPaymu (hosted)` bocor sebagai metode ke struk pelanggan** (`routes/bill-payment.js`) — penanda mode internal; mode hosted sudah disimpan terpisah di meta.
 - **Tes:** `lib/__tests__/payment-method-vocab.test.js` (16), termasuk data produksi Tanjungharjo dan bukti urutan-sisip tak lagi mengubah hasil. Tes lama tetap hijau selama ini karena hanya memakai SATU kunci `CASH` — tabrakan tak pernah teruji.
+
+<a id="b236"></a>
+
+### Fix 2026-08-15 (Invoice = bukti LUNAS, bukan tagihan: blok "metode diterima" jadi opsional + label metode berhenti mencetak kode internal)
+
+- **Invoice di sistem ini SELALU dokumen lunas.** `createInvoice` (lib/invoice-generator.js) menetapkan `payment.status = 'PAID'` TANPA SYARAT, dan kedua pemanggilnya baru jalan sesudah uang diterima (`lib/approval-logic.js` saat pembayaran disetujui, `routes/invoice.js` /send-invoice-manual). Terukur: **35 dari 35** record produksi Tanjungharjo berstatus PAID. Konsekuensinya, gerbang `payment.status === 'PAID'` di generator (baris ~409/426) adalah kode mati.
+- **Blok "Metode Pembayaran yang Diterima" (+ nomor rekening) kini OPSIONAL, bawaan MATI** — setelan `pdfCustomization.showPaymentMethods` di halaman Pengaturan Invoice. Mendaftarkan cara membayar di dokumen yang barusan menyatakan "Status: LUNAS … Metode: X" hanya membingungkan; itu milik halaman TAGIHAN. Tetap bisa dinyalakan bagi yang mengirim invoice sebagai tagihan belum dibayar.
+- **Baris "Metode:" berhenti mencetak kode internal.** Dulu `${invoiceData.payment.method}` mentah. Terukur di produksi Tanjungharjo, **25 dari 35 invoice NYATA** menampilkan `Manual Send` (9), `CASH` (9), `BANK_TRANSFER` (5), `TRANSFER_BANK` (1), `Updated via Admin Panel` (1) — dua terakhir bahkan bukan metode, melainkan catatan asal-usul dari kode yang penulisnya sudah dihapus. Kini lewat `labelMetode()` (lib/payment-method-vocab.js): ejaan dikenal → label Indonesia, catatan asal-usul → "Tidak tercatat", metode baru → apa adanya (tak disembunyikan).
+- **`BANK_TRANSFER` masuk peta** — ejaan yang nyata ada di data tapi absen dari `convertPaymentMethodToIndonesian` lama, sehingga konversi saat PEMBUATAN pun bocor.
+- **Tes:** 9 tes baru; tes lama yang menguji ISI blok kini menyalakannya eksplisit (`showPaymentMethods: true`) — perubahan bawaan sengaja, bukan regresi. Suite penuh 483/4704.

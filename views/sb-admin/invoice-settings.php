@@ -296,6 +296,21 @@
                   </div>
                   
                   <div class="form-group">
+                    <label for="showPaymentMethods">Tampilkan Blok "Metode Pembayaran yang Diterima"</label>
+                    <select class="form-control" id="showPaymentMethods" name="showPaymentMethods">
+                      <option value="false">Tidak (invoice = bukti lunas)</option>
+                      <option value="true">Ya (invoice dipakai sebagai tagihan)</option>
+                    </select>
+                    <small class="form-text text-muted">
+                      Invoice di sistem ini selalu terbit SESUDAH pembayaran diterima, dan
+                      sudah memuat baris "Metode" yang benar-benar dipakai. Mendaftar cara
+                      membayar beserta nomor rekening di dokumen lunas biasanya hanya
+                      membingungkan — nyalakan hanya bila Anda mengirim invoice sebagai
+                      tagihan yang belum dibayar.
+                    </small>
+                  </div>
+
+                  <div class="form-group">
                     <label for="paymentMethods">Metode Pembayaran yang Ditampilkan</label>
                     <select class="form-control" id="paymentMethods" name="paymentMethods">
                       <option value="cash_transfer">Tunai &amp; Transfer Bank</option>

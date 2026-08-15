@@ -208,6 +208,7 @@ _Invoice ini dibuat secara otomatis oleh sistem._`;
           showServiceSpeed: $('#showServiceSpeed').val(),
           showServiceDescription: $('#showServiceDescription').val(),
           showNPWP: $('#showNPWP').val(),
+          showPaymentMethods: $('#showPaymentMethods').val(),
           paymentMethods: $('#paymentMethods').val(),
           showNotes: $('#showNotes').val(),
           additionalNotes: $('#additionalNotes').val()
@@ -273,6 +274,7 @@ _Invoice ini dibuat secara otomatis oleh sistem._`;
           showServiceSpeed: $('#showServiceSpeed').val(),
           showServiceDescription: $('#showServiceDescription').val(),
           showNPWP: $('#showNPWP').val(),
+          showPaymentMethods: $('#showPaymentMethods').val(),
           paymentMethods: $('#paymentMethods').val(),
           showNotes: $('#showNotes').val(),
           additionalNotes: $('#additionalNotes').val()
@@ -412,6 +414,7 @@ _Invoice ini dibuat secara otomatis oleh sistem._`;
             $('#showServiceSpeed').val(data.pdfCustomization.showServiceSpeed === false ? 'false' : 'true');
             $('#showServiceDescription').val(data.pdfCustomization.showServiceDescription === false ? 'false' : 'true');
             $('#showNPWP').val(data.pdfCustomization.showNPWP === false ? 'false' : 'true');
+            $('#showPaymentMethods').val(data.pdfCustomization.showPaymentMethods === true ? 'true' : 'false');
             $('#paymentMethods').val(data.pdfCustomization.paymentMethods || 'cash_transfer');
             $('#showNotes').val(data.pdfCustomization.showNotes === false ? 'false' : 'true');
             $('#additionalNotes').val(data.pdfCustomization.additionalNotes || '');
@@ -434,6 +437,7 @@ _Invoice ini dibuat secara otomatis oleh sistem._`;
             $('#showServiceSpeed').val('true');
             $('#showServiceDescription').val('false');
             $('#showNPWP').val('false');
+            $('#showPaymentMethods').val('false');
             $('#paymentMethods').val('cash_transfer');
             $('#showNotes').val('false');
             $('#additionalNotes').val('');
