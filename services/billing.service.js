@@ -14,6 +14,7 @@ const { handlePaidStatusChange, sendTechnicianNotification } = require("../lib/a
 const { getPeriodParts } = require("../lib/technician-collection-settlement");
 const {
     applyPaymentStatusChange,
+    getPaymentPositionForPeriod,
     getEffectivePrice,
     normalizeUserPaymentMethod
 } = require("../lib/payment-finance-service");
@@ -78,6 +79,9 @@ function defaultDeps() {
         handlePaidStatusChange,
         sendTechnicianNotification,
         applyPaymentStatusChange,
+        // Dipakai membangun kunci idempotensi pembalikan yang membedakan PERISTIWA
+        // (lihat services/api-users/update-user-payment-status.js).
+        getPaymentPositionForPeriod,
         getEffectivePrice,
         normalizeUserPaymentMethod,
         getPeriodParts,

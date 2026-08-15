@@ -40,6 +40,11 @@ const { sendMessage } = require("../lib/whatsapp-delivery-service");
 const billSettlement = createBillPaymentSettlement();
 
 const router = express.Router();
+// Halaman bayar PUBLIK: pelanggan menyelesaikan pembayaran di sini. Express 4 hanya menangkap
+// lemparan SINKRON, jadi handler `async` polos yang menolak membuat request MENGGANTUNG —
+// tanpa 500, tanpa body. Pelanggan melihat spinner sampai gateway timeout, dan tak ada satu
+// baris log pun yang menandainya. Beberapa `await` di berkas ini bahkan berada DI LUAR try.
+const { asyncHandler } = require("../lib/error-handler");
 
 const chargeLimiter = rateLimit({ windowMs: 60 * 1000, max: 12, standardHeaders: true, legacyHeaders: false });
 
@@ -154,7 +159,7 @@ function useRedirectFlow() {
 }
 
 // Halaman bayar — branch by gateway/mode.
-router.get("/bayar/:token", chargeLimiter, async (req, res) => {
+router.get("/bayar/:token", chargeLimiter, asyncHandler(async (req, res) => {
     if (!useRedirectFlow()) {
         return res.sendFile(path.join(__dirname, "..", "static", "bill-payment.html"));
     }
@@ -203,13 +208,13 @@ router.get("/bayar/:token", chargeLimiter, async (req, res) => {
         { userId: ctx.user.id, periodMonth, periodYear, sandbox: ctx.sandbox, gateway: gw.name, hosted: gw.name === "ipaymu", sessionId: charge.sessionId || null });
 
     return res.redirect(302, charge.url);
-});
+}));
 
 // Callback Tripay (POST). Format & signature beda dari iPaymu → endpoint terpisah.
 // Keamanan = sama modelnya dgn callback iPaymu: VERIFIKASI server-to-server (checkTransaction)
 // + cross-check merchant_ref & amount. Tak bergantung signature (gate utama = S2S verify),
 // jadi tak perlu raw-body (yang butuh edit body-parser global). Balas {success:true} utk ACK.
-router.post("/callback/tripay", async (req, res) => {
+router.post("/callback/tripay", asyncHandler(async (req, res) => {
     try {
         const body = req.body || {};
         const merchantRef = body.merchant_ref;
@@ -279,14 +284,14 @@ router.post("/callback/tripay", async (req, res) => {
         console.error("[TRIPAY_CALLBACK_ERROR]", err.message);
         return res.status(500).json({ success: false });
     }
-});
+}));
 
 // Callback Mayar (POST webhook). Payload `{event, data}`; event 'payment.received' = lunas.
 // Keamanan = model sama dgn callback Tripay: VERIFIKASI server-to-server (checkTransaction)
 // sebelum kredit — TIDAK percaya body webhook mentah. Balas {success:true} untuk ACK.
 // ⚠️ FIELD KORELASI (id di `data` yang cocok dgn invoice kita) & status paid WAJIB
 //    dikonfirmasi lewat uji sandbox sebelum gateway 'mayar' diaktifkan untuk pelanggan asli.
-router.post("/callback/mayar", async (req, res) => {
+router.post("/callback/mayar", asyncHandler(async (req, res) => {
     try {
         const body = req.body || {};
         const event = String(body.event || body.type || "").toLowerCase();
@@ -357,7 +362,7 @@ router.post("/callback/mayar", async (req, res) => {
         console.error("[MAYAR_CALLBACK_ERROR]", err.message);
         return res.status(500).json({ success: false });
     }
-});
+}));
 
 // Landing returnUrl mode hosted — buyer kembali dari halaman iPaymu. Settlement & struk
 // ditangani server-to-server di callback; halaman ini hanya info ringan.
@@ -366,7 +371,7 @@ router.get("/bayar-status", (req, res) => {
 });
 
 // Info tagihan + daftar channel aktif (dinamis dari iPaymu).
-router.get("/api/bayar/:token/info", async (req, res) => {
+router.get("/api/bayar/:token/info", asyncHandler(async (req, res) => {
     const ctx = await resolveBillContext(req.params.token);
     if (!ctx.ok) return res.json({ ok: false, status: ctx.status, reason: ctx.reason });
     if (ctx.whitelist) return res.json({ ok: true, status: "free", nama: ctx.user.name });
@@ -397,10 +402,10 @@ router.get("/api/bayar/:token/info", async (req, res) => {
         channels,
         channelError,
     });
-});
+}));
 
 // Buat charge untuk channel terpilih → balikkan data render (QR / VA / kode retail).
-router.post("/api/bayar/:token/charge", chargeLimiter, async (req, res) => {
+router.post("/api/bayar/:token/charge", chargeLimiter, asyncHandler(async (req, res) => {
     const ctx = await resolveBillContext(req.params.token);
     if (!ctx.ok) return res.status(400).json({ ok: false, status: ctx.status });
     if (ctx.whitelist) return res.status(400).json({ ok: false, status: "free" });
@@ -466,7 +471,7 @@ router.post("/api/bayar/:token/charge", chargeLimiter, async (req, res) => {
         formattedTotal: convertRupiah.convert(result.total || ctx.amount),
         expired: result.expired,
     });
-});
+}));
 
 // Polling status pembayaran (reff dari hasil charge).
 router.get("/api/bayar/:token/status", (req, res) => {

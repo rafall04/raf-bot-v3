@@ -114,6 +114,30 @@ async function updateUserPaymentStatus(deps, { id, paid, paymentMethodInput, use
             };
         }
 
+        // KUNCI IDEMPOTENSI harus membedakan PERISTIWA, bukan hanya pelanggan.
+        //
+        // Bentuk lamanya `legacy-users-update:<id>:unpaid` KONSTAN per pelanggan selamanya,
+        // sehingga `event_key` (UNIQUE index di payment_reversals) selalu sama. Urutan nyata
+        // yang menggigit: (1) admin salah tandai lunas → payment_history 150k, (2) admin
+        // batalkan → reversal tercatat, (3) pelanggan benar-benar bayar → history lagi,
+        // (4) admin batalkan lagi → INSERT menabrak UNIQUE, dikembalikan `duplicate_retry`,
+        // dan kode di bawah memperlakukannya sebagai SUKSES. Pembalikan kedua tak pernah
+        // terjadi tapi admin diberi tahu berhasil; ledger dan tampilan berbeda selamanya.
+        //
+        // Periode + JUMLAH pembalikan yang sudah ada membuat setiap peristiwa punya kunci
+        // sendiri, SEKALIGUS mempertahankan idempotensi yang memang diinginkan: klik ganda
+        // pada keadaan yang sama menghasilkan hitungan yang sama, jadi tetap dedupe.
+        // Tahan bila dep belum disuntikkan (mis. suite lama yang memakai deps tiruan minimal):
+        // jatuh ke 0 berarti perilakunya sama dengan sebelumnya untuk pembalikan PERTAMA, dan
+        // hanya kehilangan pembeda untuk yang kedua — bukan melempar di jalur uang.
+        let urutanPembalikan = 0;
+        if (typeof deps.getPaymentPositionForPeriod === "function") {
+            const posisiSebelum = await deps.getPaymentPositionForPeriod(user, periodMonth, periodYear, {
+                amountDue: deps.getEffectivePrice(user)
+            });
+            urutanPembalikan = Math.max(0, Number(posisiSebelum?.total_reversal || 0));
+        }
+
         const financeResult = await deps.applyPaymentStatusChange({
             user,
             paid: false,
@@ -122,7 +146,7 @@ async function updateUserPaymentStatus(deps, { id, paid, paymentMethodInput, use
             amountDue: deps.getEffectivePrice(user),
             notes: "Status pembayaran dibalik oleh admin",
             createdBy: username,
-            sourceAdminAction: `legacy-users-update:${id}:unpaid`
+            sourceAdminAction: `legacy-users-update:${id}:${periodYear}-${periodMonth}:unpaid:${urutanPembalikan}`
         });
 
         // no_change/no_paid_position (tak ada bayaran utk dibalik) & duplicate_retry = idempoten → BUKAN kegagalan.
