@@ -1576,3 +1576,13 @@
 - **Perakit `customization` disatukan** (`buatCustomizationInvoice` di lib/invoice-generator.js). Empat salinan terpisah membuat /api/preview-pdf-invoice membuang `paymentMethods`/`showNotes`/`showCustomerPhone`/`showServiceSpeed` (pratinjau tak pernah menampilkan pilihan admin) dan jalur kirim-WA membuang `showDueDate`/`logoUrl`.
 - **Fallback yang mengarang nomor rekening DIHAPUS** di `lib/invoice-generator.js` ('Bank Default'/'1234567890') dan `message/handlers/steps/saldo-steps.js` ('BCA 1234567890 a.n PT ISP NUSANTARA'); bila rekening kosong bot menyuruh hubungi admin. Penyaringan dilakukan di SUMBER, bukan mencocokkan string di hilir — menebak "ini pasti dummy" dari isinya bisa menolak rekening sah.
 - **Tes:** `lib/__tests__/invoice-payment-methods.test.js` (16) menembak sumbu yang dulu dilewati. Tes lama diperketat: ia mengunci "Transfer Bank tetap tercetak walau rekening kosong" — instruksi mustahil dijalankan pelanggan. Suite penuh 482/4663.
+
+<a id="b234"></a>
+
+### Fix 2026-08-15 (Teks contekan `config.example.json` bocor ke dokumen pelanggan — termasuk regresi logo dari #b233)
+
+- **Owner baru `lib/config-placeholder.js`** (`adalahPlaceholder`/`bersihkanPlaceholder`): nilai berpola `ISI_*` diperlakukan sebagai BELUM DIISI, tak pernah dicetak. Terukur di produksi Dander: 11 nilai contekan masih tersimpan di `config.json`, dua di antaranya SUDAH sampai ke dokumen invoice.
+- **REGRESI DARI #b233 yang ditangkap saat verifikasi produksi.** Menyatukan perakit `customization` membuat `logoUrl` akhirnya diteruskan ke generator — salinan lama tak pernah menyalinnya. Di Dander nilainya `ISI_LOGOURL`, dan `logoUrl` MENDAHULUI logo unggahan, jadi invoice merender `<img src="ISI_LOGOURL">` dan mematikan logo yang baru diperbaiki di #b232. Memperbaiki satu cacat (setelan yang dibuang) membuka cacat lain karena nilainya sendiri sampah — dibersihkan di `buatCustomizationInvoice`.
+- **Kebocoran lama:** `company.phone = ISI_PHONE` tercetak apa adanya sebagai "Telp: ISI_PHONE" di kop tagihan. Kini baris yang datanya kosong DIHILANGKAN, bukan dicetak setengah (berlaku untuk address/phone/email/npwp, di render HTML maupun jalur teks cadangan).
+- **Batas yang disengaja:** hanya pola `ISI_*` yang disaring. Menebak "ini pasti contekan" dari isi nilai (mis. nomor rekening `1234567890`) bisa menolak data sah; pertahanan terhadap nilai karangan adalah menghapus kode yang mengarangnya (#b233).
+- **Tes:** 6 tes tambahan di `lib/__tests__/invoice-payment-methods.test.js`, termasuk yang mengunci logo unggahan tak lagi ditimpa placeholder.
