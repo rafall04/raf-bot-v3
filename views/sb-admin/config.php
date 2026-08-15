@@ -612,7 +612,16 @@
                   </div>
                   <div class="mb-3">
                     <label for="ipaymuProduction">Production Ipaymu</label>
-                    <input type="text" class="form-control" id="ipaymuProduction" name="ipaymuProduction" />
+                    <!-- DULU input teks bebas. Penyimpannya routes/admin-config-routes.js
+                         mengoerksi dengan `=== 'yes'`, jadi "Yes"/"YES"/"true"/"ya"/"1"
+                         semuanya jatuh ke false dan MELEMPAR SELURUH transaksi iPaymu ke
+                         sandbox tanpa peringatan — pelanggan menerima QRIS yang tak bisa
+                         dibayar. Tripay & Mayar di bawah sudah memakai select; iPaymu
+                         tertinggal. Disamakan agar nilai tak sah tak bisa diketik. -->
+                    <select class="form-control" id="ipaymuProduction" name="ipaymuProduction">
+                      <option value="no">no (sandbox)</option>
+                      <option value="yes">yes (produksi)</option>
+                    </select>
                   </div>
                   <hr>
                   <div class="mb-3">

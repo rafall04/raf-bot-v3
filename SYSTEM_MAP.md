@@ -338,6 +338,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-15 (Logo perusahaan: disimpan ke `static/uploads/logos`, disajikan dari `uploads/logos` yang selalu kosong)](docs/boundary-log.md#b232)
 - [Fix 2026-08-15 (Metode pembayaran invoice: setelan tak mengendalikan apa pun + rekening dibaca dari gudang yang mati)](docs/boundary-log.md#b233)
 - [Fix 2026-08-15 (Teks contekan `config.example.json` bocor ke dokumen pelanggan — termasuk regresi logo dari #b233)](docs/boundary-log.md#b234)
+- [Fix 2026-08-15 (Kosakata metode pembayaran: kartu rekap menimpa ember, filter hanya cocok 1 dari 5 ejaan)](docs/boundary-log.md#b235)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

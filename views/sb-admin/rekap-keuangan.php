@@ -79,14 +79,22 @@
                                 </div>
                                 <div class="col-md-2">
                                     <label class="font-weight-bold mb-1">Metode</label>
+                                    <!-- Nilainya kini EMBER baku, bukan satu ejaan mentah.
+                                         Route memekarkannya ke semua ejaan yang benar-benar
+                                         tersimpan (CASH/cash/TUNAI, dst) — lihat
+                                         lib/payment-method-vocab.js. Versi lama mengirim
+                                         "CASH" dan mencocokkannya persis, sehingga sebagian
+                                         besar baris ledger tak pernah ikut tersaring. -->
                                     <select class="form-control" id="methodFilter">
                                         <option value="">Semua</option>
-                                        <option value="CASH">Cash</option>
-                                        <option value="TRANSFER_BANK">Transfer Bank</option>
-                                        <option value="TOPUP">Topup</option>
-                                        <option value="SALDO">Saldo</option>
-                                        <option value="AGENT">Agent</option>
-                                        <option value="INTERNAL_PAYROLL">Internal Payroll</option>
+                                        <option value="cash">Tunai</option>
+                                        <option value="transfer">Transfer Bank</option>
+                                        <option value="online">Pembayaran Online</option>
+                                        <option value="topup">Topup</option>
+                                        <option value="saldo">Saldo</option>
+                                        <option value="agent">Agen</option>
+                                        <option value="payroll">Payroll Internal</option>
+                                        <option value="reversal">Pembalikan</option>
                                     </select>
                                 </div>
                             </div>

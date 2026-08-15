@@ -1586,3 +1586,14 @@
 - **Kebocoran lama:** `company.phone = ISI_PHONE` tercetak apa adanya sebagai "Telp: ISI_PHONE" di kop tagihan. Kini baris yang datanya kosong DIHILANGKAN, bukan dicetak setengah (berlaku untuk address/phone/email/npwp, di render HTML maupun jalur teks cadangan).
 - **Batas yang disengaja:** hanya pola `ISI_*` yang disaring. Menebak "ini pasti contekan" dari isi nilai (mis. nomor rekening `1234567890`) bisa menolak data sah; pertahanan terhadap nilai karangan adalah menghapus kode yang mengarangnya (#b233).
 - **Tes:** 6 tes tambahan di `lib/__tests__/invoice-payment-methods.test.js`, termasuk yang mengunci logo unggahan tak lagi ditimpa placeholder.
+
+<a id="b235"></a>
+
+### Fix 2026-08-15 (Kosakata metode pembayaran: kartu rekap menimpa ember, filter hanya cocok 1 dari 5 ejaan)
+
+- **Owner baru `lib/payment-method-vocab.js`** — satu normalisasi ejaan `payment_method` untuk peringkas DAN penyaring. Kolom itu diisi banyak penulis dengan kosakata berbeda: `CASH`/`cash`/`TUNAI`, `TRANSFER_BANK`/`transfer`/`TRANSFER`/`Transfer Bank`, `qris`/`va`/`cstore`/`Mayar`/`MPM`, `SALDO`/`AGENT`/`INTERNAL_PAYROLL`/`REVERSAL`. Kosakata ketiga (`TUNAI`/`TRANSFER`) berasal dari `lib/recurring-expense.js:129` yang memaksa `.toUpperCase()` atas istilah Indonesia.
+- **Kartu "per metode" MENIMPA, bukan menjumlah** (`routes/rekap-keuangan.js:54`). Terukur di produksi Tanjungharjo: ledger memuat `TRANSFER_BANK` (69 transaksi, Rp8.985.000) DAN `transfer` (1 transaksi, Rp10.000); entri diurut `occurred_at DESC` sehingga `transfer` tersisip belakangan dan MENANG — layar menampilkan Transfer = **Rp10.000**, menyembunyikan Rp8.985.000. Total pemasukan TETAP benar (`buildCashflowSummary` menghitung dari `entries` secara terpisah), jadi hanya kartu rinciannya yang berbohong.
+- **Filter "Metode" hanya mencocokkan satu ejaan persis** — memilih "Cash" melewatkan `cash` dan `TUNAI`. Kini nilai filter = EMBER, dimekarkan ke semua ejaannya; `getFinancialLedgerEntries` menerima array dan membandingkan `LOWER(payment_method) IN (...)`.
+- **`ipaymuProduction` di panel adalah input TEKS BEBAS** (`views/sb-admin/config.php`), sementara penyimpannya mengoerksi `=== 'yes'` — mengetik "Yes"/"true"/"ya" melempar SELURUH transaksi iPaymu ke sandbox tanpa peringatan. Disamakan jadi `<select>` seperti Tripay/Mayar yang sudah benar. Config produksi saat ini `true` (boolean) → kedua bot TIDAK di sandbox.
+- **`iPaymu (hosted)` bocor sebagai metode ke struk pelanggan** (`routes/bill-payment.js`) — penanda mode internal; mode hosted sudah disimpan terpisah di meta.
+- **Tes:** `lib/__tests__/payment-method-vocab.test.js` (16), termasuk data produksi Tanjungharjo dan bukti urutan-sisip tak lagi mengubah hasil. Tes lama tetap hijau selama ini karena hanya memakai SATU kunci `CASH` — tabrakan tak pernah teruji.

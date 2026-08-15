@@ -202,7 +202,11 @@ router.get("/bayar/:token", chargeLimiter, asyncHandler(async (req, res) => {
     // Persist record (tag 'tagihan') + gateway. trxId = reference gateway (Tripay punya saat
     // creation → callback Tripay verify pakai ini; iPaymu hosted null → callback iPaymu pakai
     // payload trx_id). userId/periode dipakai callback untuk catat lunas + reaktivasi.
-    const gwLabel = gw.name === "tripay" ? "Tripay" : gw.name === "mayar" ? "Mayar" : "iPaymu (hosted)";
+    // Label ini ikut tercetak di STRUK pelanggan dan tersimpan sebagai metode di ledger,
+    // jadi isinya harus nama gateway saja — bukan penanda mode internal. Versi lama
+    // menulis "iPaymu (hosted)", sehingga pelanggan menerima "Metode : iPaymu (hosted)".
+    // Mode hosted-nya sudah disimpan terpisah di meta (`hosted`), tak perlu menumpang label.
+    const gwLabel = gw.name === "tripay" ? "Tripay" : gw.name === "mayar" ? "Mayar" : "iPaymu";
     addPayment(reff, charge.reference, customerJid(ctx.user), "tagihan", ctx.amount,
         gwLabel, `Tagihan ${ctx.user.name}`,
         { userId: ctx.user.id, periodMonth, periodYear, sandbox: ctx.sandbox, gateway: gw.name, hosted: gw.name === "ipaymu", sessionId: charge.sessionId || null });

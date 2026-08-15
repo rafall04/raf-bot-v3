@@ -1,11 +1,19 @@
 /**
- * Rekap Keuangan Routes
- * Ledger-backed holistic finance recap
+ * Header Doc
+ * Purpose: Route HTTP halaman Rekap Keuangan — menyajikan laporan pemasukan/pengeluaran
+ *          berbasis `financial_ledger`, beserta ringkasan per metode/domain/sumber.
+ * Caller: `lib/routes-registry.js` (mount `/api/rekap-keuangan`), dipakai
+ *          `views/sb-admin/rekap-keuangan.php` + `static/js/rekap-keuangan.js`.
+ * Deps: `lib/financial-ledger.js`, `lib/payment-method-vocab.js`, `lib/activity-logger.js`.
+ * MainFuncs: `mapMethodSummary`, `mapSourceSummary`, `mapEntry`, handler GET/POST router.
+ * SideEffects: Membaca `financial_ledger` (users.sqlite) & menulis log aktivitas;
+ *          `syncFinancialLedgerSources()` menyinkronkan sumber sebelum melaporkan.
  */
 
 const express = require("express");
 const router = express.Router();
 const { loadJSON } = require("../lib/database");
+const { normalisasiMetode, ejaanUntukEmber } = require("../lib/payment-method-vocab");
 const { logActivity } = require("../lib/activity-logger");
 const {
     ensureFinancialLedgerTable,
@@ -31,15 +39,8 @@ function ensureAdmin(req, res, next) {
 }
 
 function mapMethodSummary(raw) {
-    const alias = {
-        CASH: "cash",
-        TRANSFER_BANK: "transfer",
-        TOPUP: "topup",
-        SALDO: "saldo",
-        AGENT: "agent",
-        INTERNAL_PAYROLL: "payroll"
-    };
-
+    // Enam ember lama tetap disemai nol supaya kartu yang biasa tampil tak hilang saat
+    // belum ada transaksinya. Ember baru (online/reversal) hanya muncul bila ada isinya.
     const output = {
         cash: { count: 0, amount: 0 },
         transfer: { count: 0, amount: 0 },
@@ -49,12 +50,30 @@ function mapMethodSummary(raw) {
         payroll: { count: 0, amount: 0 }
     };
 
+    // MENJUMLAH, bukan menimpa.
+    //
+    // Versi lama menulis `output[normalized] = {...}`, sehingga dua ejaan yang menormal
+    // ke ember yang sama saling membunuh — yang tersisip TERAKHIR menang. Terukur di
+    // produksi Tanjungharjo: ledger berisi "TRANSFER_BANK" (69 transaksi, Rp8.985.000)
+    // DAN "transfer" (1 transaksi, Rp10.000). Karena entri diurut
+    // `occurred_at DESC` (lib/financial-ledger.js), "transfer" tersisip belakangan dan
+    // MENANG — layar Rekap Keuangan menampilkan Transfer = Rp10.000, menyembunyikan
+    // Rp8.985.000 pemasukan yang benar-benar diterima.
+    //
+    // Ejaan campur itu wajar terjadi: ledger diisi banyak penulis (approval admin,
+    // callback gateway, konfirmasi bukti, pembalikan) yang kosakata metodenya belum
+    // seragam. Karena itu peringkasnya harus tahan terhadap ejaan baru, bukan
+    // mengandalkan semua penulis kebetulan sepakat.
     Object.entries(raw || {}).forEach(([key, value]) => {
-        const normalized = alias[key] || String(key || "").toLowerCase();
-        output[normalized] = {
-            count: value.count || 0,
-            amount: value.amount || 0
-        };
+        const normalized = normalisasiMetode(key) || "lainnya";
+        if (!output[normalized]) {
+            // Ejaan di luar 6 ember baku (mis. "qris", "reversal", "mpm") tetap
+            // ditampilkan apa adanya daripada dibuang diam-diam — uang yang tak
+            // terkategori harus tetap terlihat oleh pemilik usaha.
+            output[normalized] = { count: 0, amount: 0 };
+        }
+        output[normalized].count += value.count || 0;
+        output[normalized].amount += value.amount || 0;
     });
 
     return output;
@@ -226,7 +245,11 @@ router.get("/", ensureAdmin, async (req, res) => {
             year,
             domain: req.query.domain || null,
             direction: req.query.direction || null,
-            paymentMethod: req.query.payment_method || null,
+            // Filter dikirim sebagai EMBER (mis. "cash"), lalu dimekarkan ke SEMUA ejaan
+            // mentahnya ("cash", "CASH", "TUNAI"). Versi lama mencocokkan satu ejaan
+            // persis, sehingga memilih "Cash" melewatkan baris yang tersimpan dengan
+            // ejaan lain — terukur di produksi, kolom ini memuat lima kosakata berbeda.
+            paymentMethod: req.query.payment_method ? ejaanUntukEmber(req.query.payment_method) : null,
             source: req.query.source || null
         });
         const expenseSummary = await getExpenseSummary({ month, year });
