@@ -42,6 +42,8 @@ const {
 const { renderCategoryTemplate } = require('../lib/template-service');
 const { isWithinWorkingHours, getNextAvailableMessage, getResponseTimeMessage } = require('../lib/working-hours-helper');
 const { getTicketsUploadsPathByTicket, getReportsUploadsPath } = require('../lib/path-helper');
+const { isSegmenPathAman } = require('../lib/path-helper');
+const { buatDestinationAman, ekstensiGambarAman } = require('../lib/upload-guard');
 
 // Debug flag for verbose logging
 const DEBUG = process.env.TICKET_DEBUG === 'true' || false;
@@ -143,52 +145,47 @@ const upload = multer({
 });
 
 // Multer storage khusus untuk upload foto saat create ticket (menggunakan struktur reports)
+// Storage KEDUA. #b229 hanya mengeraskan storage pertama di berkas ini; yang ini memanggil
+// `getReportsUploadsPath` (yang kini MELEMPAR untuk segmen tak aman) TANPA try/catch, jadi
+// lemparannya tak tertangani. Ekstensinya pun masih diambil mentah dari `originalname`.
+// Keduanya kini lewat penjaga bersama lib/upload-guard.js.
 const createTicketPhotoStorage = multer.diskStorage({
     destination: function (req, file, cb) {
-        // PENTING: req.body mungkin belum tersedia saat destination dipanggil untuk multipart/form-data
-        // Gunakan query parameter atau header sebagai fallback
         const ticketId = req.query?.ticketId || req.body?.ticketId || req.headers['x-ticket-id'];
-        
+
+        // Tanpa ticketId: tetap ke folder temp (handler yang memindahkannya nanti).
         if (!ticketId) {
-            // Jangan throw error di destination, biarkan handler yang handle
-            // Gunakan temporary directory dan akan dipindahkan di handler
             const tempDir = path.join(__dirname, '..', 'uploads', 'temp');
-            if (!fs.existsSync(tempDir)) {
-                fs.mkdirSync(tempDir, { recursive: true });
+            try {
+                if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+            } catch (error) {
+                return cb(new Error('Gagal menyiapkan folder upload.'), null);
             }
             return cb(null, tempDir);
         }
-        
-        // Find report to get creation date
-        const report = global.reports.find(r => r.ticketId === ticketId || r.id === ticketId);
-        let year, month;
-        
-        if (report && report.createdAt) {
-            const reportDate = new Date(report.createdAt);
-            year = reportDate.getFullYear();
-            month = String(reportDate.getMonth() + 1).padStart(2, '0');
-        } else {
-            // Fallback to current date
-            const now = new Date();
-            year = now.getFullYear();
-            month = String(now.getMonth() + 1).padStart(2, '0');
-        }
-        
-        const uploadDir = getReportsUploadsPath(year, month, ticketId, __dirname);
-        
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        
-        cb(null, uploadDir);
+
+        return buatDestinationAman({
+            namespace: 'reports',
+            currentDir: __dirname,
+            ambilSegmen: () => ticketId,
+            ambilTahunBulan: () => {
+                const report = global.reports.find((r) => r.ticketId === ticketId || r.id === ticketId);
+                const tanggal = report && report.createdAt ? new Date(report.createdAt) : new Date();
+                return {
+                    tahun: String(tanggal.getFullYear()),
+                    bulan: String(tanggal.getMonth() + 1).padStart(2, '0')
+                };
+            }
+        })(req, file, cb);
     },
     filename: function (req, file, cb) {
-        // PENTING: req.body mungkin belum tersedia, gunakan query/header sebagai fallback
-        const ticketId = req.query?.ticketId || req.body?.ticketId || req.headers['x-ticket-id'] || 'UNKNOWN';
+        const ticketIdMentah = req.query?.ticketId || req.body?.ticketId || req.headers['x-ticket-id'] || 'UNKNOWN';
+        // ticketId ikut masuk NAMA berkas, dan multer melakukan path.join(dest, filename) —
+        // jadi nama berkas pun bisa menyeberang direktori bila tak dibersihkan.
+        const ticketId = isSegmenPathAman(ticketIdMentah) ? ticketIdMentah : 'UNKNOWN';
         const timestamp = Date.now();
         const random = Math.random().toString(36).substring(7);
-        const ext = path.extname(file.originalname);
-        cb(null, `teknisi_${ticketId}_${timestamp}_${random}${ext}`);
+        cb(null, `teknisi_${ticketId}_${timestamp}_${random}${ekstensiGambarAman(file.originalname)}`);
     }
 });
 

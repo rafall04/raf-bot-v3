@@ -114,7 +114,11 @@ describe("api domain ownership baseline", () => {
         expect(source).toContain("router.post('/psb/delete-all'");
         expect(source).toContain("const multer = require('multer')");
         expect(source).toContain("multer.diskStorage");
-        expect(source).toContain("fs.mkdirSync");
+        // Baseline DITURUNKAN, bukan dilonggarkan: pembuatan direktori upload dulu inline di
+        // berkas ini (`fs.mkdirSync` dengan segmen `tempId` MENTAH — traversal). Kini
+        // didelegasikan ke penjaga bersama lib/upload-guard.js, jadi yang dijaga adalah
+        // "berkas ini masih memiliki wiring upload" lewat penjaga itu.
+        expect(source).toContain("buatDestinationAman");
         expect(source).toContain("insertPSBRecord");
         expect(source).toContain("updatePSBRecord");
         expect(source).toContain("getPSBRecord");

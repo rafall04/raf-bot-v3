@@ -10,6 +10,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const { buatDestinationAman, ekstensiGambarAman } = require('../lib/upload-guard');
 const { getSSIDInfo } = require('../lib/wifi');
 const { getAllPPPoESecrets, getMikrotikDiagnostics, removePPPoESecret } = require('../lib/mikrotik');
 const { createApiPsbRepository } = require('../repositories/api-psb.repository');
@@ -163,58 +164,37 @@ function buildPsbProvisioningUnavailableResponse(res, featureStatus) {
 // Struktur: uploads/psb/YEAR/MONTH/tempId/ktp_photo.jpg dan house_photo.jpg
 // Catatan: req.body mungkin belum tersedia saat destination dipanggil untuk multipart/form-data
 // Solusi: Gunakan query parameter atau simpan di req sebelum multer
+// Penjaga upload BERSAMA (lib/upload-guard.js). Sebelumnya `tempId` diambil MENTAH dari
+// `req.body`/`req.query`/header `x-temp-id` lalu langsung masuk `path.join`, dan
+// `mkdirSync(..., {recursive:true})` membuat direktori hasil resolusi `..`. Nama berkasnya pun
+// dirakit dari `fieldname` mentah + `path.extname(originalname)`, sementara `fileFilter` hanya
+// memeriksa `file.mimetype` — yang dikirim KLIEN.
+//
+// Gerbangnya `ensureAuthenticatedStaff`, jadi peran TEKNISI sudah cukup untuk:
+//   ?tempId=../../../../static/js&fieldname=html-escape  + berkas .js  -> menimpa
+//   static/js/html-escape.js yang dimuat views/sb-admin/_head.php di SETIAP halaman admin
+//   -> skrip penyerang berjalan di sesi admin (XSS tersimpan, panel diambil alih).
+//   ?tempId=../../../../views/sb-admin&fieldname=404     + berkas .php -> menimpa
+//   views/sb-admin/404.php yang dieksekusi PHP CLI lewat res.render -> eksekusi kode di server.
+//
+// #b229 menutup cacat yang PERSIS SAMA pada upload TIKET tapi tak menyentuh jalur ini —
+// menambal instans, bukan kelasnya.
 const psbStorage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        // Coba ambil tempId dari berbagai sumber (body, query, atau header)
-        // Untuk multipart/form-data, body mungkin belum terisi saat destination dipanggil
-        let tempId = req.body?.tempId || req.query?.tempId || req.headers['x-temp-id'];
-        
-        // Jika masih belum ada, coba parse dari fieldname atau buat fallback
-        // Tapi lebih baik pastikan frontend mengirim via query parameter
-        if (!tempId) {
-            // Fallback: buat tempId baru (tidak ideal, tapi mencegah error)
-            tempId = 'TEMP_' + Date.now();
-            console.warn(`[PSB_UPLOAD_WARN] tempId tidak ditemukan, menggunakan fallback: ${tempId}`);
+    destination: buatDestinationAman({
+        namespace: 'psb',
+        currentDir: __dirname,
+        ambilSegmen: (req) => req.body?.tempId || req.query?.tempId || req.headers['x-temp-id'],
+        saatDitolak: (req, segmen) => {
+            console.warn(`[PSB_UPLOAD] tempId ditolak: ${String(segmen)}`);
         }
-        
-        const year = String(new Date().getFullYear()); // Convert to string
-        const month = String(new Date().getMonth() + 1).padStart(2, '0');
-        // Satu folder per request pelanggan: uploads/psb/YEAR/MONTH/tempId/
-        const uploadDir = path.join(__dirname, '../uploads/psb', year, month, tempId);
-        
-        // Create directory if it doesn't exist
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        
-        // Simpan tempId di req untuk digunakan di filename function
-        req._psbTempId = tempId;
-        
-        // Coba ambil fieldname dari query parameter juga (untuk memastikan tersedia)
-        const fieldname = req.query?.fieldname || req.body?.fieldname;
-        if (fieldname) {
-            req._psbFieldname = fieldname;
-        }
-        
-        cb(null, uploadDir);
-    },
+    }),
     filename: function (req, file, cb) {
-        // Gunakan fieldname dari berbagai sumber
-        // Query parameter lebih reliable untuk multipart/form-data
-        let fieldname = req._psbFieldname || req.query?.fieldname || req.body?.fieldname;
-        
-        // Jika masih belum ada, coba deteksi dari file.fieldname atau gunakan default
-        if (!fieldname) {
-            // file.fieldname biasanya adalah nama field di FormData ('photo')
-            // Tapi kita butuh 'ktp_photo' atau 'house_photo'
-            // Fallback: gunakan 'photo' dan akan diperbaiki saat submit
-            fieldname = 'photo';
-            console.warn(`[PSB_UPLOAD_WARN] fieldname tidak ditemukan, menggunakan fallback: ${fieldname}`);
-        }
-        
-        const ext = path.extname(file.originalname) || '.jpg';
-        // Nama file: ktp_photo.jpg atau house_photo.jpg
-        cb(null, `${fieldname}${ext}`);
+        // Nama berkas dari ALLOWLIST, bukan dari input. `fieldname` dulu dipakai mentah
+        // sehingga ikut bisa menyeberang direktori (multer melakukan path.join(dest, filename)).
+        const diminta = String(req.body?.fieldname || req.query?.fieldname || '').trim();
+        const FIELD_SAH = ['ktp_photo', 'house_photo'];
+        const fieldname = FIELD_SAH.includes(diminta) ? diminta : 'photo';
+        cb(null, `${fieldname}${ekstensiGambarAman(file.originalname)}`);
     }
 });
 
@@ -254,18 +234,20 @@ router.post('/psb/upload-photo', ensureAuthenticatedStaff, rateLimit('psb-upload
             });
         }
         
-        const year = String(new Date().getFullYear()); // Convert to string
-        const month = String(new Date().getMonth() + 1).padStart(2, '0');
-        
-        // Path relatif untuk web access
-        // Struktur: /uploads/psb/YEAR/MONTH/tempId/ktp_photo.jpg atau house_photo.jpg
-        const webPath = `/uploads/psb/${year}/${month}/${tempId}/${req.file.filename}`;
-        
-        // Full storage path for reference
-        const fullStoragePath = path.join(__dirname, '../uploads/psb', year, month, tempId, req.file.filename);
-        
+        // Path DITURUNKAN dari berkas yang BENAR-BENAR ditulis multer, bukan dirakit ulang dari
+        // `tempId`. Merakit ulang berarti ada dua sumber kebenaran yang bisa menyimpang — dan
+        // `path.join` kedua itu dulu juga tanpa validasi, jadi ia menyalin cacat yang sama.
+        const fullStoragePath = req.file.path;
+        const akarProyek = path.resolve(__dirname, '..');
+        const webPath = '/' + path.relative(akarProyek, fullStoragePath).split(path.sep).join('/');
+        // Tahun/bulan dibaca BALIK dari path yang dipilih multer (uploads/psb/<tahun>/<bulan>/...)
+        // supaya nilainya pasti cocok dengan lokasi berkas, bukan hasil hitung ulang jam server
+        // yang bisa berbeda bila request melewati pergantian tengah malam.
+        const potongan = webPath.split('/');
+        const segmenTahunBulan = { tahun: potongan[3] || '', bulan: potongan[4] || '' };
+
         // Log untuk debugging
-        const fieldnameUsed = req._psbFieldname || req.query?.fieldname || req.body?.fieldname || 'not found';
+        const fieldnameUsed = req.file.filename;
         console.log(`[PSB_UPLOAD_SUCCESS] File uploaded: ${req.file.filename}`);
         console.log(`[PSB_UPLOAD_SUCCESS] fieldname used: ${fieldnameUsed}`);
         console.log(`[PSB_UPLOAD_SUCCESS] tempId: ${tempId} (satu folder untuk 2 foto: KTP + Rumah)`);
@@ -280,9 +262,10 @@ router.post('/psb/upload-photo', ensureAuthenticatedStaff, rateLimit('psb-upload
                 filename: req.file.filename,
                 size: req.file.size,
                 tempId: tempId,
-                storagePath: `uploads/psb/${year}/${month}/${tempId}/${req.file.filename}`,
-                year: year,
-                month: month
+                // Sama seperti webPath: diturunkan dari berkas nyata, bukan dirakit ulang.
+                storagePath: webPath.replace(/^\//, ''),
+                year: segmenTahunBulan.tahun,
+                month: segmenTahunBulan.bulan
             }
         });
     } catch (error) {

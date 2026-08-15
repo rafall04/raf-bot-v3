@@ -165,9 +165,24 @@ jest.mock("../../lib/middleware/validation", () => ({
     cancelSpeedRequestValidation: (_req, _res, next) => next(),
     requestPackageChangeValidation: (_req, _res, next) => next()
 }));
-jest.mock("../../lib/path-helper", () => ({
-    getReportsUploadsPath: jest.fn((year, month, ticketId, dirname) => require("path").join(dirname, "..", "temp-tests", String(year), String(month), String(ticketId)))
-}));
+// Mock PARSIAL berbahaya: lib/upload-guard.js juga memakai `getUploadsPath`,
+// `isSegmenPathAman`, dan `assertDiDalamDirektori` dari modul ini. Menghilangkan salah satunya
+// membuat galatnya muncul jauh dari penyebabnya — "isSegmenPathAman is not a function" dari
+// dalam multer. Perilaku aslinya dipertahankan; hanya AKAR direktorinya yang dialihkan ke
+// temp-tests supaya suite tak menulis ke uploads/ sungguhan.
+jest.mock("../../lib/path-helper", () => {
+    const asli = jest.requireActual("../../lib/path-helper");
+    const path = require("path");
+    return {
+        ...asli,
+        getUploadsPath: jest.fn((subFolder, dirname) =>
+            path.join(dirname, "..", "temp-tests", String(subFolder))
+        ),
+        getReportsUploadsPath: jest.fn((year, month, ticketId, dirname) =>
+            path.join(dirname, "..", "temp-tests", String(year), String(month), String(ticketId))
+        )
+    };
+});
 // Sengaja POJO, bukan class: routes/public.js hanya memakai BaseService.getCustomerJids.
 // Efek sampingnya jadi guard: kalau ada modul `extends BaseService` (mis. isolir-service) ikut
 // tertarik ke graf impor routes/public.js, suite ini pecah dengan

@@ -1435,43 +1435,42 @@ router.post('/api/lapor', apiAuth, asyncHandler(async (req, res) => {
 
 // POST /api/customer/reports/upload-photo - Upload photo untuk report (customer)
 const { getReportsUploadsPath } = require('../lib/path-helper');
+const { isSegmenPathAman } = require('../lib/path-helper');
+const { buatDestinationAman, ekstensiGambarAman } = require('../lib/upload-guard');
 
+// Jalur upload foto laporan PELANGGAN — permukaan paling terbuka dari ketiga jalur upload.
+// Sebelumnya memanggil `getReportsUploadsPath` (yang kini MELEMPAR untuk segmen tak aman)
+// TANPA try/catch, sehingga lemparannya tak tertangani; ekstensinya pun mentah dari
+// `originalname` sementara fileFilter hanya memeriksa mimetype kiriman klien. Kini lewat
+// penjaga bersama lib/upload-guard.js — satu implementasi untuk ketiga jalur upload.
 const reportPhotoStorage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const { ticketId } = req.body;
-        
+        const ticketId = req.body?.ticketId;
         if (!ticketId) {
             return cb(new Error('Ticket ID harus diisi'), null);
         }
-        
-        // Find report to get creation date
-        const report = global.reports.find(r => r.ticketId === ticketId || r.id === ticketId);
-        let year, month;
-        
-        if (report && report.createdAt) {
-            const reportDate = new Date(report.createdAt);
-            year = reportDate.getFullYear();
-            month = String(reportDate.getMonth() + 1).padStart(2, '0');
-        } else {
-            // Fallback to current date
-            const now = new Date();
-            year = now.getFullYear();
-            month = String(now.getMonth() + 1).padStart(2, '0');
-        }
-        
-        const uploadDir = getReportsUploadsPath(year, month, ticketId, __dirname);
-        
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        
-        cb(null, uploadDir);
+
+        return buatDestinationAman({
+            namespace: 'reports',
+            currentDir: __dirname,
+            ambilSegmen: () => ticketId,
+            ambilTahunBulan: () => {
+                const report = global.reports.find((r) => r.ticketId === ticketId || r.id === ticketId);
+                const tanggal = report && report.createdAt ? new Date(report.createdAt) : new Date();
+                return {
+                    tahun: String(tanggal.getFullYear()),
+                    bulan: String(tanggal.getMonth() + 1).padStart(2, '0')
+                };
+            }
+        })(req, file, cb);
     },
     filename: function (req, file, cb) {
+        const mentah = req.body?.ticketId || 'UNKNOWN';
+        // ticketId ikut ke NAMA berkas dan multer melakukan path.join(dest, filename).
+        const ticketId = isSegmenPathAman(mentah) ? mentah : 'UNKNOWN';
         const timestamp = Date.now();
         const random = Math.random().toString(36).substring(7);
-        const ext = path.extname(file.originalname);
-        cb(null, `customer_${req.body.ticketId}_${timestamp}_${random}${ext}`);
+        cb(null, `customer_${ticketId}_${timestamp}_${random}${ekstensiGambarAman(file.originalname)}`);
     }
 });
 
