@@ -1557,3 +1557,12 @@
 - **Cacat lama:** tombol "Copot Pelanggan" MATI TOTAL (`JSON.stringify` ganda menutup atribut `onclick`); `Rp [object Promise]` di pesan topup (`getUserSaldo` non-`async` tapi mengembalikan Promise); escaping nama pelanggan di atribut kutip-TUNGGAL & argumen handler peta.
 - **Ledger JSON:** `loadJSON` gagal-TERBUKA ke `[]` lalu penulis berikutnya menyegel kehilangan. Kini berkas rusak DIKARANTINA (`.rusak-<timestamp>`) dan `saveJSON` menulis atomik lewat `.tmp-<pid>` + `renameSync`.
 - **Tes:** 6 suite baru; `routes/__tests__/helpers/panggil-http.js` menggantikan pola `fetch`+server-ephemeral yang FLAKY (connection pool undici). Suite penuh 478/4616, diverifikasi dua putaran berturut-turut.
+
+<a id="b232"></a>
+
+### Fix 2026-08-15 (Logo perusahaan: disimpan ke `static/uploads/logos`, disajikan dari `uploads/logos` yang selalu kosong)
+
+- **Akar.** `routes/invoice.js` menyimpan logo ke `static/uploads/logos/` tapi mencatat URL `/uploads/logos/<file>` ke `config.company.logoPath`, sementara mount `/uploads/logos` menunjuk `<root>/uploads/logos` — folder yang tak pernah diisi. Logo yang baru diunggah SELALU tampil rusak. Terukur di produksi Tanjungharjo: `/uploads/logos/<file>` → 302, `/static/uploads/logos/<file>` → 200 (image/png, 73.037 byte). Bukan regresi audit: baris mount itu tak pernah disentuh sejak commit pertama.
+- **Owner mount:** `lib/http-security.js` + `lib/public-site-app.js` kini menyajikan `/uploads/logos` dari `${projectRoot}/static/uploads/logos`. Yang diselaraskan MOUNT-nya, bukan nilai `logoPath` tersimpan — nilai itu dipakai juga sebagai path filesystem relatif terhadap `static/` (lib/pdf-invoice-generator.js:129 dan penghapus logo lama); mengubah prefiksnya jadi `/static/...` akan menunjuk `static/static/...` dan mematikan logo di PDF.
+- **Dampaknya lima konsumen sekaligus**, bukan satu halaman: `static/js/invoice-settings.js` (2 titik), `lib/public-page-helper.js`, `routes/legal-pages.js`, `routes/portal.js`.
+- **Tes:** `lib/__tests__/logo-mount-selaras.test.js` — RUNTIME (berkas nyata + request HTTP), bukan pemindaian sumber. Dibuktikan tak hampa: dikembalikan ke mount lama, 2 tes runtime-nya merah.

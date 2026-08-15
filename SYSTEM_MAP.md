@@ -335,6 +335,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-14 (Gelombang 1 audit panel: gerbang peran API + arah persetujuan cicilan)](docs/boundary-log.md#b229)
 - [Fix 2026-08-14 (Gelombang 2 audit panel: uang salah hitung, fitur mati, XSS panel)](docs/boundary-log.md#b230)
 - [Fix 2026-08-15 (Audit ulang: perbaikan sendiri masih berlubang + regresi yang diperkenalkannya)](docs/boundary-log.md#b231)
+- [Fix 2026-08-15 (Logo perusahaan: disimpan ke `static/uploads/logos`, disajikan dari `uploads/logos` yang selalu kosong)](docs/boundary-log.md#b232)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
