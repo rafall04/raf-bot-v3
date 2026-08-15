@@ -33,7 +33,7 @@ const { normalizePhoneNumber } = require('../lib/utils');
 const { generateSecureOTP, checkOTPRequestLimit, checkOTPVerifyLimit, resetOTPAttempts, isOTPValid } = require('../lib/otp');
 const { asyncHandler, createError, ErrorTypes, validateRequired, dbOperation: _dbOperation } = require('../lib/error-handler');
 const { renderTemplate } = require('../lib/templating');
-const { buildPaidReceiptText } = require('../lib/services/paid-receipt');
+const { putuskanTindakanPascaLunas } = require('../lib/services/bill-payment-aftercare');
 const { renderCategoryTemplate } = require('../lib/template-service');
 const { sendSuccess, sendError } = require('../lib/response-helper');
 const { hasAuthenticatedSession } = require('../lib/whatsapp-gateway');
@@ -1387,18 +1387,20 @@ router.post('/callback/payment', async (req, res) => {
                 const react = settleResult.reactivation || {};
                 updateKetPayment(reference_id, `Tagihan lunas${react.attempted ? (react.ok ? ' + reaktivasi OK' : ' + reaktivasi GAGAL') : ''}`);
 
-                // Struk ke pelanggan (best-effort; kegagalan kirim TIDAK menggagalkan callback).
+                // Pesan pelanggan ditentukan VERDICT ledger (lihat lib/services/bill-payment-aftercare):
+                // bila periodenya ternyata sudah lunas, uangnya dicatat sebagai kelebihan bayar +
+                // admin dialarmi, dan pelanggan menerima pesan jujur — bukan struk lunas.
+                // Best-effort; kegagalan kirim TIDAK menggagalkan callback.
                 try {
-                    const struk = buildPaidReceiptText({
-                        user,
-                        amount: pay.amount,
-                        periodMonth: pay.periodMonth,
-                        periodYear: pay.periodYear,
-                        method: pay.method || 'QRIS',
-                        refId: reference_id,
-                        reactivation: react
+                    const tindakan = await putuskanTindakanPascaLunas({
+                        user, settleResult, amount: pay.amount,
+                        periodMonth: pay.periodMonth, periodYear: pay.periodYear,
+                        method: pay.method || 'QRIS', refId: reference_id, gateway: 'ipaymu',
                     });
-                    if (pay.sender) await sendMessage(pay.sender, { text: struk });
+                    if (tindakan.jenis === 'kelebihan') {
+                        console.warn('[IPAYMU_TAGIHAN] KELEBIHAN BAYAR', { reference_id, ledgerDicatat: tindakan.ledgerDicatat });
+                    }
+                    if (pay.sender) await sendMessage(pay.sender, { text: tindakan.teksPelanggan });
                 } catch (notifyErr) {
                     console.error('[IPAYMU_TAGIHAN] Gagal kirim struk:', notifyErr.message);
                 }

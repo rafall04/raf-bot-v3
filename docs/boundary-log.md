@@ -1617,3 +1617,15 @@
 - **GAGAL-AMAN:** bila profil tak terbaca, TIDAK mengubah apa pun — "tak bisa melihat" bukan "terlihat terisolir". Alasan tidak-memulihkan selalu dicatat (jangan bisu).
 - **Terukur di produksi 2026-08-15 (sebelum perbaikan):** 46/46 (Dander) dan 85/85 (Tanjungharjo) profil terbaca, **0 pelanggan sudah-bayar-tapi-terisolir** — cacatnya nyata tapi belum memakan korban. Dikerjakan sebelum isolir tgl 16 berjalan, karena sesudah itu jendela buta 1–15 September menjadi hidup.
 - **Tes:** `lib/__tests__/approval-reaktivasi-bukti.test.js` (8), dibuktikan tak hampa: pola tanggal disisipkan kembali → 3 tes merah. Suite penuh 484/4712.
+
+<a id="b238"></a>
+
+### Fix 2026-08-16 (Bayar-ganda gateway: satu tagihan hidup per periode + uang yang tetap lolos tak lagi tak terlihat)
+
+- **Akar.** Tiap permintaan halaman bayar membuat `reffId` acak BARU tanpa melihat apakah pelanggan sudah punya QRIS/VA hidup untuk periode yang sama — N tap = N transaksi gateway yang semuanya bisa dibayar. `applyPaymentStatusChange` lalu memulangkan `{action:'no_change', reason:'already_fully_paid'}` **tanpa menulis baris ledger** tapi tetap `ok:true`, dan ketiga callback hanya membaca `settleResult.reactivation` — verdictnya diabaikan. Hasilnya: uang kedua masuk rekening gateway, NOL baris pembukuan, pelanggan tetap menerima struk "sudah LUNAS".
+- **Pencegahan di hulu:** `findPendingPayment` (lib/payment.js) + artefak gateway ikut disimpan, sehingga permintaan berikutnya MEMAKAI ULANG transaksi yang masih hidup (TTL 45 menit, lebih pendek dari masa berlaku QRIS). Dipasang di **KEDUA** jalur charge — `POST /api/bayar/:token/charge` (live di produksi) dan `GET /bayar/:token` (dorman: hanya Tripay/Mayar/hosted). Chip aslinya hanya menyebut jalur dorman; menambal satu instans saja adalah pola yang sudah terbukti mahal di proyek ini.
+- **Jaring pengaman:** owner baru `lib/services/bill-payment-aftercare.js` (`putuskanTindakanPascaLunas`) dipakai ketiga callback — membaca verdict ledger, dan bila `already_fully_paid` mencatat baris `financial_ledger` `referenceType=kelebihan_bayar` berstatus `pending_review` (idempoten lewat `eventKey`), mengalarmi SEMUA admin, dan mengirim pesan JUJUR ke pelanggan alih-alih struk lunas.
+- **Template baru** `tagihan_kelebihan_bayar` (message_templates.json) + fallback anti-teks-error, sama seperti penjaga di struk cicilan — `renderTemplate` memulangkan kalimat `Error: Template ... not found` bila key belum mendarat di prod merge-key.
+- **Keputusan pemilik:** cegah + alarm, TANPA jalur refund/kredit otomatis; struk lunas tidak dikirim untuk pembayaran kedua.
+- **Terukur di produksi 2026-08-15:** 0 bayar-ganda, 0 pending menumpuk, volume 1 transaksi tagihan seumur hidup (Dander) / 0 (Tanjungharjo) — ranjau, bukan kebakaran.
+- **Tes:** `lib/__tests__/bill-payment-kelebihan.test.js` (13). Dua guard lama diperbarui jangkarnya (bukan dilonggarkan maksudnya): sumber-tunggal struk kini mengizinkan SATU lompatan lewat aftercare, dan jendela pemindaian try/catch dilebarkan. Suite penuh 485/4726.

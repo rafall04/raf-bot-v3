@@ -330,5 +330,9 @@
     "enabled": true
   },
   "tagihan_struk_cicilan": "✅ *PEMBAYARAN DITERIMA*\n\nHalo Kak *${nama_pelanggan}*, pembayaran Anda sudah kami terima. Terima kasih! 🙏\n\n🧾 *STRUK CICILAN*\n━━━━━━━━━━━━━━\n• Paket   : *${nama_paket}*\n• Periode : ${periode}\n• Dibayar : *${jumlah_dibayar}*\n• *Sisa tagihan* : *${sisa_tagihan}*\n• Metode  : ${metode}\n• Waktu   : ${waktu}\n• No. Ref : ${no_ref}\n━━━━━━━━━━━━━━\n\nSisa tagihan di atas masih perlu dilunasi ya Kak. Kalau sudah dibayar, kirimkan foto buktinya di sini.\n\n_Simpan struk ini sebagai bukti pembayaran._ Butuh bantuan? Ketik *menuwifi*.",
-  "gaji_struk_teknisi": "💰 *GAJI SUDAH DITRANSFER*\n\nHalo *${nama_teknisi}*, gaji periode *${periode}* sudah kami transfer. Terima kasih atas kerja kerasnya! 🙏\n\n🧾 *RINCIAN*\n━━━━━━━━━━━━━━\n${rincian_pendapatan}\n${rincian_potongan}\n• *Gaji bersih*   : *${gaji_bersih}*\n━━━━━━━━━━━━━━\nNo. Ref : ${no_ref}\n\nKalau ada yang tidak sesuai, langsung kabari admin ya."
+  "gaji_struk_teknisi": "💰 *GAJI SUDAH DITRANSFER*\n\nHalo *${nama_teknisi}*, gaji periode *${periode}* sudah kami transfer. Terima kasih atas kerja kerasnya! 🙏\n\n🧾 *RINCIAN*\n━━━━━━━━━━━━━━\n${rincian_pendapatan}\n${rincian_potongan}\n• *Gaji bersih*   : *${gaji_bersih}*\n━━━━━━━━━━━━━━\nNo. Ref : ${no_ref}\n\nKalau ada yang tidak sesuai, langsung kabari admin ya.",
+  "tagihan_kelebihan_bayar": {
+    "name": "Pembayaran Masuk tapi Periode Sudah Lunas (kelebihan bayar)",
+    "template": "ℹ️ *PEMBAYARAN DITERIMA*\n\nHalo Kak *${nama_pelanggan}*, pembayaran Anda sudah kami terima. Terima kasih! 🙏\n\n🧾 *RINCIAN*\n━━━━━━━━━━━━━━\n• Paket   : *${nama_paket}*\n• Periode : ${periode}\n• Dibayar : *${harga}*\n• Metode  : ${metode}\n• Waktu   : ${waktu}\n• No. Ref : ${no_ref}\n━━━━━━━━━━━━━━\n\nNamun tagihan periode ${periode} tercatat *sudah lunas sebelumnya*, jadi pembayaran ini belum kami alokasikan.\n\nAdmin kami akan menghubungi Anda untuk menindaklanjuti. Mohon simpan bukti transfer ini ya Kak."
+  }
 }

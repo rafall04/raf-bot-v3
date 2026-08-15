@@ -18,7 +18,10 @@ const path = require("path");
 
 const source = fs.readFileSync(path.join(__dirname, "..", "public.js"), "utf8");
 const idx = source.indexOf("pay.tag == 'tagihan'");
-const block = idx > -1 ? source.slice(idx, idx + 2600) : "";
+// Jendela blok dilebarkan 2600 → 3600 (#b238): blok tagihan kini juga menangani kasus
+// kelebihan bayar (catat ledger + alarm admin) sebelum penutup try/catch-nya, sehingga
+// bloknya bertambah panjang. Yang diuji suite ini tidak berubah.
+const block = idx > -1 ? source.slice(idx, idx + 3600) : "";
 
 describe("callback tagihan — fail-closed catat lunas + auto-reaktivasi", () => {
     test("blok tagihan ada di routes/public.js", () => {
@@ -50,12 +53,21 @@ describe("callback tagihan — fail-closed catat lunas + auto-reaktivasi", () =>
     });
 
     test("kirim struk dibungkus try/catch (best-effort, tak menggagalkan callback)", () => {
-        // Struk dirender SATU sumber: lib/services/paid-receipt.js (buildPaidReceiptText). Key template
+        // Struk dirender SATU sumber: lib/services/paid-receipt.js. Key template
         // `tagihan_struk_lunas` sengaja TIDAK lagi disebut di routes/public.js — itu justru dilarang oleh
         // lib/services/__tests__/paid-receipt-single-source.test.js. Jadi anchor-nya fungsi, bukan key.
-        const idxStruk = block.indexOf("buildPaidReceiptText");
+        //
+        // JANGKAR DIPERBARUI (#b238): callback kini memanggil `putuskanTindakanPascaLunas`
+        // (lib/services/bill-payment-aftercare), yang memilih struk-lunas vs pesan
+        // kelebihan-bayar berdasarkan verdict ledger lalu tetap mendelegasikan teksnya ke
+        // sumber tunggal. Yang diuji tes ini TIDAK berubah: pengirimannya wajib dibungkus
+        // try/catch supaya gagal render/kirim WA tak menggagalkan callback gateway.
+        const idxStruk = block.indexOf("putuskanTindakanPascaLunas");
         const before = block.slice(Math.max(0, idxStruk - 400), idxStruk);
-        const after = block.slice(idxStruk, idxStruk + 600);
+        // Jendela dilebarkan 600 → 1100: blok ini kini juga mencatat/mewartakan kasus
+        // kelebihan bayar sebelum `catch`, jadi jarak ke penutupnya bertambah. Yang diuji
+        // tetap sama — keberadaan pembungkus try/catch, bukan panjang bloknya.
+        const after = block.slice(idxStruk, idxStruk + 1100);
         expect(idxStruk).toBeGreaterThan(-1);
         // Dibungkus try { ... } catch: gagal render/kirim WA ditelan, callback tetap 200.
         expect(before).toMatch(/try\s*{/);

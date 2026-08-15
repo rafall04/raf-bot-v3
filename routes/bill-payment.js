@@ -28,9 +28,14 @@ const ipaymu = require("../lib/ipaymu");
 const tripay = require("../lib/tripay");
 const mayar = require("../lib/mayar");
 const gateways = require("../lib/payment-gateways");
-const { addPayment, checkStatusPayment, updateStatusPayment, updateKetPayment } = require("../lib/payment");
+const { addPayment, checkStatusPayment, updateStatusPayment, updateKetPayment, findPendingPayment } = require("../lib/payment");
+
+// Umur maksimum transaksi pending yang boleh DIPAKAI ULANG. Harus lebih pendek dari masa
+// berlaku transaksi di sisi gateway (QRIS iPaymu ~1 jam) — memulangkan kode yang sudah mati
+// di gateway lebih menyesatkan daripada menerbitkan yang baru.
+const UMUR_PENDING_BOLEH_PAKAI_ULANG_MS = 45 * 60 * 1000;
 const { createBillPaymentSettlement } = require("../lib/services/bill-payment-settlement");
-const { buildPaidReceiptText } = require("../lib/services/paid-receipt");
+const { putuskanTindakanPascaLunas } = require("../lib/services/bill-payment-aftercare");
 // Nominal yang di-charge WAJIB memakai harga efektif (subscription_price per-pelanggan + diskon
 // aktif) — sumber yang sama dengan ledger. Memakai `packages.json.price` mentah di sini bukan
 // sekadar teks salah: itu jumlah uang yang benar-benar ditarik dari pelanggan.
@@ -178,6 +183,20 @@ router.get("/bayar/:token", chargeLimiter, asyncHandler(async (req, res) => {
     if (!ctx.amount || ctx.amount < 1000) return res.status(400).send(statusPage("Tagihan Belum Tersedia", "Nominal tagihan belum diatur. Silakan hubungi admin."));
 
     const { periodMonth, periodYear } = currentPeriod();
+
+    // Sama seperti jalur /charge: pakai ULANG transaksi pending yang masih hidup. Jalur ini
+    // dorman di produksi (aktif hanya untuk Tripay/Mayar atau mode hosted), tapi cacatnya
+    // KELAS yang sama — menambalnya hanya di satu jalur adalah pola yang sudah terbukti
+    // mahal di proyek ini.
+    const pendingLama = findPendingPayment({
+        tag: "tagihan", userId: ctx.user.id, periodMonth, periodYear,
+        maxAgeMs: UMUR_PENDING_BOLEH_PAKAI_ULANG_MS,
+    });
+    if (pendingLama && pendingLama.redirectUrl) {
+        console.log(`[BILL_REDIRECT_REUSE] Memakai ulang transaksi pending ${pendingLama.reffId} untuk user ${ctx.user.id} periode ${periodMonth}/${periodYear}`);
+        return res.redirect(302, pendingLama.redirectUrl);
+    }
+
     const reff = Math.floor(Math.random() * 1677721631342).toString(16);
     const base = resolveBaseUrl(global.config || {});
     const gw = gateways.getActive();
@@ -209,7 +228,13 @@ router.get("/bayar/:token", chargeLimiter, asyncHandler(async (req, res) => {
     const gwLabel = gw.name === "tripay" ? "Tripay" : gw.name === "mayar" ? "Mayar" : "iPaymu";
     addPayment(reff, charge.reference, customerJid(ctx.user), "tagihan", ctx.amount,
         gwLabel, `Tagihan ${ctx.user.name}`,
-        { userId: ctx.user.id, periodMonth, periodYear, sandbox: ctx.sandbox, gateway: gw.name, hosted: gw.name === "ipaymu", sessionId: charge.sessionId || null });
+        {
+            userId: ctx.user.id, periodMonth, periodYear, sandbox: ctx.sandbox,
+            gateway: gw.name, hosted: gw.name === "ipaymu", sessionId: charge.sessionId || null,
+            // Disimpan supaya permintaan berikutnya untuk periode yang sama diarahkan ke
+            // transaksi INI, bukan menerbitkan yang baru.
+            redirectUrl: charge.url || null,
+        });
 
     return res.redirect(302, charge.url);
 }));
@@ -267,18 +292,20 @@ router.post("/callback/tripay", asyncHandler(async (req, res) => {
         const react = settleResult.reactivation || {};
         updateKetPayment(merchantRef, `Tagihan lunas (Tripay)${react.attempted ? (react.ok ? " + reaktivasi OK" : " + reaktivasi GAGAL") : ""}`);
 
-        // Struk best-effort (kegagalan kirim TIDAK menggagalkan callback).
+        // Pesan pelanggan ditentukan oleh VERDICT ledger, bukan asumsi bahwa pelunasan pasti
+        // tercatat. Bila periodenya ternyata sudah lunas, aftercare mencatat baris kelebihan
+        // bayar + mengalarmi admin, dan pelanggan menerima pesan jujur — bukan struk lunas.
+        // Best-effort: kegagalan kirim TIDAK menggagalkan callback.
         try {
-            const struk = buildPaidReceiptText({
-                user,
-                amount: pay.amount,
-                periodMonth: pay.periodMonth,
-                periodYear: pay.periodYear,
-                method: body.payment_name || "Tripay",
-                refId: merchantRef,
-                reactivation: react
+            const tindakan = await putuskanTindakanPascaLunas({
+                user, settleResult, amount: pay.amount,
+                periodMonth: pay.periodMonth, periodYear: pay.periodYear,
+                method: body.payment_name || "Tripay", refId: merchantRef, gateway: "tripay",
             });
-            if (pay.sender) await sendMessage(pay.sender, { text: struk });
+            if (tindakan.jenis === "kelebihan") {
+                console.warn("[TRIPAY_CALLBACK] KELEBIHAN BAYAR", { merchantRef, ledgerDicatat: tindakan.ledgerDicatat });
+            }
+            if (pay.sender) await sendMessage(pay.sender, { text: tindakan.teksPelanggan });
         } catch (notifyErr) {
             console.error("[TRIPAY_CALLBACK] Gagal kirim struk:", notifyErr.message);
         }
@@ -345,18 +372,17 @@ router.post("/callback/mayar", asyncHandler(async (req, res) => {
         const react = settleResult.reactivation || {};
         updateKetPayment(pay.reffId, `Tagihan lunas (Mayar)${react.attempted ? (react.ok ? " + reaktivasi OK" : " + reaktivasi GAGAL") : ""}`);
 
-        // Struk best-effort (kegagalan kirim TIDAK menggagalkan callback).
+        // Sama seperti callback Tripay: pesan ditentukan verdict ledger (lihat aftercare).
         try {
-            const struk = buildPaidReceiptText({
-                user,
-                amount: pay.amount,
-                periodMonth: pay.periodMonth,
-                periodYear: pay.periodYear,
-                method: "Mayar",
-                refId: pay.reffId,
-                reactivation: react
+            const tindakan = await putuskanTindakanPascaLunas({
+                user, settleResult, amount: pay.amount,
+                periodMonth: pay.periodMonth, periodYear: pay.periodYear,
+                method: "Mayar", refId: pay.reffId, gateway: "mayar",
             });
-            if (pay.sender) await sendMessage(pay.sender, { text: struk });
+            if (tindakan.jenis === "kelebihan") {
+                console.warn("[MAYAR_CALLBACK] KELEBIHAN BAYAR", { reffId: pay.reffId, ledgerDicatat: tindakan.ledgerDicatat });
+            }
+            if (pay.sender) await sendMessage(pay.sender, { text: tindakan.teksPelanggan });
         } catch (notifyErr) {
             console.error("[MAYAR_CALLBACK] Gagal kirim struk:", notifyErr.message);
         }
@@ -420,6 +446,22 @@ router.post("/api/bayar/:token/charge", chargeLimiter, asyncHandler(async (req, 
     if (!method || !channel) return res.status(400).json({ ok: false, status: "missing_channel" });
 
     const { periodMonth, periodYear } = currentPeriod();
+
+    // PAKAI ULANG transaksi pending yang masih hidup untuk periode ini, alih-alih menerbitkan
+    // yang baru. Tanpa ini, tiap tap tombol bayar melahirkan QRIS/VA tambahan yang SEMUANYA
+    // bisa dibayar; bila dua terbayar, uang kedua masuk rekening gateway tapi
+    // `applyPaymentStatusChange` memulangkan `already_fully_paid` tanpa menulis baris ledger.
+    // Artefak gateway (qrString/paymentNo/dll) ikut disimpan justru supaya bisa disajikan
+    // ulang di sini — kalau tidak, "pakai ulang" mustahil dan pelanggan tetap dapat kode baru.
+    const pendingLama = findPendingPayment({
+        tag: "tagihan", userId: ctx.user.id, periodMonth, periodYear,
+        maxAgeMs: UMUR_PENDING_BOLEH_PAKAI_ULANG_MS,
+    });
+    if (pendingLama && pendingLama.artefak && pendingLama.artefak.method === method && pendingLama.artefak.channel === channel) {
+        console.log(`[BILL_CHARGE_REUSE] Memakai ulang transaksi pending ${pendingLama.reffId} untuk user ${ctx.user.id} periode ${periodMonth}/${periodYear}`);
+        return res.json({ ok: true, reffId: pendingLama.reffId, dipakaiUlang: true, ...pendingLama.artefak });
+    }
+
     const reff = Math.floor(Math.random() * 1677721631342).toString(16);
 
     let result;
@@ -446,11 +488,6 @@ router.post("/api/bayar/:token/charge", chargeLimiter, asyncHandler(async (req, 
         : method === "cstore" ? titleCase(result.channelLabel || channel)
         : (result.channelLabel || channel);
 
-    // Persist record (tag 'tagihan'). userId/periode dipakai callback untuk catat lunas + reaktivasi;
-    // sandbox=true → callback verifikasi ke endpoint sandbox (uji, bukan produksi).
-    addPayment(reff, result.id, customerJid(ctx.user), "tagihan", ctx.amount, methodLabel,
-        `Tagihan ${ctx.user.name}`, { userId: ctx.user.id, periodMonth, periodYear, sandbox: ctx.sandbox });
-
     let qrImage = null;
     if (result.qrString) {
         try {
@@ -460,9 +497,9 @@ router.post("/api/bayar/:token/charge", chargeLimiter, asyncHandler(async (req, 
         }
     }
 
-    res.json({
-        ok: true,
-        reffId: reff,
+    // Artefak yang dilihat pelanggan, disimpan bersama record supaya permintaan berikutnya
+    // untuk periode yang sama bisa MEMAKAI ULANG transaksi ini alih-alih menerbitkan yang baru.
+    const artefak = {
         method,
         channel,
         via: result.via,
@@ -474,7 +511,14 @@ router.post("/api/bayar/:token/charge", chargeLimiter, asyncHandler(async (req, 
         total: result.total,
         formattedTotal: convertRupiah.convert(result.total || ctx.amount),
         expired: result.expired,
-    });
+    };
+
+    // Persist record (tag 'tagihan'). userId/periode dipakai callback untuk catat lunas + reaktivasi;
+    // sandbox=true → callback verifikasi ke endpoint sandbox (uji, bukan produksi).
+    addPayment(reff, result.id, customerJid(ctx.user), "tagihan", ctx.amount, methodLabel,
+        `Tagihan ${ctx.user.name}`, { userId: ctx.user.id, periodMonth, periodYear, sandbox: ctx.sandbox, artefak });
+
+    res.json({ ok: true, reffId: reff, ...artefak });
 }));
 
 // Polling status pembayaran (reff dari hasil charge).

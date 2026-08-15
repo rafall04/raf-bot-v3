@@ -341,6 +341,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-15 (Kosakata metode pembayaran: kartu rekap menimpa ember, filter hanya cocok 1 dari 5 ejaan)](docs/boundary-log.md#b235)
 - [Fix 2026-08-15 (Invoice = bukti LUNAS, bukan tagihan: blok "metode diterima" jadi opsional + label metode berhenti mencetak kode internal)](docs/boundary-log.md#b236)
 - [Fix 2026-08-15 (Reaktivasi pasca-bayar: gerbang TANGGAL diganti BUKTI profil live)](docs/boundary-log.md#b237)
+- [Fix 2026-08-16 (Bayar-ganda gateway: satu tagihan hidup per periode + uang yang tetap lolos tak lagi tak terlihat)](docs/boundary-log.md#b238)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
