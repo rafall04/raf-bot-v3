@@ -298,9 +298,17 @@
                   <div class="form-group">
                     <label for="paymentMethods">Metode Pembayaran yang Ditampilkan</label>
                     <select class="form-control" id="paymentMethods" name="paymentMethods">
-                      <option value="cash_transfer">Cash atau Transfer</option>
+                      <option value="cash_transfer">Tunai &amp; Transfer Bank</option>
+                      <option value="cash">Tunai saja</option>
+                      <option value="transfer">Transfer Bank saja</option>
+                      <option value="online">Pembayaran Online saja</option>
                       <option value="all">Semua Metode</option>
                     </select>
+                    <small class="form-text text-muted">
+                      Nomor rekening diambil dari Rekening Bank di halaman ini; bila kosong,
+                      dipakai daftar rekening di halaman Konfigurasi. Bila tak ada satu pun
+                      rekening terisi, Transfer Bank tidak dicantumkan.
+                    </small>
                   </div>
                   
                   <div class="form-group">

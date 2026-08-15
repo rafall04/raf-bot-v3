@@ -10,6 +10,7 @@
  */
 
 const saldoManager = require('../../../lib/saldo-manager');
+const { resolveDaftarRekening } = require('../../../lib/invoice-payment-methods');
 const { sendMessage } = require('../../../lib/whatsapp-delivery-service');
 const { hasAuthenticatedSession, isReady } = require('../../../lib/whatsapp-gateway');
 
@@ -125,17 +126,22 @@ async function handleSaldoSteps({ userState, sender, chats, pushname, reply: _re
             confirmMsg += `Jumlah: *Rp ${amount.toLocaleString('id-ID')}*\n\n`;
             
             confirmMsg += `💳 *Rekening Tujuan:*\n`;
-            // Use bank accounts from config if available
-            if (global.config && global.config.bankAccounts && global.config.bankAccounts.length > 0) {
-                global.config.bankAccounts.forEach(account => {
-                    confirmMsg += `🏦 ${account.bank}: ${account.number}\n`;
+            // Rekening tujuan HANYA dari config. Cadangan lama mencetak nomor KARANGAN
+            // ("BCA: 1234567890 a.n PT ISP NUSANTARA") begitu daftar rekening kosong atau
+            // berubah bentuk — pelanggan akan mentransfer uang ke nomor yang tidak ada dan
+            // menganggapnya sudah bayar. Lebih baik jujur tak punya nomor daripada
+            // memberi nomor palsu.
+            const daftarRekening = resolveDaftarRekening(null, global.config && global.config.bankAccounts);
+            if (daftarRekening.length > 0) {
+                daftarRekening.forEach(account => {
+                    confirmMsg += `🏦 ${account.bankName}: ${account.accountNumber}\n`;
                 });
-                confirmMsg += `a.n ${global.config.bankAccounts[0].name || 'PT ISP NUSANTARA'}\n\n`;
+                if (daftarRekening[0].accountName) {
+                    confirmMsg += `a.n ${daftarRekening[0].accountName}\n`;
+                }
+                confirmMsg += `\n`;
             } else {
-                // Fallback to default
-                confirmMsg += `🏦 BCA: 1234567890\n`;
-                confirmMsg += `🏦 Mandiri: 0987654321\n`;
-                confirmMsg += `a.n PT ISP NUSANTARA\n\n`;
+                confirmMsg += `_Nomor rekening belum diatur. Silakan hubungi admin sebelum transfer._\n\n`;
             }
             
             confirmMsg += `Ketik *ya* untuk konfirmasi\n`;

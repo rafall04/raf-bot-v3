@@ -162,28 +162,16 @@ router.get('/view-invoice', async (req, res) => {
             return res.status(404).json({ message: 'Invoice not found' });
         }
         
-        // Get customization settings
+        // Setelan tampilan lewat SATU perakit bersama — lihat alasannya di
+        // lib/invoice-generator.js (empat salinan terpisah dulu membuat pratinjau
+        // membuang setelan metode pembayaran).
         const config = global.config;
-        const customization = {
-            theme: config.pdfCustomization?.theme || 'blue',
-            headerText: config.pdfCustomization?.headerText || 'INVOICE',
-            footerText: config.pdfCustomization?.footerText || 'Terima kasih atas kepercayaan Anda.',
-            billingTitle: config.pdfCustomization?.billingTitle || 'TAGIHAN KEPADA:',
-            serviceTitle: config.pdfCustomization?.serviceTitle || 'DETAIL LAYANAN:',
-            showCustomerID: config.pdfCustomization?.showCustomerID !== false,
-            showCustomerPhone: config.pdfCustomization?.showCustomerPhone !== false,
-            showServiceSpeed: config.pdfCustomization?.showServiceSpeed !== false,
-            showServiceDescription: config.pdfCustomization?.showServiceDescription !== false,
-            showNPWP: config.pdfCustomization?.showNPWP !== false,
-            showDueDate: config.pdfCustomization?.showDueDate !== false,
-            paymentMethods: config.pdfCustomization?.paymentMethods || 'cash_transfer',
-            showNotes: config.pdfCustomization?.showNotes !== false,
-            additionalNotes: config.pdfCustomization?.additionalNotes || ''
-        };
-        
+        const { buatCustomizationInvoice, lengkapiRekeningRecord } = require('../lib/invoice-generator');
+        const customization = buatCustomizationInvoice(config);
+
         // Generate HTML
         const { generateInvoiceHTML } = require('../lib/pdf-invoice-generator');
-        const html = generateInvoiceHTML(invoice, customization);
+        const html = generateInvoiceHTML(lengkapiRekeningRecord(invoice, config), customization);
         
         // Send HTML content
         res.setHeader('Content-Type', 'text/html');
@@ -231,28 +219,14 @@ router.get('/download-invoice-pdf', async (req, res) => {
             return res.status(404).json({ message: 'Invoice not found' });
         }
         
-        // Get customization settings
+        // Setelan tampilan lewat SATU perakit bersama (lib/invoice-generator.js).
         const config = global.config;
-        const customization = {
-            theme: config.pdfCustomization?.theme || 'blue',
-            headerText: config.pdfCustomization?.headerText || 'INVOICE',
-            footerText: config.pdfCustomization?.footerText || 'Terima kasih atas kepercayaan Anda.',
-            billingTitle: config.pdfCustomization?.billingTitle || 'TAGIHAN KEPADA:',
-            serviceTitle: config.pdfCustomization?.serviceTitle || 'DETAIL LAYANAN:',
-            showCustomerID: config.pdfCustomization?.showCustomerID !== false,
-            showCustomerPhone: config.pdfCustomization?.showCustomerPhone !== false,
-            showServiceSpeed: config.pdfCustomization?.showServiceSpeed !== false,
-            showServiceDescription: config.pdfCustomization?.showServiceDescription !== false,
-            showNPWP: config.pdfCustomization?.showNPWP !== false,
-            showDueDate: config.pdfCustomization?.showDueDate !== false,
-            paymentMethods: config.pdfCustomization?.paymentMethods || 'cash_transfer',
-            showNotes: config.pdfCustomization?.showNotes !== false,
-            additionalNotes: config.pdfCustomization?.additionalNotes || ''
-        };
-        
+        const { buatCustomizationInvoice, lengkapiRekeningRecord } = require('../lib/invoice-generator');
+        const customization = buatCustomizationInvoice(config);
+
         // Generate PDF
         const { generatePDFInvoice } = require('../lib/pdf-invoice-generator');
-        const pdfBuffer = await generatePDFInvoice(invoice, null, customization);
+        const pdfBuffer = await generatePDFInvoice(lengkapiRekeningRecord(invoice, config), null, customization);
         
         // Send PDF
         res.setHeader('Content-Type', 'application/pdf');
@@ -552,7 +526,7 @@ router.post('/upload-logo', ensureAdmin, uploadLogo.single('logo'), (req, res) =
 router.post('/preview-pdf-invoice', ensureAdmin, async (req, res) => {
     try {
         const { generateInvoiceHTML } = require('../lib/pdf-invoice-generator');
-        const { calculateInvoiceDueDate, getInvoiceSettings } = require('../lib/invoice-generator');
+        const { calculateInvoiceDueDate, getInvoiceSettings, buatCustomizationInvoice } = require('../lib/invoice-generator');
         const config = global.config;
         const sampleIssueDate = new Date();
         const sampleDueDate = calculateInvoiceDueDate(sampleIssueDate, getInvoiceSettings());
@@ -591,30 +565,31 @@ router.post('/preview-pdf-invoice', ensureAdmin, async (req, res) => {
                 method: 'Transfer Bank',
                 approvedBy: 'Admin'
             },
+            // Rekening NYATA dari config, bukan karangan: tanpa ini cabang "Transfer Bank"
+            // tak pernah punya data di pratinjau, sehingga admin tak bisa memeriksa
+            // justru bagian yang paling sering salah — nomor rekening tujuan.
+            bankAccount: config.bankAccount || {},
+            bankAccounts: config.bankAccounts || [],
             notes: 'Invoice sample untuk preview'
         };
         
-        // Use real-time customization from request body or fallback to config
-        let customization = config.pdfCustomization || {};
-        
-        // If customization is sent from frontend, use that for real-time preview
-        if (req.body && req.body.customization) {
-            customization = {
-                theme: req.body.customization.pdfTheme || customization.theme || 'blue',
-                headerText: req.body.customization.headerText || customization.headerText || 'INVOICE',
-                footerText: req.body.customization.footerText || customization.footerText || 'Terima kasih atas kepercayaan Anda.',
-                billingTitle: req.body.customization.billingTitle || customization.billingTitle || 'TAGIHAN KEPADA:',
-                serviceTitle: req.body.customization.serviceTitle || customization.serviceTitle || 'DETAIL LAYANAN:',
-                showCustomerID: req.body.customization.showCustomerID !== 'false',
-                showServiceDescription: req.body.customization.showServiceDescription !== 'false',
-                showNPWP: req.body.customization.showNPWP !== 'false',
-                showDueDate: req.body.customization.showDueDate !== 'false',
-                additionalNotes: req.body.customization.additionalNotes || customization.additionalNotes || ''
-            };
+        // Setelan pratinjau lewat perakit bersama, dengan setelan yang BELUM disimpan
+        // dari form sebagai timpaan.
+        //
+        // DULU RUSAK: blok ini merakit ulang objeknya dari nol dan hanya menyalin 9 kunci —
+        // `paymentMethods`, `showNotes`, `showCustomerPhone`, dan `showServiceSpeed` yang
+        // dikirim halaman pengaturan hilang di sini, jatuh ke bawaan, dan membuat pratinjau
+        // tak pernah bisa menampilkan pilihan admin. Perakit bersama menghapus kelas itu:
+        // menambah setelan baru sekarang cukup di SATU tempat.
+        const timpaan = (req.body && req.body.customization) || {};
+        // Halaman pengaturan mengirim tema dengan nama field `pdfTheme`.
+        if (timpaan.pdfTheme !== undefined && timpaan.theme === undefined) {
+            timpaan.theme = timpaan.pdfTheme;
         }
-        
+        const customization = buatCustomizationInvoice(config, timpaan);
+
         console.log('[PDF_PREVIEW] Using customization:', customization);
-        
+
         const htmlContent = generateInvoiceHTML(sampleData, customization);
         return res.send(htmlContent);
         
