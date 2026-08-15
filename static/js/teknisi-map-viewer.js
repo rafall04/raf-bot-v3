@@ -564,7 +564,7 @@
                             if (customer.pppoe_username) onlineStatus = activePppoeUsersMap.has(customer.pppoe_username) ? 'online' : 'offline';
                             if (initialPppoeLoadFailed && customer.pppoe_username) onlineStatus = 'unknown'; else if (!customer.pppoe_username) onlineStatus = 'offline';
                             const statusColor = onlineStatus === 'online' ? 'text-success' : (onlineStatus === 'offline' ? 'text-danger' : 'text-muted');
-                            popupContent += `<li>- ${customer.name || `Cust. ID ${customer.id}`} <span class="${statusColor}" style="font-weight:bold;">(${onlineStatus})</span></li>`;
+                            popupContent += `<li>- ${rafEscapeHtml(customer.name || `Cust. ID ${customer.id}`)} <span class="${statusColor}" style="font-weight:bold;">(${onlineStatus})</span></li>`;
                         });
                         popupContent += `</ul>`;
                     } else {
@@ -652,7 +652,7 @@
                     '<span class="badge badge-secondary badge-lg"><i class="fas fa-question-circle"></i> UNKNOWN</span>');
 
                 let popupContent = `<div class="mb-3">
-                    <h5 class="mb-2"><b>${customer.name || 'N/A'}</b></h5>
+                    <h5 class="mb-2"><b>${rafEscapeHtml(customer.name || 'N/A')}</b></h5>
                     <div class="mb-2">${statusBadge}</div>
                 </div>
                 <hr>
@@ -775,10 +775,10 @@
 
                 if (customer.device_id) {
                     popupContent += `<div class="mt-2 btn-group-vertical btn-block">` +
-                                   `<button class="btn btn-info btn-sm" onclick="showWifiInfo('${customer.device_id}', '${customer.name || 'Pelanggan'}')"><i class="fas fa-wifi"></i> Info WiFi</button>` +
-                                   `<button class="btn btn-primary btn-sm" onclick="manageWifi('${customer.device_id}', '${customer.name || 'Pelanggan'}')"><i class="fas fa-edit"></i> Kelola WiFi</button>` +
-                                   `<button class="btn btn-warning btn-sm" onclick="showRedamanInfo('${customer.device_id}', '${customer.name || 'Pelanggan'}')"><i class="fas fa-wave-square"></i> Redaman</button>` +
-                                   `<button class="btn btn-danger btn-sm" onclick="rebootDeviceMap('${customer.device_id}', '${customer.name || 'Pelanggan'}')"><i class="fas fa-power-off"></i> Reboot Router</button>` +
+                                   `<button class="btn btn-info btn-sm" onclick="showWifiInfo('${rafEscapeHtml(rafEscapeJsString(customer.device_id))}', '${rafEscapeHtml(rafEscapeJsString(customer.name || 'Pelanggan'))}')"><i class="fas fa-wifi"></i> Info WiFi</button>` +
+                                   `<button class="btn btn-primary btn-sm" onclick="manageWifi('${rafEscapeHtml(rafEscapeJsString(customer.device_id))}', '${rafEscapeHtml(rafEscapeJsString(customer.name || 'Pelanggan'))}')"><i class="fas fa-edit"></i> Kelola WiFi</button>` +
+                                   `<button class="btn btn-warning btn-sm" onclick="showRedamanInfo('${rafEscapeHtml(rafEscapeJsString(customer.device_id))}', '${rafEscapeHtml(rafEscapeJsString(customer.name || 'Pelanggan'))}')"><i class="fas fa-wave-square"></i> Redaman</button>` +
+                                   `<button class="btn btn-danger btn-sm" onclick="rebootDeviceMap('${rafEscapeHtml(rafEscapeJsString(customer.device_id))}', '${rafEscapeHtml(rafEscapeJsString(customer.name || 'Pelanggan'))}')"><i class="fas fa-power-off"></i> Reboot Router</button>` +
                                    `</div>`;
                 }
 

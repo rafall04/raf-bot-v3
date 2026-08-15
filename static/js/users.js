@@ -980,7 +980,11 @@
                     data.data.forEach(device => {
                         let displayText = `${device.serialNumber || 'N/A'} - ${device.model || 'Unknown'}`;
                         displayText += ` (PPP: ${device.currentPPPUsername || 'Kosong'})`;
-                        select.append(`<option value="${device.deviceId}" data-device='${JSON.stringify(device)}'>${displayText}</option>`);
+                        // JSON di dalam atribut ber-kutip TUNGGAL: `"` di JSON aman, tapi `'`
+                        // TIDAK — dan `device.hostName` berasal dari hostname DHCP yang bebas
+                        // diketik siapa pun yang tersambung ke WiFi pelanggan. Satu apostrof
+                        // memutus atributnya dan merusak seluruh <option>.
+                        select.append(`<option value="${escapeHtml(device.deviceId)}" data-device='${escapeHtml(JSON.stringify(device))}'>${escapeHtml(displayText)}</option>`);
                     });
                     
                     select.show();
@@ -2005,7 +2009,12 @@
                         "searchable": false,
                         render: function(data, type, row) {
                             const deviceIdForActions = row.device_id || '';
-                            const customerName = row.name || `Pelanggan ${row.id}`; // Get customer name for modal title
+                            // Di-escape SEKARANG karena nilainya masuk atribut ber-kutip TUNGGAL
+                            // (`data-customer-name='...'`). Nama seperti Ma'ruf / Sa'diyah memutus
+                            // atributnya: markup jadi `data-customer-name='Ma'` diikuti atribut
+                            // sampah `ruf'`, sehingga modal "Perangkat Terhubung" terbuka dengan
+                            // nama terpotong — dan nama ber-`<` bisa menyuntik markup.
+                            const customerName = escapeHtml(row.name || `Pelanggan ${row.id}`); // Get customer name for modal title
                             
                             // MODIFIED: All action buttons within a single flex container for horizontal layout
                             let actionButtonsHtml = `

@@ -100,3 +100,37 @@ describe("helper escaping benar-benar terjangkau dari berkas yang memakainya", (
         expect(isi).toContain("_head.php");
     });
 });
+
+describe("nama pelanggan aman di atribut ber-kutip TUNGGAL & argumen handler", () => {
+    test("users.js: data-customer-name diisi nilai yang sudah di-escape", () => {
+        const isi = baca("users.js");
+
+        // Atribut ini memakai kutip TUNGGAL, jadi apostrof di nama (Ma'ruf, Sa'diyah)
+        // memutusnya: `data-customer-name='Ma'` lalu atribut sampah `ruf'`.
+        expect(isi).toMatch(/const customerName = escapeHtml\(/);
+    });
+
+    test("users.js: data-device (JSON di kutip tunggal) ikut di-escape", () => {
+        const isi = baca("users.js");
+        const mentah = (isi.match(/data-device='\$\{JSON\.stringify\(device\)\}'/g) || []);
+
+        // hostName di dalam JSON berasal dari hostname DHCP — bebas diketik siapa pun yang
+        // tersambung ke WiFi pelanggan. Satu apostrof merusak seluruh <option>.
+        expect(mentah).toEqual([]);
+    });
+
+    test("teknisi-map-viewer.js: argumen onclick di-escape untuk DUA konteks", () => {
+        const isi = baca("teknisi-map-viewer.js");
+        const mentah = (isi.match(/onclick="\w+\('\$\{customer\.device_id\}'/g) || []);
+
+        // Argumen di dalam onclick hidup di dua konteks sekaligus: atribut HTML DAN string
+        // JS. Keduanya harus ditutup, kalau tidak tombolnya mati untuk nama ber-apostrof.
+        expect(mentah).toEqual([]);
+        expect(isi).toMatch(/rafEscapeJsString\(/);
+    });
+
+    test("teknisi-map-viewer.js: nama pelanggan di daftar popup di-escape", () => {
+        const isi = baca("teknisi-map-viewer.js");
+        expect(slotMentah(isi, "customer.name")).toEqual([]);
+    });
+});
