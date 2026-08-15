@@ -318,6 +318,8 @@ function createPaymentProofService(overrides = {}) {
             amount: record.amountDue,
             periodMonth: record.periodMonth,
             periodYear: record.periodYear,
+            // Pasangan dari asumsi di ~:383 — lihat catatan KEPUTUSAN PEMILIK 2026-08-16 di sana.
+            // Sengaja dipertahankan; keduanya harus berubah bersama bila keputusan itu dicabut.
             method: "Transfer Bank",
             paidAt: new Date(),
             refId: record.id,
@@ -380,6 +382,25 @@ function createPaymentProofService(overrides = {}) {
                 amountPaid: record.amountDue || deps.getEffectivePrice(user),
                 periodMonth: record.periodMonth,
                 periodYear: record.periodYear,
+                // KEPUTUSAN PEMILIK 2026-08-16 — SENGAJA dipertahankan, JANGAN "diperbaiki".
+                //
+                // Record bukti bayar tak punya field metode (lihat bentuknya di ~baris 258):
+                // sistem memang tak tahu pelanggan membayar dengan apa, jadi nilai ini ASUMSI,
+                // bukan data. Terukur di produksi 2026-08-16: 36 konfirmasi (Rp5.065.000) di
+                // Dander dan 42 (Rp5.535.000) di Tanjungharjo melewati jalur ini, yaitu 51%
+                // dan 58% dari SELURUH angka "Transfer Bank" di /rekap-keuangan. Caption
+                // pelanggan hampir tak pernah menyebut metode (0 dari 39 · 3 dari 47), jadi
+                // tak ada yang bisa disimpulkan otomatis.
+                //
+                // Pemilik diberi empat pilihan (wajib pilih metode / opsional dengan default
+                // netral / selalu netral BUKTI_BAYAR / biarkan) dan memilih MEMBIARKAN, dengan
+                // alasan mayoritas pengirim foto memang transfer dan jalur WA `ok` harus tetap
+                // satu ketukan. Data lama juga sengaja tidak ditandai ulang.
+                //
+                // Konsekuensi yang diterima secara sadar: pembayaran tunai/QRIS yang
+                // dikonfirmasi lewat foto ikut terhitung transfer bank, dan pelanggannya
+                // menerima struk bermetode "Transfer Bank". Baris di bawah (~:320) punya
+                // asumsi yang sama dan harus ikut berubah bila keputusan ini dicabut.
                 paymentMethod: "TRANSFER_BANK",
                 reffId: record.id
             });
