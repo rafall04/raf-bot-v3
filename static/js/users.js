@@ -2045,8 +2045,20 @@
 
                             // Close the action group div. The delete button now sits outside this flex container
                             // to ensure it's on a new line, but still within the overall cell.
+                            // Data pelanggan dibawa lewat `data-*`, BUKAN sebagai argumen di dalam
+                            // atribut `onclick`. Bentuk lamanya menyisipkan
+                            // `${JSON.stringify(JSON.stringify({...}))}` — sebuah string JSON
+                            // ber-kutip-ganda — ke dalam atribut yang juga dibatasi kutip ganda,
+                            // sehingga kutip pertama LANGSUNG MENUTUP atribut itu. Akibatnya
+                            // tombol "Copot Pelanggan" MATI TOTAL untuk SEMUA pelanggan: tak ada
+                            // konfirmasi, tak ada request, tak ada pesan galat. Satu-satunya jalan
+                            // mencopot pelanggan lewat web tertutup rapat.
                             actionButtonsHtml += `</div>
-                                <button onclick="deleteData('${row.id}', event, ${JSON.stringify(JSON.stringify({ nama: row.name || '', pppoe: row.pppoe_username || '', device: row.device_id || '' }))})" class="btn btn-danger btn-sm mt-1" title="Copot Pelanggan"><i class="fas fa-trash"></i></button>`;
+                                <button type="button" class="btn btn-danger btn-sm mt-1 btn-copot-pelanggan" title="Copot Pelanggan"
+                                    data-id="${escapeHtml(row.id)}"
+                                    data-nama="${escapeHtml(row.name || '')}"
+                                    data-pppoe="${escapeHtml(row.pppoe_username || '')}"
+                                    data-device="${escapeHtml(row.device_id || '')}"><i class="fas fa-trash"></i></button>`;
 
                             return actionButtonsHtml;
                         }
@@ -3331,6 +3343,19 @@
         // menyembunyikan secret PPPoE yang gagal dihapus — yang lalu jadi "modem hantu" (modem terus
         // konek atas nama pelanggan yang barisnya sudah lenyap, dan wizard PSB memvonisnya milik
         // pelanggan tak dikenal selamanya).
+        // Delegasi di kontainer tabel: baris digambar ulang terus oleh DataTables, jadi
+        // mengikat per-tombol akan hilang tiap redraw. Nilainya dibaca dari `dataset` —
+        // bukan diurai ulang sebagai kode — sehingga karakter apa pun di nama pelanggan
+        // (apostrof, kutip, tanda kurung) tak bisa memutus handler maupun dieksekusi.
+        $(document).on('click', '#dataTable .btn-copot-pelanggan', function (event) {
+            const el = this;
+            deleteData(el.dataset.id, event, JSON.stringify({
+                nama: el.dataset.nama || '',
+                pppoe: el.dataset.pppoe || '',
+                device: el.dataset.device || ''
+            }));
+        });
+
         function deleteData(id, event, infoJson) {
             event.preventDefault();
             let info = {};

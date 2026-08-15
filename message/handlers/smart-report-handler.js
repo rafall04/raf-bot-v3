@@ -7,7 +7,7 @@
  * SideEffects: Membaca global users/reports/accounts/config, menulis state percakapan, membuat tiket laporan, dan mengirim notifikasi WhatsApp teknisi.
  */
 
-const { setUserState, getUserState, deleteUserState, format, registerStateTimeoutHandler } = require('./conversation-handler');
+const { setUserState, getUserState, deleteUserState, format, registerStateTimeoutHandler, registerStateCancelHandler } = require('./conversation-handler');
 const { getResponseTimeMessage } = require('../../lib/working-hours-helper');
 const { createCustomerReportTicket } = require('../../lib/report-orchestration-service');
 const { notifyNewReport } = require('../../lib/report-notification-service');
@@ -818,6 +818,25 @@ async function promoteLemotDraftOnTimeout(userId, state) {
 if (typeof registerStateTimeoutHandler === 'function') {
     registerStateTimeoutHandler('GANGGUAN_MATI_AWAITING_PHOTO', promoteMatiDraftOnTimeout);
     registerStateTimeoutHandler('LEMOT_AWAITING_PHOTO', promoteLemotDraftOnTimeout);
+}
+
+// PEMBATALAN oleh pelanggan harus ikut membuang draft durabelnya. Tanpa ini, pelanggan yang
+// mengetik "batal" tetap mendapat tiket beberapa menit kemudian dari pemindai draft — bot
+// membuat tiket untuk laporan yang justru DIBATALKAN. Draft ditambahkan di #b230 untuk
+// bertahan melewati restart; jalur pembatalannya waktu itu tak ikut disambungkan.
+if (typeof registerStateCancelHandler === 'function') {
+    const buangDraft = (userId) => {
+        try {
+            hapusDraftLaporan(userId);
+        } catch (error) {
+            console.error('[LAPORAN_DRAFT] gagal menghapus draft saat pembatalan:', error?.message);
+        }
+        // handled:false — domain ini tak membalas apa pun; biarkan pesan batal universal
+        // yang menjawab pelanggan.
+        return { handled: false };
+    };
+    registerStateCancelHandler('GANGGUAN_MATI_AWAITING_PHOTO', buangDraft);
+    registerStateCancelHandler('LEMOT_AWAITING_PHOTO', buangDraft);
 }
 
 module.exports = {

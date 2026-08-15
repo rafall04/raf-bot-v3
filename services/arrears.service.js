@@ -113,7 +113,19 @@ function createArrearsService(overrides = {}) {
         return tahun * 12 + bulan;
     }
 
-    /** Seluruh periode dari `dari` s/d `sampai` (inklusif), dibatasi MAKS_PERIODE_DIENUMERASI. */
+    /**
+     * Seluruh periode dari `dari` s/d `sampai` (inklusif), dibatasi MAKS_PERIODE_DIENUMERASI
+     * periode TERBARU.
+     *
+     * Versi pertama memotong dari DEPAN: loop `while` berhenti setelah 24 item terhitung dari
+     * periode TERTUA, lalu `slice(-24)` pada array 24-elemen tak berefek apa pun. Untuk
+     * pelanggan yang bukti ledger paling awalnya lebih dari 24 bulan sebelum periode laporan,
+     * yang terdaftar justru 24 bulan TERTUA — periode berjalan dan bulan-bulan terbaru,
+     * yaitu yang justru ditagih, hilang sepenuhnya dari rekap. Komentar lamanya bahkan
+     * menyatakan kebalikan dari yang dilakukan kodenya.
+     *
+     * Kini titik AWAL yang digeser maju, bukan hasilnya yang dipotong belakangan.
+     */
     function rentangPeriode(dariKey, sampaiKey) {
         const hasil = [];
         let kursor = keyKePeriodeAngka(dariKey);
@@ -123,15 +135,18 @@ function createArrearsService(overrides = {}) {
             return [sampaiKey];
         }
 
-        while (urutanBulan(kursor) <= urutanBulan(akhir) && hasil.length < MAKS_PERIODE_DIENUMERASI) {
+        // Geser awal supaya jendelanya BERAKHIR di `sampaiKey`, bukan bermula di `dariKey`.
+        const awalPalingLama = urutanBulan(akhir) - (MAKS_PERIODE_DIENUMERASI - 1);
+        while (urutanBulan(kursor) < awalPalingLama) {
+            kursor = periodeBerikutnya(kursor);
+        }
+
+        while (urutanBulan(kursor) <= urutanBulan(akhir)) {
             hasil.push(formatPeriodKey(kursor.bulan, kursor.tahun));
             kursor = periodeBerikutnya(kursor);
         }
 
-        // Dibatasi dari BELAKANG: yang terbaru selalu ikut, yang paling tua yang dipotong.
-        return hasil.length < MAKS_PERIODE_DIENUMERASI
-            ? hasil
-            : hasil.slice(-MAKS_PERIODE_DIENUMERASI);
+        return hasil;
     }
 
     /** Periode paling awal yang PUNYA bukti (pembayaran/pembalikan/pembebasan) untuk pelanggan ini. */

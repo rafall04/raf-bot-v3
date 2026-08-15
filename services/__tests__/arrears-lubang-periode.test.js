@@ -118,3 +118,30 @@ describe("periode acuan tetap dinilai", () => {
         expect(baris.unpaid_period_count).toBe(1); // Agustus
     });
 });
+
+describe("jendela 24 periode berakhir di periode ACUAN, bukan di yang tertua", () => {
+    test("bukti ledger 30 bulan lalu → periode BERJALAN tetap ikut terhitung", async () => {
+        // Regresi nyata: loop dulu berhenti setelah 24 item dari yang TERTUA, sehingga periode
+        // acuan (yang justru ditagih) tak pernah masuk daftar sama sekali.
+        const baris = await rekap(
+            { pembayaran: [bayar(2, 2024)] },
+            { periodMonth: 8, periodYear: 2026 }
+        );
+
+        expect(baris).not.toBeNull();
+        expect(baris.unpaid_period_count).toBeGreaterThan(0);
+        expect(baris.unpaid_period_count).toBeLessThanOrEqual(24);
+    });
+
+    test("periode acuan SELALU ada di daftar, seberapa pun tuanya bukti awal", async () => {
+        const svc = buatService({ pembayaran: [bayar(1, 2023)] });
+        const hasil = await svc.getCustomerArrearsDetail({
+            userId: 101,
+            periodMonth: 8,
+            periodYear: 2026,
+        });
+
+        const daftar = (hasil.unpaid_periods || []).map((p) => p.period);
+        expect(daftar).toContain("2026-08");
+    });
+});

@@ -513,12 +513,23 @@ router.post('/approve-paid-change', rateLimit('approve-request', 20, 60000), asy
                         if (!paymentMethod && req.body.payment_method) {
                             return res.status(400).json({ status: 400, message: 'payment_method harus CASH atau TRANSFER_BANK.' });
                         }
-                        if (!paymentMethod && nextRequestState.payment_method) {
-                            paymentMethod = normalizeUserPaymentMethod(nextRequestState.payment_method);
-                        } else if (nextRequestState.requested_by_teknisi_id || nextRequestState.requested_by_agen_id) {
-                            // Ada kolektor di lapangan = tunai. Syarat `newStatus === true`
-                            // dicabut: cicilan menyimpan `false` padahal itu penagihan tunai.
-                            paymentMethod = 'CASH';
+                        // URUTAN PRIORITAS, bukan rantai if/else-if yang saling menimpa.
+                        //
+                        // Bentuk sebelumnya: `if (!paymentMethod && ...) {...} else if (kolektor)
+                        // {...CASH}`. Ketika admin SUDAH memilih metode lewat `req.body`,
+                        // `paymentMethod` terisi sehingga cabang pertama gagal — lalu jatuh ke
+                        // `else if` dan pilihan admin DITIMPA menjadi CASH begitu pengajuannya
+                        // datang dari teknisi/agen. Admin memilih TRANSFER_BANK, ledger mencatat
+                        // CASH.
+                        if (!paymentMethod) {
+                            if (nextRequestState.payment_method) {
+                                paymentMethod = normalizeUserPaymentMethod(nextRequestState.payment_method);
+                            } else if (nextRequestState.requested_by_teknisi_id || nextRequestState.requested_by_agen_id) {
+                                // Ada kolektor di lapangan = tunai. Syarat `newStatus === true`
+                                // sengaja tak dipakai: cicilan menyimpan `false` padahal itu
+                                // justru penagihan tunai.
+                                paymentMethod = 'CASH';
+                            }
                         }
                         if (!paymentMethod) {
                             paymentMethod = 'TRANSFER_BANK';
