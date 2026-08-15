@@ -91,7 +91,7 @@ const { createHttpApp } = require('./lib/http-app');
 const { createPublicSiteApp } = require('./lib/public-site-app');
 const { registerRoutes } = require('./lib/routes-registry');
 const { registerProcessLifecycleHandlers } = require('./lib/process-lifecycle');
-const { registerHttpSecurity } = require('./lib/http-security');
+const { registerHttpSecurity, registerProtectedStatic } = require('./lib/http-security');
 const { registerHttpAuth, requirePhpPageAuth } = require('./lib/http-auth-bootstrap');
 const { createHttpSocketBootstrap } = require('./lib/http-socket-bootstrap');
 const { initializeUploadDirs } = require('./lib/upload-helper');
@@ -206,6 +206,10 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser('rweutkhdrt'));
 const { globalLimiter, authLimiter } = registerHttpSecurity(app, { express, projectRoot: __dirname, isAllowedPortalOrigin });
 registerHttpAuth(app, { runtime, config, authCache, loadJSON });
+// WAJIB sesudah registerHttpAuth: uploads/ berisi foto KTP pelanggan, bukti transfer, dan foto
+// tiket. Dipasang di registerHttpSecurity (yang berjalan LEBIH DULU), seluruh isinya bisa
+// diambil tanpa login oleh siapa pun yang menebak URL-nya.
+registerProtectedStatic(app, { express, projectRoot: __dirname });
 app.use('/api/', globalLimiter);
 app.use('/api/login', authLimiter);
 app.use('/api/customer/login', authLimiter);

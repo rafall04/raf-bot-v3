@@ -111,3 +111,35 @@ describe("endpoint benar-benar memakai gerbangnya", () => {
         expect(blok.slice(0, 600)).toMatch(/'teknisi'/);
     });
 });
+
+describe("gerbang mount-level yang menutup seluruh prefix", () => {
+    const fs = require("fs");
+    const path = require("path");
+
+    test("/api/monitoring digerbangi di titik mount, bukan per-endpoint", () => {
+        const src = fs.readFileSync(
+            path.join(__dirname, "..", "..", "lib", "routes-registry.js"),
+            "utf8"
+        );
+
+        // routes/monitoring-api.js tak punya SATU PUN rujukan ke req.user, jadi setiap endpoint
+        // baru di sana lahir tanpa gerbang. Menggerbanginya di mount menutup semuanya sekaligus.
+        expect(src).toMatch(/app\.use\("\/api\/monitoring",\s*ensureAuthenticatedStaffApi,/);
+    });
+
+    test("routes/monitoring-api.js memang tak punya gerbang sendiri (alasan mount digerbangi)", () => {
+        const src = fs.readFileSync(
+            path.join(__dirname, "..", "monitoring-api.js"),
+            "utf8"
+        );
+
+        expect(src).not.toMatch(/req\.user/);
+    });
+
+    test("GET /api/users bergerbang STAF, bukan sekadar 'ada req.user'", () => {
+        const src = fs.readFileSync(path.join(__dirname, "..", "api-users-routes.js"), "utf8");
+
+        expect(src).toMatch(/router\.get\('\/users',\s*ensureAuthenticatedStaff,/);
+        expect(src).not.toMatch(/router\.get\('\/users',\s*ensureAuthenticated,/);
+    });
+});

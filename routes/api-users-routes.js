@@ -185,7 +185,15 @@ function createApiUsersRouter(deps) {
     }
 
  // GET /api/users - Get all users
- router.get('/users', ensureAuthenticated, (req, res) => {
+ //
+ // GERBANG STAF, bukan sekadar "ada req.user". `ensureAuthenticated` hanya menolak bila
+ // `!req.user` — tanpa memeriksa peran — padahal berkas yang sama sudah menyediakan
+ // `ensureAdmin` dan `ensureAuthenticatedStaff` yang dipakai endpoint tetangganya.
+ // Akibatnya peran `agen`, yang hanya ditugaskan sebagian pelanggan, menerima SELURUH basis
+ // pelanggan lengkap dengan `phone_number`, `address`, `latitude/longitude`, `username`,
+ // `password`, `pppoe_username`, dan `pppoe_password`. Pembatasan `assigned_agen_id` di
+ // routes/agen.js jadi tak bermakna.
+ router.get('/users', ensureAuthenticatedStaff, (req, res) => {
      try {
          apiUsersService.listUsersWithIntegrityCheck()
              .then((result) => res.status(result.status).json(result.body))
