@@ -214,7 +214,21 @@ app.use('/api/', globalLimiter);
 app.use('/api/login', authLimiter);
 app.use('/api/customer/login', authLimiter);
 app.use('/api/auth/login', authLimiter);
+// SELURUH alias OTP wajib ikut authLimiter, bukan hanya satu.
+//
+// Dulu hanya `/api/auth/otp/request` yang dipasangi, sementara `/api/otp`, `/api/otpverify`,
+// dan `/api/auth/otp/verify` telanjang — padahal keempatnya memanggil handler yang SAMA
+// (routes/public.js) dan semuanya ada di PUBLIC_PATHS. Jadi rem-nya bisa dilewati cukup
+// dengan memakai alias yang lain: satu nomor pelanggan dibanjiri OTP dari nomor bot
+// (risiko diblokir WhatsApp), dan verifikasi OTP bisa di-brute-force tanpa rem HTTP.
+//
+// `authLimiter` mengunci per IDENTITAS lewat resolveAuthLimiterKey (lib/http-security.js),
+// yang menormalkan `body.phoneNumber` — jadi 08xx/62xx/+62xx berbagi SATU jatah.
+// Lapisan kedua (3 OTP/jam, lockout 5 verifikasi) ada di lib/otp.js, kini ikut dinormalkan.
+app.use('/api/otp', authLimiter);
+app.use('/api/otpverify', authLimiter);
 app.use('/api/auth/otp/request', authLimiter);
+app.use('/api/auth/otp/verify', authLimiter);
 // Login dompet keuangan pribadi. WAJIB ikut authLimiter: halamannya terbuka di internet
 // (Cloudflare) dan endpointnya ada di PUBLIC_PATHS, jadi tanpa ini hanya globalLimiter yang
 // menahan — 300 permintaan/15 menit = ribuan tebakan sandi per hari terhadap satu-satunya

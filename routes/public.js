@@ -1710,9 +1710,12 @@ router.get('/api/speed-boost/packages', asyncHandler(async (req, res) => {
     return sendSuccess(res, packages, "Daftar paket speed boost berhasil diambil");
 }));
 
-router.post('/api/otp', asyncHandler(handleOtpRequest));
+// Validasi disamakan dengan alias `/api/auth/otp/*` di bawah. Dua rute lama ini dulu
+// TANPA validasi sama sekali, padahal memanggil handler yang sama — jadi pintu longgarnya
+// tinggal dipilih. Beda perlakuan antar-alias adalah cara gerbang mati diam-diam.
+router.post('/api/otp', otpRequestValidation, asyncHandler(handleOtpRequest));
 
-router.post('/api/otpverify', asyncHandler(handleOtpVerify));
+router.post('/api/otpverify', otpVerifyValidation, asyncHandler(handleOtpVerify));
 
 // --- ALIASES FOR FRONTEND ---
 

@@ -1629,3 +1629,14 @@
 - **Keputusan pemilik:** cegah + alarm, TANPA jalur refund/kredit otomatis; struk lunas tidak dikirim untuk pembayaran kedua.
 - **Terukur di produksi 2026-08-15:** 0 bayar-ganda, 0 pending menumpuk, volume 1 transaksi tagihan seumur hidup (Dander) / 0 (Tanjungharjo) — ranjau, bukan kebakaran.
 - **Tes:** `lib/__tests__/bill-payment-kelebihan.test.js` (13). Dua guard lama diperbarui jangkarnya (bukan dilonggarkan maksudnya): sumber-tunggal struk kini mengizinkan SATU lompatan lewat aftercare, dan jendela pemindaian try/catch dilebarkan. Suite penuh 485/4726.
+
+<a id="b239"></a>
+
+### Fix 2026-08-16 (OTP bombing: rem dikunci per IDENTITAS, dan berlaku di SEMUA alias)
+
+- **Dua lubang, keduanya perlu ditutup.** (1) Dari EMPAT alias yang memanggil handler OTP yang sama (`routes/public.js`), hanya `/api/auth/otp/request` yang dipasangi `authLimiter` — `/api/otp`, `/api/otpverify`, dan `/api/auth/otp/verify` telanjang, padahal semuanya ada di `PUBLIC_PATHS`. Rem-nya bisa dilewati cukup dengan memilih alias lain. (2) `lib/otp.js` mengunci hitungannya dengan nomor MENTAH (`request_${phoneNumber}`), jadi `081…`, `6281…`, `+62 812-…` adalah TIGA kunci berbeda dengan jatah penuh masing-masing.
+- **Akibat:** satu nomor pelanggan bisa dibanjiri OTP dari nomor bot (risiko nomor bot diblokir WhatsApp), dan lockout "salah 5 kali" pada verifikasi praktis tak berlaku.
+- **Owner kunci: identitas, bukan string yang diketik.** `kunciNomor()` di `lib/otp.js` menormalkan lewat `normalizePhone` (lib/phone-validator) — pola yang SENGAJA menyalin `resolveAuthLimiterKey` (lib/http-security.js) yang sudah benar sejak #b229. Jangan bikin normalisasi tandingan.
+- **`resetOTPAttempts` ikut dinormalkan** — kalau tertinggal memakai nomor mentah, reset akan diam-diam tak menghapus apa pun dan pelanggan yang sudah berhasil verifikasi tetap terkunci.
+- **Validasi disamakan antar-alias:** `/api/otp` & `/api/otpverify` kini memakai `otpRequestValidation`/`otpVerifyValidation` seperti alias `/api/auth/otp/*`. **Catatan perilaku:** validator menolak nomor bertanda hubung/spasi (`^(\+62|62|0)[0-9]{9,12}$`), jadi dua rute lama itu kini lebih sempit dari sebelumnya — sekaligus menutup satu varian format.
+- **Tes:** `lib/__tests__/otp-rate-limit-identitas.test.js` (6, dibuktikan tak hampa: kunci mentah dikembalikan → 5 merah) + `routes/__tests__/otp-limiter-alias.test.js` (9, request NYATA lewat `panggilHttp`, membuktikan jatah habis lintas alias DAN lintas format lalu 429, sementara nomor lain tetap punya jatah).
