@@ -602,13 +602,21 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
         // memperbaiki teksnya saja tidak menghentikan kebocoran di server yang sudah jalan.
         // Dengan key baru, salinan lama di prod jadi yatim/tak terpakai → bocor berhenti tanpa
         // harus mengedit file template prod satu per satu.
-        key = 'conncheck_offline_area_v2';
+        // Key v3: kalimat "kami akan kabari begitu koneksi pulih" DICABUT karena tidak punya
+        // pemilik. Satu-satunya pengabar-pulih di sistem (lib/olt-los-broadcaster) hanya menyapa
+        // pelanggan yang IA SENDIRI sudah DM saat gangguan; pelanggan yang tahu dari "cek koneksi"
+        // tak pernah masuk daftar itu. Jadi dulu pelanggan disuruh menunggu kabar yang secara
+        // struktur tidak akan datang — sambil dilarang membuat laporan.
+        //
+        // Diganti arahan yang SELALU benar dan bisa dia kerjakan sendiri. Key baru (bukan mengedit
+        // v2) karena template produksi di-merge-key: mengedit teks lama tak menghentikan salinan
+        // yang sudah hidup di server, sedangkan key baru membuat salinan lama jadi yatim.
+        key = 'conncheck_offline_area_v3';
         fallback =
             `🔎 *STATUS KONEKSI — ${namaLayanan}*\n\nHalo Kak ${nama}!\n\n` +
             `🔴 *Jalur internet: TERPUTUS*\n` +
-            `⚠️ Terdeteksi *gangguan pada jaringan di area Anda*. ` +
-            `Tim teknisi kami sudah mengetahuinya dan sedang menanganinya.\n\n` +
-            `Anda *tidak perlu* membuat laporan; kami akan kabari begitu koneksi pulih. Mohon ditunggu ya 🙏`;
+            `⚠️ Terdeteksi *gangguan pada jaringan di area Anda*, dan tim teknisi kami sedang menanganinya.\n\n` +
+            `Anda *tidak perlu* membuat laporan terpisah. Untuk memastikan sudah pulih, ketik *cek koneksi* lagi beberapa saat lagi ya 🙏`;
     } else if (lineStatus === 'offline') {
         key = 'conncheck_offline_single';
         fallback =

@@ -57,7 +57,21 @@ async function handleWifiConversationState(context) {
     }
 
     if (managedConversationSteps.has(stateStep)) {
-        return handleConversationState({
+        // WAJIB di-await lalu dipulangkan sebagai { handled: true }.
+        //
+        // Langkah-langkah di `conversation-state-handler` memulangkan hasil `reply()` (Promise
+        // Baileys), BUKAN penanda. Dulu nilai itu dipulangkan apa adanya lalu di-spread oleh
+        // `conversation-state-router` (`{ owner, ...hasil }`) — hasilnya objek TANPA kunci
+        // `handled`, sehingga router menyimpulkan pesan belum ditangani dan `message/raf.js`
+        // memprosesnya SEKALI LAGI beberapa baris kemudian. Gejalanya: pelanggan yang salah
+        // ketik nama/sandi WiFi menerima teguran yang sama DUA KALI.
+        //
+        // Ini juga ranjau: bila `custom_wifi_modification` dinyalakan, pemrosesan kedua bisa
+        // memakai angka pilihan menu ("2") sebagai nama WiFi seisi rumah.
+        //
+        // Semua domain state lain sudah memulangkan `{ handled: true }`; hanya domain ini yang
+        // tertinggal — dikunci tes agar tak terulang.
+        await handleConversationState({
             sender: stateSender,
             chats,
             temp,
@@ -76,6 +90,7 @@ async function handleWifiConversationState(context) {
             namabot,
             buatLaporanGangguan
         });
+        return { handled: true };
     }
 
     return { handled: false };

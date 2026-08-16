@@ -9,6 +9,9 @@
 
 const { isDeviceOnline, getDeviceOfflineMessage: _getDeviceOfflineMessage } = require('../../lib/device-status');
 const { setUserState, getUserState, deleteUserState, format, registerStateTimeoutHandler } = require('./conversation-handler');
+// Draft DURABEL: state percakapan + timer timeout sama-sama hidup di memori dan lenyap saat
+// `pm2 restart`. Store ini yang membuat laporan pelanggan tetap ada sesudahnya.
+const { simpanDraft, hapusDraft } = require('../../lib/laporan-draft-store');
 const { getResponseTimeMessage, isWithinWorkingHours } = require('../../lib/working-hours-helper');
 const { hasActiveReport } = require('../../lib/report-helper');
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
@@ -561,6 +564,7 @@ async function handleMatiTroubleshootOptions({ sender, response, reply: _reply }
             troubleshootingResult: 'failed'
         });
         setUserState(sender, updatedState);
+        simpanDraftLaporanIni(sender, updatedState);
 
         return {
             success: true,
@@ -762,8 +766,10 @@ async function createReportTicket({ sender, state, reply: _reply }) {
         // Get response time
         const estimasi = getResponseTimeMessage(priority);
 
-        // Clear state
+        // Clear state — DAN draft di disk, supaya pemindai boot tak melahirkan tiket KEDUA
+        // untuk laporan yang sudah jadi.
         deleteUserState(sender);
+        buangDraftLaporanIni(sender);
 
         const photoStatus = newReport.photoCount > 0
             ? `${newReport.photoCount} foto dilampirkan`
@@ -791,6 +797,7 @@ async function createReportTicket({ sender, state, reply: _reply }) {
     } catch (error) {
         console.error('[CREATE_REPORT_ERROR]', error);
         deleteUserState(sender);
+        buangDraftLaporanIni(sender);
         return {
             success: false,
             message: renderResponseTemplate(
@@ -819,10 +826,50 @@ async function createReportTicket({ sender, state, reply: _reply }) {
  *
  * Foto adalah LAMPIRAN, bukan syarat lahirnya tiket. NEVER-THROW.
  */
+/**
+ * Tulis draft ke DISK, bukan cuma ke state memori.
+ *
+ * Handler timeout step lampiran (didaftarkan di bawah) sudah menyelamatkan pelanggan yang DIAM
+ * — setelah 15 menit tiketnya tetap lahir. Tapi timer itu hidup di memori: bila proses
+ * `pm2 restart` di tengah jendela 15 menit (produksi restart berkali-kali sehari), state DAN
+ * timer sama-sama lenyap, tiket tak pernah lahir, dan pelanggan menunggu tindak lanjut atas
+ * laporan yang dari sisinya sudah dibuat. Draft di disk membuat jaring itu tetap ada:
+ * `pindaiDraftLaporanTertunda` memindainya saat boot.
+ *
+ * NEVER-THROW: gagal menulis draft tak boleh menjatuhkan alur laporan yang sedang berjalan.
+ */
+function simpanDraftLaporanIni(sender, state) {
+    try {
+        const pelanggan = getReportCustomer(state) || null;
+        simpanDraft(sender, {
+            step: 'REPORT_MATI_PHOTO',
+            // Alur ini memakai bentuk state sendiri (`ticketDraft`), bukan `ticketData` milik
+            // alur legacy — ditandai `alur` supaya pemindai boot memakai promoter yang benar.
+            ticketData: { alur: 'text-menu', state },
+            targetUser: pelanggan,
+            deviceStatus: state && state.deviceStatus ? state.deviceStatus : null
+        });
+    } catch (e) {
+        console.warn('[REPORT_DRAFT] gagal menulis draft durabel:', e && e.message);
+    }
+}
+
+/** Draft sudah tak diperlukan (tiket lahir / dibatalkan). NEVER-THROW. */
+function buangDraftLaporanIni(sender) {
+    try {
+        hapusDraft(sender);
+    } catch (e) {
+        console.warn('[REPORT_DRAFT] gagal menghapus draft:', e && e.message);
+    }
+}
+
 async function promoteReportDraftOnTimeout(userId, state) {
     try {
         if (!state || !getReportCustomer(state)) {
             console.warn('[REPORT_TIMEOUT_PROMOTE] state/pelanggan kosong, dilewati', { userId });
+            // Draft yang tak bisa dipromosikan WAJIB dibuang — kalau tidak, pemindai boot
+            // mencobanya lagi setiap kali proses start, selamanya.
+            buangDraftLaporanIni(userId);
             return;
         }
         const hasil = await createReportTicket({ sender: userId, state, reply: async () => {} });

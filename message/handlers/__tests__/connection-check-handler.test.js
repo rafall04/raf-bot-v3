@@ -102,7 +102,7 @@ describe('handleCekKoneksi', () => {
 
         await handleCekKoneksi(ctx);
 
-        expect(lastReply(ctx)).toBe('conncheck_offline_area_v2');
+        expect(lastReply(ctx)).toBe('conncheck_offline_area_v3');
     });
 
     // Jumlah pelanggan yang ikut offline = DATA USAHA (saat gangguan massal angkanya nyaris sama
@@ -119,7 +119,7 @@ describe('handleCekKoneksi', () => {
 
         await handleCekKoneksi(baseCtx({ users }));
 
-        const call = renderResponseTemplate.mock.calls.find(([key]) => key === 'conncheck_offline_area_v2');
+        const call = renderResponseTemplate.mock.calls.find(([key]) => key === 'conncheck_offline_area_v3');
         expect(call).toBeDefined();
         const [, fallback, data] = call;
         expect(Object.keys(data)).not.toContain('jumlah');
@@ -129,12 +129,15 @@ describe('handleCekKoneksi', () => {
 
     test('template tersimpan gangguan area bebas slot jumlah (template menimpa fallback)', () => {
         const templates = require('../../../database/response_templates.json');
-        expect(templates.conncheck_offline_area_v2).toBeDefined();
+        expect(templates.conncheck_offline_area_v3).toBeDefined();
         // Key lama sengaja DIBUANG dari repo: salinan hasil kustomisasi di prod (merge-key,
         // tak pernah ditimpa deploy) jadi yatim → kebocoran berhenti tanpa edit manual di server.
         expect(templates.conncheck_offline_area).toBeUndefined();
-        expect(templates.conncheck_offline_area_v2.template).not.toContain('${jumlah}');
-        expect(templates.conncheck_offline_area_v2.template).not.toMatch(/\d+\s*pelanggan/i);
+        // v2 menjanjikan 'kami kabari begitu koneksi pulih' — janji yang tak punya pemilik
+        // (pengabar-pulih hanya menyapa yang IA sendiri DM). Dibuang dengan alasan yang sama.
+        expect(templates.conncheck_offline_area_v2).toBeUndefined();
+        expect(templates.conncheck_offline_area_v3.template).not.toContain('${jumlah}');
+        expect(templates.conncheck_offline_area_v3.template).not.toMatch(/\d+\s*pelanggan/i);
     });
 
     test('TERPUTUS hanya pelanggan ini saat mayoritas online', async () => {

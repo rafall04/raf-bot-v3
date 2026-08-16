@@ -756,6 +756,17 @@ async function pindaiDraftLaporanTertunda(now = Date.now()) {
 
     for (const draft of kedaluwarsa) {
         try {
+            // Dua alur laporan menulis ke store yang sama dengan BENTUK STATE BERBEDA:
+            // alur legacy memakai `ticketData`, alur text-menu (yang dipakai pelanggan hari ini)
+            // memakai `ticketDraft` di dalam state-nya sendiri. Menyerahkan draft text-menu ke
+            // promoter legacy akan gagal diam-diam, jadi dipilih promoter yang paham bentuknya.
+            // Require di dalam fungsi: menghindari lingkaran impor antar dua modul laporan.
+            if (draft.ticketData && draft.ticketData.alur === 'text-menu') {
+                const { promoteReportDraftOnTimeout } = require('./smart-report-text-menu');
+                await promoteReportDraftOnTimeout(draft.userId, draft.ticketData.state);
+                dipromosikan += 1;
+                continue;
+            }
             await promoteMatiDraftOnTimeout(draft.userId, {
                 ticketData: draft.ticketData,
                 targetUser: draft.targetUser,

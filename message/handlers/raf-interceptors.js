@@ -82,8 +82,32 @@ function normalizeChatInput(chats) {
     return String(chats || '').toLowerCase().trim();
 }
 
+/**
+ * Apakah pesan ini berarti "batalkan"?
+ *
+ * Dulu daftar ini cocok-PERSIS empat kata (`CANCEL_KEYWORDS`), sehingga "batal aja",
+ * "batalkan", "batal ya kak", "tidak jadi", dan "STOP" semuanya LOLOS — lalu, karena state
+ * WiFi terproteksi dari perintah global, langsung dipakai sebagai NAMA atau SANDI WiFi rumah
+ * pelanggan. Tanpa langkah konfirmasi (setelan `custom_wifi_modification` mati), nilainya
+ * ditulis ke modem dan bot membalas "Berhasil! Kata sandi WiFi telah diubah menjadi: batal aja"
+ * — seluruh perangkat di rumah terputus dan pelanggan mengira itu disengaja.
+ *
+ * Ini kesalahan yang sama dengan daftar afirmasi cocok-persis yang dulu menolak 83% ucapan
+ * setuju nyata (CLAUDE.md). Kini memakai `lib/affirmative-parser` — pemilik parsing bahasa
+ * pelanggan di repo ini — supaya tak ada pola tandingan. Parsernya SENGAJA ketat: satu kata
+ * asing saja membuat pesan diperlakukan sebagai nilai, bukan pembatalan.
+ *
+ * Daftar lama tetap dipertahankan sebagai jaring: bila parser gagal dimuat, perilakunya
+ * kembali persis seperti semula, bukan menjadi "tak ada kata batal sama sekali".
+ */
 function isCancellationKeyword(chats) {
-    return CANCEL_KEYWORDS.includes(normalizeChatInput(chats));
+    const teks = normalizeChatInput(chats);
+    if (CANCEL_KEYWORDS.includes(teks)) return true;
+    try {
+        return require('../../lib/affirmative-parser').isCancelIntent(teks);
+    } catch (_e) {
+        return false;
+    }
 }
 
 function isWifiInputState(step) {

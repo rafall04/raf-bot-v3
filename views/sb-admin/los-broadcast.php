@@ -215,7 +215,11 @@
                 <div class="form-group">
                   <label>Template Pesan ke Pelanggan</label>
                   <textarea class="form-control" name="customerMessageTemplate" rows="6"></textarea>
-                  <small class="text-muted">Placeholder: <code>{customer_name}</code>, <code>{address}</code>, <code>{mac}</code>, <code>{slot}</code>, <code>{onu}</code>, <code>{company_name}</code>.</small>
+                  <small class="text-muted">
+                    Placeholder: <code>{customer_name}</code>, <code>{address}</code>, <code>{company_name}</code>.
+                    <br><b>Tidak boleh</b> memuat data internal jaringan (MAC / slot / ONU / ODP / nama PPPoE)
+                    maupun jumlah pelanggan terdampak &mdash; pelanggan cukup tahu ada gangguan, dan simpanan akan ditolak bila memuatnya.
+                  </small>
                 </div>
                 <div class="alert alert-warning" style="font-size:.82rem;">
                   <i class="fas fa-exclamation-triangle"></i> Pelanggan hanya bisa dinotifikasi bila MAC ONU bisa dipetakan ke data pelanggan (mis. nomor WA tersimpan). Jika tidak teridentifikasi, insiden ditandai <code>customer_unresolved</code> agar admin bisa info manual.

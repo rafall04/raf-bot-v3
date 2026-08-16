@@ -12,6 +12,7 @@ const fs = require("fs");
 const path = require("path");
 const { asyncHandler } = require("../lib/error-handler");
 const losBroadcaster = require("../lib/olt-los-broadcaster");
+const { findCustomerTextLeaks, describeLeaks } = require("../lib/customer-text-guard");
 
 const DEFAULTS = losBroadcaster.DEFAULTS;
 const CONFIG_PATH = path.join(__dirname, "..", "config.json");
@@ -210,6 +211,26 @@ function registerAdminLosBroadcastRoutes(router, deps = {}) {
         // Lewatkan config TERSIMPAN sebagai fallback → Save dari UI yang tak mengirim sub-blok
         // (notifyCustomer/verifyViaScrape/autoTicket) tidak menghapus/menonaktifkannya.
         const normalized = normalizeLosConfig(req.body || {}, cfg.oltLosBroadcast || {});
+
+        // TOLAK DI HULU: template yang dibaca PELANGGAN tak boleh memuat data internal.
+        // Menjaga hanya saat kirim tidak cukup — config produksi di-merge-key (tak pernah
+        // ditimpa deploy), jadi template berbahaya yang terlanjur tersimpan akan bertahan
+        // selamanya dan tiap kirim cuma menghasilkan peringatan berulang. Ditolak di sini,
+        // pemiliknya langsung tahu alasannya.
+        const nc = normalized.notifyCustomer || {};
+        for (const [medan, label] of [["messageTemplate", "Pesan ke Pelanggan"], ["recoveryMessageTemplate", "Pesan Pulih ke Pelanggan"]]) {
+            const bocor = findCustomerTextLeaks(nc[medan] || "");
+            if (bocor && bocor.length) {
+                return res.status(400).json({
+                    status: 400,
+                    message: `Template "${label}" ditolak: ${describeLeaks(bocor)}. `
+                        + `Data internal jaringan (MAC/slot/ONU/ODP/nama PPPoE) dan jumlah pelanggan tidak boleh dibaca pelanggan. `
+                        + `Yang tersedia: {customer_name}, {address}, {company_name}.`,
+                    field: medan,
+                });
+            }
+        }
+
         cfg.oltLosBroadcast = normalized;
         writeConfig(cfg);
         setRuntimeConfig(cfg);
