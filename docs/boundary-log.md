@@ -1640,3 +1640,13 @@
 - **`resetOTPAttempts` ikut dinormalkan** — kalau tertinggal memakai nomor mentah, reset akan diam-diam tak menghapus apa pun dan pelanggan yang sudah berhasil verifikasi tetap terkunci.
 - **Validasi disamakan antar-alias:** `/api/otp` & `/api/otpverify` kini memakai `otpRequestValidation`/`otpVerifyValidation` seperti alias `/api/auth/otp/*`. **Catatan perilaku:** validator menolak nomor bertanda hubung/spasi (`^(\+62|62|0)[0-9]{9,12}$`), jadi dua rute lama itu kini lebih sempit dari sebelumnya — sekaligus menutup satu varian format.
 - **Tes:** `lib/__tests__/otp-rate-limit-identitas.test.js` (6, dibuktikan tak hampa: kunci mentah dikembalikan → 5 merah) + `routes/__tests__/otp-limiter-alias.test.js` (9, request NYATA lewat `panggilHttp`, membuktikan jatah habis lintas alias DAN lintas format lalu 429, sementara nomor lain tetap punya jatah).
+
+<a id="b240"></a>
+
+### Fix 2026-08-16 (Payload STRING ke WhatsApp dinormalkan di gateway — kabar bot ke grup kas tak pernah sampai)
+
+- **Akar.** Baileys menuntut objek `AnyMessageContent`; string mentah ditolak. `sendCritical` sudah menormalkan (`normalizePayload`) dan `gateway.sendText` membungkus `{text}`, TAPI `sendMessage`/`sendMessageToMany`/`safeSendMessage` meneruskan payload apa adanya sampai ke `socket.sendMessage`. Setiap pemanggil yang mengirim string gagal DIAM-DIAM.
+- **Terukur HIDUP, bukan dorman:** `businessExpense.enabled=true` + `groupId` `@g.us` sah di KEDUA bot produksi. Seluruh kabar bot ke grup kas lewat TIGA jalur yang semuanya memanggil `safeSendMessage(grup, teks)` dengan string: `lib/services/kas-group-notifier.js` (draft gaji, gaji dibayar, pengeluaran besar, bantuan — 4 pemanggil), `lib/cron/jobs/money-digest.js`, `lib/cron/jobs/recurring-expense-reminder.js`.
+- **Diperbaiki di KELASNYA:** `normalkanPayload` di `lib/whatsapp-gateway.js`, hop TERAKHIR sebelum Baileys — bukan di tiga pemanggil. Menambal instans membiarkan pemanggil berikutnya lahir dengan cacat yang sama. Objek diteruskan apa adanya (`toBe`, bukan salinan), jadi jalur media/tombol tak berubah; `null`/`undefined` sengaja TIDAK dibungkus supaya kegagalan tetap berisik alih-alih jadi pesan kosong terkirim.
+- **Koreksi terhadap temuan audit:** klaim "5 titik panggil di 3 berkas" tak tepat — `lib/report-notification-service.js` sudah memakai `{ text: ... }` (aman), dan dua hit `telegram/*` adalah klien Telegram, bukan WA. Yang benar-benar mentah: 3 titik di 3 berkas, semuanya jalur grup kas.
+- **Tes:** `lib/__tests__/wa-payload-string-normalisasi.test.js` (7), dibuktikan tak hampa: normalisasi dilepas → 3 merah termasuk pola pemanggil nyata. Socket palsu meniru kontrak Baileys (menolak payload non-objek), jadi yang diuji perilaku, bukan teks sumber.
