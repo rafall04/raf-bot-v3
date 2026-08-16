@@ -3006,11 +3006,6 @@
       "reboot_offer"
     ]
   },
-  "conncheck_offline_area_v2": {
-    "name": "Cek Koneksi: Terputus (Gangguan Area)",
-    "category": "koneksi",
-    "template": "🔎 *STATUS KONEKSI — ${nama_layanan}*\n\nHalo Kak ${nama}!\n\n🔴 *Jalur internet: TERPUTUS*\n⚠️ Terdeteksi *gangguan pada jaringan di area Anda*. Tim teknisi kami sudah mengetahuinya dan sedang menanganinya.\n\nAnda *tidak perlu* membuat laporan; kami akan kabari begitu koneksi pulih. Mohon ditunggu ya 🙏"
-  },
   "conncheck_offline_single": {
     "name": "Cek Koneksi: Terputus (Hanya Anda)",
     "category": "koneksi",
@@ -4447,7 +4442,7 @@
   "speed_status_active_section": {
     "name": "Speed Status: Section Aktif",
     "category": "speed",
-    "template": "*SPEED BOOST AKTIF*\nID: ${requestId}\nPaket: ${packageName}\nKecepatan: ${profile}\nDurasi: ${duration}\nHarga: ${price}\nMulai: ${startedAt}\n${expirationSection}\n"
+    "template": "*SPEED BOOST AKTIF*\nID: ${requestId}\nPaket: ${packageName}\nDurasi: ${duration}\nHarga: ${price}\nMulai: ${startedAt}\n${expirationSection}\n"
   },
   "speed_status_active_expiration_section": {
     "name": "Speed Status: Aktif Dengan Expired",
@@ -5329,7 +5324,7 @@
   },
   "sodb_package_item": {
     "name": "SOD: Baris Item Paket",
-    "template": "*${nomor}.* ${paket} (${profil})",
+    "template": "*${nomor}.* ${paket}",
     "category": "speed"
   },
   "sodb_package_list": {
@@ -5640,5 +5635,10 @@
       "wifiName",
       "currentStock"
     ]
+  },
+  "conncheck_offline_area_v3": {
+    "name": "Cek Koneksi: Terputus (Gangguan Area) v3",
+    "category": "koneksi",
+    "template": "🔎 *STATUS KONEKSI — ${nama_layanan}*\n\nHalo Kak ${nama}!\n\n🔴 *Jalur internet: TERPUTUS*\n⚠️ Terdeteksi *gangguan pada jaringan di area Anda*, dan tim teknisi kami sedang menanganinya.\n\nAnda *tidak perlu* membuat laporan terpisah. Untuk memastikan sudah pulih, ketik *cek koneksi* lagi beberapa saat lagi ya 🙏"
   }
 }

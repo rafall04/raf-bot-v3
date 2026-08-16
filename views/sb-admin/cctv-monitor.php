@@ -240,7 +240,7 @@
                 </div>
                 <small class="text-muted">
                   Variabel:
-                  <code>{customer_name}</code> <code>{cctv_name}</code> <code>{cctv_host}</code>
+                  <code>{customer_name}</code> <code>{cctv_name}</code>
                   <code>{since_local}</code> <code>{up_local}</code> <code>{minutes_down}</code>
                   <code>{uptime_24h}</code> <code>{uptime_7d}</code> <code>{uptime_30d}</code>.
                   Kosongkan untuk pakai template default bawaan. Pesan khusus per-CCTV tetap bisa diatur di form Tambah/Edit.
@@ -383,7 +383,7 @@
           </div>
           <div class="form-group">
             <label>Template Pesan Khusus (opsional)</label>
-            <textarea class="form-control" id="cctv_message" rows="3" placeholder="Kosongkan untuk pakai template default. Variabel: {customer_name}, {cctv_name}, {cctv_host}, {since_local}, {minutes_down}"></textarea>
+            <textarea class="form-control" id="cctv_message" rows="3" placeholder="Kosongkan untuk pakai template default. Variabel: {customer_name}, {cctv_name}, {since_local}, {minutes_down}"></textarea>
           </div>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" id="cctv_enabled" checked>

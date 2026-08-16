@@ -46,10 +46,12 @@ function buildActiveSection(activeRequest) {
         expirationSection = renderResponseTemplate('speed_status_active_no_expiration_section');
     }
 
+    // Slot `profile` SENGAJA tidak dioper: isinya nama profil MikroTik, bukan kecepatan yang
+    // dibeli pelanggan. Handler ini tak bergerbang matrix Speed on Demand — yang menahan
+    // selama ini cuma belum adanya request berstatus aktif. Nama paket + durasi sudah cukup.
     return renderResponseTemplate('speed_status_active_section', {
         requestId: activeRequest.id,
         packageName: activeRequest.requestedPackageName,
-        profile: activeRequest.requestedPackageProfile,
         duration: activeRequest.durationLabel,
         price: convertRupiah.convert(activeRequest.price),
         startedAt: formatDate(activeRequest.activatedAt || activeRequest.createdAt),

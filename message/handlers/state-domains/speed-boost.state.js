@@ -149,13 +149,24 @@ function buildDurationOptions(context, currentPkg, targetPkg) {
         .filter(Boolean);
 }
 
+// STARVASI DATA — slot `profil` SENGAJA tidak dioper lagi.
+//
+// `pkg.profile` adalah nama profil MikroTik, dan angkanya BUKAN yang dibeli pelanggan:
+// terukur di `packages.json`, PAKET-110K dijual "Up To 10Mbps" tetapi profilnya `12Mbps`
+// (juga 15→17, 30→32). Beberapa paket bahkan bernama internal (`PPP-Monitor`, `FREE-10Mbps`).
+//
+// Ini ranjau yang siap meledak SAAT Speed on Demand dinyalakan: template tersimpan
+// `sodb_package_item` SUDAH memakai `${profil}`, jadi tak perlu satu pun edit admin — begitu
+// sakelarnya hidup, daftar paket di WhatsApp langsung menyebut nama profil router ke seluruh
+// pelanggan. Karena itu template-nya diubah pada perubahan yang SAMA (template tersimpan
+// mengalahkan fallback; memperbaiki fallback saja = kode mati).
 function buildPackageListText(context, packages, currentPackageName) {
     const lines = packages
         .map((pkg, i) => renderTpl(
             context,
             "sodb_package_item",
-            `*${i + 1}.* ${pkg.name} (${pkg.profile || pkg.speed || "-"})`,
-            { nomor: i + 1, paket: pkg.name, profil: pkg.profile || pkg.speed || "-" }
+            `*${i + 1}.* ${pkg.name}`,
+            { nomor: i + 1, paket: pkg.name }
         ))
         .join("\n");
 
