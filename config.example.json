@@ -19,6 +19,14 @@
   "accessLimit": "5",
   "check_schedule": "# * * * *",
   "rx_tolerance": "-25",
+  "redamanAlert": {
+    "enabled": true,
+    "roles": [
+      "admin",
+      "teknisi"
+    ],
+    "extraNumbers": []
+  },
   "tokopayKey": "ISI_TOKOPAYKEY",
   "tokopayMerchant": "ISI_TOKOPAYMERCHANT",
   "ipaymuSecret": "ISI_IPAYMUSECRET",

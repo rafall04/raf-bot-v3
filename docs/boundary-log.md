@@ -1661,3 +1661,26 @@
 - **Data dirapikan juga (lapis kedua, atas keputusan pemilik):** profil `FREE-22Mbps` dibuat pemilik di router Tanjungharjo, `PAKET-KHUSUS-50K.profile` diubah 22Mbps→FREE-22Mbps (atomik, 1 field, cadangan `packages.json.bak-wl-*`), dan 1 pelanggan (Widiati) dipindah ke profil itu — 49 pelanggan PAKET-125K TIDAK disentuh. Sesudahnya cron vs pembaca-paket: 2 vs 2, beda 0.
 - **Temuan sampingan (BELUM ditindak):** 4 dari 5 paket whitelist Tanjungharjo menunjuk profil yang TIDAK ADA di router — `PPP-Monitor` (router punya `PPP Monitor`, pakai spasi), `FREE-10Mbps`, `FREE-20Mbps`, `FREE-30Mbps`. Tak berdampak pada gerbang billing (kedua sisi membaca packages.json), tapi provisioning ke paket-paket itu akan gagal.
 - **Tes:** `lib/__tests__/whitelist-paket-bukan-profil.test.js` (14) memakai daftar paket produksi NYATA, termasuk satu tes yang MEMBUKTIKAN cara lama keliru (bukan mengasumsikan) + guard bahwa tak satu pun dari 6 cron kembali memakai pola profil.
+
+<a id="b242"></a>
+
+### Fix 2026-08-16 (Validasi jadwal cron selaras runtime + satu job rusak tak lagi menjatuhkan boot)
+
+- **Akar.** `lib/cron/shared.js` memvalidasi dengan `cron-validator` `{alias:true, allowBlankDay:true}` yang MENERIMA day-of-month `?` gaya Quartz, sementara node-cron 4.x menolaknya dan `cron.schedule()` MELEMPAR `Invalid time value`. Diuji dengan node_modules proyek ini: `"0 0 ? * *"` → cron-validator TRUE · node-cron.validate FALSE · schedule THROW.
+- **Rantai akibatnya lebih panjang dari yang terlihat.** `initializeAllCronTasks()` memanggil 19 init BERURUTAN tanpa penjaga, dan ia dipanggil di dalam `dbInitPromise.then(...)` (`lib/app-runtime.js`) yang di-`catch` berlabel **"[DATABASE] Failed to initialize database"**. Jadi satu jadwal rusak bukan cuma mematikan cron sesudahnya — `initializeUploadDirs`, `temp-cleanup`, `initTopupExpiryChecker`, scraper OLT, dan kolektor traffic ikut batal, dengan pesan galat yang mengirim operator ke tempat yang salah.
+- **Validator = runtime-nya sendiri.** `isValidCron` kini memakai `cron.validate()` (node-cron). Dua validator untuk satu keputusan selalu menyimpang; yang berhak memutuskan adalah yang menjalankan. Diverifikasi: 15 jadwal produksi NYATA lolos sama persis. Gerbang simpan (`validateCronPatch`) memanggil `isValidCron` SEBELUM `writeFileSync`, jadi `?` kini ditolak 400 dan `cron.json` tak pernah tersentuh — bagian "berkas terlanjur rusak" ikut tertutup oleh perbaikan yang sama.
+- **Isolasi per job:** `daftarkanTask(nama, fn)` membungkus tiap init; kegagalan dilaporkan dengan NAMA job-nya (`[CRON_INIT_GAGAL]`) plus ringkasan `n/total terdaftar` — tak pernah bisu.
+- **Bonus dari tes:** penjaga tipe di `isValidCron` dulu berada SESUDAH `.trim()`, jadi nilai non-string MELEMPAR alih-alih dijawab "tidak valid" — ditemukan oleh tes baru, bukan oleh pembacaan.
+- **Tes:** `lib/__tests__/cron-validator-selaras-runtime.test.js` (7), termasuk invarian "apa pun yang lolos validator BENAR-BENAR bisa dijadwalkan".
+
+<a id="b243"></a>
+
+### Fix 2026-08-16 (Penerima alert redaman bisa diatur per peran dari halaman Konfigurasi)
+
+- **Akar.** Penerima DI-HARDCODE: `for (const account of global.accounts) if (account.phone_number && ... && !account.phone_number.startsWith("0"))`. Tak ada filter peran sama sekali, jadi SETIAP akun berponsel dibanjiri. Terukur produksi 2026-08-16: 3 akun per bot (1 admin + 2 teknisi), ketiganya menerima tiap alert, dan pemilik tak punya cara membatasi ke teknisi saja.
+- **`!startsWith("0")` bukan pilihan peran** melainkan pembuangan DIAM-DIAM untuk nomor format lokal (08xx). Kini nomor dinormalkan lewat `normalizePhone` — helper yang sama dengan rate-limit auth (#b229) & OTP (#b239).
+- **Owner baru `lib/redaman-alert-recipients.js`** (`resolvePenerimaRedaman`): pilih per PERAN (admin/owner/superadmin/teknisi) + nomor tambahan di luar akun, dedup lintas sumber, dan sakelar mati. Dibedakan tegas: `roles` ABSEN = semua peran (perilaku lama, supaya fitur ini tak diam-diam mematikan alert), `roles: []` = tak ada peran yang dialerti.
+- **UI di halaman Konfigurasi** (`views/sb-admin/config.php`, dekat Toleransi Redaman): sakelar aktif/mati, multi-select peran, dan nomor tambahan. **GOTCHA yang ikut ditutup:** `collectPaneData` memakai `el.value`, yang pada `<select multiple>` hanya memulangkan opsi PERTAMA — pilihan lain hilang diam-diam; kini dibaca dari `selectedOptions`.
+- **Tak bisu:** setelan yang menghasilkan NOL penerima dicetak sebagai peringatan, karena kalau tidak ia terlihat sama dengan "tak ada device bermasalah".
+- **Tes:** `lib/__tests__/redaman-alert-recipients.test.js` (13) memakai susunan akun produksi nyata, termasuk kasus "teknisi saja" dan akun ber-08xx.
+- **BELUM ditindak:** cooldown alert (`redaman_alert_cooldown_hours`, default 12 jam) disimpan di `Map` MEMORI — hilang tiap restart, dan produksi restart 7–13×/hari, jadi jeda efektifnya cuma "sejak restart terakhir".

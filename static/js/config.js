@@ -43,6 +43,24 @@
                 setValue('genieacsPsbDeviceProvisioningEnabled', json.data.genieacsPsbDeviceProvisioningEnabled !== false ? "true" : "false");
                 setValue('accessLimit', json.data.accessLimit);
                 setValue('rx_tolerance', json.data.rx_tolerance);
+                // Alert redaman: penerima diatur per PERAN + nomor tambahan.
+                // Bawaan (config.redamanAlert absen) = perilaku lama, yaitu SEMUA peran.
+                (function isiSetelanRedaman() {
+                    const ra = json.data.redamanAlert || {};
+                    setValue('redamanAlertEnabled', ra.enabled === false ? 'false' : 'true');
+                    const sel = document.getElementById('redamanAlertRoles');
+                    if (sel) {
+                        // roles absen = semua peran (perilaku lama) -> semua opsi tercentang,
+                        // supaya yang tampil di layar SAMA dengan yang benar-benar berlaku.
+                        const dipilih = Array.isArray(ra.roles)
+                            ? ra.roles.map(function (r) { return String(r).toLowerCase(); })
+                            : Array.from(sel.options).map(function (o) { return o.value; });
+                        Array.from(sel.options).forEach(function (o) {
+                            o.selected = dipilih.indexOf(o.value) !== -1;
+                        });
+                    }
+                    setValue('redamanAlertExtraNumbers', Array.isArray(ra.extraNumbers) ? ra.extraNumbers.join(', ') : '');
+                })();
                 setValue('ipaymuSecret', json.data.ipaymuSecret);
                 setValue('ipaymuVA', json.data.ipaymuVA);
                 setValue('ipaymuCallback', json.data.ipaymuCallback);
@@ -182,6 +200,12 @@
         pane.querySelectorAll('input[name], select[name], textarea[name]').forEach(el => {
           if (el.type === 'checkbox') {
             data[el.name] = el.checked ? 'true' : 'false';
+          } else if (el.multiple) {
+            // `el.value` pada <select multiple> hanya memulangkan opsi PERTAMA yang
+            // terpilih — pilihan lain hilang diam-diam. Harus dibaca dari selectedOptions.
+            // Array kosong SAH (mis. "tidak ada peran yang dialerti") dan wajib terkirim,
+            // jadi jangan diubah jadi undefined/dilewati.
+            data[el.name] = Array.from(el.selectedOptions).map(o => o.value);
           } else {
             data[el.name] = el.value;
           }

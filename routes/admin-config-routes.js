@@ -365,6 +365,30 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     continue;
                 }
 
+                // Alert redaman → objek nested `redamanAlert`. Penerima dulu DI-HARDCODE
+                // "semua akun berponsel" tanpa filter peran; kini pemilik bisa membatasi
+                // (mis. teknisi saja) + menambah nomor di luar akun.
+                if (key === 'redamanAlertEnabled' || key === 'redamanAlertRoles' || key === 'redamanAlertExtraNumbers') {
+                    if (!newMainConfig.redamanAlert) newMainConfig.redamanAlert = {};
+                    if (key === 'redamanAlertEnabled') {
+                        newMainConfig.redamanAlert.enabled = receivedConfig[key] === 'true';
+                    } else if (key === 'redamanAlertRoles') {
+                        // Datang sebagai ARRAY dari <select multiple>. Array KOSONG sah dan
+                        // WAJIB tersimpan apa adanya — artinya "tak ada peran yang dialerti",
+                        // beda dari `roles` yang absen (= semua peran, perilaku lama).
+                        const nilai = receivedConfig[key];
+                        newMainConfig.redamanAlert.roles = (Array.isArray(nilai) ? nilai : String(nilai || '').split(','))
+                            .map((r) => String(r || '').trim().toLowerCase())
+                            .filter(Boolean);
+                    } else {
+                        newMainConfig.redamanAlert.extraNumbers = String(receivedConfig[key] || '')
+                            .split(',')
+                            .map((n) => n.trim())
+                            .filter(Boolean);
+                    }
+                    continue;
+                }
+
                 if (key === 'teknisiCollectionCommissionAmount' || key === 'agenCollectionCommissionAmount') {
                     newMainConfig[key] = Math.max(0, parseInt(receivedConfig[key], 10) || 0);
                     continue;

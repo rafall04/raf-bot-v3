@@ -534,6 +534,40 @@
                   <div class="mb-3">
                     <label for="rx_tolerance">Toleransi Redaman</label>
                     <input type="number" class="form-control" id="rx_tolerance" name="rx_tolerance" />
+                    <small class="form-text text-muted">Redaman lebih buruk dari angka ini memicu alert. Contoh: -26.</small>
+                  </div>
+
+                  <div class="mb-3">
+                    <label for="redamanAlertEnabled">Alert Redaman</label>
+                    <select class="form-control" id="redamanAlertEnabled" name="redamanAlertEnabled">
+                      <option value="true">Aktif</option>
+                      <option value="false">Matikan (tidak mengirim ke siapa pun)</option>
+                    </select>
+                  </div>
+
+                  <div class="mb-3">
+                    <label for="redamanAlertRoles">Penerima Alert Redaman (peran)</label>
+                    <select class="form-control" id="redamanAlertRoles" name="redamanAlertRoles" multiple size="4">
+                      <option value="admin">Admin</option>
+                      <option value="owner">Owner</option>
+                      <option value="superadmin">Superadmin</option>
+                      <option value="teknisi">Teknisi</option>
+                    </select>
+                    <small class="form-text text-muted">
+                      Tahan Ctrl (atau Cmd) untuk memilih lebih dari satu. Pilih <b>Teknisi saja</b>
+                      bila alert redaman tak perlu sampai ke admin. Kalau tak ada satu pun dipilih,
+                      alert hanya dikirim ke Nomor Tambahan di bawah — kosongkan keduanya berarti
+                      tak ada yang menerima.
+                    </small>
+                  </div>
+
+                  <div class="mb-3">
+                    <label for="redamanAlertExtraNumbers">Nomor Tambahan Alert Redaman</label>
+                    <input type="text" class="form-control" id="redamanAlertExtraNumbers" name="redamanAlertExtraNumbers" placeholder="08123456789, 6285xxxxxxx" />
+                    <small class="form-text text-muted">
+                      Pisahkan dengan koma. Untuk orang yang tak punya akun di sistem. Format bebas
+                      (08xx / 62xx / +62xx) — dinormalkan otomatis.
+                    </small>
                   </div>
 
                   <hr>
