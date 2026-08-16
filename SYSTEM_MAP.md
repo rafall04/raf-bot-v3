@@ -344,6 +344,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-16 (Bayar-ganda gateway: satu tagihan hidup per periode + uang yang tetap lolos tak lagi tak terlihat)](docs/boundary-log.md#b238)
 - [Fix 2026-08-16 (OTP bombing: rem dikunci per IDENTITAS, dan berlaku di SEMUA alias)](docs/boundary-log.md#b239)
 - [Fix 2026-08-16 (Payload STRING ke WhatsApp dinormalkan di gateway — kabar bot ke grup kas tak pernah sampai)](docs/boundary-log.md#b240)
+- [Fix 2026-08-16 (Paket whitelist dikunci pada NAMA PAKET, bukan PROFIL — 49 pelanggan berbayar lolos penagihan)](docs/boundary-log.md#b241)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
