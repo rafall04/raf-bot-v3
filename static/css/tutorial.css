@@ -126,3 +126,111 @@ body.tk-dark .tut {
 
 /* Alur hari pertama: langkah bernomor yang saling bergantung, dengan alasan "kenapa". */
 .tut .why { display: block; margin-top: .3rem; font-size: .84rem; color: var(--tfaint); font-style: italic; }
+
+/* ── KETERBACAAN: batasi PANJANG BARIS prosa ──────────────────────────────────────────────────
+   Terukur di panduan admin (viewport 1440px): baris prosa 127–141 karakter — hampir DUA KALI
+   batas nyaman baca (45–75). Mata kehilangan jejak saat kembali ke awal baris berikutnya.
+
+   Penyebabnya bukan font, melainkan `.tut-wide` yang sengaja dilebarkan ke 1040px demi GRID
+   KARTU. Kartunya sendiri sehat (terukur 43 karakter) karena kolom grid sudah membatasinya —
+   yang melar cuma prosanya. Jadi yang dibatasi HANYA prosa; grid, tabel, dan kartu tetap
+   memakai lebar penuh supaya tata letak tiga-kolomnya tidak hilang. */
+/* 60ch, bukan 72ch: satuan `ch` = lebar glif "0" yang lebih lebar dari rata-rata huruf kecil,
+   jadi 72ch terukur 86 karakter nyata — masih di atas batas. 60ch terukur ~72. */
+.tut { --measure: 60ch; }
+.tut .flow-sub,
+.tut .step-t,
+.tut .step-d,
+.tut .why,
+.tut ul.plain,
+.tut .rule,
+.tut .note,
+.tut .bubble,
+.tut details.qa { max-width: var(--measure); }
+
+/* ── Navigasi untuk dokumen panjang (khusus panduan admin) ────────────────────────────────────
+   Terukur: 26.516px tinggi = 29 layar, 16 bagian, 85 kartu, dan navigasinya `position: static`
+   sehingga hilang begitu digulir. Tanpa jangkar yang menetap, satu-satunya cara kembali ke
+   daftar isi adalah menggulir balik 29 layar.
+
+   !! JEBAKAN TATA LETAK sb-admin — `position: sticky` TIDAK BEKERJA di sini, dan gagalnya
+   diam-diam (elemen sekadar ikut hanyut, tanpa error). Terukur: yang benar-benar menggulir
+   adalah `html` (scrollTop 4000, clientHeight 900), sedangkan `body` DAN `#content-wrapper`
+   sama-sama ber-`overflow-y: auto` tetapi tak pernah menggulir sendiri
+   (clientHeight == scrollHeight == 28809). Karena sticky berpatokan pada scrollport TERDEKAT,
+   ia menempel pada `#content-wrapper` — wadah yang justru ikut hanyut. Hasil terukur:
+   bilahnya berakhir di `top: -3762`.
+
+   Membuang `overflow-y` dari `#content-wrapper` akan memperbaikinya, tapi properti itu milik
+   tata letak sb-admin yang dipakai ~95 halaman — terlalu berisiko demi satu halaman. Maka
+   dipakai `position: fixed` yang dinyalakan JS, dengan slot penahan agar tak ada lompatan
+   tata letak saat bilahnya melayang. Topbar sb-admin `position: relative`, jadi `top: 0`
+   tidak bertabrakan dengannya. */
+.tut.tut-wide .tut-bar {
+    position: relative; z-index: 30;
+    display: flex; gap: .5rem; align-items: center; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: .5rem .6rem; margin: 0 0 1rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+.tut.tut-wide .tut-bar.is-melayang {
+    position: fixed; top: 0; z-index: 40;
+    margin: 0; border-radius: 0 0 12px 12px; border-top-color: transparent;
+    box-shadow: 0 4px 14px rgba(0,0,0,.10);
+}
+/* Penahan ruang: tanpa ini, saat bilah melayang halaman melompat setinggi bilahnya.
+   Tingginya 0 saat tak dipakai — BUKAN `display:none`, karena elemen tersembunyi
+   memulangkan rect nol semua sehingga ambang "sudah terlewat" (top < 0) tak pernah
+   tercapai dan bilahnya tak pernah melayang. Tingginya diisi JS saat melayang. */
+.tut.tut-wide .tut-bar-slot { height: 0; }
+.tut.tut-wide .tut-bar .tb-cari {
+    flex: 1 1 220px; min-width: 160px;
+    font: inherit; font-size: .88rem;
+    padding: .42rem .6rem; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--canvas); color: var(--ink);
+}
+.tut.tut-wide .tut-bar .tb-cari::placeholder { color: var(--muted); }
+.tut.tut-wide .tut-bar .tb-lompat {
+    flex: 0 1 260px; max-width: 100%;
+    font: inherit; font-size: .85rem; font-weight: 600;
+    padding: .42rem .5rem; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--canvas); color: var(--ink);
+}
+.tut.tut-wide .tut-bar .tb-hitung { font-size: .78rem; color: var(--muted); margin-left: auto; }
+.tut.tut-wide .tut-bar .tb-atas {
+    flex: none; font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer;
+    padding: .42rem .7rem; border-radius: 8px;
+    border: 1px solid var(--indigo-200); background: var(--adm-soft); color: var(--adm-ink);
+}
+/* Bilah kemajuan baca — orientasi termurah pada dokumen 29 layar. */
+/* `position: sticky` sudah membentuk containing block, jadi anak absolut ini menempel
+   pada bilahnya sendiri — bukan pada halaman. */
+.tut.tut-wide .tut-bar .tb-maju { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 0 0 12px 12px; overflow: hidden; }
+.tut.tut-wide .tut-bar .tb-maju > i { display: block; height: 100%; width: 0; background: var(--adm); transition: width .12s linear; }
+
+/* Bagian yang sedang dibaca ditandai di daftar isi (scroll-spy). */
+.tut .jump a { flex: 0 1 auto; }
+.tut .jump a[aria-current="true"] { outline: 2px solid var(--adm); outline-offset: -2px; }
+
+/* Nomor bagian: memberi rasa "sudah sampai mana" pada dokumen rujukan sepanjang ini. */
+.tut.tut-wide .flow { counter-increment: bagian; }
+.tut.tut-wide .flow h2::before {
+    content: counter(bagian) ". ";
+    color: var(--adm-ink); font-weight: 800;
+}
+.tut.tut-wide { counter-reset: bagian; }
+
+/* Hasil saringan */
+.tut .is-tersaring { display: none !important; }
+.tut .tut-kosong { border: 1px dashed var(--line); border-radius: 12px; padding: 1.2rem; text-align: center; color: var(--muted); font-size: .9rem; }
+.tut mark.tb-sorot { background: var(--adm-soft); color: var(--adm-ink); padding: 0 .1em; border-radius: 3px; }
+
+@media (max-width: 575.98px) {
+    .tut.tut-wide .tut-bar .tb-hitung { display: none; }
+    /* Urutan DOM (cari → lompat → atas) menghasilkan TIGA baris di layar sempit — terukur
+       139px, 17% tinggi layar 812px, padahal bilah ini melayang menutupi isi. Ditata ulang
+       jadi [cari][atas] lalu [lompat] = dua baris. */
+    .tut.tut-wide .tut-bar .tb-cari { order: 1; flex: 1 1 0; min-width: 0; }
+    .tut.tut-wide .tut-bar .tb-atas { order: 2; }
+    .tut.tut-wide .tut-bar .tb-lompat { order: 3; flex-basis: 100%; }
+}

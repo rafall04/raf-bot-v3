@@ -1642,7 +1642,10 @@
         </div>
     </div>
 
-    <script src="<?= rafAssetUrl('/js/teknisi-tutorial.js') ?>"></script>
+    <?php // Panduan admin = dokumen RUJUKAN 29 layar / 16 bagian / 85 kartu, jadi ia butuh
+          // perancah navigasi sendiri (cari, lompat bagian, penanda posisi, kembali ke atas)
+          // yang tidak diperlukan panduan teknisi/agen yang 10x lebih pendek. ?>
+    <script src="<?= rafAssetUrl('/js/admin-tutorial.js') ?>"></script>
 </body>
 
 </html>
