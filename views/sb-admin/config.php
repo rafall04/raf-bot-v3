@@ -570,6 +570,40 @@
                     </small>
                   </div>
 
+                  <div class="mb-3">
+                    <label for="redamanAlertHanyaPelangganSendiri">Cakupan Modem yang Dipantau</label>
+                    <select class="form-control" id="redamanAlertHanyaPelangganSendiri" name="redamanAlertHanyaPelangganSendiri">
+                      <option value="true">Hanya modem pelanggan bot ini (disarankan)</option>
+                      <option value="false">Semua modem yang terlihat di GenieACS</option>
+                    </select>
+                    <small class="form-text text-muted">
+                      Bila satu GenieACS dipakai lebih dari satu bot, pilihan "semua modem" membuat
+                      teknisi menerima alert modem milik bot lain — tanpa nama, HP, alamat, maupun
+                      PPPoE (semua tertulis "Tidak Terdaftar") sehingga tak bisa ditindaklanjuti.
+                    </small>
+                  </div>
+
+                  <div class="mb-3">
+                    <label for="redamanAlertMaxDataAgeMinutes">Batas Umur Data Redaman (menit)</label>
+                    <input type="number" min="0" step="1" class="form-control" id="redamanAlertMaxDataAgeMinutes" name="redamanAlertMaxDataAgeMinutes" placeholder="15" />
+                    <small class="form-text text-muted">
+                      Alert hanya dikirim bila angka redamannya lebih baru dari batas ini. Modem yang
+                      tak menjawab penyegaran dilewati — bot sedang <b>tidak bisa melihat</b>, bukan
+                      sedang melihat modem rusak. Kosongkan untuk memakai bawaan 15 menit;
+                      isi <b>0</b> untuk mematikan pemeriksaan umur.
+                    </small>
+                  </div>
+
+                  <div class="mb-3">
+                    <label for="redamanAlertCooldownHours">Jeda Alert Ulang per Modem (jam)</label>
+                    <input type="number" min="0" step="0.5" class="form-control" id="redamanAlertCooldownHours" name="redamanAlertCooldownHours" placeholder="12" />
+                    <small class="form-text text-muted">
+                      Modem yang sama tidak dialert lagi sebelum jeda ini lewat. Jeda kini tersimpan
+                      di disk, jadi tetap berlaku setelah bot di-restart. Isi <b>0</b> untuk mengalert
+                      setiap siklus.
+                    </small>
+                  </div>
+
                   <hr>
                   <div class="mb-3">
                     <label for="defaultBulkSSID" class="form-label">Default SSID Bulk</label>

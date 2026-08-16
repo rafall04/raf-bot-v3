@@ -60,6 +60,15 @@
                         });
                     }
                     setValue('redamanAlertExtraNumbers', Array.isArray(ra.extraNumbers) ? ra.extraNumbers.join(', ') : '');
+                    // Cakupan & kesegaran: bawaan (key absen) = gerbang HIDUP, karena mengalert
+                    // modem bot lain / dari pembacaan mati bukan fitur melainkan cacat.
+                    setValue('redamanAlertHanyaPelangganSendiri', ra.hanyaPelangganSendiri === false ? 'false' : 'true');
+                    // Angka dibiarkan KOSONG kalau belum disetel supaya placeholder (bawaan)
+                    // yang tampil — menulis "15" ke kotak akan mengunci nilainya diam-diam.
+                    setValue('redamanAlertMaxDataAgeMinutes', ra.maxDataAgeMinutes !== undefined && ra.maxDataAgeMinutes !== null ? ra.maxDataAgeMinutes : '');
+                    var cdJam = ra.cooldownHours;
+                    if (cdJam === undefined || cdJam === null || cdJam === '') cdJam = json.data.redaman_alert_cooldown_hours;
+                    setValue('redamanAlertCooldownHours', cdJam !== undefined && cdJam !== null ? cdJam : '');
                 })();
                 setValue('ipaymuSecret', json.data.ipaymuSecret);
                 setValue('ipaymuVA', json.data.ipaymuVA);

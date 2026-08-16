@@ -25,7 +25,10 @@
       "admin",
       "teknisi"
     ],
-    "extraNumbers": []
+    "extraNumbers": [],
+    "hanyaPelangganSendiri": true,
+    "maxDataAgeMinutes": 15,
+    "cooldownHours": 12
   },
   "tokopayKey": "ISI_TOKOPAYKEY",
   "tokopayMerchant": "ISI_TOKOPAYMERCHANT",

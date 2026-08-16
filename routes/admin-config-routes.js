@@ -368,8 +368,27 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 // Alert redaman → objek nested `redamanAlert`. Penerima dulu DI-HARDCODE
                 // "semua akun berponsel" tanpa filter peran; kini pemilik bisa membatasi
                 // (mis. teknisi saja) + menambah nomor di luar akun.
-                if (key === 'redamanAlertEnabled' || key === 'redamanAlertRoles' || key === 'redamanAlertExtraNumbers') {
+                if (key === 'redamanAlertEnabled' || key === 'redamanAlertRoles' || key === 'redamanAlertExtraNumbers'
+                    || key === 'redamanAlertHanyaPelangganSendiri' || key === 'redamanAlertMaxDataAgeMinutes'
+                    || key === 'redamanAlertCooldownHours') {
                     if (!newMainConfig.redamanAlert) newMainConfig.redamanAlert = {};
+                    if (key === 'redamanAlertHanyaPelangganSendiri') {
+                        newMainConfig.redamanAlert.hanyaPelangganSendiri = receivedConfig[key] === 'true';
+                        continue;
+                    }
+                    if (key === 'redamanAlertMaxDataAgeMinutes' || key === 'redamanAlertCooldownHours') {
+                        // Kotak KOSONG = "pakai bawaan", jadi key-nya DIHAPUS, bukan disimpan 0 —
+                        // menyimpan 0 berarti "matikan gerbang", makna yang sama sekali berbeda.
+                        const target = key === 'redamanAlertMaxDataAgeMinutes' ? 'maxDataAgeMinutes' : 'cooldownHours';
+                        const mentah = String(receivedConfig[key] ?? '').trim();
+                        const angka = Number.parseFloat(mentah);
+                        if (mentah === '' || !Number.isFinite(angka) || angka < 0) {
+                            delete newMainConfig.redamanAlert[target];
+                        } else {
+                            newMainConfig.redamanAlert[target] = angka;
+                        }
+                        continue;
+                    }
                     if (key === 'redamanAlertEnabled') {
                         newMainConfig.redamanAlert.enabled = receivedConfig[key] === 'true';
                     } else if (key === 'redamanAlertRoles') {
