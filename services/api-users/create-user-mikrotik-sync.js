@@ -37,7 +37,18 @@ async function syncMikrotikForNewUser(deps, { newUser, userData, registrationMod
                         mikrotikSync = deps.buildMikrotikSyncResult("applied", `PPPoE user ${newUser.pppoe_username} berhasil ditambahkan ke MikroTik.`);
                     } catch (mikrotikError) {
                         if (mikrotikError.code === "DUPLICATE" || (mikrotikError.message && mikrotikError.message.includes("sudah ada"))) {
-                            mikrotikSync = deps.buildMikrotikSyncResult("applied", `PPPoE user ${newUser.pppoe_username} sudah ada di MikroTik.`);
+                            // !! Pada mode `new`, nama PPPoE yang SUDAH ADA itu janggal — dan dulu
+                            // ditelan diam-diam lalu dicap "applied". Tapi ini SENGAJA tidak
+                            // dijadikan galat keras: urutannya addPPPoE → push ACS → INSERT DB,
+                            // jadi kalau INSERT gagal, secret-nya sudah terlanjur ada dan percobaan
+                            // ulang yang SAH akan selalu kena DUPLICATE. Menghentikannya keras
+                            // berarti mengunci teknisi selamanya. Yang benar: JANGAN diam — catat
+                            // keras supaya bentrok nama kelihatan di log/panel. Penyebab bentrok
+                            // yang sesungguhnya (perintah kembar) sudah ditutup di hulu, #b251.
+                            deps.logger.warn?.(
+                                `[USER_CREATE_PPPOE_DUPLICATE] mode=${registrationMode} username=${newUser.pppoe_username} — akun PPPoE sudah ada di MikroTik sebelum pendaftaran ini; dipakai ulang, TIDAK dibuat baru.`
+                            );
+                            mikrotikSync = deps.buildMikrotikSyncResult("applied", `PPPoE user ${newUser.pppoe_username} sudah ada di MikroTik (dipakai ulang, tidak dibuat baru).`);
                         } else {
                             throw new Error(`Gagal menambahkan user ke MikroTik: ${mikrotikError.message}`);
                         }

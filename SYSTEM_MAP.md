@@ -354,6 +354,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-20 (Cek koneksi: berhenti menyebut jalur ISP ke pelanggan + jalur dari sumber LIVE)](docs/boundary-log.md#b248)
 - [Fix 2026-08-20 (Presisi cek-koneksi: berhenti memvonis dari flag config, satu sampel, dan template basi)](docs/boundary-log.md#b249)
 - [Fix 2026-08-20 (Tangga failover Tanjungharjo: rung VLAN401 + probe jalur utama tak lagi ikut turun tangga)](docs/boundary-log.md#b250)
+- [Fix 2026-08-20 (PSB kerja-dobel, push ACS yang berbohong, dan breaker GenieACS yang memutus dirinya sendiri)](docs/boundary-log.md#b251)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

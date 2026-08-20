@@ -5640,5 +5640,25 @@
     "name": "Cek Koneksi: Terputus (Gangguan Area) v3",
     "category": "koneksi",
     "template": "🔎 *STATUS KONEKSI — ${nama_layanan}*\n\nHalo Kak ${nama}!\n\n🔴 *Jalur internet: TERPUTUS*\n⚠️ Terdeteksi *gangguan pada jaringan di area Anda*, dan tim teknisi kami sedang menanganinya.\n\nAnda *tidak perlu* membuat laporan terpisah. Untuk memastikan sudah pulih, ketik *cek koneksi* lagi beberapa saat lagi ya 🙏"
+  },
+  "psb_provision_ack": {
+    "name": "PSB — sedang diproses (ack)",
+    "template": "⏳ Sedang saya kerjakan, *jangan kirim perintah itu lagi*.\n\nPemasangan butuh sekitar 20–30 detik (daftar ke router + kirim setelan ke modem). Saya kabari begitu selesai.",
+    "category": "psb"
+  },
+  "psb_provision_masih_jalan": {
+    "name": "PSB — pemicu diulang saat masih diproses",
+    "template": "⏳ Sabar, yang tadi *masih saya kerjakan*.\n\nJangan diulang — mengulang justru membuat pendaftaran bentrok dengan dirinya sendiri. Tunggu balasan hasilnya.",
+    "category": "psb"
+  },
+  "psb_provision_sudah_jadi": {
+    "name": "PSB — pendaftaran ternyata sudah berhasil",
+    "template": "✅ Tenang, pendaftaran *${nama}* sebenarnya *SUDAH BERHASIL*.\n\nYang barusan cuma perintah kembar yang menabrak hasilnya sendiri — tidak ada yang rusak, tidak perlu diulang.\n\n${lanjutan}",
+    "category": "psb"
+  },
+  "psb_provision_gagal": {
+    "name": "PSB — gagal membuat pelanggan",
+    "template": "❌ Pendaftaran *${nama}* belum jadi.\n\nSebabnya: ${sebab}\n\n${lanjutan}",
+    "category": "psb"
   }
 }

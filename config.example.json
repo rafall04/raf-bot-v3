@@ -718,5 +718,9 @@
     "tickMs": 5000,
     "itemDelayMs": 0,
     "maxItemsPerJob": 500
-  }
+  },
+  "genieacsRefreshConcurrency": 8,
+  "genieacsRefreshTimeoutMs": 10000,
+  "redamanCronAlertAfter": 3,
+  "redamanCronAlertCooldownMs": 21600000
 }

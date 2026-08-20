@@ -43,6 +43,11 @@
  *              hasil push modem (`body.device_config{attempted,ok}`): klaim "online/di-push" hanya bila
  *              `ok`, selain itu minta set manual (anti sukses-semu). Kabar welcome ikut `body.welcome`
  *              (bukan disimpulkan dari push modem — dua hal yang tak berhubungan). NEVER-THROW.
+ *              Provisioning DIJAGA anti-kerja-dobel (`SEDANG_PROVISION`, sinkron, per `stateSender`)
+ *              dan mengirim ack SEBELUM kerja panjang; pemicu kembar ditolak, bukan dijalankan lagi.
+ *              Pesan gagal TIDAK pernah mengoper `e.message` mentah, memeriksa dulu apakah
+ *              pelanggannya ternyata sudah jadi, dan hanya menjanjikan `#PSB`+`LANJUT` bila draft
+ *              memang masih ada (#b251).
  */
 "use strict";
 
@@ -941,8 +946,113 @@ async function readBandCapability(fetchDeviceCapability, deviceId, operation, lo
     return null;
 }
 
+// !! PENJAGA KERJA-DOBEL PROVISIONING (#b251).
+// Kunci per-pengirim di router (`lib/state-manager`) adalah jaring DARURAT, bukan andalan —
+// dan dulu ia melepas diri di detik ke-10 sementara satu putaran provisioning butuh ±21 detik,
+// sehingga pemicu kedua dari teknisi lolos dan dua provisioning berjalan paralel: yang kedua
+// menabrak hasil yang pertama (PPPoE DUPLICATE + UNIQUE users.id) lalu melapor "GAGAL" padahal
+// pelanggannya SUDAH JADI. Set ini SINKRON — dua pesan di tick yang sama pun tak bisa dua-duanya
+// lolos, beda dengan `setUserState` yang async. Di-key `stateSender` kanonik (bukan @lid).
+const SEDANG_PROVISION = new Set();
+
+// Teks yang dibaca teknisi WAJIB lewat template supaya bisa diedit admin di `/api/templates`.
+// `renderResponseTemplate` sudah never-throw dan memulangkan fallback apa adanya bila key absen /
+// slot-nya basi — jadi dipanggil LANGSUNG (bukan lewat pembungkus lokal) karena guard
+// `message/__tests__/response-template-key-integrity.test.js` memindai pola pemanggilan ini;
+// pembungkus akan menyembunyikan key baru dari guard.
+//
+// !! Fallback WAJIB template literal (backtick), bukan string kutip tunggal. Fallback dipulangkan
+// APA ADANYA, jadi `'...${nama}...'` akan mengirim `${nama}` MENTAH ke teknisi.
+const { renderResponseTemplate } = require("../template-helpers");
+
+// !! JANGAN PERNAH memvonis "gagal" tanpa memeriksa kenyataannya (#b251).
+// Kejadian nyata 2026-08-20: perintah kembar menabrak hasil kerja kembarannya sendiri, lalu
+// teknisi dibalas `❌ Gagal membuat pelanggan: SQLITE_CONSTRAINT: UNIQUE constraint failed:
+// users.id` — padahal pelanggannya SUDAH JADI. Tiga cacat sekaligus: vonis terbalik, jargon
+// database mentah dibocorkan ke WhatsApp, dan jalan pemulihan yang disarankan (`#PSB` + `LANJUT`)
+// sudah mati karena kembaran yang sukses menghapus draft-nya. Fungsi ini menutup ketiganya:
+// bukti dulu (apakah PPPoE-nya benar-benar sudah terdaftar), baru bicara.
+function pelangganSudahAda(pppoeUsername) {
+    if (!pppoeUsername) return null;
+    const daftar = Array.isArray(global.users) ? global.users : [];
+    return daftar.find((u) => u && String(u.pppoe_username || "").toLowerCase() === String(pppoeUsername).toLowerCase()) || null;
+}
+
+// Terjemahkan galat teknis ke sebab yang bisa ditindak teknisi. TIDAK PERNAH mengoper `e.message`.
+function sebabTerbaca(pesan) {
+    const s = String(pesan || "").toLowerCase();
+    if (s.includes("unique constraint") || s.includes("sqlite_constraint")) return "data pendaftaran ini bentrok dengan data yang sudah ada";
+    if (s.includes("sudah ada") || s.includes("duplicate")) return "nama akun PPPoE-nya sudah dipakai";
+    if (s.includes("mikrotik")) return "router tidak bisa dihubungi saat mendaftarkan akun";
+    if (s.includes("genieacs") || s.includes("acs")) return "server pengatur modem sedang tidak bisa dihubungi";
+    if (s.includes("timeout") || s.includes("etimedout")) return "sambungan ke perangkat jaringan timeout";
+    if (s.includes("odp")) return "ODP yang dipilih bermasalah (penuh atau tidak ditemukan)";
+    return "ada kendala teknis di sisi sistem";
+}
+
+async function teksGagalProvision(context, ctx, err) {
+    const { logger = console } = context;
+    const nama = (ctx && ctx.data && ctx.data.nama) || "pelanggan";
+    const pppoe = ctx && ctx.pppoeUsername;
+
+    // BUKTI dulu: kalau PPPoE-nya sudah terdaftar, ini kembaran yang menabrak — BUKAN kegagalan.
+    const sudah = pelangganSudahAda(pppoe);
+    if (sudah) {
+        logger?.warn?.(`[PSB_DM] vonis gagal DIBATALKAN: ${pppoe} ternyata sudah terdaftar (id ${sudah.id}) — ini tabrakan perintah kembar`);
+        const lanjutanSudah = "Cek di panel kalau mau memastikan. Kalau setelan modem belum masuk, dorong ulang dari menu WiFi.";
+        return renderResponseTemplate(
+            "psb_provision_sudah_jadi",
+            `✅ Tenang, pendaftaran *${nama}* sebenarnya *SUDAH BERHASIL*.\n\nYang barusan cuma perintah kembar yang menabrak hasilnya sendiri — tidak ada yang rusak, tidak perlu diulang.\n\n${lanjutanSudah}`,
+            { nama, lanjutan: lanjutanSudah }
+        );
+    }
+
+    // Jalan pemulihan hanya boleh dijanjikan kalau draft-nya MEMANG masih ada.
+    let masihAdaDraft = false;
+    try { masihAdaDraft = Boolean(readDraft(context)); } catch (_e) { masihAdaDraft = false; }
+    const lanjutan = masihAdaDraft
+        ? "Datamu SAYA SIMPAN — ketik *#PSB* lalu balas *LANJUT* untuk mencoba lagi."
+        : "Data wizard-nya sudah tidak tersimpan, jadi pendaftaran perlu diulang dari *#PSB*. Maaf.";
+
+    const sebab = sebabTerbaca(err && err.message);
+    return renderResponseTemplate(
+        "psb_provision_gagal",
+        `❌ Pendaftaran *${nama}* belum jadi.\n\nSebabnya: ${sebab}\n\n${lanjutan}`,
+        { nama, sebab, lanjutan }
+    );
+}
+
 // ── Provisioning FINAL (dipanggil hanya setelah YA / pilih nomor) ──
+// Pembungkus: satu penjaga untuk KETIGA pintu masuk (STEP_CONFIRM, STEP_PICK, STEP_TAKEOVER),
+// plus ack SEBELUM kerja panjang — diamnya bot ±21 detik itulah yang dulu mengundang teknisi
+// mengetik ulang kata pemicu.
 async function provision(context, ctx, candidate) {
+    const { reply, stateSender, logger = console } = context;
+
+    if (SEDANG_PROVISION.has(stateSender)) {
+        logger?.warn?.(`[PSB_DM] pemicu provisioning DOBEL ditolak untuk ${stateSender} — yang pertama masih jalan`);
+        await safeReply(reply, renderResponseTemplate(
+            "psb_provision_masih_jalan",
+            "⏳ Sabar, yang tadi *masih saya kerjakan*.\n\nJangan diulang — mengulang justru membuat pendaftaran bentrok dengan dirinya sendiri. Tunggu balasan hasilnya.",
+            {}
+        ), logger);
+        return;
+    }
+
+    SEDANG_PROVISION.add(stateSender);
+    try {
+        await safeReply(reply, renderResponseTemplate(
+            "psb_provision_ack",
+            "⏳ Sedang saya kerjakan, *jangan kirim perintah itu lagi*.\n\nPemasangan butuh sekitar 20–30 detik (daftar ke router + kirim setelan ke modem). Saya kabari begitu selesai.",
+            {}
+        ), logger);
+        return await provisionInner(context, ctx, candidate);
+    } finally {
+        SEDANG_PROVISION.delete(stateSender);
+    }
+}
+
+async function provisionInner(context, ctx, candidate) {
     const { reply, deleteUserState, stateSender, usersService, getConfig, sendGroupSummary, botAreaLabel, fetchDeviceCapability, scheduleService, nowMs = Date.now(), logger = console } = context;
     const cfg = ((getConfig && getConfig()) || global.config || {});
     const psbCfg = cfg.psbIntake || {};
@@ -1014,14 +1124,14 @@ async function provision(context, ctx, candidate) {
         // Draft SENGAJA tidak dibuang saat gagal: kegagalannya bisa transien (router/ACS sedang
         // ngadat), dan memaksa teknisi memotret KTP + rumah lagi adalah hukuman untuk kesalahan
         // yang bukan miliknya.
-        await safeReply(reply, `❌ Gagal membuat pelanggan: ${e.message}\n\nDatamu SAYA SIMPAN — ketik *#PSB* lalu balas *LANJUT* untuk mencoba lagi.`, logger);
+        await safeReply(reply, await teksGagalProvision(context, ctx, e), logger);
         deleteUserState(stateSender);
         return;
     }
 
     if (!result || result.status >= 400) {
         const errMsg = (result && result.body && result.body.message) || "gagal membuat pelanggan";
-        await safeReply(reply, `❌ Gagal daftar *${ctx.data.nama}*: ${errMsg}\n\nDatamu SAYA SIMPAN — ketik *#PSB* lalu balas *LANJUT* untuk mencoba lagi.`, logger);
+        await safeReply(reply, await teksGagalProvision(context, ctx, new Error(errMsg)), logger);
         deleteUserState(stateSender);
         return;
     }

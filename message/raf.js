@@ -580,6 +580,12 @@ module.exports = async (raf, msg, m, options = {}) => {
     const rupiah = await saldoRepository.getSaldoUser(primarySenderId);
     convertRupiah.convert(rupiah)
 
+    // !! Kunci HANYA boleh dilepas oleh pemanggil yang benar-benar MENGAMBILNYA (#b251).
+    // Cacat lama: penolakan duplikat di bawah ini ada DI DALAM `try`, sedangkan `finally`-nya
+    // memanggil `clearProcessing` tanpa syarat — jadi pesan KEMBAR yang baru saja DITOLAK justru
+    // MEMBUKA kunci milik pesan yang masih berjalan. Pesan ketiga lalu masuk dan jalan paralel.
+    // Artinya penjaga anti-kerja-dobel ini menghancurkan dirinya sendiri persis saat dibutuhkan.
+    let lockDiambil = false;
     try {
         if (isProcessing(stateSender)) {
             console.log(`[CONCURRENT_PREVENTED] ${stateSender} already being processed, skipping`);
@@ -587,6 +593,7 @@ module.exports = async (raf, msg, m, options = {}) => {
         }
 
         setProcessing(stateSender);
+        lockDiambil = true;
 
         const smartReportState = getUserState(stateSender);
 
@@ -1359,6 +1366,7 @@ module.exports = async (raf, msg, m, options = {}) => {
         if (typeof err === "string") return reply(String(err));
         console.log(err)
     } finally {
-        clearProcessing(stateSender);
+        // Lihat catatan di atas: JANGAN lepas kunci yang bukan milik pemanggilan ini.
+        if (lockDiambil) clearProcessing(stateSender);
     }
 }
