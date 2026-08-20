@@ -166,11 +166,9 @@ async function buildUpstreamSection(user) {
         if (!entry) return '';
         if (!['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(entry.status)) return '';
 
-        const targets = Array.isArray(entry.targets) ? entry.targets.filter((t) => t.samples > 0) : [];
-        const avg = (field) => {
-            const vals = targets.map((t) => t[field]).filter((v) => v != null);
-            return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(0) : '-';
-        };
+        // Penghitung angka teknis (targets/avg) DIHAPUS: setelah slot loss/rtt tak lagi dioper,
+        // ia jadi kode hantu di dalam fungsi yang tugasnya justru TIDAK menyebut angka —
+        // undangan untuk mengulang bug yang sama.
 
         // Pelanggan jalur MNI: WhatsApp/game dipaksa router lewat IH — bila IH normal,
         // jelaskan kenapa "chat lancar tapi browsing lambat" (pola komplain korpus).
@@ -254,7 +252,15 @@ function classifyOnlineVerdict(up) {
     if (up.status === 'NORMAL') return 'HEALTHY';
     // status null → IP pelanggan belum terpetakan ke jalur, atau fitur upstream mati.
     if (up.anyDegraded) return 'POSSIBLE_UPSTREAM';
-    if (upstreamSignalAvailable()) return 'HEALTHY'; // monitor aktif & TAK ada jalur bermasalah → semua jalur sehat.
+    // DULU: `if (upstreamSignalAvailable()) return 'HEALTHY'` — vonis SEHAT hanya karena FLAG
+    // CONFIG menyala. Itu melanggar prinsip yang ditulis di doc fungsi ini sendiri ("JANGAN
+    // klaim normal tanpa bukti") dan larangan CLAUDE.md "Gate on evidence, not on a config flag".
+    //
+    // "Tak ada jalur bermasalah" MENCAKUP "semua jalur UNKNOWN": poller mati, DB kosong, atau
+    // bot baru restart (produksi restart berkali-kali sehari). Di keadaan itu bot sedang BUTA,
+    // bukan sedang melihat jaringan sehat — dan pelanggan yang mengeluh dibantah "terpantau
+    // normal". Sekarang jatuh ke INCONCLUSIVE: "Koneksi Anda terpantau aktif" — jujur, PPPoE
+    // memang aktif, tapi kami tidak mengklaim jaringannya normal.
     return 'INCONCLUSIVE'; // tak ada sinyal upstream sama sekali → tak bisa klaim "normal", tapi PPPoE aktif.
 }
 

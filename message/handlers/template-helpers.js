@@ -27,6 +27,23 @@ const { renderCategoryTemplate } = require('../../lib/template-service');
 function renderResponseTemplate(key, fallback, data = {}) {
     try {
         const result = renderCategoryTemplate('responseTemplates', key, data);
+        // JARING PENGAMAN pola "starvasi data": template TERSIMPAN yang masih memakai slot
+        // yang sudah TIDAK dioper kode akan merender `${slot}` MENTAH ke pelanggan —
+        // `template-service.renderString` sengaja memulangkan placeholder tak dikenal apa
+        // adanya. Di produksi berkas template di-merge-key (tak pernah ditimpa deploy), jadi
+        // tiap kali sebuah slot dicabut demi keamanan, salinan lama di server akan
+        // membocorkan tulisan mentah — lebih buruk daripada kebocoran aslinya.
+        //
+        // Karena itu: ada slot tak terselesaikan → JATUH ke fallback kode (selalu
+        // self-consistent) + cetak peringatan supaya template basinya bisa dirapikan.
+        if (result && result.found && Array.isArray(result.unresolved) && result.unresolved.length) {
+            console.warn('[TEMPLATE_SLOT_BASI]', {
+                key,
+                unresolved: result.unresolved.slice(0, 5),
+                tindakan: 'pakai fallback kode — rapikan template di /api/templates'
+            });
+            return fallback;
+        }
         if (result && result.found && typeof result.text === 'string' && result.text.trim()) {
             return result.text;
         }
