@@ -351,6 +351,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-16 (Panduan admin: panjang baris prosa + navigasi dokumen 29 layar)](docs/boundary-log.md#b245)
 - [Fix 2026-08-16 (Bot↔pelanggan: penjaga data internal di jalur OLT, kata batal, dan pesan dobel)](docs/boundary-log.md#b246)
 - [Fix 2026-08-16 (Identitas internal jaringan tak lagi dioper ke jalur pelanggan — starvasi data)](docs/boundary-log.md#b247)
+- [Fix 2026-08-20 (Cek koneksi: berhenti menyebut jalur ISP ke pelanggan + jalur dari sumber LIVE)](docs/boundary-log.md#b248)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

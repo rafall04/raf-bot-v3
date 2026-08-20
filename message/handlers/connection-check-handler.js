@@ -185,21 +185,26 @@ async function buildUpstreamSection(user) {
             }
         }
 
-        // Pesan pelanggan SEDERHANA: cukup "jalur internet Anda sedang ada kendala" — label ISP
-        // internal (GMDP/MNI) & angka loss/rtt tak berarti bagi awam, tetap dikirim sbg var
-        // template untuk owner/kustomisasi. Fokus: cepat dipahami + "bukan perangkat Anda".
-        const statusLabel = entry.status === 'PUTUS' ? 'TERPUTUS' : entry.status;
+        // STARVASI DATA — `jalur_label`/`status_label`/`loss`/`rtt` SENGAJA tidak dioper lagi.
+        //
+        // Dulu keempatnya tetap dikirim "sbg var template untuk owner/kustomisasi". Justru itu
+        // akarnya: template TERSIMPAN mengalahkan fallback, dan berkas template produksi
+        // di-merge-key (tak pernah ditimpa deploy) — jadi teks lama yang berbunyi "jalur
+        // upstream yang dipakai paket Anda (MNI) sedang DEGRADASI (loss 2%, respons 310ms)"
+        // TETAP HIDUP walau fallback di kode sudah disederhanakan. Selama slotnya dioper,
+        // nama ISP internal bisa muncul lagi kapan saja tanpa satu baris kode berubah.
+        //
+        // Nama jalur juga TAK LAYAK DIPERCAYA untuk pelanggan: peta CIDR→jalur adalah
+        // snapshot recon router 2026-07-07 — terukur 13% pelanggan aktif (subnet .80/.73)
+        // tak ada di peta, dan premisnya runtuh karena subnet yang sama muncul di DUA
+        // address-list router. Menyebut jalur yang SALAH lebih buruk daripada diam.
+        //
+        // Label/angka tetap dipakai INTERNAL (alert admin, tiket teknisi).
         return renderResponseTemplate(
             'conncheck_upstream_issue',
             `\n\n🛣️ *Info koneksi:* jalur internet yang dipakai paket Anda sedang ada kendala saat ini. ` +
             `Ini dari sisi jaringan kami — *bukan dari perangkat Anda* — dan tim sudah menerima peringatan otomatis. Mohon ditunggu ya 🙏${catatanKhusus}`,
-            {
-                jalur_label: entry.label,
-                status_label: statusLabel,
-                loss: avg('loss_avg_pct'),
-                rtt: avg('rtt_avg_ms'),
-                catatan_khusus: catatanKhusus
-            }
+            { catatan_khusus: catatanKhusus }
         );
     } catch (_e) {
         return '';
