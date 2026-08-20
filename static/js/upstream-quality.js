@@ -123,7 +123,9 @@
         if (aktif.length) {
             banner.classList.remove("d-none");
             banner.innerHTML = "<b>Failover aktif:</b> " + aktif.map(function (m) {
-                return esc(m) + " → " + esc(fo[m].backup_gateway);
+                // active_gateway = rung yang BENAR-BENAR dipakai (bisa rung tengah);
+                // backup_gateway hanya cadangan bagi laporan lama.
+                return esc(m) + " → " + esc(fo[m].active_gateway || fo[m].backup_gateway);
             }).join(", ");
         } else {
             banner.classList.add("d-none");

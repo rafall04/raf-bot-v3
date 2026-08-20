@@ -1759,3 +1759,16 @@
 - **Dibersihkan:** penghitung `targets`/`avg` di seksi upstream — kode hantu di dalam fungsi yang justru bertugas tidak menyebut angka.
 - **BELUM ditindak (butuh ukur dulu, jangan tebak ambang):** catatan "WhatsApp & game lewat jalur berbeda" digerbangi hanya `pathKey === 'mni'` — salah untuk pelanggan hasil override steering, yang SELURUH trafiknya lewat MNI. Dan probe tetap mengukur handshake, bukan throughput video.
 - **Tes:** `lib/__tests__/presisi-cek-koneksi.test.js` (12).
+
+<a id="b250"></a>
+
+### Fix 2026-08-20 (Tangga failover Tanjungharjo: rung VLAN401 + probe jalur utama tak lagi ikut turun tangga)
+
+- **Owner:** router MikroTik per situs untuk tangga default route; `lib/upstream-quality-poller.js` `detectFailover()` untuk pelaporan failover. Config prod `upstreamMonitor.paths[].routingTable` yang memaku tiap jalur ke mark-nya sendiri.
+- **Pemicu:** VLAN401 (GMDP backup) Tanjungharjo hidup. Tangga nyata ternyata VLAN62→radio (VLAN401 TAK ada di tangga), padahal radio terukur loss 10–13%. Disisipkan rung recursive d=2 (jangkar `10.80.51.1/32 via 100.10.10.1 scope=10` + default `gw=10.80.51.1 target-scope=10`), radio→d=3, Indibiz→d=4.
+- **Cacat sesungguhnya — KEBUTAAN, bukan routing.** Jalur `main`/`gmdp` diprobe lewat TABEL UTAMA (`routingTable: null`). Begitu ada rung cadangan sehat, matinya jalur utama membuat probe ikut turun tangga → bot melaporkan jalur utama **hijau sempurna** persis ketika ia mati. Ditambal dengan mark `GMDP-PROBE` (plain, gw langsung, TANPA check-gateway) + `routingTable: "GMDP-PROBE"`. **Cacat sama ditemukan & ditambal di DANDER** (tangga 3 rung GMDP→GMDP2→MNI sudah buta sejak lama).
+- **GOTCHA ROS v6 — `check-gateway` dilacak per ALAMAT gateway, bukan per baris route.** Rung d=5 (`GMDP-PLAIN`, gw 195.168.62.1, check-gateway=ping) berbagi alamat dengan JANGKAR rung utama `10.78.0.3/32` → vonis ICMP di cadangan terakhir bisa mematikan jangkar rung utama. `check-gateway` d=5 dicabut (rung itu memang dirancang "tanpa deteksi upstream"). Karena itu route probe baru sengaja TANPA check-gateway.
+- **`detectFailover()` menebak cadangan dari rung TERAKHIR** (`sorted[len-1]`) — asumsi tangga 2 rung. Dengan 3 rung (Dander) dan 5 rung (Tanjung), pindah ke rung TENGAH tak pernah terdeteksi → "BACKUP AKTIF" tak pernah menyala, redundansi bisa habis diam-diam. Kini rung aktif = distance terkecil yang `active`; `failover = active !== primary`; ditambah `active_gateway`/`active_distance`. `backup_*` dipertahankan (saat failover menunjuk rung yang SEDANG dipakai).
+- **GOTCHA verifikasi:** route bermark tampil `active=false` sesaat setelah `/ip/route/add` (konvergensi) — jangan divonis gagal. Bukti sah = **selisih penghitung paket interface** + `traceroute` hop-1, BUKAN kemiripan RTT (VLAN62 & VLAN401 bertemu di hop-3 sehingga RTT-nya memang mirip).
+- **Sisa risiko:** jangkar hanya membuktikan edge GMDP membalas ICMP — putusnya transit di hop-3 ke atas tidak menurunkan tangga (sifat yang sudah ada pada rung d=1, bukan regresi); tertutup sebagian oleh probe target-jauh setelah `GMDP-PROBE` aktif.
+- **Tes:** `lib/__tests__/upstream-quality-poller.test.js` — 5 tes baru untuk tangga ≥3 rung (rung tengah, 5 rung, semua mati, rung disabled).
