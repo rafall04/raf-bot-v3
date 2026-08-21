@@ -981,6 +981,17 @@ function pelangganSudahAda(pppoeUsername) {
 // Terjemahkan galat teknis ke sebab yang bisa ditindak teknisi. TIDAK PERNAH mengoper `e.message`.
 function sebabTerbaca(pesan) {
     const s = String(pesan || "").toLowerCase();
+    // !! URUTAN PENTING — yang SPESIFIK harus didahulukan.
+    // `lib/phone-validator-international.js` memulangkan "Duplicate phone numbers found in input";
+    // tanpa cabang HP di ATAS cabang `duplicate` generik, teknisi diberi tahu "nama akun PPPoE-nya
+    // sudah dipakai" untuk masalah NOMOR HP — salah sasaran, dan menyuruh dia membetulkan hal yang
+    // tidak rusak. Sebab yang salah lebih berbahaya daripada sebab yang kabur.
+    if (s.includes("phone") || s.includes("nomor") || s.includes("hp ")) {
+        if (s.includes("duplicate") || s.includes("sudah dipakai") || s.includes("sudah digunakan")) {
+            return "nomor HP-nya sudah terdaftar atas pelanggan lain";
+        }
+        return "nomor HP-nya tidak sesuai format";
+    }
     if (s.includes("unique constraint") || s.includes("sqlite_constraint")) return "data pendaftaran ini bentrok dengan data yang sudah ada";
     if (s.includes("sudah ada") || s.includes("duplicate")) return "nama akun PPPoE-nya sudah dipakai";
     if (s.includes("mikrotik")) return "router tidak bisa dihubungi saat mendaftarkan akun";

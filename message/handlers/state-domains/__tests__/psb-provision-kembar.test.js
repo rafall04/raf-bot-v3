@@ -185,6 +185,20 @@ describe("#b251 — pesan gagal harus jujur", () => {
         expect(balasan).not.toMatch(/Datamu SAYA SIMPAN/i);
     });
 
+    test("galat HP ganda TIDAK boleh dibaca sebagai bentrok PPPoE", async () => {
+        // `lib/phone-validator-international.js` memulangkan "Duplicate phone numbers found in
+        // input". Cabang `duplicate` generik akan menyuruh teknisi membetulkan nama PPPoE —
+        // hal yang sama sekali tidak rusak.
+        const upsert = jest.fn(async () => { throw new Error("Duplicate phone numbers found in input"); });
+        const h = harness({ usersService: { upsertUserFromAdminPanel: upsert } });
+        await sampaiKonfirmasi(h);
+        await kirim(h, h.getState(), "YA");
+
+        const balasan = semuaBalasan(h);
+        expect(balasan).toMatch(/nomor HP/i);
+        expect(balasan).not.toMatch(/PPPoE-nya sudah dipakai/i);
+    });
+
     test("draft MASIH ada → jalan pemulihan boleh dijanjikan", async () => {
         const upsert = jest.fn(async () => { throw new Error("router tidak bisa dihubungi"); });
         const h = harness({ usersService: { upsertUserFromAdminPanel: upsert } });
