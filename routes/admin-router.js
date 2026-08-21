@@ -13,7 +13,7 @@ const fs = require("fs");
 const path = require("path");
 const { exec } = require("child_process");
 const sqlite3 = require("sqlite3").verbose();
-const { buatGerbangTeknisi } = require("../lib/authz");
+const { buatGerbangTeknisi, cocokkanJalur } = require("../lib/authz");
 const { IZIN_TEKNISI_API } = require("./teknisi-izin-api");
 const { createAdminRoutes } = require("./admin.routes");
 const adminLegacyRouter = require("./admin");
@@ -216,7 +216,19 @@ function createAdminRouter({ runtime } = {}) {
     // pada cek kedua manual di dalam handler — terukur 119 dari 185 rute hidup tak punya itu,
     // dan akibat terburuknya sudah terbukti live (#b252: kredensial router inti terbaca teknisi).
     // Gerbang ini HANYA bertindak untuk peran teknisi; peran lain lewat apa adanya.
-    router.use(buatGerbangTeknisi(IZIN_TEKNISI_API));
+    //
+    // !! DAN HANYA untuk jalur yang MEMANG MILIK router ini. Router ini dipasang di ROOT
+    // (`app.use("/", adminApiRouter)`), jadi middleware di dalamnya mencegat SETIAP permintaan
+    // aplikasi — halaman PHP, router kasbon/tiket/users, semuanya. Tanpa penyaring kepemilikan,
+    // gerbang menolak `/teknisi-pelanggan` dan `/api/users` yang bukan urusannya (terbukti saat
+    // uji lokal). Daftar kepemilikan diisi SETELAH semua registrar jalan, dan dibaca saat
+    // permintaan datang — jadi isinya sudah lengkap ketika gerbang benar-benar dipakai.
+    const jalurMilikRouterIni = [];
+    router.use(buatGerbangTeknisi(IZIN_TEKNISI_API, {
+        milikRouter: (method, jalur) => jalurMilikRouterIni.some(
+            (r) => (!r.method || r.method === String(method).toUpperCase()) && cocokkanJalur(r.jalur, jalur)
+        )
+    }));
 
     registerAdminContentRoutes(router, createAdminContentDeps(runtime));
     registerAdminConfigRoutes({ router, ...createAdminConfigDeps(runtime) });
@@ -241,6 +253,25 @@ function createAdminRouter({ runtime } = {}) {
     registerAdminKasUsahaRoutes(router, { ensureAuthenticatedStaff });
     router.use(createAdminRoutes({ runtime }));
     router.use(adminLegacyRouter);
+
+    // Isi daftar kepemilikan SETELAH semua registrar jalan. Hanya rute yang benar-benar
+    // terdaftar DI SINI yang boleh disentuh gerbang teknisi di atas; sisanya (halaman PHP,
+    // router kasbon/tiket/users yang dipasang terpisah) lewat apa adanya.
+    // Sub-router yang dipasang lewat `router.use` (admin.routes & legacy) rutenya ada di
+    // `layer.handle.stack`, jadi ikut ditelusuri satu tingkat.
+    function kumpulkanJalur(stack, hasil) {
+        for (const layer of stack || []) {
+            if (layer.route && layer.route.path) {
+                Object.keys(layer.route.methods || {}).forEach((m) => {
+                    hasil.push({ method: m.toUpperCase(), jalur: layer.route.path });
+                });
+            } else if (layer.handle && layer.handle.stack) {
+                kumpulkanJalur(layer.handle.stack, hasil);
+            }
+        }
+    }
+    kumpulkanJalur(router.stack, jalurMilikRouterIni);
+
     return router;
 }
 

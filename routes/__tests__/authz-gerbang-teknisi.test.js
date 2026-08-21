@@ -110,6 +110,46 @@ describe("#b253 — teknisi: gagal-tertutup", () => {
     });
 });
 
+describe("#b253 — penyaring kepemilikan router", () => {
+    // Router admin dipasang di ROOT, jadi middleware di dalamnya mencegat SETIAP permintaan
+    // aplikasi. Tanpa penyaring ini gerbang menolak halaman PHP (`/teknisi-pelanggan`) dan
+    // router lain (`/api/users`) yang bukan urusannya — terbukti saat uji render lokal, dan
+    // itulah alasan penegakan di produksi ditunda sampai bug ini ditutup.
+    const TEKNISI = { role: "teknisi", username: "davin" };
+
+    test("jalur BUKAN milik router ini dilewatkan walau di luar daftar izin", () => {
+        const g = buatGerbangTeknisi(IZIN_TEKNISI_API, {
+            bacaMode: () => "tegakkan",
+            logger: senyap,
+            milikRouter: () => false,
+        });
+        const { lanjut, res } = jalankan(g, { path: "/teknisi-pelanggan", user: TEKNISI });
+        expect(lanjut).toBe(true);
+        expect(res.statusCode).toBeNull();
+    });
+
+    test("jalur MILIK router ini tetap ditolak bila di luar daftar izin", () => {
+        const g = buatGerbangTeknisi(IZIN_TEKNISI_API, {
+            bacaMode: () => "tegakkan",
+            logger: senyap,
+            milikRouter: () => true,
+        });
+        const { lanjut, res } = jalankan(g, { path: "/api/mikrotik-devices", user: TEKNISI });
+        expect(lanjut).toBe(false);
+        expect(res.statusCode).toBe(403);
+    });
+
+    test("daftar izin tetap menang walau penyaring bilang milik router ini", () => {
+        const g = buatGerbangTeknisi(IZIN_TEKNISI_API, {
+            bacaMode: () => "tegakkan",
+            logger: senyap,
+            milikRouter: () => true,
+        });
+        const { lanjut } = jalankan(g, { path: "/api/list/users", user: TEKNISI });
+        expect(lanjut).toBe(true);
+    });
+});
+
 describe("#b253 — mode", () => {
     const TEKNISI = { role: "teknisi", username: "davin" };
 
