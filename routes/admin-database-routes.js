@@ -67,7 +67,11 @@ function registerAdminDatabaseRoutes(router, deps) {
         return { columnResult, versionResults, versionError };
     }
 
-    router.get("/api/database/info", ensureAuthenticatedStaff, asyncHandler(async (_req, res) => {
+    router.get("/api/database/info", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        // Disamakan dgn 6 saudaranya di berkas ini yang sudah ber-requireAdmin; 3 yang terlewat
+        // (info/backups/check-schema) bukan keputusan, tapi kelupaan — dan `ensureAuthenticatedStaff`
+        // MEMASUKKAN peran teknisi.
+        requireAdmin(req);
         try {
             const dbPath = path.join(__dirname, "..", "database", "users.sqlite");
             const stats = fs.statSync(dbPath);
@@ -96,7 +100,8 @@ function registerAdminDatabaseRoutes(router, deps) {
         }
     }));
 
-    router.get("/api/database/backups", ensureAuthenticatedStaff, (_req, res) => {
+    router.get("/api/database/backups", ensureAuthenticatedStaff, (req, res) => {
+        requireAdmin(req);
         try {
             const rootDir = path.join(__dirname, "..");
             const backupsDir = path.join(rootDir, "backups");
@@ -122,7 +127,8 @@ function registerAdminDatabaseRoutes(router, deps) {
         }
     });
 
-    router.post("/api/database/check-schema", ensureAuthenticatedStaff, asyncHandler(async (_req, res) => {
+    router.post("/api/database/check-schema", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        requireAdmin(req);
         try {
             const expectedColumns = [
                 "id", "name", "username", "password", "phone_number", "address", "latitude", "longitude",

@@ -799,12 +799,22 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
         });
     }));
 
-    router.get('/api/mikrotik-devices', ensureAuthenticatedStaff, asyncHandler(async (_req, res) => {
+    // !! MEMBACA daftar perangkat = MEMBACA KREDENSIAL ROUTER INTI.
+    // `listDevices()` memulangkan isi `database/mikrotik_devices.json` APA ADANYA — host, port,
+    // user, dan `password` tanpa redaksi. Dulu kedua GET ini hanya bergerbang
+    // `ensureAuthenticatedStaff`, yang MEMASUKKAN peran `teknisi` (routes/admin-auth.js) —
+    // sementara POST/PUT/set-active di bawah sudah memanggil `requireAdmin`. Terbukti di produksi
+    // 2026-08-21: akun teknisi memanggil GET ini dan menerima host 192.168.252.1:8799 beserta
+    // sandinya. Asumsi "yang berbahaya cuma menulis" itu salah: membaca kredensial sama
+    // berbahayanya. Satu-satunya pemakai sah adalah halaman /config yang memang admin-only.
+    router.get('/api/mikrotik-devices', ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        requireAdmin(req);
         const result = mikrotikDeviceConfigService.listDevices();
         return res.status(result.status).json(result.body);
     }));
 
     router.get('/api/mikrotik-devices/:id', ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        requireAdmin(req);
         const result = mikrotikDeviceConfigService.getDeviceById(req.params.id);
         return res.status(result.status).json(result.body);
     }));

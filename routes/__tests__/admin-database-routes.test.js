@@ -74,11 +74,51 @@ function createRouter() {
   return router;
 }
 
+// Sejak penutupan kebocoran 2026-08-21: metadata database & daftar backup BUKAN konsumsi teknisi.
+// `ensureAuthenticatedStaff` memasukkan peran teknisi, jadi gerbang keduanya yang menentukan.
+const ADMIN = { user: { username: 'raf', role: 'admin' } };
+const TEKNISI = { user: { username: 'davin', role: 'teknisi' } };
+
 describe('registerAdminDatabaseRoutes', () => {
+  // `invokeRoute` di atas MELEMPAR ULANG galat dari `next`, sehingga rute ber-`asyncHandler`
+  // menghasilkan unhandled rejection yang menjatuhkan proses jest. Pemanggil ini MENANGKAP
+  // galat lewat `next` — bentuk yang sama dipakai Express saat meneruskan ke middleware galat.
+  async function panggilDanTangkap(router, method, path, req = {}) {
+    const layer = router.stack.find(
+      (entry) => entry.route && entry.route.path === path && entry.route.methods[method]
+    );
+    const handlers = layer.route.stack.map((entry) => entry.handle);
+    const res = createResponse();
+    const request = { body: {}, params: {}, query: {}, ...req };
+    let galat = null;
+    for (const handler of handlers) {
+      if (galat) break;
+      let teruskan = false;
+      const next = (e) => { if (e) galat = e; else teruskan = true; };
+      try {
+        await handler(request, res, next);
+      } catch (e) {
+        galat = e;
+      }
+      if (!teruskan && !galat) break; // handler menjawab sendiri
+    }
+    return { res, galat };
+  }
+
+  test.each([
+    ['get', '/api/database/info'],
+    ['get', '/api/database/backups'],
+    ['post', '/api/database/check-schema'],
+  ])('%s %s DITOLAK untuk peran teknisi', async (method, path) => {
+    const router = createRouter();
+    const { galat } = await panggilDanTangkap(router, method, path, TEKNISI);
+    expect(galat).toMatchObject({ statusCode: 403 });
+  });
+
   test('GET /api/database/info mengembalikan metadata database', async () => {
     const router = createRouter();
 
-    const response = await invokeRoute(router, 'get', '/api/database/info');
+    const response = await invokeRoute(router, 'get', '/api/database/info', ADMIN);
 
     expect(response.statusCode).toBe(200);
     expect(response.body.status).toBe(200);
@@ -88,7 +128,7 @@ describe('registerAdminDatabaseRoutes', () => {
   test('GET /api/database/backups mengembalikan daftar backup', async () => {
     const router = createRouter();
 
-    const response = await invokeRoute(router, 'get', '/api/database/backups');
+    const response = await invokeRoute(router, 'get', '/api/database/backups', ADMIN);
 
     expect(response.statusCode).toBe(200);
     expect(response.body.data).toEqual(expect.any(Array));
