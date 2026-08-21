@@ -1801,3 +1801,15 @@
 - **BUKAN diperbaiki (klaim audit yang MELESET, dicek dan dibantah):** `POST/PUT/DELETE /api/genieacs-parameters` sudah ber-`requireAdmin`. Dan `routes/admin.js` yang tampak 38 rute telanjang ternyata stub `410` — inert, bukan lubang.
 - **Belum ditindak:** kredensial tetap dikirim utuh ke browser ADMIN (tak diredaksi). Menutupnya menyentuh alur sunting perangkat di `/config`, jadi perlu perubahan terpisah.
 - **Tes:** `routes/__tests__/admin-config-routing.test.js` (3 baru: teknisi ditolak di kedua GET, admin tetap boleh) + `routes/__tests__/admin-database-routes.test.js` (3 baru) — memakai pemanggil yang MENANGKAP galat lewat `next`, karena `invokeRoute` lama melempar ulang dan membuat rute ber-`asyncHandler` menjatuhkan proses jest.
+
+<a id="b253"></a>
+
+### Fix 2026-08-21 (Gerbang API teknisi dibalik jadi GAGAL-TERTUTUP + satu modul kebijakan peran)
+
+- **Owner BARU:** `lib/authz.js` (predikat peran + gerbang) dan `routes/teknisi-izin-api.js` (DAFTAR IZIN eksplisit). Dipasang sebagai baris PERTAMA `createAdminRouter` (`routes/admin-router.js`), sebelum registrar mana pun, supaya rute BARU otomatis tertutup tanpa penulisnya perlu ingat apa-apa.
+- **Akar yang ditutup:** gerbang bawaan seluruh router admin `ensureAuthenticatedStaff` MEMASUKKAN peran `teknisi`, dan router-nya dipasang polos (`app.use("/", adminApiRouter)`). Jadi endpoint admin lahir TERBUKA; menutupnya bergantung pada cek kedua manual — terukur **119 dari 185** rute hidup tak punya. Lapisan HALAMAN sudah lama gagal-tertutup (`routes/pages.js` menulisnya sebagai INVARIAN); lapisan API tak pernah dapat padanannya. Akibat terburuknya sudah terbukti live di #b252.
+- **Daftar izin DITURUNKAN DARI KODE, bukan ditebak:** halaman di `_navbar_teknisi.php` → berkas `.php` → `<script src>` → panggilan `fetch()`. Dari 42 endpoint yang dipanggil halaman teknisi, hanya **9** yang berada di dalam `adminApiRouter`; sisanya dipasang dengan prefix sendiri (kasbon, tiket, psb-schedule, partial-payment, packages, olt, users) dan TIDAK tersentuh gerbang ini.
+- **PENTING — daftar izin bukan "semua yang dipanggil JS".** `/api/config` dipanggil halaman teknisi tapi hari ini SUDAH ditolak cek admin inline, dan halamannya tetap berfungsi. Memasukkannya justru MEMBUKA lubang baru (config memuat rahasia). Gerbang ini mempertahankan perilaku yang berlaku, lalu menjadikannya eksplisit — bukan melonggarkan.
+- **Blast radius sengaja sempit:** gerbang HANYA bertindak bila `req.user` benar-benar berperan `teknisi`. Admin/owner/superadmin, sesi pelanggan, dan tanpa-sesi dilewatkan apa adanya — `ensureAuthenticatedStaff` per-rute tetap penentu bagi mereka.
+- **Gate:** `config.authz.gerbangTeknisi` = `tegakkan` (bawaan) · `laporkan` (catat tanpa menolak, untuk mengukur trafik nyata dulu) · `mati`. Mode tak dikenal jatuh ke **tegakkan**, bukan terbuka.
+- **Tes:** `routes/__tests__/authz-gerbang-teknisi.test.js` (26) — termasuk penjaga bahwa tiap entri daftar izin menunjuk rute yang BENAR-BENAR terdaftar (daftar berisi jalur fiktif akan membusuk diam-diam), dan bahwa pola `:param` tidak cocok sebagai awalan.

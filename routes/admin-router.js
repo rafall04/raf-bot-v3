@@ -13,6 +13,8 @@ const fs = require("fs");
 const path = require("path");
 const { exec } = require("child_process");
 const sqlite3 = require("sqlite3").verbose();
+const { buatGerbangTeknisi } = require("../lib/authz");
+const { IZIN_TEKNISI_API } = require("./teknisi-izin-api");
 const { createAdminRoutes } = require("./admin.routes");
 const adminLegacyRouter = require("./admin");
 const { ensureAuthenticatedStaff } = require("./admin-auth");
@@ -206,6 +208,16 @@ function createAdminTelegramTeknisiDeps(runtime) {
 
 function createAdminRouter({ runtime } = {}) {
     const router = express.Router();
+
+    // !! GERBANG GAGAL-TERTUTUP UNTUK TEKNISI (#b253) — HARUS di baris pertama, sebelum registrar
+    // mana pun, supaya rute BARU otomatis tertutup tanpa penulisnya perlu ingat apa-apa.
+    // Latar: `ensureAuthenticatedStaff` (gerbang bawaan seluruh registrar di bawah) MEMASUKKAN
+    // peran `teknisi`, jadi selama ini endpoint admin lahir TERBUKA dan menutupnya bergantung
+    // pada cek kedua manual di dalam handler — terukur 119 dari 185 rute hidup tak punya itu,
+    // dan akibat terburuknya sudah terbukti live (#b252: kredensial router inti terbaca teknisi).
+    // Gerbang ini HANYA bertindak untuk peran teknisi; peran lain lewat apa adanya.
+    router.use(buatGerbangTeknisi(IZIN_TEKNISI_API));
+
     registerAdminContentRoutes(router, createAdminContentDeps(runtime));
     registerAdminConfigRoutes({ router, ...createAdminConfigDeps(runtime) });
     registerAdminIsolirRoutes({ router, ...createAdminIsolirDeps() });

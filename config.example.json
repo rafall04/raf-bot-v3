@@ -722,5 +722,8 @@
   "genieacsRefreshConcurrency": 8,
   "genieacsRefreshTimeoutMs": 10000,
   "redamanCronAlertAfter": 3,
-  "redamanCronAlertCooldownMs": 21600000
+  "redamanCronAlertCooldownMs": 21600000,
+  "authz": {
+    "gerbangTeknisi": "tegakkan"
+  }
 }
