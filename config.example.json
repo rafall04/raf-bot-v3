@@ -504,16 +504,17 @@
       "enabled": false,
       "consecutiveCycles": 3,
       "cooldownMinutes": 120,
-      "windowMinutes": 10
+      "windowMinutes": 10,
+      "paths": []
     },
     "stabilitasPelanggan": {
       "enabled": false
     },
     "ambangStabilitas": {
       "lossPeringatanPct": 2,
-      "lossBurukPct": 5,
+      "lossBurukPct": 15,
       "jitterPeringatanMs": 5,
-      "jitterBurukMs": 10,
+      "jitterBurukMs": 40,
       "minSampel": 6
     },
     "stabilitasWindowMinutes": 10
