@@ -65,8 +65,8 @@ jest.mock('../../lib/payment-finance-service', () => {
       request_type: request?.request_type || (request?.is_partial_payment ? 'partial_payment' : 'payment_status_change')
     })),
     isSamePaymentRequestScope: jest.fn((left, right) =>
+      // #b254: request_type SENGAJA tidak ikut — satu pelanggan+periode = satu pengajuan menunggu.
       String(left.userId) === String(right.userId)
-      && String(left.request_type) === String(right.request_type)
       && Number(left.period_month) === Number(right.period_month)
       && Number(left.period_year) === Number(right.period_year)
     )

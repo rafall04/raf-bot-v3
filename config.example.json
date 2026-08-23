@@ -725,5 +725,6 @@
   "redamanCronAlertCooldownMs": 21600000,
   "authz": {
     "gerbangTeknisi": "tegakkan"
-  }
+  },
+  "genieacsQueuedOnlyIsFailure": true
 }

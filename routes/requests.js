@@ -255,8 +255,14 @@ router.post('/', rateLimit('create-request', 30, 60000), async (req, res) => {
                         console.log(`[REQUEST_AUTO_CANCEL] Request ID ${existingPendingRequest.id} auto-cancelled karena status sudah sesuai.`);
                     } else {
                         const conflictingOwnerId = existingPendingRequest.requested_by_agen_id || existingPendingRequest.requested_by_teknisi_id;
+                        // Sebutkan JENIS yang menghalangi. Sejak penjaga jadi tipe-agnostik (#b254),
+                        // pengajuan cicilan bisa menolak pengajuan pelunasan — tanpa disebutkan,
+                        // teknisi bingung ("saya belum pernah kirim yang penuh").
+                        const jenisPenghalang = existingPendingRequest.request_type === 'partial_payment'
+                            ? 'cicilan'
+                            : 'pelunasan penuh';
                         if (String(conflictingOwnerId) === String(req.user.id)) {
-                            return res.status(409).json({ status: 409, message: `Anda sudah memiliki pengajuan yang sedang menunggu untuk pelanggan ${user.name}. Harap batalkan atau tunggu hingga pengajuan tersebut diproses.` });
+                            return res.status(409).json({ status: 409, message: `Anda sudah punya pengajuan *${jenisPenghalang}* yang menunggu untuk pelanggan ${user.name} di periode ini. Batalkan dulu pengajuan itu, atau tunggu admin memprosesnya.` });
                         } else {
                             const conflictingOwner = global.accounts.find(acc => String(acc.id) === String(conflictingOwnerId));
                             const conflictingOwnerName = conflictingOwner ? conflictingOwner.username : 'petugas lain';

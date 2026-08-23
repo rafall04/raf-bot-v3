@@ -230,18 +230,23 @@ router.post('/request', ensureAuthenticatedStaff, rateLimit('partial-payment', 3
             const allRequests = loadJSON('database/requests.json').map(normalizePaymentRequestScope);
 
             if (!isAdmin) {
+                // !! TIPE SENGAJA TIDAK DISARING (#b254). Dulu hanya mencari `partial_payment`,
+                // sehingga pengajuan PELUNASAN PENUH yang menunggu tidak menghalangi pengajuan
+                // cicilan — dan sebaliknya. Dua-duanya lolos, lalu ledger dikredit dua kali.
                 const existingPending = allRequests.find((request) =>
                     String(request.userId) === String(userId)
                     && request.status === 'pending'
-                    && request.request_type === 'partial_payment'
                     && parseInt(request.period_month, 10) === currentMonth
                     && parseInt(request.period_year, 10) === currentYear
                 );
 
                 if (existingPending) {
+                    const jenis = existingPending.request_type === 'partial_payment'
+                        ? 'cicilan'
+                        : 'pelunasan penuh';
                     return res.status(409).json({
                         status: 409,
-                        message: 'Sudah ada pengajuan partial payment yang menunggu approval untuk pelanggan dan periode ini'
+                        message: `Pelanggan ini sudah punya pengajuan ${jenis} yang menunggu persetujuan untuk periode ini. Batalkan dulu pengajuan itu, atau tunggu admin memprosesnya.`
                     });
                 }
             }

@@ -1,3 +1,22 @@
+        // !! KALIMAT NOTIFIKASI DIHITUNG DARI BUKTI, TIDAK DIKETIK (#b254).
+        // Server sudah menghitung `customerNotified` di enam endpoint alur tiket — lalu panel ini
+        // MEMBUANGNYA dan mengetik sendiri "Pelanggan telah dinotifikasi." Enam penghasil bukti,
+        // nol penampil. Akibatnya teknisi meninggalkan lokasi yakin pelanggan sudah dikabari,
+        // padahal bisa saja bot sedang putus dari WhatsApp.
+        //
+        // PENTING soal pilihan kata: `sent === false` TIDAK selalu berarti GAGAL — bisa juga
+        // pesannya sengaja dilewati karena deduplikasi. Karena itu cabang negatifnya berbunyi
+        // "belum dikabari", bukan "gagal mengabari", dan menyuruh teknisi menyampaikan langsung.
+        function rafKalimatNotif(data) {
+            if (!data || typeof data.customerNotified === "undefined") return "";
+            return data.customerNotified
+                ? " Pelanggan sudah dikabari lewat WhatsApp."
+                : " ⚠️ Pelanggan BELUM dikabari — sampaikan langsung ke pelanggannya.";
+        }
+        function rafNadaNotif(data) {
+            return data && data.customerNotified === false ? "warning" : "success";
+        }
+
         let currentUser = null;
         let isLoadingTickets = false;
         let ticketProcessedTimeout = null;
@@ -398,7 +417,7 @@
                 const result = await response.json();
                 
                 if (response.ok && result.status === 200) {
-                    displayGlobalMessage(`✓ Status tiket ${ticketId} diupdate ke OTW. Pelanggan telah dinotifikasi.`, 'success');
+                    displayGlobalMessage(`✓ Status tiket ${ticketId} diupdate ke OTW.` + rafKalimatNotif(result.data), rafNadaNotif(result.data));
                     loadTickets(); // Refresh table
                 } else {
                     displayGlobalMessage(`Gagal update status OTW: ${result.message || 'Error tidak diketahui'}`, 'danger');
@@ -1210,9 +1229,9 @@
                     
                     displayGlobalMessage(
                         `✅ Tiket ${ticketId} berhasil diselesaikan!\n` +
-                        `Durasi: ${duration} menit | Foto: ${photoCount} dokumentasi\n` +
-                        `Pelanggan telah dinotifikasi.`,
-                        'success'
+                        `Durasi: ${duration} menit | Foto: ${photoCount} dokumentasi` +
+                        rafKalimatNotif(result.data),
+                        rafNadaNotif(result.data)
                     );
                     
                     // Refresh table
