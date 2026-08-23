@@ -5660,5 +5660,15 @@
     "name": "PSB — gagal membuat pelanggan",
     "template": "❌ Pendaftaran *${nama}* belum jadi.\n\nSebabnya: ${sebab}\n\n${lanjutan}",
     "category": "psb"
+  },
+  "conncheck_stabilitas_kurang": {
+    "name": "Cek koneksi — jaringan sedang ramai (kurang stabil)",
+    "template": "📶 Sambungan Anda aktif, tapi *jaringan sedang ramai* saat ini sehingga terasa kurang stabil — ini yang bikin game terasa nge-lag walau sinyal WiFi penuh.\n\nBiasanya paling terasa jam 18.00–21.00 dan membaik setelahnya. Ini dari sisi jaringan kami, *bukan dari perangkat Anda*. Sudah kami pantau terus ya 🙏",
+    "category": "conncheck"
+  },
+  "conncheck_stabilitas_buruk": {
+    "name": "Cek koneksi — jaringan sedang tidak stabil",
+    "template": "⚠️ Sambungan Anda aktif, tapi *jaringan kami sedang tidak stabil* saat ini. Untuk game atau video call memang akan terasa putus-putus.\n\nSudah masuk pantauan kami dan sedang ditangani. Kalau sampai malam belum membaik, balas pesan ini ya — nanti kami cek lebih lanjut 🙏",
+    "category": "conncheck"
   }
 }

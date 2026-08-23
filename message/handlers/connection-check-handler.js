@@ -264,6 +264,75 @@ function classifyOnlineVerdict(up) {
     return 'INCONCLUSIVE'; // tak ada sinyal upstream sama sekali → tak bisa klaim "normal", tapi PPPoE aktif.
 }
 
+/**
+ * Vonis KESTABILAN jalur pelanggan — menjawab "apakah stabil?", pertanyaan yang berbeda dari
+ * "apakah tersambung?" dan yang selama ini tak pernah dijawab.
+ *
+ * KENAPA PERLU: poller memvonis jalur NORMAL selama loss < 5%. Terukur 30 hari di Tanjungharjo,
+ * jam terburuk (20:00) hanya 3,69% — jadi jalur SELALU "normal", sementara 68% keluhan game
+ * justru menumpuk jam 16–21. Pelanggan menulis "sinyal merah" lalu dibantah "terpantau normal".
+ *
+ * Best-effort & never-throw: gagal apa pun → TIDAK_TERPANTAU, bukan klaim sehat.
+ */
+async function resolveStabilitas(user) {
+    try {
+        // GERBANG (CLAUDE.md #4): default MATI supaya kode boleh mendarat tanpa mengubah satu pun
+        // kalimat yang diterima pelanggan. Menyalakannya keputusan ops — dan lebih penting lagi,
+        // ini sakelar MATI seketika kalau nada kalimatnya ternyata keliru di lapangan, tanpa
+        // menunggu deploy ulang.
+        const gerbang = (global.config && global.config.upstreamMonitor
+            && global.config.upstreamMonitor.stabilitasPelanggan) || {};
+        if (gerbang.enabled !== true) return { tingkat: 'TIDAK_TERPANTAU', ringkas: null };
+        if (!upstreamSignalAvailable()) return { tingkat: 'TIDAK_TERPANTAU', ringkas: null };
+        const uname = normalizeUsername(user.pppoe_username);
+        const addr = activeCache.addrByUser ? activeCache.addrByUser.get(uname) : null;
+        if (!addr) return { tingkat: 'TIDAK_TERPANTAU', ringkas: null };
+        const pathKey = await resolveCustomerPath(addr);
+        if (!pathKey) return { tingkat: 'TIDAK_TERPANTAU', ringkas: null };
+
+        const { getUpstreamQualityRepository } = require('../../repositories/upstream-quality.repository');
+        const { ringkasKualitas, vonisKualitas } = require('../../lib/latency-verdict');
+        const cfg = (global.config && global.config.upstreamMonitor) || {};
+        const menit = Number(cfg.stabilitasWindowMinutes) > 0 ? Number(cfg.stabilitasWindowMinutes) : 10;
+        const sinceIso = new Date(Date.now() - menit * 60 * 1000).toISOString();
+
+        const rows = await getUpstreamQualityRepository().getRecentProbes({ sinceIso, path: pathKey, limit: 500 });
+        const ringkas = ringkasKualitas(rows || []);
+        return { tingkat: vonisKualitas(ringkas, cfg.ambangStabilitas || {}), ringkas };
+    } catch (_e) {
+        return { tingkat: 'TIDAK_TERPANTAU', ringkas: null };
+    }
+}
+
+/**
+ * Baris kestabilan untuk pelanggan.
+ *
+ * !! DILARANG memuat nama jalur/ISP/target/IP maupun angka mentah (#b247/#b248). Yang dioper ke
+ * perakit pesan HANYA tingkatnya — angka loss/jitter sengaja TIDAK dioper sama sekali, supaya
+ * admin tak bisa menerbitkannya lagi lewat /api/templates tanpa satu baris kode pun berubah.
+ */
+function buildStabilitasNote(tingkat) {
+    if (tingkat === 'TIDAK_STABIL') {
+        return renderResponseTemplate(
+            'conncheck_stabilitas_buruk',
+            `⚠️ Sambungan Anda aktif, tapi *jaringan kami sedang tidak stabil* saat ini. Untuk game atau video call memang akan terasa putus-putus.
+
+Sudah masuk pantauan kami dan sedang ditangani. Kalau sampai malam belum membaik, balas pesan ini ya 🙏`,
+            {}
+        );
+    }
+    if (tingkat === 'KURANG_STABIL') {
+        return renderResponseTemplate(
+            'conncheck_stabilitas_kurang',
+            `📶 Sambungan Anda aktif, tapi *jaringan sedang ramai* saat ini sehingga terasa kurang stabil — ini yang bikin game terasa nge-lag walau sinyal WiFi penuh.
+
+Biasanya paling terasa jam 18.00–21.00 dan membaik setelahnya. Ini dari sisi jaringan kami, *bukan dari perangkat Anda*. Sudah kami pantau terus ya 🙏`,
+            {}
+        );
+    }
+    return '';
+}
+
 /** Baris kesehatan (health note) untuk balasan jalur-AKTIF, dirender per verdict via template. */
 function buildHealthNote(verdict) {
     if (verdict === 'HEALTHY') {
@@ -550,6 +619,20 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
     if (lineStatus === 'online') {
         verdict = classifyOnlineVerdict(await resolveUpstreamHealth(user));
         healthNote = buildHealthNote(verdict);
+
+        // KESTABILAN: hanya berbicara saat jalur pelanggan terpantau SEHAT menurut vonis lama
+        // (HEALTHY/INCONCLUSIVE). Saat sudah UPSTREAM_ISSUE, seksi `upstream` sudah menjelaskan
+        // gangguannya — menambah baris kedua cuma membingungkan. Justru pada "sehat"-lah dulu
+        // pelanggan dibantah "terpantau normal" padahal jaringannya ramai.
+        if (verdict === 'HEALTHY' || verdict === 'INCONCLUSIVE') {
+            const stab = await resolveStabilitas(user);
+            const catatanStabil = buildStabilitasNote(stab.tingkat);
+            if (catatanStabil) {
+                // Menggantikan, bukan menumpuk: "terpantau normal" + "sedang ramai" saling
+                // membantah di layar pelanggan.
+                healthNote = catatanStabil;
+            }
+        }
     }
 
     // Tawaran reboot berbantu HANYA saat reboot masuk akal: jalur AKTIF tanpa bukti gangguan jaringan

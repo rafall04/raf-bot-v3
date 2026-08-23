@@ -499,7 +499,24 @@
           "192.168.145.0/24"
         ]
       }
-    ]
+    ],
+    "alarmKestabilan": {
+      "enabled": false,
+      "consecutiveCycles": 3,
+      "cooldownMinutes": 120,
+      "windowMinutes": 10
+    },
+    "stabilitasPelanggan": {
+      "enabled": false
+    },
+    "ambangStabilitas": {
+      "lossPeringatanPct": 2,
+      "lossBurukPct": 5,
+      "jitterPeringatanMs": 5,
+      "jitterBurukMs": 10,
+      "minSampel": 6
+    },
+    "stabilitasWindowMinutes": 10
   },
   "serviceMonitor": {
     "enabled": false,

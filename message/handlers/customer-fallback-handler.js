@@ -101,7 +101,16 @@ async function evaluateCustomerFallback({
         }
 
         const text = typeof chats === "string" ? chats.trim() : "";
-        if (text.length < 4 || /^\d+$/.test(text)) {
+        // !! PENGECUALIAN NAMA APLIKASI/GAME PENDEK (#b255).
+        // Penjaga "< 4 karakter" ada untuk menyaring kebisingan — tapi ia juga membunuh nama yang
+        // PALING SERING dipakai pelanggan: `ML`, `FF`, `PB`, `AOV`, `IG`, `WA`, `YT`, `TT`.
+        // Terbukti di produksi: pelanggan menulis "Buat maen ML sinyal merah" (ditangani), lalu
+        // menyusulkan "ML" polos 13 detik kemudian — dan yang itu dibuang diam-diam di sini,
+        // sebelum cabang sebutan-aplikasi di bawah sempat jalan.
+        // Melewatkannya AMAN karena cabang itu tetap menuntut gejala ATAU konteks komplain baru;
+        // "ML" tanpa konteks apa pun tetap tidak memicu apa-apa.
+        const sebutanPendek = text.length < 4 ? hasBareAppMention(text) : null;
+        if ((text.length < 4 && !sebutanPendek) || /^\d+$/.test(text)) {
             return { action: "skip", reason: "terlalu-pendek" };
         }
 
