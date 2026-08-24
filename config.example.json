@@ -478,7 +478,8 @@
       "recipients": [],
       "groupJid": null,
       "includeSteerSuggestion": true,
-      "traceWaitSeconds": 45
+      "traceWaitSeconds": 45,
+      "paths": []
     },
     "pathPools": [
       {

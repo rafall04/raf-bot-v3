@@ -1868,3 +1868,14 @@
 - **Grafik ACS 220 → 1200 detik** (1 siklus + kelonggaran). Terukur sesudahnya: **158/160 (99%) on**, 2 off. Nilai lama tercatat di entri ini bila perlu dikembalikan.
 - **BUKTI "summon":** modem berlabel "off" (inform 13,7 menit lalu) menjawab connection request **HTTP 200 dalam 4,4 detik**, `_lastInform` langsung jadi 0,06 menit. Seluruh 160 modem punya `ConnectionRequestURL`. Inform basi ≠ modem mati — bukti kuat modem hidup adalah connection request yang DIJAWAB.
 - **!! PELAJARAN INI SUDAH PERNAH DIBAYAR.** `reboot-followup-service.js` sudah mencatat "ambang 7 menit dulu hanya mengenali 7% modem sehat" dan menaikkan gerbangnya ke 45 menit — tapi perbaikannya berhenti di modul itu dan tak pernah turun ke `device-status.js`, sehingga jalur PELANGGAN tetap memakai angka yang sudah terbukti salah. Konstanta kini tinggal SATU, diekspor, dan dikunci tes. Tes: `lib/__tests__/device-status-ambang.test.js` (13).
+
+<a id="b258"></a>
+
+### Fix 2026-08-24 (Alert jalur upstream dapat penyaring jalur — Tanjungharjo akhirnya bisa dinyalakan)
+
+- **Owner:** `lib/upstream-quality-alerter.js` — gerbang baru `upstreamMonitor.alerts.paths` (daftar kosong = SEMUA jalur, agar kunci baru tak pernah MEMATIKAN alert yang sudah menyala di tempat lain).
+- **Akar masalah operasional:** Tanjungharjo mengumpulkan **2** insiden sementara Dander **267**, karena `alerts.enabled=false` di sana — bot dengan keluhan lag TERBANYAK justru paling buta, dan rencana komplain ISP mustahil tanpa bukti.
+- **!! MENYALAKANNYA APA ADANYA JUSTRU MERUSAK.** Disimulasikan 14 hari dengan aturan alerter persis (3 siklus beruntun, cooldown 120 mnt): Tanjungharjo `vpn` **7,2 alert/hari**, `main` 3,0, `gmdp2` 0,5 = **≈10,7/hari** — dan `vpn` itu radio cadangan TERAKHIR yang tak dipakai satu pelanggan pun. Dander yang sudah nyala pun **5,3/hari** dari 5 jalur, dengan `sf` (cadangan kronis) menyumbang 1,4 tanpa tindakan yang mungkin diambil.
+- **Penerapan:** Tanjungharjo `paths: ["main"]` → 3,0/hari. Dander `paths: ["gmdp","ih","mni"]` (jalur yang benar-benar melayani pelanggan) → 3,8/hari. Cadangan (`vpn`, `gmdp2`, `sf`) tak lagi membangunkan siapa pun.
+- **Pasangan #b256:** tiap alert kini membawa bukti traceroute yang terbaca — jalur bernama, hop tertuduh bila ada, dan di mana latensi lahir. Alert tanpa bukti hanya memindahkan pekerjaan; alert dengan bukti menyelesaikannya.
+- **GOTCHA TES:** tes penyaring versi pertama HIJAU-PALSU — mock memakai `getSummary`/payload string, sementara alerter menuntut `getRecentProbes` dan payload `{ text }`, jadi tak ada yang pernah terkirim dan `not.toContain` lulus hampa. Diverifikasi ulang lewat UJI MUTASI (lumpuhkan penyaring → merah; pulihkan → hijau). Asersi "teks tak menyebut jalur lain" juga SALAH: alert `mni` memang menyebut `sf` sebagai saran cadangan — bukti penyaring yang benar adalah tak ada AKSI alert untuk jalur itu. Tes: `lib/__tests__/upstream-quality-alerter.test.js` (24).
