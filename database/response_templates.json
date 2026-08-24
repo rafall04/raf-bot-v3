@@ -5675,5 +5675,15 @@
     "name": "Cek koneksi — layanan tertentu terganggu",
     "template": "ℹ️ Khusus *${layanan}* sedang terganggu dari jalur kami saat ini — layanan lain normal. Ini bukan dari perangkat Anda, dan sedang kami pantau 🙏",
     "category": "conncheck"
+  },
+  "wifi_gagal_modem_diam": {
+    "name": "WiFi gagal — modem tidak menjawab",
+    "template": "⚠️ Maaf Kak, perubahannya *belum tersimpan* karena modem di lokasi Kakak sedang tidak merespons.\n\nCoba pastikan modem menyala dan lampunya normal, lalu ulangi beberapa saat lagi. Kalau lampunya sudah normal tapi tetap gagal, balas pesan ini ya 🙏",
+    "category": "wifi"
+  },
+  "wifi_gagal_sisi_kami": {
+    "name": "WiFi gagal — kendala di sistem kami",
+    "template": "⚠️ Maaf Kak, perubahannya *belum tersimpan* karena ada kendala di *sistem kami* — bukan dari modem Kakak, jadi tidak perlu diutak-atik.\n\nTim kami sudah mendapat pemberitahuannya. Mohon dicoba lagi beberapa saat, atau balas pesan ini kalau Kakak butuh dibantu 🙏",
+    "category": "wifi"
   }
 }

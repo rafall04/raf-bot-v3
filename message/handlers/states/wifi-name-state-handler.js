@@ -13,6 +13,7 @@ const { deleteUserState, format } = require('../conversation-handler');
 const { formatWifiSsidInfo } = require('../../../lib/wifi-ssid-summary');
 const { isAffirmative } = require('../../../lib/affirmative-parser');
 const { assertWifiChangeApplied } = require('../../../lib/wifi-apply-guard');
+const { bacaSebabGagalWifi } = require("../../../lib/wifi-failure-reason");
 
 function renderResponseTemplate(key, fallback, data = {}) {
     const rendered = format(key, data);
@@ -236,10 +237,17 @@ async function handleAskNewName(userState, chats, reply, sender, global) {
     } catch (error) {
         console.error('[ASK_NEW_NAME] Error:', error);
         deleteUserState(sender);
+        // !! SEBAB YANG BENAR, BUKAN SATU PESAN UNTUK SEMUA (#b268). Menyuruh pelanggan memeriksa
+        // modem saat SISTEM KAMI yang bermasalah membuat mereka mengurus perangkat yang tidak
+        // rusak, gagal lagi, lalu menyimpulkan layanannya rusak — sementara tak ada yang tahu
+        // sistem kita sedang bermasalah.
+        const sebab = bacaSebabGagalWifi(error);
         return reply(renderResponseTemplate(
-            'wifi_name_change_error',
-            `❌ Maaf, gagal mengubah nama WiFi. Silakan coba lagi atau hubungi admin.\n\nError: ${error.message}`,
-            { error_message: error.message }
+            sebab.kunciTemplate,
+            sebab.sarankanCekModem
+                ? '⚠️ Maaf Kak, perubahannya *belum tersimpan* karena modem di lokasi Kakak sedang tidak merespons. Coba pastikan modem menyala, lalu ulangi beberapa saat lagi 🙏'
+                : '⚠️ Maaf Kak, perubahannya *belum tersimpan* karena ada kendala di *sistem kami* — bukan dari modem Kakak. Tim kami sudah mendapat pemberitahuannya 🙏',
+            {}
         ));
     }
 }
