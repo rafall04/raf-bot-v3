@@ -366,6 +366,8 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-24 (Antrean ACS berhenti tumbuh selamanya; durasi punya satu pemilik)](docs/boundary-log.md#b260)
 - [Fix 2026-08-24 (Keluhan LEMOT berhenti dijawab "modem Anda mati" dari tebakan umur inform)](docs/boundary-log.md#b261)
 - [Fix 2026-08-24 (Jalur LEMOT menu ikut mengabarkan keadaan JARINGAN — dan berhenti menyuruh restart modem saat bukan salah modem)](docs/boundary-log.md#b262)
+- [Fix 2026-08-24 (Keluhan di komentar survei diteruskan berdasarkan ISI, bukan skor)](docs/boundary-log.md#b263)
+- [Fix 2026-08-24 (Satu layanan buruk berhenti memvonis seluruh jaringan; satu IP berhenti mewakili satu layanan)](docs/boundary-log.md#b264)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

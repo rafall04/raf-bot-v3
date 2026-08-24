@@ -215,6 +215,11 @@ function createUpstreamQualityRepository(overrides = {}) {
         const windowRows = await all(`
             SELECT path, target, target_key, routing_table,
                    COUNT(*) AS samples,
+                   -- sent/received ikut supaya pemanggil bisa menggabung beberapa IP satu layanan
+                   -- dari HITUNGAN PAKET, bukan rata-rata persentase (persentase per baris
+                   -- terkuantisasi ~20 poin karena satu probe cuma 3-5 paket -- lihat #b255).
+                   SUM(sent) AS sent_sum,
+                   SUM(received) AS received_sum,
                    AVG(loss_pct) AS loss_avg,
                    AVG(rtt_avg_ms) AS rtt_avg,
                    AVG(jitter_ms) AS jitter_avg,

@@ -5670,5 +5670,10 @@
     "name": "Cek koneksi — jaringan sedang tidak stabil",
     "template": "⚠️ Sambungan Anda aktif, tapi *jaringan kami sedang tidak stabil* saat ini. Untuk game atau video call memang akan terasa putus-putus.\n\nSudah masuk pantauan kami dan sedang ditangani. Kalau sampai malam belum membaik, balas pesan ini ya — nanti kami cek lebih lanjut 🙏",
     "category": "conncheck"
+  },
+  "conncheck_layanan_terganggu": {
+    "name": "Cek koneksi — layanan tertentu terganggu",
+    "template": "ℹ️ Khusus *${layanan}* sedang terganggu dari jalur kami saat ini — layanan lain normal. Ini bukan dari perangkat Anda, dan sedang kami pantau 🙏",
+    "category": "conncheck"
   }
 }

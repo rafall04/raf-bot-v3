@@ -211,7 +211,7 @@ async function buildUpstreamSection(user) {
 
 /**
  * Kesehatan jalur upstream untuk pelanggan yang PPPoE-nya AKTIF. READ-ONLY, cached, never-throw.
- * @returns {Promise<{status:string|null, anyDegraded:boolean}>}
+ * @returns {Promise<{status:string|null, anyDegraded:boolean, layananTerganggu:string[]}>}
  *   status: status jalur yang dipakai IP pelanggan ('NORMAL'|'DEGRADASI'|'GANGGUAN'|'PUTUS') atau
  *           `null` bila fitur mati / IP belum terpetakan ke jalur (pool CIDR belum dikonfigurasi
  *           untuk lokasi ini — akar kegagalan senyap: dulu ini membuat verdict jatuh ke "normal").
@@ -219,7 +219,7 @@ async function buildUpstreamSection(user) {
  *           belum terpetakan (jangan klaim "normal" saat ada gangguan jalur yang sedang berjalan).
  */
 async function resolveUpstreamHealth(user) {
-    const out = { status: null, anyDegraded: false };
+    const out = { status: null, anyDegraded: false, layananTerganggu: [] };
     try {
         if (!upstreamSignalAvailable()) return out;
         const report = await getUpstreamReportCached();
@@ -227,15 +227,39 @@ async function resolveUpstreamHealth(user) {
         out.anyDegraded = report.paths.some((p) => ['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(p.status));
         const uname = normalizeUsername(user.pppoe_username);
         const addr = activeCache.addrByUser ? activeCache.addrByUser.get(uname) : null;
+        let entryPelanggan = null;
         if (addr) {
             // Jalur pelanggan dari STEERING LIVE (RAF-STEER-*; default 'gmdp' bila tak di-steer).
             // null = router tak terbaca → status tetap null → verdict fail-closed (bukan asal "normal").
             const pathKey = await resolveCustomerPath(addr);
             if (pathKey) {
-                const entry = report.paths.find((p) => p.key === pathKey);
-                if (entry) out.status = entry.status;
+                entryPelanggan = report.paths.find((p) => p.key === pathKey) || null;
+                if (entryPelanggan) out.status = entryPelanggan.status;
             }
         }
+
+        // !! LAYANAN YANG TERGANGGU DISEBUT NAMANYA (#b264). Vonis jalur kini butuh KESEPAKATAN
+        // beberapa target, jadi satu layanan yang bermasalah tak lagi membuat seluruh jalur
+        // divonis rusak — tapi pelanggan yang membuka layanan ITU tetap merasakannya. Diam soal
+        // itu sama menyesatkannya dengan dulu mengklaim seluruh jaringan terganggu.
+        //
+        // Hanya layanan yang punya `namaAwam` yang boleh disebut: nama aplikasi yang dikenal
+        // pelanggan (Facebook, YouTube, game), BUKAN nama teknis ("Akamai CDN") apalagi IP.
+        const dipakai = entryPelanggan
+            ? [entryPelanggan]
+            : (report.paths || []).filter((p) => ['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(p.status));
+        const cfgTargets = ((global.config && global.config.upstreamMonitor
+            && global.config.upstreamMonitor.targets) || []);
+        const namaPer = new Map(cfgTargets.filter((t) => t && t.namaAwam).map((t) => [t.key, t.namaAwam]));
+        const kumpul = new Set();
+        for (const p of dipakai) {
+            for (const t of (p.targets || [])) {
+                if (!['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(t.verdict)) continue;
+                const nama = namaPer.get(t.target_key);
+                if (nama) kumpul.add(nama);
+            }
+        }
+        out.layananTerganggu = [...kumpul];
     } catch (_e) {
         // best-effort — tak boleh menjatuhkan diagnosa
     }
@@ -365,6 +389,31 @@ Biasanya paling terasa jam 18.00–21.00 dan membaik setelahnya. Ini dari sisi j
         );
     }
     return '';
+}
+
+/**
+ * Baris "layanan tertentu terganggu" untuk pelanggan.
+ *
+ * !! HANYA NAMA APLIKASI, TIDAK PERNAH IP / NAMA JALUR / ANGKA. Nama diambil dari `namaAwam` di
+ * config — layanan tanpa `namaAwam` (mis. "Akamai CDN", "Google DNS") sengaja TIDAK pernah
+ * disebut, karena bagi pelanggan itu bukan nama apa pun.
+ *
+ * KENAPA ADA (#b264): vonis jalur kini butuh KESEPAKATAN beberapa target, jadi satu layanan
+ * bermasalah tak lagi membuat seluruh jalur divonis rusak. Tapi pelanggan yang membuka layanan
+ * ITU tetap merasakannya — diam soal itu sama menyesatkannya dengan dulu mengklaim seluruh
+ * jaringan terganggu. Menyebut namanya juga menghentikan mereka mencurigai perangkat sendiri.
+ */
+function buildLayananNote(daftar) {
+    const nama = Array.isArray(daftar) ? daftar.filter((x) => typeof x === 'string' && x.trim()) : [];
+    if (!nama.length) return '';
+    const teks = nama.length === 1
+        ? nama[0]
+        : `${nama.slice(0, -1).join(', ')} dan ${nama[nama.length - 1]}`;
+    return renderResponseTemplate(
+        'conncheck_layanan_terganggu',
+        `ℹ️ Khusus *${teks}* sedang terganggu dari jalur kami saat ini — layanan lain normal. Ini bukan dari perangkat Anda, dan sedang kami pantau 🙏`,
+        { layanan: teks }
+    );
 }
 
 /** Baris kesehatan (health note) untuk balasan jalur-AKTIF, dirender per verdict via template. */
@@ -650,7 +699,8 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
     let verdict = null;
     let healthNote = '';
     if (lineStatus === 'online') {
-        verdict = classifyOnlineVerdict(await resolveUpstreamHealth(user));
+        const up = await resolveUpstreamHealth(user);
+        verdict = classifyOnlineVerdict(up);
         healthNote = buildHealthNote(verdict);
 
         // KESTABILAN: hanya berbicara saat jalur pelanggan terpantau SEHAT menurut vonis lama
@@ -666,6 +716,13 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
                 healthNote = catatanStabil;
             }
         }
+
+        // Layanan tertentu yang terganggu disebut NAMANYA (#b264) — MENAMBAH, bukan menggantikan.
+        // Jalur boleh sehat secara keseluruhan sementara satu layanan (mis. Facebook) bermasalah;
+        // pelanggan yang membuka layanan itu tetap merasakannya, dan menyebutnya membuat mereka
+        // berhenti mencurigai perangkat sendiri.
+        const catatanLayanan = buildLayananNote(up.layananTerganggu);
+        if (catatanLayanan) healthNote = `${healthNote}\n\n${catatanLayanan}`.trim();
     }
 
     // Tawaran reboot berbantu HANYA saat reboot masuk akal: jalur AKTIF tanpa bukti gangguan jaringan
