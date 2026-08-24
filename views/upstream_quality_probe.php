@@ -129,7 +129,16 @@ function upq_ping($API, $address, $count, $interval, $routingTable = null) {
 if ($mode === 'trace') {
     $address = isset($spec['address']) ? $spec['address'] : '8.8.4.4';
     $routingTable = isset($spec['routingTable']) ? $spec['routingTable'] : null;
-    $args = array('address' => $address, 'count' => '1');
+    // !! JUMLAH PROBE PER HOP MENENTUKAN APAKAH BUKTI INI BISA DIPAKAI. Dengan count=1, tiap hop
+    // cuma diprobe SEKALI, sehingga loss per hop hanya bisa bernilai 0% atau 100% — terukur di
+    // 78 trace produksi: 1181 baris bernilai 0%, 184 bernilai 100%, TIDAK ADA nilai di antaranya.
+    // Kehilangan paket sebagian (justru yang bikin game tersendat) mustahil terlihat. count=10
+    // memberi resolusi 10 poin per hop. Biayanya waktu (~1 detik per ronde), masih jauh di bawah
+    // batas tunggu bridge 60 detik.
+    $count = isset($spec['count']) ? (int) $spec['count'] : 10;
+    if ($count < 1) $count = 1;
+    if ($count > 30) $count = 30;
+    $args = array('address' => $address, 'count' => (string) $count);
     if ($routingTable) $args['routing-table'] = $routingTable;
     $res = $API->comm('/tool/traceroute', $args);
     $hops = array();
