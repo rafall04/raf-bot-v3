@@ -61,14 +61,41 @@
         (report.paths || []).forEach(function (p) {
             var k = KELAS_STATUS[p.status] || KELAS_STATUS.UNKNOWN;
             var rows = "";
+            // !! TAMPILKAN SIAPA YANG MENENTUKAN VONIS (#b267). Vonis jalur kini butuh KESEPAKATAN
+            // beberapa target (#b264). Tanpa penanda, admin melihat "NORMAL" sementara satu target
+            // merah dan tak tahu apakah itu diabaikan dengan benar atau justru terlewat.
+            // Terukur: jalur `main` pernah divonis GANGGUAN hanya karena `meta` 24,6% sementara
+            // 6 target lain 0% — dan setiap pelanggan diberi tahu jaringan kami rusak.
+            var buruk = (p.targets || []).filter(function (t) { return t.verdict && t.verdict !== "NORMAL"; });
+            var sepakat = (report.minTargetSepakat || 2);
             (p.targets || []).forEach(function (t) {
-                rows += '<div class="small text-gray-700">' + esc(t.target) +
+                var jelek = t.verdict && t.verdict !== "NORMAL";
+                var alamat = Array.isArray(t.alamat) && t.alamat.length > 1
+                    ? esc(t.target_key || t.target) + ' <span class="text-muted">(' + t.alamat.length + " alamat)</span>"
+                    : esc(t.target_key || t.target);
+                rows += '<div class="small ' + (jelek ? "text-danger" : "text-gray-700") + '">' +
+                    (jelek ? "⚠️ " : "") + alamat +
                     ": loss <b>" + nilai(t.loss_avg_pct, "%") + "</b>" +
                     " · rtt <b>" + nilai(t.rtt_avg_ms, "ms") + "</b>" +
                     (t.baseline_rtt_ms ? ' <span class="text-muted">(normal ±' + t.baseline_rtt_ms + "ms)</span>" : "") +
                     "</div>";
             });
             if (!rows) rows = '<div class="small text-muted">Belum ada sampel di jendela ini.</div>';
+
+            // Kalimat penjelas: kenapa vonisnya begitu, dalam bahasa yang bisa ditindaklanjuti.
+            if (buruk.length) {
+                var namaBuruk = buruk.map(function (t) { return esc(t.target_key || t.target); }).join(", ");
+                if (buruk.length < sepakat) {
+                    rows += '<div class="small mt-1 text-muted border-top pt-1">' +
+                        "ℹ️ <b>" + namaBuruk + "</b> bermasalah, tapi " + buruk.length + " dari " + sepakat +
+                        " target yang dibutuhkan — jadi ini masalah <b>tujuan itu</b>, bukan jalur ini. " +
+                        "Jalur tetap dinilai " + esc(p.status) + ".</div>";
+                } else {
+                    rows += '<div class="small mt-1 text-danger border-top pt-1">' +
+                        "⚠️ <b>" + buruk.length + " target sepakat bermasalah</b> (" + namaBuruk +
+                        ") — ini menunjuk ke <b>jalur ini</b>, bukan ke satu tujuan.</div>";
+                }
+            }
 
             var segmen = "";
             if (p.segment && p.segment !== "SEHAT" && p.segment !== "UNKNOWN") {
@@ -422,13 +449,18 @@
         cfgCanEdit = d.canEdit === true;
         var tT = document.getElementById("upq-cfg-targets");
         tT.innerHTML = (d.targets || []).map(function (t) {
+            // Alamat ditampilkan sebagai daftar dipisah koma — satu layanan boleh banyak IP (#b267).
+            var alamat = (Array.isArray(t.addresses) && t.addresses.length ? t.addresses : [t.address])
+                .filter(Boolean).join(", ");
             return barisInput([
                 { name: "key", value: t.key },
                 { name: "label", value: t.label },
-                { name: "address", value: t.address }
+                { name: "namaAwam", value: t.namaAwam || "" },
+                { name: "address", value: alamat }
             ], true);
         }).join("");
         pasangHapus(tT);
+        isiFormStabilitas(d);
 
         var tS = document.getElementById("upq-cfg-services");
         tS.innerHTML = (d.services || []).map(function (s) {
@@ -487,6 +519,40 @@
         if (!cfgCanEdit) cfgStatus("Mode lihat saja — hanya admin/owner yang bisa menyimpan.", false);
     }
 
+
+    // ---- Kestabilan & jalur alarm (#b267) ----
+    function isiFormStabilitas(d) {
+        var st = d.stabilitas || {};
+        Array.prototype.forEach.call(document.querySelectorAll("#upq-cfg-stabilitas [data-f]"), function (el) {
+            var f = el.getAttribute("data-f");
+            if (el.type === "checkbox") el.checked = st[f] === true;
+            else if (st[f] !== undefined && st[f] !== null) el.value = st[f];
+        });
+        // Pemilih jalur: kotak centang per jalur yang BENAR-BENAR ada, bukan teks bebas —
+        // salah ketik nama jalur akan diam-diam mematikan alarm untuk jalur itu.
+        function pilihJalur(wadahId, terpilih) {
+            var wadah = document.getElementById(wadahId);
+            if (!wadah) return;
+            var dipilih = terpilih || [];
+            wadah.innerHTML = (d.paths || []).map(function (p) {
+                var id = wadahId + "-" + p.key;
+                return '<div class="custom-control custom-checkbox custom-control-inline">' +
+                    '<input type="checkbox" class="custom-control-input" id="' + id + '" value="' + esc(p.key) + '"' +
+                    (dipilih.indexOf(p.key) !== -1 ? " checked" : "") + ">" +
+                    '<label class="custom-control-label small" for="' + id + '">' + esc(p.label || p.key) + "</label></div>";
+            }).join("");
+        }
+        pilihJalur("upq-cfg-alertpaths-list", d.alertPaths);
+        pilihJalur("upq-cfg-alarmpaths-list", d.alarmKestabilanPaths);
+    }
+
+    function kumpulkanJalur(wadahId) {
+        var out = [];
+        Array.prototype.forEach.call(document.querySelectorAll("#" + wadahId + " input:checked"), function (el) {
+            out.push(el.value);
+        });
+        return out;
+    }
     function muatKonfig() {
         fetch("/api/upstream-quality/config", { credentials: "same-origin" })
             .then(function (r) { return r.json(); })
@@ -553,14 +619,44 @@
             tbody.appendChild(tmp.firstChild);
             pasangHapus(tbody);
         };
+        var btnStab = document.getElementById("btn-cfg-stab-save");
+        if (btnStab) btnStab.addEventListener("click", function () {
+            var patch = {};
+            Array.prototype.forEach.call(document.querySelectorAll("#upq-cfg-stabilitas [data-f]"), function (el) {
+                var f = el.getAttribute("data-f");
+                if (el.type === "checkbox") patch[f] = el.checked;
+                else if (String(el.value).trim() !== "") patch[f] = Number(el.value);
+            });
+            simpanKonfig({ stabilitas: patch }, this);
+        });
+
+        var btnJalur = document.getElementById("btn-cfg-alertpaths-save");
+        if (btnJalur) btnJalur.addEventListener("click", function () {
+            simpanKonfig({
+                alertPaths: kumpulkanJalur("upq-cfg-alertpaths-list"),
+                alarmKestabilanPaths: kumpulkanJalur("upq-cfg-alarmpaths-list")
+            }, this);
+        });
+
         document.getElementById("btn-cfg-target-add").addEventListener("click", function () {
-            addRow("upq-cfg-targets", ["key", "label", "address"]);
+            addRow("upq-cfg-targets", ["key", "label", "namaAwam", "address"]);
         });
         document.getElementById("btn-cfg-service-add").addEventListener("click", function () {
             addRow("upq-cfg-services", ["key", "label", "host"]);
         });
         document.getElementById("btn-cfg-target-save").addEventListener("click", function () {
-            simpanKonfig({ targets: kumpulkanBaris("upq-cfg-targets", ["key", "label", "address"]) }, this);
+            // Kolom "address" di form berisi DAFTAR dipisah koma; server menerimanya sebagai
+            // `addresses`. Bentuk lama (satu alamat) otomatis jadi daftar berisi satu.
+            var barisTarget = kumpulkanBaris("upq-cfg-targets", ["key", "label", "namaAwam", "address"])
+                .map(function (t) {
+                    return {
+                        key: t.key,
+                        label: t.label,
+                        namaAwam: t.namaAwam,
+                        addresses: String(t.address || "").split(",").map(function (a) { return a.trim(); }).filter(Boolean)
+                    };
+                });
+            simpanKonfig({ targets: barisTarget }, this);
         });
         document.getElementById("btn-cfg-service-save").addEventListener("click", function () {
             simpanKonfig({ services: kumpulkanBaris("upq-cfg-services", ["key", "label", "host"]) }, this);

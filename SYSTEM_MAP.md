@@ -370,6 +370,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-24 (Satu layanan buruk berhenti memvonis seluruh jaringan; satu IP berhenti mewakili satu layanan)](docs/boundary-log.md#b264)
 - [Fix 2026-08-24 (Status tiket: satu kosakata di semua permukaan — bot WA, rute admin, halaman web)](docs/boundary-log.md#b265)
 - [Fix 2026-08-24 (Semua setelan monitor bisa diatur dari halaman admin, bukan hanya lewat config.json)](docs/boundary-log.md#b266)
+- [Fix 2026-08-24 (Halaman /upstream-quality: kendali untuk setelan baru + kartu jalur yang MENJELASKAN vonisnya)](docs/boundary-log.md#b267)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

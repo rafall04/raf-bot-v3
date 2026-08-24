@@ -110,9 +110,16 @@
               <div class="row">
                 <div class="col-lg-6 mb-3">
                   <h6 class="font-weight-bold small text-uppercase text-gray-600">🎯 Target ping (arah ICMP per jalur)</h6>
+                  <div class="small text-muted mb-1">
+                    <b>Alamat</b> boleh lebih dari satu — pisahkan dengan koma. Satu IP bukan sampel
+                    yang sah untuk sebuah layanan: satu alamat bermasalah pernah membuat seluruh jalur
+                    divonis terganggu. <b>Nama awam</b> = nama yang boleh disebut ke pelanggan
+                    (mis. “Facebook &amp; Instagram”); kosongkan untuk nama teknis seperti “Akamai CDN”,
+                    yang bagi pelanggan bukan nama apa pun.
+                  </div>
                   <div class="table-responsive">
                     <table class="table table-sm mb-1" style="font-size:.85rem">
-                      <thead><tr><th style="width:22%">Key</th><th style="width:33%">Label</th><th>Alamat (IP/host)</th><th style="width:34px"></th></tr></thead>
+                      <thead><tr><th style="width:16%">Key</th><th style="width:22%">Label</th><th style="width:22%">Nama awam</th><th>Alamat (pisahkan koma)</th><th style="width:34px"></th></tr></thead>
                       <tbody id="upq-cfg-targets"></tbody>
                     </table>
                   </div>
@@ -140,6 +147,60 @@
                 </table>
               </div>
               <button class="btn btn-sm btn-primary mb-3" id="btn-cfg-path-save">Simpan jalur</button>
+              <h6 class="font-weight-bold small text-uppercase text-gray-600 mt-3">📶 Kestabilan &amp; Alarm (untuk keluhan lemot/game)</h6>
+              <div class="small text-muted mb-2">
+                Menjawab pertanyaan yang berbeda dari “ambang vonis” di atas: bukan
+                <i>“jalurnya rusak?”</i> tapi <i>“cukup stabil untuk game?”</i>. Angka bawaannya
+                hasil pengukuran 30 hari — <b>peringatan</b> menangkap kemacetan rutin jam sibuk,
+                <b>buruk</b> hanya keadaan luar biasa. Menurunkannya membuat pelanggan dikabari
+                setiap malam sampai kabarnya berhenti berarti.
+              </div>
+              <form class="form-inline" id="upq-cfg-stabilitas">
+                <div class="custom-control custom-switch mr-3 mb-2">
+                  <input type="checkbox" class="custom-control-input" id="cfg-stab-kabari" data-f="kabariPelanggan">
+                  <label class="custom-control-label small" for="cfg-stab-kabari">Kabari pelanggan saat jaringan ramai</label>
+                </div>
+                <div class="custom-control custom-switch mr-3 mb-2">
+                  <input type="checkbox" class="custom-control-input" id="cfg-stab-alarm" data-f="alarmAdmin">
+                  <label class="custom-control-label small" for="cfg-stab-alarm">Alarm ke admin</label>
+                </div>
+                <label class="small mr-1 mb-2">Loss peringatan (%)</label>
+                <input class="form-control form-control-sm mr-3 mb-2" style="width:5rem" type="number" step="0.5" data-f="lossPeringatanPct">
+                <label class="small mr-1 mb-2">Loss buruk (%)</label>
+                <input class="form-control form-control-sm mr-3 mb-2" style="width:5rem" type="number" step="0.5" data-f="lossBurukPct">
+                <label class="small mr-1 mb-2">Jitter peringatan (ms)</label>
+                <input class="form-control form-control-sm mr-3 mb-2" style="width:5rem" type="number" step="1" data-f="jitterPeringatanMs">
+                <label class="small mr-1 mb-2">Jitter buruk (ms)</label>
+                <input class="form-control form-control-sm mr-3 mb-2" style="width:5rem" type="number" step="1" data-f="jitterBurukMs">
+                <label class="small mr-1 mb-2">Jendela (menit)</label>
+                <input class="form-control form-control-sm mr-3 mb-2" style="width:5rem" type="number" step="1" data-f="windowMinutes">
+                <label class="small mr-1 mb-2">Min sampel</label>
+                <input class="form-control form-control-sm mr-3 mb-2" style="width:5rem" type="number" step="1" data-f="minSampel">
+                <label class="small mr-1 mb-2">Siklus beruntun</label>
+                <input class="form-control form-control-sm mr-3 mb-2" style="width:5rem" type="number" step="1" data-f="siklusBeruntun">
+                <label class="small mr-1 mb-2">Cooldown (menit)</label>
+                <input class="form-control form-control-sm mr-3 mb-2" style="width:5rem" type="number" step="5" data-f="cooldownMinutes">
+                <label class="small mr-1 mb-2" title="Berapa target harus SEPAKAT sebelum jalur divonis bermasalah. 1 = satu target buruk sudah cukup (dulu begitu, dan satu layanan bermasalah memvonis seluruh jaringan).">Min target sepakat</label>
+                <input class="form-control form-control-sm mr-3 mb-2" style="width:5rem" type="number" step="1" data-f="minTargetSepakat">
+                <label class="small mr-1 mb-2" title="Jumlah probe per hop saat traceroute bukti. Di bawah ~5, loss per hop hanya bisa 0% atau 100%.">Probe traceroute</label>
+                <input class="form-control form-control-sm mr-3 mb-2" style="width:5rem" type="number" step="1" data-f="traceCount">
+                <button type="button" class="btn btn-sm btn-primary mb-2" id="btn-cfg-stab-save">Simpan kestabilan</button>
+              </form>
+
+              <h6 class="font-weight-bold small text-uppercase text-gray-600 mt-3">🔔 Jalur yang boleh membangunkan admin</h6>
+              <div class="small text-muted mb-2">
+                Kosongkan = semua jalur. Jangan sertakan jalur <b>cadangan</b> yang tak dipakai
+                pelanggan: terukur, satu jalur cadangan sendirian menghasilkan 7 alert/hari, dan
+                alarm harian melatih pembacanya mengabaikan alarm.
+              </div>
+              <form class="form-inline mb-2" id="upq-cfg-alertpaths">
+                <label class="small mr-1 mb-2">Alert jalur bermasalah</label>
+                <div id="upq-cfg-alertpaths-list" class="mr-3 mb-2"></div>
+                <label class="small mr-1 mb-2">Alarm kestabilan</label>
+                <div id="upq-cfg-alarmpaths-list" class="mr-3 mb-2"></div>
+                <button type="button" class="btn btn-sm btn-primary mb-2" id="btn-cfg-alertpaths-save">Simpan jalur alarm</button>
+              </form>
+
               <h6 class="font-weight-bold small text-uppercase text-gray-600">📐 Ambang vonis (thresholds)</h6>
               <form class="form-inline" id="upq-cfg-thresholds">
                 <label class="small mr-1">Loss warn %</label><input class="form-control form-control-sm mr-3" style="width:70px" type="number" step="0.5" id="cfg-th-lossWarnPct">
