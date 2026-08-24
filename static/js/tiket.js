@@ -18,16 +18,35 @@
         }
         function escapeHtml(value) { return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
         function formatTicketDetailsAdmin(d) { return d ? `Nama: ${escapeHtml(d.name||'N/A')}\nAlamat: ${escapeHtml(d.address||'N/A')}\nPaket: ${escapeHtml(d.subscription||'N/A')}\nPPPoE: ${escapeHtml(d.pppoe_username||'N/A')}` : 'N/A';}
+        // Kosakata kanonik server (lib/ticket-workflow.js FINAL_STATUSES):
+        //   baru · process · otw · arrived · working · completed · cancelled
+        //
+        // !! DULU normalizer ini MELEWATKAN status yang tak dikenalnya apa adanya, sehingga
+        // ejaan lama seperti `dibatalkan`/`batal`/`closed` lolos dan `canCancel` tetap true —
+        // tombol Batalkan muncul di tiket yang sudah dibatalkan (#b265). Sekarang tiap ejaan
+        // yang pernah ditulis dipetakan; yang benar-benar asing dipulangkan apa adanya DAN
+        // dicatat di console supaya ketahuan, bukan menghilang.
         function normalizeTicketStatusAdmin(status) {
-            const normalizedStatus = (status || '').toLowerCase().trim();
+            const s = (status || '').toLowerCase().trim();
+            if (!s) return 'baru';
 
-            if (normalizedStatus === 'diproses teknisi') return 'process';
-            if (normalizedStatus === 'selesai' || normalizedStatus === 'resolved') return 'completed';
-            if (normalizedStatus === 'dibatalkan pelanggan' || normalizedStatus === 'dibatalkan admin' || normalizedStatus === 'dibatalkan' || normalizedStatus.includes('dibatalkan')) {
-                return 'cancelled';
-            }
+            const PETA = {
+                'selesai': 'completed', 'resolved': 'completed', 'done': 'completed',
+                'closed': 'completed',
+                'diproses teknisi': 'process', 'diproses': 'process',
+                'dibatalkan': 'cancelled', 'batal': 'cancelled', 'canceled': 'cancelled',
+                'cancel': 'cancelled', 'dibatalkan admin': 'cancelled',
+                'dibatalkan pelanggan': 'cancelled',
+                'open': 'baru', 'new': 'baru', 'pending': 'baru'
+            };
+            if (PETA[s]) return PETA[s];
+            if (s.includes('dibatalkan')) return 'cancelled';
 
-            return normalizedStatus;
+            const KANONIK = ['baru', 'process', 'otw', 'arrived', 'working', 'completed', 'cancelled'];
+            if (KANONIK.indexOf(s) !== -1) return s;
+
+            console.warn('[TIKET] status asing dari server: "' + s + '" — tombol aksi mungkin salah. Tambahkan pemetaannya.');
+            return s;
         }
 
         function getTicketTechnicianPhotoCount(ticket) {

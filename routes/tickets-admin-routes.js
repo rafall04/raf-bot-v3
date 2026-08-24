@@ -178,32 +178,41 @@ router.post('/admin/ticket/cancel', ensureAdmin, async (req, res) => {
             });
         }
         
-        // Find the ticket - cek dengan ticketId atau id (untuk kompatibilitas)
-        const reportIndex = global.reports.findIndex(r => 
-            r.ticketId === ticketId || r.id === ticketId
-        );
-        if (reportIndex === -1) {
-            return res.status(404).json({
-                status: 404,
-                message: 'Tiket tidak ditemukan'
+        // !! PEMBATALAN LEWAT `ticket-workflow`, BUKAN MENULIS STATUS SENDIRI (#b265).
+        //
+        // Dulu rute ini menetapkan status pembatalan langsung ke objek tiket. Tiga akibatnya:
+        //   1. Ejaan itu di luar kosakata kanonik, sehingga `ensureTicketShape` (yang dipanggil
+        //      oleh notifikasi tepat SESUDAHNYA) memulangkannya jadi `baru` — tiket yang sudah
+        //      dibatalkan tampak terbuka lagi, tombol Batalkan muncul kembali. Terbukti di
+        //      produksi: 2 tiket berstatus `baru` tapi ber-`cancelled_by`.
+        //   2. Tanpa penjaga transisi: tiket yang SUDAH `completed` pun bisa dibatalkan, padahal
+        //      `ALLOWED_TRANSITIONS.completed` himpunan kosong.
+        //   3. Tanpa cek idempoten: membatalkan dua kali menimpa jejak pembatalan pertama.
+        //
+        // `cancelTicket` memberi ketiganya sekaligus, dan menulis ejaan kanonik `cancelled`.
+        const { cancelTicket } = require('../lib/ticket-workflow');
+        let report;
+        try {
+            const hasil = cancelTicket({
+                ticketId,
+                actor: { id: req.user.id, username: req.user.username, name: req.user.name || req.user.username },
+                reason: cancellationReason,
+                cancelledByType: 'admin'
             });
+            report = hasil.ticket;
+        } catch (err) {
+            const kode = err && err.code;
+            if (kode === 'NOT_FOUND') {
+                return res.status(404).json({ status: 404, message: 'Tiket tidak ditemukan' });
+            }
+            if (kode === 'ALREADY_COMPLETED' || kode === 'ALREADY_CANCELLED' || kode === 'INVALID_TRANSITION') {
+                // 409 = keadaan tiket menolak aksi ini. Bedakan dari 500 supaya UI bisa
+                // menjelaskan sebabnya, bukan sekadar "terjadi kesalahan".
+                return res.status(409).json({ status: 409, message: err.message });
+            }
+            throw err;
         }
-        
-        const report = global.reports[reportIndex];
-        
-        // Store old status for activity log
-        const oldStatus = report.status;
-        
-        // Update ticket status
-        report.status = 'dibatalkan';
-        report.cancelled_by = req.user.username;
-        report.cancelled_at = new Date().toISOString();
-        if (cancellationReason) {
-            report.cancellation_reason = cancellationReason;
-        }
-        
-        // Save to database
-        saveReports(global.reports);
+        const oldStatus = report.previousStatus || null;
         
         // Log activity
         try {
@@ -217,7 +226,8 @@ router.post('/admin/ticket/cancel', ensureAdmin, async (req, res) => {
                 resourceName: `Ticket ${report.ticketId || report.id}`,
                 description: `Cancelled ticket ${report.ticketId || report.id}${cancellationReason ? `: ${cancellationReason}` : ''}`,
                 oldValue: { status: oldStatus },
-                newValue: { status: 'dibatalkan', cancellationReason: cancellationReason },
+                // Ejaan KANONIK — log aktivitas harus mencatat status yang benar-benar tersimpan.
+                newValue: { status: 'cancelled', cancellationReason: cancellationReason },
                 ipAddress: req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'],
                 userAgent: req.headers['user-agent']
             });

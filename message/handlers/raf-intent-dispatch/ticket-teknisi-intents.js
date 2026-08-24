@@ -42,7 +42,9 @@ async function handleSelesaikanTiketIntent(context) {
 
     const report = global.reports[reportIndex];
 
-    if (report.status === 'selesai') {
+    // Lewat normalizeStatus (#b265): alur normal menulis `completed`, bukan `selesai`.
+    // Membandingkan mentah membuat tiket yang SUDAH selesai bisa "diselesaikan" lagi.
+    if (require("../../../lib/ticket-workflow").normalizeStatus(report.status) === "completed") {
         return reply(renderResponseTemplate(
             'dispatch_tiketdone_already_done',
             `⚠️ Tiket *${ticketIdToResolve}* sudah selesai sebelumnya.`,

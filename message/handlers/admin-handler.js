@@ -1,4 +1,5 @@
 "use strict";
+const { normalizeStatus: normalizeTicketStatus } = require("../../lib/ticket-workflow");
 
 /**
  * Admin/Teknisi Handler
@@ -260,13 +261,16 @@ function handleReportList({ status = 'all' }) {
     try {
         let reports = [...global.reports];
         
-        // Filter by status
+        // Filter by status — LEWAT normalizeStatus (#b265). Perbandingan mentah di sini dulu
+        // memakai ejaan LAMA, sehingga filter "processing" dan "done" SELALU memulangkan NOL
+        // tiket begitu alur normal menulis ejaan kanonik (`process`, `completed`).
         if (status === 'new') {
-            reports = reports.filter(r => r.status === 'baru');
+            reports = reports.filter(r => normalizeTicketStatus(r.status) === 'baru');
         } else if (status === 'processing') {
-            reports = reports.filter(r => r.status === 'diproses teknisi');
+            const SEDANG_JALAN = ['process', 'otw', 'arrived', 'working'];
+            reports = reports.filter(r => SEDANG_JALAN.includes(normalizeTicketStatus(r.status)));
         } else if (status === 'done') {
-            reports = reports.filter(r => r.status === 'selesai');
+            reports = reports.filter(r => normalizeTicketStatus(r.status) === 'completed');
         }
         
         if (reports.length === 0) {
@@ -286,9 +290,17 @@ function handleReportList({ status = 'all' }) {
         const displayReports = reports.slice(0, maxDisplay);
         
         displayReports.forEach((report, index) => {
-            const statusEmoji = report.status === 'baru' ? '🆕' :
-                              report.status === 'diproses teknisi' ? '⚙️' :
-                              report.status === 'selesai' ? '✅' : '❌';
+            // !! LEWAT `normalizeStatus`, JANGAN bandingkan mentah (#b265). Daftar ini dulu hanya
+            // mengenal ejaan LAMA (`baru` / `diproses teknisi` / `selesai`), sementara workflow
+            // menulis ejaan KANONIK (`process`, `otw`, `arrived`, `working`, `completed`,
+            // `cancelled`). Akibatnya SEMUA tiket yang ditangani lewat alur normal jatuh ke ❌ —
+            // admin melihat tanda "gagal" untuk tiket yang sedang dikerjakan maupun yang selesai.
+            const st = normalizeTicketStatus(report.status);
+            const statusEmoji = st === 'baru' ? '🆕'
+                : (st === 'process' || st === 'otw' || st === 'arrived' || st === 'working') ? '⚙️'
+                : st === 'completed' ? '✅'
+                : st === 'cancelled' ? '❌'
+                : '❔';
             
             const createdAt = new Date(report.createdAt).toLocaleString('id-ID', {
                 timeZone: 'Asia/Jakarta',
@@ -306,7 +318,7 @@ function handleReportList({ status = 'all' }) {
             message += `   📅 ${createdAt}\n`;
             message += `   💬 ${keluhan}\n`;
             
-            if (report.status === 'diproses teknisi' && report.processedByTeknisiName) {
+            if (['process','otw','arrived','working'].includes(normalizeTicketStatus(report.status)) && report.processedByTeknisiName) {
                 message += `   🔧 ${report.processedByTeknisiName}\n`;
             }
             

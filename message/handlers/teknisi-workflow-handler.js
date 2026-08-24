@@ -116,14 +116,16 @@ async function handleProsesTicket(sender, ticketId, reply, teknisiAccount = null
             };
         }
 
-        if (ticket.status === 'process') {
+        // Semua perbandingan status lewat normalizeStatus (#b265) — jangan hafal ejaan.
+        const stNow = require("../../lib/ticket-workflow").normalizeStatus(ticket.status);
+        if (stNow === "process" || stNow === "otw" || stNow === "arrived" || stNow === "working") {
             return {
                 success: false,
                 message: renderResponseTemplate('teknisi_workflow_already_processed', `Tiket *${ticketId}* sudah diproses oleh teknisi lain.`, { ticketId })
             };
         }
 
-        if (ticket.status === 'completed' || ticket.status === 'selesai') {
+        if (stNow === "completed") {
             return {
                 success: false,
                 message: renderResponseTemplate('teknisi_workflow_already_completed', `Tiket *${ticketId}* sudah selesai.`, { ticketId })
