@@ -2013,3 +2013,13 @@
 - Form publik (`lib/services/report-service.js`, live di Dander) menempelkan kunci template BARU `report_service_luar_jam_kerja` di luar jam kerja — kunci baru, jadi bebas risiko slot basi. Salinan kedua perakit nama-hari di `smart-report-text-menu` dihapus.
 - Halaman `/los-broadcast`: 2 bidang baru (kalimat penanganan dalam/luar jam kerja).
 - Tes: `lib/__tests__/olt-los-jam-kerja.test.js` (6, template produksi persis), `lib/__tests__/working-hours-frasa.test.js` (7, jam nyata dipalsukan), `routes/__tests__/admin-los-broadcast-routes.test.js` (+3). Semua diuji-mutasi.
+
+<a id="b270"></a>
+
+### Fix 2026-08-24 (Alarm & laporan ke admin memanggil pengirim yang tidak ada — gagal diam-diam)
+
+- **Owner:** `lib/whatsapp-critical-delivery.sendCritical` sebagai pengirim untuk `lib/quality-alarm.js` dan `lib/wifi-failure-reason.js`.
+- **Akar:** keduanya memanggil `require("./whatsapp-notification-wrapper").sendNotification` — modul itu **tidak pernah mengekspornya** (`initializeWrapper, removeWrapper, getWrapperStatus, resetBlockedCount, getOriginalSendMessage`). Terbukti di log produksi Tanjungharjo: `[ALARM_KESTABILAN_KIRIM_ERROR] kirim is not a function`, berulang tiap siklus. Alarm kestabilan **tak pernah sekalipun sampai**, dan laporan kegagalan WiFi (#b268) gagal diam-diam karena tertelan `never-throw`.
+- **Kenapa lolos tes:** tesnya menyuntikkan `deps.kirim` palsu, jadi jalur default (yang dipakai produksi) tak pernah dieksekusi; dan tes pelaporan WiFi hanya membuktikan fungsinya *tidak melempar*.
+- **Penjaga baru:** `lib/__tests__/pengirim-wa-harus-ada.test.js` **memindai** `lib/`, `services/`, `message/` untuk setiap simbol yang diimpor dari modul pengirim WhatsApp dan menuntutnya benar-benar berupa fungsi — bukan daftar manual. Diuji-mutasi: mengembalikan impor lama membuat penjaga menyebut berkas + simbolnya.
+- Tes: `lib/__tests__/wifi-lapor-admin.test.js` (6) membuktikan pesannya **benar-benar terkirim** ke tiap admin, ber-jeda 30 menit, dan jeda TIDAK dipasang saat tak ada yang terkirim.
