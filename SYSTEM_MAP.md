@@ -360,6 +360,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-21 (Pemasukan hantu dari pengajuan bayar kembar, vonis 202 di jalur WiFi, dan panel yang mengarang hasil)](docs/boundary-log.md#b254)
 - [Fix 2026-08-23 (Cek koneksi menjawab "apakah STABIL", bukan cuma "apakah tersambung")](docs/boundary-log.md#b255)
 - [Fix 2026-08-24 (Traceroute berhenti jadi lampiran tak terbaca, jadi bukti yang bisa dibawa ke ISP)](docs/boundary-log.md#b256)
+- [Fix 2026-08-24 (Modem sehat berhenti divonis mati — di grafik ACS maupun di jalur pelanggan)](docs/boundary-log.md#b257)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
