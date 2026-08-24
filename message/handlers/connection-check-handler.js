@@ -265,6 +265,21 @@ function classifyOnlineVerdict(up) {
 }
 
 /**
+ * Router mana yang melayani pelanggan ini. Diangkat dari `handleCekKoneksi` agar jalur lain
+ * (mis. `resolveStabilitas` saat dipanggil dari menu laporan) memakai penurunan yang SAMA —
+ * dua salinan logika router-id adalah cara termudah keduanya menyimpang diam-diam.
+ * Tak pernah throw: state pemantauan bersifat opsional, dan 'default' selalu jawaban yang sah.
+ */
+async function resolveRouterId(user) {
+    try {
+        const repo = require('../../repositories/auto-outage.repository').createAutoOutageRepository();
+        const cached = await repo.getStateByUserId(user && user.id);
+        if (cached && cached.router_id) return cached.router_id;
+    } catch (_e) { /* state opsional */ }
+    return 'default';
+}
+
+/**
  * Vonis KESTABILAN jalur pelanggan — menjawab "apakah stabil?", pertanyaan yang berbeda dari
  * "apakah tersambung?" dan yang selama ini tak pernah dijawab.
  *
@@ -285,6 +300,25 @@ async function resolveStabilitas(user) {
         if (gerbang.enabled !== true) return { tingkat: 'TIDAK_TERPANTAU', ringkas: null };
         if (!upstreamSignalAvailable()) return { tingkat: 'TIDAK_TERPANTAU', ringkas: null };
         const uname = normalizeUsername(user.pppoe_username);
+
+        // !! MENGHANGATKAN CACHE-NYA SENDIRI (#b262). Fungsi ini dulu hanya membaca
+        // `activeCache.addrByUser`, yang diisi oleh alur `handleCekKoneksi` beberapa langkah
+        // sebelumnya. Dipanggil dari jalur LAIN (mis. menu laporan bernomor) dengan cache dingin,
+        // ia memulangkan TIDAK_TERPANTAU dan DIAM SELAMANYA — fitur yang tampak terpasang tapi
+        // tak pernah bicara. Itu kegagalan paling mahal karena tak meninggalkan jejak apa pun.
+        //
+        // `getActiveUsernameSet` ber-TTL dan meng-cache kegagalan juga, jadi memanggilnya di sini
+        // GRATIS saat datang dari alur cek-koneksi (cache masih panas), dan benar saat datang
+        // dari jalur lain.
+        if (!activeCache.addrByUser) {
+            try {
+                await getActiveUsernameSet(await resolveRouterId(user));
+            } catch (_e) {
+                // Router tak terbaca = kita BUTA, bukan "jaringan sehat". Jatuh ke TIDAK_TERPANTAU.
+                return { tingkat: 'TIDAK_TERPANTAU', ringkas: null };
+            }
+        }
+
         const addr = activeCache.addrByUser ? activeCache.addrByUser.get(uname) : null;
         if (!addr) return { tingkat: 'TIDAK_TERPANTAU', ringkas: null };
         const pathKey = await resolveCustomerPath(addr);
@@ -550,15 +584,14 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
     );
 
     // Router id + offline_since dari state pemantauan (opsional, untuk "terakhir online").
-    let routerId = 'default';
+    // Router id diturunkan lewat `resolveRouterId` — SATU pemilik, dipakai juga oleh
+    // `resolveStabilitas` saat ia dipanggil dari jalur lain (#b262).
+    const routerId = await resolveRouterId(user);
     let offlineSince = null;
     try {
         const repo = require('../../repositories/auto-outage.repository').createAutoOutageRepository();
         const cached = await repo.getStateByUserId(user.id);
-        if (cached) {
-            if (cached.router_id) routerId = cached.router_id;
-            if (cached.offline_since) offlineSince = cached.offline_since;
-        }
+        if (cached && cached.offline_since) offlineSince = cached.offline_since;
     } catch (_e) {
         // state opsional — abaikan bila tak tersedia
     }
@@ -732,6 +765,11 @@ async function handleCekKoneksi({ sender, msg, raf, users, reply, mess, pushname
 module.exports = {
     handleCekKoneksi,
     resolveLineStatus, // dipakai reboot-modem-handler utk gerbang gangguan-area (M3)
+    // Dipakai jalur laporan bernomor (smart-report-text-menu) supaya pelanggan yang masuk lewat
+    // MENU mendapat kabar keadaan jaringan yang sama dengan yang MENGETIK keluhan (#b262).
+    // `resolveStabilitas` menghangatkan cache PPP-aktifnya sendiri — aman dipanggil dari mana pun.
+    resolveStabilitas,
+    buildStabilitasNote,
     // Test-only: reset cache in-memori (PPP-active + laporan upstream) agar test deterministik.
     _resetCachesForTest() {
         activeCache = { at: 0, routerId: null, set: null, addrByUser: null, error: null };

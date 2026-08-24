@@ -450,6 +450,25 @@ async function handleInternetLemot({ sender, pushname: _pushname, reply: _reply,
         // Get estimation for MEDIUM priority
         const estimasiLemot = getResponseTimeMessage('MEDIUM');
 
+        // !! KEADAAN JARINGAN IKUT DIKABARKAN (#b262). Pelanggan yang MENGETIK keluhan sudah
+        // dialihkan ke CEK_KONEKSI yang memuat vonis kestabilan (#b255); yang masuk lewat MENU
+        // bernomor dulu hanya dapat "Status Device: ONLINE" — benar, tapi bukan jawaban atas
+        // pertanyaan mereka. Terbukti penting: keluhan lag 2026-08-23 ternyata gangguan ISP nyata,
+        // dan menjawabnya dengan status perangkat saja mengarahkan pelanggan ke tempat yang salah.
+        //
+        // `resolveStabilitas` menghangatkan cache PPP-aktifnya sendiri, jadi aman dipanggil dari
+        // sini. Kalau tak bisa menyimpulkan, ia memulangkan TIDAK_TERPANTAU dan catatannya KOSONG
+        // — diam lebih baik daripada menebak.
+        let catatanJaringan = '';
+        try {
+            const cc = require('./connection-check-handler');
+            const stab = await cc.resolveStabilitas(user);
+            catatanJaringan = cc.buildStabilitasNote(stab.tingkat) || '';
+            console.log(`[LEMOT_JARINGAN] tingkat=${stab.tingkat} -> ${catatanJaringan ? 'kabari pelanggan' : 'tak ada yang perlu dikabarkan'}`);
+        } catch (e) {
+            console.warn('[LEMOT_JARINGAN_WARN]', e && e.message);
+        }
+
         // Initialize or get state
         const stateId = getReportStateId(sender, stateKey);
         setUserState(stateId, buildReportState(getUserState(stateId) || {}, {
@@ -468,12 +487,27 @@ async function handleInternetLemot({ sender, pushname: _pushname, reply: _reply,
             estimatedTime: estimasiLemot
         }));
 
+        // Saran mandiri ("restart modem, cek kabel") dan catatan jaringan SALING MENGGANTIKAN.
+        // Menyuruh pelanggan me-restart modemnya sementara kalimat di atasnya berkata "ini dari
+        // sisi jaringan kami, bukan perangkat Anda" membuat pesan membantah dirinya sendiri —
+        // dan mengirim orang mengurus benda yang bukan penyebabnya.
+        const SARAN_MANDIRI = 'Sebelum membuat laporan, coba restart modem/router, cek penggunaan, dan cek kabel fisik.';
+        const slotJaringan = catatanJaringan ? `\n${catatanJaringan}\n` : '';
+        const slotSaran = catatanJaringan ? '' : `\n${SARAN_MANDIRI}\n`;
+
         return {
             success: true,
             message: renderResponseTemplate(
                 'smart_report_text_lemot_troubleshoot_menu',
-                'Troubleshooting internet lemot.\n\nStatus Device: *ONLINE*\nEstimasi penanganan: *${estimasiLemot}*\n\nBalas *SUDAH* jika teratasi atau *BELUM* untuk buat laporan.',
-                { estimasiLemot }
+                // !! SLOT BARU HARUS ADA DI TEMPLATE TERSIMPAN, bukan cuma di fallback ini.
+                // Template tersimpan MENIMPA fallback (aturan rumah), jadi menambah slot di sini
+                // saja = catatan dihitung lalu dibuang diam-diam — persis cara seksi jalur-upstream
+                // dulu tak terlihat pelanggan berminggu-minggu.
+                // Fallback sengaja MINIMAL — bukan salinan template produksi. Menyalinnya ke sini
+                // membuat keduanya menyimpang diam-diam, dan melanggar aturan "teks pelanggan
+                // hidup di template". Yang WAJIB sama hanyalah nama-nama SLOT-nya.
+                'Status koneksi: aktif.\n${catatanJaringan}${saranMandiri}\nEstimasi penanganan: *${estimasiLemot}*\n\nBalas *SUDAH* jika teratasi atau *BELUM* untuk buat laporan.',
+                { estimasiLemot, catatanJaringan: slotJaringan, saranMandiri: slotSaran }
             )
         };
 

@@ -3622,7 +3622,7 @@
   "smart_report_text_lemot_troubleshoot_menu": {
     "name": "Smart Report Text: Menu Troubleshoot Internet Lemot",
     "category": "report",
-    "template": "*TROUBLESHOOTING INTERNET LEMOT*\n\nStatus Device: *ONLINE*\nPrioritas jika buat tiket: *MEDIUM*\nEstimasi penanganan: *${estimasiLemot}*\n\nSebelum membuat laporan, coba restart modem/router, cek penggunaan, dan cek kabel fisik.\n\n*Apakah masalah sudah teratasi?*\n\nBalas:\n- *SUDAH* jika masalah teratasi\n- *BELUM* untuk buat laporan"
+    "template": "*TROUBLESHOOTING INTERNET LEMOT*\n\nStatus Device: *ONLINE*\nPrioritas jika buat tiket: *MEDIUM*\nEstimasi penanganan: *${estimasiLemot}*\n${catatanJaringan}${saranMandiri}\n*Apakah masalah sudah teratasi?*\n\nBalas:\n- *SUDAH* jika masalah teratasi\n- *BELUM* untuk buat laporan"
   },
   "smart_report_text_mati_option_invalid": {
     "name": "Smart Report Text: Pilihan Troubleshoot Mati Tidak Valid",
