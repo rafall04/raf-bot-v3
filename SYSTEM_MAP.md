@@ -362,6 +362,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-24 (Traceroute berhenti jadi lampiran tak terbaca, jadi bukti yang bisa dibawa ke ISP)](docs/boundary-log.md#b256)
 - [Fix 2026-08-24 (Modem sehat berhenti divonis mati — di grafik ACS maupun di jalur pelanggan)](docs/boundary-log.md#b257)
 - [Fix 2026-08-24 (Alert jalur upstream dapat penyaring jalur — Tanjungharjo akhirnya bisa dinyalakan)](docs/boundary-log.md#b258)
+- [Fix 2026-08-24 (Notifikasi gangguan ke pelanggan: berhenti mengabari masalah yang sudah selesai)](docs/boundary-log.md#b259)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
