@@ -52,6 +52,8 @@
       c.elements.customerNotifyDelayMinutes.value = nc.delayMinutes != null ? nc.delayMinutes : 60;
       c.elements.customerOnlyIfStillDown.value = (nc.onlyIfStillDown === false) ? 'false' : 'true';
       c.elements.customerMessageTemplate.value = nc.messageTemplate || '';
+      if (c.elements.customerPenangananTemplate) c.elements.customerPenangananTemplate.value = nc.penangananTemplate || '';
+      if (c.elements.customerPenangananLuarJamTemplate) c.elements.customerPenangananLuarJamTemplate.value = nc.penangananLuarJamTemplate || '';
     }
     // Endpoint /config mengganti SELURUH config, jadi payload selalu gabungan kedua form.
     function configPayload() {
@@ -78,6 +80,8 @@
         notifyCustomerEnabled: asBool(c.elements.notifyCustomerEnabled.value),
         customerNotifyDelayMinutes: Number(c.elements.customerNotifyDelayMinutes.value),
         customerOnlyIfStillDown: asBool(c.elements.customerOnlyIfStillDown.value),
+        customerPenangananTemplate: c.elements.customerPenangananTemplate ? c.elements.customerPenangananTemplate.value : undefined,
+        customerPenangananLuarJamTemplate: c.elements.customerPenangananLuarJamTemplate ? c.elements.customerPenangananLuarJamTemplate.value : undefined,
         customerMessageTemplate: c.elements.customerMessageTemplate.value
       };
     }

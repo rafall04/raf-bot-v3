@@ -12,7 +12,7 @@ const { setUserState, getUserState, deleteUserState, format, registerStateTimeou
 // Draft DURABEL: state percakapan + timer timeout sama-sama hidup di memori dan lenyap saat
 // `pm2 restart`. Store ini yang membuat laporan pelanggan tetap ada sesudahnya.
 const { simpanDraft, hapusDraft } = require('../../lib/laporan-draft-store');
-const { getResponseTimeMessage, isWithinWorkingHours } = require('../../lib/working-hours-helper');
+const { getResponseTimeMessage, isWithinWorkingHours, waktuMulaiKerjaBerikutnya } = require('../../lib/working-hours-helper');
 const { hasActiveReport } = require('../../lib/report-helper');
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
 const { createCustomerReportTicket } = require('../../lib/report-orchestration-service');
@@ -399,11 +399,11 @@ async function handleInternetLemot({ sender, pushname: _pushname, reply: _reply,
                 const target = new Date(now.getTime() + 2 * 60 * 60 * 1000);
                 targetTime = `Hari ini sebelum ${String(target.getHours()).padStart(2, '0')}:${String(target.getMinutes()).padStart(2, '0')} WIB`;
             } else {
-                if (workingStatus.nextWorkingTime) {
-                    const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-                    const next = workingStatus.nextWorkingTime;
-                    targetTime = `${dayNames[next.getDay()]} pukul ${String(next.getHours()).padStart(2, '0')}:${String(next.getMinutes()).padStart(2, '0')} WIB`;
-                }
+                // Satu-satunya pemilik frasa waktu (#b269). Dulu nama hari dirakit di sini
+                // sendiri, sementara alur LOS otomatis tak merakit apa pun — dua permukaan
+                // bicara soal jam kerja yang sama dengan cara berbeda (atau diam sama sekali).
+                const { teks } = waktuMulaiKerjaBerikutnya();
+                if (teks) targetTime = teks.charAt(0).toUpperCase() + teks.slice(1);
             }
 
             // Save state for MATI flow instead of LEMOT

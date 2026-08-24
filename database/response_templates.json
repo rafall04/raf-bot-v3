@@ -5685,5 +5685,14 @@
     "name": "WiFi gagal — kendala di sistem kami",
     "template": "⚠️ Maaf Kak, perubahannya *belum tersimpan* karena ada kendala di *sistem kami* — bukan dari modem Kakak, jadi tidak perlu diutak-atik.\n\nTim kami sudah mendapat pemberitahuannya. Mohon dicoba lagi beberapa saat, atau balas pesan ini kalau Kakak butuh dibantu 🙏",
     "category": "wifi"
+  },
+  "report_service_luar_jam_kerja": {
+    "name": "Report Service: Catatan Di Luar Jam Kerja",
+    "category": "routes_outbound",
+    "template": "\n\n⏰ *Catatan:* laporan ini masuk di luar jam kerja teknisi. Penanganan ke lapangan dimulai ${waktuMulai} ya 🙏 Kalau ternyata sudah normal sebelum itu, Kakak boleh balas pesan ini.",
+    "placeholders": [
+      "waktuMulai"
+    ],
+    "description": "Ditempel di bawah konfirmasi laporan bila masuk di luar jam kerja teknisi (#b269)."
   }
 }

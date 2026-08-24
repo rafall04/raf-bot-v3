@@ -242,3 +242,40 @@ describe("normalizeLosConfig", () => {
         expect(c.notifyCustomer.messageTemplate).toBe("Halo");
     });
 });
+
+describe("#b269 — simpan dari halaman admin tidak boleh MENGHAPUS template", () => {
+    // buildConfig merakit ulang notifyCustomer dari nol. Sebelum perbaikan ini, satu klik
+    // "Simpan Notifikasi Pelanggan" menghapus areaNoteTemplate yang sudah dipakai produksi —
+    // hilang diam-diam, tanpa error, dan config produksi di-merge-key jadi tak terpulihkan
+    // oleh deploy berikutnya.
+    const LAMA = {
+        notifyCustomer: {
+            enabled: true,
+            areaNoteTemplate: "CATATAN AREA BUATAN ADMIN",
+            penangananTemplate: "KALIMAT DALAM JAM BUATAN ADMIN",
+            penangananLuarJamTemplate: "KALIMAT LUAR JAM BUATAN ADMIN",
+            messageTemplate: "PESAN BUATAN ADMIN",
+        },
+    };
+
+    test("formulir tanpa medan tersebut → nilainya tetap utuh", () => {
+        const c = normalizeLosConfig({ notifyCustomerEnabled: true }, LAMA);
+        expect(c.notifyCustomer.areaNoteTemplate).toBe("CATATAN AREA BUATAN ADMIN");
+        expect(c.notifyCustomer.penangananTemplate).toBe("KALIMAT DALAM JAM BUATAN ADMIN");
+        expect(c.notifyCustomer.penangananLuarJamTemplate).toBe("KALIMAT LUAR JAM BUATAN ADMIN");
+        expect(c.notifyCustomer.messageTemplate).toBe("PESAN BUATAN ADMIN");
+    });
+
+    test("medan yang DIKIRIM tetap menimpa", () => {
+        const c = normalizeLosConfig({ customerPenangananLuarJamTemplate: "BARU" }, LAMA);
+        expect(c.notifyCustomer.penangananLuarJamTemplate).toBe("BARU");
+        expect(c.notifyCustomer.areaNoteTemplate).toBe("CATATAN AREA BUATAN ADMIN");
+    });
+
+    test("config kosong → jatuh ke bawaan kode, bukan string kosong", () => {
+        const c = normalizeLosConfig({}, {});
+        expect(c.notifyCustomer.penangananTemplate).toMatch(/sedang menangani/);
+        expect(c.notifyCustomer.penangananLuarJamTemplate).toMatch(/luar jam kerja/i);
+        expect(c.notifyCustomer.penangananLuarJamTemplate).toMatch(/{waktu_mulai}/);
+    });
+});

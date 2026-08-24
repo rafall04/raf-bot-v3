@@ -123,6 +123,17 @@ function normalizeLosConfig(input = {}, current = {}) {
                 : (nc.notifyOnRecovery !== false),
             recoveryMessageTemplate: (input.customerRecoveryTemplate != null ? input.customerRecoveryTemplate : nc.recoveryMessageTemplate)
                 || ncDefault.recoveryMessageTemplate || "",
+            // Kunci yang TIDAK ada di formulir tetap harus ikut terbawa. buildConfig merakit
+            // ulang notifyCustomer dari nol, jadi tanpa baris-baris ini satu klik "Simpan"
+            // menghapus template yang sudah dipakai produksi (#b269).
+            areaNoteTemplate: (input.customerAreaNoteTemplate != null ? input.customerAreaNoteTemplate : nc.areaNoteTemplate)
+                || ncDefault.areaNoteTemplate || "",
+            penangananTemplate: (input.customerPenangananTemplate != null ? input.customerPenangananTemplate : nc.penangananTemplate)
+                || ncDefault.penangananTemplate || "",
+            penangananLuarJamTemplate: (input.customerPenangananLuarJamTemplate != null ? input.customerPenangananLuarJamTemplate : nc.penangananLuarJamTemplate)
+                || ncDefault.penangananLuarJamTemplate || "",
+            penangananLuarJamTanpaWaktuTemplate: nc.penangananLuarJamTanpaWaktuTemplate
+                || ncDefault.penangananLuarJamTanpaWaktuTemplate || "",
         },
     };
 }
@@ -170,6 +181,9 @@ function decorateForView(cfg) {
             messageTemplate: nc.messageTemplate || ncDefault.messageTemplate || "",
             notifyOnRecovery: (nc.notifyOnRecovery != null ? nc.notifyOnRecovery : ncDefault.notifyOnRecovery) !== false,
             recoveryMessageTemplate: nc.recoveryMessageTemplate || ncDefault.recoveryMessageTemplate || "",
+            areaNoteTemplate: nc.areaNoteTemplate || ncDefault.areaNoteTemplate || "",
+            penangananTemplate: nc.penangananTemplate || ncDefault.penangananTemplate || "",
+            penangananLuarJamTemplate: nc.penangananLuarJamTemplate || ncDefault.penangananLuarJamTemplate || "",
         },
     };
 }
@@ -218,7 +232,7 @@ function registerAdminLosBroadcastRoutes(router, deps = {}) {
         // selamanya dan tiap kirim cuma menghasilkan peringatan berulang. Ditolak di sini,
         // pemiliknya langsung tahu alasannya.
         const nc = normalized.notifyCustomer || {};
-        for (const [medan, label] of [["messageTemplate", "Pesan ke Pelanggan"], ["recoveryMessageTemplate", "Pesan Pulih ke Pelanggan"]]) {
+        for (const [medan, label] of [["messageTemplate", "Pesan ke Pelanggan"], ["recoveryMessageTemplate", "Pesan Pulih ke Pelanggan"], ["areaNoteTemplate", "Catatan Gangguan Area"], ["penangananTemplate", "Kalimat Penanganan (jam kerja)"], ["penangananLuarJamTemplate", "Kalimat Penanganan (luar jam kerja)"]]) {
             const bocor = findCustomerTextLeaks(nc[medan] || "");
             if (bocor && bocor.length) {
                 return res.status(400).json({

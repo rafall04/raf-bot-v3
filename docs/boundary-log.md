@@ -1998,4 +1998,18 @@
 - **Sekarang dibedakan:** modem diam → "modem di lokasi Kakak sedang tidak merespons, pastikan menyala"; sisi kami → "ada kendala di **sistem kami** — bukan dari modem Kakak, jadi tidak perlu diutak-atik". Sebab **tak dikenal** sengaja TIDAK menyuruh cek modem (*"cannot observe" != "observed bad"*).
 - Kedua pesan menegaskan perubahannya **belum tersimpan** — ambigu di sini membuat pelanggan mengira sandinya sudah berubah lalu gagal login. Tak ada istilah internal (GenieACS/breaker/ACS/HTTP) dan `error.message` mentah tak lagi dioper ke template.
 - **HASIL AUDIT LAIN (diperiksa, TIDAK diubah — sudah benar):** lapisan pustaka ganti sandi/nama sudah ketat (202 = gagal, `ok:true`+`accepted:false` = gagal, `applied:false` = gagal, kredensial tak bocor). **PSB** sudah membedakan sebab lewat `sebabTerbaca` (#b251). **Sisi WEB** ketiga permukaannya (`map-viewer`, `teknisi-map-viewer`, `teknisi-pelanggan`) memeriksa `status === 200`, jadi **202 ditampilkan GAGAL, bukan sukses** — dan menampilkan sebab mentah ke STAF memang tepat, beda dengan pelanggan.
-- Tes: `lib/__tests__/wifi-failure-reason.test.js` (19), termasuk guard bahwa pesan sisi-kami tak pernah menyuruh restart modem dan pesan generik lama tak boleh kembali.
+- **Janjinya kini ditepati:** teks sisi-kami berkata *"Tim kami sudah mendapat pemberitahuannya"* padahal **tak ada notifikasi apa pun**. `laporkanKegagalanWifiKeAdmin` kini mengabari admin hanya untuk sebab **sisi kami**, ber-jeda 30 menit per sebab, tak pernah melempar, dan jedanya dipasang HANYA bila ada yang benar-benar terkirim (kalau WA ikut bermasalah, membungkam 30 menit justru menyembunyikan gangguan).
+- Tes: `lib/__tests__/wifi-failure-reason.test.js` (25).
+
+<a id="b269"></a>
+
+### Fix 2026-08-24 (Kabel putus di luar jam kerja: berhenti menjanjikan penanganan yang belum bisa dikerjakan)
+
+- **Owner:** `waktuMulaiKerjaBerikutnya()` di `lib/working-hours-helper.js` — satu-satunya pemilik frasa *"kapan penanganan lapangan dimulai"* untuk teks pelanggan.
+- **Akar:** alur LOS otomatis (`lib/olt-los-broadcaster.js`) tidak memeriksa jam kerja sama sekali, padahal ia meletus jam berapa saja. Jam kerja teknisi **08:00–17:00**, jadi kabel putus tengah malam tetap dikabari *"Tim teknisi sudah dapat infonya dan **sedang menangani**"* — janji yang tak ada yang menepatinya sampai pagi. Alur tiket (`tickets-shared.buildWorkingHoursNotice`) & laporan ketikan pelanggan sudah benar; hanya jalur OTOMATIS yang buta.
+- **Sekarang:** slot `{penanganan}` dipilih dari jam kerja (dalam jam / luar jam + `{waktu_mulai}` mis. *"besok pukul 08:00 WIB"* / varian tanpa waktu bila jadwal tak terbaca). Fitur jam kerja OFF ⇒ `isWithinHours:true` ⇒ inert (24/7, tanpa perubahan teks).
+- **!! Template produksi menimpa kode:** kedua bot menyimpan `messageTemplate` sendiri di `config.json` (merge-key). Mengandalkan slot saja berarti kebohongan itu bertahan selamanya — maka di luar jam kerja catatannya **disisipkan sendiri di atas tanda tangan** untuk template tanpa slot. Di dalam jam kerja tak menyisipkan apa pun (jangan menambah kebisingan).
+- **Cacat lain yang ikut ditutup:** `normalizeLosConfig` merakit ulang `notifyCustomer` dari nol, jadi satu klik *Simpan Notifikasi Pelanggan* **menghapus** `areaNoteTemplate` yang dipakai produksi. Kunci di luar formulir kini ikut terbawa; penjaga kebocoran data internal juga menjaga template baru.
+- Form publik (`lib/services/report-service.js`, live di Dander) menempelkan kunci template BARU `report_service_luar_jam_kerja` di luar jam kerja — kunci baru, jadi bebas risiko slot basi. Salinan kedua perakit nama-hari di `smart-report-text-menu` dihapus.
+- Halaman `/los-broadcast`: 2 bidang baru (kalimat penanganan dalam/luar jam kerja).
+- Tes: `lib/__tests__/olt-los-jam-kerja.test.js` (6, template produksi persis), `lib/__tests__/working-hours-frasa.test.js` (7, jam nyata dipalsukan), `routes/__tests__/admin-los-broadcast-routes.test.js` (+3). Semua diuji-mutasi.

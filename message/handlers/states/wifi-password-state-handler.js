@@ -13,7 +13,7 @@ const { deleteUserState, format } = require('../conversation-handler');
 const { formatWifiSsidInfo } = require('../../../lib/wifi-ssid-summary');
 const { isAffirmative } = require('../../../lib/affirmative-parser');
 const { assertWifiChangeApplied } = require('../../../lib/wifi-apply-guard');
-const { bacaSebabGagalWifi } = require("../../../lib/wifi-failure-reason");
+const { bacaSebabGagalWifi, laporkanKegagalanWifiKeAdmin } = require("../../../lib/wifi-failure-reason");
 
 function renderResponseTemplate(key, fallback, data = {}) {
     const rendered = format(key, data);
@@ -225,6 +225,9 @@ async function handleAskNewPassword(userState, chats, reply, sender, global) {
         // rusak, gagal lagi, lalu menyimpulkan layanannya rusak — sementara tak ada yang tahu
         // sistem kita sedang bermasalah.
         const sebab = bacaSebabGagalWifi(error);
+        // Menepati janji di teks pelanggan ("Tim kami sudah mendapat pemberitahuannya").
+        // Never-throw & ber-jeda 30 menit per sebab supaya satu gangguan tak jadi puluhan pesan.
+        laporkanKegagalanWifiKeAdmin(sebab, "ganti sandi WiFi", userState, error);
         return reply(renderResponseTemplate(
             sebab.kunciTemplate,
             sebab.sarankanCekModem
@@ -322,6 +325,9 @@ async function handleAskNewPasswordBulk(userState, chats, reply, sender, global)
         // rusak, gagal lagi, lalu menyimpulkan layanannya rusak — sementara tak ada yang tahu
         // sistem kita sedang bermasalah.
         const sebab = bacaSebabGagalWifi(error);
+        // Menepati janji di teks pelanggan ("Tim kami sudah mendapat pemberitahuannya").
+        // Never-throw & ber-jeda 30 menit per sebab supaya satu gangguan tak jadi puluhan pesan.
+        laporkanKegagalanWifiKeAdmin(sebab, "ganti sandi WiFi", userState, error);
         return reply(renderResponseTemplate(
             sebab.kunciTemplate,
             sebab.sarankanCekModem

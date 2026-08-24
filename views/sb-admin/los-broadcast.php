@@ -221,6 +221,22 @@
                     maupun jumlah pelanggan terdampak &mdash; pelanggan cukup tahu ada gangguan, dan simpanan akan ditolak bila memuatnya.
                   </small>
                 </div>
+                <div class="form-group">
+                  <label>Kalimat Penanganan &mdash; DALAM jam kerja</label>
+                  <textarea class="form-control" name="customerPenangananTemplate" rows="2"></textarea>
+                  <small class="text-muted">Mengisi slot <code>{penanganan}</code> pada template di atas saat gangguan terjadi di dalam jam kerja teknisi.</small>
+                </div>
+                <div class="form-group">
+                  <label>Kalimat Penanganan &mdash; DI LUAR jam kerja</label>
+                  <textarea class="form-control" name="customerPenangananLuarJamTemplate" rows="3"></textarea>
+                  <small class="text-muted">
+                    Dipakai bila gangguan terjadi di luar jam kerja teknisi (mis. kabel putus tengah malam).
+                    Placeholder <code>{waktu_mulai}</code> &rarr; mis. <i>"besok pukul 08:00 WIB"</i>.
+                    <br>Kalau template di atas belum memuat <code>{penanganan}</code>, kalimat ini otomatis
+                    disisipkan di atas tanda tangan &mdash; supaya pelanggan tidak pernah dijanjikan
+                    penanganan yang belum bisa dikerjakan.
+                  </small>
+                </div>
                 <div class="alert alert-warning" style="font-size:.82rem;">
                   <i class="fas fa-exclamation-triangle"></i> Pelanggan hanya bisa dinotifikasi bila MAC ONU bisa dipetakan ke data pelanggan (mis. nomor WA tersimpan). Jika tidak teridentifikasi, insiden ditandai <code>customer_unresolved</code> agar admin bisa info manual.
                 </div>
