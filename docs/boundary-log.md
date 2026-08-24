@@ -1963,3 +1963,15 @@
 - **Rute admin kini lewat `cancelTicket()`** — dapat penjaga transisi (`completed` → himpunan kosong) dan cek idempoten yang sebelumnya dilewati sepenuhnya. Penolakan karena keadaan tiket dibalas **409**, bukan 500.
 - **GOTCHA: `pending` dulu selamat HANYA karena reset-diam-diam itu.** Membuang jaring pengaman tanpa memetakan ejaan lamanya akan memindahkan bug, bukan menghapusnya — tiket `pending` hilang dari filter daftar. Ditangkap tes lama `ticket-list-and-package-privacy`.
 - **Guard pemindai repo** (`lib/__tests__/ticket-status-konsisten.test.js`, 27) melarang perbandingan `.status === '<ejaan lama>'` di jalur tiket; komentar dikecualikan. Terbukti perlu: penulisan pertama perbaikan ini melewatkan dua tempat di `admin-handler.js`, dan guard inilah yang menemukannya. Diverifikasi uji mutasi.
+
+<a id="b266"></a>
+
+### Fix 2026-08-24 (Semua setelan monitor bisa diatur dari halaman admin, bukan hanya lewat config.json)
+
+- **Owner:** `lib/upstream-config-service.js` — `validateTargets` diperluas (multi-alamat + `namaAwam`), plus `validateStabilitas` & `validateAlertPaths` (BARU). Tampilan & patch admin ikut diperluas.
+- **Akar:** semua setelan yang lahir hari ini (#b255–#b264) hanya bisa diubah dengan menyunting `config.json` di server — padahal keputusannya milik operator, bukan deploy. Panel admin baru mengekspos `targets` (satu alamat), `thresholds`, `paths`, `report`.
+- **Multi-alamat per layanan** (`addresses`, maksimal 5): satu IP bukan sampel yang sah untuk sebuah layanan — terukur, satu alamat `meta` yang bermasalah memvonis SELURUH jalur terganggu (#b264). Bentuk lama `address` tetap diterima dan `address` tetap diisi alamat pertama, jadi pembaca lama tak pecah. Ditolak: alamat dobel, alamat recursive-gateway-check, jumlah berlebih (tiap alamat = 1 perintah ping per jalur per siklus).
+- **`namaAwam`** hanya ditulis bila diisi — kosong berarti layanan itu TIDAK PERNAH disebut ke pelanggan. Itu yang benar untuk "Akamai CDN"/"Google DNS", yang bagi pelanggan bukan nama apa pun.
+- **Blok `stabilitas`** menyatukan 12 setelan yang tadinya tercerai di 7 kunci config: kabari-pelanggan & alarm-admin (dua sakelar terpisah), ambang loss/jitter (peringatan + buruk), jendela, siklus beruntun, cooldown, `minTargetSepakat`, `traceCount`. **Kombinasi tak masuk akal DITOLAK** (`lossBuruk` ≤ `lossPeringatan`, `jitterBuruk` ≤ `jitterPeringatan`), dan satu bagian error ⇒ TIDAK ada yang ditulis (perilaku all-or-nothing form ini).
+- **`alertPaths` & `alarmKestabilanPaths` terpisah** — jalur mana yang boleh membangunkan admin, untuk alert jalur-sakit dan alarm kestabilan. Daftar KOSONG = semua jalur, supaya mengosongkannya tak pernah diam-diam MEMATIKAN alarm yang sudah menyala. Jalur tak dikenal ditolak dengan alasan.
+- **GOTCHA tes:** dua tes saya sempat merah karena MOCK-nya memulangkan config tanpa `thresholds`, padahal `getMonitorConfig()` selalu mengisinya — mock yang tak setia pada kenyataan menguji dunia yang tak pernah ada. Dua tes LAMA juga diperbarui: bentuk target kini menyertakan `addresses` (aditif). Tes: `lib/__tests__/upstream-config-admin.test.js` (12).
