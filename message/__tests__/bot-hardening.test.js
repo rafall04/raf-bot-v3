@@ -209,3 +209,33 @@ describe('WhatsApp bot hardening regressions', () => {
         }));
     });
 });
+
+describe("#b261 — LEMOT tidak lagi dialihkan ke MATI dari umur inform saja", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const src = fs.readFileSync(
+        path.join(__dirname, "..", "handlers", "smart-report-text-menu.js"), "utf8"
+    );
+
+    test("pengalihan menuntut BUKTI POSITIF tak-terjangkau, bukan `online === false`", () => {
+        // Terukur: ambang 5 menit memvonis mati 79% modem yang sehat (inform periodik 900 dtk).
+        // Pelanggan yang mengeluh LEMOT lalu diberi tahu "modem Anda mati" disuruh mengurus benda
+        // yang bukan penyebabnya — sementara sebabnya sering di jaringan (gangguan upstream).
+        expect(src).toMatch(/probeDeviceReachable/);
+        expect(src).toMatch(/alihkanKeMati\s*=\s*buktiJangkau && buktiJangkau\.reachable === false/);
+        // Cabang pengalihan HARUS bergantung pada variabel bukti, bukan langsung pada status inform.
+        expect(src).toMatch(/if \(alihkanKeMati\) \{/);
+        expect(src).not.toMatch(/if \(deviceStatus\.online === false\) \{\s*\n\s*console\.log\('\[AUTO-REDIRECT\]/);
+    });
+
+    test("BUTA (probe null) tidak boleh dibaca sebagai mati", () => {
+        // `reachable === false` saja yang mengalihkan; null (ACS error/timeout) tetap di alur LEMOT.
+        expect(src).not.toMatch(/reachable !== true/);
+        expect(src).not.toMatch(/!buktiJangkau\.reachable/);
+    });
+
+    test("keputusannya dicetak — jangan sampai senyap", () => {
+        // Tanpa jejak ini, "tetap di alur LEMOT" dan "tak pernah memeriksa" terlihat sama persis.
+        expect(src).toMatch(/LEMOT_BUKTI/);
+    });
+});

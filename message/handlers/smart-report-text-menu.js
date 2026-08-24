@@ -330,8 +330,41 @@ async function handleInternetLemot({ sender, pushname: _pushname, reply: _reply,
         const deviceId = user.device_id || `DEVICE-${user.id}`;
         const deviceStatus = await isDeviceOnline(deviceId);
 
-        // IMPORTANT: Check if device is OFFLINE and auto-redirect to MATI flow
+        // !! JANGAN memvonis "modem mati" dari UMUR INFORM saja (#b261).
+        //
+        // Inform periodik di ACS ini 900 detik, jadi modem yang sehat pun sering terlihat "diam".
+        // Terukur 160 modem: ambang 5 menit memvonis mati 79% modem yang baik-baik saja. Pelanggan
+        // yang mengeluh LEMOT lalu dialihkan ke alur MATI diberi tahu perangkatnya rusak, dan
+        // disuruh mengurus benda yang bukan penyebabnya — sementara sebab sebenarnya sering ada
+        // di JARINGAN (gangguan upstream), bukan di rumahnya.
+        //
+        // Karena itu pengalihan menuntut BUKTI POSITIF bahwa modem tak terjangkau: connection
+        // request yang TIDAK dijawab (HTTP 202 = cuma masuk antrean). Modem yang menjawab (200)
+        // membuktikan dirinya hidup — terukur menjawab dalam 0,6–7 detik.
+        //
+        // Kalau probe-nya sendiri gagal (ACS error/timeout), kita sedang BUTA. Aturan rumah:
+        // "cannot observe" != "observed bad" — maka keluhan pelanggan yang dipercaya, dan alur
+        // LEMOT diteruskan. Salah menebak ke arah ini hanya membuat kita mendiagnosa lebih jauh;
+        // salah ke arah sebaliknya membuat kita membantah pelanggan yang benar.
+        let alihkanKeMati = false;
+        let buktiJangkau = null;
         if (deviceStatus.online === false) {
+            try {
+                const { probeDeviceReachable } = require('../../lib/genieacs');
+                buktiJangkau = await probeDeviceReachable(deviceId, { operation: 'lemot.buktiJangkau' });
+            } catch (_e) {
+                buktiJangkau = { reachable: null, reason: 'probe gagal dimuat' };
+            }
+            alihkanKeMati = buktiJangkau && buktiJangkau.reachable === false;
+            console.log(
+                `[LEMOT_BUKTI] inform ${deviceStatus.minutesAgo} mnt lalu | probe: ${buktiJangkau ? buktiJangkau.reason : '-'}` +
+                ` (${buktiJangkau && buktiJangkau.httpStatus ? 'HTTP ' + buktiJangkau.httpStatus : 'tanpa status'})` +
+                ` -> ${alihkanKeMati ? 'ALIHKAN ke MATI' : 'TETAP di alur LEMOT'}`
+            );
+        }
+
+        // IMPORTANT: Check if device is OFFLINE and auto-redirect to MATI flow
+        if (alihkanKeMati) {
             console.log('[AUTO-REDIRECT] User selected LEMOT but device is OFFLINE - redirecting to MATI flow');
 
             // Get offline duration
