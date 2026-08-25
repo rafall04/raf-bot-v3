@@ -5689,8 +5689,9 @@
   "report_service_luar_jam_kerja": {
     "name": "Report Service: Catatan Di Luar Jam Kerja",
     "category": "routes_outbound",
-    "template": "\n\n⏰ *Catatan:* laporan ini masuk di luar jam kerja teknisi. Penanganan ke lapangan dimulai ${waktuMulai} ya 🙏 Kalau ternyata sudah normal sebelum itu, Kakak boleh balas pesan ini.",
+    "template": "\n\n⏰ *Catatan:* laporan ini masuk di luar jam kerja teknisi. Penanganan dikerjakan ${jamKerja}. Kami dahulukan gangguan yang paling luas dulu, dan pasti kami kabari perkembangannya 🙏",
     "placeholders": [
+      "jamKerja",
       "waktuMulai"
     ],
     "description": "Ditempel di bawah konfirmasi laporan bila masuk di luar jam kerja teknisi (#b269)."

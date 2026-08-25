@@ -2023,3 +2023,14 @@
 - **Kenapa lolos tes:** tesnya menyuntikkan `deps.kirim` palsu, jadi jalur default (yang dipakai produksi) tak pernah dieksekusi; dan tes pelaporan WiFi hanya membuktikan fungsinya *tidak melempar*.
 - **Penjaga baru:** `lib/__tests__/pengirim-wa-harus-ada.test.js` **memindai** `lib/`, `services/`, `message/` untuk setiap simbol yang diimpor dari modul pengirim WhatsApp dan menuntutnya benar-benar berupa fungsi — bukan daftar manual. Diuji-mutasi: mengembalikan impor lama membuat penjaga menyebut berkas + simbolnya.
 - Tes: `lib/__tests__/wifi-lapor-admin.test.js` (6) membuktikan pesannya **benar-benar terkirim** ke tiap admin, ber-jeda 30 menit, dan jeda TIDAK dipasang saat tak ada yang terkirim.
+
+<a id="b271"></a>
+
+### Fix 2026-08-25 (Di luar jam kerja: sebut RENTANG jam kerja, bukan satu jam mulai)
+
+- **Owner:** `waktuMulaiKerjaBerikutnya()` kini juga memulangkan `teksRentang` (mis. *"besok pada jam kerja, pukul 08:00–17:00 WIB"*); `jadwalHari()` membaca jam selesai dari struktur config baru (`days.<hari>`) maupun lama (`weekdays/saturday/sunday`).
+- **Akar (dari pemilik):** menyebut **jam mulai** membuat pelanggan menunggu di jam 08:00 tepat, lalu kecewa karena teknisi mendahulukan gangguan yang lebih parah. Rentang tidak menjanjikan apa pun yang tak bisa ditepati, sekaligus memberi teknisi ruang menentukan prioritas. Kalimatnya kini menyebut alasannya terang-terangan: *"Kami dahulukan gangguan yang paling luas dulu."*
+- **Slot:** `{jam_kerja}` (rentang) dipakai kalimat bawaan; `{waktu_mulai}` **tetap didukung** agar template admin yang terlanjur memakainya tak pernah mengirim slot mentah. Rentang tak terbaca ⇒ jatuh ke jam mulai, lalu ke *"pada jam kerja"* — **tidak pernah mengarang jam**.
+- Ikut disamakan: target penanganan di `smart-report-text-menu` (alur MATI) dan kunci `report_service_luar_jam_kerja` (form publik) — keduanya kini rentang; report-service mengoper `jamKerja` **dan** `waktuMulai` supaya template lama tetap aman.
+- Rentang mengikuti hari TUJUAN, bukan hari ini (jam kerja bisa beda per hari) — diuji.
+- Tes: `working-hours-frasa` (10), `olt-los-jam-kerja` (9), `admin-los-broadcast-routes` (27). Dua mutasi (slot tak diganti · rentang selalu kosong) terbukti tertangkap.

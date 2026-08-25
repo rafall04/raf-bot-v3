@@ -402,8 +402,11 @@ async function handleInternetLemot({ sender, pushname: _pushname, reply: _reply,
                 // Satu-satunya pemilik frasa waktu (#b269). Dulu nama hari dirakit di sini
                 // sendiri, sementara alur LOS otomatis tak merakit apa pun — dua permukaan
                 // bicara soal jam kerja yang sama dengan cara berbeda (atau diam sama sekali).
-                const { teks } = waktuMulaiKerjaBerikutnya();
-                if (teks) targetTime = teks.charAt(0).toUpperCase() + teks.slice(1);
+                // RENTANG jam kerja, bukan jam mulai: menyebut satu jam membuat pelanggan
+                // menunggu di jam itu persis, padahal teknisi mendahulukan yang paling parah.
+                const { teks, teksRentang } = waktuMulaiKerjaBerikutnya();
+                const frasa = teksRentang || teks;
+                if (frasa) targetTime = frasa.charAt(0).toUpperCase() + frasa.slice(1);
             }
 
             // Save state for MATI flow instead of LEMOT

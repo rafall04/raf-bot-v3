@@ -276,6 +276,8 @@ describe("#b269 — simpan dari halaman admin tidak boleh MENGHAPUS template", (
         const c = normalizeLosConfig({}, {});
         expect(c.notifyCustomer.penangananTemplate).toMatch(/sedang menangani/);
         expect(c.notifyCustomer.penangananLuarJamTemplate).toMatch(/luar jam kerja/i);
-        expect(c.notifyCustomer.penangananLuarJamTemplate).toMatch(/{waktu_mulai}/);
+        expect(c.notifyCustomer.penangananLuarJamTemplate).toMatch(/\{jam_kerja\}/);
+        // RENTANG, bukan jam mulai — kalimatnya harus menjelaskan kenapa waktunya tak pasti.
+        expect(c.notifyCustomer.penangananLuarJamTemplate).toMatch(/dahulukan gangguan yang paling luas/);
     });
 });

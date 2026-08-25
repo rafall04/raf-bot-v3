@@ -231,7 +231,9 @@
                   <textarea class="form-control" name="customerPenangananLuarJamTemplate" rows="3"></textarea>
                   <small class="text-muted">
                     Dipakai bila gangguan terjadi di luar jam kerja teknisi (mis. kabel putus tengah malam).
-                    Placeholder <code>{waktu_mulai}</code> &rarr; mis. <i>"besok pukul 08:00 WIB"</i>.
+                    Placeholder <code>{jam_kerja}</code> &rarr; mis. <i>"besok pada jam kerja, pukul 08:00&ndash;17:00 WIB"</i>.
+                    Sengaja RENTANG, bukan jam mulai: menyebut satu jam membuat pelanggan menunggu di jam itu persis,
+                    padahal teknisi mendahulukan gangguan yang paling luas. (<code>{waktu_mulai}</code> masih didukung.)
                     <br>Kalau template di atas belum memuat <code>{penanganan}</code>, kalimat ini otomatis
                     disisipkan di atas tanda tangan &mdash; supaya pelanggan tidak pernah dijanjikan
                     penanganan yang belum bisa dikerjakan.
