@@ -316,7 +316,7 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
     <script src="/vendor/datatables/jquery.dataTables.min.js"></script>
     <script src="/vendor/datatables/dataTables.bootstrap4.min.js"></script>
 
-    <script src="/js/olt-filter-core.js"></script>
-    <script src="/js/admin-olt.js"></script>
+    <script src="<?php echo rafAssetUrl('/js/olt-filter-core.js'); ?>"></script>
+    <script src="<?php echo rafAssetUrl('/js/admin-olt.js'); ?>"></script>
 </body>
 </html>
