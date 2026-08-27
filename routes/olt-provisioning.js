@@ -897,7 +897,11 @@ const showConsole = require('../lib/olt-show-console');
 const vlanManager = require('../lib/olt-vlan-manager');
 const serviceportManager = require('../lib/olt-serviceport-manager');
 const bandwidthService = require('../lib/olt-bandwidth-service');
-const { getMultipleOltData } = require('../lib/olt-hioso'); // SNMP multi-merk → map SN→deskripsi(=PPPoE)
+// Sumber optik dipilih di `lib/olt-optical-resolver` — SATU pemilik keputusan (#b275).
+// Bawaannya WEB; SNMP membuat OLT hang. Peta SN→deskripsi ini hanya berisi untuk GPON
+// (ZTE) yang punya `serial`; di OLT Hioso hasilnya memang kosong — dan sekarang kosong
+// TANPA menembak OLT dengan SNMP tiap panel ACS dibuka.
+const { ambilDataOlt } = require('../lib/olt-optical-resolver');
 const { restartOltBackupTask } = require('../lib/cron/jobs/olt-backup');
 const { logActivity } = require('../lib/activity-logger');
 
@@ -929,7 +933,7 @@ registerOltProvisioningRoutes(router, {
     vlanManager,
     serviceportManager,
     bandwidthService,
-    getOltSnmpData: (devices) => getMultipleOltData(devices),
+    getOltSnmpData: (devices) => ambilDataOlt(devices),
 });
 
 module.exports = router;

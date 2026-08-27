@@ -26,7 +26,8 @@ const fs = require('fs');
 const path = require('path');
 
 // Import OLT library
-const { getOltData, getSingleOnuData: _getSingleOnuData, getMultipleOltData, getSingleOnuDataWithCache, matchOltWithCustomers: _matchOltWithCustomers, matchMAC, normalizeMAC } = require('../lib/olt-hioso');
+const { ambilDataOlt } = require('../lib/olt-optical-resolver');
+const { getOltData, getSingleOnuData: _getSingleOnuData, getMultipleOltData: _getMultipleOltData, getSingleOnuDataWithCache, matchOltWithCustomers: _matchOltWithCustomers, matchMAC, normalizeMAC } = require('../lib/olt-hioso');
 const { getActivePPPoEUsers } = require('../lib/mikrotik');
 
 // Import OLT Log Scraper
@@ -111,7 +112,9 @@ function refreshOltEntry(entry, devices) {
     entry.loading = true;
     entry.refreshPromise = (async () => {
         try {
-            const result = await getMultipleOltData(devices);
+            // Sumber optik dipilih di `lib/olt-optical-resolver` — SATU pemilik keputusan
+            // untuk seluruh aplikasi (#b275). Bawaannya WEB; SNMP membuat OLT hang.
+            const result = await ambilDataOlt(devices);
             if (result.status === 'success') {
                 entry.data = result;
                 entry.timestamp = Date.now();
