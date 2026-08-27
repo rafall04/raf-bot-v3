@@ -18,6 +18,7 @@ const { handleAutoOutageState } = require("./state-domains/auto-outage-state-han
 const { handlePsbConversationState } = require("./state-domains/psb.state");
 const { handlePsbScheduleConversationState } = require("./state-domains/psb-schedule.state");
 const { handleCustomerLocationState } = require("./state-domains/customer-location.state");
+const { handleGantiModemState } = require("./state-domains/ganti-modem.state");
 const { handleWanSwitchConversationState } = require("./state-domains/wan-switch.state");
 const { handleOperJalurConversationState } = require("./state-domains/oper-jalur.state");
 const { handlePaymentProofAdminState } = require("./state-domains/payment-proof-admin.state");
@@ -64,6 +65,9 @@ async function routeConversationState(context) {
     }
     if (owner === "customer-location") {
         return { owner, ...(await handleCustomerLocationState(domainContext)) };
+    }
+    if (owner === "ganti-modem") {
+        return { owner, ...(await handleGantiModemState(domainContext)) };
     }
     if (owner === "wan-switch") {
         return { owner, ...(await handleWanSwitchConversationState(domainContext)) };

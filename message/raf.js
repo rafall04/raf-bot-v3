@@ -954,6 +954,28 @@ module.exports = async (raf, msg, m, options = {}) => {
             console.error('[PSB_DM_TRIGGER_ERROR]', psbDmErr.message);
         }
 
+        // ── Trigger wizard GANTI MODEM via DM staf ──
+        // `ganti modem` (daftar) / `ganti modem <nama>` (cari) → buka sesi (step GMODEM_PICK);
+        // lanjutannya dirutekan routeConversationState (owner "ganti-modem"). HANYA staf:
+        // langkah ini menulis SSID/sandi ke perangkat lalu memindahkan kepemilikan modem.
+        try {
+            const { isGantiModemTrigger, parseGantiModemCommand } = require('./handlers/state-domains/ganti-modem.state');
+            if (type !== 'imageMessage' && isGantiModemTrigger(chats)) {
+                const { resolveAuthorizedStaff } = require('./handlers/psb-group-intake');
+                const gmStaff = resolveAuthorizedStaff({ participant: optionalJid || sender, plainPhone: plainSenderNumber, accounts, allowedRoles: ['teknisi', 'admin', 'owner'] });
+                if (gmStaff) {
+                    const { startGantiModemSession } = require('./handlers/state-domains/ganti-modem.state');
+                    await startGantiModemSession({
+                        query: parseGantiModemCommand(chats).query,
+                        staff: gmStaff, stateSender, reply, setUserState
+                    });
+                    return;
+                }
+            }
+        } catch (gantiModemErr) {
+            console.error('[GANTI_MODEM_TRIGGER_ERROR]', gantiModemErr.message);
+        }
+
         // ── Trigger wizard TITIK LOKASI pelanggan via DM staf ──
         // `lokasi` (borongan: daftar yang belum punya titik) atau `lokasi <nama>` (cari) → buka sesi
         // (step CUSTLOC_PICK); lanjutannya dirutekan routeConversationState (owner "customer-location").

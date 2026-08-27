@@ -5695,5 +5695,151 @@
       "waktuMulai"
     ],
     "description": "Ditempel di bawah konfirmasi laporan bila masuk di luar jam kerja teknisi (#b269)."
+  },
+  "gmodem_pilih_pelanggan": {
+    "name": "Ganti Modem: pilih pelanggan",
+    "category": "wa_ganti_modem",
+    "template": "🔁 *GANTI MODEM*\n\nPelanggan mana?\n\n${daftar}\n\nBalas *nomornya*. Ketik *batal* untuk berhenti.",
+    "placeholders": [
+      "daftar"
+    ],
+    "description": "Wizard WA ganti modem (#b282)."
+  },
+  "gmodem_tak_ada_pelanggan": {
+    "name": "Ganti Modem: pelanggan tak ketemu",
+    "category": "wa_ganti_modem",
+    "template": "Tidak ada pelanggan yang cocok dengan \"${query}\". Coba kata lain, atau ketik *ganti modem* saja untuk melihat daftar.",
+    "placeholders": [
+      "query"
+    ],
+    "description": "Wizard WA ganti modem (#b282)."
+  },
+  "gmodem_nomor_salah": {
+    "name": "Ganti Modem: nomor salah",
+    "category": "wa_ganti_modem",
+    "template": "Balas dengan *nomor* dari daftar (1-${maks}) ya. Ketik *batal* untuk berhenti.",
+    "placeholders": [
+      "maks"
+    ],
+    "description": "Wizard WA ganti modem (#b282)."
+  },
+  "gmodem_pelanggan_hilang": {
+    "name": "Ganti Modem: pelanggan hilang",
+    "category": "wa_ganti_modem",
+    "template": "Pelanggan itu tidak ditemukan lagi. Coba mulai lagi dari *ganti modem*.",
+    "placeholders": [],
+    "description": "Wizard WA ganti modem (#b282)."
+  },
+  "gmodem_minta_sn": {
+    "name": "Ganti Modem: minta SN modem baru",
+    "category": "wa_ganti_modem",
+    "template": "Pelanggan: *${nama}*\nModem sekarang: ${deviceLama}\n\nSekarang ketik *SN modem BARU* (yang tertulis di stiker, mis. HWTC1234ABCD).\nPastikan modem barunya sudah menyala dan fibernya terpasang.",
+    "placeholders": [
+      "nama",
+      "deviceLama"
+    ],
+    "description": "Wizard WA ganti modem (#b282)."
+  },
+  "gmodem_sn_tak_ketemu": {
+    "name": "Ganti Modem: SN tak ketemu",
+    "category": "wa_ganti_modem",
+    "template": "${sebab}\n\nPastikan modem barunya *sudah menyala*, fibernya terpasang, dan sudah sempat lapor ke sistem (biasanya beberapa menit setelah dinyalakan). Lalu ketik SN-nya lagi — atau *batal* untuk berhenti.",
+    "placeholders": [
+      "sebab"
+    ],
+    "description": "Wizard WA ganti modem (#b282)."
+  },
+  "gmodem_konfirmasi": {
+    "name": "Ganti Modem: layar konfirmasi",
+    "category": "wa_ganti_modem",
+    "template": "📋 *PERIKSA DULU*\n\nPelanggan: *${nama}*\nModem lama: ${deviceLama}\nModem baru: ${deviceBaru}${barisSsid}${barisSandi}\n\nNama & sandi WiFi akan dipasang ke modem baru dulu, baru datanya dipindah.\n\nSudah benar? Balas *YA*. Ketik *batal* untuk berhenti.",
+    "placeholders": [
+      "nama",
+      "deviceLama",
+      "deviceBaru",
+      "barisSsid",
+      "barisSandi"
+    ],
+    "description": "Wizard WA ganti modem (#b282)."
+  },
+  "gmodem_konfirmasi_ulang": {
+    "name": "Ganti Modem: minta konfirmasi ulang",
+    "category": "wa_ganti_modem",
+    "template": "Balas *YA* kalau sudah benar, atau *batal* untuk berhenti.",
+    "placeholders": [],
+    "description": "Wizard WA ganti modem (#b282)."
+  },
+  "gmodem_sedang_jalan": {
+    "name": "Ganti Modem: sedang berjalan",
+    "category": "wa_ganti_modem",
+    "template": "⏳ Memasang nama & sandi WiFi ke modem baru dulu, baru memindahkan datanya. Mohon tunggu…",
+    "placeholders": [],
+    "description": "Wizard WA ganti modem (#b282)."
+  },
+  "gmodem_butuh_kredensial": {
+    "name": "Ganti Modem: butuh nama & sandi WiFi",
+    "category": "wa_ganti_modem",
+    "template": "${langkah}\n\nNama WiFi & sandi pelanggan tidak bisa dibaca otomatis — modem lamanya kemungkinan sudah mati.\n\nSupaya WiFi pelanggan *tidak berubah*, ketik *nama WiFi*-nya sekarang.",
+    "placeholders": [
+      "langkah"
+    ],
+    "description": "Wizard WA ganti modem (#b282)."
+  },
+  "gmodem_ssid_kosong": {
+    "name": "Ganti Modem: SSID kosong",
+    "category": "wa_ganti_modem",
+    "template": "Nama WiFi tidak boleh kosong. Ketik nama WiFi pelanggan, atau *batal*.",
+    "placeholders": [],
+    "description": "Wizard WA ganti modem (#b282)."
+  },
+  "gmodem_minta_sandi": {
+    "name": "Ganti Modem: minta sandi",
+    "category": "wa_ganti_modem",
+    "template": "Nama WiFi: *${ssid}*\n\nSekarang ketik *sandi WiFi*-nya (minimal 8 karakter).",
+    "placeholders": [
+      "ssid"
+    ],
+    "description": "Wizard WA ganti modem (#b282)."
+  },
+  "gmodem_sandi_pendek": {
+    "name": "Ganti Modem: sandi terlalu pendek",
+    "category": "wa_ganti_modem",
+    "template": "Sandi WiFi minimal 8 karakter ya. Ketik ulang, atau *batal*.",
+    "placeholders": [],
+    "description": "Wizard WA ganti modem (#b282)."
+  },
+  "gmodem_berhasil": {
+    "name": "Ganti Modem: berhasil",
+    "category": "wa_ganti_modem",
+    "template": "✅ *GANTI MODEM SELESAI*\n\n${langkah}\n\n${pesan}",
+    "placeholders": [
+      "langkah",
+      "pesan"
+    ],
+    "description": "Wizard WA ganti modem (#b282)."
+  },
+  "gmodem_gagal": {
+    "name": "Ganti Modem: belum selesai",
+    "category": "wa_ganti_modem",
+    "template": "⚠️ *GANTI MODEM BELUM SELESAI*\n\n${langkah}\n\n${pesan}",
+    "placeholders": [
+      "langkah",
+      "pesan"
+    ],
+    "description": "Wizard WA ganti modem (#b282)."
+  },
+  "gmodem_langkah_asing": {
+    "name": "Ganti Modem: langkah tak dikenal",
+    "category": "wa_ganti_modem",
+    "template": "Sesi ganti modem-nya sudah tidak dikenali. Mulai lagi dari *ganti modem* ya.",
+    "placeholders": [],
+    "description": "Wizard WA ganti modem (#b282)."
+  },
+  "gmodem_error": {
+    "name": "Ganti Modem: kendala",
+    "category": "wa_ganti_modem",
+    "template": "Maaf, ada kendala saat memproses ganti modem. Mulai lagi dari *ganti modem*.",
+    "placeholders": [],
+    "description": "Wizard WA ganti modem (#b282)."
   }
 }

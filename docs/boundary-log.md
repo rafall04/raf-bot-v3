@@ -2156,3 +2156,15 @@
 - Menolak modem yang masih tercatat milik pelanggan lain; menyelaraskan kolom `bulk` dengan kapabilitas band modem baru; laporan LANGKAH DEMI LANGKAH sehingga teknisi tahu berhenti di mana.
 - **Izin teknisi didaftarkan eksplisit** (`routes/teknisi-izin-api.js`) — gerbang gagal-tertutup #b253 membuat endpoint baru lahir 403 untuk teknisi. Dijaga tes tersendiri: mutasi mencabut izinnya membuat 2 tes merah.
 - Tes: `lib/__tests__/modem-replacement-service.test.js` (14) + `routes/__tests__/ganti-modem-izin.test.js` (6). Empat mutasi (urutan dibalik · gerbang kredensial dilewati · modem pelanggan lain direbut · izin dicabut) terbukti tertangkap.
+
+<a id="b282"></a>
+
+### Fitur 2026-08-27 (Ganti Modem lewat bot WA — wizard bertahap untuk teknisi/admin)
+
+- **Owner BARU:** `message/handlers/state-domains/ganti-modem.state.js` (prefix **`GMODEM_`**, owner `"ganti-modem"`), dirutekan `conversation-state-router`, dipicu dari DM staf di `message/raf.js` (`resolveAuthorizedStaff`, peran teknisi/admin/owner).
+- **Aturan TIDAK diduplikasi:** seluruh keputusan tetap milik `lib/modem-replacement-service` yang juga dipakai halaman `/ganti-modem` (#b281) — jalur WA & WEB tak bisa berbeda pendapat.
+- **Langkah:** pilih pelanggan (daftar bernomor) → ketik **SN stiker** → layar **konfirmasi** → *YA* → laporan langkah-demi-langkah. Kalau kredensial WiFi tak terbaca, wizard **berpindah** ke tanya SSID lalu sandi (bukan dianggap gagal), lalu kembali ke konfirmasi.
+- **SN diterima 3 bentuk** lewat `cariDevice` baru: stiker `HWTC…`, serial ACS 16-heksa, device-id penuh. `stikerKeSerialAcs` adalah kebalikan `stickerSn()` di psb.state — ditaruh di servis supaya WA & WEB memakai satu pemahaman, bukan dua salinan.
+- **Layar konfirmasi wajib:** salah ketik SN berarti menyetel modem milik orang lain. Mutasi yang melewatinya terbukti membuat tes merah.
+- 17 kunci template `gmodem_*` ditambahkan di commit yang SAMA; diverifikasi semuanya terisi penuh tanpa slot mentah dan tanpa jatuh ke fallback.
+- Tes: `message/handlers/state-domains/__tests__/ganti-modem.state.test.js` (17, termasuk penjaga wiring: prefix terdaftar, cabang router, pemicu di raf.js dibatasi staf). Tiga mutasi (konfirmasi dilewati · butuh-kredensial dijadikan gagal · prefix step salah) terbukti tertangkap.
