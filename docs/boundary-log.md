@@ -2168,3 +2168,16 @@
 - **Layar konfirmasi wajib:** salah ketik SN berarti menyetel modem milik orang lain. Mutasi yang melewatinya terbukti membuat tes merah.
 - 17 kunci template `gmodem_*` ditambahkan di commit yang SAMA; diverifikasi semuanya terisi penuh tanpa slot mentah dan tanpa jatuh ke fallback.
 - Tes: `message/handlers/state-domains/__tests__/ganti-modem.state.test.js` (17, termasuk penjaga wiring: prefix terdaftar, cabang router, pemicu di raf.js dibatasi staf). Tiga mutasi (konfirmasi dilewati · butuh-kredensial dijadikan gagal · prefix step salah) terbukti tertangkap.
+
+<a id="b283"></a>
+
+### Fix 2026-08-27 (SNMP HIOSO dicabut dari SELURUH proyek — merek ini dibaca lewat web saja)
+
+- **Sebab:** SNMP membuat OLT HIOSO **hang** (keputusan pemilik, terbukti di lapangan). ZTE aman — larangan ini **khusus HIOSO**.
+- **Owner gerbang:** `lib/olt-drivers/hioso.js` kini membaca lewat `lib/olt-web-optical` dan **tak punya jalan ke SNMP sama sekali**. Penjagaan ditaruh di DRIVER, bukan di tiap pemanggil: terukur ada **6 titik panggil langsung hanya di `routes/olt.js`**, dan menambal satu per satu berarti titik ke-7 lahir terbuka lagi.
+- **Status jalur lama:** isi walk SNMP di `lib/olt-hioso.js` **DIBUANG** (bukan kode mati); `getOltData`/`getSingleOnuData` kini mendelegasi ke driver. Konstanta yatim (`HIOSO_OID`, `INVENTORY_WALKS`, `snmpDeadlineMs`) + import `net-snmp` ikut dicabut. `oltCache` di `routes/olt.js` jadi yatim karena perubahan ini dan dibuang.
+- **18 skrip debug SNMP HIOSO dihapus** dari `scripts/`. Semuanya membaca `config.olt.host` yang kebetulan sudah `undefined` di kedua bot — jadi 'aman'-nya cuma **kebetulan**, satu baris config memulihkannya jadi senjata aktif. Penggantinya `scripts/olt-web-debug.js` (list · onus · onu · log) lewat web: kemampuannya **dipindah, bukan dihapus**.
+- **Jebakan nama:** `config.olt.sumberOptik = "snmp"` masih ada tapi **tidak** membuka SNMP untuk HIOSO — nilai itu hanya memilih dispatch per-merek, dan HIOSO bermuara di web. Dikunci tes, bukan sekadar komentar.
+- **Jaminan #b192 dipindah, tidak hilang:** pembacaan gagal tetap **tidak** disulap jadi 'nol ONU' — satu halaman gagal ⇒ seluruh OLT masuk `failedOlts`. Tes lama `olt-hioso-partial-read.test.js` (semantik walk SNMP) dihapus karena perilakunya mustahil terjadi.
+- **Sisa terakhir ditutup:** `detectBrand` (tombol Test Connection, device `brand:auto`) dulu men-SNMP apa pun. Kini **web dicoba duluan** — halaman `ponListTable` khas HIOSO dikenali tanpa satu paket SNMP; brand yang sudah jelas tak di-probe sama sekali; SNMP hanya dipakai saat web bisu, yaitu untuk yang memang bukan HIOSO. Field web-nya ikut dioper dari `routes/olt.js` — tanpa itu jalur web mati diam-diam.
+- Tes: `lib/__tests__/hioso-tanpa-snmp.test.js` (14) — pemindai repo `lib/routes/services/message/scripts` dengan izin **pola** `scripts/olt-zte-*` (bukan daftar nama yang harus dirawat tangan). Tiga mutasi terbukti tertangkap: require `net-snmp` di berkas terlarang · skrip ber-OID 25355 · penjaga hijau-palsu.

@@ -9,14 +9,20 @@
  *          pemanggil menunggu data segar, karena foto lama berlabel "baru saja" lebih berbahaya
  *          daripada halaman yang jujur gagal.
  * Caller: `lib/routes-registry.js` (mount `/api/olt`), halaman admin/teknisi OLT.
- * Deps: `lib/olt-hioso` (driver default + agregasi multi-OLT), `lib/olt-drivers` (dispatch merk),
+ * Deps: `lib/olt-hioso` (agregasi multi-OLT; pembacaannya didelegasikan ke driver), `lib/olt-drivers`
+ *       (dispatch merk — HIOSO→web, ZTE→SNMP),
  *       `lib/olt-manager` (daftar device + cache MAC→OLT), `lib/olt-log-scraper` (klasifikasi
  *       LOS/DG dari web log), `lib/olt-optical-resolver` (matching + `isRxPowerValid`),
  *       `lib/mikrotik` (PPPoE active untuk peta MAC↔pelanggan).
  * MainFuncs: GET `/matched`, GET `/onus`, GET `/customer/:userId`, POST `/refresh-single`,
  *            helper `getCachedOltDataByKey` (mengembalikan `{data, freshness}` — umur dipetik
  *            bersama datanya), `buildOltFreshness`.
- * SideEffects: Query SNMP ke OLT + API MikroTik; menulis `database/last-caller-id-cache.json`.
+ * SideEffects: Membaca OLT lewat WEB (scraping) + API MikroTik; menulis
+ *       `database/last-caller-id-cache.json`.
+ *
+ * !! TIDAK ada SNMP HIOSO di sini lagi (#b283) — SNMP membuat OLT HIOSO hang. Seluruh
+ * pembacaan lewat `lib/olt-optical-resolver.ambilDataOlt` (satu pintu) atau dispatch
+ * per-merek `lib/olt-drivers`. ZTE tetap boleh SNMP lewat drivernya sendiri.
  */
 
 const express = require('express');
@@ -27,7 +33,7 @@ const path = require('path');
 
 // Import OLT library
 const { ambilDataOlt } = require('../lib/olt-optical-resolver');
-const { getOltData, getSingleOnuData: _getSingleOnuData, getMultipleOltData: _getMultipleOltData, getSingleOnuDataWithCache, matchOltWithCustomers: _matchOltWithCustomers, matchMAC, normalizeMAC } = require('../lib/olt-hioso');
+const { getOltData: _getOltData, getSingleOnuData: _getSingleOnuData, getMultipleOltData: _getMultipleOltData, getSingleOnuDataWithCache, matchOltWithCustomers: _matchOltWithCustomers, matchMAC, normalizeMAC } = require('../lib/olt-hioso');
 const { getActivePPPoEUsers } = require('../lib/mikrotik');
 
 // Import OLT Log Scraper
@@ -43,16 +49,6 @@ const { buildOnuIndex, matchOnu, isRxPowerValid, isSnapshotReadableFor } = requi
 // Pemisahan akun infrastruktur (CCTV/monitoring) + penyusun baris status infra (PPPoE + OLT).
 const { isInfrastructure } = require('../lib/account-classification');
 const { buildInfraRow } = require('../lib/infra-status');
-
-// ============================================
-// CACHE SYSTEM untuk performa lebih baik
-// ============================================
-const oltCache = {
-    data: null,           // Data OLT terakhir
-    timestamp: 0,         // Waktu cache dibuat
-    ttl: 30000,           // Cache valid 30 detik
-    loading: false        // Flag untuk mencegah multiple request
-};
 
 const pppoeCache = {
     data: null,
@@ -270,33 +266,16 @@ loadLastCallerIdCache();
 /**
  * Get cached OLT data atau fetch baru jika expired
  */
-async function getCachedOltData(oltConfig, forceRefresh = false) {
-    const now = Date.now();
-    
-    // Return cache jika masih valid dan tidak force refresh
-    if (!forceRefresh && oltCache.data && (now - oltCache.timestamp) < oltCache.ttl) {
-        return oltCache.data;
-    }
-    
-    // Jika sedang loading, tunggu atau return cache lama
-    if (oltCache.loading) {
-        if (oltCache.data) return oltCache.data;
-        // Tunggu loading selesai (max 5 detik)
-        await new Promise(resolve => setTimeout(resolve, 100));
-        return oltCache.data;
-    }
-    
-    oltCache.loading = true;
-    try {
-        const result = await getOltData(oltConfig);
-        if (result.status === 'success') {
-            oltCache.data = result;
-            oltCache.timestamp = now;
-        }
-        return result;
-    } finally {
-        oltCache.loading = false;
-    }
+async function getCachedOltData(_oltConfigLama, forceRefresh = false) {
+    // Dulu membaca `config.olt.host` — bentuk config SATU-OLT yang sudah lama tidak ada
+    // (sekarang `config.olt.devices[]`), jadi jalur ini sebenarnya sudah rusak diam-diam.
+    // Sekaligus: pembacaannya memakai SNMP HIOSO langsung, yang kini DILARANG (bikin OLT hang).
+    //
+    // Diarahkan ke pembungkus multi-perangkat yang sama dengan /matched — satu cache, satu
+    // pintu (`ambilDataOlt`), dan HIOSO otomatis terbaca lewat web.
+    const devices = oltManager.getOltDevices() || [];
+    const { data } = await getCachedMultipleOltData(devices, forceRefresh === true);
+    return data;
 }
 
 /**
@@ -488,7 +467,8 @@ router.get('/test', async (req, res) => {
 
         console.log(`[OLT] Testing connection to ${oltConfig.host}:${oltConfig.port}`);
         
-        const result = await getOltData(oltConfig);
+        // Lewat driver merek — HIOSO dibaca via web (SNMP HIOSO dilarang, bikin OLT hang).
+        const result = await resolveDriver({ host: oltConfig.host, brand: oltConfig.brand }).getOltData(oltConfig);
 
         if (result.status === 'success') {
             res.json({
@@ -628,7 +608,8 @@ router.get('/status', async (req, res) => {
 
         console.log(`[OLT] Fetching ONT status from ${oltConfig.host}`);
         
-        const result = await getOltData(oltConfig);
+        // Lewat driver merek — HIOSO dibaca via web (SNMP HIOSO dilarang, bikin OLT hang).
+        const result = await resolveDriver({ host: oltConfig.host, brand: oltConfig.brand }).getOltData(oltConfig);
 
         if (result.status === 'success') {
             res.json({
@@ -1758,7 +1739,15 @@ router.post('/devices/:id/test', async (req, res) => {
             port: device.snmpPort || 161,
             community: device.snmpCommunity || 'public',
             timeout: device.snmpTimeout || 15000,
-            retries: device.snmpRetries || 2
+            retries: device.snmpRetries || 2,
+            // Field web WAJIB ikut: `detectBrand` mencoba mengenali HIOSO lewat halamannya
+            // DULU supaya merek itu tak perlu di-SNMP sama sekali (#b283). Tanpa field ini
+            // jalur web-nya diam-diam mati dan probe jatuh balik ke SNMP.
+            brand: device.brand || 'auto',
+            webUsername: device.webUsername,
+            webPassword: device.webPassword,
+            webPort: device.webPort || 80,
+            webTimeoutMs: device.webTimeoutMs,
         };
 
         // Auto-deteksi merk via sysObjectID bila brand 'auto'/kosong, lalu simpan balik ke config
