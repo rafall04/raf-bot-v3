@@ -328,7 +328,7 @@
   "postRepairReport": {
     "enabled": false,
     "settleDelayMs": 120000,
-    "minAffected": 3,
+    "minAffected": 1,
     "rxWarnDbm": -25,
     "rxDegradeDb": 3,
     "groupId": ""

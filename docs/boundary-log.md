@@ -2034,3 +2034,14 @@
 - Ikut disamakan: target penanganan di `smart-report-text-menu` (alur MATI) dan kunci `report_service_luar_jam_kerja` (form publik) — keduanya kini rentang; report-service mengoper `jamKerja` **dan** `waktuMulai` supaya template lama tetap aman.
 - Rentang mengikuti hari TUJUAN, bukan hari ini (jam kerja bisa beda per hari) — diuji.
 - Tes: `working-hours-frasa` (10), `olt-los-jam-kerja` (9), `admin-los-broadcast-routes` (27). Dua mutasi (slot tak diganti · rentang selalu kosong) terbukti tertangkap.
+
+<a id="b272"></a>
+
+### Fix 2026-08-27 (Gangguan 1 pelanggan juga dibuktikan redamannya, bukan cuma gangguan area)
+
+- **Owner:** `lib/post-repair-verification.js` — ambang bawaan `minAffected` 3 → **1**, plus penggabungan jadwal per OLT.
+- **Akar:** ambangnya bukan bug, tapi asumsi (*"1-2 ONU cukup ditangani notif biasa"*) yang salah arah. **TERUKUR** dari `olt_events.sqlite` kedua bot (2026-07-05..08-27, 91 episode): **82-87% gangguan hanya 1-2 pelanggan**. Justru itu kasus teknisi turun menyambung drop cable — dan sambungan buruk bisa membuat ONU online lagi dengan redaman jelek. *"Online"* saja bukan bukti perbaikan selesai; angka dBm-lah buktinya.
+- **!! Penggabungan dulu, ambang belakangan:** tiap `reportAfterRecovery` menjadwalkan snapshot OLT force-refresh SENDIRI. Menurunkan ambang ke 1 tanpa penggabungan = pola serentak yang pernah membuat cron redaman menjatuhkan breaker global dan membutakan monitoring 18 jam. Kini pemulihan yang menyusul digabung ke jadwal yang sudah ada (dedup `mac|slot|onu`), jadi **satu tarikan OLT per jendela** — lebih hemat daripada sebelumnya sekalipun.
+- Jadwal dibuang SEBELUM kerja dijalankan, jadi tak menggantung bila verifikasinya gagal; OLT berbeda tak saling menggabung; ambang tetap dihormati bila pemilik menaikkannya.
+- Teks 1 pelanggan tak lagi berbunyi *"Semua pelanggan terdampak"*.
+- Tes: `lib/__tests__/post-repair-verification.test.js` (19, +7). Tiga mutasi (ambang dikembalikan ke 3 · penggabungan dilumpuhkan · jadwal tak dibuang) terbukti tertangkap.

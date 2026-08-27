@@ -375,6 +375,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-24 (Kabel putus di luar jam kerja: berhenti menjanjikan penanganan yang belum bisa dikerjakan)](docs/boundary-log.md#b269)
 - [Fix 2026-08-24 (Alarm & laporan ke admin memanggil pengirim yang tidak ada — gagal diam-diam)](docs/boundary-log.md#b270)
 - [Fix 2026-08-25 (Di luar jam kerja: sebut RENTANG jam kerja, bukan satu jam mulai)](docs/boundary-log.md#b271)
+- [Fix 2026-08-27 (Gangguan 1 pelanggan juga dibuktikan redamannya, bukan cuma gangguan area)](docs/boundary-log.md#b272)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
