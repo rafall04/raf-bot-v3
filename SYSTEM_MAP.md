@@ -388,6 +388,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fitur 2026-08-27 (Ganti Modem lewat bot WA — wizard bertahap untuk teknisi/admin)](docs/boundary-log.md#b282)
 - [Fix 2026-08-27 (SNMP HIOSO dicabut dari seluruh proyek — merek ini dibaca lewat web saja)](docs/boundary-log.md#b283)
 - [Fix 2026-08-27 (Monitor OLT: pelanggan MikroTik yang belum didaftarkan akhirnya terbaca + penyaring identitas/redaman)](docs/boundary-log.md#b284)
+- [Fix 2026-08-27 (Catatan ONU basi mengalahkan yang hidup di indeks MAC — 5 pelanggan sehat divonis LOS)](docs/boundary-log.md#b285)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

@@ -2194,3 +2194,15 @@
 - **GOTCHA `$.fn.dataTable.ext.search` itu array GLOBAL:** versi lama menimpanya dengan `= []` tiap ganti status. Penyaring redaman terpisah akan membuat keduanya **saling menghapus diam-diam** — karena itu status+redaman digabung jadi `terapkanFilterTabel()` dan tesnya menghitung bahwa `= []` hanya muncul SEKALI.
 - **GOTCHA pencocokan EPON pakai 10 heksa pertama:** MAC yang cuma beda di oktet terakhir **BERTABRAKAN**. Fixture tes pertama saya kena jebakan ini dan salah menuduh kodenya rusak.
 - **Tanpa gate config** (beda dari kebiasaan): ini bukan perilaku baru melainkan data yang sudah ada tapi tak dioper, sifatnya baca-saja, dan menyembunyikannya di balik flag berarti teknisi tetap buta sampai ada yang menyalakan. Tes: `routes/__tests__/olt-identitas-mikrotik.test.js` (7) + `static/js/__tests__/olt-filter-core.test.js` (19). Empat mutasi terbukti tertangkap.
+
+<a id="b285"></a>
+
+### Fix 2026-08-27 (Catatan ONU basi mengalahkan yang hidup di indeks MAC — pelanggan sehat divonis LOS)
+
+- **Sebab:** satu modem bisa punya DUA catatan di OLT — yang HIDUP di PON sekarang, dan catatan BASI dari PON/OLT lamanya yang tak pernah dihapus setelah modem dipindah. `buildOnuIndex` memakai `=` polos, jadi pemenangnya cuma soal **urutan array**.
+- **Terukur di produksi Dander:** 5 prefiks kembar, catatan basi menang **5 dari 5**, dan **empat catatan basinya bertanda LOS**. Pelanggan nyata: Prasepta Dika Dinanta, Wahyu Rizki Cahyono, Bu Yuli, Luluk Asfinatul Hikmah, Suprapti — semuanya **Online** dengan rx -13,64 s/d -21,55 dBm. Tanjungharjo: 0 (bersih).
+- **Dampaknya bukan cuma label:** yang dipulangkan `rxPower: null`, jadi **cron alert redaman buta** untuk kelima pelanggan itu tanpa satu pun pesan galat. Ikut terdampak: `post-repair-verification`, `/api/olt/matched` & `/customer/:userId`, dan perintah Telegram teknisi (`cek`/`redaman`/`olt`).
+- **Owner:** `lib/olt-optical-resolver.js` `pilihOnuTerbaik(lama, baru)` — Online menang; kalau seri, yang punya angka redaman; kalau benar-benar setara, yang pertama (deterministik, tidak bergantung urutan). Berlaku untuk ketiga indeks: MAC, PPPoE, serial.
+- **Bukan tabrakan prefiks:** diukur juga — 10 heksa pertama (2 digit terakhir sengaja diabaikan karena MAC OLT beda di oktet itu) menghasilkan **0 tabrakan MAC berbeda** di kedua bot. Selisih oktet terakhir terukur: **+1 92,5%**, **+0 4,5%** (MAC identik), **+4 3,0%** — pemotongan prefiks menangani ketiganya, jadi aturannya lebih tahan banting daripada 'selalu beda 1'.
+- **GOTCHA uji mutasi:** aturan STATUS sempat bisa dilumpuhkan tanpa satu tes pun merah, karena pemeriksa redaman kebetulan menutupinya. Kasus yang membongkarnya justru yang paling nyata — **ONU mati tetap memamerkan dBm lama** (terukur di OLT Icak: 5 ONU `Down` masih menampilkan -13,44 dst).
+- Tes: `lib/__tests__/olt-index-catatan-basi.test.js` (9). Dua mutasi terbukti tertangkap (`=` polos dikembalikan · aturan status dilumpuhkan).
