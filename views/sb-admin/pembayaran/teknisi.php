@@ -138,7 +138,6 @@
   <script src="/vendor/datatables/dataTables.bootstrap4.min.js"></script>
   <script src="/js/sb-admin-2.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 
   <script src="/js/theme.js"></script>

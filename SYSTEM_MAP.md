@@ -390,6 +390,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-27 (Monitor OLT: pelanggan MikroTik yang belum didaftarkan akhirnya terbaca + penyaring identitas/redaman)](docs/boundary-log.md#b284)
 - [Fix 2026-08-27 (Catatan ONU basi mengalahkan yang hidup di indeks MAC — 5 pelanggan sehat divonis LOS)](docs/boundary-log.md#b285)
 - [Fix 2026-08-27 (Monitor OLT di layar HP: redaman tak lagi tersembunyi di balik geser horizontal)](docs/boundary-log.md#b286)
+- [Fix 2026-08-27 (Modal pembayaran teknisi mati total — DOMPurify diblokir CSP & penjaganya melempar)](docs/boundary-log.md#b287)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

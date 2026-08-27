@@ -43,23 +43,52 @@
           }
         });
 
+      // Pesan dimasukkan sebagai TEKS, bukan lewat innerHTML (#b287).
+      //
+      // Versi lama menyisipkan `${message}` langsung ke innerHTML tanpa sanitasi apa pun —
+      // padahal sebagiannya datang dari server (`result.message`). Jalur itu terbukti TIDAK
+      // bisa dieksploitasi hari ini karena `requestId` sudah divalidasi `^[a-zA-Z0-9_-]+$`
+      // sebelum dipantulkan, tapi mengandalkan validasi di ujung lain untuk keamanan di sini
+      // adalah jaminan yang mudah hilang tanpa ada yang sadar.
+      const TIPE_ALERT = ['info', 'success', 'warning', 'danger'];
+
       function displayGlobalTechnicianMessage(message, type = 'info') {
         const globalMessageDiv = document.getElementById('globalTechnicianMessage');
-        globalMessageDiv.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
-            ${message}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-        </div>`;
+        if (!globalMessageDiv) return;
+        const jenis = TIPE_ALERT.includes(type) ? type : 'info';
+
+        globalMessageDiv.textContent = '';
+        const kotak = document.createElement('div');
+        kotak.className = 'alert alert-' + jenis + ' alert-dismissible fade show';
+        kotak.setAttribute('role', 'alert');
+        kotak.textContent = message === null || message === undefined ? '' : String(message);
+
+        const tombol = document.createElement('button');
+        tombol.type = 'button';
+        tombol.className = 'close';
+        tombol.setAttribute('data-dismiss', 'alert');
+        tombol.setAttribute('aria-label', 'Close');
+        const silang = document.createElement('span');
+        silang.setAttribute('aria-hidden', 'true');
+        silang.innerHTML = '&times;';   // entitas tetap, bukan data
+        tombol.appendChild(silang);
+        kotak.appendChild(tombol);
+        globalMessageDiv.appendChild(kotak);
+
         setTimeout(() => { if (globalMessageDiv.querySelector('.alert')) $(globalMessageDiv.querySelector('.alert')).alert('close'); }, 7000);
       }
       
       function showMessageModal(title, message, type = 'info', autoHideDelay = 3000) {
         $('#messageModalTitle').text(title);
-        // Sanitize HTML to prevent XSS - only allow safe tags
-        const sanitizedMessage = DOMPurify ? DOMPurify.sanitize(message, {
-            ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'br', 'ul', 'li', 'p'],
-            ALLOWED_ATTR: []
-        }) : $('<div>').text(message).html();
-        $('#messageModalText').html(sanitizedMessage);
+        // !! JANGAN kembalikan DOMPurify ke sini (#b287). Terukur: SEMUA pemanggil fungsi ini
+        // mengirim KALIMAT BIASA — tak satu pun memakai tag HTML. Menyanitasi teks yang memang
+        // bukan HTML cuma menambah satu pustaka CDN, dan CDN itulah yang diblokir CSP.
+        //
+        // Lebih buruk lagi, penjaga lamanya `DOMPurify ? ... : fallback` MELEMPAR
+        // ReferenceError saat skripnya diblokir (variabel tak terdeklarasi bukan falsy), jadi
+        // fallback-nya kode mati dan SELURUH modal ini gagal terbuka — teknisi tak pernah
+        // melihat konfirmasi 'Pengajuan Terkirim' maupun pesan galatnya.
+        $('#messageModalText').text(message === null || message === undefined ? '' : String(message));
         const iconContainer = $('#messageModalIconContainer');
         iconContainer.empty(); 
         let iconClass = 'modal-icon ';
