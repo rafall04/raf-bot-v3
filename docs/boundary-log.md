@@ -2107,3 +2107,14 @@
 - Beda jauh (> 2,5 dB, di atas maks terukur 1,85) **tidak lagi menahan** alarm — ia ditempelkan ke pesannya (*"⚠️ beda 10.40 dB — cek pemetaan pelanggan/ONU"*) dan dicatat di log. Menahan berarti berpotensi menyembunyikan gangguan nyata.
 - Tidak ada slot template baru: `${redaman}` yang sudah ada langsung memuat kedua angka — nol risiko slot basi di template produksi.
 - Tes: `redaman-sumber-silang.test.js` (10), `olt-rxpower-poller.test.js` (disesuaikan + 2 baru). Mutasi (gerbang `status === 'Online'` dicabut · retensi dikembalikan ke 30 mnt) terbukti tertangkap.
+
+<a id="b278"></a>
+
+### Fix 2026-08-27 (Dua sumber di laporan verifikasi + log OLT menyebut asal kejadiannya)
+
+- **Laporan verifikasi pasca-perbaikan** kini menampilkan **kedua** angka: `GenieACS -20.00 dBm · OLT -20.40 dBm`. Prinsip yang sama dengan #b277 — tidak disinkronkan, tidak ada yang dibuang; teknisi yang memutuskan boleh-tidaknya meninggalkan lokasi berhak melihat dua sudut pandang. `customerId` dioper dari `olt-los-broadcaster`, satu query ACS untuk semua yang terdampak, NEVER-THROW (gagal ⇒ laporan tetap terkirim dengan angka OLT).
+- **Log OLT (`/olt-log`, admin & teknisi)** kini menyebut **SUMBER** tiap kejadian — `syslog` (didorong OLT saat kejadian) vs `scrape` (halaman log dibaca berkala). Ditambah penyaring sumber, dan ringkasan **per sumber + kapan terakhir menyumbang**.
+- **!! Kenapa ringkasan itu perlu:** terukur, `scrape` di Tanjungharjo **berhenti menyumbang sejak 2026-07-31** (`olt.webEnabled=false`) — lognya jadi syslog-saja hampir sebulan tanpa ada yang tahu. Sumber yang diam sebelumnya tak terlihat sama sekali.
+- **Tanggal OLT tidak dipakai** (keputusan pemilik: NTP OLT selalu meleset). Semua stempel memakai **jam server**; halaman menyatakannya terang-terangan (`Waktu (server)`) beserta beda makna keduanya: syslog ≈ waktu kejadian, scrape = waktu DIBACA (kejadian lebih awal).
+- Repo: `getStats` menambah `by_source` (jumlah + `last_ts_ms`), `buildFilter` menerima `source`; rute `/api/olt/event-log` meneruskannya. Badge memakai token semantik (lolos `check-theme-tokens`).
+- Tes: `post-repair-verification.test.js` (+4, 29). Mutasi (angka ACS dibuang dari baris · peta ACS diabaikan) terbukti tertangkap.

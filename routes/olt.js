@@ -1843,6 +1843,7 @@ router.get('/event-log', async (req, res) => {
             q: q.q || undefined,
             oltId: q.oltId || undefined,
             mac: q.mac || undefined,
+            source: q.source || undefined,
             limit: q.limit ? Number(q.limit) : 200,
             offset: q.offset ? Number(q.offset) : 0,
         };

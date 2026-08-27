@@ -183,7 +183,7 @@ function createOltEventRepository(overrides = {}) {
         }
     }
 
-    function buildFilter({ from, to, type, mac, q, oltId } = {}) {
+    function buildFilter({ from, to, type, mac, q, oltId, source } = {}) {
         const where = [];
         const params = [];
         if (Number.isFinite(from)) { where.push("ts_ms >= ?"); params.push(from); }
@@ -193,6 +193,9 @@ function createOltEventRepository(overrides = {}) {
         }
         if (mac) { where.push("mac = ?"); params.push(String(mac)); }
         if (oltId) { where.push("olt_id = ?"); params.push(String(oltId)); }
+        // Penyaring SUMBER: syslog (didorong OLT) vs scrape (halaman log dibaca berkala).
+        // Keduanya sah jadi acuan, tapi maknanya beda — lihat catatan di halaman /olt-log.
+        if (source) { where.push("COALESCE(source,'(tidak dicatat)') = ?"); params.push(String(source)); }
         if (q && String(q).trim()) {
             const like = `%${String(q).trim()}%`;
             where.push("(customer_name LIKE ? OR pppoe_username LIKE ? OR phone LIKE ? OR mac LIKE ? OR address LIKE ?)");
@@ -226,6 +229,14 @@ function createOltEventRepository(overrides = {}) {
             `SELECT event_type, COUNT(*) AS count FROM olt_events ${whereSql} GROUP BY event_type`,
             params
         );
+        // Per SUMBER — supaya terlihat bila salah satu berhenti menyumbang. Nyata terjadi:
+        // scrape Tanjungharjo diam sejak 2026-07-31 (webEnabled=false) dan tak ada yang
+        // memberi tahu; lognya jadi syslog-saja tanpa disadari.
+        const bySource = await all(
+            `SELECT COALESCE(source,'(tidak dicatat)') AS source, COUNT(*) AS count, MAX(ts_ms) AS last_ts_ms
+             FROM olt_events ${whereSql} GROUP BY COALESCE(source,'(tidak dicatat)') ORDER BY count DESC`,
+            params
+        );
         const totals = await get(
             `SELECT COUNT(*) AS total, COUNT(DISTINCT mac) AS distinct_onu, COUNT(DISTINCT customer_name) AS distinct_customer FROM olt_events ${whereSql}`,
             params
@@ -235,6 +246,7 @@ function createOltEventRepository(overrides = {}) {
             distinct_onu: (totals && totals.distinct_onu) || 0,
             distinct_customer: (totals && totals.distinct_customer) || 0,
             by_type: byType,
+            by_source: bySource,
         };
     }
 

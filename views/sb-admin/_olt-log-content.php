@@ -35,6 +35,12 @@
   .olt-item { border: 1px solid rgba(128,128,128,.22); border-radius: 11px; padding: .6rem .8rem; }
   .olt-item-head { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
   .olt-item-time { font-size: .77rem; opacity: .72; }
+  /* Badge SUMBER. Token semantik saja supaya ikut membalik di mode gelap. */
+  .olt-src { font-size: .66rem; font-weight: 700; letter-spacing: .02em; text-transform: uppercase;
+             padding: .06rem .42rem; border-radius: 6px; border: 1px solid var(--line);
+             color: var(--ink-soft); background: var(--surface-2); white-space: nowrap; }
+  .olt-src-scrape { font-style: italic; }
+  .olt-src-lain { opacity: .62; }
   .olt-dur { font-size: .74rem; opacity: .85; font-weight: 600; }
   .olt-item-name { font-weight: 600; margin-top: .28rem; }
   .olt-item-name .ppp { font-weight: 400; opacity: .58; font-size: .84em; }
@@ -75,6 +81,14 @@
         </select>
       </div>
       <div class="form-group col-md-2 mb-2">
+        <label class="small mb-1">Sumber</label>
+        <select id="fSource" class="form-control form-control-sm">
+          <option value="">Semua</option>
+          <option value="syslog">syslog (didorong OLT)</option>
+          <option value="scrape">scrape (halaman log)</option>
+        </select>
+      </div>
+      <div class="form-group col-md-2 mb-2">
         <label class="small mb-1">Dari tanggal</label>
         <input type="date" id="fFrom" class="form-control form-control-sm">
       </div>
@@ -86,6 +100,13 @@
         <button id="btnApply" class="btn btn-primary btn-sm flex-fill"><i class="fas fa-filter"></i> Terapkan</button>
         <button id="btnReset" class="btn btn-light btn-sm">Reset</button>
       </div>
+    </div>
+    <div class="small text-muted mt-1" style="line-height:1.5;">
+      <b>Dua sumber, dua makna.</b>
+      <span class="olt-src olt-src-syslog">syslog</span> didorong OLT saat kejadian — waktunya nyaris sama dengan kejadiannya.
+      <span class="olt-src olt-src-scrape">scrape</span> dibaca dari halaman log OLT secara berkala — kejadiannya terjadi <i>sebelum</i> waktu yang tertera.
+      Semua waktu memakai <b>jam server</b>; jam OLT tidak dipakai untuk apa pun karena NTP-nya tidak dapat dipercaya.
+    </div>
     </div>
   </div>
 </div>
@@ -165,15 +186,26 @@
       var dur = (r.event_type === 'discovery' && r.duration_ms != null)
         ? '<span class="olt-dur">· pulih setelah ' + esc(fmtDur(r.duration_ms)) + '</span>' : '';
       return '<div class="olt-item">'
-        + '<div class="olt-item-head">' + badge(r.event_type) + '<span class="olt-item-time mono">' + esc(fmtTime(r.ts)) + '</span>' + dur + '</div>'
+        + '<div class="olt-item-head">' + badge(r.event_type) + sumberBadge(r.source) + '<span class="olt-item-time mono">' + esc(fmtTime(r.ts)) + '</span>' + dur + '</div>'
         + '<div class="olt-item-name">' + name + ppp + '</div>'
         + (meta.length ? '<div class="olt-item-meta">' + meta.join('') + '</div>' : '')
         + '</div>';
     }
 
+    // SUMBER kejadian. Keduanya sah jadi acuan tapi maknanya BERBEDA:
+    //   syslog = didorong OLT saat kejadian  -> waktunya = saat kami MENERIMA (nyaris real-time)
+    //   scrape = halaman log dibaca berkala  -> waktunya = saat kami MEMBACA, kejadiannya lebih awal
+    // Jam OLT sendiri TIDAK dipakai di mana pun (NTP-nya tidak dapat dipercaya).
+    function sumberBadge(v) {
+      var k = String(v || '').toLowerCase();
+      if (k === 'syslog') return '<span class="olt-src olt-src-syslog" title="Didorong OLT saat kejadian (nyaris real-time)">syslog</span>';
+      if (k === 'scrape') return '<span class="olt-src olt-src-scrape" title="Dibaca dari halaman log OLT secara berkala — kejadian terjadi SEBELUM waktu ini">scrape</span>';
+      return '<span class="olt-src olt-src-lain" title="Sumber tidak tercatat">' + esc(v || '?') + '</span>';
+    }
+
     function tableHtml(items) {
       var oltHead = OLT_LOG_ROLE === 'teknisi' ? 'OLT' : 'OLT (IP)';
-      var head = '<thead><tr><th>Waktu</th><th>Kejadian</th><th>Pelanggan</th><th>HP</th><th>Alamat</th><th>ONU</th><th>' + oltHead + '</th></tr></thead>';
+      var head = '<thead><tr><th title="Jam SERVER saat tercatat. Jam OLT tidak dipakai.">Waktu (server)</th><th>Sumber</th><th>Kejadian</th><th>Pelanggan</th><th>HP</th><th>Alamat</th><th>ONU</th><th>' + oltHead + '</th></tr></thead>';
       var rows = '';
       for (var i = 0; i < items.length; i++) {
         var r = items[i];
@@ -184,6 +216,7 @@
           + ((r.slot != null || r.onu != null) ? '<div class="cust-sub">slot ' + esc(r.slot) + '/onu ' + esc(r.onu) + '</div>' : '');
         rows += '<tr>'
           + '<td class="mono" style="white-space:nowrap">' + esc(fmtTime(r.ts)) + '</td>'
+          + '<td>' + sumberBadge(r.source) + '</td>'
           + '<td>' + badge(r.event_type) + dur + '</td>'
           + '<td><div class="cust-name">' + name + '</div>' + ppp + '</td>'
           + '<td>' + (r.phone ? esc(r.phone) : '—') + '</td>'
@@ -217,6 +250,8 @@
       var to = dayBounds(document.getElementById('fTo').value, true);
       if (q) params.set('q', q);
       if (type) params.set('type', type);
+      var source = (document.getElementById('fSource') || {}).value || '';
+      if (source) params.set('source', source);
       if (from) params.set('from', from);
       if (to) params.set('to', to);
       params.set('limit', '500');
@@ -232,9 +267,16 @@
           document.getElementById('mLos').textContent = byType['los'] || 0;
           document.getElementById('mDg').textContent = byType['dying-gasp'] || 0;
           document.getElementById('mUp').textContent = byType['discovery'] || 0;
+          // Hitungan per SUMBER + kapan terakhir menyumbang. Tanpa ini, sumber yang diam
+          // tak terlihat sama sekali — nyata terjadi: scrape berhenti 2026-07-31 dan lognya
+          // jadi syslog-saja tanpa ada yang tahu.
+          var srcTxt = (stats.by_source || []).map(function (x) {
+            var lagi = x.last_ts_ms ? ' (terakhir ' + fmtTime(x.last_ts_ms) + ')' : '';
+            return x.source + ' ' + x.count + lagi;
+          }).join(' · ');
           document.getElementById('rowInfo').textContent =
             (data.items ? data.items.length : 0) + ' baris · ' + (data.total || 0) + ' total · ' +
-            (stats.distinct_customer || 0) + ' pelanggan';
+            (stats.distinct_customer || 0) + ' pelanggan' + (srcTxt ? ' · ' + srcTxt : '');
           render(data.items);
         })
         .catch(function (e) {
@@ -254,6 +296,7 @@
     document.getElementById('btnReset').addEventListener('click', function () {
       document.getElementById('fq').value = '';
       document.getElementById('fType').value = '';
+      if (document.getElementById('fSource')) document.getElementById('fSource').value = '';
       document.getElementById('fFrom').value = '';
       document.getElementById('fTo').value = '';
       load();
