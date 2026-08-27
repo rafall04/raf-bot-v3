@@ -2045,3 +2045,14 @@
 - Jadwal dibuang SEBELUM kerja dijalankan, jadi tak menggantung bila verifikasinya gagal; OLT berbeda tak saling menggabung; ambang tetap dihormati bila pemilik menaikkannya.
 - Teks 1 pelanggan tak lagi berbunyi *"Semua pelanggan terdampak"*.
 - Tes: `lib/__tests__/post-repair-verification.test.js` (19, +7). Tiga mutasi (ambang dikembalikan ke 3 · penggabungan dilumpuhkan · jadwal tak dibuang) terbukti tertangkap.
+
+<a id="b273"></a>
+
+### Fix 2026-08-27 (Verifikasi pasca-perbaikan: OLT tak terjangkau ≠ pelanggan bermasalah)
+
+- **Owner:** `lib/post-repair-verification.js` kini membaca `snapshot.failedOlts` (sudah lama disediakan `olt-hioso`, tapi tak pernah dipakai laporan ini).
+- **Akar:** pelanggan di balik OLT yang tak menjawab dilaporkan sebagai *"tidak terbaca — perlu cek manual"* berikut **⛔ "belum terbukti normal"** — seolah mereka mungkin masih mati. Padahal yang terjadi: kita tidak bisa melihat. Pelanggaran langsung aturan *"cannot observe" ≠ "observed bad"*.
+- **TERUKUR (Dander, 2026-08-27):** `192.168.11.2` (OLT Server) tak terjangkau sama sekali — ping, tcp/80, dan SNMP semuanya gagal; 324 kegagalan di log. **47 ONU** pernah berkejadian di baliknya, vs 5 di OLT Icak. Dengan `minAffected=1` (#b272), tiap pemulihan satu pelanggan di sana akan menghasilkan ⛔ palsu — cara tercepat melatih teknisi mengabaikan alarm.
+- **Sekarang:** OLT yang gagal disebut namanya (*"OLT X tidak menjawab saat diukur — pelanggan di baliknya TIDAK bisa dibuktikan dari sini. Ini bukan berarti mereka mati."*), dan ekornya memakai ❔ bukan ⛔. Vonis **MASIH MATI** tetap menang: kalau ada yang benar-benar diamati mati, ⛔ muncul seperti biasa.
+- ONU yang tak ada di daftar padahal OLT-nya sehat tetap ⛔ — itu memang perlu dicek.
+- Tes: `lib/__tests__/post-repair-verification.test.js` (22, +3). Tiga mutasi terbukti tertangkap.
