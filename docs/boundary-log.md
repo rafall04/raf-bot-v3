@@ -2230,3 +2230,16 @@
 - **Audit poin 4:** dipindai seluruh `views/` — dari 54 tag `<script src=https://…>`, **hanya SATU** yang berasal dari host di luar izin CSP, yaitu DOMPurify ini. Sisanya jsdelivr (48) & unpkg (5), keduanya sah.
 - Global `DOMPurify` dicabut dari `eslint.config.js`; jumlah peringatan lint tetap 244 (tak ada `no-undef` baru).
 - Tes: `static/js/__tests__/pembayaran-teknisi-sanitasi.test.js` (8) — termasuk **penjaga repo** yang membaca daftar izin dari `lib/http-security.js` (bukan menyalinnya) lalu menolak `<script src>` dari host mana pun di luar daftar itu. Tiga mutasi terbukti tertangkap (tag cdnjs dikembalikan · penjaga falsy dikembalikan · pesan dikembalikan ke innerHTML).
+
+<a id="b288"></a>
+
+### Fix 2026-08-28 (Alarm redaman buta untuk pelanggan yang belum didaftarkan — kepemilikan kini dua sumber)
+
+- **Sebab:** saringan kepemilikan (#b249) benar untuk masalahnya — satu ACS dipakai dua bot, jadi modem bot sebelah tak boleh mengalert teknisi kita. Tapi ia menyapu kategori KETIGA yang tak terpikir: pelanggan di area **kita sendiri** yang belum didaftarkan admin. Tanpa `device_id` di `users`, redamannya **tak pernah diperiksa** dan tak pernah bisa memicu alarm. Cron sudah lama MENGHITUNG mereka (`asingRedamanBuruk`) tanpa bisa bertindak.
+- **Terukur di produksi 2026-08-28:** Dander 3 modem asing berredaman buruk → **2 milik kita** (`kastur-rt11` -28,00 · `mas-bakir` -26,02), 1 memang bot sebelah. Tanjungharjo 4 → **0 milik kita**, keempatnya bot sebelah (saringan lama benar di sana).
+- **Pembedanya: sesi PPPoE aktif di MikroTik KITA.** Username PPPoE yang tertanam di modem dicocokkan ke sesi hidup di router kita — modem bot sebelah tak akan pernah cocok karena router kita tak memegang sesinya. Owner: `lib/redaman-alert-scope.js` `bangunPetaAreaSendiri()`, modul yang memang memiliki keputusan lingkup.
+- **Fail-closed:** MikroTik bisu ⇒ daftar sesi kosong ⇒ tak ada yang diakui ⇒ **perilaku lama persis**. Panggilan MikroTik di cron dibungkus `try/catch` — alarm yang sudah bekerja tidak boleh ikut rusak oleh fitur tambahan ini.
+- **Urutan menentukan:** perluasan kepemilikan berjalan SEBELUM `deviceIDs.filter(...)`. Dibalik, modem yang baru dikenali akan tersaring keluar sebelum sempat masuk. Jalur username PPPoE ikut diminta di query ACS yang SAMA (tanpa round-trip tambahan); `PPP_PATHS` diekspor dari `lib/olt-genieacs-resolver.js` agar SATU definisi dipakai bersama.
+- **Pelanggan sintetis tanpa nomor HP** — alert redaman dikirim ke TEKNISI, bukan pelanggan, dan penyusun pesannya sudah punya fallback `(Tidak Terdaftar)`.
+- **Yang TIDAK diubah (keputusan pemilik, bukan bug):** ambang `rx_tolerance = -26` (melewatkan -25,x) dan jeda per-perangkat 12 jam. Diperiksa: alarm memang **terkirim** 3,7 · 8,7 · 11,7 · 11,8 jam lalu — "ditahan cooldown" itu perilaku benar, bukan kerusakan.
+- Tes: `lib/__tests__/redaman-area-sendiri.test.js` (12). Dua mutasi terbukti tertangkap (terima semua modem asing · panggilan MikroTik dibuat fatal). Mutasi ketiga (cabut `return` awal) TIDAK tertangkap — dan itu benar: `return` itu cuma pemangkas beban, sifat fail-closed-nya ditegakkan pemeriksaan keanggotaan.
