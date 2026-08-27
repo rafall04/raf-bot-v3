@@ -2081,3 +2081,14 @@
 - **Pintu tunggal, bukan sekadar bawaan:** `routes/olt.js` ternyata punya pembungkus cache sendiri yang memanggil `getMultipleOltData` LANGSUNG — halaman `/olt` masih SNMP (dan lambat: 55 dtk). Kini lewat `ambilDataOlt`. Sama untuk `routes/olt-provisioning.js` (peta SN→PPPoE; hanya berisi untuk GPON/ZTE, di Hioso memang kosong — sekarang kosong TANPA menembak OLT).
 - **Kesehatan OLT dikunci merk:** `olt-health-service` memanggil `getSnmpHealth` tanpa gerbang, padahal OID-nya ZTE enterprise — membuka panel kesehatan OLT Hioso menembakkan SNMP ke sana untuk hasil nihil. Kini hanya `brand === "zte"` (`"auto"` = HIOSO, tidak termasuk).
 - Tes: `lib/__tests__/olt-sumber-optik.test.js` (6), `olt-snmp-satu-pintu.test.js` (3, **memindai repo** — bukan daftar manual pemakai), `olt-health-gerbang-merk.test.js` (4). Tiga mutasi (bawaan→snmp · `/olt`→SNMP langsung · gerbang merk→selalu benar) terbukti tertangkap.
+
+<a id="b276"></a>
+
+### Fix 2026-08-27 (Redaman untuk KEPUTUSAN dibaca per-ONU, bukan dari halaman daftar yang di-cache)
+
+- **Owner:** `lib/olt-web-optical.bacaOnuSegar(device, pon, onuId)` — membaca `onuConfig.asp?onuno=…&oltponno=…`, array `onuOpmInfo` (**index 4 = Tx Power, index 5 = Rx Power**, label dari halaman OLT itu sendiri).
+- **Akar (informasi pemilik, lalu TERUKUR):** halaman DAFTAR `onuConfigOnuList.asp` di-cache OLT dan tidak realtime. Diukur di 8 ONU PON `0/1/2`: **6 dari 8 berbeda**, selisih s/d **0,23 dB**. Kecil — tapi laporan verifikasi justru dibuat untuk melawan data basi, dan di ambang batas selisih sekecil itu membalik vonis PULIH ⇄ REDAMAN PERLU DICEK.
+- **Pembagian tugas:** daftar → TAMPILAN massal (99 ONU dalam 2 permintaan); per-ONU → KEPUTUSAN (verifikasi pasca-perbaikan, alarm, cek satu pelanggan). ONU yang baru diperbaiki selalu sedikit, jadi biayanya wajar.
+- Gagal baca segar ⇒ pakai nilai daftar dan laporan TETAP terkirim; pembaca yang melempar dibungkus di titik pakai (laporan tak boleh jatuh gara-gara pelengkap).
+- **TERUKUR — ACS vs OLT bukan dua besaran berbeda:** 97 pasangan, korelasi **r = 0,991**, selisih median 0,55 dB. Polanya truncation (OLT -24,81 → ACS -24; -18,93 → -18): Huawei memotong desimal. Keduanya mengukur **daya terima ONU yang sama**, jadi "double data" bukan pendapat kedua yang independen — nilainya ada di **cakupan** (saling menambal saat satu sumber diam) dan **presisi** (OLT 2 desimal).
+- Tes: `lib/__tests__/post-repair-verification.test.js` (+3, 25). Mutasi (nilai segar diabaikan) terbukti tertangkap.
