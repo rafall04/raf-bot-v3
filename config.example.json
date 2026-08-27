@@ -296,7 +296,9 @@
   },
   "oltRxPowerHistory": {
     "enabled": false,
-    "intervalMs": 60000
+    "intervalMs": 300000,
+    "retentionMs": 43200000,
+    "maxSamplesPerMac": 200
   },
   "oltLosBroadcast": {
     "enabled": false,

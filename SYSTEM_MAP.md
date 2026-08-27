@@ -380,6 +380,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-27 (Redaman dibaca dari WEB OLT, bukan SNMP — SNMP membuat OLT hang)](docs/boundary-log.md#b274)
 - [Fix 2026-08-27 (Satu pemilik sumber optik: getOltSnapshot memakai WEB, SNMP tinggal pilihan sadar)](docs/boundary-log.md#b275)
 - [Fix 2026-08-27 (Redaman untuk KEPUTUSAN dibaca per-ONU, bukan dari halaman daftar yang di-cache)](docs/boundary-log.md#b276)
+- [Fix 2026-08-27 (Riwayat redaman hidup lagi lewat web + alarm redaman tak lagi buta sebelah)](docs/boundary-log.md#b277)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

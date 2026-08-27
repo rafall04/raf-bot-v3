@@ -2092,3 +2092,15 @@
 - Gagal baca segar ⇒ pakai nilai daftar dan laporan TETAP terkirim; pembaca yang melempar dibungkus di titik pakai (laporan tak boleh jatuh gara-gara pelengkap).
 - **TERUKUR — ACS vs OLT bukan dua besaran berbeda:** 97 pasangan, korelasi **r = 0,991**, selisih median 0,55 dB. Polanya truncation (OLT -24,81 → ACS -24; -18,93 → -18): Huawei memotong desimal. Keduanya mengukur **daya terima ONU yang sama**, jadi "double data" bukan pendapat kedua yang independen — nilainya ada di **cakupan** (saling menambal saat satu sumber diam) dan **presisi** (OLT 2 desimal).
 - Tes: `lib/__tests__/post-repair-verification.test.js` (+3, 25). Mutasi (nilai segar diabaikan) terbukti tertangkap.
+
+<a id="b277"></a>
+
+### Fix 2026-08-27 (Riwayat redaman hidup lagi lewat web + alarm redaman tak lagi buta sebelah)
+
+- **Owner:** `lib/olt-rxpower-poller.js` (kini lewat pintu tunggal `ambilDataOlt`, sumber WEB) dan **owner BARU** `lib/redaman-sumber-silang.js` (`pilihNilaiRedaman`) yang dipakai `lib/cron/jobs/redaman-check.js`.
+- **Akar 1 — riwayat mati:** poller rxPower dimatikan (#b274) karena SNMP membuat OLT hang, dan itu satu-satunya sumber "redaman sebelum gangguan". Tanpanya vonis **REDAMAN MEMBURUK** tak pernah bisa muncul. Kini SATU tarikan web (~780 ms / 99 ONU) menggantikan 1.440 walk SNMP/hari.
+- **!! Akar 2 — retensi tak pernah cukup:** penyimpan riwayat menahan **30 menit**, sementara `post-repair-verification` mencari sampel **6 jam** ke belakang dan gangguan nyata berdurasi **1-3 jam**. Jadi meski poller-nya hidup, pembandingnya tetap kosong. Bawaan kini: interval **5 menit**, retensi **12 jam**, cap 200 sampel/ONU.
+- Hanya ONU **Online** yang direkam — OLT tetap memamerkan redaman terakhir milik ONU yang sudah mati, dan merekamnya menanam pembanding palsu yang menyesatkan justru saat paling dibutuhkan.
+- **Akar 3 — alarm buta sebelah:** alarm redaman hanya percaya ACS; modem tak inform ⇒ `NILAI_BASI` ⇒ diam. Kini OLT menambal. Sebaliknya beda **> 1,5 dB** antar-sumber ditahan dan dilaporkan sebagai masalah **PEMETAAN pelanggan↔ONU**, bukan optik — ambangnya dipilih **di atas p90 terukur (1,02 dB)**, bukan ditebak.
+- Saat keduanya ada dan sepakat, **OLT** dipakai: 2 desimal, dan tak bergantung modem mau inform (Huawei memotong desimal — TERUKUR r=0,991, median 0,55 dB).
+- Tes: `redaman-sumber-silang.test.js` (10), `olt-rxpower-poller.test.js` (disesuaikan + 2 baru). Mutasi (gerbang `status === 'Online'` dicabut · retensi dikembalikan ke 30 mnt) terbukti tertangkap.
