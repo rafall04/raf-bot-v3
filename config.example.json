@@ -282,7 +282,8 @@
       "schedule": "30 2 * * *",
       "keep": 30,
       "sendTelegram": false
-    }
+    },
+    "sumberOptik": "web"
   },
   "oltSyslog": {
     "enabled": false,
@@ -331,8 +332,7 @@
     "minAffected": 1,
     "rxWarnDbm": -25,
     "rxDegradeDb": 3,
-    "groupId": "",
-    "sumber": "web"
+    "groupId": ""
   },
   "oltEventLog": {
     "enabled": true,

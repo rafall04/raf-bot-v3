@@ -2068,3 +2068,14 @@
 - **!! ANTI DATA-BASI (terbukti di OLT Icak):** 5 ONU berstatus `Down` **tetap memamerkan redaman lama** (-13,44 · -12,78 · …). Nilai itu dibuang — halaman OLT sendiri pun hanya memakai rxPower saat `Status == "Up"`. Sentinel `-inf`/`--` juga ditolak.
 - OLT tak terjangkau → `failedOlts`, bukan "semua pelanggannya offline" (aturan #b273). Terbukti live: Dander melaporkan `OLT Server (EHOSTUNREACH)` sambil tetap memakai data OLT Icak.
 - Tes: `lib/__tests__/olt-web-optical.test.js` (11, memakai potongan HTML NYATA kedua OLT) + `post-repair-sumber-web.test.js` (4). Penjaga: modul ini dan pemakainya tak boleh mengimpor `net-snmp`; mutasi (bawaan dikembalikan ke snmp) terbukti tertangkap.
+
+<a id="b275"></a>
+
+### Fix 2026-08-27 (Satu pemilik sumber optik: `getOltSnapshot` memakai WEB, SNMP tinggal pilihan sadar)
+
+- **Owner:** `lib/olt-optical-resolver.getOltSnapshot` — satu-satunya tempat sumber optik dipilih (`config.olt.sumberOptik`, bawaan `"web"`). Selektor kembar di `post-repair-verification` (#b274) DIBUANG supaya tak ada dua pemilik keputusan.
+- **Dampak:** seluruh permukaan SNMP on-demand ikut pindah sekaligus — halaman admin `/olt` (`routes/olt.js`) dan perintah Telegram teknisi (`cek`, `olt`, `redaman`). Digabung dengan `oltRxPowerHistory` yang sudah dimatikan (#b274), **tidak ada lagi SNMP ke OLT** kecuali diminta eksplisit.
+- **Yang hilang saat pindah: tidak ada.** SNMP Hioso tak pernah bisa membedakan LOS dari dying-gasp — kodenya sendiri mencatat *"tidak bisa membedakan LOS vs Dying Gasp"* dan **selalu** memulangkan `isDyingGasp=false`; `lastDownCause` selalu `1`. Pembeda sebenarnya datang dari **log web** (`olt-log-scraper`), dan baik `routes/olt.js` maupun resolver memang sudah mengutamakan log itu.
+- Pembaca web mengisi `isDyingGasp`/`isLos`/`lastDownCause`/`serial`/`description` + `systemInfo`/`incompleteWalks`/`failedWalks`/`oltResults` secara **eksplisit**, supaya tak ada `undefined` menyelinap ke tampilan admin. `serial`/`description` milik GPON (ZTE); Hioso memakai MAC, jadi pencocokan pelanggan tak terpengaruh.
+- Sumber tak dikenal ⇒ jatuh ke **web**, bukan SNMP (gagal ke sisi aman). `opts.getOltData` yang disuntik tetap menang supaya tes lama utuh.
+- Tes: `lib/__tests__/olt-sumber-optik.test.js` (6). Mutasi (bawaan dikembalikan ke snmp) terbukti tertangkap.
