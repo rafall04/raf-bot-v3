@@ -2056,3 +2056,15 @@
 - **Sekarang:** OLT yang gagal disebut namanya (*"OLT X tidak menjawab saat diukur — pelanggan di baliknya TIDAK bisa dibuktikan dari sini. Ini bukan berarti mereka mati."*), dan ekornya memakai ❔ bukan ⛔. Vonis **MASIH MATI** tetap menang: kalau ada yang benar-benar diamati mati, ⛔ muncul seperti biasa.
 - ONU yang tak ada di daftar padahal OLT-nya sehat tetap ⛔ — itu memang perlu dicek.
 - Tes: `lib/__tests__/post-repair-verification.test.js` (22, +3). Tiga mutasi terbukti tertangkap.
+
+<a id="b274"></a>
+
+### Fix 2026-08-27 (Redaman dibaca dari WEB OLT, bukan SNMP — SNMP membuat OLT hang)
+
+- **Owner BARU:** `lib/olt-web-optical.js` (`getWebOpticalSnapshot`) — pembaca redaman lewat antarmuka web OLT. Dipakai `lib/post-repair-verification.js` sebagai sumber **bawaan** (`postRepairReport.sumber: "web"`; `"snmp"` masih ada sebagai pilihan sadar).
+- **Akar:** SNMP membuat OLT hang (pengalaman lapangan pemilik). Terbukti mendukung: `oltRxPowerHistory` menembak SNMP **tiap 60 detik = 1.440 walk/hari** dan hanya menyala di Dander — OLT Dander `192.168.11.2` kini tak terjangkau total, sedangkan Tanjungharjo (poller OFF) sehat. Poller itu **dimatikan** di produksi.
+- **Jalur web:** `/onuConfigPonList.asp` → daftar PON, `/onuConfigOnuList.asp?oltponno=<pon>` → array JS `ponOnuTable` stride 13 (`+0` OnuId `0/1/2:56`, `+2` MAC, `+3` Status, `+11` RxPower). Pemetaan dibaca dari `createTable()` halaman itu sendiri, bukan ditebak.
+- **TERUKUR setara:** ONU pembanding `0/1/2:56` = **-19,87 dBm** lewat web vs **-19,91** lewat SNMP (selisih 0,04 dB = jitter). **99 ONU dalam 778 ms**, nol SNMP.
+- **!! ANTI DATA-BASI (terbukti di OLT Icak):** 5 ONU berstatus `Down` **tetap memamerkan redaman lama** (-13,44 · -12,78 · …). Nilai itu dibuang — halaman OLT sendiri pun hanya memakai rxPower saat `Status == "Up"`. Sentinel `-inf`/`--` juga ditolak.
+- OLT tak terjangkau → `failedOlts`, bukan "semua pelanggannya offline" (aturan #b273). Terbukti live: Dander melaporkan `OLT Server (EHOSTUNREACH)` sambil tetap memakai data OLT Icak.
+- Tes: `lib/__tests__/olt-web-optical.test.js` (11, memakai potongan HTML NYATA kedua OLT) + `post-repair-sumber-web.test.js` (4). Penjaga: modul ini dan pemakainya tak boleh mengimpor `net-snmp`; mutasi (bawaan dikembalikan ke snmp) terbukti tertangkap.

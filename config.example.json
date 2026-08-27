@@ -331,7 +331,8 @@
     "minAffected": 1,
     "rxWarnDbm": -25,
     "rxDegradeDb": 3,
-    "groupId": ""
+    "groupId": "",
+    "sumber": "web"
   },
   "oltEventLog": {
     "enabled": true,
