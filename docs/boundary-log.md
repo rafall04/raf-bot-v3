@@ -2130,3 +2130,14 @@
 - **Scrape Tanjungharjo dinyalakan** (`olt.webEnabled` false→true) pada **2 menit**, bukan 1 — menyamai Dander yang sudah berbulan-bulan menjalankannya tanpa insiden. Siklus pertama membaca 81 dying-gasp · 90 lost · 91 discovery dan **tidak** memicu satu alarm pun (garis dasar dibangun tanpa menembak).
 - Terpantau saat menyalakan: **jam OLT 40 menit di depan jam server** — penegasan lain kenapa tanggal OLT tidak dipakai (#b278).
 - Tes: `lib/__tests__/olt-dg-crosscheck.test.js` (12). Tiga mutasi (DG tak menang · jendela dicabut · arah dibuat dua-arah) terbukti tertangkap.
+
+<a id="b280"></a>
+
+### Fix 2026-08-27 (Baca log OLT lebih dalam: mati listrik massal jangan tervonis fiber putus)
+
+- **Owner:** batas kedalaman di `lib/olt-log-scraper.js` — `MIN_LOG_PAGES` 15 → **25**, `DEFAULT_LOG_PAGES` 20 → **30**, `MAX_LOG_PAGES_HARD` 40 → **60**.
+- **Akar (dari pemilik, lalu TERUKUR):** vonis LOS lahir dari *ketiadaan* baris dying-gasp — dan baris DG selalu **lebih tua** dari baris `Lost` milik ONU yang sama. Saat mati listrik massal, DG-lah yang tergulung keluar jangkauan lebih dulu, sehingga kejadiannya tervonis LOS ("fiber putus") dan teknisi dikirim sia-sia.
+- **Ukurannya:** satu halaman log OLT penuh = **20 baris**; halaman terbaru selalu separuh terisi. Scrape pertama di Tanjungharjo **MENGHABISKAN** cap 15 halaman di **263 baris** dengan halaman terakhir masih penuh — terpotong, bukan selesai. Kasus terburuk area: 99 ONU × (DG + Lost + discovery) = **297 baris**. Jadi 15 halaman (≈263 efektif) memang tak cukup; 25 halaman = 500 baris memberi margin 1,7×.
+- **"No silent caps":** berhenti karena CAP kini dibedakan dari berhenti karena data habis, dan diteriakkan (`!! Pembacaan TERPOTONG di cap N halaman`) beserta **akibatnya** — bukan sekadar angka. Sebelumnya lognya terlihat normal (`Fetched 263 log lines`) padahal ada baris lebih tua yang tak terbaca.
+- `olt.maxLogPages` produksi disamakan dengan niatnya (Tanjungharjo `3` → 30, Dander `20` → 30); nilai kecil tetap terangkat oleh `MIN` sebagai jaring.
+- Tes: `lib/__tests__/olt-log-scraper-cap.test.js` (7). Dua mutasi (MIN dikembalikan ke 15 · peringatan terpotong dibungkam) terbukti tertangkap — asersi pertama sempat terlalu longgar (300 > 297) dan diperketat memakai angka terukur.

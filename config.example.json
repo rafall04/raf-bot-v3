@@ -258,7 +258,7 @@
     "webEnabled": true,
     "scrapeInterval": 1,
     "timeWindow": 10,
-    "maxLogPages": 20,
+    "maxLogPages": 30,
     "devices": [
       {
         "id": "olt1",
