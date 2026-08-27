@@ -106,16 +106,25 @@
                                 <select id="oltSelector" class="form-control form-control-sm mr-2 mb-1" style="width: auto;" title="Pilih OLT">
                                     <option value="">— Pilih OLT —</option>
                                 </select>
-                                <div class="btn-group btn-group-sm mr-2 mb-1" role="group" id="viewModeToggle" title="Mode tampilan">
-                                    <button type="button" class="btn btn-primary" data-view="all">Semua ONU</button>
-                                    <button type="button" class="btn btn-outline-primary" data-view="matched">Pelanggan</button>
-                                </div>
+                                <select id="identitasFilter" class="form-control form-control-sm mr-2 mb-1" style="width: auto;" title="Saring menurut asal identitas pelanggan">
+                                    <option value="all">Semua ONU</option>
+                                    <option value="bot">Terdaftar di bot</option>
+                                    <option value="mikrotik">Belum didaftarkan (ada di MikroTik)</option>
+                                    <option value="tanpa">Tanpa identitas</option>
+                                </select>
                                 <select id="statusFilter" class="form-control form-control-sm mr-2 mb-1" style="width: auto;">
                                     <option value="">Semua Status</option>
                                     <option value="online">Online</option>
                                     <option value="offline">Offline</option>
                                     <option value="los">LOS</option>
                                     <option value="dying_gasp">Dying Gasp</option>
+                                </select>
+                                <select id="redamanFilter" class="form-control form-control-sm mr-2 mb-1" style="width: auto;" title="Saring menurut mutu redaman">
+                                    <option value="">Semua Redaman</option>
+                                    <option value="kritis">Kritis (&lt; -25 dBm)</option>
+                                    <option value="peringatan">Peringatan (-25 s/d -20)</option>
+                                    <option value="baik">Baik (&ge; -20)</option>
+                                    <option value="takterbaca">Tak terbaca / basi</option>
                                 </select>
                                 <select id="sortFilter" class="form-control form-control-sm" style="width: auto;">
                                     <option value="rx_asc">Redaman ↑ (Terburuk)</option>
@@ -292,6 +301,7 @@
     <script src="/vendor/datatables/jquery.dataTables.min.js"></script>
     <script src="/vendor/datatables/dataTables.bootstrap4.min.js"></script>
 
+    <script src="/js/olt-filter-core.js"></script>
     <script src="/js/teknisi-olt.js"></script>
 </body>
 </html>

@@ -79,3 +79,9 @@
             .table-responsive { font-size: 0.8rem; }
             .table td, .table th { padding: 0.5rem; }
         }
+
+/* Baris ONU yang PPPoE-nya ada di MikroTik tapi belum didaftarkan di bot (#b284).
+   Token semantik saja — warna primitif tetap tidak ikut membalik di mode gelap. */
+.olt-tak-terdaftar {
+    color: var(--ink);
+}

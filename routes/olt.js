@@ -14,6 +14,10 @@
  *       `lib/olt-manager` (daftar device + cache MAC→OLT), `lib/olt-log-scraper` (klasifikasi
  *       LOS/DG dari web log), `lib/olt-optical-resolver` (matching + `isRxPowerValid`),
  *       `lib/mikrotik` (PPPoE active untuk peta MAC↔pelanggan).
+ * !! IDENTITAS BARIS PUNYA DUA SUMBER (#b284): pelanggan bot, ATAU sesi PPPoE MikroTik untuk
+ * yang belum didaftarkan admin. ONU EPON tak membawa description/serial, jadi tanpa sumber
+ * kedua barisnya tampil TANPA NAMA dan teknisi tak bisa mengerjakannya.
+ *
  * MainFuncs: GET `/matched`, GET `/onus`, GET `/customer/:userId`, POST `/refresh-single`,
  *            helper `getCachedOltDataByKey` (mengembalikan `{data, freshness}` — umur dipetik
  *            bersama datanya), `buildOltFreshness`.
@@ -1087,8 +1091,9 @@ router.get('/onus', async (req, res) => {
         // startup DAN /matched belum pernah dibuka), cache kosong → matchedCount 0 → "nama
         // pelanggan tak terdeteksi" di Monitor OLT. Panggilan ini ber-cache 15 dtk & non-fatal
         // (getCachedPppoeData mengembalikan [] bila MikroTik down) — juga mem-persist file cache.
+        let sesiPppoe = [];
         try {
-            await getCachedPppoeData();
+            sesiPppoe = (await getCachedPppoeData()) || [];
         } catch (pppoeErr) {
             console.warn('[OLT-onus] Gagal segarkan PPPoE caller-id cache:', pppoeErr.message);
         }
@@ -1110,6 +1115,25 @@ router.get('/onus', async (req, res) => {
                 if (p.length >= 10) pppoeByMacPrefix[p] = pppoe;
             }
         });
+
+        // Sesi PPPoE MikroTik per prefix MAC — SUMBER IDENTITAS KEDUA.
+        //
+        // !! Sebelum #b284 nama PPPoE ini sudah berhasil di-resolve tapi DIBUANG kalau
+        // pelanggannya tak terdaftar di bot, sehingga barisnya tampil tanpa nama sama sekali
+        // (ONU EPON tak membawa description/serial). Terukur di produksi: 5 baris di Dander
+        // + 1 di Tanjungharjo, tiga di antaranya redaman buruk (-26,2 · -28,54 · -26,58) —
+        // justru pelanggan yang paling perlu diservis. Datanya ada, cuma tidak dioper.
+        const sesiByMacPrefix = new Map();
+        for (const sesi of sesiPppoe) {
+            if (!sesi || !sesi.name || !sesi.caller_id) continue;
+            const p = normalizeMAC(sesi.caller_id).substring(0, 10);
+            if (p.length >= 10) sesiByMacPrefix.set(p, sesi);
+        }
+        const cariSesiMikrotik = (onu) => {
+            const macNorm = normalizeMAC(onu.macAddress);
+            if (!macNorm || macNorm.length < 10) return null;
+            return sesiByMacPrefix.get(macNorm.substring(0, 10)) || null;
+        };
 
         const findCustomer = (onu) => {
             if (onu.description) {
@@ -1156,6 +1180,8 @@ router.get('/onus', async (req, res) => {
             // (oltResult sudah hanya berisi OLT terpilih bila wantOltId; cek ini jaring pengaman.)
             if (wantOltId && onu.olt_id !== wantOltId) continue;
             const u = findCustomer(onu);
+            // Tak terdaftar di bot? Identitasnya mungkin masih ada di MikroTik. Jangan dibuang.
+            const sesi = u ? null : cariSesiMikrotik(onu);
             const disp = resolveOnuDisplayStatus(onu, statusByOlt.get(onu.olt_id), webScrapeOltIds.has(onu.olt_id));
             rows.push({
                 olt_id: onu.olt_id || null,
@@ -1186,7 +1212,20 @@ router.get('/onus', async (req, res) => {
                 user_id: u ? u.id : null,
                 customer_name: u ? u.name : null,
                 account_type: u ? (u.account_type || 'pelanggan') : null,
-                pppoe_username: u ? u.pppoe_username : (onu.description || null),
+                // PPPoE kini terisi dari MikroTik juga — bukan cuma dari pelanggan bot (#b284).
+                pppoe_username: u ? u.pppoe_username : (sesi ? sesi.name : (onu.description || null)),
+                // Dari MANA identitas baris ini berasal. Dipakai penyaring di halaman supaya
+                // teknisi bisa memilih 'yang belum terdaftar' tanpa menebak dari baris kosong.
+                //   'bot'      = pelanggan terdaftar
+                //   'mikrotik' = ada sesi PPPoE aktif tapi TIDAK terdaftar di bot
+                //   null       = tak ada identitas dari sumber mana pun
+                identitas_sumber: u ? 'bot' : (sesi ? 'mikrotik' : null),
+                // Konteks tambahan khusus baris 'mikrotik' — modal detail memakainya supaya
+                // teknisi punya bahan kerja walau pelanggannya tak pernah didaftarkan admin.
+                mikrotik_ip: sesi ? (sesi.address || null) : null,
+                mikrotik_uptime: sesi ? (sesi.uptime || null) : null,
+                mikrotik_service: sesi ? (sesi.service || null) : null,
+                mikrotik_interface: sesi ? (sesi.interface_name || null) : null,
                 customer_address: u ? (u.address || u.alamat || null) : null,
                 customer_phone: u ? (u.phone_number || null) : null,
                 customer_package: u ? (u.paket || u.package || null) : null,
@@ -1210,6 +1249,13 @@ router.get('/onus', async (req, res) => {
             data: rows,
             totalOnu: rows.length,
             matchedCount: rows.filter(r => r.matched).length,
+            // Rincian asal identitas — halaman memakainya untuk label penyaring, supaya
+            // hitungan di layar dan di server tak bisa berbeda pendapat.
+            identitas: {
+                bot: rows.filter(r => r.identitas_sumber === 'bot').length,
+                mikrotik: rows.filter(r => r.identitas_sumber === 'mikrotik').length,
+                tanpa: rows.filter(r => !r.identitas_sumber).length,
+            },
             oltDevices: deviceList,
             oltResults: oltResult.oltResults
         });

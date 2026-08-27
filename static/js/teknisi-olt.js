@@ -8,7 +8,8 @@
         let currentCustomerData = null;
         let oltColdRetryDone = false;
         let currentOltFilter = '';      // '' = belum pilih | 'all' = semua | id OLT tertentu
-        let currentViewMode = 'all';    // 'all' = semua ONU | 'matched' = hanya pelanggan terdaftar
+        let currentViewMode = 'all';    // 'all' | 'bot' | 'mikrotik' | 'tanpa' — lihat saringIdentitas()
+        let currentRedaman = '';        // '' | 'kritis' | 'peringatan' | 'baik' | 'takterbaca'
         let oltDevicesList = [];        // daftar OLT dari API (untuk dropdown)
         let oltLoading = false;         // guard supaya tidak dobel-fetch saat load berjalan
         const AUTO_REFRESH_INTERVAL = 30000;
@@ -27,6 +28,10 @@
             });
             $('#statusFilter').on('change', function() {
                 filterByStatus(this.value);
+            });
+            $('#redamanFilter').on('change', function () {
+                currentRedaman = this.value || '';
+                terapkanFilterTabel();
             });
             $('#sortFilter').on('change', function() {
                 applySorting(this.value);
@@ -82,9 +87,18 @@
                                     }
                                     return html;
                                 }
-                                // ONU belum terhubung ke pelanggan: tampilkan identitas ONU.
+                                // Belum terdaftar di bot — tapi identitasnya mungkin MASIH ADA
+                                // di MikroTik (#b284). ONU EPON tak membawa description/serial,
+                                // jadi tanpa ini barisnya cuma strip dan tak bisa dikerjakan.
+                                if (row.identitas_sumber === 'mikrotik' && row.pppoe_username) {
+                                    let h = `<strong class="olt-tak-terdaftar">${row.pppoe_username}</strong>`;
+                                    h += ` <span class="badge badge-warning" title="Ada sesi PPPoE aktif di MikroTik, tapi belum didaftarkan di bot">BELUM DIDAFTARKAN</span>`;
+                                    if (row.mikrotik_ip) h += `<br><small class="customer-info">IP ${row.mikrotik_ip}</small>`;
+                                    return h;
+                                }
+                                // Tak ada identitas dari sumber mana pun.
                                 const ident = row.description || row.serial || '-';
-                                return `<span class="text-muted"><i class="fas fa-plug"></i> ${ident}</span><br><small class="text-muted">(belum terdaftar)</small>`;
+                                return `<span class="text-muted"><i class="fas fa-plug"></i> ${ident}</span><br><small class="text-muted">(tanpa identitas)</small>`;
                             }
                             return row.customer_name || row.description || row.serial || '';
                         }
@@ -251,10 +265,10 @@
                 if (!currentOltFilter) { showOltEmptyState(); return; }
                 loadAllData(true, false); // overlay + SWR (instan bila ter-cache)
             });
-            $('#viewModeToggle button').on('click', function () {
-                currentViewMode = $(this).data('view');
-                $('#viewModeToggle button').removeClass('btn-primary').addClass('btn-outline-primary');
-                $(this).removeClass('btn-outline-primary').addClass('btn-primary');
+            // Penyaring IDENTITAS bekerja di tingkat DATA (bukan pencarian tabel) supaya
+            // kartu statistik ikut mengikuti kelompok yang sedang dipilih.
+            $('#identitasFilter').on('change', function () {
+                currentViewMode = this.value || 'all';
                 if (currentOltFilter) renderCurrentView();
             });
         }
@@ -300,8 +314,15 @@
             $sel.val(currentOltFilter);
         }
 
+
+        // Aturan penyaringan tinggal di SATU modul bersama supaya halaman admin & teknisi
+        // tak bisa berbeda pendapat — dan bisa diuji tanpa DOM. Lihat olt-filter-core.js.
+        const OltFilter = window.OltFilterCore;
+        const saringIdentitas = (rows, mode) => OltFilter.saringIdentitas(rows, mode);
+        const kelasRedaman = (row) => OltFilter.kelasRedaman(row);
+
         function renderCurrentView() {
-            const view = currentViewMode === 'matched' ? matchedData.filter(r => r.matched) : matchedData;
+            const view = saringIdentitas(matchedData, currentViewMode);
             updateStatsFromData(view);
             dataTableInstance.clear().rows.add(view).draw();
             $('#oltEmptyState').hide();
@@ -378,12 +399,29 @@
             currentCustomerData = customer;
 
             // Update modal content (ONU belum terdaftar → pakai identitas ONU).
-            const displayName = customer.customer_name || customer.description || customer.serial || 'Detail ONU';
+            const displayName = customer.customer_name || customer.pppoe_username || customer.description || customer.serial || 'Detail ONU';
             $('#modalCustomerName').text(displayName);
-            $('#modalName').text(customer.customer_name || '(belum terdaftar)');
+            // Pelanggan tak terdaftar tetap punya nama kerja: nama PPPoE dari MikroTik (#b284).
+            $('#modalName').html(customer.customer_name
+                ? customer.customer_name
+                : (customer.identitas_sumber === 'mikrotik'
+                    ? `${customer.pppoe_username} <span class="badge badge-warning">BELUM DIDAFTARKAN</span>`
+                    : '(tanpa identitas)'));
             $('#modalPppoe').text(customer.pppoe_username || '-');
             $('#modalPackage').text(customer.customer_package || '-');
-            $('#modalAddress').text(customer.customer_address || '-');
+            // Belum terdaftar = tak ada alamat/paket/telepon. Yang BERGUNA untuk teknisi
+            // adalah konteks jaringannya; tampilkan itu daripada tiga strip kosong.
+            if (!customer.customer_name && customer.identitas_sumber === 'mikrotik') {
+                const bagian = [];
+                if (customer.mikrotik_ip) bagian.push('IP ' + customer.mikrotik_ip);
+                if (customer.mikrotik_uptime) bagian.push('aktif ' + customer.mikrotik_uptime);
+                if (customer.mikrotik_interface) bagian.push(customer.mikrotik_interface);
+                $('#modalAddress').html(bagian.length
+                    ? `<span class="text-muted">${bagian.join(' · ')}</span>`
+                    : '<span class="text-muted">— (belum didaftarkan di bot)</span>');
+            } else {
+                $('#modalAddress').text(customer.customer_address || '-');
+            }
             $('#modalPhone').text(customer.customer_phone || '-');
             const brandBadge = customer.olt_brand === 'zte'
                 ? ' <span class="badge badge-info" title="GPON">ZTE GPON</span>'
@@ -685,12 +723,20 @@
             $('#statDyingGasp').text(dyingGasp);
         }
 
-        function filterByStatus(status) {
+        // SATU penyaring gabungan untuk status + redaman.
+        //
+        // !! `$.fn.dataTable.ext.search` adalah array GLOBAL milik DataTables. Versi lama
+        // menimpanya dengan `= []` setiap kali status berubah — menambah penyaring kedua
+        // lewat jalur yang sama akan membuat keduanya saling menghapus diam-diam.
+        function terapkanFilterTabel() {
             $.fn.dataTable.ext.search = [];
-            if (status) {
+            const status = $('#statusFilter').val() || '';
+            const redaman = currentRedaman || '';
+            if (status || redaman) {
                 $.fn.dataTable.ext.search.push((settings, data, dataIndex) => {
                     const row = dataTableInstance.row(dataIndex).data();
                     if (!row) return false;
+                    if (redaman && kelasRedaman(row) !== redaman) return false;
                     switch (status) {
                         case 'online': return row.olt_status === 'Online' && !row.is_los && !row.is_dying_gasp;
                         // Sejalan dengan updateStatsFromData: yang statusnya tak terbaca bukan offline.
@@ -704,6 +750,9 @@
             }
             dataTableInstance.draw();
         }
+
+        // Nama lama dipertahankan supaya pemanggil yang sudah ada tetap bekerja.
+        function filterByStatus() { terapkanFilterTabel(); }
 
         function applySorting(sortType) {
             switch (sortType) {
