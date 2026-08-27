@@ -51,7 +51,8 @@ async function main() {
                 continue;
             }
             const pon = web.parsePonList(hal.body);
-            console.log('    PON: ' + (pon.length ? pon.join(', ') : '(kosong)'));
+            if (!pon) { console.log('    PON: halaman tidak dikenali (mungkin bukan HIOSO)'); continue; }
+            console.log('    PON: ' + (pon.length ? pon.map((p) => p.pon).join(', ') : '(kosong)'));
         }
         return;
     }
