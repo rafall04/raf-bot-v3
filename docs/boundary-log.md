@@ -2118,3 +2118,15 @@
 - **Tanggal OLT tidak dipakai** (keputusan pemilik: NTP OLT selalu meleset). Semua stempel memakai **jam server**; halaman menyatakannya terang-terangan (`Waktu (server)`) beserta beda makna keduanya: syslog ≈ waktu kejadian, scrape = waktu DIBACA (kejadian lebih awal).
 - Repo: `getStats` menambah `by_source` (jumlah + `last_ts_ms`), `buildFilter` menerima `source`; rute `/api/olt/event-log` meneruskannya. Badge memakai token semantik (lolos `check-theme-tokens`).
 - Tes: `post-repair-verification.test.js` (+4, 29). Mutasi (angka ACS dibuang dari baris · peta ACS diabaikan) terbukti tertangkap.
+
+<a id="b279"></a>
+
+### Fix 2026-08-27 (LOS vs dying-gasp diputuskan dari DUA sumber — scrape Tanjungharjo dinyalakan lagi)
+
+- **Owner BARU:** `lib/olt-dg-crosscheck.js` (`putuskanJenis`, murni) — dipakai `lib/olt-event-logger.recordOltEventSafe` sebelum menulis event dan sebelum proyeksi insiden.
+- **Aturannya:** vonis LOS adalah **ketiadaan** bukti dying-gasp, jadi baris DG yang tak terlihat otomatis jadi LOS — syslog bisa kehilangan paket UDP-nya, scrape bisa kehilangan barisnya karena tergulung (`maxLogPages` 3). Dying-gasp adalah bukti POSITIF. Lintas-sumber **DG MENANG**. LOS memanggil teknisi mencari fiber putus; dying-gasp tidak — tiap LOS palsu = satu perjalanan sia-sia.
+- **TERUKUR sebelum memutuskan:** dari 54 kejadian mati bersumber `scrape` di Tanjungharjo, **49 tak punya pasangan syslog** walau jendela dilebarkan sampai 3 jam — kedua sumber menangkap kejadian yang sebagian besar BERBEDA, bukan saling mengulang (jadi menyalakan scrape menambah cakupan nyata). Dari yang berpasangan, **SEMUA** ketidaksepakatannya berpola sama: `syslog=dying-gasp` dulu, `scrape=los` menyusul.
+- Karena itu koreksinya sengaja **hanya MAJU** (DG lebih dulu → LOS berikutnya dikoreksi, jendela 15 menit). Arah sebaliknya tidak dikoreksi surut: belum pernah terukur, dan fiber putus yang disusul mati listrik **tetap** fiber putus. Dijaga tes tersendiri — mutasi `Math.abs` (dua arah) terbukti tertangkap.
+- **Scrape Tanjungharjo dinyalakan** (`olt.webEnabled` false→true) pada **2 menit**, bukan 1 — menyamai Dander yang sudah berbulan-bulan menjalankannya tanpa insiden. Siklus pertama membaca 81 dying-gasp · 90 lost · 91 discovery dan **tidak** memicu satu alarm pun (garis dasar dibangun tanpa menembak).
+- Terpantau saat menyalakan: **jam OLT 40 menit di depan jam server** — penegasan lain kenapa tanggal OLT tidak dipakai (#b278).
+- Tes: `lib/__tests__/olt-dg-crosscheck.test.js` (12). Tiga mutasi (DG tak menang · jendela dicabut · arah dibuat dua-arah) terbukti tertangkap.
