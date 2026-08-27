@@ -2206,3 +2206,15 @@
 - **Bukan tabrakan prefiks:** diukur juga — 10 heksa pertama (2 digit terakhir sengaja diabaikan karena MAC OLT beda di oktet itu) menghasilkan **0 tabrakan MAC berbeda** di kedua bot. Selisih oktet terakhir terukur: **+1 92,5%**, **+0 4,5%** (MAC identik), **+4 3,0%** — pemotongan prefiks menangani ketiganya, jadi aturannya lebih tahan banting daripada 'selalu beda 1'.
 - **GOTCHA uji mutasi:** aturan STATUS sempat bisa dilumpuhkan tanpa satu tes pun merah, karena pemeriksa redaman kebetulan menutupinya. Kasus yang membongkarnya justru yang paling nyata — **ONU mati tetap memamerkan dBm lama** (terukur di OLT Icak: 5 ONU `Down` masih menampilkan -13,44 dst).
 - Tes: `lib/__tests__/olt-index-catatan-basi.test.js` (9). Dua mutasi terbukti tertangkap (`=` polos dikembalikan · aturan status dilumpuhkan).
+
+<a id="b286"></a>
+
+### Fix 2026-08-27 (Monitor OLT di layar HP: redaman tak lagi tersembunyi di balik geser horizontal)
+
+- **Sebab:** teknisi memakai halaman ini di atas tiang, bukan di meja. **TERUKUR di 375 px:** tabelnya **970 px**, jadi hanya **2 dari 10 kolom** yang muat — dan **REDAMAN, angka yang justru dicari, ada di luar layar**. Sesudah: **321 px, pas, tanpa geser**.
+- **Yang disisakan di HP:** kolom 1 Pelanggan/ONU · 3 Redaman · 6 Status. Sisanya (PPPoE, ONU Tx, Atenuasi, Penyebab, OLT, Slot/ONU, Aksi) disembunyikan CSS — **bukan data yang hilang**: seluruh baris sudah bisa diketuk dan modal detail menampilkan semuanya, dan kolom tersembunyi TETAP ikut tercari lewat kotak Cari.
+- **Toolbar:** lima penyaring dulu menumpuk vertikal dengan lebar berbeda-beda (memakan hampir separuh layar) — akibat #b284 menambah dua dropdown. Kini grid 2 kolom, pemilih OLT satu baris penuh.
+- **GOTCHA utilitas Bootstrap menang diam-diam:** `d-flex` memakai `!important`, jadi `display: grid` di media query **kalah tanpa pesan apa pun** — penyaringnya tetap menumpuk padahal grid sudah ditulis. Utilitas layout dicabut dari markup; layoutnya diurus CSS.
+- **GOTCHA urutan sumber:** aturan dasar `.olt-toolbar` sempat ditulis SETELAH media query. Spesifisitasnya sama, jadi yang menang urutan sumber — gaya HP-nya mati diam-diam. Sekarang dikunci tes bahwa blok dasar harus berada DI ATAS media query.
+- **Gaya sebaris dicabut:** `style="width: auto"` pada lima `<select>` tak bisa ditimpa media query tanpa `!important`; diganti kelas `.olt-filter` (sejalan aturan repo: gaya di CSS, bukan di `.php`).
+- Diverifikasi di peramban pada 375 px dan 1366 px: HP → 3 kolom, toolbar grid, nol geser; desktop → 10 kolom, toolbar flex, tak berubah. Tes: `static/js/__tests__/olt-monitor-hp.test.js` (29), termasuk penjaga bahwa aturan HP admin & teknisi **identik**. Tiga mutasi terbukti tertangkap (redaman ikut disembunyikan · blok dasar dipindah ke bawah · lebar sebaris dikembalikan).

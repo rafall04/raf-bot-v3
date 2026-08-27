@@ -85,3 +85,182 @@
 .olt-tak-terdaftar {
     color: var(--ink);
 }
+
+/* =====================================================================
+ * Monitor OLT di LAYAR HP (#b286)
+ *
+ * Teknisi memakai halaman ini di atas tiang, bukan di meja. TERUKUR di 375 px:
+ * tabelnya 970 px, jadi hanya 2 dari 10 kolom yang muat — dan REDAMAN, angka yang
+ * justru dicari, ada di luar layar di balik geser horizontal.
+ *
+ * Yang disembunyikan di HP BUKAN data yang hilang: seluruh baris bisa diketuk dan
+ * modal detail sudah menampilkan semuanya (PPPoE, Tx, atenuasi, penyebab, OLT,
+ * slot/ONU). Kolom tersembunyi pun TETAP ikut tercari lewat kotak "Cari".
+ *
+ * Token semantik saja — warna primitif tetap tidak ikut membalik di mode gelap.
+ * ===================================================================== */
+
+/* Layout toolbar diurus di sini, BUKAN lewat utilitas `d-flex` Bootstrap: utilitas itu
+   memakai !important sehingga `display: grid` di media query kalah DIAM-DIAM.
+   !! Blok ini WAJIB berada DI ATAS media query — spesifisitasnya sama, jadi yang
+   menang ditentukan URUTAN SUMBER. Ditulis di bawah, gaya HP-nya mati diam-diam
+   (sudah terbukti sekali). */
+.olt-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* Toolbar: lebar diatur di sini, bukan lewat `style="width:auto"` sebaris. */
+.olt-toolbar .olt-filter {
+    width: auto;
+    margin-right: .5rem;
+    margin-bottom: .25rem;
+}
+
+@media (max-width: 640px) {
+    /* Lima penyaring jadi dua kolom rata — sebelumnya menumpuk vertikal dengan
+       lebar berbeda-beda dan memakan hampir separuh layar. */
+    .olt-toolbar {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .4rem;
+        width: 100%;
+    }
+
+    .olt-toolbar .olt-filter {
+        width: 100%;
+        min-width: 0;
+        margin-right: 0;
+        margin-bottom: 0;
+    }
+
+    /* Pemilih OLT paling menentukan → beri satu baris penuh. */
+    .olt-toolbar #oltSelector {
+        grid-column: 1 / -1;
+    }
+
+    /* Sisakan kolom yang benar-benar dipakai di lapangan:
+       1 Pelanggan/ONU · 3 Redaman · 6 Status.
+       Sisanya (PPPoE, ONU Tx, Atenuasi, Penyebab, OLT, Slot/ONU, Aksi) pindah ke
+       modal detail — baris sudah bisa diketuk, jadi tombol Aksi pun mubazir di sini. */
+    #oltDataTable th:nth-child(2),
+    #oltDataTable td:nth-child(2),
+    #oltDataTable th:nth-child(4),
+    #oltDataTable td:nth-child(4),
+    #oltDataTable th:nth-child(5),
+    #oltDataTable td:nth-child(5),
+    #oltDataTable th:nth-child(7),
+    #oltDataTable td:nth-child(7),
+    #oltDataTable th:nth-child(8),
+    #oltDataTable td:nth-child(8),
+    #oltDataTable th:nth-child(9),
+    #oltDataTable td:nth-child(9),
+    #oltDataTable th:nth-child(10),
+    #oltDataTable td:nth-child(10) {
+        display: none;
+    }
+
+    /* DataTables menanam lebar sebaris saat autoWidth; tanpa ini kolom sisanya
+       tetap memakai lebar hasil hitungan 10 kolom dan tabelnya masih menggeser. */
+    #oltDataTable,
+    #oltDataTable th,
+    #oltDataTable td {
+        width: auto !important;
+        white-space: normal;
+    }
+
+    #oltDataTable {
+        table-layout: fixed;
+    }
+
+    /* Redaman adalah alasan halaman ini dibuka — buat terbaca sekali lihat. */
+    #oltDataTable td:nth-child(3) {
+        font-size: 1rem;
+        font-weight: 600;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    #oltDataTable th:nth-child(3) {
+        text-align: right;
+    }
+
+    /* Baris jadi target sentuh, bukan target kursor. */
+    #oltDataTable td {
+        padding: .6rem .4rem;
+        vertical-align: middle;
+    }
+
+    /* Alamat panjang memakan tinggi baris; dua baris sudah cukup untuk mengenali. */
+    #oltDataTable td:nth-child(1) .customer-info {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* "Tampilkan 25" jarang dipakai di lapangan; kotak Cari yang penting. */
+    .dataTables_length {
+        display: none;
+    }
+
+    .dataTables_filter {
+        width: 100%;
+        text-align: left;
+    }
+
+    .dataTables_filter label {
+        width: 100%;
+    }
+
+    .dataTables_filter input {
+        width: 100%;
+        margin-left: 0;
+    }
+}
+
+
+@media (max-width: 640px) {
+    /* Tabel tidak boleh melebihi wadahnya walau cuma beberapa piksel — geser horizontal
+       sekecil apa pun membuat kolom Redaman terpotong di tepi layar. */
+    #oltTableWrap {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    #oltDataTable {
+        width: 100% !important;
+        max-width: 100%;
+    }
+
+    /* Bagi ruang: nama dapat sisanya, redaman & status secukupnya. */
+    #oltDataTable th:nth-child(3),
+    #oltDataTable td:nth-child(3) { width: 5rem !important; }
+
+    #oltDataTable th:nth-child(6),
+    #oltDataTable td:nth-child(6) { width: 3.6rem !important; }
+}
+
+@media (max-width: 640px) {
+    /* Nama PPPoE panjang (mis. `kastur-rt11@rafcybernet`) tak punya spasi, jadi ia
+       memaksa kolom melebar atau terpotong di tengah kata. Biarkan patah di mana pun
+       dan sedikit dikecilkan supaya tetap satu blok yang terbaca. */
+    #oltDataTable td:nth-child(1) strong {
+        overflow-wrap: anywhere;
+        font-size: .92rem;
+        line-height: 1.25;
+    }
+
+    #oltDataTable td:nth-child(1) .customer-info {
+        font-size: .78rem;
+        line-height: 1.2;
+    }
+
+    /* Badge 'BELUM DIDAFTARKAN' menempel di bawah nama, bukan mendorongnya menyamping. */
+    #oltDataTable td:nth-child(1) .badge {
+        display: inline-block;
+        margin-top: .15rem;
+        white-space: normal;
+    }
+}

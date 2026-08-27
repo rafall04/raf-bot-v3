@@ -111,31 +111,31 @@ SideEffects: Polling backend OLT dan MikroTik untuk merefresh tampilan; tidak me
                                 <i class="fas fa-list"></i> Data ONU OLT
                                 <small class="text-muted ml-2">(Klik baris untuk detail)</small>
                             </h6>
-                            <div class="d-flex align-items-center mt-2 mt-md-0 flex-wrap">
-                                <select id="oltSelector" class="form-control form-control-sm mr-2 mb-1" style="width: auto;" title="Pilih OLT">
+                            <div class="d-flex align-items-center mt-2 mt-md-0 flex-wrap olt-toolbar">
+                                <select id="oltSelector" class="form-control form-control-sm olt-filter" title="Pilih OLT">
                                     <option value="">— Pilih OLT —</option>
                                 </select>
-                                <select id="identitasFilter" class="form-control form-control-sm mr-2 mb-1" style="width: auto;" title="Saring menurut asal identitas pelanggan">
+                                <select id="identitasFilter" class="form-control form-control-sm olt-filter" title="Saring menurut asal identitas pelanggan">
                                     <option value="all">Semua ONU</option>
                                     <option value="bot">Terdaftar di bot</option>
                                     <option value="mikrotik">Belum didaftarkan (ada di MikroTik)</option>
                                     <option value="tanpa">Tanpa identitas</option>
                                 </select>
-                                <select id="statusFilter" class="form-control form-control-sm mr-2 mb-1" style="width: auto;">
+                                <select id="statusFilter" class="form-control form-control-sm olt-filter">
                                     <option value="">Semua Status</option>
                                     <option value="online">Online</option>
                                     <option value="offline">Offline</option>
                                     <option value="los">LOS</option>
                                     <option value="dying_gasp">Dying Gasp</option>
                                 </select>
-                                <select id="redamanFilter" class="form-control form-control-sm mr-2 mb-1" style="width: auto;" title="Saring menurut mutu redaman">
+                                <select id="redamanFilter" class="form-control form-control-sm olt-filter" title="Saring menurut mutu redaman">
                                     <option value="">Semua Redaman</option>
                                     <option value="kritis">Kritis (&lt; -25 dBm)</option>
                                     <option value="peringatan">Peringatan (-25 s/d -20)</option>
                                     <option value="baik">Baik (&ge; -20)</option>
                                     <option value="takterbaca">Tak terbaca / basi</option>
                                 </select>
-                                <select id="sortFilter" class="form-control form-control-sm" style="width: auto;">
+                                <select id="sortFilter" class="form-control form-control-sm olt-filter">
                                     <option value="rx_asc">Redaman &uarr; (Terburuk)</option>
                                     <option value="rx_desc">Redaman &darr; (Terbaik)</option>
                                     <option value="name_asc">Nama A-Z</option>
