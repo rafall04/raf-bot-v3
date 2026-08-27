@@ -58,6 +58,14 @@ $current_page = strtok($current_page, '?');
         </a>
     </li>
 
+    <!-- Nav Item - Ganti Modem (pekerjaan lapangan) -->
+    <li class="nav-item <?php echo ($current_page == '/ganti-modem.php' || $current_page == '/ganti-modem') ? 'active' : ''; ?>">
+        <a class="nav-link" href="/ganti-modem">
+            <i class="fas fa-fw fa-exchange-alt"></i>
+            <span>Ganti Modem</span>
+        </a>
+    </li>
+
     <!-- Nav Item - Monitoring Pembayaran -->
     <li class="nav-item <?php echo ($current_page == '/teknisi-pembayaran.php' || $current_page == '/teknisi-pembayaran') ? 'active' : ''; ?>">
         <a class="nav-link" href="/teknisi-pembayaran">

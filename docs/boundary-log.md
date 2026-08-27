@@ -2144,3 +2144,15 @@
 - **Proyeksi 2 slot penuh (256 ONU):** padam total = 512 baris (**95% buffer** — nyaris pas), padam **+ pulih** = 768 baris (**meluber 42%**). Membaca lebih dalam tak bisa menolong; yang menolong hanya **scrape lebih sering** dan **syslog sebagai sumber kedua** (didorong real-time, tanpa batas buffer). Armada sekarang 99 ONU = 198 baris, masih lega.
 - **CELAH DATA kini TERDETEKSI, bukan diperkirakan:** bila pembacaan berhenti karena buffer habis TAPI baris tertua yang terbaca masih lebih baru dari HWM, berarti ada kejadian yang sudah **ditimpa di OLT** — hilang permanen. Diteriakkan beserta jalan keluarnya. Tiap siklus juga melaporkan alasan berhentinya (`buffer-habis`/`hwm`/`jendela`/`cap`).
 - Tes: `lib/__tests__/olt-log-scraper-cap.test.js` (13). Empat mutasi (MIN dikembalikan ke 15 · peringatan terpotong dibungkam · deteksi celah dimatikan · penanda buffer-habis dicabut) terbukti tertangkap; asersi pertama sempat terlalu longgar (300 > 297) dan diperketat memakai angka terukur.
+
+<a id="b281"></a>
+
+### Fitur 2026-08-27 (Ganti Modem untuk admin & teknisi — nama & sandi WiFi ikut berpindah)
+
+- **Owner BARU:** `lib/modem-replacement-service.js` (`gantiModem`) + `routes/admin-modem-replacement-routes.js` (`POST /api/users/:id/ganti-modem`) + halaman `/ganti-modem` (admin & teknisi, `_role_aware_navbar`).
+- **Akar:** tak ada alur ganti modem sama sekali — yang ada hanya `/sync-device-id` (alat sinkron MASSAL, admin-only). Padahal tukar modem adalah pekerjaan lapangan rutin.
+- **!! Kredensial WiFi jadi intinya:** tabel `users` TIDAK menyimpan SSID/sandi — keduanya hanya hidup di modem. Ganti modem tanpa memindahkannya = pelanggan pulang ke WiFi bernama pabrik dengan sandi tak dikenal, semua perangkat terputus, teknisi sudah pergi. Sumber berurutan: diketik teknisi → dibaca modem LAMA → `wifi_change_logs.json`. Kalau ketiganya gagal, alur **BERHENTI** dan meminta diisi (HTTP **428**, bukan error) — tidak pernah lanjut diam-diam.
+- **Urutan disengaja:** WiFi dipasang & DIVERIFIKASI di modem baru dulu, `device_id` disimpan belakangan. Terbalik = gagal-pasang meninggalkan pelanggan "pindah di data" sementara modemnya belum siap, dan tiap pembacaan berikutnya menatap perangkat yang salah. Dijaga tes urutan.
+- Menolak modem yang masih tercatat milik pelanggan lain; menyelaraskan kolom `bulk` dengan kapabilitas band modem baru; laporan LANGKAH DEMI LANGKAH sehingga teknisi tahu berhenti di mana.
+- **Izin teknisi didaftarkan eksplisit** (`routes/teknisi-izin-api.js`) — gerbang gagal-tertutup #b253 membuat endpoint baru lahir 403 untuk teknisi. Dijaga tes tersendiri: mutasi mencabut izinnya membuat 2 tes merah.
+- Tes: `lib/__tests__/modem-replacement-service.test.js` (14) + `routes/__tests__/ganti-modem-izin.test.js` (6). Empat mutasi (urutan dibalik · gerbang kredensial dilewati · modem pelanggan lain direbut · izin dicabut) terbukti tertangkap.

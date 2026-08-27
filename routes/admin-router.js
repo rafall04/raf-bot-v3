@@ -20,6 +20,7 @@ const adminLegacyRouter = require("./admin");
 const { ensureAuthenticatedStaff } = require("./admin-auth");
 const { registerAdminConfigRoutes } = require("./admin-config-routes");
 const { registerAdminIsolirRoutes } = require("./admin-isolir-routes");
+const { registerAdminModemReplacementRoutes } = require("./admin-modem-replacement-routes");
 const { registerAdminContentRoutes } = require("./admin-content-routes");
 const { registerAdminOpsRoutes } = require("./admin-ops-routes");
 const { registerAdminNetworkAssetsRoutes } = require("./admin-network-assets-routes");
@@ -233,6 +234,7 @@ function createAdminRouter({ runtime } = {}) {
     registerAdminContentRoutes(router, createAdminContentDeps(runtime));
     registerAdminConfigRoutes({ router, ...createAdminConfigDeps(runtime) });
     registerAdminIsolirRoutes({ router, ...createAdminIsolirDeps() });
+    registerAdminModemReplacementRoutes({ router, ensureAuthenticatedStaff });
     registerAdminNetworkAssetsRoutes(router, createAdminNetworkAssetsDeps(runtime));
     registerAdminWifiOpsRoutes(router, createAdminWifiOpsDeps(runtime));
     registerAdminDatabaseRoutes(router, createAdminDatabaseDeps());

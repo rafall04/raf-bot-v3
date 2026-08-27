@@ -256,6 +256,12 @@ router.get('/teknisi-tiket', checkRole(['teknisi', 'admin', 'owner', 'superadmin
     res.render('sb-admin/teknisi-tiket.php');
 });
 
+// Ganti modem pelanggan — pekerjaan LAPANGAN, jadi teknisi ikut dibukakan (izin API-nya
+// didaftarkan di routes/teknisi-izin-api.js; tanpa itu halamannya terbuka tapi tombolnya 403).
+router.get('/ganti-modem', checkRole(['teknisi', 'admin', 'owner', 'superadmin']), (req, res) => {
+    res.render('sb-admin/ganti-modem.php');
+});
+
 router.get('/teknisi-pelanggan', checkRole(['teknisi', 'admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/teknisi-pelanggan.php');
 });

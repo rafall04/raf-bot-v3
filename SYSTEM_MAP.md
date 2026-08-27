@@ -384,6 +384,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-27 (Dua sumber di laporan verifikasi + log OLT menyebut asal kejadiannya)](docs/boundary-log.md#b278)
 - [Fix 2026-08-27 (LOS vs dying-gasp diputuskan dari DUA sumber — scrape Tanjungharjo dinyalakan lagi)](docs/boundary-log.md#b279)
 - [Fix 2026-08-27 (Baca log OLT lebih dalam: mati listrik massal jangan tervonis fiber putus)](docs/boundary-log.md#b280)
+- [Fitur 2026-08-27 (Ganti Modem untuk admin & teknisi — nama & sandi WiFi ikut berpindah)](docs/boundary-log.md#b281)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

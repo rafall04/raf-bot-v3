@@ -54,7 +54,10 @@ const IZIN_TEKNISI_API = [
     { method: "POST", jalur: "/api/map/route" },
 
     // /admin/teknisi-request-paket — ajukan ganti paket pelanggan
-    { method: "POST", jalur: "/api/request-package-change" }
+    { method: "POST", jalur: "/api/request-package-change" },
+
+    // /ganti-modem — tukar modem pelanggan di lapangan (nama & sandi WiFi ikut dipindah)
+    { method: "POST", jalur: "/api/users/:id/ganti-modem" }
 ];
 
 module.exports = { IZIN_TEKNISI_API };

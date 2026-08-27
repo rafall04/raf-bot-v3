@@ -162,12 +162,12 @@ function isParentActive($pages, $current) {
     <hr class="sidebar-divider">
     <div class="sidebar-heading">Operasional</div>
 
-    <li class="nav-item <?php echo isParentActive(['/users', '/packages', '/package-requests', '/rubah-paket', '/buka-isolir', '/custom-isolir', '/import-mikrotik', '/sync-device-id', '/penyesuaian-bulk'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePelanggan" aria-expanded="<?php echo isParentActive(['/users', '/packages', '/package-requests', '/rubah-paket', '/buka-isolir', '/custom-isolir', '/import-mikrotik', '/sync-device-id', '/penyesuaian-bulk'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePelanggan">
+    <li class="nav-item <?php echo isParentActive(['/users', '/packages', '/package-requests', '/rubah-paket', '/buka-isolir', '/custom-isolir', '/import-mikrotik', '/sync-device-id', '/ganti-modem', '/penyesuaian-bulk'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePelanggan" aria-expanded="<?php echo isParentActive(['/users', '/packages', '/package-requests', '/rubah-paket', '/buka-isolir', '/custom-isolir', '/import-mikrotik', '/sync-device-id', '/ganti-modem', '/penyesuaian-bulk'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePelanggan">
             <i class="fas fa-fw fa-users"></i>
             <span>Pelanggan</span>
         </a>
-        <div id="collapsePelanggan" class="collapse <?php echo isParentActive(['/users', '/packages', '/package-requests', '/rubah-paket', '/buka-isolir', '/custom-isolir', '/import-mikrotik', '/sync-device-id', '/penyesuaian-bulk'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPelanggan" data-parent="#accordionSidebar">
+        <div id="collapsePelanggan" class="collapse <?php echo isParentActive(['/users', '/packages', '/package-requests', '/rubah-paket', '/buka-isolir', '/custom-isolir', '/import-mikrotik', '/sync-device-id', '/ganti-modem', '/penyesuaian-bulk'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPelanggan" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/users', $current_page) ? 'active' : ''; ?>" href="/users">
                     <i class="fas fa-fw fa-user mr-2"></i>
@@ -196,6 +196,10 @@ function isParentActive($pages, $current) {
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/import-mikrotik', $current_page) ? 'active' : ''; ?>" href="/import-mikrotik">
                     <i class="fas fa-fw fa-file-import mr-2"></i>
                     <span>Import MikroTik</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/ganti-modem', $current_page) ? 'active' : ''; ?>" href="/ganti-modem">
+                    <i class="fas fa-fw fa-exchange-alt mr-2"></i>
+                    <span>Ganti Modem</span>
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/sync-device-id', $current_page) ? 'active' : ''; ?>" href="/sync-device-id">
                     <i class="fas fa-fw fa-sync mr-2"></i>

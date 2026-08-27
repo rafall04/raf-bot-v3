@@ -1,0 +1,77 @@
+/*
+ * Halaman /ganti-modem.
+ * Token SEMANTIK saja (tokens.css) supaya ikut membalik di mode gelap — warna primitif
+ * tetap adalah akar setiap bug "halaman gelap di atas gelap".
+ */
+
+.gm-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink);
+}
+
+.gm-saran {
+    position: relative;
+}
+
+.gm-saran-item {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: .4rem .6rem;
+    margin-top: .3rem;
+    cursor: pointer;
+    color: var(--ink);
+}
+
+.gm-saran-item:hover {
+    background: var(--canvas);
+}
+
+.gm-sub {
+    font-size: .78rem;
+    color: var(--muted);
+}
+
+.gm-terpilih {
+    margin-top: .5rem;
+    padding: .5rem .7rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--ink);
+}
+
+.gm-kredensial {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: .7rem .8rem;
+    margin-bottom: .8rem;
+    background: var(--surface-2);
+    color: var(--ink);
+}
+
+.gm-langkah {
+    padding: .35rem .5rem;
+    border-radius: 6px;
+    margin-bottom: .3rem;
+    font-size: .86rem;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink);
+}
+
+/* Berhasil vs gagal dibedakan lewat KETEBALAN garis kiri, bukan warna latar —
+   supaya tetap terbaca di kedua mode tanpa warna tetap. */
+.gm-langkah.gm-ok {
+    border-left: 3px solid var(--ink-soft);
+}
+
+.gm-langkah.gm-gagal {
+    border-left: 3px solid var(--ink);
+    font-weight: 600;
+}
+
+.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
