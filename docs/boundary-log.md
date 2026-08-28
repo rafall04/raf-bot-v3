@@ -2353,3 +2353,14 @@
 - **Sengaja TIDAK memakai menu "lainnya"** untuk menyembunyikan tombol: itu memindahkan masalah jadi isi tersembunyi di balik afordansi tak terlihat — persis kesalahan yang baru diperbaiki pada tabel ([#b295](#b295)/[#b296](#b296)). Semua tombol tetap terlihat, cuma dua per baris.
 - **Terukur (posisi tabel di HP 375px):** `/users` 1274→**1030** · `/rekap-tunggakan` 1012→**819** · `/pengeluaran` 1206→**983** · `/wifi-logs` 1621→**1385** · `/rekap-keuangan` 3881→**3611** · `/kas-usaha` 1595→**1439** · `/` 5148→**4717**. Desktop 1440px: 8/8 tak berubah, dan **37/37 tabel tetap lulus**.
 - Tes: `static/js/__tests__/kerapatan-ponsel.test.js` (9). Mutasi grid toolbar dikembalikan ke `flex column` terbukti tertangkap.
+
+<a id="b298"></a>
+
+### Fix 2026-08-28 (Gel. 5 audit panel — 10 konfirmasi hapus berbahasa Inggris diterjemahkan &amp; dilengkapi)
+
+- **!! ANGKA DI LAPORAN AUDIT SAYA SALAH.** Saya menulis "17 `confirm()`" — itu hasil `grep -c` per BERKAS, bukan jumlah titik panggilan. Sebenarnya **60 titik di 33 berkas** (44 sinkron, 16 async). Dan "semuanya Inggris" juga salah: skrip survei saya menguji seluruh BARIS, sehingga kata `confirm(` sendiri cocok dengan `/\bConfirm\b/i` dan melaporkan 60/60. Yang benar-benar Inggris: **10**.
+- **Lima di antaranya kalimat TERPOTONG** tanpa objek dan tanpa titik — `confirm('Are you sure you want to delete this')` — scaffold `window.deleteData` yang disalin-tempel ke 5 berkas. Yang membedakan cuma endpoint DELETE-nya, jadi objeknya diambil dari sana, bukan ditebak: `/api/packages` · `/api/payment-method` · `/api/statik` · `/api/payment` · `/api/atm`.
+- **Yang paling berkonsekuensi:** `transaction-2.js` menghapus `/api/payment/` — itu **catatan pembayaran**, hilang dari rekap pemasukan. Pesannya kini menyebut akibat itu. Begitu juga `packages-2.js` (pelanggan tak ikut terhapus) dan `migrate.js` (database sekarang akan DIGANTI).
+- **!! ALUR KENDALI SENGAJA TIDAK DIUBAH.** Hanya STRING-nya yang diganti; `confirm()` tetap `confirm()`. Mengubah 44 titik sinkron jadi dialog async adalah operasi alur kendali, dan **satu saja yang keliru berarti aksi HAPUS berjalan tanpa konfirmasi** — jelas lebih buruk daripada dialog yang tak bergaya. Kalau nanti dikonversi, harus per-titik dengan verifikasi masing-masing, bukan cari-ganti massal.
+- **Diverifikasi di peramban, bukan dibaca dari kode:** dialognya ditangkap di `/packages`, `/statik`, `/transaction`, `/payment-method` — pesannya terbaca berbahasa Indonesia, dan setelah **DITOLAK tidak ada satu pun permintaan DELETE terkirim**, jadi penjaganya utuh. Interpolasi `${filename}` di `migrate.js` tetap template literal (terjemahan yang mengubahnya jadi kutip biasa akan mencetak `${filename}` mentah).
+- Tes: `static/js/__tests__/pesan-konfirmasi-hapus.test.js` (9), termasuk penjaga "pemindainya tidak memindai nol berkas" supaya regex yang rusak tak membuat semuanya lolos palsu. Mutasi mengembalikan pesan Inggris terbukti tertangkap.

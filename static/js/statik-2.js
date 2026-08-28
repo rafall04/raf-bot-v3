@@ -32,7 +32,7 @@
       });
 
       window.deleteData = function(id) {
-        if (confirm('Are you sure you want to delete this')) $.ajax({
+        if (confirm('Hapus data IP statik ini?')) $.ajax({
           url: '/api/statik/' + id,
           type: 'DELETE',
           success: function() {

@@ -85,7 +85,7 @@
       });
 
       window.deleteData = function(id) {
-        if (confirm('Are you sure you want to delete this')) $.ajax({
+        if (confirm('Hapus paket ini? Pelanggan yang memakainya tidak ikut terhapus, tapi paketnya jadi tidak dikenali.')) $.ajax({
           url: '/api/packages/' + id,
           type: 'DELETE',
           success: function() {

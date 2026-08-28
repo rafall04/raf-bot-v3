@@ -29,7 +29,7 @@
       });
 
       window.deleteData = function(id) {
-        if (confirm('Are you sure you want to delete this')) $.ajax({
+        if (confirm('Hapus data saldo ini?')) $.ajax({
           url: '/api/atm/' + id,
           type: 'DELETE',
           success: function() {

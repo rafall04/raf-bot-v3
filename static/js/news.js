@@ -132,7 +132,7 @@
 
         table.on('click', '.btn-delete', function() {
             const id = $(this).data('id');
-            if (confirm('Are you sure you want to delete this news item?')) {
+            if (confirm('Hapus berita ini?')) {
                 fetch(`/api/news/${id}`, { method: 'DELETE' })
                 .then(response => response.json().then(data => ({ ok: response.ok, data })))
                 .then(result => {

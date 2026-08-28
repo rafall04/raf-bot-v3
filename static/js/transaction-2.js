@@ -43,7 +43,7 @@
       });
 
       window.deleteData = function(id) {
-        if (confirm('Are you sure you want to delete this')) $.ajax({
+        if (confirm('Hapus catatan transaksi pembayaran ini? Nilainya akan hilang dari rekap pemasukan.')) $.ajax({
           url: '/api/payment/' + id,
           type: 'DELETE',
           success: function() {

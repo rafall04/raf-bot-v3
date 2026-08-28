@@ -35,7 +35,7 @@
       });
 
       window.deleteData = function(id) {
-        if (confirm('Are you sure you want to delete this')) $.ajax({
+        if (confirm('Hapus metode pembayaran ini? Transaksi lama yang memakainya tetap tersimpan.')) $.ajax({
           url: '/api/payment-method/' + id,
           type: 'DELETE',
           success: function() {

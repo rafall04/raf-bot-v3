@@ -163,7 +163,7 @@
                 const btn = $(this);
                 const statusDiv = $('#sqlite-migration-status');
 
-                if (!confirm('Are you sure you want to start the database migration? A backup will be created automatically.')) {
+                if (!confirm('Mulai migrasi database sekarang? Cadangan dibuat otomatis sebelum migrasi berjalan.')) {
                     return;
                 }
 
@@ -233,7 +233,7 @@
                 const btn = $(this);
                 const statusDiv = $('#sqlite-migration-status');
                 
-                if (!confirm('This will reload the database from disk to memory without restarting the application. Continue?')) {
+                if (!confirm('Muat ulang database dari disk ke memori tanpa me-restart aplikasi. Lanjutkan?')) {
                     return;
                 }
                 
@@ -281,7 +281,7 @@
             $(document).on('click', '.restore-backup', function() {
                 const filename = $(this).data('file');
                 
-                if (!confirm(`Are you sure you want to restore from backup: ${filename}?\n\nThis will replace the current database!`)) {
+                if (!confirm(`Pulihkan database dari cadangan: ${filename}?\n\nDatabase yang sekarang akan DIGANTI.`)) {
                     return;
                 }
 
