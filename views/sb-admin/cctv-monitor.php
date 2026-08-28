@@ -88,7 +88,7 @@
               </div>
               <div class="card-body">
                 <div class="table-responsive">
-                  <table class="table table-bordered table-hover" id="cctvTable" width="100%">
+                  <table class="table table-bordered table-hover tabel-tumpuk-hp" id="cctvTable" width="100%">
                     <thead class="thead-light">
                       <tr><th>Nama</th><th>IP</th><th>Pelanggan</th><th>Status</th><th>Uptime 7h</th><th>Window</th><th>Aksi</th></tr>
                     </thead>

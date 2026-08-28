@@ -242,7 +242,7 @@
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-bordered table-hover" id="gajiTable" width="100%">
+                                <table class="table table-bordered table-hover tabel-tumpuk-hp" id="gajiTable" width="100%">
                                     <thead>
                                         <tr>
                                             <th>Teknisi</th>

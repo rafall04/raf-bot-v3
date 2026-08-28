@@ -93,6 +93,32 @@ describe("#b295 — aturan stempel yang tak boleh hilang", () => {
     });
 });
 
+describe("#b296 — CSS pola tumpuk menetralkan min-width", () => {
+    const css = baca("static/css/tabel-hp.css");
+
+    test("!! min-width dinetralkan, bukan cuma width:auto", () => {
+        /*
+         * TERUKUR di /users: polanya aktif (thead sembunyi, 13/13 sel berlabel) tapi
+         * tabelnya TETAP meluber 859px, karena users.css memaku `min-width: 1180px` dan
+         * sebuah kotak tak pernah bisa menyusut di bawah min-width-nya. `width: auto`
+         * kalah. Gejalanya menipu: semua tanda pola terlihat benar, isinya tetap tak
+         * terjangkau — jadi tanpa penjaga ini regresinya sulit terlihat.
+         */
+        const blok = css.match(/\.tabel-tumpuk-hp tr,\s*\.tabel-tumpuk-hp td \{[^}]*\}/);
+        expect(blok).not.toBeNull();
+        expect(blok[0]).toMatch(/min-width:\s*0\s*!important/);
+        expect(blok[0]).toMatch(/width:\s*auto\s*!important/);
+    });
+
+    test("label kolom membungkus di spasi, tidak dipotong di tengah kata", () => {
+        // `word-break: break-all` di <td> (perlu untuk Device ID panjang tanpa spasi)
+        // ikut diwarisi label ::before dan memotong "…Periode A / cuan".
+        const blok = css.match(/\.tabel-tumpuk-hp td::before \{[^}]*\}/);
+        expect(blok).not.toBeNull();
+        expect(blok[0]).toMatch(/word-break:\s*normal/);
+    });
+});
+
 describe("#b295 — tabel yang terukur meluber memakai kelasnya", () => {
     // Daftar ini BUKAN selera: tiap halaman terukur di Chrome 375px punya tabel yang lebih
     // lebar dari kotak penampungnya, DAN tak punya tampilan detail per-baris — jadi
@@ -120,6 +146,35 @@ describe("#b295 — tabel yang terukur meluber memakai kelasnya", () => {
 
     for (const [berkas, id] of WAJIB) {
         test(berkas.replace("views/sb-admin/", "") + " #" + id, () => {
+            const tag = baca(berkas).match(new RegExp('<table[^>]*id="' + id + '"[^>]*>'));
+            expect({ id, ada: !!tag }).toEqual({ id, ada: true });
+            expect({ id, punyaKelas: /tabel-tumpuk-hp/.test(tag[0]) }).toEqual({ id, punyaKelas: true });
+        });
+    }
+
+    // Bucket B (#b296): halaman yang PUNYA modal + pemicu per-baris, jadi audit awal
+    // menaruhnya di "boleh sembunyikan kolom". Setelah cakupan modalnya diperiksa, syarat
+    // itu TIDAK CUKUP — punya modal bukan berarti modalnya MENAMPILKAN kolomnya:
+    //   /package-requests   0%  modalnya cuma "Konfirmasi Aksi + Catatan"
+    //   /agent-voucher-mgmt 0%  Rank/Area/Stok/Terjual/Revenue nihil di modal
+    //   /users             73%  editModal tak memuat Redaman, Suhu, IP Pelanggan, Tipe Router
+    // Jadi ke-12-nya ikut pola tumpuk. Satu pola untuk seluruh panel.
+    const WAJIB_B = [
+        ["views/sb-admin/users.php", "dataTable"],
+        ["views/sb-admin/speed-requests.php", "speedRequestTable"],
+        ["views/sb-admin/payment-status.php", "paymentTable"],
+        ["views/sb-admin/package-requests.php", "packageRequestTable"],
+        ["views/sb-admin/network-assets.php", "assetsDataTable"],
+        ["views/sb-admin/packages.php", "dataTable"],
+        ["views/sb-admin/gaji-teknisi.php", "gajiTable"],
+        ["views/sb-admin/agent-voucher-management.php", "topAgentsTable"],
+        ["views/sb-admin/paket-voucher.php", "dataTable"],
+        ["views/sb-admin/accounts.php", "dataTable"],
+        ["views/sb-admin/cctv-monitor.php", "cctvTable"],
+        ["views/sb-admin/config.php", "mikrotikDevicesTable"],
+    ];
+    for (const [berkas, id] of WAJIB_B) {
+        test("[B] " + berkas.replace("views/sb-admin/", "") + " #" + id, () => {
             const tag = baca(berkas).match(new RegExp('<table[^>]*id="' + id + '"[^>]*>'));
             expect({ id, ada: !!tag }).toEqual({ id, ada: true });
             expect({ id, punyaKelas: /tabel-tumpuk-hp/.test(tag[0]) }).toEqual({ id, punyaKelas: true });

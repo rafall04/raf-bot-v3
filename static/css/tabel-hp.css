@@ -31,6 +31,14 @@
     .tabel-tumpuk-hp td {
         display: block;
         width: auto !important;
+
+        /* !! `width: auto` TIDAK CUKUP — `min-width` mengalahkannya, dan sebuah kotak tak
+           pernah bisa menyusut di bawah min-width-nya. Terukur di /users: CSS halamannya
+           memaku `min-width: 1180px` pada tabel, jadi polanya aktif (thead sembunyi, semua
+           sel berlabel) tapi tabelnya TETAP meluber 859px. Gejalanya menipu: semua tanda
+           pola terlihat benar, isinya tetap tak terjangkau. */
+        min-width: 0 !important;
+        max-width: 100% !important;
     }
 
     /* Satu baris = satu kartu. */

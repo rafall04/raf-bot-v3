@@ -53,7 +53,7 @@
           <div class="dashboard-card" style="height: auto;">
             <div class="card-body">
               <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="dataTable" width="100%" cellspacing="0">
+                <table class="table table-bordered table-hover tabel-tumpuk-hp" id="dataTable" width="100%" cellspacing="0">
                   <thead>
                     <tr>
                       <th>Nama</th>

@@ -2329,3 +2329,14 @@
 - **Dua aturan lahir dari kasus nyata saat memasang:** baris keadaan-kosong (`colspan`) dilewati — melabelinya memunculkan judul kolom palsu di atas "belum ada data"; dan kolom ber-header KOSONG dilewati — `data-label=""` memunculkan label kosong di kartunya (`/gratis-bulan-ini` kolom centangnya memang `<th></th>`). Ambang tes saya sempat menghitung yang kedua sebagai GAGAL; itu aturan saya yang keliru, bukan kodenya.
 - **Perilakunya sengaja tak diuji di jest.** Repo memakai `testEnvironment: 'node'` dan `jest-environment-jsdom` tidak terpasang; menambah dependensi cuma untuk berkas ini di luar lingkup. Buktinya pengukuran peramban di atas; tes mengunci **keempat aturannya tetap ada di kode**.
 - Tes: `static/js/__tests__/tabel-hp-label.test.js` (28). Dua mutasi terbukti tertangkap (aturan colspan dicabut · kelas dicabut dari satu halaman).
+
+<a id="b296"></a>
+
+### Fix 2026-08-28 (Gel. 3 audit panel — 12 tabel terakhir ikut ditumpuk; klasifikasi 'boleh sembunyi kolom' DIBATALKAN)
+
+- **!! KOREKSI ATAS AUDIT SAYA SENDIRI.** Laporan awal menaruh 12 halaman ini di kolom "boleh sembunyikan kolom" karena masing-masing punya modal non-templat DAN pemicu per-baris. Syarat itu **TIDAK CUKUP** — punya modal bukan berarti modalnya MENAMPILKAN kolomnya. Cakupan diperiksa satu per satu: `/package-requests` **0%** (`actionModal` cuma "Konfirmasi Aksi + Catatan", nol data baris) · `/agent-voucher-management` **0%** · `/payment-status` 17% · `/speed-requests` 22% · `/users` 73% — `editModal` tak memuat Redaman, Suhu, IP Pelanggan, Tipe Router, justru kolom yang paling dibutuhkan teknisi di lapangan.
+- **Hasil: ke-12-nya ikut pola tumpuk kartu.** Seluruh 37 halaman kini satu pola, tanpa pengecualian yang harus diingat orang. Menyembunyikan kolom tetap menghilangkan data ([#b290](#b290)).
+- **!! `width: auto` TIDAK CUKUP — `min-width` mengalahkannya.** TERUKUR di `/users`: pola aktif (thead sembunyi, 13/13 sel berlabel) tapi tabelnya **tetap meluber 859px**, karena `users.css` memaku `min-width: 1180px` dan kotak tak pernah bisa menyusut di bawah min-width-nya. Gejalanya menipu: semua tanda pola terlihat benar, isinya tetap tak terjangkau. `tabel-hp.css` kini menetralkan `min-width: 0 !important` + `max-width: 100% !important` — berlaku untuk SEMUA tabel, jadi bucket A ikut diverifikasi ulang.
+- **Penjaga jumlah kolom membuktikan gunanya.** Pemasangan `/payment-status` ditolak (8 `<th>` vs 7 "terukur"). Ternyata angka 7 itu **salah transkripsi saya**: skrip cakupan-modal membuang `<th>` kosong sebelum menghitung. Render sungguhannya 8. Tanpa penjaga itu saya akan memasang berdasarkan angka yang salah.
+- **Diverifikasi:** bucket B 12/12 LULUS di HP 375px, bucket A diukur ulang **25/25 tetap LULUS**, dan **37/37 desktop 1440px TIDAK ikut berubah**.
+- Tes: `static/js/__tests__/tabel-hp-label.test.js` diperluas jadi 42 (12 halaman bucket B + aturan `min-width` + pembungkusan label). Mutasi `min-width: 0` dicabut terbukti tertangkap.

@@ -53,7 +53,7 @@
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table" id="dataTable" width="100%" cellspacing="0">
+                                <table class="table tabel-tumpuk-hp" id="dataTable" width="100%" cellspacing="0">
                                     <thead>
                                         <tr>
                                             <th>Profil</th>

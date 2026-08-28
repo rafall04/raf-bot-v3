@@ -254,7 +254,7 @@
                                 </div>
                             </div>
                             <div class="table-responsive">
-                                <table class="table table-bordered table-hover" id="paymentTable" width="100%" cellspacing="0">
+                                <table class="table table-bordered table-hover tabel-tumpuk-hp" id="paymentTable" width="100%" cellspacing="0">
                                     <thead>
                                         <tr>
                                             <th width="5%">

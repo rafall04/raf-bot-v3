@@ -74,7 +74,7 @@
             <div class="card-body">
               <button type="button" class="btn btn-primary mb-3" data-toggle="modal" data-target="#mikrotikDeviceModal" id="addMikrotikDeviceBtn">Tambah Perangkat</button>
               <div class="table-responsive">
-                <table class="table table-bordered" id="mikrotikDevicesTable" width="100%" cellspacing="0">
+                <table class="table table-bordered tabel-tumpuk-hp" id="mikrotikDevicesTable" width="100%" cellspacing="0">
                   <thead>
                     <tr>
                       <th>IP Address</th>
