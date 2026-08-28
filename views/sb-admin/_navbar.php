@@ -23,6 +23,24 @@ if ($current_page === '' && isset($GLOBALS['argv'][2])) {
     $current_page = ($filename === 'index') ? '/' : ('/' . $filename);
 }
 $current_page = strtok($current_page, '?');
+
+// !! NAMA BERKAS TIDAK SELALU SAMA DENGAN RUTENYA, dan karena $current_page di atas
+// diturunkan dari nama berkas, menu untuk halaman-halaman ini TIDAK PERNAH tersorot —
+// admin kehilangan jejak posisinya di menu. TERUKUR di peramban sebelum perbaikan:
+//   /admin/daftar-tiket -> tiket.php          -> current_page '/tiket'
+//   /owner              -> owner-cockpit.php  -> current_page '/owner-cockpit'
+//   /penyesuaian-bulk   -> bulk-ssid-diff.php -> current_page '/bulk-ssid-diff'
+// ketiganya: item menu ADA tapi `active` = false dan sub-menunya tidak terbuka.
+// Dipetakan balik ke rutenya di SATU tempat, bukan menambal tiap pemanggilan isActive().
+$ALIAS_BERKAS_KE_RUTE = [
+    '/tiket'           => '/admin/daftar-tiket',
+    '/owner-cockpit'   => '/owner',
+    '/bulk-ssid-diff'  => '/penyesuaian-bulk',
+];
+if (isset($ALIAS_BERKAS_KE_RUTE[$current_page])) {
+    $current_page = $ALIAS_BERKAS_KE_RUTE[$current_page];
+}
+
 $current_role = 'guest';
 
 if (isset($_COOKIE['token']) && !empty($_COOKIE['token'])) {
@@ -162,12 +180,12 @@ function isParentActive($pages, $current) {
     <hr class="sidebar-divider">
     <div class="sidebar-heading">Operasional</div>
 
-    <li class="nav-item <?php echo isParentActive(['/users', '/packages', '/package-requests', '/rubah-paket', '/buka-isolir', '/custom-isolir', '/import-mikrotik', '/sync-device-id', '/ganti-modem', '/penyesuaian-bulk'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePelanggan" aria-expanded="<?php echo isParentActive(['/users', '/packages', '/package-requests', '/rubah-paket', '/buka-isolir', '/custom-isolir', '/import-mikrotik', '/sync-device-id', '/ganti-modem', '/penyesuaian-bulk'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePelanggan">
+    <li class="nav-item <?php echo isParentActive(['/users', '/packages', '/package-requests', '/rubah-paket', '/buka-isolir', '/custom-isolir', '/import-mikrotik', '/sync-device-id', '/ganti-modem', '/penyesuaian-bulk', '/sisa-pppoe'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePelanggan" aria-expanded="<?php echo isParentActive(['/users', '/packages', '/package-requests', '/rubah-paket', '/buka-isolir', '/custom-isolir', '/import-mikrotik', '/sync-device-id', '/ganti-modem', '/penyesuaian-bulk', '/sisa-pppoe'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapsePelanggan">
             <i class="fas fa-fw fa-users"></i>
             <span>Pelanggan</span>
         </a>
-        <div id="collapsePelanggan" class="collapse <?php echo isParentActive(['/users', '/packages', '/package-requests', '/rubah-paket', '/buka-isolir', '/custom-isolir', '/import-mikrotik', '/sync-device-id', '/ganti-modem', '/penyesuaian-bulk'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPelanggan" data-parent="#accordionSidebar">
+        <div id="collapsePelanggan" class="collapse <?php echo isParentActive(['/users', '/packages', '/package-requests', '/rubah-paket', '/buka-isolir', '/custom-isolir', '/import-mikrotik', '/sync-device-id', '/ganti-modem', '/penyesuaian-bulk', '/sisa-pppoe'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingPelanggan" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/users', $current_page) ? 'active' : ''; ?>" href="/users">
                     <i class="fas fa-fw fa-user mr-2"></i>
@@ -208,6 +226,11 @@ function isParentActive($pages, $current) {
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/penyesuaian-bulk', $current_page) ? 'active' : ''; ?>" href="/penyesuaian-bulk">
                     <i class="fas fa-fw fa-wifi mr-2"></i>
                     <span>Penyesuaian Bulk SSID</span>
+                </a>
+            
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/sisa-pppoe', $current_page) ? 'active' : ''; ?>" href="/sisa-pppoe">
+                    <i class="fas fa-fw fa-broom mr-2"></i>
+                    <span>Sisa PPPoE</span>
                 </a>
             </div>
         </div>
@@ -296,12 +319,12 @@ function isParentActive($pages, $current) {
     <hr class="sidebar-divider">
     <div class="sidebar-heading">Keuangan &amp; Bisnis</div>
 
-    <li class="nav-item <?php echo isParentActive(['/rekap-keuangan', '/pengeluaran', '/kas-usaha', '/transaction', '/saldo-management'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseKeuangan" aria-expanded="<?php echo isParentActive(['/rekap-keuangan', '/pengeluaran', '/kas-usaha', '/transaction', '/saldo-management'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseKeuangan">
+    <li class="nav-item <?php echo isParentActive(['/rekap-keuangan', '/pengeluaran', '/kas-usaha', '/transaction'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseKeuangan" aria-expanded="<?php echo isParentActive(['/rekap-keuangan', '/pengeluaran', '/kas-usaha', '/transaction'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseKeuangan">
             <i class="fas fa-fw fa-chart-line"></i>
             <span>Keuangan</span>
         </a>
-        <div id="collapseKeuangan" class="collapse <?php echo isParentActive(['/rekap-keuangan', '/pengeluaran', '/kas-usaha', '/transaction', '/saldo-management'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingKeuangan" data-parent="#accordionSidebar">
+        <div id="collapseKeuangan" class="collapse <?php echo isParentActive(['/rekap-keuangan', '/pengeluaran', '/kas-usaha', '/transaction'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingKeuangan" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/rekap-keuangan', $current_page) ? 'active' : ''; ?>" href="/rekap-keuangan">
                     <i class="fas fa-fw fa-chart-line mr-2"></i>
@@ -318,10 +341,6 @@ function isParentActive($pages, $current) {
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/transaction', $current_page) ? 'active' : ''; ?>" href="/transaction">
                     <i class="fas fa-fw fa-exchange-alt mr-2"></i>
                     <span>Transaksi</span>
-                </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/saldo-management', $current_page) ? 'active' : ''; ?>" href="/saldo-management">
-                    <i class="fas fa-fw fa-wallet mr-2"></i>
-                    <span>Saldo &amp; Voucher</span>
                 </a>
             </div>
         </div>
@@ -350,12 +369,12 @@ function isParentActive($pages, $current) {
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/penugasan-agen', '/laporan-agen', '/agent-management', '/agent-voucher-management'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseAgen" aria-expanded="<?php echo isParentActive(['/penugasan-agen', '/laporan-agen', '/agent-management', '/agent-voucher-management'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseAgen">
+    <li class="nav-item <?php echo isParentActive(['/penugasan-agen', '/laporan-agen', '/agent-management', '/agent-voucher-management', '/saldo-management'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseAgen" aria-expanded="<?php echo isParentActive(['/penugasan-agen', '/laporan-agen', '/agent-management', '/agent-voucher-management', '/saldo-management'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseAgen">
             <i class="fas fa-fw fa-user-tag"></i>
             <span>Agen &amp; Reseller</span>
         </a>
-        <div id="collapseAgen" class="collapse <?php echo isParentActive(['/penugasan-agen', '/laporan-agen', '/agent-management', '/agent-voucher-management'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingAgen" data-parent="#accordionSidebar">
+        <div id="collapseAgen" class="collapse <?php echo isParentActive(['/penugasan-agen', '/laporan-agen', '/agent-management', '/agent-voucher-management', '/saldo-management'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingAgen" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/penugasan-agen', $current_page) ? 'active' : ''; ?>" href="/penugasan-agen">
                     <i class="fas fa-fw fa-user-tag mr-2"></i>
@@ -372,6 +391,11 @@ function isParentActive($pages, $current) {
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/agent-voucher-management', $current_page) ? 'active' : ''; ?>" href="/agent-voucher-management">
                     <i class="fas fa-fw fa-boxes mr-2"></i>
                     <span>Stok Voucher Agent</span>
+                </a>
+            
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/saldo-management', $current_page) ? 'active' : ''; ?>" href="/saldo-management">
+                    <i class="fas fa-fw fa-wallet mr-2"></i>
+                    <span>Saldo &amp; Voucher</span>
                 </a>
             </div>
         </div>
@@ -407,12 +431,12 @@ function isParentActive($pages, $current) {
     <hr class="sidebar-divider">
     <div class="sidebar-heading">Jaringan</div>
 
-    <li class="nav-item <?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt-provision'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseInfra" aria-expanded="<?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt-provision'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseInfra">
+    <li class="nav-item <?php echo isParentActive(['/map-viewer', '/network-assets', '/rapikan-odp', '/statik', '/admin-olt-provision'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseInfra" aria-expanded="<?php echo isParentActive(['/map-viewer', '/network-assets', '/rapikan-odp', '/statik', '/admin-olt-provision'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseInfra">
             <i class="fas fa-fw fa-network-wired"></i>
             <span>Infrastruktur</span>
         </a>
-        <div id="collapseInfra" class="collapse <?php echo isParentActive(['/map-viewer', '/network-assets', '/statik', '/admin-olt-provision'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingInfra" data-parent="#accordionSidebar">
+        <div id="collapseInfra" class="collapse <?php echo isParentActive(['/map-viewer', '/network-assets', '/rapikan-odp', '/statik', '/admin-olt-provision'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingInfra" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/map-viewer', $current_page) ? 'active' : ''; ?>" href="/map-viewer">
                     <i class="fas fa-fw fa-map-marked-alt mr-2"></i>
@@ -556,12 +580,12 @@ function isParentActive($pages, $current) {
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/sisa-pppoe', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseSistem" aria-expanded="<?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/sisa-pppoe', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseSistem">
+    <li class="nav-item <?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseSistem" aria-expanded="<?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseSistem">
             <i class="fas fa-fw fa-cogs"></i>
             <span>Pengaturan</span>
         </a>
-        <div id="collapseSistem" class="collapse <?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/sisa-pppoe', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingSistem" data-parent="#accordionSidebar">
+        <div id="collapseSistem" class="collapse <?php echo isParentActive(['/accounts', '/config', '/parameter-management', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingSistem" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/accounts', $current_page) ? 'active' : ''; ?>" href="/accounts">
                     <i class="fas fa-fw fa-users-cog mr-2"></i>
@@ -574,10 +598,6 @@ function isParentActive($pages, $current) {
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/parameter-management', $current_page) ? 'active' : ''; ?>" href="/parameter-management">
                     <i class="fas fa-fw fa-sliders-h mr-2"></i>
                     <span>Parameter Management</span>
-                </a>
-                <a class="collapse-item d-flex align-items-center <?php echo isActive('/sisa-pppoe', $current_page) ? 'active' : ''; ?>" href="/sisa-pppoe">
-                    <i class="fas fa-fw fa-broom mr-2"></i>
-                    <span>Sisa PPPoE</span>
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/cron', $current_page) ? 'active' : ''; ?>" href="/cron">
                     <i class="fas fa-fw fa-clock mr-2"></i>
