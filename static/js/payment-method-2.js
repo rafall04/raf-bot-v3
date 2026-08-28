@@ -20,13 +20,10 @@
             data: 'category'
           },
           {
-            data: 'fee'
-          },
-          {
             data: null,
             render: function(data, type, row) {
               return `
-                  <button class="btn btn-info btn-edit" data-id="${row.id}" data-name="${row.name}" data-category="${row.category}" data-fee="${row.fee}" data-toggle="modal" data-target="#editModal">Edit</button>
+                  <button class="btn btn-info btn-edit" data-id="${row.id}" data-name="${row.name}" data-category="${row.category}" data-toggle="modal" data-target="#editModal">Edit</button>
                   <button onclick="deleteData('${row.id}')" class="btn btn-danger">Hapus</button>
                   `;
             }

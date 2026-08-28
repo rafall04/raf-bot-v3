@@ -14,7 +14,7 @@
 <html lang="id">
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Monitor CCTV';
+    $pageTitle = 'RAF BOT - Monitor CCTV Publik';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
     ?>

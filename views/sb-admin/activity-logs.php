@@ -3,7 +3,7 @@
 
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Activity Logs';
+    $pageTitle = 'RAF BOT - Log Aktivitas';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
     ?>
@@ -44,7 +44,7 @@
                 <div class="container-fluid">
                     <div class="d-sm-flex align-items-center justify-content-between mb-4">
                         <div class="dashboard-header">
-                            <h1>Activity Logs</h1>
+                            <h1>Log Aktivitas</h1>
                             <p>Log aktivitas admin dan teknisi</p>
                         </div>
                         <button id="refreshBtn" class="btn btn-primary btn-sm">
@@ -91,7 +91,7 @@
                     <!-- Logs Table -->
                     <div class="card shadow mb-4">
                         <div class="card-header py-3">
-                            <h6 class="m-0 font-weight-bold text-primary">Activity Logs</h6>
+                            <h6 class="m-0 font-weight-bold text-primary">Log Aktivitas</h6>
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">

@@ -12,6 +12,5 @@
       $('#editModal input#id').val($(this).data('id'));
       $('#editModal input#name').val($(this).data('name'));
       $('#editModal input#category').val($(this).data('category'));
-      $('#editModal input#fee').val($(this).data('fee'));
     });
   

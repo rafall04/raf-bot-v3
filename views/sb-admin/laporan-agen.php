@@ -3,7 +3,7 @@
 
 <head>
   <?php
-  $pageTitle = 'Laporan Komisi Agen';
+  $pageTitle = 'RAF BOT - Laporan Komisi Agen';
   $themeRole = 'admin';
   $pageDescription = 'Laporan fee/komisi agen penagih per periode.';
   include __DIR__ . '/_head.php';

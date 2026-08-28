@@ -5,7 +5,7 @@
 <?php
     // Alat pembersih "modem hantu": kredensial PPPoE di MikroTik yang tak lagi punya baris
     // pelanggan. Ikut partial <head> bersama supaya otomatis dapat token tema + cache-bust aset.
-    $pageTitle = 'Sisa PPPoE - RAF NET';
+    $pageTitle = 'RAF BOT - Sisa PPPoE';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
 ?>

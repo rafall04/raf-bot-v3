@@ -3,7 +3,7 @@
 
 <head>
   <?php
-  $pageTitle = 'Laporan Marketing PSB';
+  $pageTitle = 'RAF BOT - Laporan Marketing PSB';
   $themeRole = 'admin';
   $pageDescription = 'Laporan komisi marketing PSB per pemberi lead per periode.';
   include __DIR__ . '/_head.php';

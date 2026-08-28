@@ -3,7 +3,7 @@
 
 <head>
   <?php
-  $pageTitle = 'Penugasan Agen';
+  $pageTitle = 'RAF BOT - Penugasan Agen';
   $themeRole = 'admin';
   $pageDescription = 'Tugaskan pelanggan ke agen penagih.';
   include __DIR__ . '/_head.php';

@@ -6,7 +6,7 @@
     // Panduan ADMIN — rujukan lengkap dari nol sampai operasional harian. Mengikuti partial
     // <head> bersama (bukan <head> tulis tangan) supaya otomatis dapat lapisan komponen +
     // urutan cascade yang benar, termasuk mode gelap.
-    $pageTitle = 'Panduan Admin - RAF NET';
+    $pageTitle = 'RAF BOT - Panduan Admin';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
 ?>

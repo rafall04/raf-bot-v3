@@ -3,7 +3,7 @@
 
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Parameter Management';
+    $pageTitle = 'RAF BOT - Manajemen Parameter';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
     ?>
@@ -42,7 +42,7 @@
                     <div class="d-sm-flex align-items-center justify-content-between mb-4">
                         <!-- Page Header -->
           <div class="dashboard-header">
-            <h1>Parameter Management</h1>
+            <h1>Manajemen Parameter</h1>
             <p>Kelola dan monitor parameter management</p>
           </div>
                         <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#addParameterModal">

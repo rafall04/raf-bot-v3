@@ -12,7 +12,7 @@ require_once __DIR__ . '/_asset.php';
 <?php
     // <head> tulis tangan sebelumnya melewatkan components-modern.css → halaman
     // ini kehilangan lapisan komponen bersama di kedua mode. Ikut partial bersama.
-    $pageTitle = 'Peta Jaringan';
+    $pageTitle = 'RAF BOT - Peta Aset Jaringan';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
 ?>

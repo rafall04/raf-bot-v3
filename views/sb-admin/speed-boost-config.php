@@ -3,7 +3,7 @@
 
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Speed Boost Configuration';
+    $pageTitle = 'RAF BOT - Pengaturan Speed Boost';
     $themeRole = 'admin';
     $pageDescription = 'RAF BOT Speed Boost Configuration';
     include __DIR__ . '/_head.php';
@@ -58,7 +58,7 @@
           <div class="dashboard-header">
             <div class="d-flex align-items-center justify-content-between">
               <div>
-                <h1>Speed Boost Configuration</h1>
+                <h1>Pengaturan Speed Boost</h1>
                 <p>Kelola harga dan konfigurasi Speed Boost On Demand</p>
               </div>
               <div>

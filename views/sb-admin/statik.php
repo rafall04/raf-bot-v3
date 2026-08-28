@@ -4,7 +4,7 @@
 <head>
 
     <?php
-    $pageTitle = 'RAF BOT - Static';
+    $pageTitle = 'RAF BOT - Statik';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
     ?>

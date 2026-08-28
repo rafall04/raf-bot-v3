@@ -3,7 +3,7 @@
 
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Package Management';
+    $pageTitle = 'RAF BOT - Paket Langganan';
     $themeRole = 'admin';
     $pageDescription = 'RAF BOT Package Management';
     include __DIR__ . '/_head.php';
@@ -39,7 +39,7 @@
           <div class="dashboard-header">
             <div class="d-flex align-items-center justify-content-between">
               <div>
-                <h1>Package Management</h1>
+                <h1>Paket Langganan</h1>
                 <p>Kelola paket internet dan harga langganan</p>
               </div>
               <button data-toggle="modal" data-target="#createModal" class="btn btn-primary-custom">

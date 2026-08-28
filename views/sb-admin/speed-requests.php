@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <?php
-    $pageTitle = 'Speed on Demand Requests - Admin Panel';
+    $pageTitle = 'RAF BOT - Permintaan Speed Boost';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
     ?>
@@ -21,7 +21,7 @@
                     <div class="dashboard-header">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
-                                <h1>Speed on Demand Requests</h1>
+                                <h1>Permintaan Speed Boost</h1>
                                 <p>Kelola permintaan penambahan kecepatan sementara dari pelanggan</p>
                             </div>
                             <button class="btn btn-warning-custom" onclick="cleanupExpiredRequests()">

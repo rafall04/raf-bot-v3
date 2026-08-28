@@ -3,7 +3,7 @@
 <head>
 <?php
     // <head> tulis tangan melewatkan components-modern.css (lapisan komponen bersama).
-    $pageTitle = 'Agent Management - RAF NET';
+    $pageTitle = 'RAF BOT - Agen & Outlet';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
 ?>
@@ -24,7 +24,7 @@
                     <div class="dashboard-header">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
-                                <h1>Agent Management</h1>
+                                <h1>Agen &amp; Outlet</h1>
                                 <p>Kelola agent dan outlet untuk topup saldo</p>
                             </div>
                             <button class="btn btn-primary-custom" onclick="showAddAgentModal()">

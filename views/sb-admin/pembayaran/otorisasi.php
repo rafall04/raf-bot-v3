@@ -6,7 +6,7 @@
   // admin-theme.css, sehingga tokens.css (yang di-@import tema) tidak pernah
   // termuat: SELURUH var(--…) kosong dan halaman ini punya 19 permukaan terang
   // yang tak ikut membalik di mode gelap. Sekarang ikut partial bersama.
-  $pageTitle = 'RAF BOT - Otorisasi Pengajuan Pembaruan Status';
+  $pageTitle = 'RAF BOT - Otorisasi Pembayaran';
   $themeRole = 'admin';
   include __DIR__ . '/../_head.php';
 ?>

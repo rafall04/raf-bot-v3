@@ -402,6 +402,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-28 (Gel. 3 audit panel — 12 tabel terakhir ikut ditumpuk; klasifikasi 'boleh sembunyi kolom' dibatalkan)](docs/boundary-log.md#b296)
 - [Fix 2026-08-28 (Gel. 4 audit panel — isi tak lagi terdorong jauh di bawah lipatan di ponsel)](docs/boundary-log.md#b297)
 - [Fix 2026-08-28 (Gel. 5 audit panel — 10 konfirmasi hapus berbahasa Inggris diterjemahkan & dilengkapi)](docs/boundary-log.md#b298)
+- [Fix 2026-08-28 (Gel. 6 audit panel — nama halaman seragam; alert DataTables di /payment-method dicabut)](docs/boundary-log.md#b299)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

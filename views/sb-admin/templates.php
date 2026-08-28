@@ -11,7 +11,7 @@ SideEffects: POST perubahan template ke `/api/templates` dan memicu reload cache
 
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Message Templates';
+    $pageTitle = 'RAF BOT - Message Templates Editor';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
     ?>

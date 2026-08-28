@@ -4,7 +4,7 @@
 <head>
 <?php
   // <head> tulis tangan melewatkan components-modern.css (lapisan komponen bersama).
-  $pageTitle = 'RAF BOT - Saldo & Voucher Management';
+  $pageTitle = 'RAF BOT - Manajemen Saldo & Voucher';
   $themeRole = 'admin';
   include __DIR__ . '/_head.php';
 ?>

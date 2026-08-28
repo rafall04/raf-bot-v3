@@ -12,7 +12,7 @@
 <html lang="en">
 <head>
     <?php
-    $pageTitle = 'RAF BOT - LOS Broadcast';
+    $pageTitle = 'RAF BOT - LOS Auto-Broadcast ke Teknisi';
     $themeRole = 'admin';
     $pageDescription = 'RAF BOT LOS Broadcast';
     include __DIR__ . '/_head.php';

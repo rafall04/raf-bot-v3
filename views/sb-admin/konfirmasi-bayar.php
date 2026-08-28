@@ -3,7 +3,7 @@
 
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Konfirmasi Bayar';
+    $pageTitle = 'RAF BOT - Konfirmasi Pembayaran';
     $themeRole = 'admin';
     $pageDescription = 'Konfirmasi / tolak bukti pembayaran yang dikirim pelanggan lewat WhatsApp';
     include __DIR__ . '/_head.php';

@@ -4,7 +4,7 @@
 <head>
 
     <?php
-    $pageTitle = 'RAF BOT - Cron';
+    $pageTitle = 'RAF BOT - Perbarui Jadwal';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
     ?>

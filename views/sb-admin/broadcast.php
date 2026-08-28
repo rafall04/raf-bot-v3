@@ -3,7 +3,7 @@
 
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Broadcast Management';
+    $pageTitle = 'RAF BOT - Broadcast WhatsApp';
     $themeRole = 'admin';
     $pageDescription = 'RAF BOT Broadcast Management';
     include __DIR__ . '/_head.php';
@@ -37,7 +37,7 @@
           <div class="dashboard-header">
             <div class="d-flex align-items-center justify-content-between">
               <div>
-                <h1>Broadcast Management</h1>
+                <h1>Broadcast WhatsApp</h1>
                 <p>Kirim pesan broadcast / info gangguan massal (GAMAS) ke pelanggan</p>
               </div>
             </div>

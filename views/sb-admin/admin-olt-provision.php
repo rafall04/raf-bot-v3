@@ -13,7 +13,7 @@ SideEffects: Eksekusi perintah konfigurasi ke OLT via backend; menulis file back
 -->
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Provisioning OLT';
+    $pageTitle = 'RAF BOT - Provisioning OLT ZTE C320';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
     ?>

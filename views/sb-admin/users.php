@@ -10,7 +10,7 @@ Header Doc
 
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Users Management';
+    $pageTitle = 'RAF BOT - Manajemen Pelanggan';
     $themeRole = 'admin';
     $pageDescription = 'RAF BOT Users Management';
     include __DIR__ . '/_head.php';

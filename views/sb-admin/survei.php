@@ -13,7 +13,7 @@
 <html lang="id">
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Survei Kepuasan';
+    $pageTitle = 'RAF BOT - ⭐ Survei Kepuasan Pelanggan';
     $themeRole = 'admin';
     $pageDescription = 'Rangkuman survei kepuasan pelanggan: skor, detractor, komentar, tren';
     include __DIR__ . '/_head.php';

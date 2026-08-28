@@ -3,7 +3,7 @@
 
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Login Logs';
+    $pageTitle = 'RAF BOT - Log Login & Logout';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
     ?>
@@ -44,7 +44,7 @@
                 <div class="container-fluid">
                     <div class="d-sm-flex align-items-center justify-content-between mb-4">
                         <div class="dashboard-header">
-                            <h1>Login & Logout Logs</h1>
+                            <h1>Log Login &amp; Logout</h1>
                             <p>Riwayat login dan logout admin dan teknisi</p>
                         </div>
                         <button id="refreshBtn" class="btn btn-primary btn-sm">

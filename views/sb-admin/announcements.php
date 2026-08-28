@@ -3,7 +3,7 @@
 
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Announcements';
+    $pageTitle = 'RAF BOT - Pengumuman';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
     ?>
@@ -29,7 +29,7 @@
                 <div class="container-fluid">
                     <!-- Page Header -->
           <div class="dashboard-header">
-            <h1>Manage Announcements</h1>
+            <h1>Pengumuman</h1>
             <p>Kelola dan monitor manage announcements</p>
           </div>
 

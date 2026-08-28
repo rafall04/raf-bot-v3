@@ -4,7 +4,7 @@
 <head>
 <?php
   // <head> tulis tangan melewatkan components-modern.css (lapisan komponen bersama).
-  $pageTitle = 'RAF BOT - Account Management';
+  $pageTitle = 'RAF BOT - Akun Admin';
   $pageDescription = 'RAF BOT Account Management';
   $themeRole = 'admin';
   include __DIR__ . '/_head.php';
@@ -37,7 +37,7 @@
           <div class="dashboard-header">
             <div class="d-flex align-items-center justify-content-between">
               <div>
-                <h1>Account Management</h1>
+                <h1>Akun Admin</h1>
                 <p>Kelola akun admin, teknisi, dan agen sistem</p>
               </div>
               <button data-toggle="modal" data-target="#createModal" class="btn btn-primary-custom">

@@ -73,7 +73,7 @@ if ($monitoringEnabled) {
     // satu-satunya halaman yang bisa menyimpang dari sistem tanpa ketahuan.
     // Kini ikut partial bersama; index.css disisakan HANYA untuk yang khas
     // dashboard (widget monitoring, workspace keuangan, riwayat login).
-    $pageTitle = 'RAF BOT - Premium Dashboard';
+    $pageTitle = 'RAF BOT - Ringkasan Dashboard';
     $pageDescription = 'RAF BOT Dashboard - Premium Edition';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
@@ -200,7 +200,7 @@ if ($monitoringEnabled) {
                 <div class="dashboard-header">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h1>Dashboard Overview</h1>
+                            <h1>Ringkasan Dashboard</h1>
                             <p>Selamat datang di RAF BOT Premium Dashboard</p>
                         </div>
                         <button id="start_btn" type="button" class="btn btn-primary-custom">

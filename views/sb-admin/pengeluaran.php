@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Pengeluaran';
+    $pageTitle = 'RAF BOT - Manajemen Pengeluaran';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
     ?>

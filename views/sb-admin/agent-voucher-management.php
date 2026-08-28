@@ -3,7 +3,7 @@
 <head>
 <?php
     // <head> tulis tangan melewatkan components-modern.css (lapisan komponen bersama).
-    $pageTitle = 'Agent Voucher Management - RAF NET';
+    $pageTitle = 'RAF BOT - Stok Voucher Agen';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
 ?>
@@ -23,7 +23,7 @@
                 
                 <div class="container-fluid">
                     <div class="dashboard-header">
-                        <h1>Agent Voucher Management</h1>
+                        <h1>Stok Voucher Agen</h1>
                         <p>Monitor dan kelola voucher reseller agent</p>
                     </div>
                     

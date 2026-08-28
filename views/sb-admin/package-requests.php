@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <?php
-    $pageTitle = 'Permintaan Ubah Paket - Admin Panel';
+    $pageTitle = 'RAF BOT - Permintaan Ubah Paket';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
     ?>

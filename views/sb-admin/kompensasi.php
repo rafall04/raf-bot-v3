@@ -3,7 +3,7 @@
 
 <head>
     <?php
-    $pageTitle = 'Kompensasi Pelanggan - Admin Panel';
+    $pageTitle = 'RAF BOT - Kompensasi Peningkatan Kecepatan';
     $themeRole = 'admin';
     $pageDescription = 'Halaman Kompensasi Pelanggan';
     include __DIR__ . '/_head.php';

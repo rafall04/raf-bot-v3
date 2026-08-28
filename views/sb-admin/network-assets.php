@@ -4,7 +4,7 @@
 <head>
 
     <?php
-    $pageTitle = 'RAF BOT - Network Assets Management';
+    $pageTitle = 'RAF BOT - Manajemen Aset Jaringan';
     $themeRole = 'admin';
     $pageDescription = 'RAF BOT Network Assets Management - Premium Edition';
     include __DIR__ . '/_head.php';
@@ -50,7 +50,7 @@
                     <div class="dashboard-header">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
-                                <h1>Network Assets Management</h1>
+                                <h1>Manajemen Aset Jaringan</h1>
                                 <p>Kelola aset jaringan ODC dan ODP</p>
                             </div>
                             <button data-toggle="modal" data-target="#addAssetModal" class="btn btn-success-custom">

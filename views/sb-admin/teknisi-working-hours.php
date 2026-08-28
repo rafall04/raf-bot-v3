@@ -3,7 +3,7 @@
 <head>
 <?php
     // <head> tulis tangan melewatkan components-modern.css (lapisan komponen bersama).
-    $pageTitle = 'Pengaturan Jam Kerja Teknisi - RAF NET';
+    $pageTitle = 'RAF BOT - Pengaturan Jam Kerja Teknisi';
     $themeRole = 'teknisi';
     include __DIR__ . '/_head.php';
 ?>

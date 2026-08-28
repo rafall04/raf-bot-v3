@@ -4,7 +4,7 @@
 <head>
 
     <?php
-    $pageTitle = 'RAF BOT - Static';
+    $pageTitle = 'RAF BOT - Metode Pembayaran';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
     ?>
@@ -70,7 +70,7 @@
           <!-- Page Heading -->
           <!-- Page Header -->
           <div class="dashboard-header">
-            <h1>Method Payment</h1>
+            <h1>Metode Pembayaran</h1>
             <p>Kelola dan monitor method payment</p>
           </div>
           <!-- <p class="mb-4">DataTables is a third party plugin that is used to generate the demo table below.
@@ -87,23 +87,21 @@
             </div>
             <div class="card-body">
               <div class="table-responsive">
-                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                <table class="table table-bordered tabel-tumpuk-hp" id="dataTable" width="100%" cellspacing="0">
                   <thead>
                     <tr>
                       <th>ID</th>
-                      <th>Name</th>
-                      <th>Category</th>
-                      <th>Fee</th>
-                      <th>Action</th>
+                      <th>Nama</th>
+                      <th>Kategori</th>
+                      <th>Aksi</th>
                     </tr>
                   </thead>
                   <tfoot>
                     <tr>
                       <th>ID</th>
-                      <th>Name</th>
-                      <th>Category</th>
-                      <th>Fee</th>
-                      <th>Action</th>
+                      <th>Nama</th>
+                      <th>Kategori</th>
+                      <th>Aksi</th>
                     </tr>
                   </tfoot>
                   <tbody></tbody>
@@ -182,10 +180,6 @@
             <label for="category" class="form-label">Category</label>
             <input type="text" class="form-control" id="category" name="category" />
           </div>
-          <div class="mb-3">
-            <label for="fee" class="form-label">Fee</label>
-            <input type="number" class="form-control" id="fee" name="fee" />
-          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">
@@ -221,10 +215,6 @@
           <div class="mb-3">
             <label for="category" class="form-label">category</label>
             <input type="category" class="form-control" id="category" name="category" />
-          </div>
-          <div class="mb-3">
-            <label for="fee" class="form-label">Fee</label>
-            <input type="fee" class="form-control" id="fee" name="fee" />
           </div>
         </div>
         <div class="modal-footer">

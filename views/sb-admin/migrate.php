@@ -3,7 +3,7 @@
 
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Database Migration';
+    $pageTitle = 'RAF BOT - Migrasi Database';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
     ?>

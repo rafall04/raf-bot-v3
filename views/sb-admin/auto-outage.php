@@ -12,7 +12,7 @@
 <html lang="en">
 <head>
     <?php
-    $pageTitle = 'RAF BOT - Auto Outage';
+    $pageTitle = 'RAF BOT - Auto Outage Broadcast';
     $themeRole = 'admin';
     $pageDescription = 'RAF BOT Auto Outage';
     include __DIR__ . '/_head.php';

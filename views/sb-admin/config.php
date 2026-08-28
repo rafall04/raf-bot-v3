@@ -4,7 +4,7 @@
 <head>
 
     <?php
-    $pageTitle = 'RAF BOT - Config';
+    $pageTitle = 'RAF BOT - Perbarui Konfigurasi';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
     ?>

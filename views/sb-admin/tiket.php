@@ -4,7 +4,7 @@
 <head>
 <?php
     // <head> tulis tangan melewatkan components-modern.css (lapisan komponen bersama).
-    $pageTitle = 'RAF BOT - Ticket Management';
+    $pageTitle = 'RAF BOT - Manajemen Tiket';
     $pageDescription = 'RAF BOT Ticket Management';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
@@ -40,7 +40,7 @@
                     <div class="dashboard-header">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
-                                <h1>Ticket Management</h1>
+                                <h1>Manajemen Tiket</h1>
                                 <p>Kelola tiket laporan dan keluhan pelanggan</p>
                             </div>
                             <div>
