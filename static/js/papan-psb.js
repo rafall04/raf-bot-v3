@@ -138,15 +138,19 @@ function marketingCell(r) {
 function renderList(rows) {
     const tb = document.getElementById("papanBody");
     if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Belum ada data</td></tr>'; return; }
+    // `data-label` dipakai pola tumpuk di layar HP (static/css/tabel-hp.css): tiap baris
+    // jadi kartu berlabel supaya ke-8 kolom tetap terbaca di 375 px. Tabel ini dirakit
+    // sendiri (bukan DataTables), jadi labelnya ditulis di templat — WAJIB sama dengan
+    // <th> di papan-psb.php, dan dikunci tes.
     tb.innerHTML = rows.map((r) => `<tr>
-        <td><code>${esc(r.ref || r.id)}</code></td>
-        <td>${esc(r.name)}</td>
-        <td>${esc(r.dusun)}</td>
-        <td>${esc(r.paket)}</td>
-        <td>${statusBadge(r.status)}</td>
-        <td>${r.assigned_teknisi_name ? esc(r.assigned_teknisi_name) : '<span class="text-muted">—</span>'}</td>
-        <td>${marketingCell(r)}</td>
-        <td>${actionCell(r)}</td>
+        <td data-label="Ref"><code>${esc(r.ref || r.id)}</code></td>
+        <td data-label="Nama" class="tumpuk-judul">${esc(r.name)}</td>
+        <td data-label="Dusun">${esc(r.dusun)}</td>
+        <td data-label="Paket">${esc(r.paket)}</td>
+        <td data-label="Status">${statusBadge(r.status)}</td>
+        <td data-label="Teknisi">${r.assigned_teknisi_name ? esc(r.assigned_teknisi_name) : '<span class="text-muted">—</span>'}</td>
+        <td data-label="Marketing / Komisi">${marketingCell(r)}</td>
+        <td data-label="Aksi">${actionCell(r)}</td>
     </tr>`).join("");
 }
 

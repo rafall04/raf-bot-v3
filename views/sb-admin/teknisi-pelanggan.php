@@ -63,8 +63,8 @@
                             </div>
                         </div>
                         <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-sm" id="dataTable" width="100%" cellspacing="0">
+                            <div class="table-responsive tabel-tumpuk-hp-wrap">
+                                <table class="table table-bordered table-sm tabel-tumpuk-hp" id="dataTable" width="100%" cellspacing="0">
                                     <thead>
                                         <tr>
                                             <th>ID</th>

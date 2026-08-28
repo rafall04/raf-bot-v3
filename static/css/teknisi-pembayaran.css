@@ -111,3 +111,62 @@
             .price-highlight { font-size: 1.25rem; }
         }
     
+
+/* =====================================================================
+ * /teknisi-pembayaran di LAYAR HP (#b291).
+ *
+ * TERUKUR di 375 px: tabelnya 640 px (6 kolom) di wadah 321 px.
+ *
+ * !! Halaman ini pakai pola SEMBUNYI-KOLOM, bukan tumpuk-kartu seperti tiga halaman
+ * teknisi lainnya — dan itu SAH di sini karena halaman ini PUNYA modal detail per-baris
+ * (tombol mata -> showDetail). Diperiksa: modal itu memuat ID, Paket, Tagihan, dan Tgl,
+ * yaitu persis kolom yang disembunyikan. Kalau modal itu suatu saat dicabut, pola ini
+ * WAJIB diganti jadi tumpuk-kartu — kalau tidak, datanya benar-benar hilang.
+ *
+ * Kolom: 1 ID · 2 Pelanggan · 3 Paket · 4 Tgl Tagihan · 5 Status · 6 Aksi
+ * Disisakan: Pelanggan, Status, Aksi (Aksi memuat tombol mata menuju detail).
+ * ===================================================================== */
+
+@media (max-width: 640px) {
+    #paymentTable th:nth-child(1),
+    #paymentTable td:nth-child(1),
+    #paymentTable th:nth-child(3),
+    #paymentTable td:nth-child(3),
+    #paymentTable th:nth-child(4),
+    #paymentTable td:nth-child(4) {
+        display: none;
+    }
+
+    /* DataTables menanam lebar sebaris saat autoWidth. Lebar <th>/<td> memang berhasil
+       ditimpa dengan `auto`, TAPI elemen <table>-nya tetap 640 px — terukur. Dengan
+       `table-layout: fixed`, memaksa lebarnya 100% membuat kolom sisanya membagi lebar
+       wadah, bukan mempertahankan hitungan 6 kolom. */
+    #paymentTable th,
+    #paymentTable td {
+        width: auto !important;
+    }
+
+    #paymentTable {
+        table-layout: fixed;
+        width: 100% !important;
+        max-width: 100%;
+
+        /* !! AKAR sebenarnya: aturan lama `.table-payment { min-width: 640px }` (baris ~23)
+           memaksa tabelnya minimal 640 px — persis lebar yang terukur. `width` TIDAK BISA
+           menyusut di bawah `min-width`, jadi menambah override lebar saja tak akan pernah
+           berhasil. Di desktop aturan itu tetap berlaku (6 kolom memang butuh ruang);
+           di HP hanya 3 kolom yang tampil, jadi tak diperlukan. */
+        min-width: 0 !important;
+    }
+
+    #paymentTable td {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        vertical-align: middle;
+    }
+
+    /* Nama pelanggan adalah penanda baris. */
+    #paymentTable td:nth-child(2) {
+        font-weight: 600;
+    }
+}

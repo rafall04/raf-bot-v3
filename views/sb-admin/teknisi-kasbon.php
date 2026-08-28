@@ -136,8 +136,8 @@
                             <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-history"></i> Riwayat Kasbon</h6>
                         </div>
                         <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover" id="kasbonTable" width="100%">
+                            <div class="table-responsive tabel-tumpuk-hp-wrap">
+                                <table class="table table-bordered table-hover tabel-tumpuk-hp" id="kasbonTable" width="100%">
                                     <thead>
                                         <tr>
                                             <th>ID</th>

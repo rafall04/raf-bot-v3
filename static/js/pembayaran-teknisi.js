@@ -256,6 +256,18 @@
             }
           }
         ],
+        // Label tiap sel diambil dari HEADER-nya, dipakai pola tumpuk di layar HP
+        // (`td::before { content: attr(data-label) }`, lihat static/css/tabel-hp.css).
+        // Diambil dari header, BUKAN daftar nama tulis tangan — daftar begitu selalu
+        // ketinggalan begitu kolomnya berubah.
+        "createdRow": function (row) {
+            var thead = document.querySelectorAll("#dataTable thead th");
+            var sel = row.querySelectorAll("td");
+            for (var k = 0; k < sel.length && k < thead.length; k++) {
+                var judul = (thead[k].textContent || "").trim();
+                if (judul) sel[k].setAttribute("data-label", judul);
+            }
+        },
         order: [[2, 'desc']], 
         processing: true,
         drawCallback: function(settings) {

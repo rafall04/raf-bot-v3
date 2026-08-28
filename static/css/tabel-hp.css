@@ -1,0 +1,138 @@
+/*
+ * SATU pemilik pola "tabel ditumpuk jadi kartu di layar HP" (#b291).
+ *
+ * Dipakai halaman staf yang tabelnya lebih lebar dari layar HP. Pasang kelas
+ * `tabel-tumpuk-hp` pada elemen <table>, lalu muat berkas ini.
+ *
+ * !! KAPAN MEMAKAI POLA INI vs MENYEMBUNYIKAN KOLOM — jangan disamakan:
+ *   - Halaman punya MODAL DETAIL per-baris  → boleh SEMBUNYIKAN kolom (mis. Monitor OLT
+ *     #b286): datanya tidak hilang, tinggal diketuk, dan kolom tersembunyi tetap ikut
+ *     tercari lewat kotak Cari.
+ *   - Halaman TIDAK punya modal detail      → pakai POLA INI. Menyembunyikan kolom di sana
+ *     berarti datanya BENAR-BENAR HILANG (#b290).
+ *
+ * Tiap sel butuh atribut `data-label` (isinya judul kolom). Untuk tabel DataTables,
+ * stempel di `createdRow` dengan MEMBACA <thead> — jangan daftar nama tulis tangan, karena
+ * kolom bisa disembunyikan/ditampilkan saat runtime dan daftar tangan pasti ketinggalan.
+ * Untuk tabel yang dirakit sendiri lewat innerHTML, tulis `data-label` di templatnya.
+ *
+ * Token semantik saja — warna primitif tidak ikut membalik di mode gelap.
+ */
+
+@media (max-width: 640px) {
+    /* Header tak berguna lagi saat baris ditumpuk: labelnya pindah ke tiap sel. */
+    .tabel-tumpuk-hp thead {
+        display: none;
+    }
+
+    .tabel-tumpuk-hp,
+    .tabel-tumpuk-hp tbody,
+    .tabel-tumpuk-hp tr,
+    .tabel-tumpuk-hp td {
+        display: block;
+        width: auto !important;
+    }
+
+    /* Satu baris = satu kartu. */
+    .tabel-tumpuk-hp tr {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        margin-bottom: .6rem;
+        padding: .2rem .1rem;
+        background: var(--surface);
+    }
+
+    .tabel-tumpuk-hp td {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: .75rem;
+        border: 0;
+        border-bottom: 1px solid var(--line);
+        padding: .4rem .6rem;
+        text-align: right;
+        color: var(--ink);
+
+        /* !! Nilai sel adalah simpul teks POLOS, jadi ia menjadi "anonymous flex item" yang
+           TIDAK BISA diberi `min-width: 0`. Nilai panjang tanpa spasi (mis. Device ID
+           `D49E02-RAFNETNV3a-EQFLH7U22977`) akan memaksa selnya melebar melewati kartu —
+           terukur 1 dari 13 sel meluber, scrollWidth 421 vs 316. Membiarkan barisnya
+           membungkus adalah obatnya; `min-width` tidak bisa dipakai di sini. */
+        flex-wrap: wrap;
+        word-break: break-all;
+    }
+
+    .tabel-tumpuk-hp td:last-child {
+        border-bottom: 0;
+    }
+
+    /* Label kolom, diambil dari data-label. */
+    .tabel-tumpuk-hp td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--muted);
+        text-align: left;
+        flex: 0 0 auto;
+        max-width: 45%;
+        font-size: .78rem;
+    }
+
+    /* Sel tanpa label (mis. baris "tidak ada data") jangan menyisakan celah kosong. */
+    .tabel-tumpuk-hp td:not([data-label])::before {
+        content: "";
+        flex: 0;
+    }
+
+    /* Kolom pertama biasanya penanda kartu (nama/ref) — buat menonjol. */
+    .tabel-tumpuk-hp td.tumpuk-judul {
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    /* Grup tombol mengisi satu baris penuh; ARAH & LEBAR tombolnya tetap milik CSS
+       halaman masing-masing — jangan dilawan dari sini. */
+    .tabel-tumpuk-hp td .device-action-group,
+    .tabel-tumpuk-hp td .btn-group,
+    .tabel-tumpuk-hp td .aksi-group {
+        flex: 1 1 100%;
+        margin-top: .25rem;
+    }
+
+    /* !! Setelah tabelnya ditumpuk, yang meluber justru BILAH PAGINASI DataTables —
+       terukur 339 px di wadah 321 px, sementara tabelnya sendiri sudah pas 321.
+       (`overflow-x: visible` pada wadah TIDAK dipakai: spesifisitasnya sama dengan
+       `.table-responsive` Bootstrap dan kalah urutan sumber — memperbaiki paginasinya
+       adalah akar masalahnya, bukan menyembunyikan gejalanya.) */
+    .tabel-tumpuk-hp-wrap .dataTables_paginate,
+    .dataTables_wrapper:has(.tabel-tumpuk-hp) .dataTables_paginate {
+        float: none;
+        text-align: center;
+    }
+
+    .tabel-tumpuk-hp-wrap .pagination,
+    .dataTables_wrapper:has(.tabel-tumpuk-hp) .pagination {
+        flex-wrap: wrap;
+        justify-content: center;
+        margin: 0;
+    }
+
+    .tabel-tumpuk-hp-wrap .pagination .page-link,
+    .dataTables_wrapper:has(.tabel-tumpuk-hp) .pagination .page-link {
+        padding: .3rem .55rem;
+        font-size: .8rem;
+    }
+
+    /* Info "Showing 1 to N" ikut dirapikan supaya tak mendorong lebar. */
+    .tabel-tumpuk-hp-wrap .dataTables_info,
+    .dataTables_wrapper:has(.tabel-tumpuk-hp) .dataTables_info {
+        float: none;
+        text-align: center;
+        padding-top: .25rem;
+    }
+
+    /* "Tampilkan N" jarang dipakai di lapangan; kotak Cari yang penting. */
+    .tabel-tumpuk-hp-wrap .dataTables_length,
+    .dataTables_wrapper:has(.tabel-tumpuk-hp) .dataTables_length {
+        display: none;
+    }
+}

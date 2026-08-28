@@ -53,6 +53,11 @@ require_once __DIR__ . '/_asset.php';
 <?php endif; ?>
     <!-- Lapisan komponen bersama (Tahap 2 redesign) — dimuat PALING AKHIR di kedua peran -->
     <link href="<?= rafAssetUrl('/css/components-modern.css') ?>" rel="stylesheet">
+    <!-- Pola "tabel ditumpuk jadi kartu di layar HP" (#b291). INERT kecuali <table>
+         diberi kelas `tabel-tumpuk-hp`, jadi aman dimuat semua halaman. Dipakai halaman
+         staf yang tabelnya lebih lebar dari layar HP — teknisi memakainya di lapangan. -->
+    <link href="<?= rafAssetUrl('/css/tabel-hp.css') ?>" rel="stylesheet">
+
     <!-- Helper escaping bersama (rafEscapeHtml/rafEscapeJsString/rafText). Sengaja di <head>
          TANPA defer: skrip halaman boleh memanggilnya saat render pertama, dan berkasnya
          kecil serta tanpa dependensi. Menggantikan salinan `escapeHtml` berbasis

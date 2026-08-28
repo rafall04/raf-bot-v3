@@ -94,8 +94,8 @@
                             <div class="card shadow">
                                 <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Daftar PSB di Papan</h6></div>
                                 <div class="card-body">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-hover align-middle">
+                                    <div class="table-responsive tabel-tumpuk-hp-wrap">
+                                        <table class="table table-sm table-hover align-middle tabel-tumpuk-hp">
                                             <thead><tr><th>Ref</th><th>Nama</th><th>Dusun</th><th>Paket</th><th>Status</th><th>Teknisi</th><th>Marketing / Komisi</th><th>Aksi</th></tr></thead>
                                             <tbody id="papanBody"><tr><td colspan="8" class="text-center text-muted">Memuat…</td></tr></tbody>
                                         </table>
