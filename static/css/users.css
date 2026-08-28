@@ -254,31 +254,34 @@ body {
         }
         .select2-container--bootstrap .select2-selection--single .select2-selection__rendered { 
             line-height: 1.5 !important; 
-            color: #495057 !important;
-            color: #212529 !important;
+            color: var(--ink) !important;
+            color: var(--ink) !important;
         }
         .select2-container--bootstrap .select2-selection--single .select2-selection__rendered * {
-            color: #212529 !important;
+            color: var(--ink) !important;
         }
         .select2-container--bootstrap .select2-selection--single .select2-selection__placeholder {
-            color: #6c757d !important;
+            color: var(--muted) !important;
         }
-        /* Select2 Dropdown */
+        /* Select2 Dropdown — token SEMANTIK, bukan warna tetap.
+           Dulu #ffffff !important: panelnya tetap PUTIH PEKAT di atas halaman gelap, karena
+           !important mengalahkan override body.tk-dark di admin-theme.css:268 yang TANPA
+           !important. Terukur: dropdown luminansi 1,000 di atas body 0,004. Lihat #b294. */
         .select2-container--bootstrap .select2-dropdown {
-            background-color: #ffffff !important;
-            border: 1px solid #ced4da !important;
+            background-color: var(--surface) !important;
+            border: 1px solid var(--line) !important;
         }
         .select2-container--bootstrap .select2-results__option {
-            color: #212529 !important;
-            background-color: #ffffff !important;
+            color: var(--ink) !important;
+            background-color: var(--surface) !important;
         }
         .select2-container--bootstrap .select2-results__option--highlighted {
             background-color: #007bff !important;
             color: #ffffff !important;
         }
         .select2-container--bootstrap .select2-results__option[aria-selected="true"] {
-            background-color: #e7f3ff !important;
-            color: #212529 !important;
+            background-color: var(--surface-2) !important;
+            color: var(--ink) !important;
         }
         /* Select2 Search Input */
         .select2-container--bootstrap .select2-search--dropdown .select2-search__field {
@@ -291,7 +294,7 @@ body {
             color: inherit !important;
         }
         .select2-container--bootstrap .select2-selection--single .select2-selection__rendered {
-            color: #212529 !important;
+            color: var(--ink) !important;
         }
         .phone-number-item { margin-bottom: 0.5rem; }
         #edit-ssid-container .form-group, #edit-ssid-passwd-container .form-group { margin-bottom: 0.75rem; }

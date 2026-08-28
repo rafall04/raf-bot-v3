@@ -64,3 +64,11 @@ require_once __DIR__ . '/_asset.php';
          textContent yang tersebar di belasan berkas — pola itu meloloskan " dan ',
          sehingga nama ber-apostrof (Ma'ruf, Nur'aini) memutus handler inline. -->
     <script src="<?= rafAssetUrl('/js/html-escape.js') ?>"></script>
+
+    <!-- Bahasa Indonesia bersama untuk SEMUA tabel DataTables (#b294). Sengaja di <head>
+         TANPA defer: listener DOMContentLoaded-nya harus terdaftar SEBELUM jQuery dimuat,
+         supaya berjalan lebih dulu daripada $(document).ready() milik skrip halaman yang
+         menginisialisasi tabelnya. Terjemahannya di-host sendiri sebagai objek JS — versi
+         lama mem-fetch //cdn.datatables.net yang TIDAK ADA di CSP, jadi gagal senyap dan
+         tabelnya diam-diam berbahasa Inggris. -->
+    <script src="<?= rafAssetUrl('/js/datatables-bahasa.js') ?>"></script>

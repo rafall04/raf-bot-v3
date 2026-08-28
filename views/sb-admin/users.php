@@ -463,6 +463,19 @@ Header Doc
                                 <select name="connected_odp_id" id="create_connected_odp" class="form-control form-control-sm select2-odp" style="width: 100%;" disabled><option value="">-- Pilih ODC Dahulu --</option></select>
                             </div>
                             <div class="mb-3"><div class="form-check"><input type="checkbox" class="form-check-input" name="paid" id="create_paid"><label for="create_paid" class="form-check-label">Sudah membayar</label></div></div>
+                            <!-- Medan ini WAJIB satu modal dengan #create_paid. Sebelumnya ia berada di dalam
+                                 #editModal, sehingga users.js membacanya sebagai "" saat menambah pelanggan dan
+                                 menolak simpan dengan pesan "Metode Pembayaran Wajib Dipilih" — sementara medannya
+                                 tak ada di layar admin. Lihat boundary #b294. -->
+                            <div class="mb-3">
+                                <label for="create_payment_method" class="form-label">Metode Pembayaran Tercatat Saat Lunas</label>
+                                <select id="create_payment_method" name="payment_method" class="form-control form-control-sm">
+                                    <option value="">-- Pilih Metode --</option>
+                                    <option value="CASH">Tunai</option>
+                                    <option value="TRANSFER_BANK">Transfer Bank</option>
+                                </select>
+                                <small class="form-text text-muted">Wajib dipilih jika status pelanggan ditandai sudah membayar.</small>
+                            </div>
                             <div class="mb-3"><div class="form-check"><input type="checkbox" class="form-check-input" name="free_first_month" id="create_free_first_month"><label for="create_free_first_month" class="form-check-label">Bebaskan tagihan bulan ini (pelanggan baru &mdash; mulai bayar bulan depan)</label></div><small class="form-text text-muted">Bulan pendaftaran ditandai GRATIS (kebal isolir, tak dihitung pemasukan). Diabaikan bila &quot;Sudah membayar&quot; dicentang.</small></div>
                             <div class="mb-3"><div class="form-check"><input type="checkbox" class="form-check-input" name="send_invoice" id="create_send_invoice"><label for="create_send_invoice" class="form-check-label">Kirim Invoice PDF</label></div></div>
                             <div class="mb-3"><div class="form-check"><input type="checkbox" class="form-check-input" name="notify_outage" id="create_notify_outage" checked><label for="create_notify_outage" class="form-check-label">Terima info gangguan (GAMAS)</label></div></div>
@@ -618,15 +631,6 @@ Header Doc
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                                                <label for="create_payment_method" class="form-label">Metode Pembayaran Tercatat Saat Lunas</label>
-                            <select id="create_payment_method" name="payment_method" class="form-control form-control-sm">
-                                <option value="">-- Pilih Metode --</option>
-                                <option value="CASH">Tunai</option>
-                                <option value="TRANSFER_BANK">Transfer Bank</option>
-                            </select>
-                            <small class="form-text text-muted">Wajib dipilih jika status pelanggan ditandai sudah membayar.</small>
-                        </div>
                         <div class="col-md-6 mb-3">
                                                 <label for="edit_payment_method" class="form-label">Metode Pembayaran Tercatat Saat Lunas</label>
                             <select id="edit_payment_method" name="payment_method" class="form-control form-control-sm">

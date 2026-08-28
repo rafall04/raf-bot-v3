@@ -287,8 +287,7 @@ $(document).ready(function() {
         }
         $('#historyTable').DataTable({
             order: [[0, 'desc']],
-            pageLength: 10,
-            language: { url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Indonesian.json' }
+            pageLength: 10
         });
     }
 });

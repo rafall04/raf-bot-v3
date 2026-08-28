@@ -90,18 +90,7 @@
             if (!dataTable) {
                 dataTable = $('#activityLogsTable').DataTable({
                     order: [[0, 'desc']],
-                    pageLength: 25,
-                    language: {
-                        search: "Cari:",
-                        lengthMenu: "Tampilkan _MENU_ entries",
-                        info: "Menampilkan _START_ sampai _END_ dari _TOTAL_ entries",
-                        paginate: {
-                            first: "Pertama",
-                            last: "Terakhir",
-                            next: "Selanjutnya",
-                            previous: "Sebelumnya"
-                        }
-                    }
+                    pageLength: 25
                 });
             } else {
                 dataTable.clear().rows.add($('#activityLogsTable tbody tr')).draw();

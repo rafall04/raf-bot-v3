@@ -539,7 +539,6 @@ $(document).ready(function() {
 
         gajiTable = $('#gajiTable').DataTable({
             order: [[1, 'desc']],
-            language: { url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Indonesian.json' },
             pageLength: 25
         });
     }

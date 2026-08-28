@@ -113,10 +113,7 @@ function renderExpenseTable() {
 
     expenseTable = $('#expenseTable').DataTable({
         pageLength: 25,
-        order: [[0, 'desc']],
-        language: {
-            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/id.json'
-        }
+        order: [[0, 'desc']]
     });
 }
 

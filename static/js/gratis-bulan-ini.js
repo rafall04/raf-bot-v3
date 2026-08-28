@@ -54,12 +54,21 @@
 
   function rowHtml(u) {
     var actionable = isActionable(u);
-    var namaArg = esc(String(u.name || "")).replace(/'/g, "\\'");
     var cb = actionable
       ? '<input type="checkbox" class="row-check" value="' + esc(u.id) + '">'
       : '';
+    // !! JANGAN kembali ke onclick="gratiskan('...')". Nama dulu ditambal dengan
+    // `esc(nama).replace(/'/g, "\\'")` — dan itu TIDAK PERNAH cocok, karena esc() sudah
+    // lebih dulu mengubah ' jadi &#39;. Saat peramban mengurai atribut onclick, entitasnya
+    // dikembalikan jadi apostrof dan memecah string JS-nya: gratiskan('2','Ma'ruf',110000)
+    // -> SyntaxError, tombol diam tanpa pesan apa pun. Nama seperti Ma'ruf / Sa'diyah lazim
+    // di basis pelanggan ini. Data dibawa lewat atribut data-*, dipasang lewat delegasi klik
+    // di bawah, sehingga tak ada lagi nama yang masuk ke dalam kode. Lihat boundary #b294.
     var btn = actionable
-      ? '<button class="btn btn-sm btn-success" onclick="gratiskan(\'' + esc(u.id) + '\',\'' + namaArg + '\',' + Number(u.amount_due || 0) + ')">' +
+      ? '<button type="button" class="btn btn-sm btn-success btn-gratiskan"' +
+        ' data-id="' + esc(u.id) + '"' +
+        ' data-nama="' + esc(String(u.name || "")) + '"' +
+        ' data-amount="' + Number(u.amount_due || 0) + '">' +
         '<i class="fas fa-gift"></i> Gratiskan</button>'
       : '<span class="text-muted small">—</span>';
     return '' +
@@ -232,6 +241,12 @@
     // Delegasi: perbarui hitungan saat checkbox baris diklik.
     el("free-tbody").addEventListener("change", function (e) {
       if (e.target && e.target.classList.contains("row-check")) updateSelectedCount();
+    });
+    // Tombol Gratiskan dipasang lewat delegasi, bukan onclick sebaris — lihat catatan di rowHtml().
+    el("free-tbody").addEventListener("click", function (e) {
+      var btn = e.target && e.target.closest ? e.target.closest(".btn-gratiskan") : null;
+      if (!btn) return;
+      window.gratiskan(btn.dataset.id, btn.dataset.nama, Number(btn.dataset.amount || 0));
     });
   });
 })();

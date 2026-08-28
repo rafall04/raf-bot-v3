@@ -116,18 +116,7 @@
             if (!dataTable) {
                 dataTable = $('#loginLogsTable').DataTable({
                     order: [[1, 'desc']], // Order by timestamp column (2nd column)
-                    pageLength: 25,
-                    language: {
-                        search: "Cari:",
-                        lengthMenu: "Tampilkan _MENU_ entries",
-                        info: "Menampilkan _START_ sampai _END_ dari _TOTAL_ entries",
-                        paginate: {
-                            first: "Pertama",
-                            last: "Terakhir",
-                            next: "Selanjutnya",
-                            previous: "Sebelumnya"
-                        }
-                    }
+                    pageLength: 25
                 });
             } else {
                 dataTable.clear().rows.add($('#loginLogsTable tbody tr')).draw();

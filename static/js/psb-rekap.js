@@ -14,9 +14,6 @@
 
         function initializeTable() {
             psbTable = $('#psbTable').DataTable({
-                language: {
-                    url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/id.json'
-                },
                 order: [[8, 'desc']], // Sort by date descending
                 pageLength: 25,
                 responsive: true,
