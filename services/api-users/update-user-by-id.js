@@ -132,6 +132,14 @@ async function updateUserById(deps, { id, userData, actor, requestMeta }) {
             return;
         }
 
+        if (key === "billing_cycle") {
+            // Normalisasi: hanya 'akhir_bulan' yang diterima, selain itu 'awal_bulan' (standar).
+            draftUser.billing_cycle = String(userData[key] || "").trim().toLowerCase() === "akhir_bulan"
+                ? "akhir_bulan"
+                : "awal_bulan";
+            return;
+        }
+
         draftUser[key] = userData[key];
     });
 

@@ -32,7 +32,7 @@ const USER_INSERT_COLUMNS = [
     "bulk", "paid", "is_paid", "send_invoice", "notify_outage", "auto_isolir",
     "is_corporate", "corporate_name", "corporate_address", "corporate_npwp",
     "corporate_pic_name", "corporate_pic_phone", "corporate_pic_email",
-    "status", "account_type", "assigned_agen_id",
+    "status", "account_type", "billing_cycle", "assigned_agen_id",
     "email", "alternative_phone", "notes",
     "registration_date", "created_at", "updated_at"
 ];
@@ -273,7 +273,7 @@ function createApiUsersRepository(overrides = {}) {
                 "location_source", "location_updated_at", "pppoe_password",
                 "send_invoice", "is_corporate", "corporate_name", "corporate_address",
                 "corporate_npwp", "corporate_pic_name", "corporate_pic_phone",
-                "corporate_pic_email", "notify_outage", "account_type"
+                "corporate_pic_email", "notify_outage", "account_type", "billing_cycle"
             ];
 
             // TIGA kolom yang baru ditambahkan di atas, dan kenapa:

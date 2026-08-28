@@ -213,6 +213,7 @@ describe("insertUserRecord — ROUND-TRIP ke SQLite NYATA (anti bug 'kolom hilan
             created_at TEXT DEFAULT NULL, updated_at TEXT DEFAULT NULL,
             email TEXT, alternative_phone TEXT, notes TEXT,
             notify_outage INTEGER DEFAULT 1, account_type TEXT DEFAULT 'pelanggan',
+            billing_cycle TEXT DEFAULT 'awal_bulan',
             assigned_agen_id INTEGER
         )`;
 
@@ -287,6 +288,23 @@ describe("insertUserRecord — ROUND-TRIP ke SQLite NYATA (anti bug 'kolom hilan
         const row = await getRow(db, 50);
         expect(row.created_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
         expect(row.updated_at).toBeTruthy();
+        db.close();
+    });
+
+    test("billing_cycle BENAR persist (#b303) — insert 'akhir_bulan', lalu UPDATE ke 'awal_bulan'", async () => {
+        const db = await openDb(false);
+        // INSERT: kolom baru ikut terkirim (guard drift skip HANYA bila kolom tak ada — di sini ADA).
+        await repoFor(db).insertUserRecord({
+            id: 77, name: "Leny Mustiko Wati", subscription: "PAKET-110K",
+            billing_cycle: "akhir_bulan", created_at: "2026-08-29T00:00:00.000Z",
+        });
+        let row = await getRow(db, 77);
+        expect(row.billing_cycle).toBe("akhir_bulan"); // kalau ini gagal → fitur inert (nilai dibuang senyap)
+
+        // UPDATE: jalur edit admin bisa mengubah siklus kembali ke standar.
+        await repoFor(db).updateUserRecord({ id: 77, fields: ["billing_cycle"], draftUser: { billing_cycle: "awal_bulan" } });
+        row = await getRow(db, 77);
+        expect(row.billing_cycle).toBe("awal_bulan");
         db.close();
     });
 });

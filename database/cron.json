@@ -6,6 +6,8 @@
   "status_message_paid_notification": true,
   "schedule_unpaid_action": "0 0 12 * *",
   "status_schedule_unpaid_action": true,
+  "schedule_billing_akhir_bulan": "0 9 * * *",
+  "status_billing_akhir_bulan": true,
   "schedule_isolir_notification": "0 8 12 * *",
   "status_message_isolir_notification": true,
   "schedule_compensation_revert": "* * * * *",

@@ -59,6 +59,13 @@
   "tanggal_isolir": "12",
   "isolir_profile": "ISOLIR",
   "isolirFeatureEnabled": true,
+  "billingAkhirBulan": {
+    "_comment": "Siklus tagihan AKHIR BULAN, opt-in per pelanggan (users.billing_cycle='akhir_bulan'). enabled=false => fitur mati, pelanggan bertanda diperlakukan siklus biasa. reminderDaysBefore/graceDaysBefore/isolirDaysBefore dihitung dari tanggal TERAKHIR bulan (0=hari terakhir). Jadwal harian ada di database/cron.json (schedule_billing_akhir_bulan).",
+    "enabled": false,
+    "reminderDaysBefore": 5,
+    "graceDaysBefore": 2,
+    "isolirDaysBefore": 0
+  },
   "isolirManualEnabled": true,
   "isolirManualDefaultProfile": "ISOLIR",
   "isolirManualAllowCustomProfile": true,

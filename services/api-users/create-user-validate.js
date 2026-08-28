@@ -128,6 +128,8 @@ async function prepareNewUser(deps, { userData }) {
         notify_outage: userData.notify_outage === false ? false : true,
         // account_type: 'pelanggan' (default) | 'infrastruktur' (mis. modem CCTV/monitoring).
         account_type: String(userData.account_type || "").trim().toLowerCase() === "infrastruktur" ? "infrastruktur" : "pelanggan",
+        // billing_cycle: 'awal_bulan' (default) | 'akhir_bulan' (bayar & isolir menjelang akhir bulan).
+        billing_cycle: String(userData.billing_cycle || "").trim().toLowerCase() === "akhir_bulan" ? "akhir_bulan" : "awal_bulan",
         bulk: bulkData,
         username: finalUsername,
         password: finalPassword,
