@@ -75,6 +75,14 @@
         flex: 0 0 auto;
         max-width: 45%;
         font-size: .78rem;
+
+        /* !! Label MEWARISI `word-break: break-all` dari <td> — dan itu memotong kata
+           sungguhan di tengah: "Tunggakan Periode Acuan" tercetak "…Periode A / cuan".
+           Nilai selnya memang butuh break-all (Device ID panjang tanpa spasi), tapi
+           labelnya berisi kata biasa dan harus membungkus di spasi. `anywhere` tetap
+           menjaga label yang luar biasa panjang dari meluber. */
+        word-break: normal;
+        overflow-wrap: anywhere;
     }
 
     /* Sel tanpa label (mis. baris "tidak ada data") jangan menyisakan celah kosong. */
