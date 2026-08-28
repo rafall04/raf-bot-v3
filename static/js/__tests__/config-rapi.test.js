@@ -119,9 +119,16 @@ describe("#b292 — dua kolom hanya di layar lebar", () => {
         expect(lebar).toMatch(/form-group:has\(textarea\)/);
     });
 
-    test("dipasang pada pane padat saja", () => {
+    test("dipasang pada kartu yang memang padat medan", () => {
+        // Jumlahnya sengaja TIDAK dipatok angka tetap — kartu bisa bertambah/berkurang
+        // saat pengelompokan berubah. Yang dijaga: kelasnya dipakai, dan hanya pada
+        // card-body (bukan sembarang div).
         const src = baca(PHP);
-        expect((src.match(/cfg-grid/g) || []).length).toBe(6);
+        const pakai = (src.match(/cfg-grid/g) || []).length;
+        expect(pakai).toBeGreaterThanOrEqual(5);
+        for (const m of src.matchAll(/class="([^"]*cfg-grid[^"]*)"/g)) {
+            expect(m[1]).toContain("card-body");
+        }
     });
 });
 

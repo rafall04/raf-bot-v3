@@ -51,14 +51,16 @@
           <ul class="nav config-nav" id="configNav">
             <li><a class="nav-link active" data-pane="pane-mikrotik">MikroTik</a></li>
             <li><a class="nav-link" data-pane="pane-bot">Wifi &amp; Bot</a></li>
+            <li class="nav-item"><a class="nav-link" data-pane="pane-voucher">Voucher</a></li>
             <li><a class="nav-link" data-pane="pane-company">Identitas &amp; Kontak</a></li>
             <li><a class="nav-link" data-pane="pane-welcome">Pesan Selamat Datang</a></li>
             <li><a class="nav-link" data-pane="pane-psb">Intake PSB</a></li>
+            <li class="nav-item"><a class="nav-link" data-pane="pane-teknisi">Teknisi</a></li>
             <li><a class="nav-link" data-pane="pane-billing">Penagihan &amp; Isolir</a></li>
             <li><a class="nav-link" data-pane="pane-technical">Teknis</a></li>
             <li><a class="nav-link" data-pane="pane-payment">Pembayaran</a></li>
             <li><a class="nav-link" data-pane="pane-backup">Backup Telegram</a></li>
-            <li><a class="nav-link" data-pane="pane-olt">OLT</a></li>
+            <li><a class="nav-link" data-pane="pane-olt">OLT &amp; Redaman</a></li>
           </ul>
 
           <div id="configForm">
@@ -86,10 +88,39 @@
                   </tbody>
                 </table>
               </div>
-            </div>
+            
+                  
+                  
+                  </div>
           </div>
 
-          </div><!-- /#pane-mikrotik -->
+          
+          <div class="card shadow mb-4">
+            <div class="card-header py-3">
+              <h6>Setelan PPPoE &amp; Binding</h6>
+            </div>
+            <div class="card-body cfg-grid">
+<div class="mb-3">
+                    <label for="parentbinding" class="form-label">Parent Binding</label>
+                    <input type="text" class="form-control" id="parentbinding" name="parentbinding" />
+                  </div>
+<div class="mb-3">
+                    <label for="sync_to_mikrotik">Sinkronisasi ke MikroTik</label>
+                    <select class="form-control" id="sync_to_mikrotik" name="sync_to_mikrotik">
+                        <option value="true">Aktif</option>
+                        <option value="false">Nonaktif</option>
+                    </select>
+                    <small class="form-text text-muted">Jika Aktif, perubahan profil pelanggan di halaman user akan otomatis disinkronkan ke MikroTik. Jika Nonaktif, perubahan hanya tersimpan di sistem tanpa mempengaruhi data di MikroTik.</small>
+                  </div>
+<div class="mb-3">
+                    <label for="defaultPPPoEPassword" class="form-label">Password PPPoE Default</label>
+                    <input type="text" class="form-control" id="defaultPPPoEPassword" name="defaultPPPoEPassword" />
+                    <small class="form-text text-muted">Password default yang akan digunakan untuk PPPoE saat teknisi melakukan PSB (Pasang Baru) tanpa mengisi password secara manual. Jika kosong, sistem akan generate random password.</small>
+                  </div>
+              <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-mikrotik"><i class="fas fa-save"></i> Simpan Setelan MikroTik</button>
+            </div>
+          </div>
+        </div><!-- /#pane-mikrotik -->
 
           <div class="config-pane" id="pane-bot">
             <!-- Table Section -->
@@ -106,19 +137,9 @@
                     <label for="namabot" class="form-label">Nama Bot</label>
                     <input type="text" class="form-control" id="namabot" name="namabot" />
                   </div>
-                  <div class="mb-3">
-                    <label for="telfon" class="form-label">Nomor Telfon Kontak</label>
-                    <input type="text" class="form-control" id="telfon" name="telfon" />
-                  </div>
-                  <div class="mb-3">
-                    <label for="adminPhone" class="form-label">Nomor Admin WhatsApp</label>
-                    <input type="text" class="form-control" id="adminPhone" name="adminPhone" placeholder="089685645956" />
-                    <small class="form-text text-muted">Nomor WhatsApp admin yang akan digunakan di template pesan. Format: 08xxxx atau 628xxxx. Link WhatsApp akan otomatis dibuat dari nomor ini.</small>
-                  </div>
-                  <div class="mb-3">
-                    <label for="parentbinding" class="form-label">Parent Binding</label>
-                    <input type="text" class="form-control" id="parentbinding" name="parentbinding" />
-                  </div>
+                  
+                  
+                  
                   <div class="mb-3">
                     <label for="custom_wifi_modification">Mode Kustom Ganti WiFi</label>
                     <select class="form-control" id="custom_wifi_modification" name="custom_wifi_modification">
@@ -127,45 +148,17 @@
                     </select>
                     <small class="form-text text-muted">Jika Aktif, bot akan menawarkan pilihan SSID saat pelanggan (yang punya >1 SSID) ingin ganti nama/sandi. Jika Nonaktif, akan langsung mengubah semua SSID.</small>
                   </div>
-                  <div class="mb-3">
-                    <label for="sync_to_mikrotik">Sinkronisasi ke MikroTik</label>
-                    <select class="form-control" id="sync_to_mikrotik" name="sync_to_mikrotik">
-                        <option value="true">Aktif</option>
-                        <option value="false">Nonaktif</option>
-                    </select>
-                    <small class="form-text text-muted">Jika Aktif, perubahan profil pelanggan di halaman user akan otomatis disinkronkan ke MikroTik. Jika Nonaktif, perubahan hanya tersimpan di sistem tanpa mempengaruhi data di MikroTik.</small>
-                  </div>
+                  
                   <div class="mb-3">
                     <label for="whatsapp_message_delay" class="form-label">Delay Pesan WhatsApp (ms)</label>
                     <input type="number" class="form-control" id="whatsapp_message_delay" name="whatsapp_message_delay" min="500" max="5000" step="100" />
                     <small class="form-text text-muted">Jeda waktu (dalam milidetik) antara pengiriman pesan WhatsApp oleh cron jobs. Default: 2000ms (2 detik). Minimum: 500ms. Digunakan untuk mencegah spam dan rate limiting.</small>
                   </div>
-                  <div class="mb-3">
-                    <label for="defaultPPPoEPassword" class="form-label">Password PPPoE Default</label>
-                    <input type="text" class="form-control" id="defaultPPPoEPassword" name="defaultPPPoEPassword" />
-                    <small class="form-text text-muted">Password default yang akan digunakan untuk PPPoE saat teknisi melakukan PSB (Pasang Baru) tanpa mengisi password secara manual. Jika kosong, sistem akan generate random password.</small>
-                  </div>
+                  
               </div>
             </div>
 
-            <div class="card table-card mb-4">
-              <div class="card-header">
-                <h6>Panduan Pakai Voucher (Halaman Beli Publik)</h6>
-              </div>
-              <div class="card-body">
-                <p class="text-muted">Teks <b>"Cara pakai voucher"</b> yang tampil di halaman beli voucher publik setelah pembayaran berhasil. Kosongkan untuk memakai teks default.</p>
-                <div class="mb-3">
-                  <label for="voucherGuideSteps" class="form-label">Langkah Pakai Voucher</label>
-                  <textarea class="form-control" id="voucherGuideSteps" name="voucherGuideSteps" rows="5" placeholder="Sambungkan HP ke WiFi RAF NET / RAF NET 5G (disarankan RAF NET 5G agar lebih stabil).&#10;Buka browser — halaman login otomatis muncul.&#10;Masukkan kode voucher di atas, lalu tekan Connect."></textarea>
-                  <small class="form-text text-muted"><b>1 langkah per baris.</b> Boleh sebut nama WiFi spesifik &amp; rekomendasi (mis. "disarankan konek ke RAF NET 5G agar lebih stabil"). Kosong = pakai 3 langkah default.</small>
-                </div>
-                <div class="mb-3">
-                  <label for="voucherLoginUrl" class="form-label">URL Login Hotspot (opsional)</label>
-                  <input type="text" class="form-control" id="voucherLoginUrl" name="voucherLoginUrl" placeholder="http://192.168.88.1 atau http://login.rafnet.net" />
-                  <small class="form-text text-muted">Ditampilkan sebagai link "buka URL di browser" kalau halaman login tidak muncul otomatis. Kosong = tidak ditampilkan.</small>
-                </div>
-              </div>
-            </div>
+            
 
             <div class="d-flex justify-content-end mb-4">
               <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-bot"><i class="fas fa-save"></i> Simpan Wifi &amp; Bot</button>
@@ -204,7 +197,17 @@
                 <input type="text" class="form-control" id="company_website" name="company_website" placeholder="https://..." />
                 <small class="form-text text-muted">Alamat website utama, jika ada. Kosongkan bila tidak ada.</small>
               </div>
-            </div>
+            <div class="mb-3">
+                    <label for="telfon" class="form-label">Nomor Telfon Kontak</label>
+                    <input type="text" class="form-control" id="telfon" name="telfon" />
+                    <small class="form-text text-muted">Nomor WhatsApp <b>bot itu sendiri</b> — nomor yang dipakai bot untuk mengirim pesan. BUKAN nomor tujuan pelanggan menghubungi admin; itu <b>Nomor Admin WhatsApp</b> di bawah.</small>
+                  </div>
+                  <div class="mb-3">
+                    <label for="adminPhone" class="form-label">Nomor Admin WhatsApp</label>
+                    <input type="text" class="form-control" id="adminPhone" name="adminPhone" placeholder="089685645956" />
+                    <small class="form-text text-muted">Nomor WhatsApp admin yang akan digunakan di template pesan. Format: 08xxxx atau 628xxxx. Link WhatsApp akan otomatis dibuat dari nomor ini.</small>
+                  </div>
+                  </div>
           </div>
           <div class="d-flex justify-content-end mb-4">
             <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-company"><i class="fas fa-save"></i> Simpan Identitas &amp; Kontak</button>
@@ -295,9 +298,20 @@
                   <small class="form-text text-muted">Jika <b>Aktif</b>, setiap pelanggan PSB baru otomatis <b>dibebaskan tagihan bulan pemasangan</b>: periode ini dihitung lunas (kebal isolir) <b>tanpa masuk pemasukan</b>, dan pelanggan mulai bayar <b>bulan depan</b>. Hanya berlaku untuk paket bertagihan. Untuk pelanggan yang <b>sudah terlanjur</b> terpasang, pakai halaman <b>Pembayaran → Gratis Bulan Ini</b>.</small>
                 </div>
 
-                <hr>
-                <h6 class="mb-2 cfg-subjudul">Notifikasi Perbaikan &amp; Tutorial Teknisi</h6>
-                <div class="mb-3">
+                
+            </div>
+          </div>
+          <div class="d-flex justify-content-end mb-4">
+            <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-psb"><i class="fas fa-save"></i> Simpan Intake PSB</button>
+          </div>
+          </div>
+        <div class="config-pane" id="pane-teknisi">
+          <div class="card shadow mb-4">
+            <div class="card-header py-3">
+              <h6>Notifikasi &amp; Panduan Teknisi</h6>
+            </div>
+            <div class="card-body cfg-grid">
+<div class="mb-3">
                   <label for="repairNotifEnabled">Notif Perbaikan ke Grup</label>
                   <select class="form-control" id="repairNotifEnabled" name="repairNotifEnabled">
                       <option value="false">Nonaktif</option>
@@ -320,12 +334,32 @@
                   <input type="text" class="form-control" id="teknisiTutorialUrl" name="teknisiTutorialUrl" placeholder="https://…" />
                   <small class="form-text text-muted">Link halaman panduan bergambar. Dikirim bot saat teknisi ketik <code>panduan teknisi</code> / <code>tutorial teknisi</code>.</small>
                 </div>
+              <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-teknisi"><i class="fas fa-save"></i> Simpan Teknisi</button>
             </div>
           </div>
-          <div class="d-flex justify-content-end mb-4">
-            <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-psb"><i class="fas fa-save"></i> Simpan Intake PSB</button>
-          </div>
-          </div><!-- /#pane-psb -->
+        </div>
+        <div class="config-pane" id="pane-voucher">
+<div class="card table-card mb-4">
+              <div class="card-header">
+                <h6>Panduan Pakai Voucher (Halaman Beli Publik)</h6>
+              </div>
+              <div class="card-body">
+                <p class="text-muted">Teks <b>"Cara pakai voucher"</b> yang tampil di halaman beli voucher publik setelah pembayaran berhasil. Kosongkan untuk memakai teks default.</p>
+                <div class="mb-3">
+                  <label for="voucherGuideSteps" class="form-label">Langkah Pakai Voucher</label>
+                  <textarea class="form-control" id="voucherGuideSteps" name="voucherGuideSteps" rows="5" placeholder="Sambungkan HP ke WiFi RAF NET / RAF NET 5G (disarankan RAF NET 5G agar lebih stabil).&#10;Buka browser — halaman login otomatis muncul.&#10;Masukkan kode voucher di atas, lalu tekan Connect."></textarea>
+                  <small class="form-text text-muted"><b>1 langkah per baris.</b> Boleh sebut nama WiFi spesifik &amp; rekomendasi (mis. "disarankan konek ke RAF NET 5G agar lebih stabil"). Kosong = pakai 3 langkah default.</small>
+                </div>
+                <div class="mb-3">
+                  <label for="voucherLoginUrl" class="form-label">URL Login Hotspot (opsional)</label>
+                  <input type="text" class="form-control" id="voucherLoginUrl" name="voucherLoginUrl" placeholder="http://192.168.88.1 atau http://login.rafnet.net" />
+                  <small class="form-text text-muted">Ditampilkan sebagai link "buka URL di browser" kalau halaman login tidak muncul otomatis. Kosong = tidak ditampilkan.</small>
+                </div>
+              </div>
+            </div>
+        
+          <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-voucher"><i class="fas fa-save"></i> Simpan Panduan Voucher</button>
+        </div><!-- /#pane-psb -->
 
           <div class="config-pane" id="pane-billing">
             <!-- Table Section -->
@@ -521,38 +555,15 @@
                     </select>
                   </div>
                   <div class="mb-3">
-                    <label for="accessLimit" class="form-label">Maksimal akses</label>
+                    <label for="accessLimit" class="form-label">Maksimal Nomor HP per Pelanggan</label>
                     <input type="number" class="form-control" id="accessLimit" name="accessLimit" />
+                    <small class="form-text text-muted">Maksimal berapa <b>nomor HP</b> yang boleh didaftarkan untuk SATU pelanggan. Bawaan 3.</small>
                   </div>
-                  <div class="mb-3">
-                    <label for="rx_tolerance">Toleransi Redaman</label>
-                    <input type="number" class="form-control" id="rx_tolerance" name="rx_tolerance" />
-                    <small class="form-text text-muted">Redaman lebih buruk dari angka ini memicu alert. Contoh: -26.</small>
-                  </div>
+                  
 
-                  <div class="mb-3">
-                    <label for="redamanAlertEnabled">Alert Redaman</label>
-                    <select class="form-control" id="redamanAlertEnabled" name="redamanAlertEnabled">
-                      <option value="true">Aktif</option>
-                      <option value="false">Matikan (tidak mengirim ke siapa pun)</option>
-                    </select>
-                  </div>
+                  
 
-                  <div class="mb-3">
-                    <label for="redamanAlertRoles">Penerima Alert Redaman (peran)</label>
-                    <select class="form-control" id="redamanAlertRoles" name="redamanAlertRoles" multiple size="4">
-                      <option value="admin">Admin</option>
-                      <option value="owner">Owner</option>
-                      <option value="superadmin">Superadmin</option>
-                      <option value="teknisi">Teknisi</option>
-                    </select>
-                    <small class="form-text text-muted">
-                      Tahan Ctrl (atau Cmd) untuk memilih lebih dari satu. Pilih <b>Teknisi saja</b>
-                      bila alert redaman tak perlu sampai ke admin. Kalau tak ada satu pun dipilih,
-                      alert hanya dikirim ke Nomor Tambahan di bawah — kosongkan keduanya berarti
-                      tak ada yang menerima.
-                    </small>
-                  </div>
+                  
 
                   <div class="mb-3">
                     <label for="redamanAlertExtraNumbers">Nomor Tambahan Alert Redaman</label>
@@ -811,7 +822,11 @@
                 
                 <div class="mb-3">
                   <label for="oltEnabled" class="form-label">Status OLT</label>
-                  <select class="form-control" id="oltEnabled" name="oltEnabled">
+                    <!-- Sengaja TANPA name=: medan ini disimpan tombol "Simpan Pengaturan OLT"
+                         lewat getElementById ke /api/olt/config (jadi config.olt.*), BUKAN lewat
+                         collectPaneData. Kalau diberi name=, tombol "Simpan Alert Redaman" di pane
+                         yang sama ikut mengirimnya ke /api/config dan menulis kunci liar. -->
+                  <select class="form-control" id="oltEnabled">
                     <option value="true">Aktif</option>
                     <option value="false">Nonaktif</option>
                   </select>
@@ -828,7 +843,11 @@
                 
                 <div class="mb-3">
                   <label for="oltWebEnabled" class="form-label">Aktifkan Deteksi LOS/Dying Gasp</label>
-                  <select class="form-control" id="oltWebEnabled" name="oltWebEnabled">
+                    <!-- Sengaja TANPA name=: medan ini disimpan tombol "Simpan Pengaturan OLT"
+                         lewat getElementById ke /api/olt/config (jadi config.olt.*), BUKAN lewat
+                         collectPaneData. Kalau diberi name=, tombol "Simpan Alert Redaman" di pane
+                         yang sama ikut mengirimnya ke /api/config dan menulis kunci liar. -->
+                  <select class="form-control" id="oltWebEnabled">
                     <option value="false">Nonaktif</option>
                     <option value="true">Aktif</option>
                   </select>
@@ -876,7 +895,10 @@
                     <i class="fas fa-save"></i> Simpan Pengaturan Global
                   </button>
                 </div>
-              </div>
+              
+                  
+                  
+                  </div>
             </div>
             
             <!-- OLT Devices List -->
@@ -910,7 +932,43 @@
               </div>
             </div>
 
-          </div><!-- /#pane-olt -->
+          
+          <div class="card shadow mb-4">
+            <div class="card-header py-3">
+              <h6>Alert Redaman</h6>
+            </div>
+            <div class="card-body cfg-grid">
+<div class="mb-3">
+                    <label for="rx_tolerance">Toleransi Redaman</label>
+                    <input type="number" class="form-control" id="rx_tolerance" name="rx_tolerance" />
+                    <small class="form-text text-muted">Redaman lebih buruk dari angka ini memicu alert. Contoh: -26.</small>
+                  </div>
+<div class="mb-3">
+                    <label for="redamanAlertEnabled">Alert Redaman</label>
+                    <select class="form-control" id="redamanAlertEnabled" name="redamanAlertEnabled">
+                      <option value="true">Aktif</option>
+                      <option value="false">Matikan (tidak mengirim ke siapa pun)</option>
+                    </select>
+                  </div>
+<div class="mb-3">
+                    <label for="redamanAlertRoles">Penerima Alert Redaman (peran)</label>
+                    <select class="form-control" id="redamanAlertRoles" name="redamanAlertRoles" multiple size="4">
+                      <option value="admin">Admin</option>
+                      <option value="owner">Owner</option>
+                      <option value="superadmin">Superadmin</option>
+                      <option value="teknisi">Teknisi</option>
+                    </select>
+                    <small class="form-text text-muted">
+                      Tahan Ctrl (atau Cmd) untuk memilih lebih dari satu. Pilih <b>Teknisi saja</b>
+                      bila alert redaman tak perlu sampai ke admin. Kalau tak ada satu pun dipilih,
+                      alert hanya dikirim ke Nomor Tambahan di bawah — kosongkan keduanya berarti
+                      tak ada yang menerima.
+                    </small>
+                  </div>
+              <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-olt"><i class="fas fa-save"></i> Simpan Alert Redaman</button>
+            </div>
+          </div>
+        </div><!-- /#pane-olt -->
           </div><!-- /#configForm -->
         </div>
         <!-- /.container-fluid -->
