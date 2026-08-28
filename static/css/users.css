@@ -89,14 +89,22 @@ body {
                 margin-bottom: 1rem;
             }
             
+            /* DUA tombol per baris, bukan satu kolom menurun. TERUKUR: 9 tombol selebar
+               layar memakan 519px, daftar pelanggan baru muncul di y=1274.
+               !! WAJIB di sini, bukan cuma di dashboard-modern.css: users.css dimuat
+               SETELAH lapisan bersama, jadi aturan halaman ini yang menang. Menaruh
+               perbaikan hanya di lapisan bersama = aturan tampak benar tapi tak kena. */
             .header-buttons {
-                flex-direction: column;
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
                 width: 100%;
                 gap: 0.75rem;
             }
             
             .header-buttons .btn {
                 width: 100%;
+                white-space: normal;
+                text-align: center;
                 margin-right: 0 !important;
                 padding: 0.625rem 1rem;
                 font-size: 0.95rem;

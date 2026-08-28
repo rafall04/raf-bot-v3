@@ -56,7 +56,7 @@ function buildSummaryCards(summary) {
 
     return cards.map((card) => `
         <div class="col-lg col-md-6 mb-3">
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card shadow-sm border-0 h-100 kartu-statistik">
                 <div class="card-body">
                     <div class="text-xs text-uppercase text-muted mb-1">${card.label}</div>
                     <div class="h5 mb-0 font-weight-bold text-gray-800">${card.value}</div>
@@ -136,10 +136,10 @@ function renderManagerialSummary(summary, rows) {
 
     return `
         <div class="row mb-3">
-            <div class="col-md-3 mb-3"><div class="card shadow-sm border-0"><div class="card-body"><div class="text-xs text-uppercase text-muted mb-1">Total Pelanggan Menunggak</div><div class="h5 mb-0 font-weight-bold">${summary.total_customers_in_arrears || 0}</div></div></div></div>
-            <div class="col-md-3 mb-3"><div class="card shadow-sm border-0"><div class="card-body"><div class="text-xs text-uppercase text-muted mb-1">Total Outstanding</div><div class="h5 mb-0 font-weight-bold">${formatCurrency(summary.total_outstanding || 0)}</div></div></div></div>
-            <div class="col-md-3 mb-3"><div class="card shadow-sm border-0"><div class="card-body"><div class="text-xs text-uppercase text-muted mb-1">Collection Rate Customer</div><div class="h5 mb-0 font-weight-bold">${collectionByCustomer}</div></div></div></div>
-            <div class="col-md-3 mb-3"><div class="card shadow-sm border-0"><div class="card-body"><div class="text-xs text-uppercase text-muted mb-1">Collection Rate Amount</div><div class="h5 mb-0 font-weight-bold">${collectionByAmount}</div></div></div></div>
+            <div class="col-md-3 mb-3"><div class="card shadow-sm border-0 kartu-statistik"><div class="card-body"><div class="text-xs text-uppercase text-muted mb-1">Total Pelanggan Menunggak</div><div class="h5 mb-0 font-weight-bold">${summary.total_customers_in_arrears || 0}</div></div></div></div>
+            <div class="col-md-3 mb-3"><div class="card shadow-sm border-0 kartu-statistik"><div class="card-body"><div class="text-xs text-uppercase text-muted mb-1">Total Outstanding</div><div class="h5 mb-0 font-weight-bold">${formatCurrency(summary.total_outstanding || 0)}</div></div></div></div>
+            <div class="col-md-3 mb-3"><div class="card shadow-sm border-0 kartu-statistik"><div class="card-body"><div class="text-xs text-uppercase text-muted mb-1">Collection Rate Customer</div><div class="h5 mb-0 font-weight-bold">${collectionByCustomer}</div></div></div></div>
+            <div class="col-md-3 mb-3"><div class="card shadow-sm border-0 kartu-statistik"><div class="card-body"><div class="text-xs text-uppercase text-muted mb-1">Collection Rate Amount</div><div class="h5 mb-0 font-weight-bold">${collectionByAmount}</div></div></div></div>
         </div>
         <div class="card shadow-sm border-0">
             <div class="card-header bg-white"><strong>Top Outstanding Customer</strong></div>

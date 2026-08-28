@@ -326,3 +326,12 @@
     position: relative;
     min-height: 9rem;
 }
+
+/* Di ponsel minmax(11rem) memaksa grid jatuh ke SATU kolom: dua kolom butuh
+   2x176+11 = 363px sedangkan isi hanya ~340px. Terukur, blok statistik ini
+   memakan 370px sebelum tabelnya. 9,5rem (152px) muat dua kolom. */
+@media (max-width: 575.98px) {
+    .ku-stats {
+        grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    }
+}

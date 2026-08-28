@@ -511,4 +511,46 @@ body { color: var(--ink); }
     #wrapper .card { margin-bottom: 1rem; }
     #wrapper .card > .card-header { padding: .75rem var(--card-pad); }
     #wrapper .page-header { margin-bottom: 1.25rem; }
+
+    /* ---- Kartu statistik: DUA per baris, bukan satu ----
+       TERUKUR: penyebab utama isi terdorong ke bawah lipatan ternyata BUKAN tombol,
+       melainkan baris kartu statistik yang jatuh jadi satu-per-baris di ponsel:
+           /rekap-keuangan  ~2.800px kartu statistik sebelum tabelnya (4,8 layar)
+           /rekap-tunggakan   858px (7 kartu)   /payment-status  588px (4 kartu)
+           /wifi-logs         523px (4 kartu)   /pengeluaran     491px (4 kartu)
+       Isinya cuma label pendek + satu angka, jadi 165px per kartu cukup dan tingginya
+       jadi separuh.
+
+       Memakai :has() supaya yang dikecilkan HANYA kolom yang benar-benar membungkus
+       kartu statistik. Kelas kolomnya (`col-md-6`, `col-lg-3`) dipakai juga oleh medan
+       formulir di halaman yang sama — menyasar kelas kolom secara buta akan merusak
+       tata letak formulirnya. Kelas kartunya sendiri tidak seragam antar halaman
+       (stats-card / summary-card / dashboard-card / tk-stat / olt-stats-card), jadi
+       semuanya didaftar di sini, di SATU tempat.
+
+       Peramban tanpa :has() (Chrome <105) mengabaikan seluruh aturan ini dan tetap
+       mendapat tata letak lama — memburuk, tidak rusak. */
+    #wrapper .row > [class*="col-"]:has(> .stats-card),
+    #wrapper .row > [class*="col-"]:has(> .summary-card),
+    #wrapper .row > [class*="col-"]:has(> .olt-stats-card),
+    #wrapper .row > [class*="col-"]:has(> .tk-stat),
+    #wrapper .row > [class*="col-"]:has(> .dashboard-card.card-primary),
+    #wrapper .row > [class*="col-"]:has(> .dashboard-card.card-success),
+    #wrapper .row > [class*="col-"]:has(> .dashboard-card.card-warning),
+    #wrapper .row > [class*="col-"]:has(> .dashboard-card.card-danger),
+    /* Kelas eksplisit untuk kartu yang dirakit di JS dengan kelas Bootstrap generik
+       (`card shadow-sm border-0`) — terlalu umum untuk dijadikan pengait :has()
+       tanpa ikut menyasar kartu lain. Dipakai /rekap-tunggakan. */
+    #wrapper .row > [class*="col-"]:has(> .kartu-statistik),
+    #wrapper .row > [class*="col-"]:has(> .dashboard-card.card-info) {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+
+    /* Angka besar ikut dikecilkan — di lebar 165px angka rupiah 9 digit meluber
+       kalau tetap memakai skala desktop. */
+    #wrapper .stats-card .h5,
+    #wrapper .stats-card h5,
+    #wrapper .summary-value,
+    #wrapper .dashboard-card .card-value { font-size: 1.05rem; }
 }

@@ -80,12 +80,12 @@ Header Doc
                                     <label for="odpFilterDropdown" class="form-label">Filter ODP</label>
                                     <select id="odpFilterDropdown" class="form-control form-control-sm" style="width: 100%;"></select>
                                 </div>
-                                <div class="col-md-3 d-flex align-items-end mb-3">
+                                <div class="col-6 col-md-3 d-flex align-items-end mb-3">
                                     <button id="applyUserFilters" class="btn btn-primary-custom btn-sm w-100">
                                         <i class="fas fa-filter"></i> Terapkan Filter
                                     </button>
                                 </div>
-                                <div class="col-md-3 d-flex align-items-end mb-3">
+                                <div class="col-6 col-md-3 d-flex align-items-end mb-3">
                                     <button id="clearUserFilters" class="btn btn-outline-secondary btn-sm w-100" style="border-radius: 6px;">
                                         <i class="fas fa-times"></i> Bersihkan Filter
                                     </button>

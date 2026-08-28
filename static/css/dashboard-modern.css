@@ -536,10 +536,29 @@ body {
         gap: 0.65rem;
     }
 
+    /* DUA tombol per baris, bukan satu.
+       TERUKUR di /users: 9 tombol selebar layar bertumpuk menurun memakan 519px —
+       daftar pelanggannya baru muncul di y=1274 (1,6 layar harus digulir dulu).
+       Dua kolom memotongnya jadi ~5 baris.
+
+       Sengaja TIDAK disembunyikan di balik menu "lainnya": itu memindahkan masalah
+       jadi isi tersembunyi di balik afordansi yang tak terlihat — persis kesalahan
+       yang baru diperbaiki pada tabel (#b295/#b296). Semua tombol tetap terlihat. */
+    .header-buttons,
+    .action-buttons {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: stretch;
+    }
+
     .header-buttons .btn,
     .action-buttons .btn {
         width: 100%;
         justify-content: center;
+        /* Label panjang ("Sync Profil ke MikroTik") membungkus, bukan meluber keluar
+           kolomnya — `minmax(0, 1fr)` di atas yang membuat penyusutan ini mungkin. */
+        white-space: normal;
+        text-align: center;
     }
 
     .filter-section {

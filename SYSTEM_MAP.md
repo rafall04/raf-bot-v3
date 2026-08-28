@@ -400,6 +400,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-28 (Gelombang 1 audit panel admin — dua bug fungsional + bahasa tabel jadi satu sumber)](docs/boundary-log.md#b294)
 - [Fix 2026-08-28 (Gel. 2 audit panel — 25 tabel ditumpuk jadi kartu di HP, stempel label jadi satu owner)](docs/boundary-log.md#b295)
 - [Fix 2026-08-28 (Gel. 3 audit panel — 12 tabel terakhir ikut ditumpuk; klasifikasi 'boleh sembunyi kolom' dibatalkan)](docs/boundary-log.md#b296)
+- [Fix 2026-08-28 (Gel. 4 audit panel — isi tak lagi terdorong jauh di bawah lipatan di ponsel)](docs/boundary-log.md#b297)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
