@@ -79,7 +79,7 @@
                     <div class="card shadow mb-4">
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-bordered table-hover" id="kasbonTable" width="100%">
+                                <table class="table table-bordered table-hover tabel-tumpuk-hp" id="kasbonTable" width="100%">
                                     <thead>
                                         <tr>
                                             <th>ID</th>

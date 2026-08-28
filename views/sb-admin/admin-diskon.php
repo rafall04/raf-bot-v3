@@ -102,7 +102,7 @@
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-bordered table-hover" id="discountTable" width="100%">
+                                <table class="table table-bordered table-hover tabel-tumpuk-hp" id="discountTable" width="100%">
                                     <thead>
                                         <tr>
                                             <th>ID</th>

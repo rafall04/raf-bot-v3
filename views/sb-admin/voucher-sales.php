@@ -59,7 +59,7 @@
                                 <div class="card-header"><i class="fas fa-history mr-2 text-primary"></i>Penjualan Terbaru</div>
                                 <div class="card-body p-0">
                                     <div class="table-responsive">
-                                        <table class="table mb-0">
+                                        <table class="table mb-0 tabel-tumpuk-hp">
                                             <thead>
                                                 <tr><th>Waktu</th><th>Paket</th><th>Nominal</th><th>Sumber</th><th>Kode</th><th>Aksi</th></tr>
                                             </thead>

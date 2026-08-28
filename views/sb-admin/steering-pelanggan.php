@@ -70,7 +70,7 @@
             </div>
             <div class="card-body p-0">
               <div class="table-responsive">
-                <table class="table table-sm table-hover mb-0" style="font-size:.85rem">
+                <table class="table table-sm table-hover mb-0 tabel-tumpuk-hp" style="font-size:.85rem">
                   <thead><tr>
                     <th>Pelanggan</th><th>Paket</th><th>IP</th>
                     <th>Jalur sekarang</th><th>Sumber</th><th style="min-width:190px">Arahkan</th>

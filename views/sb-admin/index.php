@@ -601,7 +601,7 @@ if ($monitoringEnabled) {
                                     <div class="small text-muted font-weight-bold" id="recentLoginLogsMeta">Loading...</div>
                                 </div>
                                 <div class="table-responsive login-history-table-wrap">
-                                    <table class="table table-sm table-hover login-history-table" id="recentLoginLogsTable">
+                                    <table class="table table-sm table-hover login-history-table tabel-tumpuk-hp" id="recentLoginLogsTable">
                                         <thead>
                                             <tr>
                                                 <th>Action</th>

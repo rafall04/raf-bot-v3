@@ -118,7 +118,7 @@
           <div class="ao-card mt-4">
             <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-dark">State Pelanggan</h6></div>
             <div class="card-body table-responsive">
-              <table class="table table-bordered ao-table" id="statesTable">
+              <table class="table table-bordered ao-table tabel-tumpuk-hp" id="statesTable">
                 <thead><tr><th>Status</th><th>User ID</th><th>PPPoE</th><th>Router</th><th>Offline Since</th><th>Last Logout</th><th>Broadcast</th><th>Reason</th></tr></thead>
                 <tbody></tbody>
               </table>

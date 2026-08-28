@@ -206,7 +206,7 @@
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-bordered table-sm" id="logsTable" width="100%" cellspacing="0">
+                                <table class="table table-bordered table-sm tabel-tumpuk-hp" id="logsTable" width="100%" cellspacing="0">
                                     <thead>
                                         <tr>
                                             <th>Waktu</th>

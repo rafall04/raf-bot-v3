@@ -123,7 +123,7 @@
           <div class="dashboard-card" style="height: auto;">
             <div class="card-body">
               <div class="table-responsive">
-                <table class="table table-sm table-bordered" id="history-table" style="width:100%">
+                <table class="table table-sm table-bordered tabel-tumpuk-hp" id="history-table" style="width:100%">
                   <thead>
                     <tr>
                       <th>Waktu</th>

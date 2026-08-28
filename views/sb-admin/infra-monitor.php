@@ -94,7 +94,7 @@ SideEffects: Polling backend OLT (read-only) untuk merefresh tampilan; tidak men
                                 </select>
                             </div>
                             <div class="table-responsive">
-                                <table class="table table-bordered table-sm" width="100%" cellspacing="0">
+                                <table class="table table-bordered table-sm tabel-tumpuk-hp" width="100%" cellspacing="0">
                                     <thead>
                                         <tr>
                                             <th>Nama / Lokasi</th>

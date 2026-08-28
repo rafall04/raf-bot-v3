@@ -109,7 +109,7 @@
             </div>
             <div class="card-body">
               <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="entryTable" width="100%" cellspacing="0">
+                <table class="table table-bordered table-hover tabel-tumpuk-hp" id="entryTable" width="100%" cellspacing="0">
                   <thead>
                     <tr>
                       <th>Tanggal</th>

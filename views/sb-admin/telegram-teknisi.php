@@ -89,7 +89,7 @@
                 <button type="submit" class="btn btn-success mb-2"><i class="fas fa-plus"></i> Tambah</button>
               </form>
               <div class="table-responsive">
-                <table class="table table-bordered tg-table" id="waTable">
+                <table class="table table-bordered tg-table tabel-tumpuk-hp" id="waTable">
                   <thead><tr><th>chat_id</th><th>Nama</th><th>Ditambah oleh</th><th>Waktu</th><th>Status</th><th>Aksi</th></tr></thead>
                   <tbody></tbody>
                 </table>

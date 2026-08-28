@@ -260,7 +260,7 @@
               </select>
             </div>
             <div class="card-body table-responsive">
-              <table class="table table-bordered los-table" id="incidentsTable">
+              <table class="table table-bordered los-table tabel-tumpuk-hp" id="incidentsTable">
                 <thead><tr><th>Terdeteksi</th><th>Status</th><th>MAC</th><th>Slot/ONU</th><th>OLT</th><th>Pelanggan</th><th>Conf</th><th>Area?</th><th>Terkirim</th><th>Notif Pelanggan</th></tr></thead>
                 <tbody></tbody>
               </table>

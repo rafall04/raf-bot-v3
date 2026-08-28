@@ -134,7 +134,7 @@
             </div>
 
             <div class="ku-tabel-bungkus">
-              <table class="ku-tabel">
+              <table class="ku-tabel tabel-tumpuk-hp">
                 <thead>
                   <tr>
                     <th>Nama</th><th class="ku-angka">Perkiraan</th><th>Kategori</th>

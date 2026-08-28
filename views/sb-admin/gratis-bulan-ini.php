@@ -75,7 +75,7 @@
           <div class="dashboard-card">
             <div class="card-body p-0">
               <div class="table-responsive">
-                <table class="table table-hover mb-0" id="free-table">
+                <table class="table table-hover mb-0 tabel-tumpuk-hp" id="free-table">
                   <thead>
                     <tr>
                       <th style="width: 36px;"><input type="checkbox" id="select-all" title="Pilih semua"></th>

@@ -72,3 +72,9 @@ require_once __DIR__ . '/_asset.php';
          lama mem-fetch //cdn.datatables.net yang TIDAK ADA di CSP, jadi gagal senyap dan
          tabelnya diam-diam berbahasa Inggris. -->
     <script src="<?= rafAssetUrl('/js/datatables-bahasa.js') ?>"></script>
+
+    <!-- Stempel `data-label` otomatis untuk tabel ber-kelas `tabel-tumpuk-hp` (#b295).
+         INERT kecuali tabelnya memakai kelas itu. Memakai MutationObserver, BUKAN
+         `createdRow` DataTables — separuh halaman daftar panel ini merakit barisnya
+         sendiri lewat innerHTML, dan `createdRow` tak pernah jalan di sana. -->
+    <script src="<?= rafAssetUrl('/js/tabel-hp-label.js') ?>"></script>

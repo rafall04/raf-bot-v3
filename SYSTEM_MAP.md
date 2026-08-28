@@ -398,6 +398,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-28 (Halaman /config dirapikan — judul tak lagi berlapis tiga, pane padat jadi dua kolom)](docs/boundary-log.md#b292)
 - [Fix 2026-08-28 (Setelan /config dikelompokkan ulang — tempatnya ditentukan pemakaian di kode)](docs/boundary-log.md#b293)
 - [Fix 2026-08-28 (Gelombang 1 audit panel admin — dua bug fungsional + bahasa tabel jadi satu sumber)](docs/boundary-log.md#b294)
+- [Fix 2026-08-28 (Gel. 2 audit panel — 25 tabel ditumpuk jadi kartu di HP, stempel label jadi satu owner)](docs/boundary-log.md#b295)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
