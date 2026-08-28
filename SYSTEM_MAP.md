@@ -392,6 +392,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-27 (Monitor OLT di layar HP: redaman tak lagi tersembunyi di balik geser horizontal)](docs/boundary-log.md#b286)
 - [Fix 2026-08-27 (Modal pembayaran teknisi mati total — DOMPurify diblokir CSP & penjaganya melempar)](docs/boundary-log.md#b287)
 - [Fix 2026-08-28 (Alarm redaman buta untuk pelanggan belum terdaftar — kepemilikan kini dua sumber)](docs/boundary-log.md#b288)
+- [Fix 2026-08-28 (Penyaring Monitor OLT hilang sendiri saat detail pelanggan dibuka)](docs/boundary-log.md#b289)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

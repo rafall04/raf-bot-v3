@@ -315,6 +315,33 @@
             setTimeout(() => $wrap.removeClass('olt-just-loaded'), 400);
         }
 
+        /**
+         * Perbarui SATU baris tabel tanpa membangun ulang isinya.
+         *
+         * !! `renderCurrentView()` adalah SATU-SATUNYA tempat yang boleh mengisi tabel,
+         * karena di situlah penyaring identitas diterapkan (#b284). Refresh senyap di
+         * modal detail dulu memanggil `clear().rows.add(matchedData)` sendiri — data
+         * PENUH — sehingga penyaringnya hilang sementara dropdown-nya tetap tertulis
+         * aktif. TERUKUR: saring 'Belum didaftarkan' → 2 baris; klik satu baris →
+         * modal membuka & memicu refresh senyap → kembali 5 baris, dropdown tetap
+         * 'mikrotik'. Rusaknya saat modal DIBUKA, bukan saat ditutup.
+         *
+         * Baris yang sedang tersaring keluar sengaja dilewati: memasukkannya kembali
+         * justru melanggar penyaring yang sedang aktif.
+         *
+         * `draw(false)` mempertahankan halaman & urutan — teknisi tak terlempar
+         * kembali ke halaman 1 tiap kali membuka detail.
+         */
+        function perbaruiSatuBaris(key) {
+            if (!key || !dataTableInstance) return;
+            const baru = matchedData.find((m) => m._key === key);
+            if (!baru) return;
+            const row = dataTableInstance.row((idx, data) => data && data._key === key);
+            if (!row || row.length === 0) return;   // sedang tersaring keluar
+            row.data(baru);
+            dataTableInstance.draw(false);
+        }
+
         async function loadOltMatchedData(force = false) {
             if (!currentOltFilter) { showOltEmptyState(); return; }
             try {
@@ -549,7 +576,8 @@
                             currentCustomerData.olt_status = data.olt_status;
                             currentCustomerData.is_dying_gasp = data.is_dying_gasp;
                             currentCustomerData.is_los = data.is_los;
-                            dataTableInstance.clear().rows.add(matchedData).draw();
+                            // Perbarui SATU baris saja — JANGAN isi ulang seluruh tabel di sini (#b289).
+                            perbaruiSatuBaris(currentCustomerData._key);
                         }
                     } else {
                         if (!opts.silent) alert('Data ONT tidak ditemukan di OLT');

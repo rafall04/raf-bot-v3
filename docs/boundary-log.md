@@ -2243,3 +2243,15 @@
 - **Pelanggan sintetis tanpa nomor HP** — alert redaman dikirim ke TEKNISI, bukan pelanggan, dan penyusun pesannya sudah punya fallback `(Tidak Terdaftar)`.
 - **Yang TIDAK diubah (keputusan pemilik, bukan bug):** ambang `rx_tolerance = -26` (melewatkan -25,x) dan jeda per-perangkat 12 jam. Diperiksa: alarm memang **terkirim** 3,7 · 8,7 · 11,7 · 11,8 jam lalu — "ditahan cooldown" itu perilaku benar, bukan kerusakan.
 - Tes: `lib/__tests__/redaman-area-sendiri.test.js` (12). Dua mutasi terbukti tertangkap (terima semua modem asing · panggilan MikroTik dibuat fatal). Mutasi ketiga (cabut `return` awal) TIDAK tertangkap — dan itu benar: `return` itu cuma pemangkas beban, sifat fail-closed-nya ditegakkan pemeriksaan keanggotaan.
+
+<a id="b289"></a>
+
+### Fix 2026-08-28 (Penyaring Monitor OLT hilang sendiri saat detail pelanggan dibuka)
+
+- **Gejalanya menipu:** pemilik melaporkan penyaring hilang setelah *klik pelanggan lalu tutup*. Terukur di peramban: rusaknya justru saat modal **DIBUKA** — `showCustomerDetail()` memicu `refreshCustomerOlt({silent:true})` OTOMATIS, tanpa tombol ditekan. Saat modal ditutup kerusakannya sudah terjadi ~1 detik sebelumnya.
+- **Akar:** refresh senyap itu memanggil `dataTableInstance.clear().rows.add(matchedData).draw()` sendiri — data **PENUH** — melewati `renderCurrentView()` yang memegang penyaringan.
+- **Terukur sebelum:** saring *Belum didaftarkan* → 2 baris · klik satu baris → **kembali 5 baris**, sementara dropdown MASIH tertulis `mikrotik`. Sesudah: tetap **2 baris** saat modal dibuka maupun ditutup, dan redaman baris itu tetap ikut diperbarui (-28,5 → -29,9).
+- **Kenapa terasa "kadang hilang kadang tidak":** penyaring **identitas** (#b284) bekerja di tingkat DATA sehingga ikut terbuang, tapi penyaring **status & redaman** memakai `$.fn.dataTable.ext.search` yang GLOBAL — keduanya selamat. Jadi hanya sebagian penyaring yang hilang.
+- **Perbaikannya bedah, bukan gambar-ulang:** `perbaruiSatuBaris(key)` mencari baris lewat `_key` (BUKAN indeks `matchedData` — tabel hanya memuat subset yang lolos penyaring, jadi indeksnya tidak sejajar), lalu `row.data(baru)` + `draw(false)`. `draw()` polos akan melempar teknisi kembali ke halaman 1 tiap membuka detail.
+- **Baris yang sedang tersaring keluar sengaja DILEWATI** (`row.length === 0`) — memasukkannya kembali justru melanggar penyaring yang sedang aktif.
+- Tes: `static/js/__tests__/olt-filter-tetap-terpasang.test.js` (13) — penjaga strukturalnya: **setiap `rows.add(` di luar `renderCurrentView` ditolak**, jadi jalur pintas ketiga tak bisa lahir diam-diam. Empat mutasi terbukti tertangkap, termasuk mengembalikan bug aslinya.
