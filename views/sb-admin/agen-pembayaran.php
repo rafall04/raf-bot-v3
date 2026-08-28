@@ -82,7 +82,7 @@
             </div>
             <div class="card-body">
               <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="customerTable" width="100%" cellspacing="0">
+                <table class="table table-bordered table-hover tabel-tumpuk-hp" id="customerTable" width="100%" cellspacing="0">
                   <thead>
                     <tr>
                       <th>ID</th>
@@ -106,7 +106,7 @@
             </div>
             <div class="card-body">
               <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="requestTable" width="100%" cellspacing="0">
+                <table class="table table-bordered table-hover tabel-tumpuk-hp" id="requestTable" width="100%" cellspacing="0">
                   <thead>
                     <tr>
                       <th>Pelanggan</th>

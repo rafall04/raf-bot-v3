@@ -155,7 +155,22 @@
         }
         .form-label { margin-bottom: .3rem; font-size: 0.8rem; font-weight: 500; }
         .form-control-sm { font-size: 0.8rem; padding: .25rem .5rem; height: calc(1.5em + .5rem + 2px); }
-        .loading-spinner-container { text-align: center; padding: 20px; }
+        /* !! Kotak ini menumpang di atas UBIN PETA Leaflet yang SELALU terang, apa pun tema.
+           Tanpa latar & warna eksplisit, teks "Memuat peta dan data..." mewarisi ink tema —
+           di mode gelap itu near-putih, dan near-putih di atas peta terang = tak terbaca
+           (terukur kontras 1,04). Diberi permukaan token + ink token supaya terbaca di kedua
+           tema, apa pun ubin di belakangnya. */
+        .loading-spinner-container {
+            text-align: center;
+            padding: 20px;
+            color: var(--ink);
+            background: var(--surface);
+            border-radius: 10px;
+            display: inline-block;
+            box-shadow: var(--shadow-2, 0 4px 16px rgba(0,0,0,.18));
+        }
+        .loading-spinner-container p { color: var(--ink); margin: .5rem 0 0; }
+        .loading-spinner-container .fa-spinner { color: var(--accent, var(--indigo-500)); }
         .table-sm th, .table-sm td { padding: .3rem; font-size:0.8rem; }
 
         #manualFullscreenBtn { position: absolute; bottom: 10px; left: 10px; z-index: 1000; padding: 6px 10px; }

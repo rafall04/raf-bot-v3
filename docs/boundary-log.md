@@ -2388,3 +2388,15 @@
 - **Diverifikasi di peramban:** 10/10 halaman kini menyoroti item menunya dan membuka sub-menunya (sebelumnya 3 di antaranya gagal). Total item menu tetap **72** — tak ada yang jatuh saat dipindah.
 - **Dua artefak pembaca saya sendiri, dikoreksi:** menu Tiket dirender `href="<?php echo htmlspecialchars($ticketPagePath…)"` — pembaca yang cuma mencari href literal menyimpulkan halamannya TIDAK ADA di menu, dan saya hampir melaporkannya sebagai halaman tak terjangkau. Kedua, `isParentActive` muncul **tiga kali** per sub-menu (li, a, div); memindah item tanpa memperbarui ketiganya = regresi senyap.
 - Tes: `views/__tests__/navbar-pengelompokan.test.js` (13). Dua mutasi terbukti tertangkap (alias dicabut · `/rapikan-odp` dicabut dari SATU dari tiga daftar).
+
+<a id="b301"></a>
+
+### Fix 2026-08-28 (Audit panel TEKNISI & AGEN — 3 bug terverifikasi diperbaiki, mayoritas kandidat dibuang)
+
+- **Cakupan & metode:** 12 halaman teknisi + 2 agen diukur di Chrome sungguhan pada 375/768/1440, dengan **TOKEN PER-PERAN** (navbar role-aware baca peran dari cookie — token admin merender navbar admin, menyesatkan). Nol geser horizontal halaman di semua lebar. Ini surface LAPANGAN (teknisi di HP), jadi 375px paling menentukan.
+- **!! DISIPLIN VERIFIKASI: mayoritas kandidat DIBUANG karena bukan bug.** `403 /api/config` di `teknisi-map-viewer` → disengaja ([#b253](#b253)), ditangani `.catch` (peta pakai routing default). `403 /api/agen/customers` → **artefak token saya**: saya render halaman agen dgn token admin, sedangkan endpoint `ensureAgen` (role harus agen); dibuktikan hilang dgn akun agen sungguhan. Select lebar **1px** di halaman teknisi → `<select>` asli yang disembunyikan Select2 (widget render 321px, dibuktikan di peramban). `.table-scroll` 40px di `teknisi-tutorial` → wadah geser SENGAJA untuk cheat-sheet perintah.
+- **Tiga yang LOLOS verifikasi, diperbaiki:**
+- (1) **`/papan-psb` — celah di aturan 2-up saya sendiri ([#b297](#b297)).** 4 kartu ringkasan (Belum Kepasang/Terpasang/Komisi) memakai `col-md-3` TANPA kelas kolom mobile → penuh-selebar-layar, papan PSB terdorong ke **2,1 layar**. Kartunya `.card` polos, tak tercakup pengait `:has()` #b297. Diberi `col-6` → kartu 188px (2-up), tabel ke 1,8 layar. Kena admin & teknisi (papan-psb ada di kedua menu).
+- (2) **`/agen-pembayaran` `#requestTable`** — 378px dalam kotak 321px, kolom "Aksi" (tombol proses bayar) tepinya di 405px, sebagian di luar layar HP. Modalnya modal AKSI ("Ajukan Pembayaran"), bukan detail per-baris → menyembunyikan kolom = data hilang, jadi pola tumpuk. Sesudah: 0px meluber; penstempel bersama ([#b295](#b295)) melabeli 5 kolom (dibuktikan dgn menyuntik baris nyata).
+- (3) **`teknisi-map-viewer`** — teks "Memuat peta dan data..." mewarisi ink tema (near-putih di gelap) di atas UBIN PETA Leaflet yang selalu terang → **kontras 1,04** (tak terbaca) saat memuat. Diberi permukaan + ink token → **14,81**.
+- Tes: `views/__tests__/audit-teknisi-agen.test.js` (5). Mutasi `col-6` dicabut terbukti tertangkap. Nol temuan baru dari mode gelap (14 halaman, hanya map-loading itu) maupun geser desktop/tablet.

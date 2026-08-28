@@ -404,6 +404,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-28 (Gel. 5 audit panel — 10 konfirmasi hapus berbahasa Inggris diterjemahkan & dilengkapi)](docs/boundary-log.md#b298)
 - [Fix 2026-08-28 (Gel. 6 audit panel — nama halaman seragam; alert DataTables di /payment-method dicabut)](docs/boundary-log.md#b299)
 - [Fix 2026-08-28 (Gel. 7 audit panel — menu sudah rapi; 3 halaman tak pernah tersorot, itu yang diperbaiki)](docs/boundary-log.md#b300)
+- [Fix 2026-08-28 (Audit panel teknisi & agen — 3 bug terverifikasi diperbaiki, mayoritas kandidat dibuang)](docs/boundary-log.md#b301)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
