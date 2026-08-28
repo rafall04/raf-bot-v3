@@ -1558,6 +1558,21 @@
                         }
                     }
                 ],
+                // Label tiap sel diambil dari HEADER-nya, dipakai CSS saat layar sempit
+                // (`td::before { content: attr(data-label) }`) supaya baris bisa ditumpuk
+                // jadi kartu TANPA kehilangan satu kolom pun (#b290).
+                //
+                // Diambil dari header, BUKAN daftar nama yang ditulis tangan: kolom di sini
+                // bisa disembunyikan/ditampilkan saat runtime (toggleDeviceMetricColumns),
+                // dan daftar tangan pasti ketinggalan begitu kolom bertambah.
+                "createdRow": function (row) {
+                    var thead = document.querySelectorAll("#dataTable thead th");
+                    var sel = row.querySelectorAll("td");
+                    for (var k = 0; k < sel.length && k < thead.length; k++) {
+                        var judul = (thead[k].textContent || "").trim();
+                        if (judul) sel[k].setAttribute("data-label", judul);
+                    }
+                },
                 "columnDefs": [
                     { "width": "3%", "targets": 0 },  // ID
                     { "width": "7%", "targets": 10 }, // Status

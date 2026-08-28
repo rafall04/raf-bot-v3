@@ -327,3 +327,138 @@
                 height: 180px;
             }
         }
+
+/* =====================================================================
+ * /teknisi-pelanggan di LAYAR HP (#b290) — tabel ditumpuk jadi kartu.
+ *
+ * TERUKUR di 375 px: tabelnya 1378 px dengan 13 kolom terlihat — melebar 4,3x
+ * dari layar. Teknisi harus menggeser menyamping untuk membaca satu pelanggan.
+ *
+ * !! BEDA PENANGANAN dari Monitor OLT (#b286). Di sana kolom boleh DISEMBUNYIKAN
+ * karena barisnya bisa diketuk dan modal detail menampilkan semuanya. Halaman ini
+ * TIDAK punya modal detail per-baris — menyembunyikan kolom berarti datanya benar-
+ * benar hilang. Jadi di sini semua kolom DIPERTAHANKAN, hanya ditumpuk vertikal
+ * dengan label dari headernya (`data-label`, distempel di createdRow).
+ *
+ * Token semantik saja — warna primitif tetap tidak ikut membalik di mode gelap.
+ * ===================================================================== */
+
+@media (max-width: 640px) {
+    /* Header tabel tak berguna lagi saat baris ditumpuk: labelnya pindah ke tiap sel. */
+    #dataTable thead {
+        display: none;
+    }
+
+    #dataTable,
+    #dataTable tbody,
+    #dataTable tr,
+    #dataTable td {
+        display: block;
+        width: auto !important;
+    }
+
+    /* Satu baris = satu kartu pelanggan. */
+    #dataTable tr {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        margin-bottom: .6rem;
+        padding: .2rem .1rem;
+        background: var(--surface);
+    }
+
+    #dataTable td {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: .75rem;
+        border: 0;
+        border-bottom: 1px solid var(--line);
+        padding: .4rem .6rem;
+        text-align: right;
+        color: var(--ink);
+        overflow-wrap: anywhere;
+    }
+
+    #dataTable td:last-child {
+        border-bottom: 0;
+    }
+
+    /* Label kolom, diambil dari header lewat data-label. */
+    #dataTable td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--muted);
+        text-align: left;
+        flex: 0 0 8.5rem;
+        font-size: .78rem;
+    }
+
+    /* Sel yang tak sempat distempel (mis. baris "tidak ditemukan") jangan
+       menyisakan celah label kosong. */
+    #dataTable td:not([data-label])::before {
+        content: "";
+        flex: 0;
+    }
+
+    /* Nama pelanggan adalah penanda kartu — buat menonjol. */
+    #dataTable td[data-label="Nama"] {
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    /* Tombol aksi SENGAJA dibiarkan mengikuti aturan yang sudah ada di berkas ini:
+       `.device-action-group { flex-direction: column }` + tombol lebar penuh. Target
+       sentuh besar memang tepat untuk teknisi di lapangan — jangan dilawan. Di sini
+       cukup diberi jarak antar-tombol. */
+    #dataTable td .device-action-group {
+        gap: .3rem;
+    }
+
+    /* Wadahnya tak perlu menggeser lagi karena tak ada yang melebar. */
+    .table-responsive {
+        overflow-x: visible;
+    }
+
+    /* "Tampilkan N" jarang dipakai di lapangan; kotak Cari yang penting. */
+    .dataTables_length {
+        display: none;
+    }
+
+    .dataTables_filter,
+    .dataTables_filter label,
+    .dataTables_filter input {
+        width: 100%;
+        text-align: left;
+        margin-left: 0;
+    }
+}
+
+@media (max-width: 640px) {
+    /* Nilai sel adalah SIMPUL TEKS POLOS, jadi ia menjadi "anonymous flex item" yang tak
+       bisa diberi `min-width: 0` — nilai panjang tanpa spasi (mis. Device ID
+       `D49E02-RAFNETNV3a-EQFLH7U22977`) memaksa selnya melebar melewati kartu.
+       TERUKUR: 1 dari 13 sel meluber, scrollWidth 421 vs 316.
+       Membiarkan barisnya membungkus membuat nilai panjang turun ke baris berikutnya,
+       sementara nilai pendek tetap sejajar labelnya. */
+    #dataTable td {
+        flex-wrap: wrap;
+        word-break: break-all;
+    }
+
+    /* Setelah membungkus, nilainya mengisi lebar penuh kartu. */
+    #dataTable td::before {
+        flex: 0 0 auto;
+        max-width: 45%;
+    }
+}
+
+@media (max-width: 640px) {
+    /* Setelah sel boleh membungkus, grup tombol menjadi item flex sempit. Beri satu
+       baris penuh supaya tombolnya memakai lebar kartu — arah & lebar tombolnya sendiri
+       tetap milik aturan lama (kolom, lebar penuh). */
+    #dataTable td[data-label="Actions"] .device-action-group,
+    #dataTable td[data-label="Aksi"] .device-action-group {
+        flex: 1 1 100%;
+        margin-top: .25rem;
+    }
+}

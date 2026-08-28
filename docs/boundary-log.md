@@ -2255,3 +2255,15 @@
 - **Perbaikannya bedah, bukan gambar-ulang:** `perbaruiSatuBaris(key)` mencari baris lewat `_key` (BUKAN indeks `matchedData` — tabel hanya memuat subset yang lolos penyaring, jadi indeksnya tidak sejajar), lalu `row.data(baru)` + `draw(false)`. `draw()` polos akan melempar teknisi kembali ke halaman 1 tiap membuka detail.
 - **Baris yang sedang tersaring keluar sengaja DILEWATI** (`row.length === 0`) — memasukkannya kembali justru melanggar penyaring yang sedang aktif.
 - Tes: `static/js/__tests__/olt-filter-tetap-terpasang.test.js` (13) — penjaga strukturalnya: **setiap `rows.add(` di luar `renderCurrentView` ditolak**, jadi jalur pintas ketiga tak bisa lahir diam-diam. Empat mutasi terbukti tertangkap, termasuk mengembalikan bug aslinya.
+
+<a id="b290"></a>
+
+### Fix 2026-08-28 (/teknisi-pelanggan di layar HP — baris ditumpuk jadi kartu, tak satu kolom pun hilang)
+
+- **Terukur di 375 px:** tabelnya **1378 px** dengan **13 kolom** terlihat — melebar **4,3x** dari layar; teknisi harus menggeser menyamping untuk membaca satu pelanggan. Sesudah: **321 px, pas, nol geser, 13/13 sel berlabel**. Desktop tak berubah (tabel `table`, header tampil, 13 kolom).
+- **!! PENANGANANNYA BEDA dari #b286, dan bedanya penting.** Di Monitor OLT kolom boleh DISEMBUNYIKAN karena barisnya bisa diketuk dan modal detail menampilkan semuanya. Halaman ini **tidak punya modal detail per-baris** — menyembunyikan kolom berarti data **benar-benar hilang**. Jadi semua kolom dipertahankan, hanya ditumpuk vertikal jadi kartu berlabel. Dikunci tes: setiap `display:none` pada `:nth-child` di blok HP ditolak.
+- **Label diambil dari HEADER, bukan daftar tulis tangan** (`createdRow` menstempel `data-label`): kolom di sini bisa disembunyikan/ditampilkan saat runtime (`toggleDeviceMetricColumns`), jadi daftar tangan pasti ketinggalan begitu kolom bertambah.
+- **GOTCHA anonymous flex item:** nilai sel adalah simpul teks POLOS, jadi ia jadi *anonymous flex item* yang **tak bisa diberi `min-width: 0`**. Device ID `D49E02-RAFNETNV3a-EQFLH7U22977` (30 karakter tanpa spasi) memaksa selnya melebar — terukur 1 dari 13 sel meluber, scrollWidth 421 vs 316. Obatnya `flex-wrap: wrap` + `word-break: break-all`, bukan `min-width`.
+- **Aturan lama TIDAK dilawan:** `.device-action-group { flex-direction: column }` + tombol lebar penuh sudah ada sebelum ini. Sempat saya timpa, lalu dicabut — target sentuh besar memang tepat untuk teknisi di lapangan (sarung tangan, satu tangan, layar silau).
+- **Konteks temuan:** sapuan 12 halaman teknisi di peramban menemukan **nol bug runtime** (konsol & jaringan bersih; satu-satunya 403 adalah `/api/config` yang memang sengaja ditolak, dan petanya tetap termuat). Yang ditemukan justru cacat seragam: **5 halaman meluber di HP** — `/teknisi-pelanggan` 1378px · `/pembayaran/teknisi` 924px · `/teknisi-pembayaran` 640px · `/teknisi-kasbon` 550px · `/papan-psb` 500px. Yang diperbaiki di sini baru yang pertama.
+- Tes: `static/js/__tests__/teknisi-pelanggan-hp.test.js` (8). Tiga mutasi terbukti tertangkap (pola sembunyi-kolom disalin ke sini · penstempel label dicabut · pembungkusan nilai panjang dicabut).
