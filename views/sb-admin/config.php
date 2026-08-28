@@ -44,7 +44,7 @@
           <!-- Page Header -->
           <div class="dashboard-header">
             <h1>Perbarui Konfigurasi</h1>
-            <p>Kelola dan monitor perbarui konfigurasi</p>
+            <p>Semua setelan bot dikelompokkan per tab. Tiap tab disimpan sendiri — menyimpan satu tab tidak mengubah tab lain.</p>
           </div>
 
           <!-- Tab navigation -->
@@ -65,7 +65,6 @@
 
           <!-- Mikrotik Devices Configuration -->
           <div class="config-pane active" id="pane-mikrotik">
-          <h4 class="dashboard-section-title">Konfigurasi MikroTik</h4>
           <div class="card table-card mb-4">
             <div class="card-header">
               <h6>Konfigurasi MikroTik</h6>
@@ -94,12 +93,11 @@
 
           <div class="config-pane" id="pane-bot">
             <!-- Table Section -->
-          <h4 class="dashboard-section-title">Konfigurasi Wifi & Bot</h4>
           <div class="card table-card mb-4">
             <div class="card-header">
               <h6>Konfigurasi Wifi & Bot</h6>
               </div>
-              <div class="card-body">
+              <div class="card-body cfg-grid">
                   <div class="mb-3">
                     <label for="nama" class="form-label">Nama Wifi</label>
                     <input type="text" class="form-control" id="nama" name="nama" />
@@ -155,7 +153,7 @@
                 <h6>Panduan Pakai Voucher (Halaman Beli Publik)</h6>
               </div>
               <div class="card-body">
-                <p class="text-muted" style="font-size:13px">Teks <b>"Cara pakai voucher"</b> yang tampil di halaman beli voucher publik setelah pembayaran berhasil. Kosongkan untuk memakai teks default.</p>
+                <p class="text-muted">Teks <b>"Cara pakai voucher"</b> yang tampil di halaman beli voucher publik setelah pembayaran berhasil. Kosongkan untuk memakai teks default.</p>
                 <div class="mb-3">
                   <label for="voucherGuideSteps" class="form-label">Langkah Pakai Voucher</label>
                   <textarea class="form-control" id="voucherGuideSteps" name="voucherGuideSteps" rows="5" placeholder="Sambungkan HP ke WiFi RAF NET / RAF NET 5G (disarankan RAF NET 5G agar lebih stabil).&#10;Buka browser — halaman login otomatis muncul.&#10;Masukkan kode voucher di atas, lalu tekan Connect."></textarea>
@@ -175,13 +173,12 @@
           </div><!-- /#pane-bot -->
 
           <div class="config-pane" id="pane-company">
-          <h4 class="dashboard-section-title">Identitas &amp; Kontak Usaha</h4>
           <div class="card table-card mb-4">
             <div class="card-header">
               <h6>Identitas &amp; Kontak Usaha</h6>
             </div>
-            <div class="card-body">
-              <p class="text-muted" style="font-size:13px">Data ini ditampilkan di halaman publik <b>FAQ / Kebijakan Refund / Syarat &amp; Ketentuan / Kontak</b> (untuk verifikasi merchant gateway pembayaran seperti iPaymu). Halaman Kontak wajib menampilkan <b>email, telepon, dan alamat usaha</b>.</p>
+            <div class="card-body cfg-grid">
+              <p class="text-muted">Data ini ditampilkan di halaman publik <b>FAQ / Kebijakan Refund / Syarat &amp; Ketentuan / Kontak</b> (untuk verifikasi merchant gateway pembayaran seperti iPaymu). Halaman Kontak wajib menampilkan <b>email, telepon, dan alamat usaha</b>.</p>
               <div class="mb-3">
                 <label for="company_name">Nama Usaha</label>
                 <input type="text" class="form-control" id="company_name" name="company_name" placeholder="Contoh: VANS 45 NET" />
@@ -216,7 +213,6 @@
 
           <div class="config-pane" id="pane-welcome">
             <!-- Table Section -->
-          <h4 class="dashboard-section-title">Konfigurasi Pesan Selamat Datang</h4>
           <div class="card table-card mb-4">
             <div class="card-header">
               <h6>Konfigurasi Pesan Selamat Datang</h6>
@@ -244,12 +240,11 @@
           </div><!-- /#pane-welcome -->
 
           <div class="config-pane" id="pane-psb">
-          <h4 class="dashboard-section-title">Intake PSB (via DM Teknisi)</h4>
           <div class="card table-card mb-4">
             <div class="card-header">
               <h6>Intake PSB via DM Teknisi</h6>
             </div>
-            <div class="card-body">
+            <div class="card-body cfg-grid">
                 <div class="mb-3">
                   <label for="psbIntakeEnabled">Aktifkan Intake PSB</label>
                   <select class="form-control" id="psbIntakeEnabled" name="psbIntakeEnabled">
@@ -260,11 +255,11 @@
                 </div>
                 <div class="mb-3">
                   <label for="psbIntakeGroupId">Grup Ringkasan PSB (opsional)</label>
-                  <div class="d-flex" style="gap:.5rem;">
-                    <select class="form-control" id="psbIntakeGroupId" name="psbIntakeGroupId" style="flex:1;">
+                  <div class="d-flex cfg-baris-aksi">
+                    <select class="form-control" id="psbIntakeGroupId" name="psbIntakeGroupId">
                         <option value="">— tidak ada / pilih grup —</option>
                     </select>
-                    <button type="button" class="btn btn-outline-primary" id="btnLoadPsbGroups" style="white-space:nowrap;"><i class="fas fa-sync"></i> Muat Grup</button>
+                    <button type="button" class="btn btn-outline-primary" id="btnLoadPsbGroups"><i class="fas fa-sync"></i> Muat Grup</button>
                   </div>
                   <small class="form-text text-muted">Grup tempat bot <b>posting ringkasan hasil PSB</b> ("✅ PSB selesai …") untuk visibility tim/admin — <b>bukan</b> tempat input (input via DM). Klik <b>Muat Grup</b> (bot harus online), lalu pilih grup PSB bersama. Kosongkan bila tak perlu ringkasan.</small>
                 </div>
@@ -301,7 +296,7 @@
                 </div>
 
                 <hr>
-                <h6 class="mb-2" style="font-weight:700;">Notifikasi Perbaikan &amp; Tutorial Teknisi</h6>
+                <h6 class="mb-2 cfg-subjudul">Notifikasi Perbaikan &amp; Tutorial Teknisi</h6>
                 <div class="mb-3">
                   <label for="repairNotifEnabled">Notif Perbaikan ke Grup</label>
                   <select class="form-control" id="repairNotifEnabled" name="repairNotifEnabled">
@@ -312,11 +307,11 @@
                 </div>
                 <div class="mb-3">
                   <label for="repairNotifGroupId">Grup Perbaikan (terpisah dari grup PSB)</label>
-                  <div class="d-flex" style="gap:.5rem;">
-                    <select class="form-control" id="repairNotifGroupId" name="repairNotifGroupId" style="flex:1;">
+                  <div class="d-flex cfg-baris-aksi">
+                    <select class="form-control" id="repairNotifGroupId" name="repairNotifGroupId">
                         <option value="">— tidak ada / pilih grup —</option>
                     </select>
-                    <button type="button" class="btn btn-outline-primary" id="btnLoadPsbGroups2" style="white-space:nowrap;"><i class="fas fa-sync"></i> Muat Grup</button>
+                    <button type="button" class="btn btn-outline-primary" id="btnLoadPsbGroups2"><i class="fas fa-sync"></i> Muat Grup</button>
                   </div>
                   <small class="form-text text-muted">Grup khusus notifikasi perbaikan. Klik <b>Muat Grup</b> (bot online), lalu pilih. Bisa sama atau beda dengan grup PSB.</small>
                 </div>
@@ -334,12 +329,11 @@
 
           <div class="config-pane" id="pane-billing">
             <!-- Table Section -->
-          <h4 class="dashboard-section-title">Konfigurasi Penagihan & Isolir</h4>
           <div class="card table-card mb-4">
             <div class="card-header">
               <h6>Konfigurasi Penagihan & Isolir</h6>
               </div>
-              <div class="card-body">
+              <div class="card-body cfg-grid">
                   <div class="mb-3">
                     <label for="tanggal_pengingat" class="form-label">Tanggal Pengingat Tagihan (1-28)</label>
                     <input type="number" class="form-control" id="tanggal_pengingat" name="tanggal_pengingat" min="1" max="28" />
@@ -463,12 +457,11 @@
 
           <div class="config-pane" id="pane-technical">
             <!-- Table Section -->
-          <h4 class="dashboard-section-title">Konfigurasi Teknis</h4>
           <div class="card table-card mb-4">
             <div class="card-header">
               <h6>Konfigurasi Teknis</h6>
               </div>
-              <div class="card-body">
+              <div class="card-body cfg-grid">
                   <div class="mb-3">
                     <label for="site_url_bot" class="form-label">Site URL Bot (Internal)</label>
                     <input type="text" class="form-control" id="site_url_bot" name="site_url_bot" placeholder="http://127.0.0.1:3100" />
@@ -480,7 +473,7 @@
                     <small class="form-text text-muted">Domain publik (Cloudflare/tunnel) untuk link bayar yang dikirim ke pelanggan. Beda dari Site URL Bot internal. Kosongkan = otomatis dari host Callback iPaymu.</small>
                   </div>
                   <div class="mb-3">
-                    <label for="genieacsBaseUrl" class="form-label">Genieacs URL</label>
+                    <label for="genieacsBaseUrl" class="form-label">GenieACS URL</label>
                     <input type="text" class="form-control" id="genieacsBaseUrl" name="genieacsBaseUrl" />
                   </div>
                   <div class="card border-left-info shadow-sm mb-3">
@@ -659,13 +652,12 @@
           </div><!-- /#pane-technical -->
 
           <div class="config-pane" id="pane-payment">
-          <h4 class="dashboard-section-title">Konfigurasi Pembayaran (Payment Gateway)</h4>
           <div class="card table-card mb-4">
             <div class="card-header">
               <h6>Payment Gateway — iPaymu / Tripay / Mayar</h6>
             </div>
-            <div class="card-body">
-                  <p class="text-muted" style="font-size:13px">Kredensial gateway pembayaran. <b>iPaymu</b> dipakai untuk voucher &amp; topup; <b>Payment Gateway Aktif</b> di bawah menentukan gateway untuk <b>bayar tagihan</b>. Dipisah dari tab Teknis agar tidak tercampur konfigurasi teknis lain.</p>
+            <div class="card-body cfg-grid">
+                  <p class="text-muted">Kredensial gateway pembayaran. <b>iPaymu</b> dipakai untuk voucher &amp; topup; <b>Payment Gateway Aktif</b> di bawah menentukan gateway untuk <b>bayar tagihan</b>. Dipisah dari tab Teknis agar tidak tercampur konfigurasi teknis lain.</p>
                   <div class="mb-3">
                     <label for="ipaymuSecret">Secret Ipaymu</label>
                     <input type="text" class="form-control" id="ipaymuSecret" name="ipaymuSecret" />
@@ -752,7 +744,6 @@
 
           <div class="config-pane" id="pane-backup">
             <!-- Telegram Backup Configuration -->
-            <h4 class="dashboard-section-title">Backup Database ke Telegram</h4>
             <div class="card table-card mb-4">
               <div class="card-header d-flex justify-content-between align-items-center">
                 <h6>Konfigurasi Backup Telegram</h6>
@@ -805,7 +796,6 @@
 
           <div class="config-pane" id="pane-olt">
             <!-- OLT Configuration -->
-            <h4 class="dashboard-section-title">Konfigurasi OLT</h4>
             
             <!-- Global OLT Settings -->
             <div class="card table-card mb-4">

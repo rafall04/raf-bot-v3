@@ -395,6 +395,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-28 (Penyaring Monitor OLT hilang sendiri saat detail pelanggan dibuka)](docs/boundary-log.md#b289)
 - [Fix 2026-08-28 (/teknisi-pelanggan di layar HP — baris ditumpuk jadi kartu, tak satu kolom pun hilang)](docs/boundary-log.md#b290)
 - [Fix 2026-08-28 (Semua halaman teknisi terpakai di layar HP — pola tumpuk jadi milik bersama)](docs/boundary-log.md#b291)
+- [Fix 2026-08-28 (Halaman /config dirapikan — judul tak lagi berlapis tiga, pane padat jadi dua kolom)](docs/boundary-log.md#b292)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

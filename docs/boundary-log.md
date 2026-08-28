@@ -2280,3 +2280,15 @@
 - **`/papan-psb` merakit barisnya sendiri** (bukan DataTables), jadi `data-label` ditulis di templat `innerHTML`-nya dan WAJIB sama dengan `<th>`-nya; halaman DataTables memakai `createdRow` yang MEMBACA header — bukan daftar tulis tangan, karena kolom bisa berubah saat runtime.
 - **Sapuan lengkap 12 halaman teknisi menemukan NOL bug runtime**: konsol & jaringan bersih; satu-satunya 403 (`/api/config` di peta) memang sengaja dan petanya tetap termuat; dua 302 (`/teknisi-psb`, `/psb-rekap`) adalah pengalihan disengaja ke `/papan-psb`. Audit izin API tidak menemukan apa pun — daftarnya sudah dipikirkan matang di #b253.
 - Tes: `static/js/__tests__/tabel-hp.test.js` (21) menggantikan tes satu-halaman sebelumnya. Empat mutasi terbukti tertangkap (pola sembunyi-kolom disalin ke halaman tumpuk · `data-label` dicabut · CSS bersama tak dimuat · `min-width` tak dinetralkan).
+
+<a id="b292"></a>
+
+### Fix 2026-08-28 (Halaman /config dirapikan — judul tak lagi berlapis tiga, pane padat jadi dua kolom)
+
+- **Dugaan awal saya SALAH:** halaman ini sudah punya sistem tab sendiri (`#configNav` + `.config-pane`, kelas kustom bukan Bootstrap, itu sebabnya pencarian pertama tak menemukannya) dan CSS-nya benar. Yang bikin terasa campur bukan ketiadaan tab.
+- **Akar terukur:** tiap pane punya `<h4 class="dashboard-section-title">` yang MENGULANG label tab dan/atau judul kartu tepat di bawahnya — **tiga lapis penamaan untuk satu hal**, dan **6 dari 10 pane kembar PERSIS** ("Konfigurasi MikroTik" muncul dua kali berturut-turut). Kesepuluh judul itu dibuang: label TAB sudah menyebutkan seksinya, tiap kartu masih punya judulnya sendiri.
+- **Pane sangat tinggi karena semua medan satu kolom.** Grid dua kolom hanya di ≥992 px (HP tetap satu kolom, diverifikasi `display: block` di 375 px). Terukur: Teknis **2834→1703** (-40%) · Penagihan **3299→2317** (-30%) · Pembayaran **1566→992** (-37%) · Identitas 822→482 · Intake PSB 1719→1135 · Wifi & Bot 1745→1245. Nol elemen meluber.
+- **Elemen yang tak boleh dipotong** (tabel, kartu bersarang, `textarea`, `select[multiple]`, pemisah, tombol simpan) dipaksa membentang penuh — kalau tidak, justru jadi lebih berantakan daripada satu kolom.
+- **Kebersihan lain:** subjudul halaman `"Kelola dan monitor perbarui konfigurasi"` (kalimat template rusak) diganti; `Genieacs URL` → `GenieACS URL`; **11 gaya sebaris** (10 di `.php` + 1 di `.js`) dipindah ke kelas CSS sesuai konvensi repo.
+- **Yang WAJIB tidak berubah, dan diverifikasi di peramban:** **81 medan bernama tetap utuh, nol selisih** dibanding hitungan sebelum perubahan; 7 tombol simpan & 10 tab utuh. Simpan diuji dengan mencegat `POST /api/config` (tanpa benar-benar menyimpan): **22 kunci terkirim** untuk pane Teknis, persis sejumlah medannya, termasuk `genieacsBaseUrl` & `rx_tolerance`.
+- Tes: `static/js/__tests__/config-rapi.test.js` (13). Tiga mutasi terbukti tertangkap (judul kembar dikembalikan · gaya sebaris dikembalikan · grid dikeluarkan dari media query sehingga HP ikut dua kolom).

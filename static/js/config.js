@@ -506,7 +506,7 @@
               </div>
               <div class="mt-3 p-2 bg-light rounded">
                 <small class="text-muted d-block mb-1"><strong>Preview format di pesan:</strong></small>
-                <small class="d-block" style="white-space: pre-line; font-family: monospace;"> ${account.bank || '[Bank]'}:
+                <small class="d-block cfg-pratinjau-rekening"> ${account.bank || '[Bank]'}:
 ${account.number || '[Nomor]'}
 a.n ${account.name || '[Nama]'}</small>
               </div>

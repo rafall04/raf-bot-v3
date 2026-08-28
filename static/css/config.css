@@ -15,3 +15,80 @@
     .config-pane { display: none; }
     .config-pane.active { display: block; }
   
+
+/* =====================================================================
+ * Perapian halaman /config (#b292).
+ *
+ * TERUKUR sebelum: tiap pane punya <h4 class="dashboard-section-title"> yang MENGULANG
+ * label tab dan/atau judul kartu tepat di bawahnya — tiga lapis penamaan untuk satu hal;
+ * 6 dari 10 pane judulnya kembar PERSIS. Kesepuluh judul itu dibuang: label TAB sudah
+ * menyebutkan seksinya, dan tiap kartu masih punya judulnya sendiri.
+ *
+ * Kelas di bawah menggantikan 10 gaya sebaris (konvensi repo: gaya di CSS, bukan di .php).
+ * ===================================================================== */
+
+/* Keterangan kecil di bawah judul kartu. */
+.config-pane .text-muted p,
+.config-pane p.text-muted {
+    font-size: .8125rem;
+}
+
+/* Baris "select + tombol" (mis. pilih grup WhatsApp lalu Muat Grup). */
+.cfg-baris-aksi {
+    gap: .5rem;
+}
+
+.cfg-isi-sisa {
+    flex: 1;
+    min-width: 0;
+}
+
+.cfg-tanpa-patah {
+    white-space: nowrap;
+}
+
+/* Sub-judul di DALAM kartu (mis. "Notifikasi Perbaikan & Tutorial Teknisi"). */
+.cfg-subjudul {
+    font-weight: 700;
+}
+
+/* Pratinjau daftar rekening bank: tampilkan apa adanya (baris baru dipertahankan)
+   dengan huruf monospace supaya nomor rekening mudah dibaca & disalin. */
+.cfg-pratinjau-rekening {
+    white-space: pre-line;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* =====================================================================
+ * Dua kolom untuk pane padat di layar lebar (#b292).
+ *
+ * TERUKUR sebelum: pane Penagihan 3262 px, Teknis 2796 px — semua medan satu kolom,
+ * jadi mencari satu setelan berarti menggulir jauh. Hanya berlaku >=992 px; di layar
+ * sempit tetap satu kolom.
+ *
+ * Elemen yang TIDAK boleh dipotong jadi setengah lebar (tabel, kartu bersarang, textarea,
+ * pemisah, tombol simpan) dipaksa membentang penuh.
+ * ===================================================================== */
+
+@media (min-width: 992px) {
+    .cfg-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 1.5rem;
+        align-items: start;
+    }
+
+    .cfg-grid > .card,
+    .cfg-grid > table,
+    .cfg-grid > .table-responsive,
+    .cfg-grid > hr,
+    .cfg-grid > h6,
+    .cfg-grid > .cfg-subjudul,
+    .cfg-grid > .config-save-btn,
+    .cfg-grid > .cfg-penuh,
+    .cfg-grid > .alert,
+    .cfg-grid > .form-group:has(textarea),
+    .cfg-grid > .form-group:has(select[multiple]) {
+        grid-column: 1 / -1;
+    }
+}
