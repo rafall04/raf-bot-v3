@@ -167,6 +167,8 @@
   <script src="/vendor/datatables/jquery.dataTables.min.js"></script>
   <script src="/vendor/datatables/dataTables.bootstrap4.min.js"></script>
   <script src="/js/sb-admin-2.js"></script>
+  <!-- SweetAlert2 (dialog konfirmasi seragam dgn halaman admin lain; sama sumber CDN). -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="<?php require_once __DIR__ . '/_asset.php'; echo rafAssetUrl('/js/agen-pembayaran.js'); ?>"></script>
 </body>
 

@@ -284,10 +284,7 @@
     });
   }
 
-  function cancelRequest(requestId) {
-    if (!window.confirm('Batalkan pengajuan ini?')) {
-      return;
-    }
+  function doCancelRequest(requestId) {
     fetch('/api/requests/cancel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -305,5 +302,27 @@
         }
       })
       .catch(function () { showAlert('danger', 'Terjadi kesalahan saat membatalkan pengajuan'); });
+  }
+
+  function cancelRequest(requestId) {
+    // Dialog konfirmasi SERAGAM (SweetAlert, sama seperti halaman admin lain). FALLBACK ke
+    // window.confirm bila Swal gagal dimuat (agen di lapangan, koneksi CDN bisa putus) — pembatalan
+    // tetap harus bisa jalan.
+    if (typeof Swal === 'undefined' || !Swal.fire) {
+      if (window.confirm('Batalkan pengajuan ini?')) doCancelRequest(requestId);
+      return;
+    }
+    Swal.fire({
+      title: 'Batalkan pengajuan?',
+      text: 'Pengajuan pembayaran ini akan dibatalkan.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#e74a3b',
+      cancelButtonColor: '#858796',
+      confirmButtonText: 'Ya, batalkan',
+      cancelButtonText: 'Tidak'
+    }).then(function (result) {
+      if (result && result.isConfirmed) doCancelRequest(requestId);
+    });
   }
 })();
