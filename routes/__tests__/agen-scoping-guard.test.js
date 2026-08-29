@@ -50,6 +50,44 @@ describe("role agen — scoping ke pelanggan yang ditugaskan (server-side)", () 
     });
 });
 
+describe("!! agen TIDAK boleh melihat SEMUA pelanggan (hanya yang ditugaskan)", () => {
+    test("ensureAuthenticatedStaff TIDAK memuat role 'agen' (lindungi /api/users + endpoint pelanggan massal)", () => {
+        const auth = read("routes/admin-auth.js");
+        const m = auth.match(/\[([^\]]*)\]\.includes\(\s*req\.user\.role\s*\)/);
+        expect(m).toBeTruthy();
+        expect(m[1]).toMatch(/admin/);
+        expect(m[1]).not.toMatch(/['"]agen['"]/); // agen TAK boleh lolos gerbang staf
+    });
+
+    test("GET /api/users digate ensureAuthenticatedStaff (agen → 403), bukan ensureAuthenticated telanjang", () => {
+        const r = read("routes/api-users-routes.js");
+        // /users memakai stack yang berujung ensureAuthenticatedStaff (bukan hanya ensureAuthenticated)
+        expect(r).toMatch(/ensureAuthenticatedStaff/);
+        expect(r).toMatch(/router\.get\(\s*['"]\/users['"][\s\S]{0,80}ensureAuthenticatedStaff/);
+    });
+
+    test("endpoint pelanggan MASSAL memakai staf/admin, tak terjangkau agen", () => {
+        const files = {
+            "routes/mikrotik-routes.js": /ppp-active-users['"]\s*,\s*ensureAuthenticatedStaff/,
+        };
+        // ppp-active-users bisa tersebar; cari di seluruh routes bila file tak pas
+        const all = require("fs").readdirSync(path.join(AKAR, "routes")).filter((f) => f.endsWith(".js"))
+            .map((f) => read("routes/" + f)).join("\n");
+        expect(all).toMatch(/ppp-active-users['"]\s*,\s*ensureAuthenticatedStaff/);
+        expect(all).toMatch(/network-assets['"]\s*,\s*ensureAuthenticatedStaff/);
+        expect(all).toMatch(/customer-metrics-batch['"]\s*,\s*ensureAuthenticatedStaff/);
+        void files;
+    });
+
+    test("agen GET /customers difilter dari TOKEN (req.user.id), bukan query param (tak bisa minta punya agen lain)", () => {
+        const agen = read("routes/agen.js");
+        expect(agen).toMatch(/assigned_agen_id[^)]*\)\s*===\s*String\(\s*req\.user\.id\s*\)/);
+        // tak ada pembacaan agen id dari query utk /customers
+        const idx = agen.indexOf("/customers");
+        expect(agen.slice(idx, idx + 300)).not.toMatch(/req\.query\.agen/);
+    });
+});
+
 describe("admin /penugasan-agen — filter pelanggan mudah", () => {
     const js = read("static/js/penugasan-agen.js");
     const php = read("views/sb-admin/penugasan-agen.php");
