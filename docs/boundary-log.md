@@ -2445,3 +2445,11 @@
 - **UI:** field "Tanggal Isolir Khusus Paket (opsional)" di modal tambah/edit paket (`views/sb-admin/packages.php` + `packages-1.js` + `packages-2.js`); route `routes/packages.js` memvalidasi 1-28 (`parseIsolirDay`).
 - **Deploy gelap:** default OFF di `config.example.json` + jadwal `schedule_isolir_paket`/`status_isolir_paket` di `database/cron.json`.
 - **Tes:** `isolir-paket.test.js` (17 — kandidat per-hari, dedup, fail-safe, prioritas, gerbang), `cron-schedule-consistency.test.js` (+3), `grace-reminder.test.js` (mock diperluas). Suite cron 109 hijau, lint 0 error.
+
+<a id="b306"></a>
+
+### Fix 2026-08-29 (Verifikasi scoping role AGEN + filter admin /penugasan-agen)
+
+- **Verifikasi (role `agen` penagih pembayaran):** scoping "agen hanya menagih pelanggan DITUGASKAN" sudah DITEGAKKAN di SERVER, bukan cuma UI. `routes/requests.js`: CREATE pembayaran cek `isAgenRequestor && String(user.assigned_agen_id) !== String(req.user.id)` → **403**; LIST & CANCEL owner-scoped (`requested_by_agen_id`). `routes/agen.js`: GET /customers difilter `assigned_agen_id===req.user.id`; assign/assignments `ensureAdmin`. Dikunci penjaga baru `routes/__tests__/agen-scoping-guard.test.js` (8) — kelas [[authz-gerbang-teknisi]] #b253.
+- **Kemudahan admin (`/penugasan-agen`):** tambah dropdown filter **"Tampilkan: Semua / Belum ditugaskan / Ditugaskan ke <agen>"** (custom search DataTables + `data-agen-id` per baris, dijaga ke tabel ini saja) + "pilih semua" kini menghormati filter (`rows({search:'applied'})`, lintas halaman) → alur "tampilkan belum ditugaskan → pilih semua → tugaskan ke agen X". `views/sb-admin/penugasan-agen.php` + `static/js/penugasan-agen.js`.
+- **Diverifikasi di browser NYATA** (server lokal, akun `agenuji`): filter Belum-ditugaskan 1→0 & per-agen 0→1 saat pelanggan ditugaskan; kolom "Agen Saat Ini" benar; select-all hormati filter; penugasan uji di-revert. Fitur agen tetap DORMAN di prod (0 akun agen).

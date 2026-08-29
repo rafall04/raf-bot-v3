@@ -19,11 +19,29 @@
     $('#assignBtn').on('click', function () { doAssign(false); });
     $('#unassignBtn').on('click', function () { doAssign(true); });
 
+    // Filter "Tampilkan": Semua / Belum ditugaskan / Ditugaskan ke <agen>. Custom search DataTables
+    // (dibaca dari #filterAgen + atribut data-agen-id tiap baris). Didaftarkan SEKALI (global, tapi
+    // dijaga ke id tabel ini) supaya tak menumpuk saat tabel dibangun ulang.
+    $.fn.dataTable.ext.search.push(function (settings, dataRow, dataIndex) {
+      if (!settings.nTable || settings.nTable.id !== 'assignTable') return true;
+      const f = $('#filterAgen').val() || '__all__';
+      if (f === '__all__') return true;
+      const node = table ? table.row(dataIndex).node() : null;
+      const agenId = node ? String($(node).attr('data-agen-id') || '') : '';
+      if (f === '__none__') return agenId === '';
+      return agenId === String(f);
+    });
+    $('#filterAgen').on('change', function () { if (table) table.draw(); });
+
+    // "Pilih semua" menghormati filter aktif: centang SEMUA baris terfilter (lintas halaman),
+    // bukan cuma halaman yang tampak — supaya "tampilkan belum ditugaskan → pilih semua → tugaskan".
     $('#selectAll').on('change', function () {
       const checked = $(this).is(':checked');
-      $('#assignTable tbody .row-check').each(function () {
-        $(this).prop('checked', checked);
-        const id = String($(this).data('id'));
+      if (!table) return;
+      table.rows({ search: 'applied' }).nodes().each(function (rowNode) {
+        const cb = $(rowNode).find('.row-check');
+        cb.prop('checked', checked);
+        const id = String(cb.data('id'));
         if (checked) { selectedIds.add(id); } else { selectedIds.delete(id); }
       });
       updateButtons();
@@ -77,8 +95,10 @@
       .then(function (data) {
         if (data && data.status === 200 && Array.isArray(data.data)) {
           const select = $('#agenSelect');
+          const filterSel = $('#filterAgen');
           data.data.forEach(function (a) {
             select.append('<option value="' + a.id + '">' + escapeHtml(a.name) + ' (' + escapeHtml(a.username) + ')</option>');
+            filterSel.append('<option value="' + a.id + '">Ditugaskan ke: ' + escapeHtml(a.name) + '</option>');
           });
           if (data.data.length === 0) {
             showAlert('info', 'Belum ada akun dengan role "agen". Buat dulu di menu Akun Admin.');
@@ -105,7 +125,7 @@
               ? '<span class="badge badge-info">' + escapeHtml(c.assigned_agen_name) + '</span>'
               : '<span class="text-muted">-</span>';
             tbody.append(
-              '<tr>' +
+              '<tr data-agen-id="' + (c.assigned_agen_id != null ? escapeHtml(String(c.assigned_agen_id)) : '') + '">' +
               '<td><input type="checkbox" class="row-check" data-id="' + c.id + '"></td>' +
               '<td>' + c.id + '</td>' +
               '<td>' + escapeHtml(c.name) + '</td>' +

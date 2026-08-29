@@ -48,8 +48,15 @@
           </div>
 
           <div class="card shadow mb-4">
-            <div class="card-header py-3">
+            <div class="card-header py-3 d-flex flex-wrap align-items-center justify-content-between">
               <h6 class="m-0 font-weight-bold text-primary">Daftar Pelanggan</h6>
+              <div class="form-inline mt-2 mt-sm-0">
+                <label class="small text-muted mr-2 mb-0" for="filterAgen">Tampilkan</label>
+                <select class="form-control form-control-sm" id="filterAgen" style="min-width:210px">
+                  <option value="__all__">Semua pelanggan</option>
+                  <option value="__none__">Belum ditugaskan</option>
+                </select>
+              </div>
             </div>
             <div class="card-body">
               <div class="table-responsive">
