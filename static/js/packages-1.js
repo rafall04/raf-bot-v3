@@ -101,9 +101,10 @@
         displayProfile: $('#create-displayProfile').val(),
         description: $('#create-description').val(),
         showInMonthly: $('#create-showInMonthly').is(':checked'),
-        whitelist: $('#create-whitelist').is(':checked')
+        whitelist: $('#create-whitelist').is(':checked'),
+        isolir_day: $('#create-isolir_day').val()
       };
-      
+
       $.ajax({
         url: '/api/packages',
         type: 'POST',
@@ -161,6 +162,9 @@
       $('#editModal textarea[name="description"]').val($(this).data('description'));
       $('#editModal input[name="showInMonthly"]').prop('checked', $(this).data('show-in-monthly') !== false);
       $('#editModal input[name="whitelist"]').prop('checked', $(this).data('whitelist') == true);
+      // isolir_day (#b305): kosong bila paket tak menyetel hari isolir kustom.
+      const isoDay = $(this).data('isolir-day');
+      $('#editModal input[name="isolir_day"]').val(isoDay === undefined || isoDay === null || isoDay === '' ? '' : isoDay);
     });
     
     // Handle edit form submission
@@ -180,9 +184,10 @@
         displayProfile: $('#editModal input[name="displayProfile"]').val(),
         description: $('#editModal textarea[name="description"]').val(),
         showInMonthly: $('#editModal input[name="showInMonthly"]').is(':checked'),
-        whitelist: $('#editModal input[name="whitelist"]').is(':checked')
+        whitelist: $('#editModal input[name="whitelist"]').is(':checked'),
+        isolir_day: $('#editModal input[name="isolir_day"]').val()
       };
-      
+
       $.ajax({
         url: '/api/packages/' + packageId,
         type: 'PUT',

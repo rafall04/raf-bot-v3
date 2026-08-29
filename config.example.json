@@ -66,6 +66,10 @@
     "graceDaysBefore": 2,
     "isolirDaysBefore": 0
   },
+  "isolirPerPaket": {
+    "_comment": "Isolir per-PAKET (opt-in per paket via packages.json 'isolir_day' 1-28; kosong=ikut tanggal_isolir global). enabled=false => fitur mati, pelanggan diisolir siklus standar. Prioritas: akhir_bulan > isolir_day paket > global. Job HARIAN di database/cron.json (schedule_isolir_paket); dedup via profil PPPoE live (fail-safe).",
+    "enabled": false
+  },
   "isolirManualEnabled": true,
   "isolirManualDefaultProfile": "ISOLIR",
   "isolirManualAllowCustomProfile": true,

@@ -67,6 +67,7 @@
                           data-description="${row.description}"
                           data-show-in-monthly="${row.showInMonthly}"
                           data-whitelist="${row.whitelist}"
+                          data-isolir-day="${row.isolir_day == null ? '' : row.isolir_day}"
                           data-toggle="modal"
                           data-target="#editModal">Edit</button>
                   <button onclick="deleteData('${row.id}')" class="btn btn-danger">Hapus</button>

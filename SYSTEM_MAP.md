@@ -408,6 +408,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-29 (Audit alur template WA pelanggan — sehat; 8 wrapper lib/ dikeraskan dgn jaring pengaman terpusat)](docs/boundary-log.md#b302)
 - [Fitur 2026-08-29 (Siklus tagihan AKHIR BULAN — opt-in per pelanggan `users.billing_cycle`, isolir relatif akhir bulan, kohort dikecualikan dari 4 job standar)](docs/boundary-log.md#b303)
 - [Fix 2026-08-29 (Audit lanjutan #b303 — split-brain gerbang FAIL-CLOSED + durabilitas notif isolir kohort; is_paid/last_payment_date terbukti kolom mati)](docs/boundary-log.md#b304)
+- [Fitur 2026-08-29 (Isolir per-PAKET — `packages.json isolir_day` 1-28, job harian `isolir-paket.js` gated fail-closed, dedup profil live, prioritas akhir_bulan>paket>global)](docs/boundary-log.md#b305)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

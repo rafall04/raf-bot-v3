@@ -2433,3 +2433,15 @@
 - **`users.is_paid` & `users.last_payment_date` = kolom MATI (bukan bug #b303, bukan khusus Leny).** Terukur prod: is_paid=1 cuma **1** user/bot padahal 50 (Dander)/95 (Tanjung) `paid=1`; `last_payment_date` terisi **0 dari 158** user. Nol pembaca di jalur bisnis (invoice/isolir/laporan/dashboard), nol penulis di alur bayar. JANGAN sinkronkan (melegitimasi kolom mati) — perlakukan legacy; DROP sebagai perubahan skema tersendiri bila mau.
 - **UX admin isolir per-PAKET: BELUM ADA.** Hari isolir GLOBAL tunggal (`config.tanggal_isolir`); per-paket cuma boolean whitelist (kebal/tidak). Opsi paling sederhana bila diinginkan: field opsional `isolir_day` per paket (kosong=ikut global) + resolusi per-user di isolir.js. Fitur #b303 sendiri belum punya UI (enable/offset hanya di config.json).
 - Tes: `cron-schedule-consistency.test.js` (+3), `billing-akhir-bulan.test.js` (guard 3 job + misconfig), `account-classification-akhir-bulan.test.js` (fail-closed). Suite cron 71 hijau, lint 0 error.
+
+<a id="b305"></a>
+
+### Fitur 2026-08-29 (Isolir per-PAKET — hari isolir kustom opt-in per paket)
+
+- **Owner:** `lib/cron/jobs/isolir-paket.js` (job HARIAN) + kolom `isolir_day` (1-28) di `packages.json` + helper `getPackageIsolirDay`/`isPerPackageIsolirActive` (`lib/account-classification.js`). Menjawab kebutuhan "customize paket tertentu dengan isolir tertentu" (audit #b304 mencatat: isolir day per-paket BELUM ADA).
+- **Perilaku:** paket bisa punya `isolir_day` sendiri (kosong = ikut `config.tanggal_isolir` global). Job harian mengisolir pelanggan unpaid paket itu saat `hari >= isolir_day`. **Dedup TANPA state:** baca profil PPPoE LIVE — sudah=isolir_profile → lewati (jaga grace reaktivasi manual + tak reboot berulang). **FAIL-SAFE:** gagal baca profil → JANGAN isolir buta, lewati (coba besok). Notif isolir inline; jaring durabel bulanan tetap dari isolir-notification standar (#b304 sudah tak kecualikan siapa pun).
+- **Gerbang FAIL-CLOSED (pola #b304):** `config.isolirPerPaket.enabled` + `cronConfig.status_isolir_paket`. Bila cron mati → kohort JATUH-AMAN ke isolir standar. `initIsolirPaketTask` teriak `[CRON_ISOLIR_PAKET_MISCONFIG]` saat enabled-tak-terjadwal.
+- **Prioritas kohort:** `akhir_bulan` (#b303) > `isolir_day` paket > global. `isolir.js` standar mengecualikan kohort per-paket (1 baris). `grace-reminder.js` kini menampilkan tanggal isolir PER-PAKET di surat tenggang (bukan tanggal global yang salah).
+- **UI:** field "Tanggal Isolir Khusus Paket (opsional)" di modal tambah/edit paket (`views/sb-admin/packages.php` + `packages-1.js` + `packages-2.js`); route `routes/packages.js` memvalidasi 1-28 (`parseIsolirDay`).
+- **Deploy gelap:** default OFF di `config.example.json` + jadwal `schedule_isolir_paket`/`status_isolir_paket` di `database/cron.json`.
+- **Tes:** `isolir-paket.test.js` (17 — kandidat per-hari, dedup, fail-safe, prioritas, gerbang), `cron-schedule-consistency.test.js` (+3), `grace-reminder.test.js` (mock diperluas). Suite cron 109 hijau, lint 0 error.

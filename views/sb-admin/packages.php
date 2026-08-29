@@ -175,6 +175,11 @@
             <input type="checkbox" class="form-check-input" name="whitelist" id="create-whitelist">
             <label class="form-check-label" for="create-whitelist">Whitelist</label>
           </div>
+          <div class="mb-3">
+            <label for="create-isolir_day" class="form-label">Tanggal Isolir Khusus Paket (opsional)</label>
+            <input type="number" min="1" max="28" class="form-control" id="create-isolir_day" name="isolir_day" placeholder="Kosongkan = ikut tanggal isolir global">
+            <small class="text-muted">Isi 1&ndash;28 bila paket ini diisolir di tanggal berbeda dari setelan global. Perlu fitur &quot;Isolir per Paket&quot; diaktifkan.</small>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-dismiss="modal">
@@ -234,6 +239,11 @@
           <div class="mb-3 form-check">
             <input type="checkbox" class="form-check-input" name="whitelist" id="whitelist">
             <label class="form-check-label" for="whitelist">Whitelist</label>
+          </div>
+          <div class="mb-3">
+            <label for="isolir_day" class="form-label">Tanggal Isolir Khusus Paket (opsional)</label>
+            <input type="number" min="1" max="28" class="form-control" id="isolir_day" name="isolir_day" placeholder="Kosongkan = ikut tanggal isolir global">
+            <small class="text-muted">Isi 1&ndash;28 bila paket ini diisolir di tanggal berbeda dari setelan global. Perlu fitur &quot;Isolir per Paket&quot; diaktifkan.</small>
           </div>
         </div>
         <div class="modal-footer">

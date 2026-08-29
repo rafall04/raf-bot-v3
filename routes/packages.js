@@ -76,6 +76,14 @@ router.get('/api/packages/public', (req, res) => {
 });
 
 // POST /api/packages - Create new package
+// isolir_day per PAKET (#b305): hari isolir kustom (1-28, aman utk semua bulan). Kosong/invalid = null
+// (ikut tanggal isolir GLOBAL config.tanggal_isolir). Ditangani cron `isolir-paket` yang gated OFF.
+function parseIsolirDay(v) {
+    if (v === undefined || v === null || v === '' ) return null;
+    const n = parseInt(v, 10);
+    return (Number.isInteger(n) && n >= 1 && n <= 28) ? n : null;
+}
+
 router.post('/api/packages', ensureAdmin, (req, res) => {
     try {
         const newPackage = {
@@ -87,6 +95,7 @@ router.post('/api/packages', ensureAdmin, (req, res) => {
             description: req.body.description || '',
             showInMonthly: req.body.showInMonthly !== 'false' && req.body.showInMonthly !== false,
             whitelist: req.body.whitelist === 'true' || req.body.whitelist === true,
+            isolir_day: parseIsolirDay(req.body.isolir_day),
             created_at: new Date().toISOString()
         };
         
@@ -128,6 +137,9 @@ router.put('/api/packages/:id', ensureAdmin, (req, res) => {
             whitelist: req.body.whitelist !== undefined ?
                 (req.body.whitelist === 'true' || req.body.whitelist === true) :
                 global.packages[packageIndex].whitelist,
+            isolir_day: req.body.isolir_day !== undefined ?
+                parseIsolirDay(req.body.isolir_day) :
+                (global.packages[packageIndex].isolir_day ?? null),
             updated_at: new Date().toISOString()
         };
         
