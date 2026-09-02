@@ -55,6 +55,59 @@ const UPSTREAM_REPORT_TTL_MS = 30000;
 // jadi 30 mnt = beberapa siklus dan aman dari salah-vonis "basi" pada modem yang sebenarnya sehat.
 const MODEM_STALE_MS = 30 * 60 * 1000;
 
+// Kosakata jalur yang bisa di-resolve ke PELANGGAN (bukan cadangan gmdp2/vpn). Sumber kebenaran =
+// customer-path-resolver; fallback hardcoded menjaga tes (yang mem-mock resolver, jadi `_internal`
+// hilang) & prod tetap benar. Dipakai `resolveUpstreamHealth.anyDegraded`: degradasi jalur CADANGAN
+// tak boleh membuat pelanggan (yang jalurnya sehat) dikabari "sebagian jaringan terganggu".
+let CUSTOMER_FACING_PATHS;
+try {
+    const { _internal: pi } = require('../../lib/customer-path-resolver');
+    CUSTOMER_FACING_PATHS = new Set(
+        [
+            ...Object.values((pi && pi.STEER_LIST_TO_PATH) || {}),
+            ...Object.values((pi && pi.PROFILE_LIST_TO_PATH) || {}),
+            pi && pi.DEFAULT_PATH
+        ].filter(Boolean)
+    );
+} catch (_e) {
+    CUSTOMER_FACING_PATHS = new Set();
+}
+if (!CUSTOMER_FACING_PATHS.size) ['gmdp', 'mni', 'ih', 'sf'].forEach((k) => CUSTOMER_FACING_PATHS.add(k));
+
+// Ambang loss gateway (hop-1 uplink sendiri) yang dianggap SAKIT. Konservatif: gateway itu next-hop
+// lokal (rtt ~0,1ms), tapi sampel kecil (pingCount 5) bikin 1 paket hilang = 20%. Ambang tinggi
+// supaya "uplink sakit" hanya divonis saat loss BERTAHAN tinggi — bukan noise kuantisasi.
+const GATEWAY_LOSS_UNHEALTHY_PCT = 40;
+
+/** Uplink sendiri (gateway hop-1) sehat? Tanpa data gateway → fail-open "sehat" (jangan menuduh). */
+function isGatewayHealthy(entry) {
+    const g = entry && entry.gateway;
+    if (!g) return true;
+    const loss = Number(g.loss_avg_pct);
+    return !(Number.isFinite(loss) && loss >= GATEWAY_LOSS_UNHEALTHY_PCT);
+}
+
+/**
+ * Apakah gangguan ini SELURUH-JALUR (uplink sendiri sakit / jalur PUTUS / MAYORITAS target rusak =
+ * transit ISP) — vs SPESIFIK-LAYANAN (uplink sehat + sebagian besar internet umum masih normal,
+ * cuma 1–2 layanan buruk). Inilah beda "jaringan Anda terganggu" (jujur saat jalur benar rusak)
+ * dari "Facebook lagi bermasalah" (jujur saat cuma Meta buruk sementara Cloudflare/Garena/Google
+ * normal). TERUKUR di Tanjungharjo: uplink GMDP rtt 0,1ms & Meta 80% loss sendirian pernah bikin
+ * SEMUA pelanggan dikabari "jalur terganggu" padahal internetnya baik-baik saja.
+ * KONSERVATIF saat data tipis: PUTUS / tanpa rincian target → tetap dianggap seluruh-jalur
+ * (jangan menyembunyikan gangguan nyata) — downgrade ke spesifik-layanan HANYA bila ada bukti
+ * (uplink sehat + mayoritas target normal).
+ */
+function isPathWideIssue(entry) {
+    if (!entry) return false;
+    if (entry.status === 'PUTUS') return true;
+    if (!isGatewayHealthy(entry)) return true;
+    const targets = Array.isArray(entry.targets) ? entry.targets.filter((t) => t && t.verdict) : [];
+    if (!targets.length) return true;
+    const bad = targets.filter((t) => ['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(t.verdict)).length;
+    return bad / targets.length >= 0.5;
+}
+
 function upstreamSignalAvailable() {
     const up = global.config && global.config.upstreamMonitor;
     return !!(up && up.enabled === true);
@@ -165,6 +218,10 @@ async function buildUpstreamSection(user) {
             : null;
         if (!entry) return '';
         if (!['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(entry.status)) return '';
+        // Uplink sendiri sehat + cuma sebagian layanan buruk = SPESIFIK-LAYANAN, bukan "jalur
+        // terganggu". Diam di sini — nama layanannya dibawa buildLayananNote (#b264), supaya
+        // pelanggan yang internet umumnya lancar tak dikabari "jaringan terganggu".
+        if (!isPathWideIssue(entry)) return '';
 
         // Penghitung angka teknis (targets/avg) DIHAPUS: setelah slot loss/rtt tak lagi dioper,
         // ia jadi kode hantu di dalam fungsi yang tugasnya justru TIDAK menyebut angka —
@@ -219,12 +276,21 @@ async function buildUpstreamSection(user) {
  *           belum terpetakan (jangan klaim "normal" saat ada gangguan jalur yang sedang berjalan).
  */
 async function resolveUpstreamHealth(user) {
-    const out = { status: null, anyDegraded: false, layananTerganggu: [] };
+    const out = { status: null, anyDegraded: false, layananTerganggu: [], pathWide: false, gatewayHealthy: true };
     try {
         if (!upstreamSignalAvailable()) return out;
         const report = await getUpstreamReportCached();
         if (!report || !Array.isArray(report.paths)) return out;
-        out.anyDegraded = report.paths.some((p) => ['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(p.status));
+        // anyDegraded HANYA menghitung jalur customer-facing (bukan cadangan gmdp2/vpn) yang
+        // gangguannya SELURUH-JALUR — sinyal jujur untuk pelanggan yang IP-nya belum terpetakan.
+        // Dulu ia mencakup SEMUA jalur & semua status, jadi 1 jalur cadangan buruk bikin semua
+        // pelanggan dikabari "sebagian jaringan terganggu".
+        out.anyDegraded = report.paths.some(
+            (p) =>
+                CUSTOMER_FACING_PATHS.has(p.key) &&
+                ['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(p.status) &&
+                isPathWideIssue(p)
+        );
         const uname = normalizeUsername(user.pppoe_username);
         const addr = activeCache.addrByUser ? activeCache.addrByUser.get(uname) : null;
         let entryPelanggan = null;
@@ -234,7 +300,11 @@ async function resolveUpstreamHealth(user) {
             const pathKey = await resolveCustomerPath(addr);
             if (pathKey) {
                 entryPelanggan = report.paths.find((p) => p.key === pathKey) || null;
-                if (entryPelanggan) out.status = entryPelanggan.status;
+                if (entryPelanggan) {
+                    out.status = entryPelanggan.status;
+                    out.pathWide = isPathWideIssue(entryPelanggan);
+                    out.gatewayHealthy = isGatewayHealthy(entryPelanggan);
+                }
             }
         }
 
@@ -269,10 +339,15 @@ async function resolveUpstreamHealth(user) {
 /**
  * Verdict kesehatan untuk jalur yang PPPoE-nya AKTIF. Prinsip: JANGAN klaim "normal" tanpa bukti
  * (fail-closed). Hanya menyatakan sehat bila jalur pelanggan — atau SEMUA jalur — terpantau baik.
- * @returns {'UPSTREAM_ISSUE'|'POSSIBLE_UPSTREAM'|'HEALTHY'|'INCONCLUSIVE'}
+ * @returns {'UPSTREAM_ISSUE'|'SERVICE_ISSUE'|'POSSIBLE_UPSTREAM'|'HEALTHY'|'INCONCLUSIVE'}
  */
 function classifyOnlineVerdict(up) {
-    if (up.status && ['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(up.status)) return 'UPSTREAM_ISSUE';
+    if (up.status && ['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(up.status)) {
+        // Uplink sendiri sakit / jalur PUTUS / mayoritas target rusak = benar-benar gangguan jalur.
+        // Uplink sehat + cuma sebagian layanan buruk = SPESIFIK-LAYANAN — "koneksi normal" tapi
+        // sebut layanan yang terganggu (buildLayananNote), JANGAN klaim "jaringan terganggu".
+        return up.pathWide ? 'UPSTREAM_ISSUE' : 'SERVICE_ISSUE';
+    }
     if (up.status === 'NORMAL') return 'HEALTHY';
     // status null → IP pelanggan belum terpetakan ke jalur, atau fitur upstream mati.
     if (up.anyDegraded) return 'POSSIBLE_UPSTREAM';
@@ -419,6 +494,11 @@ function buildLayananNote(daftar) {
 /** Baris kesehatan (health note) untuk balasan jalur-AKTIF, dirender per verdict via template. */
 function buildHealthNote(verdict) {
     if (verdict === 'HEALTHY') {
+        return renderResponseTemplate('conncheck_health_ok', 'Koneksi Anda ke jaringan kami terpantau normal.', {});
+    }
+    if (verdict === 'SERVICE_ISSUE') {
+        // Uplink pelanggan NORMAL — cuma sebagian layanan (mis. Facebook) bermasalah dari sisi jalur.
+        // Klaim "jaringan terganggu" di sini justru menyesatkan; nama layanannya dibawa buildLayananNote.
         return renderResponseTemplate('conncheck_health_ok', 'Koneksi Anda ke jaringan kami terpantau normal.', {});
     }
     if (verdict === 'POSSIBLE_UPSTREAM') {

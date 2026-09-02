@@ -164,3 +164,62 @@ describe('verdict jalur-AKTIF berbasis bukti', () => {
         expect(evaluateRebootGate).toHaveBeenCalled();
     });
 });
+
+// RC2: gangguan SPESIFIK-LAYANAN ≠ "jaringan terganggu". TERUKUR di Tanjungharjo — uplink GMDP
+// rtt 0,1ms & internet umum lancar, tapi Meta 80% loss sendirian bikin SEMUA pelanggan dikabari
+// "jalur terganggu padahal aman". Kini: uplink sehat + minoritas layanan buruk → koneksi normal +
+// sebut layanannya; "jalur terganggu" hanya saat uplink sakit / jalur putus / mayoritas target rusak.
+describe('spesifik-layanan vs seluruh-jalur (RC2 padahal-aman)', () => {
+    const TARGETS_NAMA = [
+        { key: 'meta', namaAwam: 'Facebook & Instagram' },
+        { key: 'youtube', namaAwam: 'YouTube' }
+    ];
+    // Bangun entri jalur report: gateway + daftar target berverdict.
+    function pathEntry({ status, gwLoss, bad }) {
+        const kinds = ['meta', 'youtube', 'cloudflare', 'garena', 'akamai', 'google', 'moonton'];
+        const targets = kinds.map((k, i) => ({ target_key: k, verdict: i < bad ? (k === 'meta' ? 'GANGGUAN' : 'DEGRADASI') : 'NORMAL' }));
+        return { key: 'gmdp', label: 'Utama', status, gateway: { loss_avg_pct: gwLoss, rtt_avg_ms: 0.1 }, targets };
+    }
+
+    test('uplink SEHAT + hanya Meta/YouTube buruk (minoritas) → SERVICE_ISSUE: koneksi normal + sebut layanan, TIDAK "jalur terganggu", reboot TAK ditawarkan', async () => {
+        global.config = { upstreamMonitor: { enabled: true, targets: TARGETS_NAMA } };
+        buildStatusReport.mockResolvedValue({ paths: [pathEntry({ status: 'DEGRADASI', gwLoss: 5, bad: 2 })] });
+        await handleCekKoneksi(ctx());
+        const keys = renderedKeys();
+        expect(keys).toContain('conncheck_health_ok'); // uplink terpantau normal
+        expect(keys).toContain('conncheck_layanan_terganggu'); // sebut FB/YouTube
+        expect(keys).not.toContain('conncheck_upstream_issue'); // JANGAN "jaringan/jalur terganggu"
+        expect(evaluateRebootGate).not.toHaveBeenCalled(); // bukan masalah perangkat → tak nawari reboot
+    });
+
+    test('uplink SENDIRI sakit (gateway loss tinggi) → UPSTREAM_ISSUE (jalur benar terganggu)', async () => {
+        global.config = { upstreamMonitor: { enabled: true, targets: TARGETS_NAMA } };
+        buildStatusReport.mockResolvedValue({ paths: [pathEntry({ status: 'GANGGUAN', gwLoss: 60, bad: 1 })] });
+        await handleCekKoneksi(ctx());
+        const keys = renderedKeys();
+        expect(keys).toContain('conncheck_upstream_issue');
+        expect(keys).not.toContain('conncheck_health_ok');
+    });
+
+    test('uplink sehat TAPI MAYORITAS target rusak (transit ISP) → UPSTREAM_ISSUE', async () => {
+        global.config = { upstreamMonitor: { enabled: true, targets: TARGETS_NAMA } };
+        buildStatusReport.mockResolvedValue({ paths: [pathEntry({ status: 'GANGGUAN', gwLoss: 5, bad: 5 })] });
+        await handleCekKoneksi(ctx());
+        expect(renderedKeys()).toContain('conncheck_upstream_issue');
+    });
+
+    test('IP pelanggan tak terpetakan + hanya jalur CADANGAN (gmdp2) yang PUTUS → INCONCLUSIVE, BUKAN "sebagian terganggu"', async () => {
+        resolveCustomerPath.mockResolvedValue(null);
+        global.config = { upstreamMonitor: { enabled: true, targets: TARGETS_NAMA } };
+        buildStatusReport.mockResolvedValue({
+            paths: [
+                { key: 'gmdp', status: 'NORMAL', targets: [] },
+                { key: 'gmdp2', status: 'PUTUS', targets: [] }
+            ]
+        });
+        await handleCekKoneksi(ctx());
+        const keys = renderedKeys();
+        expect(keys).toContain('conncheck_health_active'); // INCONCLUSIVE
+        expect(keys).not.toContain('conncheck_health_possible'); // cadangan tak boleh bocor ke pelanggan
+    });
+});

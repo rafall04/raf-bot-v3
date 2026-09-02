@@ -2502,3 +2502,12 @@
 - **T3/T6** `lib/services/money-summary.js`: headline "Sudah keluar" & "Sisa" WA kini dari `arus.totalExpense` (buku besar) lewat field baru `keluarTotal`, bukan `keluar` (expense_entries saja) → WA tak lagi MENGHILANGKAN gaji (pengeluaran terbesar) & konsisten dgn halaman /rekap. `keluar` tetap dikembalikan untuk rincian per-kategori.
 - **T1** `routes/rekap-keuangan.js`: hitung `recurringUnbooked` (biaya rutin aktif belum settled periode berjalan) → PUSH warning ke `cashflowHealth` ("Ada Rp X biaya rutin belum dibukukan — laba belum dikurangi ini") + kirim di response. Aditif, hanya periode berjalan; membongkar laba-fiktif langsung di halaman tanpa mengubah metrik lama.
 - **Tes:** money-summary (+T3/T6 buku-besar; existing proyeksi diselaraskan) + kas-cashflow (penjaga null-guard `keluarTotal`) + rekap-dashboard + keuangan-ux = 41 hijau; lint 0. Menutup audit #b308 (T1/T3/T6 tak lagi deferred; sisa hanya kebijakan lanjutan).
+
+<a id="b312"></a>
+
+### Fix 2026-09-02 (Cek Koneksi Tanjung — "jaringan terganggu padahal aman, tanpa sebut jalur")
+
+- **Owner:** `message/handlers/connection-check-handler.js` (verdict jalur-AKTIF). Dua akar, keduanya bikin SEMUA pelanggan online dikabari "terganggu" tanpa nama jalur.
+- **Akar 1 (config drift, prod-only):** `config.upstreamMonitor.paths` Tanjung memakai kunci `main/gmdp2/vpn`, sedangkan `customer-path-resolver` (& DEFAULT poller) memakai `gmdp/mni/ih/sf`. `find(p.key===resolveCustomerPath())` TAK PERNAH cocok → `status=null` → semua jatuh ke `anyDegraded` → `POSSIBLE_UPSTREAM` generik. FIX config: kunci utama `gmdp` (VLAN63-GMDP, gw `192.168.63.1` sesuai routing-table `GMDP-PROBE` live; VLAN62 lama basi) + `namaAwam` target. Dander sudah benar (kunci cocok).
+- **Akar 2 (kode):** vonis jalur DEGRADASI/GANGGUAN yang didorong 1–2 CDN jauh (Meta 80% loss) sementara UPLINK sendiri sehat & internet umum lancar tetap dibilang "jalur terganggu". Kini `classifyOnlineVerdict` → `SERVICE_ISSUE` (koneksi normal + sebut layanan via `buildLayananNote`) kecuali **seluruh-jalur** (`isPathWideIssue`: PUTUS / gateway loss ≥40% / mayoritas target rusak) → tetap `UPSTREAM_ISSUE`. `buildUpstreamSection` & `anyDegraded` ikut gerbang ini; `anyDegraded` kini hanya jalur customer-facing (bukan cadangan gmdp2/vpn).
+- **Tes:** +4 di `connection-check-verdict.test.js` (SERVICE_ISSUE vs UPSTREAM_ISSUE gateway/mayoritas, cadangan tak bocor); 4 suite conncheck = 31 hijau; lint 0. Config LIVE Tanjung 2026-09-02; kode menyusul 2 bot.
