@@ -20,7 +20,7 @@
  *   lib/services/paid-receipt (struk lunas kanonik — JANGAN bikin template struk sendiri),
  *   lib/whatsapp-delivery-service, lib/whatsapp-critical-delivery, lib/admin-recipients, lib/template-service, lib/id-generator.
  * MainFuncs: createPaymentProofService/getPaymentProofService ->
- *   { evaluateIntake, handleIncomingProof, listPending, getById, getFilePath, confirmProof, rejectProof, deleteProof }.
+ *   { evaluateIntake, handleIncomingProof, listPending, getById, getFilePath, confirmProof, confirmManyPending, rejectProof, deleteProof }.
  * SideEffects: Tulis store + file bukti, kirim WA (notif admin bergambar + notifikasi hasil ke pelanggan),
  *   menulis ledger pembayaran (paid) + reaktivasi MikroTik via settlement.
  *   CATATAN: evaluateIntake MURNI-BACA (tak menulis apa pun). deleteProof TIDAK mengirim apa pun ke
@@ -431,6 +431,54 @@ function createPaymentProofService(overrides = {}) {
     }
 
     /**
+     * Konfirmasi SEMUA bukti pending sekaligus ("terima semua"). Menyelesaikan tiap bukti lewat
+     * confirmProof YANG SAMA — jadi gerbang uangnya identik: bukti tanpa tagihan terbuka DILEWATI
+     * (reason no_outstanding), TIDAK PERNAH ditandai lunas. Berjalan dalam SATU giliran pesan (satu
+     * kunci per-pengirim) sehingga tak ada perintah yang hilang di tengah antrian. NEVER-THROW per item:
+     * kegagalan satu bukti tak menggagalkan sisanya.
+     *
+     * @returns {Promise<{total, confirmed:[], alreadyPaid:[], skipped:[], failed:[]}>}
+     */
+    async function confirmManyPending({ adminName = "admin" } = {}) {
+        const items = listPending(); // sudah terurut submittedAt (lama → baru)
+        const confirmed = [];
+        const alreadyPaid = [];
+        const skipped = [];
+        const failed = [];
+
+        for (const item of items) {
+            let res;
+            try {
+                res = await confirmProof(item.id, { adminName });
+            } catch (err) {
+                logError("[PAYMENT_PROOF] confirmManyPending item error:", err);
+                failed.push({ id: item.id, userName: item.userName, error: err && err.message ? err.message : String(err) });
+                continue;
+            }
+
+            if (res && res.ok) {
+                const rec = res.record || item;
+                if (res.alreadyPaid) {
+                    alreadyPaid.push({ id: item.id, userName: rec.userName || item.userName });
+                } else {
+                    confirmed.push({
+                        id: item.id,
+                        userName: rec.userName || item.userName,
+                        amountDue: rec.amountDue != null ? rec.amountDue : item.amountDue,
+                        reactivation: res.settlement && res.settlement.reactivation
+                    });
+                }
+            } else if (res && res.reason === "no_outstanding") {
+                skipped.push({ id: item.id, userName: item.userName, reason: "no_outstanding" });
+            } else {
+                failed.push({ id: item.id, userName: item.userName, reason: (res && res.reason) || "unknown", error: res && res.error });
+            }
+        }
+
+        return { total: items.length, confirmed, alreadyPaid, skipped, failed };
+    }
+
+    /**
      * Tolak bukti → tandai rejected + beri tahu pelanggan (best-effort, tak melempar).
      */
     async function rejectProof(id, { adminName = "admin", reason = "" } = {}) {
@@ -482,6 +530,7 @@ function createPaymentProofService(overrides = {}) {
         getById,
         getFilePath,
         confirmProof,
+        confirmManyPending,
         rejectProof,
         deleteProof
     };

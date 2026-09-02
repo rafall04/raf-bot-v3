@@ -4837,7 +4837,17 @@
   "payment_proof_admin_list": {
     "name": "Bukti Bayar - Antrian (ke Admin)",
     "category": "payment",
-    "template": "🧾 *ANTRIAN BUKTI BAYAR* (${total})\n\n${daftar}\n\nBalas *angka* untuk memilih (mis. *1*), atau langsung *terima 1* / *tolak 2 <alasan>*."
+    "template": "🧾 *ANTRIAN BUKTI BAYAR* (${total})\n\n${daftar}\n\nBalas *angka* untuk memilih (mis. *1*), atau langsung *terima 1* / *tolak 2 <alasan>*.\nMau borongan? Ketik *terima semua* untuk melunasi semua yang masih punya tagihan."
+  },
+  "payment_proof_admin_confirm_all_prompt": {
+    "name": "Bukti Bayar - Konfirmasi Semua: Minta Penegasan (ke Admin)",
+    "category": "payment",
+    "template": "💰 *Konfirmasi SEMUA bukti* (${total})\n\n${daftar}\n\nBalas *ya* untuk menandai LUNAS semua yang masih punya tagihan (yang sudah lunas otomatis dilewati), atau *batal*."
+  },
+  "payment_proof_admin_confirm_all_summary": {
+    "name": "Bukti Bayar - Konfirmasi Semua: Ringkasan (ke Admin)",
+    "category": "payment",
+    "template": "💰 *Borongan konfirmasi selesai*\n\n${ringkasan}\n\nStruk terkirim ke pelanggan yang baru lunas.\nSisa antrian: ${sisa} bukti."
   },
   "payment_proof_admin_confirm_prompt": {
     "name": "Bukti Bayar - Minta Penegasan Lunas (ke Admin)",

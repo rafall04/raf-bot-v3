@@ -1,12 +1,15 @@
 /**
  * Header Doc
  * Purpose: State domain `PAYPROOF_*` — lanjutan percakapan admin saat mengonfirmasi/menolak/menghapus
- *   bukti pembayaran lewat WhatsApp. Dua langkah: `PAYPROOF_SELECT` (antrian bernomor sudah ditampilkan,
- *   menunggu admin membalas angka / `terima 1` / `tolak 2 <alasan>` / `hapus 3`) dan `PAYPROOF_CONFIRM`
+ *   bukti pembayaran lewat WhatsApp. Tiga langkah: `PAYPROOF_SELECT` (antrian bernomor sudah ditampilkan,
+ *   menunggu admin membalas angka / `terima 1` / `tolak 2 <alasan>` / `hapus 3`), `PAYPROOF_CONFIRM`
  *   (satu bukti terpilih, menunggu `ya`; pada aksi tolak, teks bebas dianggap sebagai ALASAN; aksi hapus
- *   membuang entri TANPA menyentuh pelanggan). Kata kunci eksplisit (`tolak`/`hapus`/`terima`) boleh
- *   mengganti aksi di tengah jalan. Snapshot antrian disimpan di state supaya penomoran stabil walau ada
- *   bukti baru masuk di tengah jalan.
+ *   membuang entri TANPA menyentuh pelanggan), dan `PAYPROOF_CONFIRM_ALL` (borongan "terima semua",
+ *   menunggu satu `ya` untuk melunasi seluruh antrian yang masih punya tagihan). Penegasan `ya`
+ *   menerima afirmasi alami ("ok mas", "sip") lewat isConsentYes (kecuali jalur tolak yang tetap
+ *   cocok-persis agar teks alasannya tak tertelan). Kata kunci eksplisit (`tolak`/`hapus`/`terima`)
+ *   boleh mengganti aksi di tengah jalan. Snapshot antrian disimpan di state supaya penomoran stabil
+ *   walau ada bukti baru masuk di tengah jalan.
  *   Gate peran diulang tiap langkah (accounts.json). Perintah global (`menu`, `lapor`, …) SENGAJA
  *   dilepas (`handled:false`) agar admin tetap bisa keluar dari alur ini. NEVER-THROW.
  * Caller: message/handlers/conversation-state-router.js (owner "payment-proof", prefix `PAYPROOF_`).
@@ -22,14 +25,17 @@ const { renderResponseTemplate } = require("../../../lib/response-template-helpe
 const {
     STEP_SELECT,
     STEP_CONFIRM,
+    STEP_CONFIRM_ALL,
     CMD_LIST,
     getService,
     isAdminActor,
     adminNameOf,
     isYes,
+    isConsentYes,
     executeConfirm,
     executeReject,
     executeDelete,
+    executeConfirmAll,
     replyPendingList,
     promptDecision,
     resolvePendingByIndex
@@ -146,7 +152,11 @@ async function handleConfirm(ctx, userState) {
     // sampai media kosong terbaca sebagai "alasan".
     if (!body) return { handled: false };
 
-    if (isYes(body)) {
+    // Afirmasi alami ("ok mas", "sip") hanya untuk confirm/delete. Pada alur TOLAK tetap cocok-persis
+    // (isYes): kalau tidak, "ok nominal kurang" akan terbaca sebagai "ya, tolak tanpa alasan" dan
+    // alasannya HILANG — padahal di alur tolak teks bebas memang dimaksud sebagai alasan.
+    const isProceedYes = action === "reject" ? isYes(body) : isConsentYes(body);
+    if (isProceedYes) {
         clearState(ctx);
         if (action === "reject") await executeReject(ctx, service, userState.id, "", adminName);
         else if (action === "delete") await executeDelete(ctx, service, userState.id, "", adminName);
@@ -190,6 +200,31 @@ async function handleConfirm(ctx, userState) {
 }
 
 /**
+ * Penegasan borongan "terima semua": `ya` → lunasi seluruh antrian (executeConfirmAll, gerbang uang
+ * per-bukti tetap berlaku). Bukan afirmasi → minta penegasan; perintah global tetap bisa kabur.
+ */
+async function handleConfirmAll(ctx) {
+    const service = getService(ctx);
+    const adminName = adminNameOf(ctx);
+    const body = String(ctx.chats || "").trim();
+
+    if (!body) return { handled: false };
+
+    if (isConsentYes(body)) {
+        clearState(ctx);
+        await executeConfirmAll(ctx, service, adminName);
+        return { handled: true };
+    }
+
+    if (ctx.isGlobalCommand) return { handled: false };
+    await ctx.reply(renderResponseTemplate(
+        "payment_proof_admin_need_yes",
+        "Balas *ya* untuk lanjut, *tolak <alasan>* untuk menolak, atau *batal*."
+    ), { skipDuplicateCheck: true });
+    return { handled: true };
+}
+
+/**
  * Router state PAYPROOF_*. NEVER-THROW.
  */
 async function handlePaymentProofAdminState(ctx) {
@@ -200,6 +235,7 @@ async function handlePaymentProofAdminState(ctx) {
         if (!isAdminActor(ctx)) return { handled: false };
         if (step === STEP_SELECT) return await handleSelect(ctx, userState || {});
         if (step === STEP_CONFIRM) return await handleConfirm(ctx, userState || {});
+        if (step === STEP_CONFIRM_ALL) return await handleConfirmAll(ctx);
         return { handled: false };
     } catch (err) {
         console.warn(`[PAYPROOF_STATE] gagal: ${err && err.message ? err.message : err}`);
@@ -215,4 +251,4 @@ async function handlePaymentProofAdminState(ctx) {
     }
 }
 
-module.exports = { handlePaymentProofAdminState, STEP_SELECT, STEP_CONFIRM };
+module.exports = { handlePaymentProofAdminState, STEP_SELECT, STEP_CONFIRM, STEP_CONFIRM_ALL };

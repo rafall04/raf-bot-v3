@@ -327,3 +327,61 @@ describe("payment-proof.service deleteProof (bukti palsu — tanpa menyentuh pel
         expect((await svc.deleteProof("nope")).reason).toBe("not_found");
     });
 });
+
+describe("payment-proof.service confirmManyPending (borongan 'terima semua')", () => {
+    test("lunasi yang punya tagihan, LEWATI yang sudah lunas (no_outstanding TAK ditandai lunas)", async () => {
+        // user 9 = sudah lunas → harus DILEWATI, bukan ditandai lunas (gerbang uang).
+        const deps = makeDeps({
+            getPaymentPositionForPeriod: jest.fn(async (user) =>
+                String(user.id) === "9"
+                    ? { outstanding: 0, is_fully_paid: true, amount_due: 150000 }
+                    : { outstanding: 150000, is_fully_paid: false, amount_due: 150000 }),
+            findUserById: (id) => ({ id, name: `U${id}`, subscription: "10Mbps", phone_number: `62822${id}`, pppoe_username: `u${id}` })
+        });
+        const svc = createPaymentProofService(deps);
+        const a = await submit(svc, { user: { id: 5, name: "Budi", phone_number: "6285", subscription: "10Mbps" }, canonicalSender: "6285@s.whatsapp.net" });
+        const b = await submit(svc, { user: { id: 9, name: "Sudah", phone_number: "6289", subscription: "10Mbps" }, canonicalSender: "6289@s.whatsapp.net" });
+
+        const res = await svc.confirmManyPending({ adminName: "ana" });
+
+        expect(res.total).toBe(2);
+        expect(res.confirmed.map((c) => c.id)).toEqual([a.record.id]);
+        expect(res.skipped.map((s) => s.id)).toEqual([b.record.id]);
+        expect(res.failed).toHaveLength(0);
+        // Yang payable jadi confirmed; yang no_outstanding TETAP pending (tak pernah dilunasi diam-diam).
+        expect(svc.getById(a.record.id).status).toBe("confirmed");
+        expect(svc.getById(b.record.id).status).toBe("pending");
+    });
+
+    test("antrian kosong → total 0, semua array kosong", async () => {
+        const svc = createPaymentProofService(makeDeps());
+        const res = await svc.confirmManyPending({ adminName: "ana" });
+        expect(res).toEqual({ total: 0, confirmed: [], alreadyPaid: [], skipped: [], failed: [] });
+    });
+
+    test("satu bukti gagal settle TIDAK menggagalkan sisanya (never-throw per item)", async () => {
+        let calls = 0;
+        const deps = makeDeps({
+            billSettlement: {
+                settleTagihanPayment: jest.fn(async () => {
+                    calls += 1;
+                    if (calls === 1) throw new Error("db down");
+                    return { ok: true, ledger: { action: "paid" }, reactivation: { attempted: false } };
+                })
+            },
+            findUserById: (id) => ({ id, name: `U${id}`, subscription: "10Mbps", phone_number: `62822${id}`, pppoe_username: `u${id}` })
+        });
+        const svc = createPaymentProofService(deps);
+        const a = await submit(svc, { user: { id: 5, name: "Budi", phone_number: "6285", subscription: "10Mbps" }, canonicalSender: "6285@s.whatsapp.net" });
+        const b = await submit(svc, { user: { id: 6, name: "Cici", phone_number: "6286", subscription: "10Mbps" }, canonicalSender: "6286@s.whatsapp.net" });
+
+        const res = await svc.confirmManyPending({ adminName: "ana" });
+
+        expect(res.total).toBe(2);
+        expect(res.failed).toHaveLength(1);
+        expect(res.confirmed).toHaveLength(1);
+        // Yang gagal TETAP pending (fail-closed), yang sukses jadi confirmed.
+        expect(svc.getById(a.record.id).status).toBe("pending");
+        expect(svc.getById(b.record.id).status).toBe("confirmed");
+    });
+});

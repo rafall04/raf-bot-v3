@@ -4,8 +4,10 @@ const {
     handlePaymentProofAdminDecision,
     parseProofCommand,
     extractQuotedText,
+    executeConfirmAll,
     STEP_SELECT,
-    STEP_CONFIRM
+    STEP_CONFIRM,
+    STEP_CONFIRM_ALL
 } = require("../payment-proof-admin-handler");
 
 const CODE = "BP-260710-Y6PZ";
@@ -119,6 +121,48 @@ describe("parseProofCommand", () => {
     test("balasan ke pesan bot LAIN (tanpa kode) tidak dianggap perintah berkode", () => {
         expect(parseProofCommand("ok", "pesan bot lain tanpa kode")).toEqual({ action: "confirm" });
         // ...dan handler akan melepasnya bila antrian kosong (lihat test di bawah).
+    });
+
+    test("borongan: 'terima semua' / 'ok semua' / 'konfirmasi semua' → confirm_all", () => {
+        expect(parseProofCommand("terima semua")).toEqual({ action: "confirm_all" });
+        expect(parseProofCommand("ok semua")).toEqual({ action: "confirm_all" });
+        expect(parseProofCommand("KONFIRMASI SEMUA")).toEqual({ action: "confirm_all" });
+        expect(parseProofCommand("terima semuanya")).toEqual({ action: "confirm_all" });
+    });
+
+    test("balasan afirmatif ALAMI pada notif berkode → confirm (bukan cuma 'ok'/'oke')", () => {
+        const quoted = `Kode: ${CODE}\nPortal: http://x`;
+        ["ya", "iya", "sip", "ok mas", "oke kak", "ya betul", "lunas"].forEach((t) =>
+            expect(parseProofCommand(t, quoted)).toEqual({ action: "confirm", code: CODE }));
+    });
+
+    test("balasan yang BUKAN persetujuan bersih → null (tak asal konfirmasi)", () => {
+        const quoted = `Kode: ${CODE}`;
+        ["cek dulu", "ok cek dulu", "nanti ya", "belum", "bisa reboot ga?", "terima kasih"].forEach((t) =>
+            expect(parseProofCommand(t, quoted)).toBeNull());
+    });
+
+    test("tolak/hapus tetap menang atas afirmasi di balasan berkode", () => {
+        const quoted = `Kode: ${CODE}`;
+        expect(parseProofCommand("tolak nominal kurang", quoted))
+            .toEqual({ action: "reject", code: CODE, reason: "nominal kurang" });
+        expect(parseProofCommand("hapus", quoted)).toEqual({ action: "delete", code: CODE, reason: "" });
+    });
+});
+
+describe("extractQuotedText — pembungkus (PDF & pesan menghilang)", () => {
+    test("bukti PDF: documentWithCaptionMessage di-unwrap sampai captionnya", () => {
+        const msg = { message: { extendedTextMessage: { text: "ok", contextInfo: { quotedMessage: {
+            documentWithCaptionMessage: { message: { documentMessage: { caption: `Kode: ${CODE}` } } }
+        } } } } };
+        expect(extractQuotedText(msg)).toBe(`Kode: ${CODE}`);
+    });
+
+    test("chat pesan-menghilang: amplop ephemeralMessage di-unwrap", () => {
+        const msg = { message: { ephemeralMessage: { message: { extendedTextMessage: {
+            text: "ok", contextInfo: { quotedMessage: { imageMessage: { caption: `Kode: ${CODE}` } } }
+        } } } } };
+        expect(extractQuotedText(msg)).toBe(`Kode: ${CODE}`);
     });
 });
 
@@ -379,6 +423,40 @@ describe("handlePaymentProofAdminDecision — gate & kegagalan", () => {
         expect(ctx.reply.mock.calls[0][0]).toContain("Reaktivasi MikroTik GAGAL");
     });
 
+    test("router TAK TERBACA saat cek isolir → admin diingatkan cek manual (tidak diam)", async () => {
+        const service = fakeService({
+            confirmProof: jest.fn(async () => ({
+                ok: true,
+                record: pending(),
+                settlement: { reactivation: { attempted: false, reason: "profile_read_failed" } },
+                alreadyPaid: false
+            }))
+        });
+        const ctx = baseCtx({ chats: `terima ${CODE}`, service });
+
+        await handlePaymentProofAdminDecision(ctx);
+
+        expect(ctx.reply.mock.calls[0][0]).toContain("Router tak terbaca");
+    });
+
+    test("reaktivasi tak dicoba karena pelanggan MEMANG tak terisolir → tidak ada peringatan (benign)", async () => {
+        const service = fakeService({
+            confirmProof: jest.fn(async () => ({
+                ok: true,
+                record: pending(),
+                settlement: { reactivation: { attempted: false, reason: "not_isolated" } },
+                alreadyPaid: false
+            }))
+        });
+        const ctx = baseCtx({ chats: `terima ${CODE}`, service });
+
+        await handlePaymentProofAdminDecision(ctx);
+
+        const text = ctx.reply.mock.calls[0][0];
+        expect(text).not.toContain("Router tak terbaca");
+        expect(text).not.toContain("GAGAL");
+    });
+
     test("sudah lunas sebelumnya → tandai terkonfirmasi tanpa klaim struk baru", async () => {
         const service = fakeService({
             confirmProof: jest.fn(async () => ({ ok: true, record: pending(), settlement: {}, alreadyPaid: true }))
@@ -420,5 +498,67 @@ describe("handlePaymentProofAdminDecision — gate & kegagalan", () => {
 
         expect(res.handled).toBe(true);
         expect(ctx.reply).toHaveBeenCalled();
+    });
+});
+
+describe("handlePaymentProofAdminDecision — borongan 'terima semua'", () => {
+    test("'terima semua' + antrian isi → daftar + state CONFIRM_ALL, BELUM melunasi", async () => {
+        const service = fakeService({ listPending: jest.fn(() => [pending(CODE2, "Siti"), pending(CODE, "Budi")]) });
+        const ctx = baseCtx({ chats: "terima semua", service });
+
+        const res = await handlePaymentProofAdminDecision(ctx);
+
+        expect(res.handled).toBe(true);
+        expect(service.confirmProof).not.toHaveBeenCalled();
+        expect(ctx.setUserState).toHaveBeenCalledWith(
+            "628111@s.whatsapp.net",
+            expect.objectContaining({ step: STEP_CONFIRM_ALL, action: "confirm_all" })
+        );
+        const text = ctx.reply.mock.calls[0][0];
+        expect(text).toContain("SEMUA");
+        expect(text).toContain("Siti");
+        expect(text).toContain("Budi");
+    });
+
+    test("'terima semua' + antrian KOSONG → pesan bersih, tak menyentuh service", async () => {
+        const service = fakeService();
+        const ctx = baseCtx({ chats: "terima semua", service });
+
+        const res = await handlePaymentProofAdminDecision(ctx);
+
+        expect(res.handled).toBe(true);
+        expect(service.confirmProof).not.toHaveBeenCalled();
+        expect(ctx.reply.mock.calls[0][0]).toContain("Tidak ada bukti");
+    });
+});
+
+describe("executeConfirmAll — ringkasan borongan", () => {
+    test("meringkas dikonfirmasi / dilewati / gagal dari confirmManyPending", async () => {
+        const service = {
+            confirmManyPending: jest.fn(async () => ({
+                total: 4,
+                confirmed: [
+                    { id: CODE, userName: "Budi", amountDue: 150000, reactivation: { attempted: true, ok: true } },
+                    { id: "BP-260710-RRRR", userName: "Rina", amountDue: 100000, reactivation: { attempted: false, reason: "profile_read_failed" } }
+                ],
+                alreadyPaid: [],
+                skipped: [{ id: CODE2, userName: "Siti", reason: "no_outstanding" }],
+                failed: [{ id: "BP-260710-XXXX", userName: "Doni" }]
+            })),
+            listPending: jest.fn(() => [pending()])
+        };
+        const ctx = baseCtx();
+
+        await executeConfirmAll(ctx, service, "Ana");
+
+        expect(service.confirmManyPending).toHaveBeenCalledWith({ adminName: "Ana" });
+        const text = ctx.reply.mock.calls[0][0];
+        expect(text).toContain("2 dikonfirmasi");
+        expect(text).toContain("Budi");
+        expect(text).toContain("1 dilewati");
+        expect(text).toContain("GAGAL");
+        // Rina lunas tapi routernya tak terbaca → harus muncul di "perlu cek isolir manual".
+        expect(text).toContain("perlu cek isolir manual");
+        expect(text).toContain("Rina");
     });
 });

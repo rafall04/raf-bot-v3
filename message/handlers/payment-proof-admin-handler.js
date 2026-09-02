@@ -10,6 +10,10 @@
  *     (4) POLOS → `ok` / `tolak` / `hapus` tanpa apa pun: bot menawarkan antrian (1 bukti → minta `ya`,
  *         banyak bukti → daftar bernomor). Bila antrian KOSONG, pesan dilepas (handled:false) supaya
  *         "ok"/"hapus" biasa dari admin tidak dibajak.
+ *     (5) BORONGAN → `terima semua`: lunasi SEMUA bukti pending yang masih punya tagihan sekaligus
+ *         (yang sudah lunas dilewati), setelah satu penegasan `ya` (state PAYPROOF_CONFIRM_ALL).
+ *   Balasan ter-quote `ok` kini menerima ragam afirmatif alami ("ya", "ok mas", "sip") via
+ *   isCleanConsent — sasaran sudah pasti (kode dari quote) & confirmProof fail-closed, jadi tetap aman.
  *   Langkah `ya` dan pemilihan angka dilanjutkan oleh state domain `PAYPROOF_*`.
  *   Gate peran PRESISI (admin/owner/superadmin dari accounts.json). Non-admin → `handled:false`
  *   senyap (fitur tak bocor). NEVER-THROW.
@@ -18,9 +22,10 @@
  * Deps: services/payment-proof.service (listPending/confirmProof/rejectProof),
  *   ./state-domains/wan-switch.state (resolveStaffRole), lib/response-template-helper,
  *   `setUserState` diinjeksi pemanggil (conversation-handler, key stateSender kanonik).
- * MainFuncs: handlePaymentProofAdminDecision, parseProofCommand, extractQuotedText, dispatchAction,
- *   executeConfirm, executeReject, executeDelete, replyPendingList, promptDecision, resolvePendingByIndex,
- *   STEP_SELECT, STEP_CONFIRM.
+ * MainFuncs: handlePaymentProofAdminDecision, parseProofCommand, extractQuotedText, peelWrappers,
+ *   dispatchAction, executeConfirm, executeReject, executeDelete, executeConfirmAll, promptConfirmAll,
+ *   replyPendingList, promptDecision, resolvePendingByIndex, isConsentYes, STEP_SELECT, STEP_CONFIRM,
+ *   STEP_CONFIRM_ALL.
  * SideEffects: Lewat service — menulis ledger pembayaran (lunas), reaktivasi MikroTik, kirim WA ke
  *   pelanggan (struk/penolakan). HAPUS tidak menyentuh pelanggan/ledger (buang entri saja). Balasan ke
  *   admin lewat `reply` yang diinjeksi; menulis conversation state.
@@ -28,11 +33,19 @@
 "use strict";
 
 const { renderResponseTemplate } = require("../../lib/response-template-helper");
+const { isCleanConsent } = require("../../lib/affirmative-parser");
 
 const ADMIN_ROLES = ["admin", "owner", "superadmin"];
 
 const STEP_SELECT = "PAYPROOF_SELECT";
 const STEP_CONFIRM = "PAYPROOF_CONFIRM";
+// Penegasan `ya` untuk "terima semua" (borongan). Aksi uang massal → wajib satu penegasan.
+const STEP_CONFIRM_ALL = "PAYPROOF_CONFIRM_ALL";
+
+// Kata yang WAJAR muncul di balasan konfirmasi pembayaran, jadi TIDAK boleh dianggap "muatan lain"
+// oleh isCleanConsent (yang defaultnya menganggap kata-kata ini tanda pesan bukan-konsen). Tanpa ini
+// "ya sudah transfer" / "oke bayar masuk" akan ditolak sebagai bukan-persetujuan.
+const PAY_ONTOPIC = ["bayar", "pembayaran", "transfer", "tf", "lunas", "terima", "tagihan", "saldo"];
 
 // Format id bukti = BP-YYMMDD-XXXX (lib/id-generator.generatePaymentProofId).
 const CODE = "BP-\\d{6}-[A-Z0-9]{4}";
@@ -60,6 +73,9 @@ const CMD_QUOTED_DELETE = new RegExp(`^(?:${DELETE_WORDS})\\s*(.*)$`, "i");
 const CMD_BARE_REJECT = new RegExp(`^(?:${REJECT_WORDS})$`, "i");
 const CMD_BARE_DELETE = new RegExp(`^(?:${DELETE_WORDS})$`, "i");
 const CMD_LIST = /^(?:bukti|bukti bayar|daftar bukti|antrian bukti|antrean bukti)$/i;
+// Borongan: "terima semua" / "konfirmasi semua" / "ok semua". Melunasi SEMUA bukti yang masih punya
+// tagihan (yang sudah lunas dilewati). Sengaja butuh kata "semua/all" eksplisit — bukan sekadar "ok".
+const CMD_CONFIRM_ALL = /^(?:terima|konfirmasi|setuju|acc|lunas|ok|oke)\s+(?:semua|semuanya|all)\s*$/i;
 
 function formatRupiah(value) {
     return `Rp ${Number(value || 0).toLocaleString("id-ID")}`;
@@ -80,16 +96,59 @@ function isYes(text) {
     return YES_WORDS.includes(String(text || "").toLowerCase().trim());
 }
 
+// "Ya" yang toleran sapaan ("ok mas", "ya ka", "sip", "iya", "lanjut") untuk langkah penegasan.
+// Memakai isCleanConsent (bukan cocok-persis) supaya balasan setuju alami tak lagi ditolak — akar
+// masalah yang sama dengan daftar afirmasi cocok-persis yang dulu menolak 83% ucapan setuju nyata.
+// Tetap menolak pertanyaan & pesan bermuatan lain ("cek dulu", "ya tapi nanti").
+function isConsentYes(text) {
+    return isYes(text) || isCleanConsent(text, { onTopic: PAY_ONTOPIC });
+}
+
+// Baileys sering MEMBUNGKUS pesan nyata di dalam satu envelope: pesan menghilang (ephemeralMessage),
+// lihat-sekali (viewOnceMessage*), dokumen ber-caption (documentWithCaptionMessage), atau pesan hasil
+// edit (editedMessage). contextInfo/caption yang kita cari ada SATU lapis lebih dalam. Tanpa mengupas
+// lapisan ini, balasan ter-quote pada notif BUKTI (khususnya bukti PDF = documentWithCaptionMessage,
+// dan chat dengan "pesan menghilang" aktif) tak pernah ketemu kode BP-nya → konfirmasi diam-diam gagal.
+const WRAPPER_KEYS = [
+    "ephemeralMessage",
+    "viewOnceMessage",
+    "viewOnceMessageV2",
+    "viewOnceMessageV2Extension",
+    "documentWithCaptionMessage",
+    "editedMessage"
+];
+
+/** Kupas envelope pembungkus berlapis sampai ketemu isi pesan sebenarnya. */
+function peelWrappers(message) {
+    let current = message;
+    let guard = 0;
+    while (current && typeof current === "object" && guard < 6) {
+        const key = Object.keys(current)[0];
+        if (WRAPPER_KEYS.includes(key) && current[key] && current[key].message) {
+            current = current[key].message;
+            guard += 1;
+            continue;
+        }
+        break;
+    }
+    return current || {};
+}
+
 /**
- * Teks pesan yang di-quote (caption gambar/dokumen atau teks biasa). "" bila bukan balasan.
+ * Teks pesan yang di-quote (caption gambar/dokumen/video atau teks biasa). "" bila bukan balasan.
+ * Mengupas pembungkus (ephemeral/view-once/document-with-caption) baik pada AMPLOP balasan maupun
+ * pada pesan yang di-quote, supaya balasan `ok` pada notif bukti PDF / di chat pesan-menghilang tetap
+ * bisa menemukan kode BP-nya.
  */
 function extractQuotedText(msg) {
-    const inner = (msg && msg.message) || {};
+    const inner = peelWrappers((msg && msg.message) || {});
     for (const key of Object.keys(inner)) {
-        const quoted = inner[key] && inner[key].contextInfo && inner[key].contextInfo.quotedMessage;
-        if (!quoted) continue;
+        const quotedRaw = inner[key] && inner[key].contextInfo && inner[key].contextInfo.quotedMessage;
+        if (!quotedRaw) continue;
+        const quoted = peelWrappers(quotedRaw);
         return (quoted.imageMessage && quoted.imageMessage.caption)
             || (quoted.documentMessage && quoted.documentMessage.caption)
+            || (quoted.videoMessage && quoted.videoMessage.caption)
             || (quoted.extendedTextMessage && quoted.extendedTextMessage.text)
             || quoted.conversation
             || "";
@@ -127,17 +186,27 @@ function parseProofCommand(text, quotedText = "") {
 
     if (CMD_LIST.test(body)) return { action: "list" };
 
+    // Borongan "terima semua" — dicek sebelum cabang ter-quote/polos.
+    if (CMD_CONFIRM_ALL.test(body)) return { action: "confirm_all" };
+
     // 3) Balasan ter-quote: hanya sah bila pesan yang dibalas memuat kode bukti — jadi "ok"/"hapus" ke
     // pesan bot lain tidak akan pernah menyentuh pembayaran secara tak sengaja.
     const quotedCode = String(quotedText || "").match(CODE_ANYWHERE);
     if (quotedCode) {
         const code = quotedCode[0].toUpperCase();
-        if (CMD_BARE_CONFIRM.test(body)) return { action: "confirm", code };
-        // Cek hapus SEBELUM tolak: keduanya sama-sama menutup entri, tapi "hapus" tak menyentuh pelanggan.
+        // Cek hapus & tolak DULU: keduanya kata-kunci eksplisit yang membawa alasan, dan "hapus" tak
+        // menyentuh pelanggan. Baru sesudah itu tafsirkan konfirmasi.
         const replyDelete = body.match(CMD_QUOTED_DELETE);
         if (replyDelete) return { action: "delete", code, reason: (replyDelete[1] || "").trim() };
         const replyReject = body.match(CMD_QUOTED_REJECT);
         if (replyReject) return { action: "reject", code, reason: (replyReject[1] || "").trim() };
+        // Konfirmasi: kata baku ("ok"/"terima"/…) ATAU afirmasi alami ("ya", "ok mas", "sip", "oke kak").
+        // Sasaran sudah PASTI (kode dari quote), aktor tergerbang admin, dan confirmProof fail-closed
+        // saat tak ada tagihan — jadi menerima ragam afirmatif di sini tetap aman. isCleanConsent
+        // menolak pertanyaan & pesan bermuatan lain ("ok cek dulu"), jadi tak asal meloloskan.
+        if (CMD_BARE_CONFIRM.test(body) || isCleanConsent(body, { onTopic: PAY_ONTOPIC })) {
+            return { action: "confirm", code };
+        }
         return null;
     }
 
@@ -159,10 +228,26 @@ function buildPendingListBody(items) {
 }
 
 function describeReactivation(reactivation) {
-    if (!reactivation || !reactivation.attempted) return "";
-    return reactivation.ok
-        ? "\n🔌 Pelanggan terisolir → sudah diaktifkan kembali."
-        : "\n⚠️ Reaktivasi MikroTik GAGAL — cek profil PPPoE-nya manual ya.";
+    if (!reactivation) return "";
+    if (reactivation.attempted) {
+        return reactivation.ok
+            ? "\n🔌 Pelanggan terisolir → sudah diaktifkan kembali."
+            : "\n⚠️ Reaktivasi MikroTik GAGAL — cek profil PPPoE-nya manual ya.";
+    }
+    // Tak dicoba: mayoritas benign (pelanggan MEMANG tidak terisolir → tak ada yang perlu dibuka).
+    // TAPI kalau profil live tak terbaca (router tak terjangkau), kita BUTA: pelanggan yang barusan
+    // bayar bisa MASIH terisolir tanpa ada yang tahu. Jangan diam — suarakan agar admin cek manual.
+    if (reactivation.reason === "profile_read_failed") {
+        return "\n⚠️ Router tak terbaca saat cek isolir — pastikan manual pelanggan sudah bisa online (mungkin masih terisolir).";
+    }
+    return "";
+}
+
+/** True bila reaktivasi bukti INI perlu dicek manual admin (gagal ubah profil / router tak terbaca). */
+function reactivationNeedsAttention(reactivation) {
+    if (!reactivation) return false;
+    if (reactivation.attempted) return reactivation.ok === false;
+    return reactivation.reason === "profile_read_failed";
 }
 
 function getService(ctx) {
@@ -364,6 +449,68 @@ async function dispatchAction(ctx, service, action, id, reason, adminName) {
     return executeConfirm(ctx, service, id, adminName);
 }
 
+// ── Borongan "terima semua" ──
+
+/**
+ * Tampilkan SEMUA bukti yang akan dilunasi + minta SATU penegasan `ya`. Aksi uang massal wajib
+ * ditegaskan sekali; snapshot disimpan supaya rangkuman "yang akan dikonfirmasi" tetap jelas.
+ */
+async function promptConfirmAll(ctx, service) {
+    const items = service.listPending();
+    if (!items.length) return replyEmptyQueue(ctx);
+
+    if (typeof ctx.setUserState === "function" && ctx.stateSender) {
+        ctx.setUserState(ctx.stateSender, { step: STEP_CONFIRM_ALL, action: "confirm_all", items: items.map(snapshotOf) });
+    }
+
+    const total = items.length;
+    const daftar = buildPendingListBody(items);
+    // Fallback backtick (bukan kutip biasa): diinterpolasi di tempat, jadi kalau key template hilang
+    // pun ${slot} tak bocor mentah ke admin (guard #b251 / kunci-dan-fallback-template).
+    const text = renderResponseTemplate(
+        "payment_proof_admin_confirm_all_prompt",
+        `💰 *Konfirmasi SEMUA bukti* (${total})\n\n${daftar}\n\nBalas *ya* untuk menandai LUNAS semua yang masih punya tagihan (yang sudah lunas otomatis dilewati), atau *batal*.`,
+        { total, daftar }
+    );
+    return ctx.reply(text, { skipDuplicateCheck: true });
+}
+
+/** Rakit satu baris ringkas "Nama (Rp…)" untuk daftar hasil borongan. */
+function nameList(entries) {
+    return entries
+        .map((e) => (e.amountDue != null ? `${e.userName} (${formatRupiah(e.amountDue)})` : e.userName))
+        .join(", ");
+}
+
+/**
+ * Eksekusi borongan: lunasi tiap bukti pending lewat service.confirmManyPending (gerbang uang sama —
+ * yang tak punya tagihan DILEWATI, tak pernah ditandai lunas), lalu balas RINGKASAN.
+ */
+async function executeConfirmAll(ctx, service, adminName) {
+    const result = await service.confirmManyPending({ adminName });
+
+    if (!result || result.total === 0) return replyEmptyQueue(ctx);
+
+    const parts = [];
+    if (result.confirmed.length) parts.push(`✅ ${result.confirmed.length} dikonfirmasi: ${nameList(result.confirmed)}`);
+    if (result.alreadyPaid.length) parts.push(`ℹ️ ${result.alreadyPaid.length} sudah lunas sebelumnya: ${nameList(result.alreadyPaid)}`);
+    if (result.skipped.length) parts.push(`⏭️ ${result.skipped.length} dilewati (tak ada tagihan): ${nameList(result.skipped)}`);
+    if (result.failed.length) parts.push(`⚠️ ${result.failed.length} GAGAL (tetap menunggu): ${nameList(result.failed)}`);
+    // Reaktivasi tak selalu berhasil/terbaca — jangan tenggelamkan pelanggan yang mungkin MASIH
+    // terisolir walau tagihannya sudah tercatat lunas.
+    const perluCek = result.confirmed.filter((c) => reactivationNeedsAttention(c.reactivation));
+    if (perluCek.length) parts.push(`🔌 ${perluCek.length} perlu cek isolir manual: ${nameList(perluCek)}`);
+
+    const sisa = service.listPending().length;
+    const ringkasan = parts.join("\n") || "Tidak ada yang diproses.";
+    // Fallback backtick — lihat catatan di promptConfirmAll.
+    return ctx.reply(renderResponseTemplate(
+        "payment_proof_admin_confirm_all_summary",
+        `💰 *Borongan konfirmasi selesai*\n\n${ringkasan}\n\nStruk terkirim ke pelanggan yang baru lunas.\nSisa antrian: ${sisa} bukti.`,
+        { ringkasan, sisa }
+    ), { skipDuplicateCheck: true });
+}
+
 /**
  * Hook utama (pesan TANPA state aktif). Selalu `{handled}` — tidak pernah melempar.
  *
@@ -395,6 +542,13 @@ async function handlePaymentProofAdminDecision(ctx) {
 
         if (command.action === "list") {
             await replyPendingList(ctx, service, "confirm");
+            return { handled: true };
+        }
+
+        // Borongan "terima semua" → tampilkan daftar + minta satu penegasan `ya` (lanjut di state
+        // PAYPROOF_CONFIRM_ALL). Antrian kosong dijawab bersih (perintah eksplisit, bukan "ok" polos).
+        if (command.action === "confirm_all") {
+            await promptConfirmAll(ctx, service);
             return { handled: true };
         }
 
@@ -454,14 +608,17 @@ module.exports = {
     // dipakai state domain PAYPROOF_*
     STEP_SELECT,
     STEP_CONFIRM,
+    STEP_CONFIRM_ALL,
     CMD_LIST,
     getService,
     isAdminActor,
     adminNameOf,
     isYes,
+    isConsentYes,
     executeConfirm,
     executeReject,
     executeDelete,
+    executeConfirmAll,
     replyPendingList,
     replyEmptyQueue,
     promptDecision,
