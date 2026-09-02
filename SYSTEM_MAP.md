@@ -412,6 +412,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-08-29 (Verifikasi scoping role AGEN server-side terkunci guard + filter admin /penugasan-agen: Semua/Belum ditugaskan/per-agen)](docs/boundary-log.md#b306)
 - [Fix 2026-09-02 (Konfirmasi bukti bayar WA banyak-sekaligus — `terima semua` borongan revenue-safe + afirmasi alami `ok mas`/`ya` + unwrap PDF/ephemeral + reaktivasi-buta disuarakan)](docs/boundary-log.md#b307)
 - [Fix 2026-09-02 (Keuangan: 3 bug angka dari audit — pengingat biaya rutin `tgl<=hariIni`, fee cicilan teknisi tak dikredit, domain ledger tak dikenal disuarakan; + rollout ops toggle digest/autoDraft)](docs/boundary-log.md#b308)
+- [Fix 2026-09-02 (Keuangan T8 — "Total Ditarik" teknisi menggelembung saat penarikan dibatalkan; debit reversal warisi source_payment_history_id dari kredit)](docs/boundary-log.md#b309)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

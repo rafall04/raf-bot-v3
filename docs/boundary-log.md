@@ -2475,3 +2475,12 @@
 - **T20** `lib/financial-ledger.js` classifyLedgerCashflow: cabang default kini `console.warn [LEDGER_UNKNOWN_DOMAIN]` + classification `"unknown"` (delta angka DIPERTAHANKAN). 8 domain yang ditulis ledger SEMUA sudah terdaftar → NOL dampak angka; hanya jaring pengaman agar domain BARU tak menyusup ke laba tanpa peninjauan.
 - **Ops rollout barengan #b307:** `businessExpense.digest` ternyata SUDAH true (koreksi: cek awal salah key `moneyDigest`); terverifikasi log `[CRON_RINGKASAN_UANG] aktif` + `[CRON_KAS_RUTIN] aktif` kedua bot. `technicianSalary.autoDraft` Dander `undefined→true` (no-op s/d gaji pokok diisi). Aksi UANG (finalisasi+bayar gaji, konfirmasi biaya rutin) SENGAJA diserahkan owner. Laporan lengkap: artifact "Analisa Keuangan RAF".
 - **Tes:** recurring-expense (+1 jendela) + financial-ledger (+2 domain-tak-dikenal) + technician-collection-settlement + collection-writeoff = 49 hijau; lint 0. node --check + smoke prod pra-restart.
+
+<a id="b309"></a>
+
+### Fix 2026-09-02 (Keuangan T8 — "Total Ditarik" teknisi menggelembung saat penarikan dibatalkan)
+
+- **Bug:** `lib/technician-collection-settlement.js` evaluateCollectionSettlement cabang reversal (paid=false) menyisipkan baris DEBIT dengan `source_payment_history_id` dari pemanggil — dan jalur pembatalan nyata (`payment-finance-service.js`) TAK mengopernya → NULL. `getSettlementEntries` LEFT JOIN payment_history via kolom itu → `collected_amount` debit NULL → `summarizeEntries` (:707) MELEWATI pengurangan → "Total Ditarik" (kas admin↔teknisi di /otorisasi) tetap menghitung penarikan yang sudah dibatalkan. Risiko: admin salah-tagih teknisi uang yang sudah dibalik.
+- **Fix:** baris debit kini MEWARISI `source_payment_history_id` dari KREDIT yang dibalik (`outstandingCredit`) bila pemanggil tak mengoper → collected_amount debit == kredit → net total_collected untuk penarikan yang dibalik = 0. Idempotensi tetap dijaga `getLatestOutstandingCredit` (kredit sudah dibalik = net 0 = tak ada outstanding), BUKAN event_key — jadi perubahan komponen key aman.
+- **Catatan:** hanya memperbaiki reversal BARU; baris debit lama bersumber-NULL tetap (butuh backfill terpisah bila mau surut). Collection dipakai di Tanjung (681 baris ledger). Lanjutan audit #b308 (T8, salah satu yang DIDEFER — kini dikerjakan).
+- **Tes:** +1 (reversal tanpa sourcePaymentHistoryId → total_collected 0) di `technician-collection-settlement.test.js`; settlement + collection-writeoff + agen 29 hijau; lint 0. LIVE 2 bot 2026-09-02.
