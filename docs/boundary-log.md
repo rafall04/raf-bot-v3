@@ -2484,3 +2484,12 @@
 - **Fix:** baris debit kini MEWARISI `source_payment_history_id` dari KREDIT yang dibalik (`outstandingCredit`) bila pemanggil tak mengoper → collected_amount debit == kredit → net total_collected untuk penarikan yang dibalik = 0. Idempotensi tetap dijaga `getLatestOutstandingCredit` (kredit sudah dibalik = net 0 = tak ada outstanding), BUKAN event_key — jadi perubahan komponen key aman.
 - **Catatan:** hanya memperbaiki reversal BARU; baris debit lama bersumber-NULL tetap (butuh backfill terpisah bila mau surut). Collection dipakai di Tanjung (681 baris ledger). Lanjutan audit #b308 (T8, salah satu yang DIDEFER — kini dikerjakan).
 - **Tes:** +1 (reversal tanpa sourcePaymentHistoryId → total_collected 0) di `technician-collection-settlement.test.js`; settlement + collection-writeoff + agen 29 hijau; lint 0. LIVE 2 bot 2026-09-02.
+
+<a id="b310"></a>
+
+### Fix 2026-09-02 (Keuangan T7/T18/T16 — konfirmasi biaya rutin atomik, batal-unsettle, voucher-SALDO bukan pemasukan)
+
+- **T7 (bug)** `lib/recurring-expense.js` konfirmasi(): KLAIM periode ATOMIK (`UPDATE … WHERE last_settled_period belum periode`) SEBELUM createExpense → cegah expense/ledger DOBEL saat dua konfirmasi bersamaan (balas `ok` di WA + klik "catat" di /kas-usaha, atau dua owner — sender beda, guard isProcessing per-sender tak menyerialkan). createExpense gagal ⇒ klaim dilepas (tetap bisa dicoba lagi).
+- **T18 (bug)** `lib/expense-manager.js`: kolom baru `source_recurring_id` (ALTER idempoten) ditulis createExpense + dibawa revisi; `cancelExpense` kini me-reset `recurring_expenses.last_settled_period`+`last_reminded_period`=NULL (direct SQL, hindari require melingkar) → batal expense biaya rutin bisa dikonfirmasi/diingatkan LAGI (dulu tak disentuh → biaya bulan itu senyap hilang & tak diingatkan).
+- **T16 (angka, laten)** `lib/financial-ledger.js` classifyLedgerCashflow: voucher_purchase berbayar SALDO → `"internal"` (uangnya SUDAH dihitung saat topup → hindari double-count pemasukan untuk rupiah yang sama); non-SALDO tetap pemasukan. Prod domain voucher_purchase kosong → NOL dampak kini, benar saat voucher online jalan.
+- **Tes:** recurring-expense (+T18 batal-unsettle) + financial-ledger (+T16) + expense-manager + technician-collection-settlement + collection-writeoff = 56 hijau; lint 0. Lanjutan audit #b308.
