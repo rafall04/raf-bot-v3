@@ -104,8 +104,14 @@ function isPathWideIssue(entry) {
     if (!isGatewayHealthy(entry)) return true;
     const targets = Array.isArray(entry.targets) ? entry.targets.filter((t) => t && t.verdict) : [];
     if (!targets.length) return true;
-    const bad = targets.filter((t) => ['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(t.verdict)).length;
-    return bad / targets.length >= 0.5;
+    // MAYORITAS target PARAH (GANGGUAN/PUTUS) = transit ISP benar rusak. DEGRADASI ringan SENGAJA
+    // tak dihitung: pada pingCount kecil (5), 1 paket hilang ≈ 7% → target gampang "DEGRADASI"
+    // karena noise kuantisasi. TERUKUR: gmdp pernah 4/7 "rusak" padahal cuma Meta yang parah (95%
+    // loss) + 3 target 7% (masing-masing 1 paket). Menghitung yang ringan = vonis "jaringan
+    // terganggu" padahal internet umum lancar. Degradasi ringan menyeluruh = urusan vonis
+    // KESTABILAN (ramai/kurang stabil), bukan "jalur putus".
+    const severe = targets.filter((t) => ['GANGGUAN', 'PUTUS'].includes(t.verdict)).length;
+    return severe / targets.length >= 0.5;
 }
 
 function upstreamSignalAvailable() {
@@ -324,7 +330,10 @@ async function resolveUpstreamHealth(user) {
         const kumpul = new Set();
         for (const p of dipakai) {
             for (const t of (p.targets || [])) {
-                if (!['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(t.verdict)) continue;
+                // HANYA layanan PARAH (GANGGUAN/PUTUS) yang disebut ke pelanggan. DEGRADASI ringan
+                // (kerap 1 paket hilang = noise kuantisasi) TIDAK dialarmi — "YouTube terganggu"
+                // untuk loss 7% = alarm palsu. Sinkron dgn isPathWideIssue: severe-only.
+                if (!['GANGGUAN', 'PUTUS'].includes(t.verdict)) continue;
                 const nama = namaPer.get(t.target_key);
                 if (nama) kumpul.add(nama);
             }
@@ -343,10 +352,14 @@ async function resolveUpstreamHealth(user) {
  */
 function classifyOnlineVerdict(up) {
     if (up.status && ['DEGRADASI', 'GANGGUAN', 'PUTUS'].includes(up.status)) {
-        // Uplink sendiri sakit / jalur PUTUS / mayoritas target rusak = benar-benar gangguan jalur.
-        // Uplink sehat + cuma sebagian layanan buruk = SPESIFIK-LAYANAN — "koneksi normal" tapi
-        // sebut layanan yang terganggu (buildLayananNote), JANGAN klaim "jaringan terganggu".
-        return up.pathWide ? 'UPSTREAM_ISSUE' : 'SERVICE_ISSUE';
+        // Uplink sendiri sakit / jalur PUTUS / MAYORITAS target parah = benar-benar gangguan jalur.
+        if (up.pathWide) return 'UPSTREAM_ISSUE';
+        // Uplink sehat + ada layanan PARAH tertentu (mis. Meta 95% loss) = spesifik-layanan:
+        // "koneksi normal" + sebut layanannya (buildLayananNote), BUKAN "jaringan terganggu".
+        if ((up.layananTerganggu || []).length) return 'SERVICE_ISSUE';
+        // Sisanya cuma degradasi RINGAN menyeluruh (noise kuantisasi / sedikit ramai) sementara
+        // uplink & internet umum sehat → jangan menuduh "terganggu"; kestabilan diurus terpisah.
+        return 'HEALTHY';
     }
     if (up.status === 'NORMAL') return 'HEALTHY';
     // status null → IP pelanggan belum terpetakan ke jalur, atau fitur upstream mati.

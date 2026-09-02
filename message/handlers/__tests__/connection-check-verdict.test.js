@@ -174,36 +174,53 @@ describe('spesifik-layanan vs seluruh-jalur (RC2 padahal-aman)', () => {
         { key: 'meta', namaAwam: 'Facebook & Instagram' },
         { key: 'youtube', namaAwam: 'YouTube' }
     ];
-    // Bangun entri jalur report: gateway + daftar target berverdict.
-    function pathEntry({ status, gwLoss, bad }) {
-        const kinds = ['meta', 'youtube', 'cloudflare', 'garena', 'akamai', 'google', 'moonton'];
-        const targets = kinds.map((k, i) => ({ target_key: k, verdict: i < bad ? (k === 'meta' ? 'GANGGUAN' : 'DEGRADASI') : 'NORMAL' }));
+    // Bangun entri jalur report: gateway + N target PARAH (GANGGUAN) + M target RINGAN (DEGRADASI).
+    // 'meta' & 'youtube' punya namaAwam; urutan dibuat supaya yang parah mengenai keduanya lebih dulu.
+    function pathEntry({ status, gwLoss, severe = 0, mild = 0 }) {
+        const kinds = ['meta', 'youtube', 'akamai', 'google', 'cloudflare', 'garena', 'moonton'];
+        const targets = kinds.map((k, i) => {
+            let verdict = 'NORMAL';
+            if (i < severe) verdict = 'GANGGUAN';
+            else if (i < severe + mild) verdict = 'DEGRADASI';
+            return { target_key: k, verdict };
+        });
         return { key: 'gmdp', label: 'Utama', status, gateway: { loss_avg_pct: gwLoss, rtt_avg_ms: 0.1 }, targets };
     }
 
-    test('uplink SEHAT + hanya Meta/YouTube buruk (minoritas) → SERVICE_ISSUE: koneksi normal + sebut layanan, TIDAK "jalur terganggu", reboot TAK ditawarkan', async () => {
+    test('uplink SEHAT + hanya Meta PARAH (sisanya normal/ringan) → SERVICE_ISSUE: koneksi normal + sebut Meta, TIDAK "jalur terganggu", reboot TAK ditawarkan', async () => {
         global.config = { upstreamMonitor: { enabled: true, targets: TARGETS_NAMA } };
-        buildStatusReport.mockResolvedValue({ paths: [pathEntry({ status: 'DEGRADASI', gwLoss: 5, bad: 2 })] });
+        // 1 parah (Meta) + 1 ringan (YouTube 7% noise) — persis kondisi terukur di prod.
+        buildStatusReport.mockResolvedValue({ paths: [pathEntry({ status: 'DEGRADASI', gwLoss: 7, severe: 1, mild: 1 })] });
         await handleCekKoneksi(ctx());
         const keys = renderedKeys();
         expect(keys).toContain('conncheck_health_ok'); // uplink terpantau normal
-        expect(keys).toContain('conncheck_layanan_terganggu'); // sebut FB/YouTube
+        expect(keys).toContain('conncheck_layanan_terganggu'); // sebut Facebook & Instagram
         expect(keys).not.toContain('conncheck_upstream_issue'); // JANGAN "jaringan/jalur terganggu"
         expect(evaluateRebootGate).not.toHaveBeenCalled(); // bukan masalah perangkat → tak nawari reboot
     });
 
+    test('degradasi RINGAN menyeluruh (noise kuantisasi), tak ada yang PARAH, uplink sehat → HEALTHY (jangan alarm)', async () => {
+        global.config = { upstreamMonitor: { enabled: true, targets: TARGETS_NAMA } };
+        buildStatusReport.mockResolvedValue({ paths: [pathEntry({ status: 'DEGRADASI', gwLoss: 7, severe: 0, mild: 4 })] });
+        await handleCekKoneksi(ctx());
+        const keys = renderedKeys();
+        expect(keys).toContain('conncheck_health_ok'); // koneksi normal
+        expect(keys).not.toContain('conncheck_layanan_terganggu'); // tak ada layanan parah utk disebut
+        expect(keys).not.toContain('conncheck_upstream_issue');
+    });
+
     test('uplink SENDIRI sakit (gateway loss tinggi) → UPSTREAM_ISSUE (jalur benar terganggu)', async () => {
         global.config = { upstreamMonitor: { enabled: true, targets: TARGETS_NAMA } };
-        buildStatusReport.mockResolvedValue({ paths: [pathEntry({ status: 'GANGGUAN', gwLoss: 60, bad: 1 })] });
+        buildStatusReport.mockResolvedValue({ paths: [pathEntry({ status: 'GANGGUAN', gwLoss: 60, severe: 1 })] });
         await handleCekKoneksi(ctx());
         const keys = renderedKeys();
         expect(keys).toContain('conncheck_upstream_issue');
         expect(keys).not.toContain('conncheck_health_ok');
     });
 
-    test('uplink sehat TAPI MAYORITAS target rusak (transit ISP) → UPSTREAM_ISSUE', async () => {
+    test('uplink sehat TAPI MAYORITAS target PARAH (transit ISP) → UPSTREAM_ISSUE', async () => {
         global.config = { upstreamMonitor: { enabled: true, targets: TARGETS_NAMA } };
-        buildStatusReport.mockResolvedValue({ paths: [pathEntry({ status: 'GANGGUAN', gwLoss: 5, bad: 5 })] });
+        buildStatusReport.mockResolvedValue({ paths: [pathEntry({ status: 'GANGGUAN', gwLoss: 5, severe: 5 })] });
         await handleCekKoneksi(ctx());
         expect(renderedKeys()).toContain('conncheck_upstream_issue');
     });
