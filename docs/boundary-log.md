@@ -2493,3 +2493,12 @@
 - **T18 (bug)** `lib/expense-manager.js`: kolom baru `source_recurring_id` (ALTER idempoten) ditulis createExpense + dibawa revisi; `cancelExpense` kini me-reset `recurring_expenses.last_settled_period`+`last_reminded_period`=NULL (direct SQL, hindari require melingkar) → batal expense biaya rutin bisa dikonfirmasi/diingatkan LAGI (dulu tak disentuh → biaya bulan itu senyap hilang & tak diingatkan).
 - **T16 (angka, laten)** `lib/financial-ledger.js` classifyLedgerCashflow: voucher_purchase berbayar SALDO → `"internal"` (uangnya SUDAH dihitung saat topup → hindari double-count pemasukan untuk rupiah yang sama); non-SALDO tetap pemasukan. Prod domain voucher_purchase kosong → NOL dampak kini, benar saat voucher online jalan.
 - **Tes:** recurring-expense (+T18 batal-unsettle) + financial-ledger (+T16) + expense-manager + technician-collection-settlement + collection-writeoff = 56 hijau; lint 0. Lanjutan audit #b308.
+
+<a id="b311"></a>
+
+### Fix 2026-09-02 (Keuangan T1/T3/T6 — rekonsiliasi rekap: sumber pengeluaran kanonik + biaya rutin belum-dibukukan)
+
+- **Keputusan (delegasi owner "gas semuanya"):** BUKU BESAR (`financial_ledger`) = ACUAN RESMI "Pengeluaran"/"Sisa" — paling lengkap (gaji dibayar + kasbon + reversal + expense_entries) & sudah dipakai /rekap. Owner bisa membalik ke expense_entries-only bila mau.
+- **T3/T6** `lib/services/money-summary.js`: headline "Sudah keluar" & "Sisa" WA kini dari `arus.totalExpense` (buku besar) lewat field baru `keluarTotal`, bukan `keluar` (expense_entries saja) → WA tak lagi MENGHILANGKAN gaji (pengeluaran terbesar) & konsisten dgn halaman /rekap. `keluar` tetap dikembalikan untuk rincian per-kategori.
+- **T1** `routes/rekap-keuangan.js`: hitung `recurringUnbooked` (biaya rutin aktif belum settled periode berjalan) → PUSH warning ke `cashflowHealth` ("Ada Rp X biaya rutin belum dibukukan — laba belum dikurangi ini") + kirim di response. Aditif, hanya periode berjalan; membongkar laba-fiktif langsung di halaman tanpa mengubah metrik lama.
+- **Tes:** money-summary (+T3/T6 buku-besar; existing proyeksi diselaraskan) + kas-cashflow (penjaga null-guard `keluarTotal`) + rekap-dashboard + keuangan-ux = 41 hijau; lint 0. Menutup audit #b308 (T1/T3/T6 tak lagi deferred; sisa hanya kebijakan lanjutan).

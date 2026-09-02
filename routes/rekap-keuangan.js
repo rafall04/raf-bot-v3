@@ -276,6 +276,47 @@ router.get("/", ensureAdmin, async (req, res) => {
             status: item.status
         }));
 
+        // #b311 (T1): biaya rutin (internet/listrik/cicilan) yang BELUM dibukukan periode ini.
+        // Tanpa ini halaman menampilkan laba tampak "bersih" padahal biaya tetap terbesar belum
+        // dikurangkan (laba fiktif). Hanya bermakna untuk PERIODE BERJALAN (penanda settled per-periode).
+        let recurringUnbooked = null;
+        try {
+            const now = new Date();
+            const isPeriodeBerjalan = month != null && month === (now.getMonth() + 1) && year === now.getFullYear();
+            if (isPeriodeBerjalan) {
+                const rec = require("../lib/recurring-expense");
+                const semua = await rec.listAll();
+                const periode = rec.periodeSekarang(now);
+                const hariTerakhir = new Date(year, month, 0).getDate();
+                const hariIni = now.getDate();
+                let total = 0;
+                let count = 0;
+                let overdue = 0;
+                const byKategori = {};
+                for (const r of semua) {
+                    if (!r.aktif) continue;
+                    if (r.last_settled_period === periode) continue;
+                    const n = Number(r.perkiraan) || 0;
+                    total += n;
+                    count += 1;
+                    byKategori[r.kategori] = (byKategori[r.kategori] || 0) + n;
+                    if (Math.min(Number(r.tanggal) || 1, hariTerakhir) < hariIni) overdue += 1;
+                }
+                recurringUnbooked = { total, count, overdue, byKategori };
+            }
+        } catch (recErr) {
+            console.error("[REKAP_RECURRING_UNBOOKED_ERROR]", recErr && recErr.message);
+        }
+
+        const cashflowHealth = buildCashflowHealth({ summary: cashflowSummary }, expenseSummary);
+        if (recurringUnbooked && recurringUnbooked.total > 0) {
+            cashflowHealth.status = "warning";
+            cashflowHealth.warnings.push({
+                code: "recurring_unbooked",
+                message: `Ada Rp ${recurringUnbooked.total.toLocaleString("id-ID")} biaya rutin (${recurringUnbooked.count} tagihan${recurringUnbooked.overdue ? `, ${recurringUnbooked.overdue} lewat tanggal` : ""}) BELUM dibukukan bulan ini — laba di atas belum dikurangi biaya ini. Konfirmasi di halaman Kas Usaha.`
+            });
+        }
+
         res.json({
             status: 200,
             data: {
@@ -288,7 +329,8 @@ router.get("/", ensureAdmin, async (req, res) => {
                 recentExpenses,
                 largestExpenses,
                 monthlyTrend,
-                cashflowHealth: buildCashflowHealth({ summary: cashflowSummary }, expenseSummary),
+                cashflowHealth,
+                recurringUnbooked,
                 transactions: report.entries.map(mapEntry)
             }
         });

@@ -158,7 +158,9 @@ describe("tagihan yang BELUM jatuh tempo: ditampilkan, tapi tak dicampur ke peng
         // Proyeksi hanya sah kalau pemasukan, pengeluaran, DAN tagihan rutin ketiganya
         // terbaca. Menghitungnya dari salah satu nilai buta menghasilkan ramalan untung/rugi
         // yang tak pernah diukur — lebih buruk daripada tak ada ramalan.
-        expect(svc).toMatch(/pemasukan && keluar != null && akanKeluar != null/);
+        // #b311: headline "keluar"/"sisa" kini dari BUKU BESAR (`keluarTotal`), bukan expense_entries
+        // (`keluar`) — tapi penjaga "semua bahan wajib terbaca" tetap sama.
+        expect(svc).toMatch(/pemasukan && keluarTotal != null && akanKeluar != null/);
         expect(svc).toMatch(/proyeksiSisa:/);
     });
 
