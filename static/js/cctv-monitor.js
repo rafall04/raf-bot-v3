@@ -116,13 +116,13 @@
         : '<span class="badge badge-warning">belum standar</span>';
       const offBadge = c.disabled ? ' <span class="badge badge-secondary">netwatch off</span>' : '';
       tb.append(`<tr>
-        <td><input type="checkbox" class="disc-check" data-host="${escapeHtml(c.host)}"></td>
-        <td><strong>${escapeHtml(c.name)}</strong>${offBadge}</td>
-        <td>${c.area ? escapeHtml(c.area) : '<span class="text-muted">—</span>'}</td>
-        <td><span class="cctv-host">${escapeHtml(c.host)}</span></td>
-        <td><span class="status-dot ${dot}"></span>${stLabel}</td>
-        <td>${fmt}</td>
-        <td><button class="btn btn-sm btn-primary btn-adopt-cctv" data-host="${escapeHtml(c.host)}"><i class="fas fa-plus"></i> Adopsi</button></td>
+        <td data-label="Pilih"><input type="checkbox" class="disc-check" data-host="${escapeHtml(c.host)}"></td>
+        <td class="tumpuk-judul" data-label="Nama"><strong>${escapeHtml(c.name)}</strong>${offBadge}</td>
+        <td data-label="Area">${c.area ? escapeHtml(c.area) : '<span class="text-muted">—</span>'}</td>
+        <td data-label="IP"><span class="cctv-host">${escapeHtml(c.host)}</span></td>
+        <td data-label="Status"><span class="status-dot ${dot}"></span>${stLabel}</td>
+        <td data-label="Format Script">${fmt}</td>
+        <td data-label="Aksi"><button class="btn btn-sm btn-primary btn-adopt-cctv" data-host="${escapeHtml(c.host)}"><i class="fas fa-plus"></i> Adopsi</button></td>
       </tr>`);
     });
   }
@@ -408,11 +408,11 @@
         : (i.status === 'mass_suppressed' ? 'ditahan (massal)' : '—');
       const rec = i.recoveredAt ? new Date(i.recoveredAt).toLocaleTimeString('id-ID') : '—';
       tb.append(`<tr>
-        <td><small>${escapeHtml(det)}</small></td>
-        <td>${escapeHtml(i.cctv_name || '')}<br><span class="cctv-host">${escapeHtml(i.host || '')}</span></td>
-        <td>${incidentBadge(i.status)}</td>
-        <td><small>${escapeHtml(String(bc))}</small></td>
-        <td><small>${escapeHtml(rec)}</small></td>
+        <td data-label="Waktu deteksi"><small>${escapeHtml(det)}</small></td>
+        <td class="tumpuk-judul" data-label="CCTV">${escapeHtml(i.cctv_name || '')}<br><span class="cctv-host">${escapeHtml(i.host || '')}</span></td>
+        <td data-label="Status">${incidentBadge(i.status)}</td>
+        <td data-label="Broadcast"><small>${escapeHtml(String(bc))}</small></td>
+        <td data-label="Pulih"><small>${escapeHtml(rec)}</small></td>
       </tr>`);
     });
   }
@@ -485,18 +485,20 @@
       const upCls = up7 == null ? 'text-muted' : up7 >= 99 ? 'text-success' : up7 >= 95 ? 'text-warning' : 'text-danger';
       const upCell = u ? `<span class="${upCls}" title="24 jam: ${u.uptime24h}% · 30 hari: ${u.uptime30d}%">${up7}%</span>` : '<span class="text-muted">—</span>';
       tb.append(`<tr>
-        <td><strong>${escapeHtml(d.name)}</strong>${enabledBadge}${optoutBadge}${snoozeBadge}${d.area ? '<br><small class="text-muted">' + escapeHtml(d.area) + '</small>' : ''}</td>
-        <td><span class="cctv-host">${escapeHtml(d.host)}</span></td>
-        <td>${d.customerName ? escapeHtml(d.customerName) + '<br>' : ''}<small class="text-muted">${escapeHtml(d.phone || '')}</small></td>
-        <td><span class="status-dot ${dot}"></span>${stLabel}${sinceTxt}${nwWarn}</td>
-        <td>${upCell}</td>
-        <td>${win}</td>
-        <td class="text-nowrap">
+        <td class="tumpuk-judul" data-label="Nama"><strong>${escapeHtml(d.name)}</strong>${enabledBadge}${optoutBadge}${snoozeBadge}${d.area ? '<br><small class="text-muted">' + escapeHtml(d.area) + '</small>' : ''}</td>
+        <td data-label="IP"><span class="cctv-host">${escapeHtml(d.host)}</span></td>
+        <td data-label="Pelanggan">${d.customerName ? escapeHtml(d.customerName) + '<br>' : ''}<small class="text-muted">${escapeHtml(d.phone || '')}</small></td>
+        <td data-label="Status"><span class="status-dot ${dot}"></span>${stLabel}${sinceTxt}${nwWarn}</td>
+        <td data-label="Uptime 7h">${upCell}</td>
+        <td data-label="Window">${win}</td>
+        <td data-label="Aksi" class="text-nowrap">
+          <div class="aksi-group btn-actions">
           <button class="btn btn-sm btn-outline-success btn-test-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}" title="Kirim pesan tes ke semua penerima (pelanggan/koordinator/grup)"><i class="fas fa-paper-plane"></i></button>
           <button class="btn btn-sm ${snoozeActive ? 'btn-secondary' : 'btn-outline-secondary'} btn-snooze-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}" title="Snooze / mode maintenance — bisukan alert sementara"><i class="fas fa-bell-slash"></i></button>
           <button class="btn btn-sm btn-outline-info btn-resync-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}" title="Sinkron ulang entri netwatch (buat/perbaiki di MikroTik)"><i class="fas fa-sync"></i></button>
-          <button class="btn btn-sm btn-outline-primary btn-edit-cctv" data-id="${d.id}"><i class="fas fa-edit"></i></button>
-          <button class="btn btn-sm btn-outline-danger btn-del-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}"><i class="fas fa-trash"></i></button>
+          <button class="btn btn-sm btn-outline-primary btn-edit-cctv" data-id="${d.id}" title="Edit"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger btn-del-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}" title="Hapus"><i class="fas fa-trash"></i></button>
+          </div>
         </td>
       </tr>`);
     });
@@ -699,17 +701,19 @@
       const off = a.enabled === false ? ' <span class="badge badge-secondary">nonaktif</span>' : '';
       const qz = a.quietMode === 'off' ? 'tanpa jam tenang' : a.quietMode === 'custom' ? ('jam tenang ' + (a.quietStart || '?') + '–' + (a.quietEnd || '?')) : '';
       tb.append(`<tr>
-        <td><strong>${escapeHtml(a.name)}</strong>${off}${qz ? '<br><small class="text-muted"><i class="fas fa-moon"></i> ' + escapeHtml(qz) + '</small>' : ''}</td>
-        <td>${escapeHtml(a.coordinatorName || '—')}</td>
-        <td>
+        <td class="tumpuk-judul" data-label="Area"><strong>${escapeHtml(a.name)}</strong>${off}${qz ? '<br><small class="text-muted"><i class="fas fa-moon"></i> ' + escapeHtml(qz) + '</small>' : ''}</td>
+        <td data-label="Koordinator">${escapeHtml(a.coordinatorName || '—')}</td>
+        <td data-label="Tujuan Notifikasi">
           ${a.coordinatorPhone ? '<div><span class="cctv-host">' + escapeHtml(a.coordinatorPhone) + '</span>' + (a.coordinatorInGroup && a.coordinatorGroupId ? ' <span class="badge badge-light" title="Nomor koordinator tak dijapri, cukup lewat grup">via grup</span>' : '') + '</div>' : ''}
           ${a.coordinatorGroupId ? '<div><span class="badge badge-info"><i class="fas fa-users"></i> Grup: ' + escapeHtml(a.coordinatorGroupName || a.coordinatorGroupId) + '</span>' + (a.customersInGroup ? ' <span class="badge badge-light" title="Pelanggan tak dijapri, cukup lewat grup">warga di grup</span>' : '') + '</div>' : ''}
           ${(!a.coordinatorPhone && !a.coordinatorGroupId) ? '<span class="text-muted">—</span>' : ''}
         </td>
-        <td class="text-nowrap">
+        <td data-label="Aksi" class="text-nowrap">
+          <div class="aksi-group btn-actions">
           <button class="btn btn-sm btn-outline-success btn-test-area" data-id="${a.id}" data-name="${escapeHtml(a.name)}" title="Kirim pesan tes ke koordinator/grup area ini"><i class="fas fa-paper-plane"></i></button>
-          <button class="btn btn-sm btn-outline-primary btn-edit-area" data-id="${a.id}"><i class="fas fa-edit"></i></button>
-          <button class="btn btn-sm btn-outline-danger btn-del-area" data-id="${a.id}" data-name="${escapeHtml(a.name)}"><i class="fas fa-trash"></i></button>
+          <button class="btn btn-sm btn-outline-primary btn-edit-area" data-id="${a.id}" title="Edit"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger btn-del-area" data-id="${a.id}" data-name="${escapeHtml(a.name)}" title="Hapus"><i class="fas fa-trash"></i></button>
+          </div>
         </td>
       </tr>`);
     });

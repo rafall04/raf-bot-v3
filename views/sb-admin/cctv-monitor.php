@@ -117,7 +117,7 @@
                   <button class="btn btn-sm btn-primary" id="bulkAdoptBtn"><i class="fas fa-layer-group"></i> Adopsi terpilih (<span id="bulkAdoptCount">0</span>)</button>
                 </div>
                 <div class="table-responsive">
-                  <table class="table table-bordered table-hover" id="discoveryTable" width="100%">
+                  <table class="table table-bordered table-hover tabel-tumpuk-hp" id="discoveryTable" width="100%">
                     <thead class="thead-light">
                       <tr><th style="width:32px;"><input type="checkbox" id="discCheckAll" title="Pilih semua"></th><th>Nama (dari script)</th><th>Area</th><th>IP</th><th>Status</th><th>Format Script</th><th>Aksi</th></tr>
                     </thead>
@@ -138,7 +138,7 @@
               <div class="card-body">
                 <p class="text-muted small mb-2">Koordinator (mis. ketua RT) dapat notifikasi ringkas saat ada CCTV di areanya mati, agar bisa koordinasi dengan warga. Jam tenang &amp; aturan lain berlaku sama. Area dicocokkan ke field <em>Area</em> tiap CCTV (tak peduli huruf besar/kecil).</p>
                 <div class="table-responsive">
-                  <table class="table table-bordered table-hover" id="areasTable" width="100%">
+                  <table class="table table-bordered table-hover tabel-tumpuk-hp" id="areasTable" width="100%">
                     <thead class="thead-light">
                       <tr><th>Area</th><th>Koordinator</th><th>Tujuan Notifikasi</th><th>Aksi</th></tr>
                     </thead>
@@ -320,7 +320,7 @@
               <div class="card-body">
                 <p class="text-muted small mb-2">Catatan otomatis tiap CCTV mati/pulih: kapan terdeteksi, status broadcast, durasi. Terbaru di atas.</p>
                 <div class="table-responsive">
-                  <table class="table table-bordered table-hover table-sm" id="incidentsTable" width="100%">
+                  <table class="table table-bordered table-hover table-sm tabel-tumpuk-hp" id="incidentsTable" width="100%">
                     <thead class="thead-light">
                       <tr><th>Waktu deteksi</th><th>CCTV</th><th>Status</th><th>Broadcast</th><th>Pulih</th></tr>
                     </thead>

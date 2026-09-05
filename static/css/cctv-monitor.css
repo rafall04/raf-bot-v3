@@ -44,4 +44,27 @@
     body.tk-dark .cctv-cust-item.active, body.tk-dark .cctv-cust-item:hover { background: var(--d-surface-2); }
     body.tk-dark .cctv-cust-item .meta { color: var(--d-ink-soft); }
     body.tk-dark .cctv-cust-empty { color: var(--d-muted); }
+
+    /* ---- Responsif & rapi untuk semua device (#b314) ---- */
+    /* Grup tombol aksi tabel: beri jarak + rapi (dulu tanpa gap, mepet). */
+    .btn-actions { display: inline-flex; flex-wrap: wrap; gap: 0.3rem; }
+    /* Header kartu (judul + tombol): turun rapi saat layar sempit, tak berdesakan. */
+    @media (max-width: 575.98px) {
+      .card-header.d-flex { flex-wrap: wrap; gap: 0.5rem; }
+      .dashboard-header .text-right { text-align: left !important; margin-top: 0.35rem; }
+    }
+    /* Nav-tab (5 tab): di HP digulir horizontal, bukan membungkus berantakan. */
+    @media (max-width: 640px) {
+      #cctvTabs { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+      #cctvTabs::-webkit-scrollbar { height: 3px; }
+      #cctvTabs .nav-item { flex: 0 0 auto; }
+      #cctvTabs .nav-link { white-space: nowrap; padding: 0.5rem 0.7rem; }
+      /* Saat baris tabel ditumpuk jadi kartu, tombol aksi mengisi 1 baris penuh & rata kanan. */
+      .btn-actions { width: 100%; justify-content: flex-end; }
+    }
+    /* Layar sangat kecil: angka KPI jangan kebesaran sampai meluber. */
+    @media (max-width: 400px) {
+      .cctv-kpi .stat { padding: 0.6rem 0.55rem; }
+      .cctv-kpi .stat .value { font-size: 1.3rem; }
+    }
   
