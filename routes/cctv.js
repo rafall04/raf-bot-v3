@@ -1,6 +1,8 @@
 /**
  * Header Doc
- * Purpose: API CRUD daftar CCTV publik + status monitor (start/stop/getStatus) + discovery
+ * Purpose: API CRUD daftar CCTV publik (area baru saat simpan/edit otomatis tercatat ke tab
+ *          Area/Lokasi via autoRegisterArea → registry = 1 sumber area) + status monitor
+ *          (start/stop/getStatus) + discovery
  *          (scan netwatch MikroTik untuk kandidat CCTV yang belum diadopsi) + pengaturan monitor
  *          (enabled/window/notifyRecovery + template + config netwatch/Telegram, persist config.json
  *          + hot start/stop) + provisioning netwatch (buat entri + script on-up/on-down CCTV baru)
@@ -55,6 +57,18 @@ function requireRecipient(body) {
     throw new Error('Nomor WA pelanggan wajib diisi (atau tetapkan koordinator/grup aktif untuk areanya).');
 }
 
+// Area yang diketik admin di form CCTV = otoritatif SATU tempat: tab Area / Lokasi. Bila nama area
+// belum tercatat di registry, daftarkan diam-diam sebagai label (tanpa koordinator) supaya daftar
+// area selalu lengkap & tak ada area "hantu" yang cuma nempel di device. Best-effort: kegagalan di
+// sini TIDAK menggagalkan simpan CCTV (device tetap otoritatif; area cuma metadata pendamping).
+function autoRegisterArea(device) {
+    const name = String((device || {}).area || '').trim();
+    if (!name) return;
+    try {
+        if (!areaRegistry.getByName(name)) areaRegistry.upsert({ name });
+    } catch (_e) { /* jangan ganggu alur simpan CCTV */ }
+}
+
 router.get('/devices', (req, res) => {
     if (!ensureAdmin(req, res)) return;
     res.json({ status: 200, data: registry.list() });
@@ -65,6 +79,7 @@ router.post('/devices', async (req, res) => {
     try {
         requireRecipient(req.body || {});
         let saved = registry.upsert(req.body || {});
+        autoRegisterArea(saved); // area baru → langsung tercatat di tab Area / Lokasi
         // Auto-sync netwatch (gated): add di admin sekaligus buat entri + script on-up/on-down di
         // MikroTik → tak perlu utak-atik Winbox. Registry TETAP otoritatif; kegagalan netwatch
         // DISURFACE (bukan diam) supaya admin bisa "Sinkron ulang". Poll monitor hot-read device.
@@ -86,6 +101,7 @@ router.put('/devices/:id', async (req, res) => {
     try {
         requireRecipient({ ...existing, ...req.body });
         let saved = registry.upsert({ ...existing, ...req.body, id: req.params.id });
+        autoRegisterArea(saved); // area baru saat edit → ikut tercatat di tab Area / Lokasi
         // Edit sekaligus sinkron netwatch: rename → comment+script diperbarui; ganti IP → entri host
         // BARU dibuat dulu, baru entri lama dihapus (urutan aman, tak pernah nol coverage).
         let netwatch = { skipped: 'autoNetwatch off' };

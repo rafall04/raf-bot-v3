@@ -420,6 +420,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-05 (CCTV auto-sync netwatch dari halaman admin — add/edit/delete otomatis kelola entri netwatch+script di MikroTik via lib/cctv-netwatch-sync.js; guard hanya-entri-CCTV anti-clobber OLT/infra, preserve-on-empty, urutan aman; +resync/health; gate autoNetwatch ON DANDER)](docs/boundary-log.md#b314)
 - [Fix 2026-09-05 (CCTV admin Area jadi input ketik-bebas+datalist, dipisah dari Koordinator (opt-in) — tak lagi paksa modal koordinator utk label lokasi; hint/guard sadar-grup; form dipendekkan pakai "Opsi lanjutan")](docs/boundary-log.md#b315)
 - [Fix 2026-09-05 (CCTV tab "Koordinator"→"Area / Lokasi" — area entitas kelas-satu terkelola (koordinator opsional, cctv-area-registry.js:73 dilonggarkan), +kolom jumlah CCTV per area; requireRecipient tetap jaga penerima)](docs/boundary-log.md#b316)
+- [Fix 2026-09-05 (CCTV field Area konsisten — routes/cctv.js autoRegisterArea() daftarkan area baru diam-diam ke tab Area/Lokasi (1 sumber), cctv-area-registry.js upsert dupe-proof by-nama + jaga createdAt, copy "bebas"/"tab Koordinator" basi dibersihkan)](docs/boundary-log.md#b317)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

@@ -81,7 +81,7 @@
       const r = await fetch('/api/cctv/devices', { credentials: 'include' }).then(r => r.json());
       if (r.status === 200) devicesCache = r.data || [];
     } catch (_) { devicesCache = []; }
-    populateAreaDatalist(); // saran area ikut memuat lokasi bebas yang sudah dipakai CCTV
+    populateAreaDatalist(); // saran area ikut memuat area yang sudah dipakai CCTV lain
   }
 
   async function loadDiscovery() {
@@ -553,7 +553,7 @@
     if (!payload.phone) {
       // Koordinator SAH bila punya nomor ATAU grup (sejalan requireRecipient server) — jangan cuma cek nomor.
       const hasCoord = areasCache.some(a => a.enabled !== false && (a.coordinatorPhone || a.coordinatorGroupId) && (a.name || '').toLowerCase() === (payload.area || '').toLowerCase());
-      if (!hasCoord) { Swal.fire('Lengkapi', 'Nomor WA wajib diisi, atau tetapkan koordinator untuk areanya (tab Koordinator).', 'warning'); return; }
+      if (!hasCoord) { Swal.fire('Lengkapi', 'Nomor WA wajib diisi, atau beri koordinator/grup untuk areanya di tab Area / Lokasi.', 'warning'); return; }
     }
     const id = $('#cctv_id').val();
     const url = id ? `/api/cctv/devices/${id}` : '/api/cctv/devices';
@@ -601,16 +601,17 @@
       if (r.status === 200) { areasCache = r.data || []; renderAreas(); populateAreaDatalist(); }
     } catch (_) {}
   }
-  // Isi saran area (datalist): gabungan nama area terkelola (tab Koordinator) + area bebas yang
-  // SUDAH dipakai CCTV lain — dedupe case-insensitive, utamakan ejaan registry. Admin tetap bebas
-  // mengetik nama apa pun; ini cuma saran biar ejaan konsisten.
+  // Isi saran area (datalist): daftar area terkelola (tab Area / Lokasi) + area yang SUDAH dipakai
+  // CCTV lain tapi belum sempat tercatat — dedupe case-insensitive, utamakan ejaan registry. Area
+  // baru yang diketik admin akan otomatis tercatat di server (routes/cctv.js), jadi lain kali ikut
+  // muncul di daftar ini; union sini cuma jembatan sampai reload berikutnya.
   function populateAreaDatalist() {
     const dl = $('#cctv_area_options').empty();
     const seen = new Set();
     (areasCache || []).forEach(a => { const n = String(a.name || '').trim(); const k = n.toLowerCase(); if (n && !seen.has(k)) { seen.add(k); dl.append($('<option>').val(n)); } });
     (devicesCache || []).forEach(d => { const n = String(d.area || '').trim(); const k = n.toLowerCase(); if (n && !seen.has(k)) { seen.add(k); dl.append($('<option>').val(n)); } });
   }
-  // Set nilai area (input teks bebas). Tak perlu lagi suntik opsi — input menampung apa pun.
+  // Set nilai area (input + datalist). Tak perlu suntik opsi — datalist sudah berisi daftar area.
   function setAreaValue(area) {
     $('#cctv_area').val((area || '').trim());
     updateAreaCoordHint();
@@ -632,7 +633,7 @@
     } else if (a && a.enabled === false) {
       box.html('<span class="text-muted">Koordinator lokasi ini sedang nonaktif.</span>');
     } else {
-      box.html('<span class="text-muted">Lokasi ini jadi <strong>label saja</strong>. Mau koordinator/RT ikut dinotif? Tambahkan area bernama sama di tab <em>Koordinator</em>.</span>');
+      box.html('<span class="text-muted">Area ini belum punya koordinator — sementara jadi <strong>label saja</strong>. Mau koordinator/RT ikut dinotif? Isi koordinatornya di tab <em>Area / Lokasi</em>.</span>');
     }
   }
   const GROUP_HINT_DEFAULT = 'Klik <strong>Muat</strong> untuk ambil daftar grup yang bot ikuti — bot harus jadi anggota grup RT lebih dulu.';

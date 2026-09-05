@@ -368,9 +368,9 @@
           </div>
           <div class="form-group">
             <label>Area / Lokasi (opsional)</label>
-            <input class="form-control" id="cctv_area" list="cctv_area_options" autocomplete="off" placeholder="Ketik lokasi bebas — mis. TANJUNGHARJO, RT 02, Karang">
+            <input class="form-control" id="cctv_area" list="cctv_area_options" autocomplete="off" placeholder="Pilih dari daftar atau ketik area baru — mis. DSN KARANG">
             <datalist id="cctv_area_options"></datalist>
-            <small class="form-text text-muted">Cukup <strong>ketik</strong> nama lokasi apa saja. Bila namanya sama dengan area di tab <em>Koordinator</em>, koordinatornya ikut dinotif otomatis; kalau tidak, ini jadi label lokasi saja.</small>
+            <small class="form-text text-muted"><strong>Pilih</strong> area dari daftar, atau <strong>ketik baru</strong> — area baru otomatis tercatat di tab <em>Area / Lokasi</em>. Kalau areanya punya koordinator/RT, mereka ikut dinotif; kalau belum, sementara jadi label lokasi.</small>
             <div id="cctv_area_coord" class="small mt-1"></div>
           </div>
           <details class="cctv-advanced mb-3">

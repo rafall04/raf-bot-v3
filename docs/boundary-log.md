@@ -2548,3 +2548,13 @@
 - **Backend:** `cctv-area-registry.js` `upsert` TAK LAGI wajib koordinator — area boleh cuma **NAMA** (label lokasi). Nama tetap wajib. Pengaman "tiap CCTV wajib punya penerima" tetap dipegang `requireRecipient` (routes) — area tanpa koordinator tak pernah bikin CCTV kehilangan penerima, ia cuma tak menambah penerima koordinator.
 - **UI:** tab "Koordinator" → **"Area / Lokasi"** (ikon peta); tabel +kolom **"CCTV"** (jumlah CCTV per area, dihitung klien dari `devicesCache`); koordinator ditandai "belum ada (opsional)"; modal area di-reframe (nama dulu, blok koordinator jelas OPSIONAL, `<hr>` pemisah); guard klien wajib-koordinator (`saveArea`) dibuang. Field Area CCTV (datalist #b315) otomatis menyarankan area terkelola ini.
 - **Tes:** `cctv-area-registry.test.js` diperbarui (nama-saja SAH, tak lagi throw) = 4 hijau; lint 0; `php -l` OK; `check-theme-tokens` hijau; diverifikasi visual desktop (kolom CCTV + "belum ada (opsional)").
+
+<a id="b317"></a>
+
+### Fix 2026-09-05 (CCTV — field Area jadi konsisten: bukan "bebas", auto-tercatat di tab Area/Lokasi)
+
+- **Owner:** `routes/cctv.js` + `lib/cctv-area-registry.js` + `views/sb-admin/cctv-monitor.php` + `static/js/cctv-monitor.js`. Menutup inkonsistensi #b315/#b316: field Area masih di-framing "ketik lokasi bebas" padahal sudah ada daftar Area/Lokasi terkelola → "apa fungsinya input area?".
+- **Backend:** `routes/cctv.js` `autoRegisterArea(device)` — saat simpan/edit CCTV, nama area yang belum tercatat langsung didaftarkan diam-diam sebagai label (best-effort; kegagalan TAK menggagalkan simpan CCTV). Jadi tab Area/Lokasi = SATU sumber semua area, tak ada area "hantu" yang cuma nempel di device.
+- **Registry dupe-proof:** `cctv-area-registry.js` `upsert` tanpa id kini cocok by-NAMA (reuse id area sebumi) → label auto lalu admin isi koordinatornya = UPDATE, bukan baris kembar; `createdAt` asli dipertahankan (perbaiki bug reset). Rename tetap aman (edit selalu kirim id).
+- **Copy:** placeholder/hint field Area di-reframe ("Pilih dari daftar atau ketik area baru… otomatis tercatat di tab Area/Lokasi"); semua referensi basi "tab Koordinator" → "tab Area / Lokasi"; hapus kata "bebas" yang menyesatkan (kecuali kolom nomor WA non-pelanggan yang memang bebas).
+- **Tes:** `cctv-area-registry.test.js` +1 (nama-saja tak menggandakan, reuse id, jaga createdAt) = 5 hijau; CCTV monitor/netwatch-sync/config 78 hijau; lint 0 error; `php -l` OK; `check-boundary-index` hijau.
