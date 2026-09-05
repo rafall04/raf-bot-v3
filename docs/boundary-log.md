@@ -2558,3 +2558,12 @@
 - **Registry dupe-proof:** `cctv-area-registry.js` `upsert` tanpa id kini cocok by-NAMA (reuse id area sebumi) → label auto lalu admin isi koordinatornya = UPDATE, bukan baris kembar; `createdAt` asli dipertahankan (perbaiki bug reset). Rename tetap aman (edit selalu kirim id).
 - **Copy:** placeholder/hint field Area di-reframe ("Pilih dari daftar atau ketik area baru… otomatis tercatat di tab Area/Lokasi"); semua referensi basi "tab Koordinator" → "tab Area / Lokasi"; hapus kata "bebas" yang menyesatkan (kecuali kolom nomor WA non-pelanggan yang memang bebas).
 - **Tes:** `cctv-area-registry.test.js` +1 (nama-saja tak menggandakan, reuse id, jaga createdAt) = 5 hijau; CCTV monitor/netwatch-sync/config 78 hijau; lint 0 error; `php -l` OK; `check-boundary-index` hijau.
+
+<a id="b318"></a>
+
+### Fix 2026-09-06 (WA — kejujuran kirim: penanda gagal wrapper tak boleh dianggap terkirim; helper verdict bersama)
+
+- **Owner:** `lib/whatsapp-delivery-verdict.js` (BARU) = 1 sumber pengenalan penanda gagal wrapper (`{status:'error'}` / `{status:'blocked_duplicate'}`). Menutup AKAR #1 audit (#b317-audit): "resolve tanpa throw = sukses". Pola benar sudah ada di `sendCritical`; diekstrak lalu dipasang ke DUA sibling yang terlewat.
+- **retryFailedDeliveries** (`lib/whatsapp-critical-delivery.js`): dulu `sendPayload(...,{})` lalu langsung `retried=true; delivered++` TANPA cek hasil → dead-letter finansial (kode voucher/konfirmasi saldo) ditandai terkirim permanen walau `{status:'error'}` (jalan tiap reconnect, 7-13x/hari). Kini kirim dgn `skipDuplicateCheck:true` + `isDeliverySuccessful(res)`; gagal → entri TETAP unretried (dicoba lagi), bukan hilang senyap.
+- **whatsapp-delivery-service.sendMessage**: dulu `sent:true` begitu `sendPayload` resolve (abaikan `{status:'error'}`) → `safeSendMessage`/cron log "✅ Terkirim" bohong. Kini `status:'error'`→`sent:false` (errorCode SEND_FAILED); `blocked_duplicate`→`sent:true`+`deduplicated:true` (identik sudah terkirim, penerima tetap dapat). `sendCritical` juga dialihkan ke helper (perilaku identik).
+- **Tes:** `whatsapp-delivery-verdict.test.js` BARU (helper murni + PERILAKU delivery-service & retry via mock gateway/fs) = 12; `honest-verdict-and-delivery.test.js` diperbarui (scan helper + guard retry sibling); `whatsapp-critical-delivery.test.js` assertion retry → `skipDuplicateCheck:true`. Total 4 suite delivery + 7 suite notifikasi hilir = 79 hijau; lint 0.
