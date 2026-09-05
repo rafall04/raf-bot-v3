@@ -359,6 +359,7 @@
   },
   "cctvMonitor": {
     "enabled": false,
+    "autoNetwatch": false,
     "pollIntervalMs": 60000,
     "confirmationMinutes": 15,
     "rebroadcastCooldownMs": 1800000,

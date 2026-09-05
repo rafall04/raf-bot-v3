@@ -6,7 +6,7 @@
  * SideEffects: memanipulasi DOM halaman tsb + memanggil API internal.
  */
 
-  let devicesCache = []; let statusCache = null; let refreshTimer = null; let discoveryCache = []; let uptimeCache = {}; let areasCache = []; let selectAreaAfterSave = false; let reopenCctvAfterArea = false;
+  let devicesCache = []; let statusCache = null; let refreshTimer = null; let discoveryCache = []; let uptimeCache = {}; let areasCache = []; let selectAreaAfterSave = false; let reopenCctvAfterArea = false; let netwatchHealthCache = {};
 
   $(document).ready(() => {
     loadAll();
@@ -25,6 +25,8 @@
     $(document).on('click', function (e) { if (!$(e.target).closest('#cctv_cust_picker').length) $('#cctv_cust_list').removeClass('show'); });
     $(document).on('click', '.btn-edit-cctv', function () { openEdit($(this).data('id')); });
     $(document).on('click', '.btn-del-cctv', function () { confirmDelete($(this).data('id'), $(this).data('name')); });
+    $(document).on('click', '.btn-resync-cctv', function () { resyncOne($(this).data('id'), $(this).data('name')); });
+    $(document).on('click', '#resyncAllBtn', resyncAll);
     $(document).on('click', '.btn-adopt-cctv', function () { adopt($(this).data('host')); });
     $(document).on('click', '.btn-test-cctv', function () { testBroadcast($(this).data('id'), $(this).data('name')); });
     $(document).on('click', '.btn-snooze-cctv', function () { snoozeCctv($(this).data('id'), $(this).data('name')); });
@@ -50,6 +52,19 @@
     await Promise.all([loadDevices(), loadStatusOnly()]);
     render();
     loadUptime();
+    loadNetwatchHealth();
+  }
+  // Status netwatch per-CCTV (terpasang? milik-CCTV? ada notif Telegram?) → badge kolom Status.
+  async function loadNetwatchHealth() {
+    try {
+      const r = await fetch('/api/cctv/netwatch-health', { credentials: 'include' }).then(r => r.json());
+      if (r.status === 200 && r.data && Array.isArray(r.data.devices)) {
+        const map = {};
+        r.data.devices.forEach(d => { map[(d.host || '').toLowerCase()] = d; });
+        netwatchHealthCache = map;
+        render();
+      }
+    } catch (_) {}
   }
   async function loadUptime() {
     try {
@@ -268,16 +283,36 @@
     else if (e.key === 'Enter') { const n = $('#cctv_cust_list .cctv-cust-item').length; if (custActiveIdx >= 0 && n) { e.preventDefault(); pickCustomer(custActiveIdx); } }
     else if (e.key === 'Escape') { $('#cctv_cust_list').removeClass('show'); }
   }
-  async function provisionNetwatch(dev) {
+  // Ringkas status auto-sync netwatch dari respons server (dipakai setelah simpan/hapus/sinkron).
+  function nwText(nw) {
+    if (!nw || nw.skipped) return '';
+    if (nw.ok) {
+      let t = nw.mode === 'add' ? 'Entri netwatch dibuat di MikroTik.' : (nw.mode === 'set' ? 'Entri netwatch disinkron.' : (nw.message || 'Netwatch OK.'));
+      if (nw.telegram === false) t += ' (Tanpa notif Telegram — isi Bot Token/Chat ID di Pengaturan.)';
+      if (Array.isArray(nw.warnings) && nw.warnings.length) t += '\n⚠ ' + nw.warnings.join('\n⚠ ');
+      return t;
+    }
+    return '⚠ ' + (nw.message || 'Netwatch gagal disinkron.');
+  }
+  async function resyncOne(id, name) {
     try {
-      const r = await fetch('/api/cctv/provision-netwatch', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ host: dev.host, name: dev.name, area: dev.area }) }).then(r => r.json());
-      if (r.status === 200) {
-        const exists = r.data && r.data.exists;
-        Swal.fire({ icon: 'success', title: 'Tersimpan', html: exists ? 'CCTV tersimpan. Entri netwatch sudah ada sebelumnya (tidak ditimpa).' : 'CCTV tersimpan + entri netwatch &amp; notifikasi Telegram dibuat di MikroTik.', timer: 2400, showConfirmButton: false });
-      } else {
-        Swal.fire({ icon: 'warning', title: 'CCTV tersimpan, netwatch gagal', text: r.message || 'Cek Bot Token/Chat ID di tab Pengaturan.' });
-      }
-    } catch (e) { Swal.fire({ icon: 'warning', title: 'CCTV tersimpan, netwatch gagal', text: e.message }); }
+      const r = await fetch('/api/cctv/devices/' + id + '/resync-netwatch', { method: 'POST', credentials: 'include' }).then(x => x.json());
+      const nw = r.data || {};
+      Swal.fire({ icon: r.status === 200 ? 'success' : 'warning', title: r.status === 200 ? 'Netwatch tersinkron' : 'Perlu perhatian', text: (name ? name + ': ' : '') + (nwText(nw) || r.message || '') });
+      loadAll();
+    } catch (e) { Swal.fire('Gagal', e.message, 'error'); }
+  }
+  async function resyncAll() {
+    const c = await Swal.fire({ icon: 'question', title: 'Sinkronkan semua CCTV ke netwatch?', text: 'Membuat/memperbaiki entri netwatch di MikroTik untuk semua CCTV terdaftar. Entri OLT/infra tidak disentuh.', showCancelButton: true, confirmButtonText: 'Sinkronkan', cancelButtonText: 'Batal' });
+    if (!c.isConfirmed) return;
+    try {
+      const r = await fetch('/api/cctv/resync-netwatch', { method: 'POST', credentials: 'include' }).then(x => x.json());
+      const rows = (r.data || []);
+      const fail = rows.filter(x => !x.ok);
+      const html = r.message + (fail.length ? '<br><br><b>Perlu perhatian:</b><br>' + fail.map(x => escapeHtml(x.name) + ': ' + escapeHtml(x.message || '')).join('<br>') : '');
+      Swal.fire({ icon: fail.length ? 'warning' : 'success', title: 'Sinkron netwatch', html });
+      loadAll();
+    } catch (e) { Swal.fire('Gagal', e.message, 'error'); }
   }
 
   function fmtSince(ms) {
@@ -436,8 +471,18 @@
       const snoozeActive = d.snoozeUntil && Date.now() < d.snoozeUntil;
       const snoozeBadge = snoozeActive ? ' <span class="badge badge-dark" title="Alert dibisukan (maintenance) sampai ' + new Date(d.snoozeUntil).toLocaleString('id-ID') + '"><i class="fas fa-bell-slash"></i> snooze s/d ' + new Date(d.snoozeUntil).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + '</span>' : '';
       const sinceTxt = (s && s.since) ? ' <small class="text-muted">· ' + fmtSince(s.since) + '</small>' : '';
-      const nwWarn = (statusCache && statusCache.running && s && s.inNetwatch === false)
-        ? ' <span class="badge badge-warning" title="Host ini tidak ditemukan di netwatch MikroTik — monitor tak bisa memantau">⚠ tidak di netwatch</span>' : '';
+      // Badge kesehatan netwatch (dari /netwatch-health): terpasang & milik-CCTV? ada notif Telegram?
+      const h = netwatchHealthCache[(d.host || '').toLowerCase()];
+      let nwWarn;
+      if (h) {
+        if (!h.inNetwatch) nwWarn = ' <span class="badge badge-danger" title="Belum ada entri netwatch di MikroTik — klik Sinkron untuk membuatnya">✗ belum di netwatch</span>';
+        else if (!h.cctvOwned) nwWarn = ' <span class="badge badge-warning" title="IP ada di netwatch tapi BUKAN entri CCTV (mungkin OLT/AP/infra) — cek IP-nya">⚠ IP dipakai entri lain</span>';
+        else if (!h.telegramScript) nwWarn = ' <span class="badge badge-info" title="Entri netwatch CCTV terpasang, tapi tanpa notif Telegram (isi Bot Token/Chat ID di Pengaturan)">✓ netwatch (tanpa TG)</span>';
+        else nwWarn = ' <span class="badge badge-success" title="Entri netwatch CCTV + notifikasi Telegram terpasang">✓ netwatch</span>';
+      } else {
+        nwWarn = (statusCache && statusCache.running && s && s.inNetwatch === false)
+          ? ' <span class="badge badge-warning" title="Host ini tidak ditemukan di netwatch MikroTik — monitor tak bisa memantau">⚠ tidak di netwatch</span>' : '';
+      }
       const u = uptimeCache[(d.host || '').toLowerCase()];
       const up7 = u ? u.uptime7d : null;
       const upCls = up7 == null ? 'text-muted' : up7 >= 99 ? 'text-success' : up7 >= 95 ? 'text-warning' : 'text-danger';
@@ -452,6 +497,7 @@
         <td class="text-nowrap">
           <button class="btn btn-sm btn-outline-success btn-test-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}" title="Kirim pesan tes ke semua penerima (pelanggan/koordinator/grup)"><i class="fas fa-paper-plane"></i></button>
           <button class="btn btn-sm ${snoozeActive ? 'btn-secondary' : 'btn-outline-secondary'} btn-snooze-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}" title="Snooze / mode maintenance — bisukan alert sementara"><i class="fas fa-bell-slash"></i></button>
+          <button class="btn btn-sm btn-outline-info btn-resync-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}" title="Sinkron ulang entri netwatch (buat/perbaiki di MikroTik)"><i class="fas fa-sync"></i></button>
           <button class="btn btn-sm btn-outline-primary btn-edit-cctv" data-id="${d.id}"><i class="fas fa-edit"></i></button>
           <button class="btn btn-sm btn-outline-danger btn-del-cctv" data-id="${d.id}" data-name="${escapeHtml(d.name)}"><i class="fas fa-trash"></i></button>
         </td>
@@ -474,8 +520,7 @@
     $('#cctvModalTitle').text('Tambah CCTV'); $('#cctvForm')[0].reset();
     $('#cctv_id').val(''); $('#cctv_enabled').prop('checked', true);
     $('#cctv_notify_customer').prop('checked', true);
-    $('#cctv_provision').prop('checked', true);
-    $('#provisionRow').show();
+    $('#provisionRow').hide(); // netwatch kini otomatis di server (auto-sync) — checkbox tak dipakai lagi
     resetCustPicker();
     selectAreaAfterSave = false;
     setAreaValue('');
@@ -520,8 +565,12 @@
       const r = await fetch(url, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(r => r.json());
       if (r.status === 200) {
         $('#cctvModal').modal('hide');
-        if (!id && $('#cctv_provision').is(':checked')) {
-          await provisionNetwatch(payload);
+        // Netwatch kini otomatis di server (auto-sync). Tampilkan hasilnya bila ada.
+        const t = nwText(r.netwatch);
+        if (t && r.netwatch && !r.netwatch.ok) {
+          Swal.fire({ icon: 'warning', title: 'CCTV tersimpan — cek netwatch', text: t });
+        } else if (t) {
+          Swal.fire({ icon: 'success', title: 'Tersimpan', text: t, timer: 2200, showConfirmButton: false });
         } else {
           Swal.fire({ icon: 'success', title: 'Tersimpan', timer: 1200, showConfirmButton: false });
         }
@@ -538,8 +587,14 @@
         if (!r.isConfirmed) return;
         try {
           const res = await fetch(`/api/cctv/devices/${id}`, { method: 'DELETE', credentials: 'include' }).then(r => r.json());
-          if (res.status === 200) { Swal.fire({ icon: 'success', title: 'Terhapus', timer: 1000, showConfirmButton: false }); loadAll(); loadDiscovery(); }
-          else Swal.fire('Gagal', res.message || 'Error', 'error');
+          if (res.status === 200) {
+            const nw = res.netwatch || {};
+            const extra = (nw.skippedNonCctv && nw.skippedNonCctv.length) ? ' (' + nw.skippedNonCctv.length + ' entri non-CCTV di IP sama dibiarkan)' : '';
+            Swal.fire({ icon: 'success', title: 'Terhapus', text: 'CCTV & entri netwatch-nya dihapus.' + extra, timer: 1800, showConfirmButton: false }); loadAll(); loadDiscovery();
+          } else if (res.status === 502) {
+            // Netwatch gagal dihapus → device SENGAJA dipertahankan (bukan yatim). Admin bisa retry.
+            Swal.fire({ icon: 'warning', title: 'Belum terhapus', text: res.message || 'Gagal hapus entri netwatch di MikroTik. CCTV dipertahankan — coba lagi (tombol Sinkron) atau cek MikroTik.' });
+          } else Swal.fire('Gagal', res.message || 'Error', 'error');
         } catch (e) { Swal.fire('Gagal', e.message, 'error'); }
       });
   }

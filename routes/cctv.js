@@ -17,10 +17,10 @@ const monitor = require('../lib/cctv-monitor');
 const cctvConfig = require('../lib/cctv-monitor-config');
 const mikrotik = require('../lib/mikrotik');
 const discovery = require('../lib/cctv-netwatch-discovery');
-const netscript = require('../lib/cctv-netwatch-script');
 const uptime = require('../lib/cctv-uptime');
 const areaRegistry = require('../lib/cctv-area-registry');
 const gateway = require('../lib/whatsapp-gateway');
+const nwsync = require('../lib/cctv-netwatch-sync');
 
 const MAIN_CONFIG_PATH = path.join(__dirname, '..', 'config.json');
 
@@ -30,6 +30,19 @@ function ensureAdmin(req, res) {
         return false;
     }
     return true;
+}
+
+// Gate auto-sync netwatch (deploy gelap: default OFF di config.example, ON per-instance yg dipakai).
+function autoNetwatchEnabled() {
+    return !!(global.config && global.config.cctvMonitor && global.config.cctvMonitor.autoNetwatch === true);
+}
+
+// Catat .id netwatch hasil sync ke registry → set/hapus berikutnya menyasar entri PERSIS by-id.
+function persistNetwatchId(device, netwatchId) {
+    if (device && device.id && netwatchId && netwatchId !== device.netwatchId) {
+        try { return registry.upsert({ ...device, netwatchId, id: device.id }); } catch (_e) { /* best-effort */ }
+    }
+    return device;
 }
 
 // CCTV butuh minimal 1 penerima: nomor WA pelanggan, ATAU koordinator aktif (nomor/grup) utk areanya.
@@ -47,41 +60,91 @@ router.get('/devices', (req, res) => {
     res.json({ status: 200, data: registry.list() });
 });
 
-router.post('/devices', (req, res) => {
+router.post('/devices', async (req, res) => {
     if (!ensureAdmin(req, res)) return;
     try {
         requireRecipient(req.body || {});
-        const saved = registry.upsert(req.body || {});
-        // Tak perlu restart monitor: poll membaca daftar device fresh tiap siklus
-        // (devByHost→getDevices) → device baru otomatis terpantau ≤1 poll. Restart
-        // dulu memanggil state.clear() → menghapus insiden in-flight (pending/active),
-        // sehingga broadcast atau notif-pulih bisa hilang saat admin utak-atik daftar.
-        res.json({ status: 200, message: 'OK', data: saved });
+        let saved = registry.upsert(req.body || {});
+        // Auto-sync netwatch (gated): add di admin sekaligus buat entri + script on-up/on-down di
+        // MikroTik → tak perlu utak-atik Winbox. Registry TETAP otoritatif; kegagalan netwatch
+        // DISURFACE (bukan diam) supaya admin bisa "Sinkron ulang". Poll monitor hot-read device.
+        let netwatch = { skipped: 'autoNetwatch off' };
+        if (autoNetwatchEnabled()) {
+            netwatch = await nwsync.syncDevice(saved);
+            if (netwatch.ok) saved = persistNetwatchId(saved, netwatch.netwatchId);
+        }
+        res.json({ status: 200, message: 'OK', data: saved, netwatch });
     } catch (e) {
         res.status(400).json({ status: 400, message: e.message });
     }
 });
 
-router.put('/devices/:id', (req, res) => {
+router.put('/devices/:id', async (req, res) => {
     if (!ensureAdmin(req, res)) return;
     const existing = registry.get(req.params.id);
     if (!existing) return res.status(404).json({ status: 404, message: 'CCTV tidak ditemukan' });
     try {
         requireRecipient({ ...existing, ...req.body });
-        const saved = registry.upsert({ ...existing, ...req.body, id: req.params.id });
-        // Tak perlu restart: poll hot-read device tiap siklus (lihat catatan di POST).
-        res.json({ status: 200, message: 'OK', data: saved });
+        let saved = registry.upsert({ ...existing, ...req.body, id: req.params.id });
+        // Edit sekaligus sinkron netwatch: rename → comment+script diperbarui; ganti IP → entri host
+        // BARU dibuat dulu, baru entri lama dihapus (urutan aman, tak pernah nol coverage).
+        let netwatch = { skipped: 'autoNetwatch off' };
+        if (autoNetwatchEnabled()) {
+            netwatch = await nwsync.syncDevice(saved, { oldHost: existing.host, oldNetwatchId: existing.netwatchId });
+            if (netwatch.ok) saved = persistNetwatchId(saved, netwatch.netwatchId);
+        }
+        res.json({ status: 200, message: 'OK', data: saved, netwatch });
     } catch (e) {
         res.status(400).json({ status: 400, message: e.message });
     }
 });
 
-router.delete('/devices/:id', (req, res) => {
+router.delete('/devices/:id', async (req, res) => {
     if (!ensureAdmin(req, res)) return;
+    const device = registry.get(req.params.id);
+    if (!device) return res.json({ status: 200, message: 'OK' }); // idempoten
+    let netwatch = { skipped: 'autoNetwatch off' };
+    if (autoNetwatchEnabled()) {
+        // Hapus netwatch DULU (hanya entri milik-CCTV; entri OLT/infra sehost DIBIARKAN). Bila router
+        // gagal → JANGAN yatimkan: pertahankan device supaya bisa retry via "Sinkron ulang".
+        netwatch = await nwsync.removeForDevice(device);
+        if (!netwatch.ok) {
+            return res.status(502).json({ status: 502, message: 'CCTV belum dihapus — gagal hapus netwatch di MikroTik: ' + netwatch.message, netwatch });
+        }
+    }
     registry.remove(req.params.id);
-    // Tak perlu restart: poll hot-read device; host yang hilang berhenti dipantau,
-    // dan pending-nya dibatalkan otomatis di onConfirm (device tak ditemukan).
-    res.json({ status: 200, message: 'OK' });
+    res.json({ status: 200, message: 'OK', netwatch });
+});
+
+// Sinkron ulang netwatch satu CCTV (retry manual bila auto-sync tadi gagal / entri di-utak-atik).
+router.post('/devices/:id/resync-netwatch', async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    const device = registry.get(req.params.id);
+    if (!device) return res.status(404).json({ status: 404, message: 'CCTV tidak ditemukan.' });
+    const netwatch = await nwsync.syncDevice(device);
+    if (netwatch.ok) persistNetwatchId(device, netwatch.netwatchId);
+    res.json({ status: netwatch.ok ? 200 : (netwatch.mode === 'conflict' ? 409 : 502), message: netwatch.message, data: netwatch });
+});
+
+// Sinkronkan SEMUA CCTV ke netwatch sekaligus (backfill; perbaiki yang badge-nya "tidak di netwatch").
+router.post('/resync-netwatch', async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    const devices = registry.list();
+    const results = [];
+    for (const d of devices) {
+        const r = await nwsync.syncDevice(d);
+        if (r.ok) persistNetwatchId(d, r.netwatchId);
+        results.push({ id: d.id, name: d.name, host: d.host, ok: r.ok, mode: r.mode, message: r.message, warnings: r.warnings || [] });
+    }
+    const okCount = results.filter((r) => r.ok).length;
+    res.json({ status: 200, message: `Sinkron ${okCount}/${results.length} CCTV ke netwatch.`, data: results });
+});
+
+// Status netwatch per-CCTV untuk kolom kesehatan di UI (READ-ONLY, 1 fetch).
+router.get('/netwatch-health', async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+    const r = await nwsync.netwatchHealth(registry.list());
+    res.json({ status: r.ok ? 200 : 502, message: r.message, data: r });
 });
 
 router.get('/status', (req, res) => {
@@ -154,35 +217,19 @@ router.post('/config', (req, res) => {
     }
 });
 
-// Provisioning netwatch untuk CCTV BARU: rakit script on-up/on-down dari config Telegram +
-// nama/area CCTV (sanitasi anti-injeksi, satu baris), lalu tulis ke MikroTik. Host yang sudah
-// ada di netwatch di-skip (tak ditimpa) oleh add_netwatch.php.
+// Provision netwatch CCTV — kini DELEGASI ke owner tunggal cctv-netwatch-sync (anti shadow-ownership
+// CLAUDE.md: satu penulis netwatch). Alur admin baru memakai auto-sync di POST/PUT/DELETE + /resync;
+// endpoint ini dipertahankan utk kompat (mis. tombol lama) tapi lewat jalur aman yang sama.
 router.post('/provision-netwatch', async (req, res) => {
     if (!ensureAdmin(req, res)) return;
     const body = req.body || {};
     const host = String(body.host || '').trim();
     const name = String(body.name || '').trim();
-    const area = String(body.area || '').trim();
-    if (!host || !name) {
-        return res.status(400).json({ status: 400, message: 'Host & nama wajib diisi.' });
-    }
-    const nwCfg = (global.config && global.config.cctvMonitor && global.config.cctvMonitor.netwatch) || {};
-    if (!netscript.isValidNetwatchConfig(nwCfg)) {
-        return res.status(400).json({ status: 400, message: 'Bot token & chat ID Telegram belum diisi di tab Pengaturan.' });
-    }
-    try {
-        const { upScript, downScript } = netscript.buildNetwatchScripts(nwCfg, { name, area, host });
-        const r = await mikrotik.addNetwatch(
-            { host, comment: name, interval: nwCfg.interval, timeout: nwCfg.timeout, upScript, downScript, disabled: false },
-            { caller: 'cctv.provision-netwatch' }
-        );
-        if (!r || !r.ok) {
-            return res.status(502).json({ status: 502, message: (r && r.message) || 'Gagal menulis netwatch ke MikroTik.' });
-        }
-        res.json({ status: 200, message: 'OK', data: r.data });
-    } catch (e) {
-        res.status(500).json({ status: 500, message: e.message });
-    }
+    if (!host || !name) return res.status(400).json({ status: 400, message: 'Host & nama wajib diisi.' });
+    const device = registry.getByHost(host) || { name, host, area: String(body.area || '').trim(), enabled: true };
+    const netwatch = await nwsync.syncDevice(device);
+    if (netwatch.ok) persistNetwatchId(device, netwatch.netwatchId);
+    res.json({ status: netwatch.ok ? 200 : (netwatch.mode === 'conflict' ? 409 : 502), message: netwatch.message, data: netwatch });
 });
 
 // Riwayat insiden (down/broadcast/recover/mass_suppressed) — data dari database/cctv-incidents.json.

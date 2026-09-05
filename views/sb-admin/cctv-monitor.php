@@ -85,6 +85,7 @@
               <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-video"></i> Daftar CCTV</h6>
                 <button class="btn btn-primary-custom btn-sm" id="addCctvBtn"><i class="fas fa-plus"></i> Tambah CCTV</button>
+                <button class="btn btn-outline-info btn-sm" id="resyncAllBtn" title="Buat/perbaiki entri netwatch di MikroTik untuk semua CCTV terdaftar"><i class="fas fa-sync"></i> Sinkronkan netwatch</button>
               </div>
               <div class="card-body">
                 <div class="table-responsive">
@@ -394,7 +395,7 @@
             <label class="form-check-label" for="cctv_notify_customer">Kirim notifikasi WA ke pelanggan</label>
             <small class="form-text text-muted">Matikan untuk <em>pantau saja</em> — admin/Telegram tetap dapat notif, pelanggan tidak.</small>
           </div>
-          <div class="form-check mt-2" id="provisionRow">
+          <div class="form-check mt-2 d-none" id="provisionRow">
             <input class="form-check-input" type="checkbox" id="cctv_provision" checked>
             <label class="form-check-label" for="cctv_provision">Sekalian buat entri netwatch + notifikasi Telegram di MikroTik</label>
             <small class="form-text text-muted">Hanya untuk CCTV baru yang IP-nya belum ada di netwatch. Perlu Bot Token &amp; Chat ID terisi di tab Pengaturan.</small>

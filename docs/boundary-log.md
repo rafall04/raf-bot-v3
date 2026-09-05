@@ -2520,3 +2520,12 @@
 - **Akar:** saat restart, insiden terbuka yang host-nya sudah UP ditutup **diam-diam** ("tanpa notif susulan") — termasuk insiden `broadcasted` yang pelanggannya SUDAH dikabari "mati". Terukur DANDER: 11 broadcast DOWN vs 9 "UP pulih" di log → ~2 notif pulih hilang; 36 insiden broadcasted+recovered dari 181.
 - **Fix:** di cabang "host sudah UP" `restoreInFlight`, bila `inc.status === 'broadcasted'` & `notifyRecovery !== false` → kirim `broadcastUp` susulan (ke jenis penerima yang tadi dapat "mati") SEBELUM menutup insiden. Insiden `pending`/`deferred` (belum di-broadcast) tetap ditutup tanpa notif. Selaras prinsip CLAUDE.md "janji ke pelanggan harus tahan restart".
 - **Tes:** +2 di `cctv-monitor.test.js` (broadcasted+host-UP-saat-boot → notif pulih; notifyRecovery=false → tidak); suite = 52 hijau; lint 0. LIVE DANDER 2026-09-05.
+
+<a id="b314"></a>
+
+### Fix 2026-09-05 (CCTV — auto-sync netwatch dari halaman admin: add/edit/delete tak perlu manual Winbox)
+
+- **Owner:** `lib/cctv-netwatch-sync.js` (BARU) + `routes/cctv.js`. Dulu `POST /devices` cuma nulis registry; netwatch dibuat lewat langkah terpisah opt-in, edit/delete TAK pernah sync → admin harus utak-atik netwatch manual. Monitor baca STATUS netwatch → CCTV tanpa entri = tak terpantau.
+- **Kini (gate `config.cctvMonitor.autoNetwatch`, default OFF, ON DANDER):** add/edit/delete di admin otomatis buat/perbarui/hapus entri netwatch + script on-up/on-down (dari template Pengaturan) di MikroTik. Endpoint baru `POST /devices/:id/resync-netwatch`, `POST /resync-netwatch` (semua), `GET /netwatch-health` (badge kolom status). `/provision-netwatch` lama → delegasi ke owner tunggal (anti shadow-ownership). Bridge baru `set_netwatch.php`/`remove_netwatch.php`; `mikrotik.setNetwatch`/`removeNetwatch` (dikunci per-host).
+- **Keselamatan (dari review adversarial 5-sudut, blocker):** sasar entri PERSIS by `.id` (`device.netwatchId`) / klasifikasi; HANYA sentuh entri milik-CCTV (`classifyEntry` klass cctv) — entri OLT/infra/backhaul sehost TAK PERNAH ditimpa/dihapus (tabrakan IP → TOLAK, bukan clobber); preserve-on-empty (jangan kosongkan script/interval/disabled yang sudah benar); urutan aman (ganti-IP: host baru dulu; delete: netwatch dulu, gagal→device DIPERTAHANKAN bukan yatim); comment di-strip newline; registry tetap otoritatif, kegagalan disurface.
+- **Tes:** +10 `cctv-netwatch-sync.test.js` (add/adopt-preserve/rename/collision-refuse/rehost/owned-only-remove); suite CCTV = 70 hijau; lint 0; `php -l` bridge OK.
