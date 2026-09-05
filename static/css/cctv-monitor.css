@@ -67,4 +67,10 @@
       .cctv-kpi .stat { padding: 0.6rem 0.55rem; }
       .cctv-kpi .stat .value { font-size: 1.3rem; }
     }
+    /* "Opsi lanjutan" — native <details>, ringan & aman light/dark. */
+    details.cctv-advanced > summary { cursor: pointer; color: var(--indigo-600); font-size: 0.9rem; font-weight: 600; padding: 0.35rem 0; list-style: none; user-select: none; }
+    details.cctv-advanced > summary::-webkit-details-marker { display: none; }
+    details.cctv-advanced > summary::before { content: '\25B8\00A0'; }
+    details.cctv-advanced[open] > summary::before { content: '\25BE\00A0'; }
+    body.tk-dark details.cctv-advanced > summary { color: var(--indigo-300); }
   

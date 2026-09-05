@@ -367,27 +367,31 @@
             <small class="form-text text-muted">Ketik nomor bebas (non-pelanggan) di kolom atas, atau cari &amp; pilih pelanggan agar nama &amp; nomor terisi otomatis.</small>
           </div>
           <div class="form-group">
-            <label>Nama Pelanggan (opsional)</label>
-            <input class="form-control" id="cctv_customer">
-            <small class="form-text text-muted">Dipakai di pesan ({customer_name}).</small>
-          </div>
-          <div class="form-group">
             <label>Area / Lokasi (opsional)</label>
-            <select class="form-control" id="cctv_area">
-              <option value="">— tanpa area —</option>
-            </select>
-            <small class="form-text text-muted">Pilih area terkelola (koordinatornya ikut dinotif). Daftar area dikelola di tab <em>Koordinator</em>.</small>
+            <input class="form-control" id="cctv_area" list="cctv_area_options" autocomplete="off" placeholder="Ketik lokasi bebas — mis. TANJUNGHARJO, RT 02, Karang">
+            <datalist id="cctv_area_options"></datalist>
+            <small class="form-text text-muted">Cukup <strong>ketik</strong> nama lokasi apa saja. Bila namanya sama dengan area di tab <em>Koordinator</em>, koordinatornya ikut dinotif otomatis; kalau tidak, ini jadi label lokasi saja.</small>
             <div id="cctv_area_coord" class="small mt-1"></div>
           </div>
-          <div class="form-group">
-            <label>Window Konfirmasi (menit, opsional)</label>
-            <input type="number" class="form-control" id="cctv_window" placeholder="kosong = pakai default global">
-            <small class="form-text text-muted">Setelah X menit terus mati baru broadcast. Anti-flap PLN-blink.</small>
-          </div>
-          <div class="form-group">
-            <label>Template Pesan Khusus (opsional)</label>
-            <textarea class="form-control" id="cctv_message" rows="3" placeholder="Kosongkan untuk pakai template default. Variabel: {customer_name}, {cctv_name}, {since_local}, {minutes_down}"></textarea>
-          </div>
+          <details class="cctv-advanced mb-3">
+            <summary>Opsi lanjutan — nama pelanggan, window, template (boleh dilewati)</summary>
+            <div class="cctv-advanced-body pt-2">
+              <div class="form-group">
+                <label>Nama Pelanggan (opsional)</label>
+                <input class="form-control" id="cctv_customer">
+                <small class="form-text text-muted">Dipakai di pesan ({customer_name}). Terisi otomatis bila memilih pelanggan.</small>
+              </div>
+              <div class="form-group">
+                <label>Window Konfirmasi (menit, opsional)</label>
+                <input type="number" class="form-control" id="cctv_window" placeholder="kosong = pakai default global">
+                <small class="form-text text-muted">Setelah X menit terus mati baru broadcast. Anti-flap PLN-blink.</small>
+              </div>
+              <div class="form-group mb-0">
+                <label>Template Pesan Khusus (opsional)</label>
+                <textarea class="form-control" id="cctv_message" rows="3" placeholder="Kosongkan untuk pakai template default. Variabel: {customer_name}, {cctv_name}, {since_local}, {minutes_down}"></textarea>
+              </div>
+            </div>
+          </details>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" id="cctv_enabled" checked>
             <label class="form-check-label" for="cctv_enabled">Aktif (dipantau)</label>

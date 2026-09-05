@@ -418,6 +418,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-02 (Cek Koneksi Tanjung "terganggu padahal aman" — kunci jalur config disamakan ke resolver (gmdp VLAN63) + SERVICE_ISSUE vs UPSTREAM_ISSUE: uplink sehat + 1-2 layanan buruk → sebut layanan, bukan "jaringan terganggu")](docs/boundary-log.md#b312)
 - [Fix 2026-09-05 (CCTV notif "pulih" hilang saat CCTV nyala persis waktu bot restart — restoreInFlight kirim broadcastUp susulan utk insiden broadcasted yang host-nya sudah UP, bukan tutup diam-diam)](docs/boundary-log.md#b313)
 - [Fix 2026-09-05 (CCTV auto-sync netwatch dari halaman admin — add/edit/delete otomatis kelola entri netwatch+script di MikroTik via lib/cctv-netwatch-sync.js; guard hanya-entri-CCTV anti-clobber OLT/infra, preserve-on-empty, urutan aman; +resync/health; gate autoNetwatch ON DANDER)](docs/boundary-log.md#b314)
+- [Fix 2026-09-05 (CCTV admin Area jadi input ketik-bebas+datalist, dipisah dari Koordinator (opt-in) — tak lagi paksa modal koordinator utk label lokasi; hint/guard sadar-grup; form dipendekkan pakai "Opsi lanjutan")](docs/boundary-log.md#b315)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

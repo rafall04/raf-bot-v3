@@ -6,7 +6,7 @@
  * SideEffects: memanipulasi DOM halaman tsb + memanggil API internal.
  */
 
-  let devicesCache = []; let statusCache = null; let refreshTimer = null; let discoveryCache = []; let uptimeCache = {}; let areasCache = []; let selectAreaAfterSave = false; let reopenCctvAfterArea = false; let netwatchHealthCache = {};
+  let devicesCache = []; let statusCache = null; let refreshTimer = null; let discoveryCache = []; let uptimeCache = {}; let areasCache = []; let netwatchHealthCache = {};
 
   $(document).ready(() => {
     loadAll();
@@ -16,7 +16,7 @@
     refreshTimer = setInterval(loadStatusOnly, 30000);
     $('#addCctvBtn').on('click', openAdd);
     $('#cctvSaveBtn').on('click', save);
-    $('#cctv_area').on('change', onAreaChange);
+    $('#cctv_area').on('input change', onAreaChange);
     $('#rescanBtn').on('click', loadDiscovery);
     $('#saveSettingsBtn').on('click', saveSettings);
     $('#cctv_cust_search').on('focus input', function () { renderCustList(this.value); });
@@ -41,8 +41,6 @@
     $('#area_load_groups').on('click', loadGroups);
     $('#area_group').on('change', onAreaGroupChange);
     $('#area_quiet_mode').on('change', toggleAreaQuietWindow);
-    // Modal area dibuka menggantikan modal CCTV (bukan ditumpuk); saat ditutup, kembalikan modal CCTV bila perlu.
-    $('#areaModal').on('hidden.bs.modal', function () { if (reopenCctvAfterArea) { reopenCctvAfterArea = false; $('#cctvModal').modal('show'); } });
     $(document).on('click', '.btn-test-area', function () { testArea($(this).data('id'), $(this).data('name')); });
     $(document).on('click', '.btn-edit-area', function () { openEditArea($(this).data('id')); });
     $(document).on('click', '.btn-del-area', function () { confirmDeleteArea($(this).data('id'), $(this).data('name')); });
@@ -83,6 +81,7 @@
       const r = await fetch('/api/cctv/devices', { credentials: 'include' }).then(r => r.json());
       if (r.status === 200) devicesCache = r.data || [];
     } catch (_) { devicesCache = []; }
+    populateAreaDatalist(); // saran area ikut memuat lokasi bebas yang sudah dipakai CCTV
   }
 
   async function loadDiscovery() {
@@ -520,7 +519,7 @@
     $('#cctv_id').val(''); $('#cctv_enabled').prop('checked', true);
     $('#cctv_notify_customer').prop('checked', true);
     resetCustPicker();
-    selectAreaAfterSave = false;
+    $('details.cctv-advanced').prop('open', false); // seksi lanjutan tertutup default
     setAreaValue('');
     $('#cctvModal').modal('show');
   }
@@ -552,7 +551,8 @@
       Swal.fire('Lengkapi', 'Nama & IP wajib diisi.', 'warning'); return;
     }
     if (!payload.phone) {
-      const hasCoord = areasCache.some(a => a.enabled !== false && a.coordinatorPhone && (a.name || '').toLowerCase() === (payload.area || '').toLowerCase());
+      // Koordinator SAH bila punya nomor ATAU grup (sejalan requireRecipient server) — jangan cuma cek nomor.
+      const hasCoord = areasCache.some(a => a.enabled !== false && (a.coordinatorPhone || a.coordinatorGroupId) && (a.name || '').toLowerCase() === (payload.area || '').toLowerCase());
       if (!hasCoord) { Swal.fire('Lengkapi', 'Nomor WA wajib diisi, atau tetapkan koordinator untuk areanya (tab Koordinator).', 'warning'); return; }
     }
     const id = $('#cctv_id').val();
@@ -598,61 +598,41 @@
   async function loadAreas() {
     try {
       const r = await fetch('/api/cctv/areas', { credentials: 'include' }).then(r => r.json());
-      if (r.status === 200) { areasCache = r.data || []; renderAreas(); populateAreaSelect(); }
+      if (r.status === 200) { areasCache = r.data || []; renderAreas(); populateAreaDatalist(); }
     } catch (_) {}
   }
-  function populateAreaSelect() {
-    const cur = $('#cctv_area').val();
-    const sel = $('#cctv_area').empty();
-    sel.append('<option value="">— tanpa area —</option>');
-    areasCache.forEach(a => {
-      const off = a.enabled === false ? ' (nonaktif)' : '';
-      sel.append(`<option value="${escapeHtml(a.name)}">${escapeHtml(a.name)}${off}</option>`);
-    });
-    sel.append('<option value="__new__">➕ Tambah area baru…</option>');
-    if (cur && cur !== '__new__') setAreaValue(cur);
+  // Isi saran area (datalist): gabungan nama area terkelola (tab Koordinator) + area bebas yang
+  // SUDAH dipakai CCTV lain — dedupe case-insensitive, utamakan ejaan registry. Admin tetap bebas
+  // mengetik nama apa pun; ini cuma saran biar ejaan konsisten.
+  function populateAreaDatalist() {
+    const dl = $('#cctv_area_options').empty();
+    const seen = new Set();
+    (areasCache || []).forEach(a => { const n = String(a.name || '').trim(); const k = n.toLowerCase(); if (n && !seen.has(k)) { seen.add(k); dl.append($('<option>').val(n)); } });
+    (devicesCache || []).forEach(d => { const n = String(d.area || '').trim(); const k = n.toLowerCase(); if (n && !seen.has(k)) { seen.add(k); dl.append($('<option>').val(n)); } });
   }
-  // Pilih area di dropdown; bila area belum terkelola (mis. hasil adopsi), suntik opsi sementara agar nilainya tetap tersimpan saat Simpan.
+  // Set nilai area (input teks bebas). Tak perlu lagi suntik opsi — input menampung apa pun.
   function setAreaValue(area) {
-    const sel = $('#cctv_area');
-    sel.find('option.cctv-area-temp').remove();
-    area = (area || '').trim();
-    if (!area) { sel.val(''); updateAreaCoordHint(); return; }
-    const match = areasCache.find(a => (a.name || '').toLowerCase() === area.toLowerCase());
-    if (match) {
-      sel.val(match.name);
-    } else {
-      $('<option class="cctv-area-temp"></option>').val(area).text(area + ' (belum terkelola)')
-        .insertBefore(sel.find('option[value="__new__"]'));
-      sel.val(area);
-    }
+    $('#cctv_area').val((area || '').trim());
     updateAreaCoordHint();
   }
-  // Opsi "➕ Tambah area baru…" → buka modal area; setelah tersimpan, area baru otomatis terpilih di form CCTV.
-  function onAreaChange() {
-    if ($('#cctv_area').val() === '__new__') {
-      selectAreaAfterSave = true;
-      reopenCctvAfterArea = true;
-      $('#cctv_area').val('');
-      // Tutup modal CCTV dulu lalu buka modal area (hindari modal bertumpuk yg bermasalah di Bootstrap 4).
-      $('#cctvModal').one('hidden.bs.modal', openAddArea);
-      $('#cctvModal').modal('hide');
-      return;
-    }
-    updateAreaCoordHint();
-  }
-  // Tampilkan koordinator yang ter-link dgn area yang dipilih (koordinator dicocokkan via nama area).
+  function onAreaChange() { updateAreaCoordHint(); }
+  // Umpan balik LIVE saat mengetik: apakah lokasi ini punya koordinator aktif (nomor ATAU grup),
+  // atau cuma jadi label. Sejalan dgn server requireRecipient (nomor ATAU grup = penerima sah).
   function updateAreaCoordHint() {
     const area = ($('#cctv_area').val() || '').trim().toLowerCase();
     const box = $('#cctv_area_coord');
     if (!area) { box.empty(); return; }
     const a = areasCache.find(x => (x.name || '').toLowerCase() === area);
-    if (a && a.enabled !== false && a.coordinatorPhone) {
-      box.html('📣 <span class="text-success">Koordinator <strong>' + escapeHtml(a.coordinatorName || a.name) + '</strong> (' + escapeHtml(a.coordinatorPhone) + ') akan ikut dinotif untuk area ini.</span>');
+    const hasTarget = a && a.enabled !== false && (a.coordinatorPhone || a.coordinatorGroupId);
+    if (hasTarget) {
+      const who = a.coordinatorPhone
+        ? ('Koordinator <strong>' + escapeHtml(a.coordinatorName || a.name) + '</strong> (' + escapeHtml(a.coordinatorPhone) + ')')
+        : ('Grup WA RT <strong>' + escapeHtml(a.coordinatorGroupName || a.name) + '</strong>');
+      box.html('📣 <span class="text-success">' + who + ' akan ikut dinotif untuk lokasi ini.</span>');
     } else if (a && a.enabled === false) {
-      box.html('<span class="text-muted">Koordinator area ini sedang nonaktif.</span>');
+      box.html('<span class="text-muted">Koordinator lokasi ini sedang nonaktif.</span>');
     } else {
-      box.html('<span class="text-muted">Area ini belum punya koordinator — tambahkan di tab <em>Koordinator</em> bila perlu.</span>');
+      box.html('<span class="text-muted">Lokasi ini jadi <strong>label saja</strong>. Mau koordinator/RT ikut dinotif? Tambahkan area bernama sama di tab <em>Koordinator</em>.</span>');
     }
   }
   const GROUP_HINT_DEFAULT = 'Klik <strong>Muat</strong> untuk ambil daftar grup yang bot ikuti — bot harus jadi anggota grup RT lebih dulu.';
@@ -763,7 +743,6 @@
         $('#areaModal').modal('hide');
         Swal.fire({ icon: 'success', title: 'Tersimpan', timer: 1100, showConfirmButton: false });
         await loadAreas();
-        if (selectAreaAfterSave) { selectAreaAfterSave = false; setAreaValue(payload.name); }
       } else Swal.fire('Gagal', r.message || 'Error', 'error');
     } catch (e) { Swal.fire('Gagal', e.message, 'error'); }
   }
