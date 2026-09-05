@@ -2539,3 +2539,12 @@
 - **Fix (panel desain 3-arah + review 5-sudut):** Area jadi **input teks-bebas + `<datalist>`** saran (union area terkelola + area bebas yang sudah dipakai device, dedupe case-insensitive). Admin cukup MENGETIK "TANJUNGHARJO"/"RT 02". `device.area` tetap string bebas; pencocokan koordinator tetap by-name (`getByName`, case-insensitive). **TAK ADA perubahan skema/route/registry** — `cctv-area-registry.js:73` DIBIARKAN (jalur label tak pernah lewat /areas). Koordinator jadi opt-in murni di tabnya; jalur `__new__` + `selectAreaAfterSave`/`reopenCctvAfterArea` + handler reopen-modal DIBUANG.
 - **Perbaikan WAJIB (dikonfirmasi 3 verifier):** hint area & guard klien `save()` kini **sadar-grup** — koordinator aktif bila `enabled && (nomor || grup)` (dulu cuma cek `coordinatorPhone` → area grup-saja divonis salah "tanpa koordinator" + tolak-palsu simpan tanpa nomor). Selaras `requireRecipient` server.
 - **Bonus:** field jarang (nama pelanggan, window, template) dilipat ke `<details>` "Opsi lanjutan" → form pendek & tak menakutkan. Diverifikasi visual **mobile 375px + desktop**. lint 0, `php -l` OK, `check-theme-tokens` hijau.
+
+<a id="b316"></a>
+
+### Fix 2026-09-05 (CCTV — tab "Koordinator" → "Area / Lokasi": area kelas-satu, koordinator opsional)
+
+- **Owner:** `lib/cctv-area-registry.js` + `views/sb-admin/cctv-monitor.php` + `static/js/cctv-monitor.js`. Lanjutan #b315 (pilihan owner): area jadi entitas terkelola (desa/dusun/RT), bukan sekadar "koordinator".
+- **Backend:** `cctv-area-registry.js` `upsert` TAK LAGI wajib koordinator — area boleh cuma **NAMA** (label lokasi). Nama tetap wajib. Pengaman "tiap CCTV wajib punya penerima" tetap dipegang `requireRecipient` (routes) — area tanpa koordinator tak pernah bikin CCTV kehilangan penerima, ia cuma tak menambah penerima koordinator.
+- **UI:** tab "Koordinator" → **"Area / Lokasi"** (ikon peta); tabel +kolom **"CCTV"** (jumlah CCTV per area, dihitung klien dari `devicesCache`); koordinator ditandai "belum ada (opsional)"; modal area di-reframe (nama dulu, blok koordinator jelas OPSIONAL, `<hr>` pemisah); guard klien wajib-koordinator (`saveArea`) dibuang. Field Area CCTV (datalist #b315) otomatis menyarankan area terkelola ini.
+- **Tes:** `cctv-area-registry.test.js` diperbarui (nama-saja SAH, tak lagi throw) = 4 hijau; lint 0; `php -l` OK; `check-theme-tokens` hijau; diverifikasi visual desktop (kolom CCTV + "belum ada (opsional)").

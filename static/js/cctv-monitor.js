@@ -674,15 +674,18 @@
     const tb = $('#areasTable tbody').empty();
     $('#tabCountAreas').text(areasCache.length);
     if (areasCache.length === 0) {
-      tb.append('<tr><td colspan="4" class="text-center text-muted">Belum ada koordinator area. Klik "Tambah Area".</td></tr>');
+      tb.append('<tr><td colspan="5" class="text-center text-muted">Belum ada area/lokasi. Klik "Tambah Area" — cukup isi nama (desa/dusun/RT); koordinator opsional.</td></tr>');
       return;
     }
     areasCache.forEach(a => {
       const off = a.enabled === false ? ' <span class="badge badge-secondary">nonaktif</span>' : '';
       const qz = a.quietMode === 'off' ? 'tanpa jam tenang' : a.quietMode === 'custom' ? ('jam tenang ' + (a.quietStart || '?') + '–' + (a.quietEnd || '?')) : '';
+      const cctvCount = devicesCache.filter(d => (d.area || '').trim().toLowerCase() === (a.name || '').trim().toLowerCase()).length;
+      const hasCoord = !!(a.coordinatorPhone || a.coordinatorGroupId);
       tb.append(`<tr>
         <td class="tumpuk-judul" data-label="Area"><strong>${escapeHtml(a.name)}</strong>${off}${qz ? '<br><small class="text-muted"><i class="fas fa-moon"></i> ' + escapeHtml(qz) + '</small>' : ''}</td>
-        <td data-label="Koordinator">${escapeHtml(a.coordinatorName || '—')}</td>
+        <td data-label="CCTV">${cctvCount ? '<span class="badge badge-primary" title="Jumlah CCTV di lokasi ini">' + cctvCount + ' CCTV</span>' : '<span class="text-muted">0</span>'}</td>
+        <td data-label="Koordinator">${hasCoord ? escapeHtml(a.coordinatorName || '—') : '<span class="text-muted">belum ada <small>(opsional)</small></span>'}</td>
         <td data-label="Tujuan Notifikasi">
           ${a.coordinatorPhone ? '<div><span class="cctv-host">' + escapeHtml(a.coordinatorPhone) + '</span>' + (a.coordinatorInGroup && a.coordinatorGroupId ? ' <span class="badge badge-light" title="Nomor koordinator tak dijapri, cukup lewat grup">via grup</span>' : '') + '</div>' : ''}
           ${a.coordinatorGroupId ? '<div><span class="badge badge-info"><i class="fas fa-users"></i> Grup: ' + escapeHtml(a.coordinatorGroupName || a.coordinatorGroupId) + '</span>' + (a.customersInGroup ? ' <span class="badge badge-light" title="Pelanggan tak dijapri, cukup lewat grup">warga di grup</span>' : '') + '</div>' : ''}
@@ -731,8 +734,8 @@
       quietEnd: $('#area_quiet_end').val(),
       enabled: $('#area_enabled').is(':checked'),
     };
-    if (!payload.name) { Swal.fire('Lengkapi', 'Nama area wajib diisi.', 'warning'); return; }
-    if (!payload.coordinatorPhone && !payload.coordinatorGroupId) { Swal.fire('Lengkapi', 'Isi nomor WA koordinator ATAU pilih Grup WA RT.', 'warning'); return; }
+    if (!payload.name) { Swal.fire('Lengkapi', 'Nama area/lokasi wajib diisi.', 'warning'); return; }
+    // Koordinator OPSIONAL: area boleh cuma nama (label). Bila diisi grup tanpa nomor pun sah.
     if (payload.quietMode === 'custom' && (!payload.quietStart || !payload.quietEnd)) { Swal.fire('Lengkapi', 'Jam tenang "Atur sendiri": isi jam mulai & selesai.', 'warning'); return; }
     const id = $('#area_id').val();
     const url = id ? `/api/cctv/areas/${id}` : '/api/cctv/areas';

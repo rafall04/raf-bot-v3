@@ -56,7 +56,7 @@
           </li>
           <li class="nav-item">
             <a class="nav-link" id="tab-areas-link" data-toggle="tab" href="#tab-areas" role="tab">
-              <i class="fas fa-user-tie"></i> Koordinator <span class="badge badge-primary" id="tabCountAreas">0</span>
+              <i class="fas fa-map-marked-alt"></i> Area / Lokasi <span class="badge badge-primary" id="tabCountAreas">0</span>
             </a>
           </li>
           <li class="nav-item">
@@ -128,19 +128,19 @@
             </div>
           </div>
 
-          <!-- TAB: Koordinator Area/RT -->
+          <!-- TAB: Area / Lokasi (desa/dusun/RT) — koordinator opsional -->
           <div class="tab-pane fade" id="tab-areas" role="tabpanel">
             <div class="card shadow mb-4">
               <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-user-tie"></i> Koordinator Area / RT</h6>
+                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-map-marked-alt"></i> Area / Lokasi</h6>
                 <button class="btn btn-primary-custom btn-sm" id="addAreaBtn"><i class="fas fa-plus"></i> Tambah Area</button>
               </div>
               <div class="card-body">
-                <p class="text-muted small mb-2">Koordinator (mis. ketua RT) dapat notifikasi ringkas saat ada CCTV di areanya mati, agar bisa koordinasi dengan warga. Jam tenang &amp; aturan lain berlaku sama. Area dicocokkan ke field <em>Area</em> tiap CCTV (tak peduli huruf besar/kecil).</p>
+                <p class="text-muted small mb-2">Daftar lokasi (desa/dusun/RT) untuk mengelompokkan CCTV. Cukup isi <strong>nama</strong> — <em>koordinator opsional</em>: tambahkan nomor/grup WA hanya bila ingin ketua RT ikut dinotif saat CCTV di area itu mati. Nama area dicocokkan ke field <em>Area</em> tiap CCTV (tak peduli huruf besar/kecil).</p>
                 <div class="table-responsive">
                   <table class="table table-bordered table-hover tabel-tumpuk-hp" id="areasTable" width="100%">
                     <thead class="thead-light">
-                      <tr><th>Area</th><th>Koordinator</th><th>Tujuan Notifikasi</th><th>Aksi</th></tr>
+                      <tr><th>Area / Lokasi</th><th>CCTV</th><th>Koordinator</th><th>Tujuan Notifikasi</th><th>Aksi</th></tr>
                     </thead>
                     <tbody></tbody>
                   </table>
@@ -423,18 +423,20 @@
         <form id="areaForm">
           <input type="hidden" id="area_id">
           <div class="form-group">
-            <label>Nama Area / RT <span class="text-danger">*</span></label>
-            <input class="form-control" id="area_name" required placeholder="mis. DANDER / RT 02">
-            <small class="form-text text-muted">Harus sama dengan nilai Area di CCTV (cocok otomatis, tak peduli huruf besar/kecil).</small>
+            <label>Nama Area / Lokasi <span class="text-danger">*</span></label>
+            <input class="form-control" id="area_name" required placeholder="mis. DANDER / RT 02 / Karang">
+            <small class="form-text text-muted">Nama desa/dusun/RT. Dicocokkan ke field <em>Area</em> di CCTV (tak peduli huruf besar/kecil). <strong>Cukup ini saja</strong> bila hanya butuh label lokasi.</small>
           </div>
+          <hr class="my-2">
+          <p class="small mb-2"><i class="fas fa-bell text-muted"></i> <strong>Koordinator / ketua RT (opsional)</strong> — isi hanya bila ingin ada yang ikut dinotif saat CCTV di lokasi ini mati. Boleh dikosongkan.</p>
           <div class="form-group">
             <label>Nama Koordinator (opsional)</label>
             <input class="form-control" id="area_coord_name" placeholder="mis. Pak RT 02">
           </div>
           <div class="form-group">
-            <label>Nomor WA Koordinator</label>
+            <label>Nomor WA Koordinator (opsional)</label>
             <input class="form-control" id="area_coord_phone" placeholder="628xxx (pisah | untuk multi)">
-            <small class="form-text text-muted">Isi nomor, <em>atau</em> pilih Grup WA RT di bawah (boleh dua-duanya). Minimal salah satu.</small>
+            <small class="form-text text-muted">Isi nomor, <em>atau</em> pilih Grup WA RT di bawah (boleh dua-duanya, boleh dikosongkan semua).</small>
           </div>
           <div class="form-group">
             <label>Grup WA RT (opsional)</label>
