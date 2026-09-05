@@ -416,6 +416,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-02 (Keuangan T7/T18/T16 — konfirmasi biaya rutin atomik anti-dobel, batal expense me-reset biaya rutin, voucher-SALDO bukan pemasukan)](docs/boundary-log.md#b310)
 - [Fix 2026-09-02 (Keuangan T1/T3/T6 — pengeluaran/sisa WA dari buku besar (acuan resmi, termasuk gaji) + warning biaya rutin belum-dibukukan di /rekap)](docs/boundary-log.md#b311)
 - [Fix 2026-09-02 (Cek Koneksi Tanjung "terganggu padahal aman" — kunci jalur config disamakan ke resolver (gmdp VLAN63) + SERVICE_ISSUE vs UPSTREAM_ISSUE: uplink sehat + 1-2 layanan buruk → sebut layanan, bukan "jaringan terganggu")](docs/boundary-log.md#b312)
+- [Fix 2026-09-05 (CCTV notif "pulih" hilang saat CCTV nyala persis waktu bot restart — restoreInFlight kirim broadcastUp susulan utk insiden broadcasted yang host-nya sudah UP, bukan tutup diam-diam)](docs/boundary-log.md#b313)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
