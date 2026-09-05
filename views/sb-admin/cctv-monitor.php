@@ -84,8 +84,10 @@
             <div class="card shadow mb-4">
               <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-video"></i> Daftar CCTV</h6>
-                <button class="btn btn-primary-custom btn-sm" id="addCctvBtn"><i class="fas fa-plus"></i> Tambah CCTV</button>
-                <button class="btn btn-outline-info btn-sm" id="resyncAllBtn" title="Buat/perbaiki entri netwatch di MikroTik untuk semua CCTV terdaftar"><i class="fas fa-sync"></i> Sinkronkan netwatch</button>
+                <div class="d-flex flex-wrap" style="gap:.5rem;">
+                  <button class="btn btn-primary-custom btn-sm" id="addCctvBtn"><i class="fas fa-plus"></i> Tambah CCTV</button>
+                  <button class="btn btn-outline-info btn-sm" id="resyncAllBtn" title="Buat/perbaiki entri netwatch di MikroTik untuk semua CCTV terdaftar (mis. setelah ganti token/pesan Telegram)"><i class="fas fa-sync"></i> Sinkronkan netwatch</button>
+                </div>
               </div>
               <div class="card-body">
                 <div class="table-responsive">
@@ -108,7 +110,7 @@
                 <button class="btn btn-sm btn-outline-primary" id="rescanBtn"><i class="fas fa-sync"></i> Scan ulang</button>
               </div>
               <div class="card-body">
-                <p class="text-muted small mb-2">CCTV yang sudah ada di MikroTik netwatch tapi belum diadopsi ke monitor. Klik <strong>Adopsi</strong> — IP, nama, dan area terisi otomatis, kamu cukup isi nomor WA pelanggan.</p>
+                <p class="text-muted small mb-2">Entri netwatch yang <strong>sudah ada di MikroTik</strong> (mis. dibuat manual di Winbox dulu) tapi belum masuk monitor. Klik <strong>Adopsi</strong> — IP, nama, dan area terisi otomatis, kamu cukup isi nomor WA pelanggan agar mereka juga dapat broadcast WA. <em>CCTV baru yang kamu Tambah lewat tombol di tab Daftar sudah otomatis masuk netwatch — tak perlu lewat sini.</em></p>
                 <div id="discoveryStatus" class="small text-muted mb-2">-</div>
                 <div class="form-inline mb-2" id="bulkAdoptBar" style="display:none;">
                   <input type="text" class="form-control form-control-sm mr-2" id="bulkAdoptPhone" placeholder="Nomor WA utk semua yang dicentang (mis. RT/komunitas)" style="min-width:240px;">
@@ -252,7 +254,7 @@
             <div class="card shadow mb-4">
               <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-paper-plane"></i> Netwatch &amp; Telegram (notifikasi teknisi)</h6></div>
               <div class="card-body">
-                <p class="text-muted small">Dipakai saat menambah CCTV baru: app otomatis membuat entri netwatch + script on-up/on-down yang mengirim notifikasi <strong>realtime ke Telegram</strong> (untuk teknisi &amp; admin). Cukup isi sekali di sini.</p>
+                <p class="text-muted small">Isi <strong>sekali</strong> di sini. Setiap <strong>Tambah/Edit</strong> CCTV, app otomatis membuat/memperbarui entri netwatch + script on-up/on-down (notifikasi <strong>realtime ke Telegram</strong> untuk teknisi &amp; admin); <strong>Hapus</strong> CCTV otomatis menghapus entrinya. Ganti token/pesan di sini lalu klik <em>Sinkronkan netwatch</em> untuk menerapkan ke semua CCTV.</p>
                 <div class="form-row">
                   <div class="form-group col-md-7">
                     <label class="small mb-0">Bot Token Telegram</label>
@@ -352,7 +354,7 @@
           <div class="form-group">
             <label>IP CCTV <span class="text-danger">*</span></label>
             <input class="form-control" id="cctv_host" required placeholder="192.168.99.10">
-            <small class="form-text text-muted">Pastikan IP ini sudah ada di MikroTik /tool/netwatch.</small>
+            <small class="form-text text-muted">Cukup isi IP kamera. Entri netwatch + notifikasi Telegram <strong>dibuat &amp; diperbarui otomatis</strong> di MikroTik saat disimpan — tak perlu buka Winbox. (Isi Bot Token/Chat ID sekali di tab <em>Pengaturan</em>.)</small>
           </div>
           <div class="form-group">
             <label>Nomor WA Pelanggan <span class="text-danger">*</span></label>
@@ -394,11 +396,6 @@
             <input class="form-check-input" type="checkbox" id="cctv_notify_customer" checked>
             <label class="form-check-label" for="cctv_notify_customer">Kirim notifikasi WA ke pelanggan</label>
             <small class="form-text text-muted">Matikan untuk <em>pantau saja</em> — admin/Telegram tetap dapat notif, pelanggan tidak.</small>
-          </div>
-          <div class="form-check mt-2 d-none" id="provisionRow">
-            <input class="form-check-input" type="checkbox" id="cctv_provision" checked>
-            <label class="form-check-label" for="cctv_provision">Sekalian buat entri netwatch + notifikasi Telegram di MikroTik</label>
-            <small class="form-text text-muted">Hanya untuk CCTV baru yang IP-nya belum ada di netwatch. Perlu Bot Token &amp; Chat ID terisi di tab Pengaturan.</small>
           </div>
         </form>
       </div>

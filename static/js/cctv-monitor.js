@@ -135,9 +135,6 @@
     $('#cctv_name').val(c.name);
     $('#cctv_host').val(c.host);
     setAreaValue(c.area);
-    // Adopsi = host sudah pasti ada di netwatch → provisioning tak relevan.
-    $('#cctv_provision').prop('checked', false);
-    $('#provisionRow').hide();
     setTimeout(() => $('#cctv_phone').focus(), 300);
   }
 
@@ -520,7 +517,6 @@
     $('#cctvModalTitle').text('Tambah CCTV'); $('#cctvForm')[0].reset();
     $('#cctv_id').val(''); $('#cctv_enabled').prop('checked', true);
     $('#cctv_notify_customer').prop('checked', true);
-    $('#provisionRow').hide(); // netwatch kini otomatis di server (auto-sync) — checkbox tak dipakai lagi
     resetCustPicker();
     selectAreaAfterSave = false;
     setAreaValue('');
@@ -535,7 +531,6 @@
     $('#cctv_window').val(d.confirmationMinutes || ''); $('#cctv_message').val(d.customMessage || '');
     $('#cctv_enabled').prop('checked', d.enabled !== false);
     $('#cctv_notify_customer').prop('checked', d.notifyCustomer !== false);
-    $('#provisionRow').hide(); // provisioning hanya untuk CCTV baru
     resetCustPicker();
     $('#cctvModal').modal('show');
   }
