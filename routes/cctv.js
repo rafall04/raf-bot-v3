@@ -90,7 +90,10 @@ router.put('/devices/:id', async (req, res) => {
         // BARU dibuat dulu, baru entri lama dihapus (urutan aman, tak pernah nol coverage).
         let netwatch = { skipped: 'autoNetwatch off' };
         if (autoNetwatchEnabled()) {
-            netwatch = await nwsync.syncDevice(saved, { oldHost: existing.host, oldNetwatchId: existing.netwatchId });
+            // forceScript hanya bila admin memang meng-ganti nama/area → pesan Telegram ikut diperbarui.
+            // Tanpa perubahan itu, entri conformant yang sudah jalan TAK ditulis ulang.
+            const nameOrAreaChanged = existing.name !== saved.name || String(existing.area || '') !== String(saved.area || '');
+            netwatch = await nwsync.syncDevice(saved, { oldHost: existing.host, oldNetwatchId: existing.netwatchId, forceScript: nameOrAreaChanged });
             if (netwatch.ok) saved = persistNetwatchId(saved, netwatch.netwatchId);
         }
         res.json({ status: 200, message: 'OK', data: saved, netwatch });
@@ -121,7 +124,8 @@ router.post('/devices/:id/resync-netwatch', async (req, res) => {
     if (!ensureAdmin(req, res)) return;
     const device = registry.get(req.params.id);
     if (!device) return res.status(404).json({ status: 404, message: 'CCTV tidak ditemukan.' });
-    const netwatch = await nwsync.syncDevice(device);
+    // Resync manual = sengaja terapkan template terbaru (token/pesan) → forceScript.
+    const netwatch = await nwsync.syncDevice(device, { forceScript: true });
     if (netwatch.ok) persistNetwatchId(device, netwatch.netwatchId);
     res.json({ status: netwatch.ok ? 200 : (netwatch.mode === 'conflict' ? 409 : 502), message: netwatch.message, data: netwatch });
 });
@@ -132,7 +136,7 @@ router.post('/resync-netwatch', async (req, res) => {
     const devices = registry.list();
     const results = [];
     for (const d of devices) {
-        const r = await nwsync.syncDevice(d);
+        const r = await nwsync.syncDevice(d, { forceScript: true }); // "Sinkronkan semua" = terapkan template
         if (r.ok) persistNetwatchId(d, r.netwatchId);
         results.push({ id: d.id, name: d.name, host: d.host, ok: r.ok, mode: r.mode, message: r.message, warnings: r.warnings || [] });
     }
