@@ -2731,3 +2731,12 @@
 - **Setting ACS OLT ketimpa senyap (P2):** `routes/olt-provisioning.js` `saveDeviceAcs` dulu tulis config.json di disk TANPA update global.config. Penulis config in-proses lain (upload logo / simpan invoice) menyerialkan global.config lama → devices[].acs HILANG → TR069 "Setting ACS OLT belum diisi". Kini sinkronkan global.config.olt.devices[].acs juga.
 - **Year-wrap Des/Jan (P3):** `parseTimestamp` lokal scraper abaikan wrap tahun; baris Desember di buffer OLT ter-stamp tahun BARU (masa depan) → sortir kronologis terbalik → korelasi DG↔Lost meleset (LOS palsu saat mati listrik tahun baru) + HWM teracuni. Kini bila tanggal > now+1hari, pakai tahun sebelumnya (sama seperti olt-event-classifier).
 - **Tes:** olt-log-scraper +7 (recoveredMacs report, merge lintas-siklus, down-again guard, year-wrap Des/Jan, source-scan), olt-savedeviceacs-global-sync guard; 29 hijau; lint 0.
+
+<a id="b337"></a>
+
+### Fix 2026-09-06 (RONDE 2 Rank #10 P2/P3 — CCTV monitor: durabilitas restart & state basi)
+
+- **DOWN hilang saat restart di jendela agregasi (P2):** `lib/cctv-monitor.js` — broadcastDown menandai insiden 'broadcasted' + set s.active SEBELUM pesan benar-benar terkirim (kirim ditunda ke `pendingBatch`, aggregateWindowMs ≤90s). Restart di jendela itu → pendingBatch (in-memory) hilang → restore mengira sudah terkirim → pelanggan tak pernah dapat "mati" (lalu dapat "pulih" tanpa "mati"). Kini flushBatch menandai `deliveredAt` saat DOWN benar-benar di-flush; restore cabang 'broadcasted' + host masih down + `!deliveredAt` → KIRIM ULANG. Bila deliveredAt ada, cukup rebuild (tak dobel).
+- **Penerima jam-tenang hilang saat restart (P2):** saat jam tenang per-jenis (mis. koordinator dikirim, pelanggan ditahan), penerima tertahan hanya di memori (s.deferred); restore cabang 'broadcasted' dulu rebuild s.active saja → sweep jam-tenang tak temukan apa pun → pelanggan tak pernah dapat "mati". Kini restore merekonstruksi s.deferred dari kondisi jam-tenang saat itu.
+- **State CCTV terhapus tak di-prune (P3):** state Map hanya dibersihkan di start(); CCTV yang 'down' saat DIHAPUS dari registry meninggalkan entri 'down' PERMANEN → countDown() menggelembung → salah picu peredaman gangguan-massal (menahan alert CCTV tunggal yang sah) + getStatus lapor host hantu. Kini pollOnce mem-prune host yang tak ada lagi di devByHost().
+- **Tes:** cctv-monitor +5 (#5 re-send/deliveredAt, #6 rekonstruksi deferred, #7 prune anti mass-suppress); 57 hijau; lint 0.
