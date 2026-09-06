@@ -586,7 +586,10 @@ async function startApp() {
                     console.log(qrString);
                 });
                 qrcode.toDataURL(update.qr, (err, url) => {
-                    io.emit('qr', url);
+                    // QR = kredensial link WhatsApp → HANYA ke room 'admin' (join per role di
+                    // lib/http-socket-bootstrap.joinRoomsForRole), BUKAN io.emit global. Dulu broadcast
+                    // ke SEMUA socket staf → teknisi/agen bisa membaca frame QR & scan = takeover bot.
+                    io.to('admin').emit('qr', url);
                 });
             }
         });

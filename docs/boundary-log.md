@@ -2740,3 +2740,11 @@
 - **Penerima jam-tenang hilang saat restart (P2):** saat jam tenang per-jenis (mis. koordinator dikirim, pelanggan ditahan), penerima tertahan hanya di memori (s.deferred); restore cabang 'broadcasted' dulu rebuild s.active saja → sweep jam-tenang tak temukan apa pun → pelanggan tak pernah dapat "mati". Kini restore merekonstruksi s.deferred dari kondisi jam-tenang saat itu.
 - **State CCTV terhapus tak di-prune (P3):** state Map hanya dibersihkan di start(); CCTV yang 'down' saat DIHAPUS dari registry meninggalkan entri 'down' PERMANEN → countDown() menggelembung → salah picu peredaman gangguan-massal (menahan alert CCTV tunggal yang sah) + getStatus lapor host hantu. Kini pollOnce mem-prune host yang tak ada lagi di devByHost().
 - **Tes:** cctv-monitor +5 (#5 re-send/deliveredAt, #6 rekonstruksi deferred, #7 prune anti mass-suppress); 57 hijau; lint 0.
+
+<a id="b338"></a>
+
+### Fix 2026-09-07 (RONDE 3 P1 KEAMANAN — QR WhatsApp bocor ke semua staf via Socket.IO)
+
+- **Takeover WhatsApp lewat QR broadcast (P1):** `index.js` dulu `io.emit('qr', url)` — broadcast GLOBAL ke SEMUA socket staf. Halaman QR sengaja admin-only (teknisi→/pembayaran/teknisi, agen→/agen-pembayaran di routes/pages.js), tapi socket teknisi (`teknisi-tiket.js` `io()`) tetap kebagian frame QR (bisa dibaca via DevTools WS / `socket.onAny`). Teknisi/agen scan QR pakai HP → device mereka ter-link ke bot = **takeover WhatsApp penuh** (baca/kirim semua chat, perintah owner/saldo). Pola kembar #b252/#b253 tapi lebih parah. Middleware auth socket (#sebelumnya) hanya menutup kebocoran ANONIM, tak membatasi role.
+- **Fix:** `lib/http-socket-bootstrap.js` — auth middleware simpan `socket.data.role`; `io.on('connection', joinRoomsForRole)` masukkan HANYA admin/owner/superadmin ke room `'admin'`. `index.js` ganti `io.emit('qr')` → `io.to('admin').emit('qr')`. Teknisi/agen tetap konek (butuh event tiket) tapi tak lagi menerima QR. Event `message` (status koneksi WA) tetap global (bukan kredensial).
+- **Tes:** socket-auth +4 (role tersimpan, joinRoomsForRole admin-only, teknisi/agen ditolak room, source-scan QR room-scoped); 10 hijau; lint 0.
