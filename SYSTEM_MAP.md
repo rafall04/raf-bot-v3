@@ -439,6 +439,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-06 (RONDE 2 Rank #5 P1/P2/P3 cek-koneksi — verdictBySepakat all-UNKNOWN→UNKNOWN bukan NORMAL, app-aware badEverywhere→conncheck_app_global_outage + Kelas 2 gate isPathWideIssue (anti balasan membantah), predikat pindah ke lib/upstream-path-health.js, alerter serviceSlice IH anotasi bukan "0 pelanggan")](docs/boundary-log.md#b332)
 - [Fix 2026-09-06 (RONDE 2 Rank #6 P2 reaktivasi gagal — lib/services/reactivation-outcome.js sumber tunggal (reactivationNeedsAttention/describeReactivation/alertReaktivasiGagal); iPaymu+Tripay+Mayar+web konfirmasi-bayar seragam alarm admin saat pelanggan bayar tapi masih terisolir; WA handler buang salinan lokal)](docs/boundary-log.md#b333)
 - [Fix 2026-09-06 (RONDE 2 Rank #7 P2 voucher web — public-anonymous buynowweb simpan prof (durasi benar walau harga kembar), /app/detailtrx|statustrx|qr scoping tag buynowweb + proyeksi allowlist (tak bocor sender/ket/QRIS transaksi tagihan/topup/panel))](docs/boundary-log.md#b334)
+- [Fix 2026-09-06 (RONDE 2 Rank #8 P2 CSAT — rating-survey re-entrancy guard di dalam fungsi (cron+manual anti survei dobel), skip upsert created:false (race check-then-act), FASE 3 skipped/deferred = tak terkirim→undelivered (bukan hantu 'sent'))](docs/boundary-log.md#b335)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
