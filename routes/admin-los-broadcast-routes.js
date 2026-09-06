@@ -7,6 +7,7 @@
  * SideEffects: Membaca/menulis `config.json` (sub-key `oltLosBroadcast`) dan memuat ulang config runtime.
  */
 "use strict";
+const { writeFileAtomicSync } = require('../lib/atomic-file'); // config.json ATOMIK (#b343)
 
 const fs = require("fs");
 const path = require("path");
@@ -192,7 +193,7 @@ function registerAdminLosBroadcastRoutes(router, deps = {}) {
     const ensureAuthenticatedStaff = deps.ensureAuthenticatedStaff || ((_req, _res, next) => next());
     const configPath = deps.configPath || CONFIG_PATH;
     const readConfig = deps.readConfig || (() => JSON.parse(fs.readFileSync(configPath, "utf8")));
-    const writeConfig = deps.writeConfig || ((cfg) => fs.writeFileSync(configPath, JSON.stringify(cfg, null, 4), "utf8"));
+    const writeConfig = deps.writeConfig || ((cfg) => writeFileAtomicSync(configPath, JSON.stringify(cfg, null, 4)));
     const runtime = deps.runtime || global.__appRuntime || null;
     const setRuntimeConfig = deps.setRuntimeConfig || ((cfg) => {
         // Runtime.setConfig juga meng-update global.config (dilihat broadcaster live).

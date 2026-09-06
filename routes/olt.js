@@ -33,6 +33,7 @@ const express = require('express');
 const router = express.Router();
 const { assertBolehAksesPelanggan } = require('./api-route-helpers');
 const fs = require('fs');
+const { writeFileAtomicSync } = require('../lib/atomic-file'); // config.json ATOMIK (#b343)
 const path = require('path');
 
 // Import OLT library
@@ -344,7 +345,7 @@ function loadConfig() {
 function saveConfig(config) {
     try {
         const configPath = path.join(__dirname, '..', 'config.json');
-        fs.writeFileSync(configPath, JSON.stringify(config, null, 4), 'utf8');
+        writeFileAtomicSync(configPath, JSON.stringify(config, null, 4));
         // Update global config
         global.config = config;
         return true;

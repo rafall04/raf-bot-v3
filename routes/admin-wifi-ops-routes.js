@@ -7,6 +7,7 @@
  * SideEffects: Menulis `config.json` untuk pengaturan jam kerja, membaca statistik/log WiFi/network, dan memicu mutasi WiFi perangkat via service.
  */
 "use strict";
+const { writeFileAtomicSync } = require('../lib/atomic-file'); // config.json ATOMIK (#b343)
 
 const { asyncHandler, createError, ErrorTypes } = require("../lib/error-handler");
 const { createNetworkOpsService } = require("../services/network-ops.service");
@@ -134,7 +135,8 @@ function registerAdminWifiOpsRoutes(router, deps) {
             }
             runtime.setConfig({ ...runtime.config, teknisiWorkingHours: configToSave });
             const configPath = path.join(__dirname, "..", "config.json");
-            fs.writeFileSync(configPath, JSON.stringify(runtime.config, null, 4));
+            // Pakai fs yang di-inject (deps.fs) supaya uji tetap terisolasi; tulis tetap ATOMIK.
+            writeFileAtomicSync(configPath, JSON.stringify(runtime.config, null, 4), fs);
             res.json({ success: true, message: "Pengaturan jam kerja berhasil disimpan" });
         } catch (error) {
             console.error("[API] Error saving working hours:", error);

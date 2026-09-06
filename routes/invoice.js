@@ -21,6 +21,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { renderTemplate } = require('../lib/templating');
+const { readConfigFresh, saveConfigAtomic } = require('../lib/env-config');
 const { sendMessageToMany } = require('../lib/whatsapp-delivery-service');
 const { normalizeUserPaymentMethod } = require('../lib/payment-finance-service');
 
@@ -406,7 +407,10 @@ router.route('/invoice-settings')
                 showNPWP, showDueDate, showPaymentMethods, paymentMethods, showNotes, additionalNotes
             } = req.body;
 
-            const config = global.config;
+            // Baca config SEGAR dari disk (bukan global.config snapshot boot yang basi) → ubah HANYA
+            // subkey invoice → tulis atomik. Dulu menyerialkan global.config apa adanya menghapus
+            // subkey yang ditambah penulis lain / hand-edit ops pasca-boot (bahaya merge-key #b336).
+            const config = readConfigFresh();
 
             // Update config
             config.company = {
@@ -480,12 +484,9 @@ router.route('/invoice-settings')
                 additionalNotes: keep(additionalNotes, prevPdf.additionalNotes, '')
             };
 
-            // Save to file
-            fs.writeFileSync('./config.json', JSON.stringify(config, null, 2));
-            
-            // Reload global config
-            global.config = config;
-            
+            // Tulis ATOMIK + sinkron global.config (config.json terpotong = bot gagal boot).
+            saveConfigAtomic(config);
+
             return res.json({ message: 'Settings saved successfully' });
         } catch (error) {
             console.error('[INVOICE_SETTINGS_POST_ERROR]', error);
@@ -499,8 +500,9 @@ router.post('/upload-logo', ensureAdmin, uploadLogo.single('logo'), (req, res) =
         return res.status(400).json({ message: 'No file uploaded' });
     }
     
-    const config = global.config;
-    
+    // Baca SEGAR dari disk (bukan global.config basi) → ubah HANYA logoPath → tulis atomik.
+    const config = readConfigFresh();
+
     // Delete old logo if exists
     if (config.company?.logoPath) {
         const oldLogoPath = path.join(__dirname, '..', 'static', config.company.logoPath);
@@ -508,17 +510,16 @@ router.post('/upload-logo', ensureAdmin, uploadLogo.single('logo'), (req, res) =
             fs.unlinkSync(oldLogoPath);
         }
     }
-    
+
     // Save new logo path to config
     const logoPath = '/uploads/logos/' + req.file.filename;
     config.company = config.company || {};
     config.company.logoPath = logoPath;
-    
-    // Save config
-    fs.writeFileSync('./config.json', JSON.stringify(config, null, 2));
-    global.config = config;
-    
-    return res.json({ 
+
+    // Save config (atomik + sinkron global.config)
+    saveConfigAtomic(config);
+
+    return res.json({
         message: 'Logo uploaded successfully',
         logoPath: logoPath 
     });

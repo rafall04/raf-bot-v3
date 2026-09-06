@@ -12,6 +12,7 @@
  */
 const express = require('express');
 const fs = require('fs');
+const { writeFileAtomicSync } = require('../lib/atomic-file'); // config.json ATOMIK (#b343)
 const path = require('path');
 const router = express.Router();
 const registry = require('../lib/cctv-registry');
@@ -225,7 +226,7 @@ router.post('/config', (req, res) => {
     try {
         const fileCfg = JSON.parse(fs.readFileSync(MAIN_CONFIG_PATH, 'utf8'));
         fileCfg.cctvMonitor = { ...(fileCfg.cctvMonitor || {}), ...next };
-        fs.writeFileSync(MAIN_CONFIG_PATH, JSON.stringify(fileCfg, null, 4) + '\n', 'utf8');
+        writeFileAtomicSync(MAIN_CONFIG_PATH, JSON.stringify(fileCfg, null, 4) + '\n');
         if (!global.config) global.config = {};
         global.config.cctvMonitor = next;
         // Hot-apply tanpa restart: monitor baca global.config.cctvMonitor live tiap poll.

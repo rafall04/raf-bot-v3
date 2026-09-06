@@ -16,6 +16,7 @@
  *              `expense_entries` secara langsung.
  */
 "use strict";
+const { writeFileAtomicSync } = require('../lib/atomic-file'); // config.json ATOMIK (#b343)
 
 const { asyncHandler } = require("../lib/error-handler");
 const recurring = require("../lib/recurring-expense");
@@ -39,7 +40,7 @@ function tulisSetelan(tambalan, getConfig) {
     const isi = JSON.parse(fs.readFileSync(p, "utf8"));
     if (!isi.businessExpense) isi.businessExpense = {};
     Object.assign(isi.businessExpense, tambalan);
-    fs.writeFileSync(p, JSON.stringify(isi, null, 2), "utf8");
+    writeFileAtomicSync(p, JSON.stringify(isi, null, 2));
 
     const cfg = getConfig();
     if (cfg) {

@@ -14,6 +14,7 @@
  * SideEffects: Tidak ada (hanya baca agregasi).
  */
 "use strict";
+const { writeFileAtomicSync } = require('../lib/atomic-file'); // config.json ATOMIK (#b343)
 
 const fs = require("fs");
 const path = require("path");
@@ -146,7 +147,7 @@ function registerAdminCsatRoutes(router, deps = {}) {
         if ("batchPauseMs" in bg) cfg.broadcastGuard.batchPauseMs = clampNum(bg.batchPauseMs, 60000, 0);
         if ("breakerThreshold" in bg) cfg.broadcastGuard.breakerThreshold = clampNum(bg.breakerThreshold, 6, 0);
         if ("minGapMs" in bg) cfg.broadcastGuard.minGapMs = clampNum(bg.minGapMs, 0, 0);
-        fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+        writeFileAtomicSync(cfgPath, JSON.stringify(cfg, null, 2));
         if (global.config) { global.config.csatSurvey = cfg.csatSurvey; global.config.broadcastGuard = cfg.broadcastGuard; }
         console.log(`[CSAT_SETTINGS] disimpan oleh ${req.user && req.user.username}: csatSurvey.enabled=${cfg.csatSurvey.enabled} broadcastGuard.enabled=${cfg.broadcastGuard.enabled} validateOnWhatsApp=${cfg.broadcastGuard.validateOnWhatsApp}`);
         res.json({ success: true, message: "Setelan disimpan & langsung aktif.", data: readCsatSettings(cfg) });

@@ -9,6 +9,7 @@
 "use strict";
 
 const fs = require('fs');
+const { writeFileAtomicSync } = require('../lib/atomic-file'); // tulis config.json ATOMIK (anti torn-write → boot-fatal)
 const path = require('path');
 const { asyncHandler, createError, ErrorTypes } = require('../lib/error-handler');
 const { createGenieAcsParameterConfigService } = require('../services/genieacs-parameter-config.service');
@@ -552,7 +553,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 };
             }
 
-            fs.writeFileSync(mainConfigPath, JSON.stringify(finalMainConfig, null, 4), 'utf8');
+            writeFileAtomicSync(mainConfigPath, JSON.stringify(finalMainConfig, null, 4));
             requireRuntimeConfig().setConfig(finalMainConfig);
 
             console.log('[CONFIG_SAVE] Config saved. accessLimit:', finalMainConfig.accessLimit || 'not set');
@@ -643,7 +644,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 enabled: enabled === true || enabled === 'true'
             };
 
-            fs.writeFileSync(mainConfigPath, JSON.stringify(mainConfig, null, 4), 'utf8');
+            writeFileAtomicSync(mainConfigPath, JSON.stringify(mainConfig, null, 4));
             requireRuntimeConfig().setConfig(mainConfig);
             initializeAllCronTasks();
 

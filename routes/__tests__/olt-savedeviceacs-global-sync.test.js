@@ -18,7 +18,7 @@ describe('saveDeviceAcs sinkron ke global.config (#b336)', () => {
     const blk = i > -1 ? src.slice(i, i + 1200) : '';
 
     test('menulis config.json (persist)', () => {
-        expect(blk).toMatch(/writeFileSync\(configPath/);
+        expect(blk).toMatch(/writeFileAtomicSync\(configPath/); // #b343: tulis config.json ATOMIK
     });
 
     test('JUGA memperbarui global.config.olt.devices in-memory (anti clobber)', () => {

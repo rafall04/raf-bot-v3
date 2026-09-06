@@ -13,6 +13,7 @@
  * SideEffects: Menulis/menghapus baris di `personal_finance.sqlite`; set/hapus cookie sesi.
  */
 "use strict";
+const { writeFileAtomicSync } = require('../lib/atomic-file'); // config.json ATOMIK (#b343)
 
 const { asyncHandler } = require("../lib/error-handler");
 const {
@@ -328,7 +329,7 @@ function registerAdminPersonalFinanceRoutes(router, deps = {}) {
             const isi = JSON.parse(fs.readFileSync(configPath, "utf8"));
             if (!isi.personalFinance) isi.personalFinance = {};
             isi.personalFinance.groupId = groupId;
-            fs.writeFileSync(configPath, JSON.stringify(isi, null, 2), "utf8");
+            writeFileAtomicSync(configPath, JSON.stringify(isi, null, 2));
 
             // Terapkan ke runtime supaya berlaku TANPA restart bot.
             const cfg = getConfig();

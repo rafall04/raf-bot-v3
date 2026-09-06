@@ -22,6 +22,7 @@
 
 const express = require('express');
 const fs = require('fs');
+const { writeFileAtomicSync } = require('../lib/atomic-file'); // config.json ATOMIK (#b343)
 const path = require('path');
 const { asyncHandler } = require('../lib/error-handler');
 
@@ -914,7 +915,7 @@ function saveDeviceAcs(id, acs) {
     if (!dev) throw new Error('OLT tidak ditemukan di config');
     const acsValue = { url: acs.url, user: acs.user, pass: acs.pass, mgmtVlan: acs.mgmtVlan };
     dev.acs = acsValue;
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 4), 'utf8');
+    writeFileAtomicSync(configPath, JSON.stringify(config, null, 4));
 
     // JUGA perbarui salinan in-memory. `global.config` dimuat saat boot & TAK menerima `acs` yang
     // ditambahkan pasca-boot lewat panel ini. Penulis config lain yang menyerialkan `global.config`

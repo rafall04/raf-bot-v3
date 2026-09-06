@@ -45,9 +45,10 @@ describe("kas usaha: seluruh setelan bisa diubah dari halaman admin", () => {
         expect(route).toMatch(/function tulisSetelan\(/);
         expect(route).toMatch(/Object\.assign\(isi\.businessExpense, tambalan\)/);
         // Tak boleh menulis ulang objek config dari nol.
-        expect(route).not.toMatch(/writeFileSync\([^)]*JSON\.stringify\(\s*\{/);
-        // Hanya satu tempat yang boleh menulis config di berkas ini.
-        expect(route.match(/writeFileSync\(/g) || []).toHaveLength(1);
+        expect(route).not.toMatch(/write(File)?(Atomic)?Sync\([^)]*JSON\.stringify\(\s*\{/);
+        // Hanya satu tempat yang boleh menulis config — dan ATOMIK (#b343, anti torn-write boot-fatal).
+        expect(route.match(/writeFileAtomicSync\(/g) || []).toHaveLength(1);
+        expect(route).not.toMatch(/fs\.writeFileSync\(/); // tak ada tulis config non-atomik
     });
 
     test("config in-memory ikut disegarkan — berlaku tanpa restart", () => {
