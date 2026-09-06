@@ -2668,3 +2668,13 @@
 - **Waiver/zero-bill dipaksa unpaid:** `lib/payment-finance-service.js` cabang `net_paid<=0` turunkan `setUserPaidStatus` dari verdict `is_fully_paid` NYATA (dulu hardcode false) → pelanggan gratis/waiver tak lagi kena reminder/isolir palsu.
 - **Overpay di atas sisa hilang senyap:** `applyPaymentStatusChange` kini surface `droppedExcess` (bayar > sisa, mis. cicilan lalu pelunasan penuh); `lib/services/bill-payment-aftercare.js` mencatatnya sbg `kelebihan_bayar` (pending_review) + alarm admin, struk pelanggan tetap LUNAS (periode memang tersettel). Dulu selisih dipotong ke sisa & tak berjejak.
 - **Tes:** bill-payment-kelebihan +2 (partial overpay), payment-bulk-update-lock guard baru; 27 hijau; lint 0.
+
+<a id="b330"></a>
+
+### Fix 2026-09-06 (RONDE 2 Rank #3 P1/P2 — invoice: hilang-data, nomor dobel, XSS tersimpan)
+
+- **Riwayat invoice hilang senyap (P1):** `lib/invoice-generator.js` `saveInvoice` dulu baca mentah invoices.json, set `invoices=[]` saat parse gagal, lalu `writeFileSync` menimpa seluruh riwayat dengan HANYA record baru — dokumen akuntansi lenyap permanen saat restart 7-13x/hari memotong file. Kini baca lewat `json-store.loadJSON` (KARANTINA `.rusak-<ts>`, bukan []) + tulis ATOMIK (tmp+rename); gagal-baca → batal (return false), tak menimpa. json-store memang menamai invoices.json sbg ledger yang dijaga rantai 'rusak→[]→tertimpa'.
+- **Nomor invoice dobel (P1→P2):** `generateInvoiceNumber` dulu pakai counter in-memory yang reset ke 0 tiap restart → invoice pertama pasca-restart selalu `-0001` (terbukti live: INV-20251010-0001 dipakai 3x). Kini `nextSequence` men-SEED dari sequence tertinggi yang tersimpan (loadJSON) → unik lintas-restart. Fungsi murni `nextSequence`/`invoiceDateStr` diekspor utk uji.
+- **Tanggal nomor UTC vs tampilan WIB (P3):** `invoiceDateStr` kini `Intl.DateTimeFormat en-CA timeZone Asia/Jakarta` (dulu `toISOString` = UTC) → nomor invoice yang dibuat 00:00-07:00 WIB tak lagi memakai tanggal kemarin; konsisten dgn tanggal tercetak.
+- **XSS tersimpan di /api/view-invoice (P2):** `lib/pdf-invoice-generator.js` dulu menyisipkan field pelanggan/user (name/address/phone/id, service.*, approvedBy) MENTAH ke HTML yang dikembalikan text/html ke browser admin. Kini SEMUA teks dari data (pelanggan + config perusahaan + kustomisasi header/footer/notes + logoUrl) di-`escapeHtml`; angka/tanggal terformat aman.
+- **Tes:** invoice-generator +3 (WIB/seed), invoice-save-durable guard baru (loadJSON+atomik+anti-reset), pdf-invoice-generator +3 (escape XSS + teks bersih utuh); 64 hijau; lint 0.

@@ -434,6 +434,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-06 (Rank #10 PSB + integritas — create-user-validate bulk fallback ke ssid_indices (dual-band tak jadi ["1"]), psb-group-intake baca body.welcome (anti klaim "Welcome dikirim" palsu), psb-database.getNextAvailableUserId MAX+1 lintas jejak finansial (id tak dipakai ulang → tak warisi ledger pelanggan lama))](docs/boundary-log.md#b327)
 - [Fix 2026-09-06 (RONDE 2 P0 KEAMANAN — auth-cache.getJWTVerification kunci sha256 token PENUH bukan 50-char prefix (tutup bypass tanda tangan JWT/takeover admin), accounts.js invalidate authCache saat update/delete (cabut akses staff langsung))](docs/boundary-log.md#b328)
 - [Fix 2026-09-06 (RONDE 2 Rank #2 P1 ledger — payment-status /bulk-update withLock per-user (anti double-credit), payment-finance-service waiver→setUserPaid dari is_fully_paid, bill-payment-aftercare catat droppedExcess overpay+alarm)](docs/boundary-log.md#b329)
+- [Fix 2026-09-06 (RONDE 2 Rank #3 P1/P2 invoice — invoice-generator saveInvoice baca json-store+tulis atomik (anti hilang-riwayat), generateInvoiceNumber seed dari disk+WIB (nomor unik lintas-restart), pdf-invoice-generator escapeHtml semua field data (tutup XSS tersimpan /api/view-invoice))](docs/boundary-log.md#b330)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
