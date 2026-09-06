@@ -429,6 +429,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-06 (Rank #6 P1 tiket dobel — smart-report-handler.promoteMatiDraftOnTimeout idempoten (guard tiket auto-promote terbuka + hapus state) + Rank #5 templating.renderTemplate buang slot basi (anti ${slot} mentah broadcast massal); photo-album drop DIDEFER)](docs/boundary-log.md#b322)
 - [Fix 2026-09-06 (Rank #8 GenieACS/WiFi — wifi-service applied/pending → portal balas "belum terverifikasi" bukan sukses palsu, wifi-failure-reason readback timeout→belum_terverifikasi (stop janji notif palsu)+template wifi_belum_terverifikasi, smart-report-text-menu handleMati buta!=OFFLINE)](docs/boundary-log.md#b323)
 - [Fix 2026-09-06 (Rank #7 cctv-netwatch-sync.ownedEntriesAt cek host dulu (ganti-IP tak lagi hapus netwatch → coverage utuh) + Rank #9 olt-log-scraper lastSuccessAt hanya bila successCount>0 + alarm alertOltAllDown throttled ke admin (OLT mati total ada notif))](docs/boundary-log.md#b324)
+- [Fix 2026-09-06 (Rank #11 Voucher — voucher-reconcile+ingestLogNames prune HANYA nama ter-record (log parse-gagal tak dihapus → revenue utuh), voucher-manager & agent-voucher-manager recordVoucherOrphan saat deduct-gagal/rollback-parsial)](docs/boundary-log.md#b325)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

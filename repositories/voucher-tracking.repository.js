@@ -112,12 +112,17 @@ function createVoucherTrackingRepository(overrides = {}) {
             const db = await getDb();
             let ingested = 0;
             let skipped = 0;
+            // #b325: nama yang AMAN dipangkas dari router = ter-record sekarang ATAU sudah ada
+            // (INSERT OR IGNORE duplikat). Nama yang GAGAL di-parse TIDAK masuk sini → pemanggil tak
+            // boleh menghapusnya dari router (kalau dihapus, revenue voucher hilang permanen tanpa
+            // jejak). Bisa di-ingest ulang setelah parser diperbaiki.
+            const prunable = [];
             const ts = nowIso();
             await run(db, "BEGIN");
             try {
                 for (const name of names) {
                     const row = parseMikhmonLogName(name);
-                    if (!row || !row.login_at) { skipped += 1; continue; }
+                    if (!row || !row.login_at) { skipped += 1; continue; } // parse gagal → JANGAN prune
                     const res = await run(db,
                         `INSERT OR IGNORE INTO voucher_activations
                          (username, profile, price, validity, login_at, mac, ip, voucher_comment, raw, ingested_at)
@@ -125,13 +130,14 @@ function createVoucherTrackingRepository(overrides = {}) {
                         [row.username, row.profile, row.price, row.validity, row.login_at, row.mac, row.ip, row.voucher_comment, row.raw, ts]
                     );
                     if (res.changes > 0) ingested += 1; else skipped += 1;
+                    prunable.push(name); // ter-record / sudah ada → aman dipangkas dari router
                 }
                 await run(db, "COMMIT");
             } catch (error) {
                 await run(db, "ROLLBACK").catch(() => {});
                 throw error;
             }
-            return { ingested, skipped, total: names.length };
+            return { ingested, skipped, total: names.length, prunable };
         },
 
         async recordBatch({ source = "bot", profile = null, qty = 0, unit_price = 0, created_by = null, transaction_context = null } = {}) {

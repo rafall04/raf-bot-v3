@@ -2624,3 +2624,12 @@
 - **Ganti IP CCTV → netwatch HILANG (coverage 0):** `lib/cctv-netwatch-sync.js` `ownedEntriesAt` kini cek HOST dulu sebelum id-match (dulu id-match lintas-host). Saat IP CCTV berubah, device bawa netwatchId LAMA → id-match keliru mencocokkan entri host-lama → cabang SET memindahnya lalu rehost-remove menghapusnya → CCTV tak punya entri netwatch sama sekali (monitor tak pernah broadcast DOWN lagi) padahal UI bilang sukses. Kini ADD entri baru di host baru + hapus entri lama saja.
 - **OLT scraper lapor sukses palsu:** `lib/olt-log-scraper.js` `lastSuccessAt`/`lastError` disegarkan HANYA bila `successCount>0`; saat SEMUA OLT unreachable (successCount=0) set `lastError` ringkas (surface tak lagi tampak "sehat"). + alarm PUSH admin `alertOltAllDown` (throttled 30 mnt, notif PULIH, never-throw, opt-out `config.oltMonitor.alertAllDown=false`) — OLT mati total tak lagi "tak seorang pun tahu sampai buka halaman". Blindspot terukur: Dander OLT mati berminggu-minggu ~78% pelanggan, 0 alarm.
 - **Tes:** cctv-netwatch-sync +1 (ganti IP dgn netwatchId prod → coverage utuh), olt-scraper-alldown-alarm baru (alarm/throttle/pulih/opt-out) = 39 hijau; lint 0.
+
+<a id="b325"></a>
+
+### Fix 2026-09-06 (Rank #11 Voucher — data aktivasi hilang saat prune + voucher yatim tak tercatat)
+
+- **Reconcile hapus log gagal-parse → revenue hilang:** `lib/cron/jobs/voucher-reconcile.js` + `repositories/voucher-tracking.repository.js` — `ingestLogNames` kini kembalikan `prunable` (nama yang ter-record / sudah ada); reconcile HANYA prune id untuk nama itu. Log Mikhmon yang GAGAL di-parse DIBIARKAN di router (bisa di-ingest ulang) — dulu `removeIds(SEMUA)` menghapusnya permanen → laporan aktivasi/revenue under-report tanpa jejak (langgar hard-rule modul sendiri).
+- **Admin purchase-voucher: orphan cuma console.error:** `lib/voucher-manager.js` `purchaseVoucherWithSaldo` saat deduct gagal (voucher terlanjur dibuat) kini `recordVoucherOrphan()` (worklist database/voucher_orphans.json) — bukan cuma log yang tak dilihat. Sejalan jalur WA pelanggan (payment-flow) & callback.
+- **Agent reseller rollback parsial buang voucher:** `lib/agent-voucher-manager.js` saat gagal parsial (validCodes < qty), voucher yang TERLANJUR dibuat di MikroTik kini dicatat `recordVoucherOrphan` (reason `agent_partial_rollback`) — dulu dibuang senyap → hotspot user aktif tak terlacak menumpuk.
+- **Tes:** voucher-reconcile +1 (parse-gagal tak dipangkas), voucher-manager-purchase +orphan-recording; 9 hijau suite terkait; lint 0.
