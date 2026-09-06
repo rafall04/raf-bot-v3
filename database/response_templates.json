@@ -4714,6 +4714,11 @@
     "category": "support",
     "template": "\n\n🎯 *Soal ${app}:* betul Kak, akses ke *${app}* memang sedang ada kendala dari sisi jaringan kami saat ini — *bukan dari perangkat Anda*. Tim kami sudah menerima peringatan otomatis dan sedang menanganinya. Mohon ditunggu ya 🙏"
   },
+  "conncheck_app_global_outage": {
+    "name": "Cek Koneksi - App Gangguan Global (sisi platform, bukan ISP)",
+    "category": "support",
+    "template": "\n\n🎯 *Soal ${app}:* saat ini *${app}* sedang bermasalah dari sisi *${app}* sendiri (gangguan yang juga dialami pengguna lain di luar jaringan kami) — *bukan* dari jaringan kami maupun perangkat Anda. Biasanya pulih sendiri setelah sisi ${app} normal kembali. Mohon ditunggu ya 🙏"
+  },
   "conncheck_app_ok": {
     "name": "Cek Koneksi - App Spesifik Normal (arahkan ke perangkat)",
     "category": "support",

@@ -442,6 +442,7 @@
         "iface": "2.VLAN502",
         "gatewayTarget": "192.168.102.1",
         "affects": "trafik WhatsApp/game pelanggan 110k-125k + jalur FREE",
+        "serviceSlice": true,
         "capacity": {
           "downMbps": 0,
           "upMbps": 0
