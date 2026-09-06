@@ -2705,3 +2705,11 @@
 - **Satu sumber:** modul BARU `lib/services/reactivation-outcome.js` — `reactivationNeedsAttention` (attempted&&!ok ATAU profile_read_failed), `describeReactivation`, `alertReaktivasiGagal` (alarm admin `tagihan_reaktivasi_gagal_admin`, never-throw). WA handler kini require dari sini (buang salinan lokal).
 - **Wiring:** iPaymu (public.js) pakai predikat bersama (kini profile_read_failed ikut alarm); Tripay & Mayar (bill-payment.js) kirim alertReaktivasiGagal; web route baca `result.settlement.reactivation` → pesan peringatan "cek PPPoE manual" + alarm admin (butuh `confirmProof` kini pulangkan `user`).
 - **Tes:** reactivation-outcome unit (needs/describe/alert 14), reaktivasi-gagal-surfaces guard (4 permukaan seragam); WA+proof suite tetap hijau (116). 18 hijau baru; lint 0.
+
+<a id="b334"></a>
+
+### Fix 2026-09-06 (RONDE 2 Rank #7 P2 — voucher web: durasi salah harga-kembar & bocor transaksi anonim)
+
+- **Voucher durasi SALAH saat harga kembar:** `routes/public-anonymous.js` `/app/buy` (buynowweb) dulu buang `prof` (profil terpilih), simpan HARGA saja; callback `routes/public.js` memulihkan via `checkprofvc(harga)` yang mengembalikan profil terdaftar TERAKHIR berharga sama → pembeli yang pilih promo 3-hari bisa dapat 1-hari. Kini record simpan `prof: id`; callback pakai `pay.prof || checkprofvc(...)` (fallback record lama). Jalur buynowpanel sudah begini; buynowweb menyusul.
+- **Bocor record transaksi lintas-tag (anonim):** `/app/detailtrx|statustrx|qr` dulu `global.payment.find(reffId==id)` TANPA filter tag & TANPA proyeksi → siapa pun yang tahu reff transaksi `tagihan`/`topup`/`buynowpanel` menerima record MENTAH: `sender` (no HP), `ket` (untuk voucher = KODE), `qrStr` (QRIS hidup). Kini `findPublicWebTrx` batasi ke tag `buynowweb` saja + `toPublicTrx` proyeksi allowlist (reffId/status/amount/method/qrStr/priceTotal/fee/subtotal — TANPA sender/ket/trxId). Jalur panel resmi pun sudah menolak baca lintas-pemilik.
+- **Tes:** public-anonymous-trx-scope baru — detailtrx/statustrx/qr tolak tag lain + proyeksi aman, guard prof di kedua sisi; 9 hijau; proyeksi voucher lama tetap hijau; lint 0.

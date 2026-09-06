@@ -51,6 +51,31 @@ function toPublicVoucher(item, featured) {
     return out;
 }
 
+/**
+ * Field transaksi yang AMAN dilihat pembeli anonim (dia memegang reff-nya sendiri).
+ * ALLOWLIST — JANGAN pernah pantulkan `sender` (nomor HP pelanggan), `ket` (untuk voucher = KODE
+ * voucher yang bernilai uang), atau `trxId`/`gateway`/`id` internal. `global.payment` menampung
+ * SEMUA jenis transaksi (tagihan bulanan, topup, buynowpanel) — record mentah membocorkan semua itu.
+ */
+const PUBLIC_TRX_FIELDS = ['reffId', 'status', 'amount', 'method', 'qrStr', 'priceTotal', 'fee', 'subtotal', 'createdAt'];
+function toPublicTrx(rec) {
+    if (!rec) return null;
+    const out = {};
+    PUBLIC_TRX_FIELDS.forEach((f) => { if (rec[f] !== undefined) out[f] = rec[f]; });
+    return out;
+}
+
+/**
+ * Cari transaksi milik SURFACE PUBLIK ini saja (tag `buynowweb`). Jalur anonim tak boleh pernah
+ * membaca record ber-tag `tagihan`/`topup`/`buynowpanel` — jalur panel resmi pun menolak baca
+ * lintas-pemilik (customer-voucher.service: "pelanggan lain bisa membaca kode voucher orang dengan
+ * menebak reff"). Pembeli web memegang reff-nya sendiri, jadi pembatasan tag sudah cukup.
+ */
+function findPublicWebTrx(id) {
+    const list = Array.isArray(global.payment) ? global.payment : [];
+    return list.find((h) => h.reffId == id && h.tag === 'buynowweb') || null;
+}
+
 // Halaman publik beli voucher online (pembeli umum/anonim). Static page; API-nya di /app/*.
 router.get('/voucher', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'static', 'voucher-buy.html'));
@@ -67,22 +92,27 @@ router.get('/app/:type/:id?', async (req, res) => {
                 let hargavc = checkhargavc(id);
                 hargavc = parseInt(hargavc);
                 let result = await pay({ amount: hargavc, reffId: reff, comment: `pembelian voucher ${id} sebesar Rp. ${hargavc} melalui web`, name: email?.split('@')?.[0] || "Anonymous", phone: parseInt(phone), email });
-                addPayment(reff, result.id, phone, `buynowweb`, hargavc, 'QRIS', ``, { qrStr: result.qrString, priceTotal: result.total, fee: result.fee, subtotal: result.subTotal });
+                // `prof` (profil voucher yang DIPILIH pembeli) DISIMPAN di record. Callback fulfillment
+                // (routes/public.js) dulu memulihkan profil via checkprofvc(harga) — yang TERTUKAR bila
+                // dua profil berharga sama (mis. promo 3-hari & 1-hari sama-sama Rp5.000) → voucher durasi
+                // SALAH. Jalur buynowpanel sudah menyimpan prof; buynowweb ikut sekarang.
+                addPayment(reff, result.id, phone, `buynowweb`, hargavc, 'QRIS', ``, { qrStr: result.qrString, priceTotal: result.total, fee: result.fee, subtotal: result.subTotal, prof: id });
                 return res.status(200).json({ status: 200, message: 'Success', data: reff });
             }
             case 'detailtrx': {
-                return res.status(200).json({ status: 200, message: 'Success', data: global.payment.find(h => h.reffId == id) || null });
+                // Hanya transaksi buynowweb + field aman (bukan record mentah lintas-tag).
+                return res.status(200).json({ status: 200, message: 'Success', data: toPublicTrx(findPublicWebTrx(id)) });
             }
             case 'statustrx': {
-                let pay = global.payment.find(d => d.reffId == id);
-                if (!pay) return res.status(404).json({ status: 404, message: "" });
-                if (!pay.status) return res.status(400).json({ status: 400, message: "menunggu pembayaran!" });
-                return res.status(200).json({ status: 200, message: 'Success', data: global.payment.find(h => h.reffId == id) || null });
+                let trx = findPublicWebTrx(id);
+                if (!trx) return res.status(404).json({ status: 404, message: "" });
+                if (!trx.status) return res.status(400).json({ status: 400, message: "menunggu pembayaran!" });
+                return res.status(200).json({ status: 200, message: 'Success', data: toPublicTrx(trx) });
             }
             case 'qr': {
                 // Render QRIS string (tersimpan saat charge) menjadi gambar PNG agar tampil di
-                // halaman beli voucher tanpa dependensi QR dari CDN.
-                const rec = global.payment.find(d => d.reffId == id);
+                // halaman beli voucher tanpa dependensi QR dari CDN. Hanya transaksi buynowweb.
+                const rec = findPublicWebTrx(id);
                 if (!rec || !rec.qrStr) return res.status(404).send('');
                 try {
                     const png = qr.imageSync(String(rec.qrStr), { type: 'png', ec_level: 'M' });

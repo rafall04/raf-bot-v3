@@ -1227,7 +1227,10 @@ router.post('/callback/payment', async (req, res) => {
                     } else throw err; // sentinel SUKSES (true dari .then) → outer catch res.status(200). Dulu `!1`(false)→500 → iPaymu retry tiap penjualan SUKSES.
                 });
             } else if (pay.tag == 'buynowweb') {
-                const prof = checkprofvc(String(pay.amount));
+                // Profil DARI record (disimpan saat charge di public-anonymous). checkprofvc(harga)
+                // hanya fallback untuk record LAMA — ia TERTUKAR bila dua profil berharga sama
+                // (mengembalikan profil terdaftar terakhir) → voucher durasi salah.
+                const prof = pay.prof || checkprofvc(String(pay.amount));
                 const durasivc = checkdurasivc(prof);
                 await getvoucher(prof, pay.sender, { caller: 'public.payment-callback.buynowweb' }).then(async voucherResult => {
                     if (!voucherResult.ok) {
