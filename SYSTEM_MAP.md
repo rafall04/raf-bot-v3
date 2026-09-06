@@ -445,6 +445,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-07 (RONDE 3 P1 KEAMANAN — Socket.IO QR WhatsApp room-scoped ke admin: io.to(admin).emit(qr) + joinRoomsForRole, teknisi/agen tak lagi kebagian frame QR (anti takeover bot))](docs/boundary-log.md#b338)
 - [Fix 2026-09-07 (RONDE 3 P2 OLT — routes/olt.js nextOltDeviceId (suffix tertinggi+1, anti-bentrok) menggantikan olt${length+1} yang duplikat setelah hapus device tengah → lookup first-match nyasar OLT salah)](docs/boundary-log.md#b339)
 - [Fix 2026-09-07 (RONDE 3 P2 Telegram — /olt & /redaman oper sesi PPPoE live (getActivePppoeList) ke resolveByCustomer, samakan dgn /cek (sumber MAC utama); pelanggan EPON MAC-only tak lagi "tak terpetakan"))](docs/boundary-log.md#b340)
+- [Fix 2026-09-07 (RONDE 3 P2 voucher-agent — agent-voucher-manager pakai json-store (loadJSON per-file karantina + saveJSON atomik) ganti writeFileSync polos + 1 try/catch kaskade → riwayat beli/jual agent tak hilang saat restart/OOM)](docs/boundary-log.md#b341)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
