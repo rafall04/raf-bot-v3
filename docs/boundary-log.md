@@ -2607,3 +2607,12 @@
 - **Slot template mentah broadcast massal:** `lib/templating.js` `renderTemplate` (notificationTemplates — dipakai cron reminder/isolir/tenggang/redaman) saat `result.unresolved.length>0` kini BUANG placeholder tak terisi + rapikan spasi (mirror renderResponseTemplateSafe #b302), bukan menyiarkan `${jumlah}` mentah ke tiap penerima.
 - **DEFER (P2):** photo-album drop (`reporting.state.js` GANGGUAN_MATI_AWAITING_PHOTO) — drop terjadi di gerbang isProcessing raf.js sebelum handler; perbaikan aman butuh desain queue/serialize per-sender di router + uji album WA nyata (rush = risiko regresi P1 upload foto). Ditandai untuk garapan terfokus.
 - **Tes:** +2 file baru (mati-draft-dedup guard, templating-slot-basi behavioral); 32 hijau consumer templating; lint 0.
+
+<a id="b323"></a>
+
+### Fix 2026-09-06 (Rank #8 GenieACS/WiFi — "buta/belum-verifikasi" dilaporkan sebagai fakta buruk/sukses palsu)
+
+- **Portal ganti WiFi lapor sukses palsu:** `lib/services/wifi-service.js` `updateCustomerWifiName`/`updateCustomerWifi` kini membawa `applied`/`pending` ke pemanggil; `routes/public.js` membalas "sedang diproses — belum terkonfirmasi" (bukan "berhasil") saat `applied:false` (202 antre / readback timeout). Jalur WA sudah pakai apply-guard; portal dulu terlewat.
+- **Janji "tim diberitahu" kosong:** `lib/wifi-failure-reason.js` readback timeout (`TASK_NOT_APPLIED`/'belum tervalidasi') dipetakan ke sebab baru `belum_terverifikasi` (bukan `tidak_diketahui` yang dulu pakai template "sisi kami" → janji notif admin yang TAK dikirim). Pesan jujur "belum bisa dipastikan, cek/ulangi" (tanpa janji notif & tanpa tuduh modem) di kedua handler + template baru `wifi_belum_terverifikasi`.
+- **handleMati vonis OFFLINE palsu saat buta:** `message/handlers/smart-report-text-menu.js` klaim OFFLINE HANYA dgn bukti positif (`online===false && lastInform` ada+basi); `online:null` / `online:false` tanpa `_lastInform` (ACS timeout/breaker/config-invalid) → status NETRAL "belum bisa dipastikan" ("cannot observe != observed bad", #b261).
+- **Tes:** wifi-failure-reason +2 kasus (readback→belum_terverifikasi; tidak_diketahui bukan "sisi kami"); mati-status-buta guard baru; template-key-integrity + 89 hijau suite wifi; lint 0. Template baru merge-key ke prod (fallback kode sudah menutup bila belum di-merge).

@@ -427,6 +427,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-06 (Rank #2 P1 + durabilitas cron — wa-send-queue.buildJid 0→62 (cron tagihan tak lagi buta ke '08xxx'), speed-boost-cleanup tak preempt speed-revert (boost gratis permanen), compensation-revert mutasi global in-place anti-race, billing-akhir-bulan isolir pakai <= self-heal)](docs/boundary-log.md#b320)
 - [Fix 2026-09-06 (Rank #3 double-spend — topup-store double-credit admin+agen idempoten + tulis atomik/karantina (topup-store & transactions-store), /advance withLock, callback Tripay/Mayar acquireLock+re-check (anti double-settle), request-lock +HeaderDoc/unref)](docs/boundary-log.md#b321)
 - [Fix 2026-09-06 (Rank #6 P1 tiket dobel — smart-report-handler.promoteMatiDraftOnTimeout idempoten (guard tiket auto-promote terbuka + hapus state) + Rank #5 templating.renderTemplate buang slot basi (anti ${slot} mentah broadcast massal); photo-album drop DIDEFER)](docs/boundary-log.md#b322)
+- [Fix 2026-09-06 (Rank #8 GenieACS/WiFi — wifi-service applied/pending → portal balas "belum terverifikasi" bukan sukses palsu, wifi-failure-reason readback timeout→belum_terverifikasi (stop janji notif palsu)+template wifi_belum_terverifikasi, smart-report-text-menu handleMati buta!=OFFLINE)](docs/boundary-log.md#b323)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

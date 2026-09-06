@@ -845,7 +845,12 @@ customerApiRouter.post('/wifi/update-name', wifiWriteRateLimiter, asyncHandler(a
     }
     
     const result = await WifiService.updateCustomerWifiName(customer, ssidIndex, newName, req);
-    return sendSuccess(res, result, "Nama WiFi berhasil diubah");
+    // #b323: applied:false = perubahan BELUM terkonfirmasi di perangkat (task diantre 202 / readback
+    // timeout). Jangan bilang "berhasil" (pelanggan cari SSID baru, tak ketemu, telepon CS). Pesan jujur.
+    const msgName = (result && result.pending)
+        ? "Perubahan nama WiFi sedang diproses — belum terkonfirmasi di perangkat. Nama baru akan aktif beberapa saat lagi; kalau belum muncul, coba ulangi."
+        : "Nama WiFi berhasil diubah";
+    return sendSuccess(res, result, msgName);
 }));
 
 customerApiRouter.post('/wifi/update-password', wifiWriteRateLimiter, asyncHandler(async (req, res) => {
@@ -895,7 +900,11 @@ customerApiRouter.put('/wifi/update', wifiWriteRateLimiter, asyncHandler(async (
     }
     
     const result = await WifiService.updateCustomerWifi(customer, ssidIndex, { newName, newPassword }, req);
-    return sendSuccess(res, result, "WiFi berhasil diupdate");
+    // #b323: sama seperti ganti nama — applied:false = belum terverifikasi, jangan klaim sukses polos.
+    const msgWifi = (result && result.pending)
+        ? "Perubahan WiFi sedang diproses — belum terkonfirmasi di perangkat. Akan aktif beberapa saat lagi; kalau belum, coba ulangi."
+        : "WiFi berhasil diupdate";
+    return sendSuccess(res, result, msgWifi);
 }));
 
 customerApiRouter.post('/wifi/reboot', wifiWriteRateLimiter, asyncHandler(async (req, res) => {

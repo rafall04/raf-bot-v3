@@ -5851,5 +5851,10 @@
     "template": "Maaf, ada kendala saat memproses ganti modem. Mulai lagi dari *ganti modem*.",
     "placeholders": [],
     "description": "Wizard WA ganti modem (#b282)."
+  },
+  "wifi_belum_terverifikasi": {
+    "name": "WiFi belum terverifikasi (readback timeout)",
+    "template": "⚠️ Perubahannya belum bisa kami *pastikan* tersimpan, Kak.\n\nCoba cek WiFi-nya beberapa saat lagi ya; kalau belum berubah, silakan ulangi 🙏",
+    "category": "wifi"
   }
 }

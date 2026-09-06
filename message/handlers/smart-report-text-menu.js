@@ -248,10 +248,17 @@ async function handleInternetMati({ sender, pushname: _pushname, reply: _reply, 
         let statusSection = '';
         if (deviceStatus.mockMode) {
             statusSection = 'Status Modem: *Checking manual...*\nCatatan: Teknisi akan cek langsung ke lokasi';
-        } else if (deviceStatus.online === false) {
+        } else if (deviceStatus.online === true) {
+            statusSection = 'Status Modem: *ONLINE*\nCatatan: Modem terdeteksi online, mungkin masalah di jaringan lokal';
+        } else if (deviceStatus.online === false && deviceStatus.lastInform) {
+            // Bukti POSITIF offline: kita PUNYA _lastInform tapi sudah basi (> ambang) → benar-benar mati.
             statusSection = `Status Modem: *OFFLINE*\nTerakhir Online: *${lastOnlineText}*`;
         } else {
-            statusSection = 'Status Modem: *ONLINE*\nCatatan: Modem terdeteksi online, mungkin masalah di jaringan lokal';
+            // #b323 BUTA != MATI: online===null (tak bisa dipastikan) ATAU online===false tanpa _lastInform
+            // (isDeviceOnline: catch ACS timeout/breaker/config-invalid, atau device tak pernah inform).
+            // JANGAN vonis OFFLINE palsu saat kita cuma kehilangan pandangan ke ACS — "cannot observe" !=
+            // "observed bad" (#b261, sama seperti guard handleInternetLemot). Status NETRAL.
+            statusSection = 'Status Modem: *belum bisa dipastikan*\nCatatan: Sistem kami sedang tidak bisa membaca status modem sekarang. Teknisi akan cek langsung bila perlu.';
         }
 
         // Save state for next step

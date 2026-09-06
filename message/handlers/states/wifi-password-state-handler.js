@@ -228,13 +228,14 @@ async function handleAskNewPassword(userState, chats, reply, sender, global) {
         // Menepati janji di teks pelanggan ("Tim kami sudah mendapat pemberitahuannya").
         // Never-throw & ber-jeda 30 menit per sebab supaya satu gangguan tak jadi puluhan pesan.
         laporkanKegagalanWifiKeAdmin(sebab, "ganti sandi WiFi", userState, error);
-        return reply(renderResponseTemplate(
-            sebab.kunciTemplate,
-            sebab.sarankanCekModem
-                ? '⚠️ Maaf Kak, perubahannya *belum tersimpan* karena modem di lokasi Kakak sedang tidak merespons. Coba pastikan modem menyala, lalu ulangi beberapa saat lagi 🙏'
-                : '⚠️ Maaf Kak, perubahannya *belum tersimpan* karena ada kendala di *sistem kami* — bukan dari modem Kakak. Tim kami sudah mendapat pemberitahuannya 🙏',
-            {}
-        ));
+        // #b323: pesan jujur per-sebab — 'belum_terverifikasi'/'tidak_diketahui' TIDAK menjanjikan
+        // notif admin (admin tak dinotif utk sebab itu) & tidak menuduh modem.
+        const fallbackSebab = sebab.sarankanCekModem
+            ? '⚠️ Maaf Kak, perubahannya *belum tersimpan* karena modem di lokasi Kakak sedang tidak merespons. Coba pastikan modem menyala, lalu ulangi beberapa saat lagi 🙏'
+            : sebab.pihak === 'kami'
+                ? '⚠️ Maaf Kak, perubahannya *belum tersimpan* karena ada kendala di *sistem kami* — bukan dari modem Kakak. Tim kami sudah mendapat pemberitahuannya 🙏'
+                : '⚠️ Perubahannya belum bisa kami *pastikan* tersimpan, Kak. Coba cek WiFi-nya beberapa saat lagi; kalau belum berubah, silakan ulangi 🙏';
+        return reply(renderResponseTemplate(sebab.kunciTemplate, fallbackSebab, {}));
     }
 }
 
@@ -328,13 +329,14 @@ async function handleAskNewPasswordBulk(userState, chats, reply, sender, global)
         // Menepati janji di teks pelanggan ("Tim kami sudah mendapat pemberitahuannya").
         // Never-throw & ber-jeda 30 menit per sebab supaya satu gangguan tak jadi puluhan pesan.
         laporkanKegagalanWifiKeAdmin(sebab, "ganti sandi WiFi", userState, error);
-        return reply(renderResponseTemplate(
-            sebab.kunciTemplate,
-            sebab.sarankanCekModem
-                ? '⚠️ Maaf Kak, perubahannya *belum tersimpan* karena modem di lokasi Kakak sedang tidak merespons. Coba pastikan modem menyala, lalu ulangi beberapa saat lagi 🙏'
-                : '⚠️ Maaf Kak, perubahannya *belum tersimpan* karena ada kendala di *sistem kami* — bukan dari modem Kakak. Tim kami sudah mendapat pemberitahuannya 🙏',
-            {}
-        ));
+        // #b323: pesan jujur per-sebab — 'belum_terverifikasi'/'tidak_diketahui' TIDAK menjanjikan
+        // notif admin (admin tak dinotif utk sebab itu) & tidak menuduh modem.
+        const fallbackSebab = sebab.sarankanCekModem
+            ? '⚠️ Maaf Kak, perubahannya *belum tersimpan* karena modem di lokasi Kakak sedang tidak merespons. Coba pastikan modem menyala, lalu ulangi beberapa saat lagi 🙏'
+            : sebab.pihak === 'kami'
+                ? '⚠️ Maaf Kak, perubahannya *belum tersimpan* karena ada kendala di *sistem kami* — bukan dari modem Kakak. Tim kami sudah mendapat pemberitahuannya 🙏'
+                : '⚠️ Perubahannya belum bisa kami *pastikan* tersimpan, Kak. Coba cek WiFi-nya beberapa saat lagi; kalau belum berubah, silakan ulangi 🙏';
+        return reply(renderResponseTemplate(sebab.kunciTemplate, fallbackSebab, {}));
     }
 }
 
