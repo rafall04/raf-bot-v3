@@ -2616,3 +2616,11 @@
 - **Janji "tim diberitahu" kosong:** `lib/wifi-failure-reason.js` readback timeout (`TASK_NOT_APPLIED`/'belum tervalidasi') dipetakan ke sebab baru `belum_terverifikasi` (bukan `tidak_diketahui` yang dulu pakai template "sisi kami" → janji notif admin yang TAK dikirim). Pesan jujur "belum bisa dipastikan, cek/ulangi" (tanpa janji notif & tanpa tuduh modem) di kedua handler + template baru `wifi_belum_terverifikasi`.
 - **handleMati vonis OFFLINE palsu saat buta:** `message/handlers/smart-report-text-menu.js` klaim OFFLINE HANYA dgn bukti positif (`online===false && lastInform` ada+basi); `online:null` / `online:false` tanpa `_lastInform` (ACS timeout/breaker/config-invalid) → status NETRAL "belum bisa dipastikan" ("cannot observe != observed bad", #b261).
 - **Tes:** wifi-failure-reason +2 kasus (readback→belum_terverifikasi; tidak_diketahui bukan "sisi kami"); mati-status-buta guard baru; template-key-integrity + 89 hijau suite wifi; lint 0. Template baru merge-key ke prod (fallback kode sudah menutup bila belum di-merge).
+
+<a id="b324"></a>
+
+### Fix 2026-09-06 (Rank #7 netwatch ganti-IP hapus coverage + Rank #9 OLT scraper "sukses" walau semua mati)
+
+- **Ganti IP CCTV → netwatch HILANG (coverage 0):** `lib/cctv-netwatch-sync.js` `ownedEntriesAt` kini cek HOST dulu sebelum id-match (dulu id-match lintas-host). Saat IP CCTV berubah, device bawa netwatchId LAMA → id-match keliru mencocokkan entri host-lama → cabang SET memindahnya lalu rehost-remove menghapusnya → CCTV tak punya entri netwatch sama sekali (monitor tak pernah broadcast DOWN lagi) padahal UI bilang sukses. Kini ADD entri baru di host baru + hapus entri lama saja.
+- **OLT scraper lapor sukses palsu:** `lib/olt-log-scraper.js` `lastSuccessAt`/`lastError` disegarkan HANYA bila `successCount>0`; saat SEMUA OLT unreachable (successCount=0) set `lastError` ringkas (surface tak lagi tampak "sehat"). + alarm PUSH admin `alertOltAllDown` (throttled 30 mnt, notif PULIH, never-throw, opt-out `config.oltMonitor.alertAllDown=false`) — OLT mati total tak lagi "tak seorang pun tahu sampai buka halaman". Blindspot terukur: Dander OLT mati berminggu-minggu ~78% pelanggan, 0 alarm.
+- **Tes:** cctv-netwatch-sync +1 (ganti IP dgn netwatchId prod → coverage utuh), olt-scraper-alldown-alarm baru (alarm/throttle/pulih/opt-out) = 39 hijau; lint 0.
