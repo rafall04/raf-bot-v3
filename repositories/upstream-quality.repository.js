@@ -381,11 +381,21 @@ function createUpstreamQualityRepository(overrides = {}) {
         );
     }
 
-    async function getIncidents({ limit = 30 } = {}) {
+    async function getIncidents({ limit = 30, kind = null } = {}) {
         await ensureSchema();
+        const cap = Math.max(1, Math.min(Number(limit) || 30, 200));
+        // Filter `kind` opsional: insiden 'failover' (lock/auto_apply/auto_restore) perlu diambil
+        // terpisah agar tak tergusur cap-200 oleh 'flap'/'alert'/'trace' saat instabilitas —
+        // persis momen lock anti-flapping terjadi (dipakai rehydrateFromIncidents wan-failover).
+        if (kind) {
+            return all(
+                "SELECT * FROM upstream_incidents WHERE kind = ? ORDER BY created_at DESC LIMIT ?",
+                [String(kind), cap]
+            );
+        }
         return all(
             "SELECT * FROM upstream_incidents ORDER BY created_at DESC LIMIT ?",
-            [Math.max(1, Math.min(Number(limit) || 30, 200))]
+            [cap]
         );
     }
 
