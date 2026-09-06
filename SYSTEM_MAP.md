@@ -432,6 +432,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-06 (Rank #11 Voucher — voucher-reconcile+ingestLogNames prune HANYA nama ter-record (log parse-gagal tak dihapus → revenue utuh), voucher-manager & agent-voucher-manager recordVoucherOrphan saat deduct-gagal/rollback-parsial)](docs/boundary-log.md#b325)
 - [Fix 2026-09-06 (Rank #12 — technician-finance-service.finalizePayroll klaim status atomik (anti komisi marketing jadi 0 saat race), expense-manager.cancelExpense reset recurring hanya periode-cocok (anti dobel-catat), routes/accounts.js adminOnly admin/owner/superadmin + create withLock anti id-kembar + guard demote admin-terakhir)](docs/boundary-log.md#b326)
 - [Fix 2026-09-06 (Rank #10 PSB + integritas — create-user-validate bulk fallback ke ssid_indices (dual-band tak jadi ["1"]), psb-group-intake baca body.welcome (anti klaim "Welcome dikirim" palsu), psb-database.getNextAvailableUserId MAX+1 lintas jejak finansial (id tak dipakai ulang → tak warisi ledger pelanggan lama))](docs/boundary-log.md#b327)
+- [Fix 2026-09-06 (RONDE 2 P0 KEAMANAN — auth-cache.getJWTVerification kunci sha256 token PENUH bukan 50-char prefix (tutup bypass tanda tangan JWT/takeover admin), accounts.js invalidate authCache saat update/delete (cabut akses staff langsung))](docs/boundary-log.md#b328)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

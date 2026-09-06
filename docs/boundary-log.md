@@ -2651,3 +2651,11 @@
 - **PSB grup klaim "Welcome dikirim" palsu:** `message/handlers/psb-group-intake.js` kini baca `result.body.welcome` (dispatched/reason) & balas jujur — bila WA putus / template hilang / HP kosong, peringatkan teknisi menyusulkan kredensial (anti sukses-semu, sama seperti wizard DM).
 - **ID pelanggan dipakai ulang warisi ledger lama:** `lib/psb-database.js` `getNextAvailableUserId` kini MAX+1 lintas union users + memori + jejak FINANSIAL (payment_history/reversals/waivers via sqlite_master allowlist) — bukan isi-gap. deleteUserById tak bersihkan tabel finansial, jadi id yang di-reuse dulu mewarisi status lunas/tunggakan pelanggan lama (ISP berhenti menagih / invoice bocor). Kini id tak pernah menunjuk dua identitas.
 - **Tes:** psb-database-id-reuse baru (MAX+1 lindungi id ber-jejak), create-user-bulk-band guard, psb-group-intake +2 (welcome jujur/palsu); 13 hijau + 239 suite PSB; lint 0.
+
+<a id="b328"></a>
+
+### Fix 2026-09-06 (RONDE 2 P0 KEAMANAN — bypass tanda tangan JWT lewat cache prefix)
+
+- **Takeover admin tanpa token sah (P0):** `lib/auth-cache.js` `getJWTVerification` dulu meng-cache hasil verify JWT dengan kunci `token.substring(0,50)` dan pada cache HIT memulangkan payload TER-DECODE **tanpa memanggil jwt.verify()**. 50 char = header JWT konstan + awal payload (untuk admin ~ `{id,u...}` yang bisa ditebak — id admin kecil/berurutan). Selama ada 1 request admin sah dalam TTL (praktis selalu: polling dashboard/socket), penyerang kirim `Bearer <prefix sama><sampah><tanda tangan INVALID>` → lolos sebagai admin → seluruh permukaan admin jebol, reachable dari internet. Kini kunci = **sha256 token PENUH** → token beda-isi = cache MISS → jwt.verify dipanggil → forge ditolak. (HMAC verify murah; cache tetap dedup token identik.)
+- **Jeda pencabutan akses:** `routes/accounts.js` update & delete kini memanggil `authCache.invalidateAccount`/`invalidateUser` setelah `saveAccounts` — staff yang di-demote/hapus langsung kehilangan akses (dulu masih lolos gerbang s/d TTL cache 5 mnt).
+- **Tes:** `auth-cache-jwt-bypass.test.js` BARU — forge prefix-sama tetap memanggil verify & ditolak; token identik tetap HIT. 5 hijau (dgn accounts-hardening); lint 0. **Deploy DARURAT terpisah.**

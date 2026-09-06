@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const { saveAccounts, loadJSON, saveJSON: _saveJSON } = require('../lib/database');
 const { withLock } = require('../lib/request-lock');
+const { authCache } = require('../lib/auth-cache');
 
 // #b326: samakan dengan gerbang admin sistem (ensureAdmin/PERAN_ADMIN) = admin/owner/superadmin.
 // Dulu `=== 'admin'` persis → owner/superadmin bisa BUKA halaman akun tapi SEMUA API-nya 403
@@ -167,20 +168,29 @@ router.post('/accounts/:id', adminOnly, async (req, res) => {
             }
         }
 
+        // #b328: username LAMA ditangkap sebelum di-ubah — perlu diinvalidasi juga dari cache.
+        const oldUsername = account.username;
+
         // Update fields
         if (username) global.accounts[accountIndex].username = username.trim();
         if (name !== undefined) global.accounts[accountIndex].name = name.trim();
         if (phone_number !== undefined) global.accounts[accountIndex].phone_number = phone_number;
         if (role) global.accounts[accountIndex].role = role;
-        
+
         // Update password if provided
         if (password && password.trim() !== '') {
             account.password = await bcrypt.hash(password, 10);
             console.log(`[POST /api/accounts/${accountId}] Password updated for ${account.username}`);
         }
-        
+
         // Save to file
         saveAccounts();
+
+        // #b328: buang cache auth basi supaya perubahan role/username/eksistensi LANGSUNG berlaku
+        // (dulu jeda s/d TTL 5 mnt → staff yang di-demote masih lolos gerbang admin sementara).
+        authCache.invalidateAccount(accountId, oldUsername);
+        if (username && username.trim() !== oldUsername) authCache.invalidateAccount(accountId, username.trim());
+        authCache.invalidateUser(accountId);
         
         // Only log on error, not on every update
         
@@ -243,10 +253,15 @@ router.delete('/accounts/:id', adminOnly, (req, res) => {
         
         // Remove account
         global.accounts.splice(accountIndex, 1);
-        
+
         // Save to file
         saveAccounts();
-        
+
+        // #b328: buang cache auth akun yang DIHAPUS supaya token/sesi lamanya tak lagi resolve ke akun
+        // (dulu masih lolos gerbang s/d TTL cache 5 mnt setelah dihapus).
+        authCache.invalidateAccount(accountId, account.username);
+        authCache.invalidateUser(accountId);
+
         console.log(`[DELETE /api/accounts/${accountId}] Account deleted: ${account.username}`);
         
         res.json({ 
