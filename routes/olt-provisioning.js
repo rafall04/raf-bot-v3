@@ -912,8 +912,20 @@ function saveDeviceAcs(id, acs) {
     const devices = (config.olt && config.olt.devices) || [];
     const dev = devices.find((d) => d.id === id);
     if (!dev) throw new Error('OLT tidak ditemukan di config');
-    dev.acs = { url: acs.url, user: acs.user, pass: acs.pass, mgmtVlan: acs.mgmtVlan };
+    const acsValue = { url: acs.url, user: acs.user, pass: acs.pass, mgmtVlan: acs.mgmtVlan };
+    dev.acs = acsValue;
     fs.writeFileSync(configPath, JSON.stringify(config, null, 4), 'utf8');
+
+    // JUGA perbarui salinan in-memory. `global.config` dimuat saat boot & TAK menerima `acs` yang
+    // ditambahkan pasca-boot lewat panel ini. Penulis config lain yang menyerialkan `global.config`
+    // apa adanya ke disk (mis. upload logo / simpan invoice) akan MENGHAPUS acs ini secara SENYAP
+    // — bahaya 'config.json merge-key' antar-penulis in-proses (CLAUDE.md). Sinkronkan.
+    try {
+        const memDevices = (global.config && global.config.olt && global.config.olt.devices) || [];
+        const memDev = memDevices.find((d) => d.id === id);
+        if (memDev) memDev.acs = { ...acsValue };
+    } catch (_e) { /* best-effort — disk sudah tersimpan */ }
+
     return dev.acs;
 }
 
