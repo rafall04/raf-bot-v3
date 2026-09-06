@@ -1590,8 +1590,10 @@ router.post('/devices', (req, res) => {
             config.olt.devices = [];
         }
 
-        // Generate ID
-        const newId = `olt${config.olt.devices.length + 1}`;
+        // Generate ID — WAJIB unik. Dulu `olt${length+1}` BENTROK setelah hapus device tengah
+        // (DELETE splice tanpa renumber) → dua device ber-id sama → lookup .find()/findIndex first-match
+        // kena OLT FISIK yang SALAH (kredensial ACS/SSH/provisioning nyasar; sebagian OLT milik teman/VANS).
+        const newId = nextOltDeviceId(config.olt.devices);
 
         // Add new device
         const newDevice = {
@@ -1901,4 +1903,23 @@ router.get('/event-log', async (req, res) => {
     }
 });
 
+/**
+ * ID device OLT berikutnya yang DIJAMIN unik. Ambil suffix numerik TERTINGGI dari id `olt<N>` yang
+ * ADA + 1 (bukan panjang array yang bisa menyusut karena hapus), lalu naikkan sampai benar-benar
+ * tak bertabrakan dengan id mana pun (termasuk id non-standar). Fungsi murni → mudah diuji.
+ */
+function nextOltDeviceId(devices) {
+    const list = Array.isArray(devices) ? devices : [];
+    const existing = new Set(list.map((d) => d && d.id).filter(Boolean));
+    let maxSeq = 0;
+    for (const d of list) {
+        const m = d && typeof d.id === 'string' && d.id.match(/^olt(\d+)$/);
+        if (m) { const n = parseInt(m[1], 10); if (Number.isFinite(n) && n > maxSeq) maxSeq = n; }
+    }
+    let seq = maxSeq + 1;
+    while (existing.has(`olt${seq}`)) seq += 1;
+    return `olt${seq}`;
+}
+
+router.nextOltDeviceId = nextOltDeviceId; // diekspos untuk uji
 module.exports = router;

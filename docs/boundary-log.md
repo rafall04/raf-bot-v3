@@ -2748,3 +2748,11 @@
 - **Takeover WhatsApp lewat QR broadcast (P1):** `index.js` dulu `io.emit('qr', url)` — broadcast GLOBAL ke SEMUA socket staf. Halaman QR sengaja admin-only (teknisi→/pembayaran/teknisi, agen→/agen-pembayaran di routes/pages.js), tapi socket teknisi (`teknisi-tiket.js` `io()`) tetap kebagian frame QR (bisa dibaca via DevTools WS / `socket.onAny`). Teknisi/agen scan QR pakai HP → device mereka ter-link ke bot = **takeover WhatsApp penuh** (baca/kirim semua chat, perintah owner/saldo). Pola kembar #b252/#b253 tapi lebih parah. Middleware auth socket (#sebelumnya) hanya menutup kebocoran ANONIM, tak membatasi role.
 - **Fix:** `lib/http-socket-bootstrap.js` — auth middleware simpan `socket.data.role`; `io.on('connection', joinRoomsForRole)` masukkan HANYA admin/owner/superadmin ke room `'admin'`. `index.js` ganti `io.emit('qr')` → `io.to('admin').emit('qr')`. Teknisi/agen tetap konek (butuh event tiket) tapi tak lagi menerima QR. Event `message` (status koneksi WA) tetap global (bukan kredensial).
 - **Tes:** socket-auth +4 (role tersimpan, joinRoomsForRole admin-only, teknisi/agen ditolak room, source-scan QR room-scoped); 10 hijau; lint 0.
+
+<a id="b339"></a>
+
+### Fix 2026-09-07 (RONDE 3 P2 — id device OLT bentrok setelah hapus device tengah)
+
+- **ID device OLT duplikat → operasi ke OLT SALAH:** `routes/olt.js` POST /api/olt/devices dulu `const newId = \`olt${devices.length + 1}\`` (dari PANJANG array), sedangkan DELETE `splice(deviceIndex,1)` TANPA renumber. Hapus device tengah → array menyusut → id berikutnya BENTROK dengan device tersisa (mis. [olt1,olt3] → tambah → olt3 dobel). Semua lookup by-id (getOltDevice, saveDeviceAcs olt-provisioning.js:913, PUT/DELETE/test) pakai `.find()/.findIndex()` first-match → kredensial ACS/SSH/backup/SNMP/provisioning diterapkan ke OLT FISIK yang salah (sebagian OLT milik teman/VANS), senyap tanpa validasi keunikan.
+- **Fix:** helper murni `nextOltDeviceId(devices)` — ambil suffix numerik TERTINGGI dari id `olt<N>` yang ADA + 1, lalu loop naik sampai benar-benar unik (abaikan id non-standar). Diekspos di `router.nextOltDeviceId` untuk uji. DELETE dibiarkan (renumber id lama malah memutus referensi).
+- **Tes:** olt-device-id-unique baru (6) — hapus-tengah tak bentrok, gap tak dipakai ulang, anti-tabrak; hijau; lint 0.

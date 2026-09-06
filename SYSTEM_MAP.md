@@ -443,6 +443,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-06 (RONDE 2 Rank #9 P2/P3 OLT — olt-log-scraper recoveredMacs hapus LOS persisten lintas-siklus (recovery scraper hidup lagi) + parseTimestamp year-wrap Des/Jan, olt-provisioning saveDeviceAcs sinkron global.config (anti ACS ketimpa))](docs/boundary-log.md#b336)
 - [Fix 2026-09-06 (RONDE 2 Rank #10 P2/P3 CCTV monitor — flushBatch tandai deliveredAt + restore kirim-ulang DOWN yg diantre hilang restart, rekonstruksi s.deferred penerima jam-tenang, pollOnce prune host terhapus (anti gangguan-massal palsu))](docs/boundary-log.md#b337)
 - [Fix 2026-09-07 (RONDE 3 P1 KEAMANAN — Socket.IO QR WhatsApp room-scoped ke admin: io.to(admin).emit(qr) + joinRoomsForRole, teknisi/agen tak lagi kebagian frame QR (anti takeover bot))](docs/boundary-log.md#b338)
+- [Fix 2026-09-07 (RONDE 3 P2 OLT — routes/olt.js nextOltDeviceId (suffix tertinggi+1, anti-bentrok) menggantikan olt${length+1} yang duplikat setelah hapus device tengah → lookup first-match nyasar OLT salah)](docs/boundary-log.md#b339)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
