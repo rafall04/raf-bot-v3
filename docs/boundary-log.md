@@ -2578,3 +2578,13 @@
 - **Callback voucher 500/200 terbalik:** `routes/public.js` 3 cabang `else throw err` (bukan `!1`) → SUKSES = HTTP 200, stop iPaymu retry sia-sia tiap penjualan. **Topup jujur:** `balance-management-handler.js` await+cek `addKoinUser`; gagal → owner error, penerima TAK di-notif "saldo masuk" palsu.
 - **Slot template basi:** `response-template-helper.js` cek `result.unresolved` → jatuh ke fallback (mirror #b302/#b249). **OLT LOS:** `olt-los-broadcaster.js` `amankanTeksPelanggan` sadar-konteks — isi `{penanganan}` di fallback + pakai template PULIH utk recovery (bukan template gangguan).
 - **Tes:** +8 (2 file baru: response-template-helper, balance-management-topup) — env-config isolasi, isolir-notif paid, isolir tick guard, voucher 200, topup, OLT fallback, raf cancel. 108 hijau lintas suite terkait; lint 0.
+
+<a id="b320"></a>
+
+### Fix 2026-09-06 (Rank #2 P1 + durabilitas cron — salah-JID massal, boost/kompensasi tak kembali, isolir akhir-bulan terlewat)
+
+- **buildJid 0→62 (P1):** `lib/cron/wa-send-queue.js` `buildJid` kini lewat `lib/utils.normalizePhoneNumber` (0→62), sejalan jalur welcome. Sebelumnya nomor tersimpan `08xxx` jadi JID `08xxx@s.whatsapp.net` yang DITERIMA Baileys tanpa error tapi TAK PERNAH sampai → SEMUA cron reminder/tenggang/isolir "sukses" ke nomor 0-awalan padahal buta. Dipakai reminder/grace/isolir-notif/isolir-paket/billing-akhir-bulan.
+- **Speed boost gratis permanen:** `lib/speed-boost-cleanup.js` TAK lagi menstempel request `active`→`expired` (dulu TANPA revert profil; speed-revert cuma proses `active` → boost tak pernah dikembalikan; cleanup jalan seketika saat boot sebelum speed-revert terjadwal). Biarkan speed-revert menuntaskan `active`. +Header Doc.
+- **Kompensasi lenyap (race):** `lib/cron/jobs/compensation-revert.js` mutasi `global.compensations` IN-PLACE (mirror speed-revert), bukan bangun-ulang dari snapshot disk lalu timpa global — dulu menggilas kompensasi yang admin tambah selama jendela await (MikroTik+reboot+WA).
+- **Isolir akhir-bulan terlewat:** `lib/cron/jobs/billing-akhir-bulan.js` fase isolir pakai `daysUntilEnd <= isolirDaysBefore` (self-healing; AMAN karena runIsolirPhase idempoten via profil-live). Reminder/tenggang tetap `===` (tak ada dedup per-periode → `<=` = spam).
+- **Tes:** +2 file baru (speed-boost-cleanup behavioral, compensation-revert in-place guard) + buildJid 0→62 + billing self-heal; 65 hijau lintas suite terkait (buildJid consumers, speed, billing); lint 0.
