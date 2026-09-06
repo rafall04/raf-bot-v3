@@ -2567,3 +2567,14 @@
 - **retryFailedDeliveries** (`lib/whatsapp-critical-delivery.js`): dulu `sendPayload(...,{})` lalu langsung `retried=true; delivered++` TANPA cek hasil → dead-letter finansial (kode voucher/konfirmasi saldo) ditandai terkirim permanen walau `{status:'error'}` (jalan tiap reconnect, 7-13x/hari). Kini kirim dgn `skipDuplicateCheck:true` + `isDeliverySuccessful(res)`; gagal → entri TETAP unretried (dicoba lagi), bukan hilang senyap.
 - **whatsapp-delivery-service.sendMessage**: dulu `sent:true` begitu `sendPayload` resolve (abaikan `{status:'error'}`) → `safeSendMessage`/cron log "✅ Terkirim" bohong. Kini `status:'error'`→`sent:false` (errorCode SEND_FAILED); `blocked_duplicate`→`sent:true`+`deduplicated:true` (identik sudah terkirim, penerima tetap dapat). `sendCritical` juga dialihkan ke helper (perilaku identik).
 - **Tes:** `whatsapp-delivery-verdict.test.js` BARU (helper murni + PERILAKU delivery-service & retry via mock gateway/fs) = 12; `honest-verdict-and-delivery.test.js` diperbarui (scan helper + guard retry sibling); `whatsapp-critical-delivery.test.js` assertion retry → `skipDuplicateCheck:true`. Total 4 suite delivery + 7 suite notifikasi hilir = 79 hijau; lint 0.
+
+<a id="b319"></a>
+
+### Fix 2026-09-06 (8 quick-win dari audit bug — pola akar berulang; tiap fix diverifikasi ke kode nyata)
+
+- **Isolasi test:** `env-config.getDatabasePath` kini jaga ekstensi asli (.json/.sqlite); `saldo/shared.js` pakainya → `npm test` tak lagi menimpa `topup_requests.json`/ledger PRODUKSI. Prod path tak berubah.
+- **Anti "bom isolir massal":** `cron/jobs/isolir.js` re-read `cron.json` SAAT TICK (mirror isolir-paket) → mematikan `status_schedule_unpaid_action` langsung berhenti tanpa re-schedule.
+- **Jangan dun yang sudah bayar:** `cron/jobs/isolir-notification.js` skip `user.paid` (never-silent, selaras gate isolir.js). **Cancel palsu:** `message/raf.js` kata-batal butuh state aktif (runCancelHandler pun butuh state in-memory → tak ada draft durabel terlewat).
+- **Callback voucher 500/200 terbalik:** `routes/public.js` 3 cabang `else throw err` (bukan `!1`) → SUKSES = HTTP 200, stop iPaymu retry sia-sia tiap penjualan. **Topup jujur:** `balance-management-handler.js` await+cek `addKoinUser`; gagal → owner error, penerima TAK di-notif "saldo masuk" palsu.
+- **Slot template basi:** `response-template-helper.js` cek `result.unresolved` → jatuh ke fallback (mirror #b302/#b249). **OLT LOS:** `olt-los-broadcaster.js` `amankanTeksPelanggan` sadar-konteks — isi `{penanganan}` di fallback + pakai template PULIH utk recovery (bukan template gangguan).
+- **Tes:** +8 (2 file baru: response-template-helper, balance-management-topup) — env-config isolasi, isolir-notif paid, isolir tick guard, voucher 200, topup, OLT fallback, raf cancel. 108 hijau lintas suite terkait; lint 0.

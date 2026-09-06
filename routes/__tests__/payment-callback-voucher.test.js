@@ -52,6 +52,17 @@ describe("callback voucher hardening (go-public)", () => {
         expect(catchBlock).toMatch(/alertAdmins/);
     });
 
+    test("SUKSES voucher → HTTP 200 bukan 500 (#b319): sentinel sukses di-throw APA ADANYA, bukan !1", () => {
+        // outer catch: res.status(err ? 200 : 500). `.then` sukses → `throw !0`(true) → .catch;
+        // cabang non-error harus `throw err` (true → 200). `throw !1`(false) = BUG → 500 → iPaymu
+        // retry tiap penjualan SUKSES. Jaga ketiga cabang voucher.
+        [buynowBlock, webBlock, panelBlock].forEach((blok) => {
+            const catchBlock = blok.slice(blok.indexOf(".catch("));
+            expect(catchBlock).toMatch(/}\s*else\s+throw\s+err;/);
+            expect(catchBlock).not.toMatch(/else\s+throw\s+!1/);
+        });
+    });
+
     test("buynow: voucher gagal → tetap mark paid (stop retry; getvoucher non-idempotent)", () => {
         const catchBlock = buynowBlock.slice(buynowBlock.indexOf(".catch("));
         const idxMarkPaid = catchBlock.indexOf("updateStatusPayment(reference_id, true)");

@@ -613,7 +613,12 @@ module.exports = async (raf, msg, m, options = {}) => {
             getIntentFromKeywords
         });
 
-        if (isCancellationKeyword(chats)) {
+        // HANYA perlakukan sebagai pembatalan bila ADA state aktif yang bisa dibatalkan. Tanpa guard
+        // ini, "stop"/"berhenti" dari pemakai TANPA proses berjalan dibalas "proses sudah dibatalkan"
+        // & memotong jalur normal (fallback/komplain/asisten). Aman: runCancelHandler pun hanya
+        // bertindak saat ada state in-memory (conversation-handler.js), jadi tak ada draft durabel
+        // yang terlewat — yang di-suppress cuma balasan-batal palsu.
+        if (isCancellationKeyword(chats) && userState) {
             isGlobalCommand = true;
             // Pemilik state diberi kesempatan menutup dirinya SENDIRI lebih dulu. Tanpa ini,
             // pembatalan universal memotong cabang BATAL milik domain: pembersihannya tak jalan

@@ -1214,7 +1214,7 @@ router.post('/callback/payment', async (req, res) => {
                         }
                         updateStatusPayment(reference_id, true);
                         throw !0;
-                    } else throw !1;
+                    } else throw err; // sentinel SUKSES (true dari .then) → outer catch res.status(200). Dulu `!1`(false)→500 → iPaymu retry tiap penjualan SUKSES.
                 });
             } else if (pay.tag == 'buynowweb') {
                 const prof = checkprofvc(String(pay.amount));
@@ -1272,7 +1272,7 @@ router.post('/callback/payment', async (req, res) => {
                         updateKetPayment(reference_id, `GAGAL voucher: ${errorMessage}`);
                         updateStatusPayment(reference_id, true);
                         throw !0;
-                    } else throw !1;
+                    } else throw err; // sentinel SUKSES (true dari .then) → outer catch res.status(200). Dulu `!1`(false)→500 → iPaymu retry tiap penjualan SUKSES.
                 });
             } else if (pay.tag == 'buynowpanel') {
                 // Beli voucher dari PANEL PELANGGAN. Sama seperti `buynowweb`, kecuali: profil
@@ -1335,7 +1335,7 @@ router.post('/callback/payment', async (req, res) => {
                         updateKetPayment(reference_id, `GAGAL voucher: ${errorMessage}`);
                         updateStatusPayment(reference_id, true);
                         throw !0;
-                    } else throw !1;
+                    } else throw err; // sentinel SUKSES (true dari .then) → outer catch res.status(200). Dulu `!1`(false)→500 → iPaymu retry tiap penjualan SUKSES.
                 });
             } else if (pay.tag == 'topup') {
                 // Kredit saldo DULU; HANYA tandai paid bila kredit sukses. Bila gagal (mis. JID

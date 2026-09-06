@@ -293,6 +293,23 @@ describe('raf-router.test.js - Main Router Integration', () => {
             expect(deleteUserState).toHaveBeenCalled();
             expect(raf.sendMessage).toHaveBeenCalledWith(sender, expect.objectContaining({ text: expect.stringContaining('dibatalkan') }), expect.anything());
         });
+
+        it('#b319: kata batal TANPA state aktif → TIDAK dibalas "dibatalkan" (diproses normal)', async () => {
+            const { getUserState } = require('../handlers/conversation-handler');
+            const { toCanonicalJid } = require('../../lib/jid-utils');
+            toCanonicalJid.mockResolvedValue(sender);
+            getUserState.mockReturnValue(null); // tak ada proses berjalan → tak ada yang dibatalkan
+            raf.sendMessage.mockClear();
+
+            const m = {
+                key: { remoteJid: sender, fromMe: false, id: 'ABC7' },
+                message: { conversation: 'batal' },
+                pushName: 'Test User'
+            };
+            await rafRouter(raf, m, { messages: [m], type: 'notify' });
+
+            expect(raf.sendMessage).not.toHaveBeenCalledWith(sender, expect.objectContaining({ text: expect.stringContaining('dibatalkan') }), expect.anything());
+        });
     });
 
     // Regresi: FOTO STATUS (story) WhatsApp pelanggan pernah ikut ditangkap sebagai "bukti

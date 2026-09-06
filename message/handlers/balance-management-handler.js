@@ -44,7 +44,14 @@ async function handleTopup({ q, isOwner, sender, reply, msg, mess, raf: _raf, ch
             console.error('[TOPUP_INIT] Error creating user saldo:', err);
         }
 
-        addKoinUser(tujuantf, jumblah);
+        // addKoinUser fail-closed: return false bila JID tak ter-resolve / amount invalid / DB sibuk.
+        // WAJIB di-await & dicek — kalau tidak, saldo tak bertambah tapi owner & pelanggan tetap
+        // menerima notif "berhasil / saldo Rp X masuk" (bohong). Selaras jalur callback iPaymu 'topup'.
+        const credited = await addKoinUser(tujuantf, jumblah);
+        if (!credited) {
+            console.error('[TOPUP_FAILED] addKoinUser mengembalikan false — saldo TIDAK bertambah', { tujuantf, jumlah: jumblah });
+            throw new Error('TOPUP_NOT_CREDITED'); // → catch: balas error template ke owner, penerima TIDAK di-notif
+        }
         const kerupiah123 = convertRupiah.convert(jumblah);
 
         // Gunakan template system untuk notifikasi admin
