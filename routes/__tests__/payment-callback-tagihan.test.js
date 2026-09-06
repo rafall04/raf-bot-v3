@@ -47,9 +47,12 @@ describe("callback tagihan — fail-closed catat lunas + auto-reaktivasi", () =>
     test("settle gagal → throw !1 di jalur catch, sebelum tandai-paid", () => {
         const idxCatch = block.indexOf("catch (settleErr)");
         const idxThrowFail = idxCatch > -1 ? block.indexOf("throw !1", idxCatch) : -1;
-        const idxMarkPaid = block.indexOf("updateStatusPayment(reference_id, true)");
+        // #b344: markPaid (di dalam args settle) hanya jalan SETELAH ledger sukses DI DALAM settle —
+        // tak relevan utk fail-path. Yang relevan = updateStatusPayment POST-settle: cari occurrence
+        // SESUDAH throw fail. Bila settle THROW, keduanya tak tercapai (aman).
+        const idxMarkPaidPost = block.indexOf("updateStatusPayment(reference_id, true)", idxThrowFail);
         expect(idxThrowFail).toBeGreaterThan(idxCatch);
-        expect(idxThrowFail).toBeLessThan(idxMarkPaid);
+        expect(idxMarkPaidPost).toBeGreaterThan(idxThrowFail);
     });
 
     test("kirim struk dibungkus try/catch (best-effort, tak menggagalkan callback)", () => {

@@ -448,6 +448,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-07 (RONDE 3 P2 voucher-agent — agent-voucher-manager pakai json-store (loadJSON per-file karantina + saveJSON atomik) ganti writeFileSync polos + 1 try/catch kaskade → riwayat beli/jual agent tak hilang saat restart/OOM)](docs/boundary-log.md#b341)
 - [Fix 2026-09-07 (RONDE 3 P2 wanFailover — rehydrateFromIncidents pulihkan lockedUntilMs dari insiden lock (kind-filter getIncidents anti cap-200) + jendela autoEvents max(24j,flapWindow); lock anti-flapping tahan restart, bot tak thrash uplink sebelum lock habis)](docs/boundary-log.md#b342)
 - [Fix 2026-09-07 (RONDE 3 P3 config.json — lib/atomic-file.writeFileAtomicSync (tmp+rename) dipakai ~13 penulis config.json (anti torn-write boot-fatal), invoice readConfigFresh+saveConfigAtomic (env-config) ganti serialize global.config basi (sisi penulis landmine #b336))](docs/boundary-log.md#b343)
+- [Fix 2026-09-07 (RONDE 3 P3 gateway — settleTagihanPayment markPaid (tandai lunas sebelum reaktivasi lambat) dioper iPaymu/Tripay/Mayar → retry webhook yang lolos lock cleanup-30s tak salah-vonis kelebihan-bayar)](docs/boundary-log.md#b344)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

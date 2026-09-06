@@ -297,6 +297,9 @@ router.post("/callback/tripay", asyncHandler(async (req, res) => {
             settleResult = await billSettlement.settleTagihanPayment({
                 user, amountPaid: pay.amount, periodMonth: pay.periodMonth, periodYear: pay.periodYear,
                 paymentMethod: body.payment_method_code || "Tripay", reffId: merchantRef,
+                // Tandai lunas SEBELUM reaktivasi lambat → retry webhook yang lolos lock (cleanup 30s)
+                // dapat fast-check true → tak salah-vonis 'kelebihan bayar'.
+                markPaid: () => updateStatusPayment(merchantRef, true),
             });
         } catch (settleErr) {
             console.error("[TRIPAY_CALLBACK] Catat lunas GAGAL — TIDAK ditandai paid", { merchantRef, error: settleErr.message });
@@ -396,6 +399,7 @@ router.post("/callback/mayar", asyncHandler(async (req, res) => {
             settleResult = await billSettlement.settleTagihanPayment({
                 user, amountPaid: pay.amount, periodMonth: pay.periodMonth, periodYear: pay.periodYear,
                 paymentMethod: "Mayar", reffId: pay.reffId,
+                markPaid: () => updateStatusPayment(pay.reffId, true), // lihat catatan Tripay di atas
             });
         } catch (settleErr) {
             console.error("[MAYAR_CALLBACK] Catat lunas GAGAL — TIDAK ditandai paid", { reffId: pay.reffId, error: settleErr.message });

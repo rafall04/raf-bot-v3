@@ -1390,6 +1390,8 @@ router.post('/callback/payment', async (req, res) => {
                         periodYear: pay.periodYear,
                         paymentMethod: pay.method || 'QRIS',
                         reffId: reference_id,
+                        // Tandai lunas SEBELUM reaktivasi lambat (konsisten dgn Tripay/Mayar; anti retry salah-vonis).
+                        markPaid: () => updateStatusPayment(reference_id, true),
                     });
                 } catch (settleErr) {
                     console.error('[IPAYMU_TAGIHAN] Catat lunas GAGAL — payment TIDAK ditandai paid', { reference_id, error: settleErr.message });
