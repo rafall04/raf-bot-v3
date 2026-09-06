@@ -2633,3 +2633,12 @@
 - **Admin purchase-voucher: orphan cuma console.error:** `lib/voucher-manager.js` `purchaseVoucherWithSaldo` saat deduct gagal (voucher terlanjur dibuat) kini `recordVoucherOrphan()` (worklist database/voucher_orphans.json) — bukan cuma log yang tak dilihat. Sejalan jalur WA pelanggan (payment-flow) & callback.
 - **Agent reseller rollback parsial buang voucher:** `lib/agent-voucher-manager.js` saat gagal parsial (validCodes < qty), voucher yang TERLANJUR dibuat di MikroTik kini dicatat `recordVoucherOrphan` (reason `agent_partial_rollback`) — dulu dibuang senyap → hotspot user aktif tak terlacak menumpuk.
 - **Tes:** voucher-reconcile +1 (parse-gagal tak dipangkas), voucher-manager-purchase +orphan-recording; 9 hijau suite terkait; lint 0.
+
+<a id="b326"></a>
+
+### Fix 2026-09-06 (Rank #12 — payroll komisi hilang saat race, cancel biaya rutin dobel, authz akun)
+
+- **Payroll finalize konkuren jatuhkan komisi marketing:** `lib/technician-finance-service.js` `finalizePayroll` KLAIM `status='finalized' WHERE status='draft'` ATOMIK (changes===1) sebelum settle. Dulu cek-status hanya menangkap double-run sekuensial; dua finalize yang sama-sama baca 'draft' lolos → kaki marketing run kedua baca 0 (row sudah 'settled') lalu menimpa `komisi_marketing=0` → komisi teknisi hilang permanen ('paid' tak bisa di-unfinalize).
+- **Cancel biaya rutin periode LAMA buka periode berjalan:** `lib/expense-manager.js` `cancelExpense` reset penanda recurring hanya `WHERE id=? AND last_settled_period=?` (periode expense yg dibatalkan). Dulu reset TANPA syarat → batalkan expense bulan lama mengosongkan penanda bulan SEKARANG → reminder ulang + konfirmasi bikin entri KEDUA (biaya rutin dobel-catat, laba turun palsu).
+- **Authz akun:** `routes/accounts.js` `adminOnly` kini admin/owner/superadmin (dulu `==='admin'` persis → owner/superadmin 403 kelola akun); create dibungkus `withLock('create-account')` + tolak id kembar (dulu maxId+1 lintas `await bcrypt` → id KEMBAR → akun ter-shadow di auth by-id); UPDATE role +guard demote admin-TERAKHIR (mirror DELETE, cegah kunci total panel).
+- **Tes:** payroll-double-finalize +1 (dua finalize KONKUREN → 1 sukses), accounts-hardening guard baru; 165 hijau lintas payroll/expense/accounts; lint 0.

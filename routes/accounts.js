@@ -2,13 +2,17 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const { saveAccounts, loadJSON, saveJSON: _saveJSON } = require('../lib/database');
+const { withLock } = require('../lib/request-lock');
 
-// Middleware untuk memastikan hanya admin yang bisa akses
+// #b326: samakan dengan gerbang admin sistem (ensureAdmin/PERAN_ADMIN) = admin/owner/superadmin.
+// Dulu `=== 'admin'` persis → owner/superadmin bisa BUKA halaman akun tapi SEMUA API-nya 403
+// (kelola akun tak berfungsi untuk peran yang didukung). fail-CLOSED, tapi mematahkan fitur inti.
+const ADMIN_ROLES = ['admin', 'owner', 'superadmin'];
 const adminOnly = (req, res, next) => {
-    if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ 
-            success: false, 
-            message: 'Akses ditolak. Hanya admin yang dapat mengakses fitur ini.' 
+    if (!req.user || !ADMIN_ROLES.includes(req.user.role)) {
+        return res.status(403).json({
+            success: false,
+            message: 'Akses ditolak. Hanya admin/owner yang dapat mengakses fitur ini.'
         });
     }
     next();
@@ -57,15 +61,6 @@ router.post('/accounts', adminOnly, async (req, res) => {
             });
         }
         
-        // Check if username already exists
-        const exists = global.accounts.some(acc => acc.username === username);
-        if (exists) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Username sudah digunakan!' 
-            });
-        }
-        
         // Validate role
         if (!['admin', 'teknisi', 'agen'].includes(role)) {
             return res.status(400).json({
@@ -73,46 +68,43 @@ router.post('/accounts', adminOnly, async (req, res) => {
                 message: 'Role harus admin, teknisi, atau agen!'
             });
         }
-        
-        // Generate new ID (find max ID and add 1)
-        const maxId = global.accounts.reduce((max, acc) => {
-            const id = parseInt(acc.id) || 0;
-            return id > max ? id : max;
-        }, 0);
-        
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-        
-        // Create new account
-        const newAccount = {
-            id: maxId + 1,
-            username: username.trim(),
-            password: hashedPassword,
-            name: name || username.trim(), // Use username as default if name not provided
-            phone_number: phone_number || '',
-            role: role
-        };
-        
-        // Add to global accounts
-        global.accounts.push(newAccount);
-        
-        // Save to file
-        saveAccounts();
-        
-        console.log(`[POST /api/accounts] New account created: ${username} (${role})`);
-        
-        res.status(201).json({ 
-            success: true, 
-            status: 201,
-            message: 'Akun berhasil ditambahkan!',
-            data: {
-                id: newAccount.id,
-                username: newAccount.username,
-                phone_number: newAccount.phone_number,
-                role: newAccount.role
+
+        // #b326: SERIALISASI create — id dihitung `maxId+1` lalu ada `await bcrypt.hash` (yield event-
+        // loop) sebelum push. Dua create bersamaan bisa membaca maxId sama → mint id KEMBAR; auth
+        // resolve akun by-id find-first (http-auth-bootstrap) → akun ke-2 ter-SHADOW permanen (login
+        // jadi akun yang salah). Lock + tolak bila id sudah ada = anti-kembar.
+        return await withLock('create-account', async () => {
+            if (global.accounts.some(acc => acc.username === username)) {
+                return res.status(400).json({ success: false, message: 'Username sudah digunakan!' });
             }
+            const maxId = global.accounts.reduce((max, acc) => {
+                const id = parseInt(acc.id) || 0;
+                return id > max ? id : max;
+            }, 0);
+            const newId = maxId + 1;
+            if (global.accounts.some(acc => parseInt(acc.id) === newId)) {
+                return res.status(409).json({ success: false, message: 'Konflik ID akun sesaat — coba lagi.' });
+            }
+            const hashedPassword = await bcrypt.hash(password, 10);
+            const newAccount = {
+                id: newId,
+                username: username.trim(),
+                password: hashedPassword,
+                name: name || username.trim(),
+                phone_number: phone_number || '',
+                role: role
+            };
+            global.accounts.push(newAccount);
+            saveAccounts();
+            console.log(`[POST /api/accounts] New account created: ${username} (${role})`);
+            return res.status(201).json({
+                success: true,
+                status: 201,
+                message: 'Akun berhasil ditambahkan!',
+                data: { id: newAccount.id, username: newAccount.username, phone_number: newAccount.phone_number, role: newAccount.role }
+            });
         });
-        
+
     } catch (error) {
         console.error('[POST /api/accounts] Error:', error);
         res.status(500).json({ 
@@ -164,7 +156,17 @@ router.post('/accounts/:id', adminOnly, async (req, res) => {
                 message: 'Role harus admin, teknisi, atau agen!'
             });
         }
-        
+
+        // #b326: cegah menurunkan (demote) admin TERAKHIR lewat ubah role — DELETE sudah dijaga, UPDATE
+        // dulu tidak: demote satu-satunya admin ke teknisi mengunci SELURUH panel admin (semua gerbang
+        // 403), recovery hanya via scripts/create-admin.js. Mirror guard admin-terakhir di DELETE.
+        if (role && role !== 'admin' && account.role === 'admin') {
+            const adminCount = global.accounts.filter(acc => acc.role === 'admin').length;
+            if (adminCount <= 1) {
+                return res.status(400).json({ success: false, message: 'Tidak dapat menurunkan role admin terakhir!' });
+            }
+        }
+
         // Update fields
         if (username) global.accounts[accountIndex].username = username.trim();
         if (name !== undefined) global.accounts[accountIndex].name = name.trim();
