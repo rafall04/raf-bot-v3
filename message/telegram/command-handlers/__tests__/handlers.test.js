@@ -199,6 +199,42 @@ describe("/redaman (dua arah)", () => {
     });
 });
 
+// #b340 — /olt & /redaman WAJIB oper sesi PPPoE live (sumber MAC utama), sama seperti /cek.
+// Dulu keduanya kirim pppoeActive:[] → jalur MAC mati → pelanggan EPON "tak terpetakan".
+describe("#b340 — /olt & /redaman oper sesi PPPoE live ke resolveByCustomer", () => {
+    function spyDeps(overrides = {}) {
+        const calls = [];
+        const deps = baseDeps({
+            resolveByCustomer: (_user, opts) => { calls.push(opts); return { identifiable: true, status: "Online", rxPower: "-22.50", oltName: "OLT-ZTE" }; },
+            ...overrides,
+        });
+        return { deps, calls };
+    }
+
+    test("/olt meneruskan sesi PPPoE aktif (bukan [])", async () => {
+        const { deps, calls } = spyDeps();
+        await buildCommandMap(deps)["/olt"](makeCtx("budi@isp").ctx);
+        const last = calls[calls.length - 1];
+        expect(Array.isArray(last.pppoeActive)).toBe(true);
+        expect(last.pppoeActive.length).toBeGreaterThan(0);
+        expect(last.pppoeActive[0].caller_id).toBe("AA:BB:CC:DD:EE:01");
+    });
+
+    test("/redaman meneruskan sesi PPPoE aktif (bukan [])", async () => {
+        const { deps, calls } = spyDeps();
+        await buildCommandMap(deps)["/redaman"](makeCtx("budi@isp").ctx);
+        const last = calls[calls.length - 1];
+        expect(last.pppoeActive.length).toBeGreaterThan(0);
+        expect(last.pppoeActive[0].caller_id).toBe("AA:BB:CC:DD:EE:01");
+    });
+
+    test("/olt: MikroTik gagal ({ok:false}) → pppoeActive [] (fallback aman, tak melempar)", async () => {
+        const { deps, calls } = spyDeps({ getActivePPPoEUsers: async () => ({ ok: false, data: null }) });
+        await buildCommandMap(deps)["/olt"](makeCtx("budi@isp").ctx);
+        expect(calls[calls.length - 1].pppoeActive).toEqual([]);
+    });
+});
+
 describe("/help", () => {
     test("daftar perintah", async () => {
         const map = buildCommandMap(baseDeps());

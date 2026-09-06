@@ -10,7 +10,7 @@
  */
 "use strict";
 
-const { resolveCustomerOrReply, displayName, firstPart, customerActionsKeyboard } = require("./resolve-helper");
+const { resolveCustomerOrReply, displayName, firstPart, customerActionsKeyboard, getActivePppoeList } = require("./resolve-helper");
 const { code, escapeHtml } = require("../../../lib/telegram/telegram-format");
 const { fmtOltLines } = require("./olt-format");
 
@@ -34,7 +34,10 @@ function createOltCommand(deps) {
             return;
         }
 
-        const r = resolveByCustomer(user, { oltSnapshot: snapshot, pppoeActive: [] });
+        // Sesi PPPoE aktif = SUMBER MAC UTAMA untuk resolveByCustomer (sama seperti /cek). Dulu []
+        // → jalur MAC mati → pelanggan EPON yang cuma teridentifikasi via MAC "tak terpetakan".
+        const pppoeActive = await getActivePppoeList(deps, "telegram.olt");
+        const r = resolveByCustomer(user, { oltSnapshot: snapshot, pppoeActive });
         const head = `🛰️ <b>STATUS OLT — ${escapeHtml(nama)}</b>\nPPPoE: ${code(pppoe || "-")}`;
         await ctx.reply([head, ...fmtOltLines(r)].join("\n"), { replyMarkup: customerActionsKeyboard(user) });
     };

@@ -112,6 +112,30 @@ async function resolveCustomerOrReply(ctx, deps, opts = {}) {
     return null;
 }
 
+function unwrapPppoeList(res) {
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.data)) return res.data;
+    if (res && res.data && Array.isArray(res.data.data)) return res.data.data;
+    return [];
+}
+
+/**
+ * Daftar sesi PPPoE aktif (best-effort) untuk resolveByCustomer. Ini SUMBER MAC UTAMA (caller_id
+ * sesi live) — jauh lebih akurat dari cache file, dan WAJIB dioper agar /olt & /redaman memetakan
+ * ONU sama benarnya dengan /cek (semua OLT Hioso/EPON: MAC-prefix satu-satunya jalur match untuk
+ * pelanggan tanpa deskripsi/serial). MikroTik gagal/tak terjangkau → [] (resolver fallback ke cache).
+ */
+async function getActivePppoeList(deps, caller) {
+    try {
+        if (!deps || typeof deps.getActivePPPoEUsers !== "function") return [];
+        const res = await deps.getActivePPPoEUsers({ caller });
+        if (res && res.ok === false) return [];
+        return unwrapPppoeList(res);
+    } catch (_e) {
+        return [];
+    }
+}
+
 module.exports = {
     resolveCustomerOrReply,
     customerActionsKeyboard,
@@ -119,4 +143,5 @@ module.exports = {
     fmtCandidates,
     displayName,
     firstPart,
+    getActivePppoeList,
 };

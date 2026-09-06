@@ -12,7 +12,7 @@
  */
 "use strict";
 
-const { resolveCustomerOrReply, displayName, firstPart, customerActionsKeyboard } = require("./resolve-helper");
+const { resolveCustomerOrReply, displayName, firstPart, customerActionsKeyboard, getActivePppoeList } = require("./resolve-helper");
 const { b, code, escapeHtml, rxVerdict } = require("../../../lib/telegram/telegram-format");
 const { fmtOltLines } = require("./olt-format");
 
@@ -51,10 +51,13 @@ function createRedamanCommand(deps) {
 
         await ctx.reply(`⏳ Cek redaman ${b(nama)} (refresh modem + OLT, mohon tunggu)…`);
 
-        // Sisi modem (force-refresh) & sisi OLT (snapshot ber-cache) paralel & best-effort.
-        const [modemR, snapR] = await Promise.allSettled([
+        // Sisi modem (force-refresh) + sisi OLT (snapshot) + sesi PPPoE aktif — paralel & best-effort.
+        // pppoeActive = SUMBER MAC UTAMA untuk resolveByCustomer (sama seperti /cek). Dulu []
+        // → jalur MAC mati → pelanggan EPON yang cuma teridentifikasi via MAC "tak terpetakan".
+        const [modemR, snapR, pppoeR] = await Promise.allSettled([
             user.device_id ? getCustomerRedaman(user.device_id) : Promise.resolve(null),
             getOltSnapshot(),
+            getActivePppoeList(deps, "telegram.redaman"),
         ]);
 
         // ---- Sisi modem ----
@@ -76,9 +79,10 @@ function createRedamanCommand(deps) {
 
         // ---- Sisi OLT ----
         const snapshot = snapR.status === "fulfilled" ? snapR.value : null;
+        const pppoeActive = pppoeR.status === "fulfilled" ? pppoeR.value : [];
         let optical = null;
         try {
-            optical = resolveByCustomer(user, { oltSnapshot: snapshot, pppoeActive: [] });
+            optical = resolveByCustomer(user, { oltSnapshot: snapshot, pppoeActive });
         } catch (__e) {
             optical = null;
         }

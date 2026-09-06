@@ -2756,3 +2756,11 @@
 - **ID device OLT duplikat → operasi ke OLT SALAH:** `routes/olt.js` POST /api/olt/devices dulu `const newId = \`olt${devices.length + 1}\`` (dari PANJANG array), sedangkan DELETE `splice(deviceIndex,1)` TANPA renumber. Hapus device tengah → array menyusut → id berikutnya BENTROK dengan device tersisa (mis. [olt1,olt3] → tambah → olt3 dobel). Semua lookup by-id (getOltDevice, saveDeviceAcs olt-provisioning.js:913, PUT/DELETE/test) pakai `.find()/.findIndex()` first-match → kredensial ACS/SSH/backup/SNMP/provisioning diterapkan ke OLT FISIK yang salah (sebagian OLT milik teman/VANS), senyap tanpa validasi keunikan.
 - **Fix:** helper murni `nextOltDeviceId(devices)` — ambil suffix numerik TERTINGGI dari id `olt<N>` yang ADA + 1, lalu loop naik sampai benar-benar unik (abaikan id non-standar). Diekspos di `router.nextOltDeviceId` untuk uji. DELETE dibiarkan (renumber id lama malah memutus referensi).
 - **Tes:** olt-device-id-unique baru (6) — hapus-tengah tak bentrok, gap tak dipakai ulang, anti-tabrak; hijau; lint 0.
+
+<a id="b340"></a>
+
+### Fix 2026-09-07 (RONDE 3 P2 — Telegram /olt & /redaman buta MAC (buang sesi PPPoE live))
+
+- **/olt & /redaman "tak terpetakan" padahal /cek berhasil:** `resolveByCustomer` mengidentifikasi ONU via deskripsi(PPPoE)→serial→MAC-prefix. Jalur MAC memakai caller_id sesi PPPoE AKTIF sebagai sumber MAC UTAMA (source:'active', olt-optical-resolver.js:318-329), baru fallback cache file. `/cek` meneruskan `pppoeActive: activeList` (sesi live), tapi `/olt` (olt-command.js:37) & `/redaman` (redaman-command.js:81) meneruskan `pppoeActive: []` → matikan sumber MAC utama. Pelanggan EPON (SEMUA OLT Hioso!) yang cuma teridentifikasi via MAC & belum ter-cache → "❔ Tidak dapat dipetakan ke ONU", padahal /cek benar. Ganti modem: cache MAC LAMA → bisa mis-atribusi status LOS/DG modem lama.
+- **Fix:** helper bersama `getActivePppoeList(deps, caller)` di resolve-helper.js (best-effort; MikroTik gagal → [] fallback cache). `/olt` & `/redaman` kini ambil sesi live (redaman via Promise.allSettled paralel) & oper ke resolveByCustomer — sama benarnya dengan /cek.
+- **Tes:** handlers +3 (/olt & /redaman oper pppoeActive live, MikroTik gagal → [] aman); 21 hijau; lint 0.
