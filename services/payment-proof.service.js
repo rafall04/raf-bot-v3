@@ -427,7 +427,9 @@ function createPaymentProofService(overrides = {}) {
                 .catch((err) => logError("[PAYMENT_PROOF] Struk pelanggan gagal:", err));
         }
 
-        return { ok: true, record: updated, settlement, alreadyPaid: ledgerAction !== "paid" };
+        // `user` disertakan supaya pemanggil (mis. route web konfirmasi-bayar) bisa mengalarmi
+        // admin dgn pppoe_username saat reaktivasi gagal — record bukti tak menyimpan pppoe.
+        return { ok: true, record: updated, settlement, user, alreadyPaid: ledgerAction !== "paid" };
     }
 
     /**

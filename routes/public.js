@@ -50,6 +50,7 @@ const { sendMessage, sendMessageToMany } = require('../lib/whatsapp-delivery-ser
 // Pengiriman kritis (kode voucher) + alert admin valid + catatan orphan (paid-tanpa-voucher).
 const { sendCritical } = require('../lib/whatsapp-critical-delivery');
 const { getAdminJids } = require('../lib/admin-recipients');
+const { reactivationNeedsAttention } = require('../lib/services/reactivation-outcome');
 const { recordVoucherOrphan } = require('../lib/voucher-orphan');
 const { pay: ipaymuPay } = require('../lib/ipaymu');
 const { createCustomerVoucherService } = require('../services/customer-voucher.service');
@@ -1414,8 +1415,11 @@ router.post('/callback/payment', async (req, res) => {
                     console.error('[IPAYMU_TAGIHAN] Gagal kirim struk:', notifyErr.message);
                 }
 
-                // Alert admin bila reaktivasi DIBUTUHKAN tapi GAGAL (pelanggan bayar tapi masih terisolir).
-                if (react.attempted && !react.ok) {
+                // Alert admin bila reaktivasi PERLU dicek (gagal ubah profil ATAU router tak terbaca =
+                // profile_read_failed → pelanggan bayar tapi bisa MASIH terisolir). Predikat bersama
+                // dgn WA/web/Tripay/Mayar. Dulu hanya `attempted && !ok`, jadi blip MikroTik (kasus
+                // paling mungkin) lolos tanpa alarm.
+                if (reactivationNeedsAttention(react)) {
                     await alertAdmins(renderTemplate('tagihan_reaktivasi_gagal_admin', {
                         nama_pelanggan: user.name,
                         pppoe: user.pppoe_username || '-',

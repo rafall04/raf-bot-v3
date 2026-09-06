@@ -227,28 +227,10 @@ function buildPendingListBody(items) {
     ].join("\n")).join("\n\n");
 }
 
-function describeReactivation(reactivation) {
-    if (!reactivation) return "";
-    if (reactivation.attempted) {
-        return reactivation.ok
-            ? "\n🔌 Pelanggan terisolir → sudah diaktifkan kembali."
-            : "\n⚠️ Reaktivasi MikroTik GAGAL — cek profil PPPoE-nya manual ya.";
-    }
-    // Tak dicoba: mayoritas benign (pelanggan MEMANG tidak terisolir → tak ada yang perlu dibuka).
-    // TAPI kalau profil live tak terbaca (router tak terjangkau), kita BUTA: pelanggan yang barusan
-    // bayar bisa MASIH terisolir tanpa ada yang tahu. Jangan diam — suarakan agar admin cek manual.
-    if (reactivation.reason === "profile_read_failed") {
-        return "\n⚠️ Router tak terbaca saat cek isolir — pastikan manual pelanggan sudah bisa online (mungkin masih terisolir).";
-    }
-    return "";
-}
-
-/** True bila reaktivasi bukti INI perlu dicek manual admin (gagal ubah profil / router tak terbaca). */
-function reactivationNeedsAttention(reactivation) {
-    if (!reactivation) return false;
-    if (reactivation.attempted) return reactivation.ok === false;
-    return reactivation.reason === "profile_read_failed";
-}
+// `describeReactivation` / `reactivationNeedsAttention` diangkat ke lib/services/reactivation-outcome
+// supaya SEMUA permukaan settlement (WA ini, web konfirmasi-bayar, callback iPaymu/Tripay/Mayar)
+// memakai logika "perlu dicek admin" yang SAMA PERSIS. Nama lokal dipertahankan agar pemakai di bawah tak berubah.
+const { describeReactivation, reactivationNeedsAttention } = require("../../lib/services/reactivation-outcome");
 
 function getService(ctx) {
     return ctx.service || require("../../services/payment-proof.service").getPaymentProofService();

@@ -18,6 +18,7 @@ const path = require("path");
 const { asyncHandler } = require("../lib/error-handler");
 const { ensureAdmin } = require("./api-route-helpers");
 const { getPaymentProofService } = require("../services/payment-proof.service");
+const { reactivationNeedsAttention, alertReaktivasiGagal } = require("../lib/services/reactivation-outcome");
 
 function toClientRecord(r) {
     return {
@@ -97,12 +98,31 @@ function registerAdminKonfirmasiBayarRoutes(router, deps = {}) {
             const code = statusCodeForReason(result.reason);
             return res.status(code).json({ status: code, message: messageForReason(result) });
         }
+
+        // Reaktivasi best-effort: bila GAGAL / router tak terbaca, pelanggan MASIH terisolir walau
+        // lunas tercatat. Dulu route ini SELALU balas "Pelanggan diaktifkan" & tak melihat
+        // result.settlement.reactivation, jadi admin web tak punya sinyal (jalur WA sudah surface).
+        // Kini: pesan diubah jadi peringatan + kirim alarm WA yang SAMA dgn callback iPaymu/Tripay/Mayar.
+        const reactivation = result.settlement && result.settlement.reactivation;
+        const perluCekReaktivasi = reactivationNeedsAttention(reactivation);
+        if (perluCekReaktivasi) {
+            const u = result.user || {};
+            const user = {
+                name: u.name || (result.record && result.record.userName) || "-",
+                pppoe_username: u.pppoe_username || null,
+            };
+            // best-effort, never-throw — jangan gagalkan konfirmasi karena alarm gagal.
+            alertReaktivasiGagal({ user, refId: req.params.id }).catch(() => {});
+        }
+
         res.status(200).json({
             status: 200,
             message: result.alreadyPaid
                 ? "Periode ini sudah tercatat lunas; bukti ditandai terkonfirmasi."
-                : "Pembayaran dikonfirmasi. Pelanggan diaktifkan (bila terisolir) & diberi struk.",
-            data: { id: req.params.id }
+                : (perluCekReaktivasi
+                    ? "Lunas TERCATAT, TAPI reaktivasi MikroTik gagal / router tak terbaca — cek profil PPPoE pelanggan MANUAL (mungkin masih terisolir). Admin sudah dialarmi."
+                    : "Pembayaran dikonfirmasi. Pelanggan diaktifkan (bila terisolir) & diberi struk."),
+            data: { id: req.params.id, reactivationNeedsAttention: perluCekReaktivasi }
         });
     }));
 

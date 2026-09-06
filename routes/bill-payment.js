@@ -37,6 +37,7 @@ const { acquireLock, releaseLock } = require("../lib/request-lock");
 const UMUR_PENDING_BOLEH_PAKAI_ULANG_MS = 45 * 60 * 1000;
 const { createBillPaymentSettlement } = require("../lib/services/bill-payment-settlement");
 const { putuskanTindakanPascaLunas } = require("../lib/services/bill-payment-aftercare");
+const { reactivationNeedsAttention, alertReaktivasiGagal } = require("../lib/services/reactivation-outcome");
 // Nominal yang di-charge WAJIB memakai harga efektif (subscription_price per-pelanggan + diskon
 // aktif) — sumber yang sama dengan ledger. Memakai `packages.json.price` mentah di sini bukan
 // sekadar teks salah: itu jumlah uang yang benar-benar ditarik dari pelanggan.
@@ -306,6 +307,13 @@ router.post("/callback/tripay", asyncHandler(async (req, res) => {
         const react = settleResult.reactivation || {};
         updateKetPayment(merchantRef, `Tagihan lunas (Tripay)${react.attempted ? (react.ok ? " + reaktivasi OK" : " + reaktivasi GAGAL") : ""}`);
 
+        // Alarm admin bila pelanggan bayar tapi bisa MASIH terisolir (reaktivasi gagal / router tak
+        // terbaca). Dulu Tripay CUMA menulis catatan yang tak dibaca siapa pun — beda dgn iPaymu yang
+        // alarm. Sekarang ketiga gateway pakai jalur alarm yang SAMA. Best-effort, never-throw.
+        if (reactivationNeedsAttention(react)) {
+            alertReaktivasiGagal({ user, refId: merchantRef }).catch(() => {});
+        }
+
         // Pesan pelanggan ditentukan oleh VERDICT ledger, bukan asumsi bahwa pelunasan pasti
         // tercatat. Bila periodenya ternyata sudah lunas, aftercare mencatat baris kelebihan
         // bayar + mengalarmi admin, dan pelanggan menerima pesan jujur — bukan struk lunas.
@@ -397,6 +405,11 @@ router.post("/callback/mayar", asyncHandler(async (req, res) => {
         updateStatusPayment(pay.reffId, true);
         const react = settleResult.reactivation || {};
         updateKetPayment(pay.reffId, `Tagihan lunas (Mayar)${react.attempted ? (react.ok ? " + reaktivasi OK" : " + reaktivasi GAGAL") : ""}`);
+
+        // Sama seperti Tripay/iPaymu: alarm admin bila reaktivasi perlu dicek (best-effort, never-throw).
+        if (reactivationNeedsAttention(react)) {
+            alertReaktivasiGagal({ user, refId: pay.reffId }).catch(() => {});
+        }
 
         // Sama seperti callback Tripay: pesan ditentukan verdict ledger (lihat aftercare).
         try {

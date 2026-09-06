@@ -437,6 +437,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-06 (RONDE 2 Rank #3 P1/P2 invoice — invoice-generator saveInvoice baca json-store+tulis atomik (anti hilang-riwayat), generateInvoiceNumber seed dari disk+WIB (nomor unik lintas-restart), pdf-invoice-generator escapeHtml semua field data (tutup XSS tersimpan /api/view-invoice))](docs/boundary-log.md#b330)
 - [Fix 2026-09-06 (RONDE 2 Rank #4 P1/P2 reboot-followup — getPppoeSession bedakan {ok:false}=BUTA vs sesi mati (null bukan false, hormati inform-ACS), tickOnce guard `ticking` anti-tumpang-tindih (pesan/eskalasi tak dobel))](docs/boundary-log.md#b331)
 - [Fix 2026-09-06 (RONDE 2 Rank #5 P1/P2/P3 cek-koneksi — verdictBySepakat all-UNKNOWN→UNKNOWN bukan NORMAL, app-aware badEverywhere→conncheck_app_global_outage + Kelas 2 gate isPathWideIssue (anti balasan membantah), predikat pindah ke lib/upstream-path-health.js, alerter serviceSlice IH anotasi bukan "0 pelanggan")](docs/boundary-log.md#b332)
+- [Fix 2026-09-06 (RONDE 2 Rank #6 P2 reaktivasi gagal — lib/services/reactivation-outcome.js sumber tunggal (reactivationNeedsAttention/describeReactivation/alertReaktivasiGagal); iPaymu+Tripay+Mayar+web konfirmasi-bayar seragam alarm admin saat pelanggan bayar tapi masih terisolir; WA handler buang salinan lokal)](docs/boundary-log.md#b333)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
