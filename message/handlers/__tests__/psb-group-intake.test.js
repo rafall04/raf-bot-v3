@@ -62,6 +62,22 @@ describe("handlePsbGroupIntake", () => {
         expect(deps.clearProcessing).toHaveBeenCalled();
     });
 
+    test("#b327 welcome terkirim → balas jujur 'sudah dikirim'", async () => {
+        const deps = baseDeps({ usersService: { upsertUserFromAdminPanel: jest.fn(async () => ({ status: 201, body: { data: { id: 77 }, welcome: { dispatched: true } } })) } });
+        await handlePsbGroupIntake(deps);
+        const replyText = deps.reply.mock.calls[0][0];
+        expect(replyText).toMatch(/sudah dikirim ke pelanggan/i);
+        expect(replyText).not.toMatch(/BELUM/i);
+    });
+
+    test("#b327 welcome GAGAL (WA putus) → peringatan JUJUR, bukan sukses-semu 'Welcome dikirim'", async () => {
+        const deps = baseDeps({ usersService: { upsertUserFromAdminPanel: jest.fn(async () => ({ status: 201, body: { data: { id: 77 }, welcome: { dispatched: false, reason: "whatsapp_tidak_tersambung" } } })) } });
+        await handlePsbGroupIntake(deps);
+        const replyText = deps.reply.mock.calls[0][0];
+        expect(replyText).toMatch(/BELUM/);
+        expect(replyText).toMatch(/tidak tersambung ke WhatsApp/i);
+    });
+
     test("freeInstallMonth ON (deps) → PSB grup baru bebas tagihan bulan pemasangan", async () => {
         const deps = baseDeps({ freeInstallMonth: true });
         await handlePsbGroupIntake(deps);

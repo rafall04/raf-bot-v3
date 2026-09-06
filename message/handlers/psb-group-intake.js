@@ -153,13 +153,34 @@ async function handlePsbGroupIntake(deps) {
 
         // 8. Balas grup: kredensial PPPoE (teknisi setel modem) + status.
         const syncMsg = (result.body && result.body.sync_message) || "";
+        // #b327: JANGAN klaim "Welcome dikirim" tanpa cek. create-user-persist melaporkan body.welcome
+        // (dispatched/reason); bila WA putus / template hilang / HP kosong, welcome TIDAK terkirim dan
+        // teknisi harus tahu agar menyusulkan kredensial (anti sukses-semu, sama seperti wizard DM #b98).
+        const ALASAN_WELCOME = {
+            welcome_dimatikan: "fitur pesan selamat datang sedang dimatikan",
+            nomor_pelanggan_kosong: "nomor HP pelanggan kosong",
+            ditahan_push_modem_gagal: "ditahan karena setelan modem gagal",
+            kredensial_portal_belum_ada: "kredensial portal pelanggan belum terbentuk",
+            whatsapp_tidak_tersambung: "bot sedang tidak tersambung ke WhatsApp"
+        };
+        const wc = result.body && result.body.welcome;
+        let welcomeLine;
+        if (!wc) {
+            welcomeLine = "Setel modem pakai PPPoE di atas."; // service lama tanpa jejak welcome → tak klaim
+        } else if (wc.dispatched) {
+            welcomeLine = "Welcome (kredensial WiFi/portal) sudah dikirim ke pelanggan. Setel modem pakai PPPoE di atas.";
+        } else {
+            const alasan = ALASAN_WELCOME[wc.reason]
+                || (String(wc.reason || "").startsWith("template_tak_ada") ? "template pesannya belum ada" : "sebab tak diketahui");
+            welcomeLine = `⚠️ Welcome *BELUM* sampai ke pelanggan (${alasan}) — sampaikan kredensial WiFi/portal langsung, atau kirim ulang dari panel. Setel modem pakai PPPoE di atas.`;
+        }
         const lines = [
             `✅ PSB berhasil: *${d.nama}* (${d.hp})`,
             `Paket: ${d.paket}`,
             `PPPoE: \`${pppoeUser}\` / \`${pppoePass}\``,
             `WiFi: ${d.wifi_ssid} / ${d.wifi_password}`,
             ktpSaved ? "KTP tersimpan ✔" : "⚠ KTP gagal disimpan",
-            "Welcome dikirim ke pelanggan. Setel modem pakai PPPoE di atas."
+            welcomeLine
         ];
         if (syncMsg) lines.push(`(${syncMsg})`);
         await safeReply(reply, lines.join("\n"), logger);

@@ -110,10 +110,18 @@ async function prepareNewUser(deps, { userData }) {
 
     let bulkData = userData.bulk;
     if (!bulkData || !Array.isArray(bulkData) || bulkData.length === 0) {
-        const defaultSSID = (deps.getConfig() && deps.getConfig().defaultBulkSSID)
-            ? String(deps.getConfig().defaultBulkSSID)
-            : "1";
-        bulkData = [defaultSSID];
+        // #b327: sebelum jatuh ke default SSID tunggal, pakai `ssid_indices` (kapabilitas band yang
+        // terdeteksi) bila ada. Modem DUAL-BAND yang firstRead-nya SUKSES dikirim ssid_indices=["1","5"]
+        // tapi TANPA `bulk` → dulu default ["1"] → ganti nama/sandi WiFi cuma menyentuh 2.4GHz; 5GHz
+        // warisi WiFi pemilik lama (kasus modem bekas). Sejalankan bulk dgn band yang benar-benar di-push.
+        if (Array.isArray(userData.ssid_indices) && userData.ssid_indices.length > 0) {
+            bulkData = userData.ssid_indices.map(String);
+        } else {
+            const defaultSSID = (deps.getConfig() && deps.getConfig().defaultBulkSSID)
+                ? String(deps.getConfig().defaultBulkSSID)
+                : "1";
+            bulkData = [defaultSSID];
+        }
     }
 
     const newUser = {

@@ -2642,3 +2642,12 @@
 - **Cancel biaya rutin periode LAMA buka periode berjalan:** `lib/expense-manager.js` `cancelExpense` reset penanda recurring hanya `WHERE id=? AND last_settled_period=?` (periode expense yg dibatalkan). Dulu reset TANPA syarat → batalkan expense bulan lama mengosongkan penanda bulan SEKARANG → reminder ulang + konfirmasi bikin entri KEDUA (biaya rutin dobel-catat, laba turun palsu).
 - **Authz akun:** `routes/accounts.js` `adminOnly` kini admin/owner/superadmin (dulu `==='admin'` persis → owner/superadmin 403 kelola akun); create dibungkus `withLock('create-account')` + tolak id kembar (dulu maxId+1 lintas `await bcrypt` → id KEMBAR → akun ter-shadow di auth by-id); UPDATE role +guard demote admin-TERAKHIR (mirror DELETE, cegah kunci total panel).
 - **Tes:** payroll-double-finalize +1 (dua finalize KONKUREN → 1 sukses), accounts-hardening guard baru; 165 hijau lintas payroll/expense/accounts; lint 0.
+
+<a id="b327"></a>
+
+### Fix 2026-09-06 (Rank #10 PSB + integritas — bulk dual-band, welcome grup sukses-semu, ID pelanggan reuse)
+
+- **Modem dual-band tersimpan bulk=["1"]:** `services/api-users/create-user-validate.js` — `bulk` kini fallback ke `ssid_indices` (kapabilitas band terdeteksi) sebelum default SSID tunggal. Modem dual-band firstRead-SUKSES (bekas, umum) dikirim ssid_indices=["1","5"] tanpa bulk → dulu default ["1"] → ganti WiFi cuma sentuh 2.4GHz, 5GHz warisi WiFi pemilik lama. Fix satu-titik menutup SEMUA jalur create.
+- **PSB grup klaim "Welcome dikirim" palsu:** `message/handlers/psb-group-intake.js` kini baca `result.body.welcome` (dispatched/reason) & balas jujur — bila WA putus / template hilang / HP kosong, peringatkan teknisi menyusulkan kredensial (anti sukses-semu, sama seperti wizard DM).
+- **ID pelanggan dipakai ulang warisi ledger lama:** `lib/psb-database.js` `getNextAvailableUserId` kini MAX+1 lintas union users + memori + jejak FINANSIAL (payment_history/reversals/waivers via sqlite_master allowlist) — bukan isi-gap. deleteUserById tak bersihkan tabel finansial, jadi id yang di-reuse dulu mewarisi status lunas/tunggakan pelanggan lama (ISP berhenti menagih / invoice bocor). Kini id tak pernah menunjuk dua identitas.
+- **Tes:** psb-database-id-reuse baru (MAX+1 lindungi id ber-jejak), create-user-bulk-band guard, psb-group-intake +2 (welcome jujur/palsu); 13 hijau + 239 suite PSB; lint 0.
