@@ -19,7 +19,10 @@ const source = fs.readFileSync(path.join(__dirname, "..", "bill-payment.js"), "u
 const authSource = fs.readFileSync(path.join(__dirname, "..", "..", "lib", "http-auth-bootstrap.js"), "utf8");
 
 const cbIdx = source.indexOf('router.post("/callback/tripay"');
-const cbBlock = cbIdx > -1 ? source.slice(cbIdx, cbIdx + 3200) : "";
+// Batas dinamis = awal route Mayar berikutnya (bukan panjang tetap) supaya penambahan kode di
+// callback Tripay — mis. lock anti double-settle #b321 — tak memotong slice guard ini.
+const cbEnd = source.indexOf('router.post("/callback/mayar"', cbIdx);
+const cbBlock = cbIdx > -1 ? source.slice(cbIdx, cbEnd > cbIdx ? cbEnd : cbIdx + 4000) : "";
 
 describe("bill-payment multi-gateway + callback Tripay", () => {
     test("GET /bayar/:token pilih gateway aktif (selector) untuk alur redirect", () => {

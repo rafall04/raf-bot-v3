@@ -29,6 +29,7 @@ const tripay = require("../lib/tripay");
 const mayar = require("../lib/mayar");
 const gateways = require("../lib/payment-gateways");
 const { addPayment, checkStatusPayment, updateStatusPayment, updateKetPayment, findPendingPayment } = require("../lib/payment");
+const { acquireLock, releaseLock } = require("../lib/request-lock");
 
 // Umur maksimum transaksi pending yang boleh DIPAKAI ULANG. Harus lebih pendek dari masa
 // berlaku transaksi di sisi gateway (QRIS iPaymu ~1 jam) — memulangkan kode yang sudah mati
@@ -244,6 +245,7 @@ router.get("/bayar/:token", chargeLimiter, asyncHandler(async (req, res) => {
 // + cross-check merchant_ref & amount. Tak bergantung signature (gate utama = S2S verify),
 // jadi tak perlu raw-body (yang butuh edit body-parser global). Balas {success:true} utk ACK.
 router.post("/callback/tripay", asyncHandler(async (req, res) => {
+    let tripayLockRef = null;
     try {
         const body = req.body || {};
         const merchantRef = body.merchant_ref;
@@ -254,7 +256,19 @@ router.post("/callback/tripay", asyncHandler(async (req, res) => {
         const pay = (global.payment || []).find((v) => v.reffId == merchantRef && v.gateway === "tripay");
         if (!pay) return res.json({ success: true }); // bukan record kita / sudah dihapus → ACK
         if (status !== "PAID") return res.json({ success: true }); // expired/failed → ACK, tak kredit
-        if (checkStatusPayment(merchantRef) === true) return res.json({ success: true }); // idempotent
+        if (checkStatusPayment(merchantRef) === true) return res.json({ success: true }); // idempotent cepat
+
+        // #b321: SERIALISASI per-ref + re-check DALAM lock. Gateway sering mengirim webhook duplikat/
+        // retry; tanpa ini dua callback konkuren sama-sama lolos cek idempoten (dibaca SEBELUM
+        // pelunasan) → pelunasan DIPROSES DOBEL → ledger dikredit 2x (pemasukan hantu). Callback iPaymu
+        // sudah pakai pola ini; Tripay/Mayar dulu terlewat. Tak dapat lock = ref ini SEDANG diproses
+        // callback lain → ACK saja (biar tak dobel; holder yang menuntaskan).
+        if (!(await acquireLock(`bill-callback-${merchantRef}`, 8000))) {
+            console.warn("[TRIPAY_CALLBACK] Tak dapat lock (ref diproses callback lain) — ACK.", { merchantRef });
+            return res.json({ success: true });
+        }
+        tripayLockRef = merchantRef;
+        if (checkStatusPayment(merchantRef) === true) return res.json({ success: true }); // re-check dalam lock
 
         // KEAMANAN: jangan percaya body mentah — verifikasi langsung ke Tripay.
         const verify = await tripay.checkTransaction(pay.trxId || reference, { sandbox: pay.sandbox === true });
@@ -314,6 +328,8 @@ router.post("/callback/tripay", asyncHandler(async (req, res) => {
     } catch (err) {
         console.error("[TRIPAY_CALLBACK_ERROR]", err.message);
         return res.status(500).json({ success: false });
+    } finally {
+        if (tripayLockRef) releaseLock(`bill-callback-${tripayLockRef}`);
     }
 }));
 
@@ -323,6 +339,7 @@ router.post("/callback/tripay", asyncHandler(async (req, res) => {
 // ⚠️ FIELD KORELASI (id di `data` yang cocok dgn invoice kita) & status paid WAJIB
 //    dikonfirmasi lewat uji sandbox sebelum gateway 'mayar' diaktifkan untuk pelanggan asli.
 router.post("/callback/mayar", asyncHandler(async (req, res) => {
+    let mayarLockRef = null;
     try {
         const body = req.body || {};
         const event = String(body.event || body.type || "").toLowerCase();
@@ -338,7 +355,16 @@ router.post("/callback/mayar", asyncHandler(async (req, res) => {
         const pay = (global.payment || []).find((v) => v.gateway === "mayar"
             && (candidates.includes(String(v.trxId)) || candidates.includes(String(v.reffId))));
         if (!pay) return res.json({ success: true }); // bukan record kita → ACK
-        if (checkStatusPayment(pay.reffId) === true) return res.json({ success: true }); // idempotent
+        if (checkStatusPayment(pay.reffId) === true) return res.json({ success: true }); // idempotent cepat
+
+        // #b321: SERIALISASI per-ref + re-check DALAM lock (sama seperti Tripay/iPaymu) — anti
+        // double-settle dari webhook duplikat/retry. Tak dapat lock = ref diproses callback lain → ACK.
+        if (!(await acquireLock(`bill-callback-${pay.reffId}`, 8000))) {
+            console.warn("[MAYAR_CALLBACK] Tak dapat lock (ref diproses callback lain) — ACK.", { reffId: pay.reffId });
+            return res.json({ success: true });
+        }
+        mayarLockRef = pay.reffId;
+        if (checkStatusPayment(pay.reffId) === true) return res.json({ success: true }); // re-check dalam lock
 
         // KEAMANAN: verifikasi langsung ke Mayar (S2S) — id invoice = pay.trxId.
         const verify = await mayar.checkTransaction(pay.trxId, { sandbox: pay.sandbox === true });
@@ -391,6 +417,8 @@ router.post("/callback/mayar", asyncHandler(async (req, res) => {
     } catch (err) {
         console.error("[MAYAR_CALLBACK_ERROR]", err.message);
         return res.status(500).json({ success: false });
+    } finally {
+        if (mayarLockRef) releaseLock(`bill-callback-${mayarLockRef}`);
     }
 }));
 

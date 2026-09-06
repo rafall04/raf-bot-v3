@@ -18,6 +18,7 @@ const {
     normalizeUserPaymentMethod
 } = require('../lib/payment-finance-service');
 const { createAdvancePaymentService } = require('../lib/services/advance-payment-service');
+const { withLock } = require('../lib/request-lock');
 
 const advancePaymentService = createAdvancePaymentService();
 
@@ -234,34 +235,40 @@ router.post('/advance', ensureAdmin, async (req, res) => {
     }
 
     try {
-        const summary = await advancePaymentService.recordAdvancePayment({
-            user,
-            months,
-            createdBy: req.user.username
-        });
-
-        if (!summary.ok && summary.reason === 'current_unpaid') {
-            return res.status(409).json({
-                status: 409,
-                message: 'Tagihan bulan berjalan belum lunas. Lunasi dulu sebelum bayar di muka.'
+        // #b321: SERIALISASI per-user — cegah double-submit (klik ganda / retry) mencatat prabayar
+        // DOBEL. payment_history tak punya unique index (user,periode,source); periode masa depan lolos
+        // rem is_fully_paid karena outstanding masih penuh saat dibaca konkuren → pemasukan hantu tanpa
+        // alarm (aftercare kelebihan-bayar tak menyala). Mirror routes/partial-payment.js withLock.
+        return await withLock(`advance-payment-${user.id}`, async () => {
+            const summary = await advancePaymentService.recordAdvancePayment({
+                user,
+                months,
+                createdBy: req.user.username
             });
-        }
 
-        // Struk WA best-effort — kegagalan kirim TIDAK menggagalkan pencatatan.
-        const receipt = await advancePaymentService.sendAdvanceReceipt({ user, summary });
-
-        return res.json({
-            status: 200,
-            message: summary.recorded.length > 0
-                ? `Bayar di muka tercatat untuk ${summary.recorded.length} bulan.`
-                : 'Tidak ada bulan baru yang dicatat (semua periode sudah lunas).',
-            data: {
-                recorded: summary.recorded,
-                skipped: summary.skipped,
-                totalAmount: summary.totalAmount,
-                coverageUntil: summary.coverageUntil,
-                receiptSent: receipt.sent
+            if (!summary.ok && summary.reason === 'current_unpaid') {
+                return res.status(409).json({
+                    status: 409,
+                    message: 'Tagihan bulan berjalan belum lunas. Lunasi dulu sebelum bayar di muka.'
+                });
             }
+
+            // Struk WA best-effort — kegagalan kirim TIDAK menggagalkan pencatatan.
+            const receipt = await advancePaymentService.sendAdvanceReceipt({ user, summary });
+
+            return res.json({
+                status: 200,
+                message: summary.recorded.length > 0
+                    ? `Bayar di muka tercatat untuk ${summary.recorded.length} bulan.`
+                    : 'Tidak ada bulan baru yang dicatat (semua periode sudah lunas).',
+                data: {
+                    recorded: summary.recorded,
+                    skipped: summary.skipped,
+                    totalAmount: summary.totalAmount,
+                    coverageUntil: summary.coverageUntil,
+                    receiptSent: receipt.sent
+                }
+            });
         });
     } catch (error) {
         console.error('[PAYMENT_STATUS_ADVANCE_ERROR]', error);

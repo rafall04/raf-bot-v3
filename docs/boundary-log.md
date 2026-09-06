@@ -2588,3 +2588,13 @@
 - **Kompensasi lenyap (race):** `lib/cron/jobs/compensation-revert.js` mutasi `global.compensations` IN-PLACE (mirror speed-revert), bukan bangun-ulang dari snapshot disk lalu timpa global — dulu menggilas kompensasi yang admin tambah selama jendela await (MikroTik+reboot+WA).
 - **Isolir akhir-bulan terlewat:** `lib/cron/jobs/billing-akhir-bulan.js` fase isolir pakai `daysUntilEnd <= isolirDaysBefore` (self-healing; AMAN karena runIsolirPhase idempoten via profil-live). Reminder/tenggang tetap `===` (tak ada dedup per-periode → `<=` = spam).
 - **Tes:** +2 file baru (speed-boost-cleanup behavioral, compensation-revert in-place guard) + buildJid 0→62 + billing self-heal; 65 hijau lintas suite terkait (buildJid consumers, speed, billing); lint 0.
+
+<a id="b321"></a>
+
+### Fix 2026-09-06 (Rank #3 + integritas — double-credit/pemasukan-hantu di jalur uang & durabilitas topup)
+
+- **Topup dikredit DOBEL (admin+agen):** `lib/saldo/topup-store.js` `processAgentConfirmation` kini IDEMPOTEN — bila topup sudah non-pending (admin memverifikasi lewat panel sebelum agen konfirmasi), TIDAK addSaldo lagi; agent transaction tetap dituntaskan. Guard admin (status pending) & guard agen (agentTransaction.status) tak saling sadar; ini menutup urutan admin-lalu-agen.
+- **Topup/ledger hilang saat restart:** `topup-store.js` + `transactions-store.js` tulis ATOMIK (tmp+rename) + KARANTINA berkas rusak (bukan diam-diam `[]` lalu tertimpa → daftar topup pending / audit ledger lenyap permanen). Inline (bukan lib/json-store) supaya isolasi test getDatabasePath #b319 tetap dipatuhi.
+- **/advance (prabayar) double-submit:** `routes/payment-status.js` bungkus withLock(`advance-payment-${user.id}`) — mirror partial-payment; klik ganda tak lagi catat prabayar dobel (pemasukan hantu, aftercare tak menyala).
+- **Callback Tripay/Mayar double-settle:** `routes/bill-payment.js` acquireLock(`bill-callback-${ref}`) + re-check checkStatusPayment DALAM lock + release di finally — webhook duplikat/retry tak lagi kredit tagihan 2x. Callback iPaymu sudah punya; keduanya dulu terlewat. `lib/request-lock.js` +Header Doc + unref timer.
+- **Tes:** +2 file baru (topup-store-safety behavioral: idempoten/atomik/karantina; payment-callback-locks guard) + bill-payment-tripay slice dinamis; 64 hijau lintas suite payment/topup; lint 0.
