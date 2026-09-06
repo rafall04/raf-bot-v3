@@ -78,59 +78,63 @@ router.post('/bulk-update', ensureAdmin, async (req, res) => {
                 date: new Date()
             });
 
-            if (paid) {
-                const rawPaymentMethod = req.body.paymentMethod;
-                const paymentMethod = normalizeUserPaymentMethod(rawPaymentMethod);
-                if (!paymentMethod) {
-                    results.failed.push({ userId, reason: 'paymentMethod wajib CASH atau TRANSFER_BANK' });
-                    continue;
+            // #b329: SERIALISASI per-user. /bulk-update = jalur kredit LIVE ("Tandai Lunas") tapi TAK
+            // dikunci saat #b321 (advance & partial-payment dikunci). Dua request interleaved (klik
+            // ganda / retry Cloudflare) sama-sama lolos rem plafon-sisa #b254 (read-then-check, tak
+            // atomik) → payment_history dobel → PEMASUKAN HANTU di sumber-kebenaran rekap. Kunci per-user
+            // seperti pola advance/partial-payment.
+            const outcome = await withLock(`payment-status-${userId}`, async () => {
+                if (paid) {
+                    const rawPaymentMethod = req.body.paymentMethod;
+                    const paymentMethod = normalizeUserPaymentMethod(rawPaymentMethod);
+                    if (!paymentMethod) return { fail: 'paymentMethod wajib CASH atau TRANSFER_BANK' };
+                    const result = await applyPaymentStatusChange({
+                        user,
+                        paid: true,
+                        periodMonth,
+                        periodYear,
+                        amountPaid: req.body.amount_paid || getEffectivePrice(user),
+                        amountDue: req.body.amount_due || getEffectivePrice(user),
+                        isPartial: false,
+                        paymentMethod,
+                        notes: req.body.notes || 'Status pembayaran diperbarui oleh admin',
+                        createdBy: req.user.username,
+                        sourceAdminAction: `${actionId}:${userId}:paid`,
+                        onFinalPaid: async (ctx = {}) => {
+                            await handlePaidStatusChange(user, {
+                                paidDate: new Date().toISOString(),
+                                method: paymentMethod,
+                                approvedBy: req.user.username,
+                                notes: req.body.notes || 'Status pembayaran diperbarui oleh admin',
+                                // Dipakai struk kanonik: periode + nomor rujukan yang bisa disebut pelanggan.
+                                periodMonth: ctx.periodMonth,
+                                periodYear: ctx.periodYear,
+                                paymentHistoryId: ctx.paymentHistoryId
+                            });
+                        }
+                    });
+                    if (result.action === 'no_change') return { fail: result.reason || 'no_change' };
+                    return { ok: true };
+                } else {
+                    const result = await applyPaymentStatusChange({
+                        user,
+                        paid: false,
+                        periodMonth,
+                        periodYear,
+                        amountDue: req.body.amount_due || getEffectivePrice(user),
+                        notes: req.body.notes || 'Status pembayaran dibalik oleh admin',
+                        createdBy: req.user.username,
+                        sourceAdminAction: `${actionId}:${userId}:unpaid`
+                    });
+                    if (result.action !== 'reversed') return { fail: result.reason || result.action || 'no_change' };
+                    return { ok: true };
                 }
-                const result = await applyPaymentStatusChange({
-                    user,
-                    paid: true,
-                    periodMonth,
-                    periodYear,
-                    amountPaid: req.body.amount_paid || getEffectivePrice(user),
-                    amountDue: req.body.amount_due || getEffectivePrice(user),
-                    isPartial: false,
-                    paymentMethod,
-                    notes: req.body.notes || 'Status pembayaran diperbarui oleh admin',
-                    createdBy: req.user.username,
-                    sourceAdminAction: `${actionId}:${userId}:paid`,
-                    onFinalPaid: async (ctx = {}) => {
-                        await handlePaidStatusChange(user, {
-                            paidDate: new Date().toISOString(),
-                            method: paymentMethod,
-                            approvedBy: req.user.username,
-                            notes: req.body.notes || 'Status pembayaran diperbarui oleh admin',
-                            // Dipakai struk kanonik: periode + nomor rujukan yang bisa disebut pelanggan.
-                            periodMonth: ctx.periodMonth,
-                            periodYear: ctx.periodYear,
-                            paymentHistoryId: ctx.paymentHistoryId
-                        });
-                    }
-                });
-                if (result.action === 'no_change') {
-                    results.failed.push({ userId, reason: result.reason || 'no_change' });
-                    continue;
-                }
-            } else {
-                const result = await applyPaymentStatusChange({
-                    user,
-                    paid: false,
-                    periodMonth,
-                    periodYear,
-                    amountDue: req.body.amount_due || getEffectivePrice(user),
-                    notes: req.body.notes || 'Status pembayaran dibalik oleh admin',
-                    createdBy: req.user.username,
-                    sourceAdminAction: `${actionId}:${userId}:unpaid`
-                });
-                if (result.action !== 'reversed') {
-                    results.failed.push({ userId, reason: result.reason || result.action || 'no_change' });
-                    continue;
-                }
+            });
+            if (outcome && outcome.fail) {
+                results.failed.push({ userId, reason: outcome.fail });
+                continue;
             }
-            
+
             results.success.push(userId);
         } catch (error) {
             console.error(`[BULK_UPDATE_ERROR] Failed to process user ${userId}:`, error);

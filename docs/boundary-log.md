@@ -2659,3 +2659,12 @@
 - **Takeover admin tanpa token sah (P0):** `lib/auth-cache.js` `getJWTVerification` dulu meng-cache hasil verify JWT dengan kunci `token.substring(0,50)` dan pada cache HIT memulangkan payload TER-DECODE **tanpa memanggil jwt.verify()**. 50 char = header JWT konstan + awal payload (untuk admin ~ `{id,u...}` yang bisa ditebak — id admin kecil/berurutan). Selama ada 1 request admin sah dalam TTL (praktis selalu: polling dashboard/socket), penyerang kirim `Bearer <prefix sama><sampah><tanda tangan INVALID>` → lolos sebagai admin → seluruh permukaan admin jebol, reachable dari internet. Kini kunci = **sha256 token PENUH** → token beda-isi = cache MISS → jwt.verify dipanggil → forge ditolak. (HMAC verify murah; cache tetap dedup token identik.)
 - **Jeda pencabutan akses:** `routes/accounts.js` update & delete kini memanggil `authCache.invalidateAccount`/`invalidateUser` setelah `saveAccounts` — staff yang di-demote/hapus langsung kehilangan akses (dulu masih lolos gerbang s/d TTL cache 5 mnt).
 - **Tes:** `auth-cache-jwt-bypass.test.js` BARU — forge prefix-sama tetap memanggil verify & ditolak; token identik tetap HIT. 5 hijau (dgn accounts-hardening); lint 0. **Deploy DARURAT terpisah.**
+
+<a id="b329"></a>
+
+### Fix 2026-09-06 (RONDE 2 Rank #2 P1 — ledger pembayaran: double-credit & uang tak terbukukan)
+
+- **/bulk-update double-credit (pemasukan hantu):** `routes/payment-status.js` jalur kredit LIVE ("Tandai Lunas") kini bungkus tiap user `withLock(`payment-status-${userId}`)` — dulu SATU-satunya jalur kredit yang tak dikunci saat #b321 (advance & partial dikunci). Dua request interleaved (klik ganda / retry) sama-sama lolos rem plafon-sisa #b254 (read-then-check tak atomik) → payment_history dobel → pemasukan hantu di sumber-kebenaran rekap.
+- **Waiver/zero-bill dipaksa unpaid:** `lib/payment-finance-service.js` cabang `net_paid<=0` turunkan `setUserPaidStatus` dari verdict `is_fully_paid` NYATA (dulu hardcode false) → pelanggan gratis/waiver tak lagi kena reminder/isolir palsu.
+- **Overpay di atas sisa hilang senyap:** `applyPaymentStatusChange` kini surface `droppedExcess` (bayar > sisa, mis. cicilan lalu pelunasan penuh); `lib/services/bill-payment-aftercare.js` mencatatnya sbg `kelebihan_bayar` (pending_review) + alarm admin, struk pelanggan tetap LUNAS (periode memang tersettel). Dulu selisih dipotong ke sisa & tak berjejak.
+- **Tes:** bill-payment-kelebihan +2 (partial overpay), payment-bulk-update-lock guard baru; 27 hijau; lint 0.
