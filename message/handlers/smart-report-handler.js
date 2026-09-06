@@ -706,6 +706,26 @@ async function promoteMatiDraftOnTimeout(userId, state) {
         console.warn('[MATI_TIMEOUT_PROMOTE] state.targetUser kosong, skip', { userId, ticketId: state.ticketData.ticketId });
         return;
     }
+
+    // #b322 IDEMPOTEN (P1): DUA promotor tak terkoordinasi memanggil ini utk draft yang SAMA — timer
+    // in-memory 15-mnt (reset tiap aktivitas) DAN pemindaian disk 5-mnt (keyed createdAtMs tetap).
+    // Bila keduanya lolos → satu laporan jadi 2 tiket + 2 blast notif ke SELURUH teknisi+admin, dan
+    // teknisi dikirim dobel. createCustomerReportTicket mint ticketId baru tiap panggil & tak punya
+    // dedup. Guard: bila sudah ada tiket auto-promote TERBUKA utk pelanggan ini, JANGAN buat lagi —
+    // bersihkan draft + state in-memory supaya promotor kedua tak menyalak lagi. Aman-balapan karena
+    // createBaseTicket push ke global.reports SINKRON sebelum await notifikasi.
+    const custId = state.targetUser.id;
+    const sudahAda = Array.isArray(global.reports) && global.reports.find((r) => r
+        && r.autoPromotedFromTimeout === true
+        && (r.pelangganUserId === custId || (r.pelangganDataSystem && r.pelangganDataSystem.id === custId))
+        && !['selesai', 'completed', 'cancelled', 'dibatalkan', 'resolved'].includes(r.status));
+    if (sudahAda) {
+        console.warn('[MATI_TIMEOUT_PROMOTE] Draft sudah dipromosikan jadi tiket — lewati (anti-dobel).', { userId, ticketId: sudahAda.ticketId });
+        hapusDraftLaporan(userId);
+        deleteUserState(userId);
+        return;
+    }
+
     try {
         const ticketData = state.ticketData;
         const report = await createCustomerReportTicket({
@@ -725,8 +745,10 @@ async function promoteMatiDraftOnTimeout(userId, state) {
             }
         });
         console.log(`[MATI_TIMEOUT_PROMOTE] Tiket ${report.ticketId} dibuat dari draft timeout untuk ${userId}`);
-        // Sudah jadi tiket — draft durabelnya tak perlu lagi.
+        // Sudah jadi tiket — draft durabel DAN state in-memory tak perlu lagi. Hapus state juga supaya
+        // promotor lain (timer in-memory vs pemindaian disk) tak memicu promosi kedua. (#b322)
         hapusDraftLaporan(userId);
+        deleteUserState(userId);
     } catch (error) {
         // Draft SENGAJA tidak dihapus saat gagal: biarkan pemindaian berikutnya mencobanya lagi.
         console.error('[MATI_TIMEOUT_PROMOTE] gagal promote draft jadi tiket', { userId, error: error?.message });

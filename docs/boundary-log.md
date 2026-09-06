@@ -2598,3 +2598,12 @@
 - **/advance (prabayar) double-submit:** `routes/payment-status.js` bungkus withLock(`advance-payment-${user.id}`) — mirror partial-payment; klik ganda tak lagi catat prabayar dobel (pemasukan hantu, aftercare tak menyala).
 - **Callback Tripay/Mayar double-settle:** `routes/bill-payment.js` acquireLock(`bill-callback-${ref}`) + re-check checkStatusPayment DALAM lock + release di finally — webhook duplikat/retry tak lagi kredit tagihan 2x. Callback iPaymu sudah punya; keduanya dulu terlewat. `lib/request-lock.js` +Header Doc + unref timer.
 - **Tes:** +2 file baru (topup-store-safety behavioral: idempoten/atomik/karantina; payment-callback-locks guard) + bill-payment-tripay slice dinamis; 64 hijau lintas suite payment/topup; lint 0.
+
+<a id="b322"></a>
+
+### Fix 2026-09-06 (Rank #6 P1 tiket dobel + Rank #5 slot template broadcast massal)
+
+- **Satu laporan → 2 tiket + 2 dispatch teknisi (P1):** `message/handlers/smart-report-handler.js` `promoteMatiDraftOnTimeout` kini IDEMPOTEN — guard cek tiket auto-promote (`autoPromotedFromTimeout`) TERBUKA per-pelanggan di `global.reports` sebelum `createCustomerReportTicket` (aman-balapan: createBaseTicket push SINKRON sebelum await), + sukses promote menghapus draft DAN state in-memory supaya promotor kedua (timer in-memory vs pemindaian disk 5-mnt) tak menyalak lagi.
+- **Slot template mentah broadcast massal:** `lib/templating.js` `renderTemplate` (notificationTemplates — dipakai cron reminder/isolir/tenggang/redaman) saat `result.unresolved.length>0` kini BUANG placeholder tak terisi + rapikan spasi (mirror renderResponseTemplateSafe #b302), bukan menyiarkan `${jumlah}` mentah ke tiap penerima.
+- **DEFER (P2):** photo-album drop (`reporting.state.js` GANGGUAN_MATI_AWAITING_PHOTO) — drop terjadi di gerbang isProcessing raf.js sebelum handler; perbaikan aman butuh desain queue/serialize per-sender di router + uji album WA nyata (rush = risiko regresi P1 upload foto). Ditandai untuk garapan terfokus.
+- **Tes:** +2 file baru (mati-draft-dedup guard, templating-slot-basi behavioral); 32 hijau consumer templating; lint 0.
