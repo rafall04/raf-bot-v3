@@ -2894,3 +2894,13 @@
 - **BONUS fix (latent #b351 Fase 2):** `GET /api/teknisi/diagnosa-redaman/:userId` ditambah ke IZIN_TEKNISI_API — tombol "Cek Redaman" panel tiket dulu 403 utk teknisi (endpoint admin-router-owned tak di-allowlist).
 - **GATE** `config.teknisiPrefs.enabled` default OFF (config.example.json) — resolver/WA `setelan saya` inert; web tetap fungsional (banner jujur, prefs berlaku begitu diaktifkan).
 - **Tes:** repository +5, settings-api (self-scope+sanitize) +10, handler +4, resolver +7 = 26 hijau; wa-forbidden/template-integrity/dispatch hijau; php-lint halaman+navbar bersih; lint 0.
+
+<a id="b355"></a>
+
+### Fitur 2026-09-08 (RONDE 6 Fase B — alert per-area: resolver dipasang ke 3 choke-point + WA `alert ...`)
+
+- **DIPASANG:** resolver bersama `lib/teknisi-recipient-resolver.filterTeknisiRecipients` (dari #b354) ke 3 titik fan-out notif teknisi: (1) `lib/olt-los-broadcaster.defaultTeknisiRecipients` (LOS: kelas `los`+master, `critical`, TANPA filter-area — fiber putus lintas-ODP), (2) `lib/los-ticket-service.pickTeknisi(user)` (penugasan SADAR-AREA: utamakan teknisi yang area-nya mencakup pelanggan + kelas ticket_new; `critical` → abaikan jam-diam; FAIL-OPEN ke least-loaded semua bila tak ada yang cocok), (3) `lib/report-notification-service.notifyNewReport` (saring teknisi per kelas ticket_new + area pelanggan).
+- **Model AREA** = kanonik `matchRuleTarget` (auto-outage-rule.service): `customerAreaKeys(user)` kumpulkan `area/zone/connected_odp_id/odp/odp_id` (ternormalisasi). `teknisiCoversArea(prefAreas, keys)` FAIL-OPEN: teknisi tak isi area → semua; area alert tak diketahui → dicakup ("tak teramati" ≠ "tak relevan").
+- **WA `alert ...`** (self-custom lapangan): `alert on|off`, `alert <los|redaman|tiket|perbaikan> on|off`, `alert area <a,b>` / `alert area semua`, `alert kanal dm|grup|both`. Handler `message/handlers/teknisi-prefs-handler.handleAlertPref`; keyword ALERT_PREF (wifi_templates.json), wrapper wifi-intents.js, inject raf.js, 1 template key. Web "Pengaturan Saya" (#b354) sudah jadi surface kaya-nya.
+- **INVARIAN:** gate `config.teknisiPrefs.enabled` OFF / belum-setel prefs ⇒ resolver LOLOS apa adanya = perilaku lama (mengaktifkan tak membungkam siapa pun diam-diam). Kanal (dm/grup) tersimpan tapi BELUM ditegakkan (ditunda).
+- **Tes:** resolver +2 (customerAreaKeys/teknisiCoversArea), los-ticket +2 (assign sadar-area + fail-open), report-notif +2 (filter area gate ON/OFF), broadcaster +3 (kelas LOS gate ON/OFF, area tak-filter LOS), handler alert +9 = 18 baru; regresi LOS/tiket/notif 112 hijau; wa-forbidden/template/dispatch hijau; lint 0.

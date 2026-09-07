@@ -157,6 +157,11 @@ async function handleSetelanSayaIntent(context) {
     const { handleSetelanSaya, isOwner, isTeknisi, reply, global, mess } = context;
     await handleSetelanSaya({ isOwner, isTeknisi, reply, global, mess });
 }
+// #b355: `alert ...` — ubah preferensi alert (on/off, kelas, area, kanal). qAfterKeyword = argumen stlh "alert".
+async function handleAlertPrefIntent(context) {
+    const { handleAlertPref, qAfterKeyword, isOwner, isTeknisi, reply, global, mess } = context;
+    await handleAlertPref({ qAfterKeyword, isOwner, isTeknisi, reply, global, mess });
+}
 
 const WIFI_INTENT_HANDLERS = Object.freeze({
     GANTI_NAMA_WIFI: handleGantiNamaWifiIntent,
@@ -169,6 +174,7 @@ const WIFI_INTENT_HANDLERS = Object.freeze({
     PANTAU_REDAMAN: handlePantauRedamanIntent,
     STOP_PANTAU: handleStopPantauIntent,
     SETELAN_SAYA: handleSetelanSayaIntent,
+    ALERT_PREF: handleAlertPrefIntent,
     HISTORY_WIFI: handleHistoryWifiIntent
 });
 
@@ -184,5 +190,6 @@ module.exports = {
     handlePantauRedamanIntent,
     handleStopPantauIntent,
     handleSetelanSayaIntent,
+    handleAlertPrefIntent,
     handleHistoryWifiIntent
 };

@@ -16,9 +16,22 @@ const mockGetPrefs = jest.fn(() => ({
     channel: "both", areas: [], quietHours: { enabled: false, start: "22:00", end: "06:00" },
     pantau: {}, snoozeUntil: null,
 }));
-jest.mock("../../../repositories/teknisi-prefs.repository", () => ({ getPrefs: (...a) => mockGetPrefs(...a) }));
+const FULL = () => ({
+    enabled: true, alerts: { los: true, redaman: true, ticket_new: true, post_repair: true },
+    channel: "both", areas: [], quietHours: { enabled: false, start: "22:00", end: "06:00" }, pantau: {}, snoozeUntil: null,
+});
+const mockSetPrefs = jest.fn((id, patch) => {
+    const p = FULL();
+    Object.assign(p, patch);
+    if (patch.alerts) p.alerts = { ...FULL().alerts, ...patch.alerts };
+    return p;
+});
+jest.mock("../../../repositories/teknisi-prefs.repository", () => ({
+    getPrefs: (...a) => mockGetPrefs(...a),
+    setPrefs: (...a) => mockSetPrefs(...a),
+}));
 
-const { handleSetelanSaya } = require("../teknisi-prefs-handler");
+const { handleSetelanSaya, handleAlertPref } = require("../teknisi-prefs-handler");
 
 const mess = { teknisiOrOwnerOnly: "⛔ khusus teknisi" };
 function mkP(over = {}) {
@@ -31,7 +44,7 @@ function mkP(over = {}) {
         ...over,
     };
 }
-beforeEach(() => mockGetPrefs.mockClear());
+beforeEach(() => { mockGetPrefs.mockClear(); mockSetPrefs.mockClear(); });
 
 describe("handleSetelanSaya", () => {
     test("STAF-ONLY: pelanggan ditolak, store TIDAK dibaca", async () => {
@@ -63,5 +76,63 @@ describe("handleSetelanSaya", () => {
         expect(out).toMatch(/Setelan Saya/);
         expect(out).toMatch(/SEMUA area/);
         expect(out).toMatch(/Tiket-baru ❌/); // ticket_new:false tercermin
+    });
+});
+
+describe("handleAlertPref", () => {
+    test("STAF-ONLY & gate dihormati (pelanggan → tolak, tak menulis)", async () => {
+        const p = mkP({ isTeknisi: undefined, qAfterKeyword: "off" });
+        await handleAlertPref(p);
+        expect(mockSetPrefs).not.toHaveBeenCalled();
+    });
+
+    test("bare `alert` → bantuan, tak menulis", async () => {
+        const p = mkP({ qAfterKeyword: "" });
+        await handleAlertPref(p);
+        expect(mockSetPrefs).not.toHaveBeenCalled();
+        expect(p.reply.mock.calls[0][0]).toMatch(/Atur Alert/i);
+    });
+
+    test("`off` → enabled:false", async () => {
+        const p = mkP({ qAfterKeyword: "off" });
+        await handleAlertPref(p);
+        expect(mockSetPrefs).toHaveBeenCalledWith(5, { enabled: false });
+    });
+
+    test("`los off` → alerts.los:false (alias kelas)", async () => {
+        const p = mkP({ qAfterKeyword: "los off" });
+        await handleAlertPref(p);
+        expect(mockSetPrefs).toHaveBeenCalledWith(5, { alerts: { los: false } });
+    });
+
+    test("`tiket on` → ticket_new:true (alias tiket)", async () => {
+        const p = mkP({ qAfterKeyword: "tiket on" });
+        await handleAlertPref(p);
+        expect(mockSetPrefs).toHaveBeenCalledWith(5, { alerts: { ticket_new: true } });
+    });
+
+    test("`area Krajan, ODP-01` → areas terpangkas", async () => {
+        const p = mkP({ qAfterKeyword: "area Krajan, ODP-01" });
+        await handleAlertPref(p);
+        expect(mockSetPrefs).toHaveBeenCalledWith(5, { areas: ["Krajan", "ODP-01"] });
+    });
+
+    test("`area semua` → areas dikosongkan (terima semua area)", async () => {
+        const p = mkP({ qAfterKeyword: "area semua" });
+        await handleAlertPref(p);
+        expect(mockSetPrefs).toHaveBeenCalledWith(5, { areas: [] });
+    });
+
+    test("`kanal grup` → channel:'group'", async () => {
+        const p = mkP({ qAfterKeyword: "kanal grup" });
+        await handleAlertPref(p);
+        expect(mockSetPrefs).toHaveBeenCalledWith(5, { channel: "group" });
+    });
+
+    test("kelas tanpa on/off → minta format, tak menulis", async () => {
+        const p = mkP({ qAfterKeyword: "redaman" });
+        await handleAlertPref(p);
+        expect(mockSetPrefs).not.toHaveBeenCalled();
+        expect(p.reply.mock.calls[0][0]).toMatch(/on.*atau.*off/i);
     });
 });

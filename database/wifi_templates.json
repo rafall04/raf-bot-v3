@@ -1293,5 +1293,16 @@
     "category": "wifi",
     "description": "Lihat preferensi alert & pantau pribadi (teknisi self-service)",
     "icon": "⚙️"
+  },
+  {
+    "keywords": [
+      "alert",
+      "atur alert",
+      "setel alert"
+    ],
+    "intent": "ALERT_PREF",
+    "category": "wifi",
+    "description": "Atur alert teknisi: on/off, per-kelas, area, kanal (self-service)",
+    "icon": "🔔"
   }
 ]

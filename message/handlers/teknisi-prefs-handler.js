@@ -1,12 +1,12 @@
 /**
  * Header Doc
  * Purpose: Handler WA SELF-SERVICE preferensi teknisi (RONDE 6). Fase A: `setelan saya` (tampil
- *   preferensi aktif). Fase B: `alert area <x>` / `alert on|off` / `alert <kelas> on|off`. Fase C:
- *   `pantau interval <2m>` / `pantau target <-22>`. Semua STAF-ONLY, one-liner (bukan wizard), baca/
- *   tulis store per-teknisi keyed account.id. GATED config.teknisiPrefs.enabled.
- * Caller: message/raf.js (intent SETELAN_SAYA / ALERT_PREF / PANTAU_PREF via wifi-intents wrapper).
+ *   preferensi aktif). Fase B: `alert on|off` / `alert <kelas> on|off` / `alert area <x>` /
+ *   `alert kanal dm|grup|both`. Semua STAF-ONLY, one-liner (bukan wizard), baca/tulis store per-
+ *   teknisi keyed account.id. GATED config.teknisiPrefs.enabled.
+ * Caller: message/raf.js (intent SETELAN_SAYA / ALERT_PREF via wifi-intents wrapper).
  * Deps: ../../repositories/teknisi-prefs.repository, ./template-helpers (renderResponseTemplate).
- * MainFuncs: handleSetelanSaya, handleAlertPref, handlePantauPref.
+ * MainFuncs: handleSetelanSaya, handleAlertPref.
  * SideEffects: Menulis database/teknisi_prefs.json (via repository, atomik); balas WA via reply.
  */
 "use strict";
@@ -59,4 +59,67 @@ async function handleSetelanSaya(p) {
     return p.reply(ringkasPrefs(prefsRepo.getPrefs(acc.id)));
 }
 
-module.exports = { handleSetelanSaya, ensureAccess, ringkasPrefs, gateOn, accountOf };
+// Kelas alert & alias bahasa yang diterima dari WA.
+const KELAS_ALIAS = {
+    los: "los", fiber: "los",
+    redaman: "redaman", optik: "redaman", rx: "redaman",
+    tiket: "ticket_new", "tiket-baru": "ticket_new", ticket: "ticket_new",
+    perbaikan: "post_repair", "pasca-perbaikan": "post_repair", pasca: "post_repair",
+};
+const NYALA = new Set(["on", "aktif", "nyala", "hidup", "ya"]);
+const MATI = new Set(["off", "mati", "nonaktif", "matikan", "tidak"]);
+function parseOnOff(tok) {
+    if (NYALA.has(tok)) return true;
+    if (MATI.has(tok)) return false;
+    return null;
+}
+const ALERT_HELP =
+    "⚙️ *Atur Alert (teknisi)*\n" +
+    "• `alert on` / `alert off` — hidup/matikan SEMUA alert\n" +
+    "• `alert los off` · `alert redaman on` · `alert tiket off` · `alert perbaikan on`\n" +
+    "• `alert area Krajan, ODP-01` — hanya area itu (kosongkan: `alert area semua`)\n" +
+    "• `alert kanal dm|grup|both`\n" +
+    "Lihat setelan: `setelan saya`";
+
+/** `alert ...` — ubah preferensi alert (on/off, per-kelas, area, kanal). STAF-ONLY, gated. */
+async function handleAlertPref(p) {
+    const acc = ensureAccess(p);
+    if (!acc) return;
+    const q = String(p.qAfterKeyword || "").trim();
+    const tokens = q.split(/\s+/).filter(Boolean);
+    if (!tokens.length) return p.reply(renderResponseTemplate("teknisi_alert_help", ALERT_HELP, {}));
+
+    const head = tokens[0].toLowerCase();
+    let patch = null;
+    let catatan = "";
+
+    if (head === "area") {
+        const rest = q.slice(tokens[0].length).trim();
+        const kosong = !rest || ["semua", "all", "kosong", "clear", "reset"].includes(rest.toLowerCase());
+        const areas = kosong ? [] : rest.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 50);
+        patch = { areas };
+        catatan = kosong ? "Area langganan dikosongkan → terima alert SEMUA area." : `Area langganan: ${areas.join(", ")}.`;
+    } else if (head === "kanal" || head === "channel") {
+        const val = (tokens[1] || "").toLowerCase();
+        const kanal = val === "grup" ? "group" : val;
+        if (!["dm", "group", "both"].includes(kanal)) return p.reply("Kanal harus: dm / grup / both.");
+        patch = { channel: kanal };
+        catatan = `Kanal alert: ${kanal}.`;
+    } else if (KELAS_ALIAS[head]) {
+        const kelas = KELAS_ALIAS[head];
+        const val = parseOnOff((tokens[1] || "").toLowerCase());
+        if (val === null) return p.reply(`Format: \`alert ${head} on\` atau \`alert ${head} off\`.`);
+        patch = { alerts: { [kelas]: val } };
+        catatan = `Alert ${head}: ${val ? "AKTIF ✅" : "NONAKTIF ❌"}.`;
+    } else {
+        const val = parseOnOff(head);
+        if (val === null) return p.reply(renderResponseTemplate("teknisi_alert_help", ALERT_HELP, {}));
+        patch = { enabled: val };
+        catatan = val ? "Alert DIHIDUPKAN ✅." : "Semua alert DIMATIKAN ❌ (kamu tak akan diganggu).";
+    }
+
+    const prefs = prefsRepo.setPrefs(acc.id, patch);
+    return p.reply(`✅ ${catatan}\n\n${ringkasPrefs(prefs)}`);
+}
+
+module.exports = { handleSetelanSaya, handleAlertPref, ensureAccess, ringkasPrefs, gateOn, accountOf };
