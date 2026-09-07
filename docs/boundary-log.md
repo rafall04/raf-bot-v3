@@ -2844,3 +2844,12 @@
 - **#21 Intake grup PSB simpan bulk=['1'] (buta-band):** upsertUserFromAdminPanel tanpa ssid_indices → create-user-validate default bulk ['1'] (2.4GHz) → ganti nama/sandi WiFi berikutnya cuma SSID 1; 5GHz warisi kredensial pemilik lama (modem bekas, #b327). **Fix:** oper ssid_indices default dual-band ['1','5'] (samakan dgn import users.js; configurable config.psbIntake.defaultSsidIndices). Group-intake tak push modem → index 5 no-op di single-band (aman).
 - **Gated OFF (inert sampai flag ON):** #19/#20 = config.publicSite.enabled; #21 = config.psbIntake.enabled. Difix tetap agar tak jadi landmine saat diaktifkan.
 - **Tes:** public-registration +3 (fallback admin non-'Error:', notif pelanggan dilewati, retry UNIQUE→lead tak hilang); psb-group-intake +1 (ssid_indices ['1','5']); 8+8 hijau; lint 0.
+
+<a id="b350"></a>
+
+### Fitur 2026-09-07 (RONDE 5 Fase 0 — fondasi service diagnosa redaman dua-sisi)
+
+- **Owner BARU:** `services/redaman-diagnosis.service.js` — SATU sumber diagnosa redaman 1 pelanggan DUA-SISI (Modem/GenieACS force-refresh + OLT/web-snapshot ber-cache via resolveByCustomer + sesi PPPoE aktif sbg sumber MAC), vonis via `rxVerdict`+`config.rx_tolerance` (tanpa ambang baru), gabungan via `ringkasDuaSumber`. MURNI (deps diinjeksi), NEVER-THROW, READ-ONLY. HORMATI `rxPowerValid` (ONU non-Online → RX tak divonis, #b283) & freshness (#b257). `createRedamanDiagnosisService(deps)` + `getRedamanDiagnosisService()` default terwire + `formatDetailLines`/`buildKesimpulan`.
+- **Menggantikan duplikasi:** orkestrasi dua-sumber yang dulu tersalin di Telegram `redaman-command.js`, `post-repair-verification`, cron `redaman-check`, `network-ops.service`. Fase 0 mengalihkan `message/telegram/command-handlers/redaman-command.js` memanggil service (handler kini tipis; `buildConclusion` → alias `service.buildKesimpulan`). Output Telegram identik (handlers.test.js hijau, #b340 pppoeActive tetap).
+- **Dipakai berikutnya:** Fase 1 intent WA `cek redaman`, Fase 2 tombol panel tiket, Fase 3 batch terdampak.
+- **Tes:** services/__tests__/redaman-diagnosis.service.test.js (7: dua-sumber, ONU non-Online tak divonis, LOS/DG, never-throw ×2, tanpa device, pppoeActive share); handlers.test.js tetap 28 hijau; lint 0. Gate: —(read-only, tak user-facing baru).

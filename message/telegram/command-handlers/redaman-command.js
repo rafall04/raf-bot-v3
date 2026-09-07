@@ -12,88 +12,51 @@
  */
 "use strict";
 
-const { resolveCustomerOrReply, displayName, firstPart, customerActionsKeyboard, getActivePppoeList } = require("./resolve-helper");
-const { b, code, escapeHtml, rxVerdict } = require("../../../lib/telegram/telegram-format");
+const { resolveCustomerOrReply, displayName, customerActionsKeyboard } = require("./resolve-helper");
+const { b, code, escapeHtml } = require("../../../lib/telegram/telegram-format");
 const { fmtOltLines } = require("./olt-format");
+const { createRedamanDiagnosisService, buildKesimpulan } = require("../../../services/redaman-diagnosis.service");
 
+// #b350: orkestrasi dua-sumber (ACS force-refresh + OLT snapshot + pppoeActive → resolveByCustomer →
+// verdict) DIANGKAT ke services/redaman-diagnosis.service (dipakai bersama WA/panel/batch). Handler ini
+// kini TIPIS: resolve pelanggan (khas Telegram) → service.diagnoseCustomer → rakit HTML Telegram.
+// buildConclusion di-alias ke service.buildKesimpulan (logika kesimpulan tunggal).
 function buildConclusion(modemVerdict, optical) {
-    const oltOffline = optical && optical.identifiable && String(optical.status || "").toLowerCase() !== "online";
-    if (oltOffline) {
-        if (optical.isDyingGasp) return "Kesimpulan: ONU mati (Dying Gasp) — cek catu daya/adaptor di lokasi.";
-        if (optical.isLos) return "Kesimpulan: LOS — kemungkinan fiber putus / konektor kotor / redaman parah.";
-        return "Kesimpulan: ONU tidak online di OLT — perlu pengecekan fisik.";
-    }
-    if (modemVerdict && modemVerdict.label === "BURUK") {
-        return "Kesimpulan: redaman BURUK — periksa konektor/splicing, jarak, atau bending kabel.";
-    }
-    if (modemVerdict && modemVerdict.label === "WASPADA") {
-        return "Kesimpulan: redaman mendekati ambang — pantau, rapikan konektor bila perlu.";
-    }
-    if (modemVerdict && modemVerdict.label === "BAIK") {
-        return "Kesimpulan: redaman dalam batas wajar. ✅";
-    }
-    return null;
+    return buildKesimpulan(modemVerdict, optical);
 }
 
 function createRedamanCommand(deps) {
-    const getCustomerRedaman = deps.getCustomerRedaman;
-    const resolveByCustomer = deps.resolveByCustomer;
-    const getOltSnapshot = deps.getOltSnapshot;
-    const getConfig = deps.getConfig || (() => global.config || {});
+    // Service dibangun dari deps yang SAMA (getCustomerRedaman/resolveByCustomer/getOltSnapshot/
+    // getActivePPPoEUsers/getConfig) → perilaku identik, tetap testable via injeksi.
+    const diagnosis = createRedamanDiagnosisService(deps);
 
     return async function handleRedaman(ctx) {
         const user = await resolveCustomerOrReply(ctx, deps, { example: "/redaman budi@isp", command: "redaman" });
         if (!user) return;
 
-        const nama = displayName(user);
-        const pppoe = firstPart(user.pppoe_username);
-        const tolerance = getConfig().rx_tolerance;
+        await ctx.reply(`⏳ Cek redaman ${b(displayName(user))} (refresh modem + OLT, mohon tunggu)…`);
 
-        await ctx.reply(`⏳ Cek redaman ${b(nama)} (refresh modem + OLT, mohon tunggu)…`);
+        // Sisi modem (force-refresh) + OLT (snapshot) + sesi PPPoE aktif (SUMBER MAC utama match EPON)
+        // — semua di dalam service, paralel & best-effort, never-throw.
+        const d = await diagnosis.diagnoseCustomer(user, { caller: "telegram.redaman" });
 
-        // Sisi modem (force-refresh) + sisi OLT (snapshot) + sesi PPPoE aktif — paralel & best-effort.
-        // pppoeActive = SUMBER MAC UTAMA untuk resolveByCustomer (sama seperti /cek). Dulu []
-        // → jalur MAC mati → pelanggan EPON yang cuma teridentifikasi via MAC "tak terpetakan".
-        const [modemR, snapR, pppoeR] = await Promise.allSettled([
-            user.device_id ? getCustomerRedaman(user.device_id) : Promise.resolve(null),
-            getOltSnapshot(),
-            getActivePppoeList(deps, "telegram.redaman"),
-        ]);
-
-        // ---- Sisi modem ----
+        // ---- Sisi modem (HTML Telegram) ----
         const modemLines = ["— <b>Sisi Modem (ONU)</b> —"];
-        let modemVerdict = null;
-        if (!user.device_id) {
+        if (!d.modem.hasDevice) {
             modemLines.push("Tidak ada device ACS (tidak terhubung GenieACS).");
-        } else if (modemR.status !== "fulfilled" || !modemR.value) {
+        } else if (!d.modem.reachable) {
             modemLines.push("⚠️ Modem tidak terjangkau via GenieACS (offline / belum inform).");
+        } else if (!d.modem.verdict || d.modem.verdict.value === null) {
+            modemLines.push("RX: data redaman tidak tersedia.");
         } else {
-            const redaman = modemR.value.redaman;
-            modemVerdict = rxVerdict(redaman, tolerance);
-            if (modemVerdict.value === null) {
-                modemLines.push("RX: data redaman tidak tersedia.");
-            } else {
-                modemLines.push(`RX: ${modemVerdict.emoji} <b>${escapeHtml(String(redaman))}</b> dBm — ${modemVerdict.label}`);
-            }
+            modemLines.push(`RX: ${d.modem.verdict.emoji} <b>${escapeHtml(String(d.modem.rxRaw))}</b> dBm — ${d.modem.verdict.label}`);
         }
 
-        // ---- Sisi OLT ----
-        const snapshot = snapR.status === "fulfilled" ? snapR.value : null;
-        const pppoeActive = pppoeR.status === "fulfilled" ? pppoeR.value : [];
-        let optical = null;
-        try {
-            optical = resolveByCustomer(user, { oltSnapshot: snapshot, pppoeActive });
-        } catch (__e) {
-            optical = null;
-        }
-        const oltLines = ["— <b>Sisi OLT</b> —", ...fmtOltLines(optical)];
+        // ---- Sisi OLT (format Telegram yang sudah ada) ----
+        const oltLines = ["— <b>Sisi OLT</b> —", ...fmtOltLines(d.olt)];
 
-        // ---- Rakit laporan ----
-        const out = [`📶 <b>REDAMAN — ${escapeHtml(nama)}</b>`, `PPPoE: ${code(pppoe || "-")}`, "", ...modemLines, "", ...oltLines];
-        const conclusion = buildConclusion(modemVerdict, optical);
-        if (conclusion) {
-            out.push("", conclusion);
-        }
+        const out = [`📶 <b>REDAMAN — ${escapeHtml(d.nama)}</b>`, `PPPoE: ${code(d.pppoe || "-")}`, "", ...modemLines, "", ...oltLines];
+        if (d.kesimpulan) out.push("", d.kesimpulan);
         await ctx.reply(out.join("\n"), { replyMarkup: customerActionsKeyboard(user) });
     };
 }
