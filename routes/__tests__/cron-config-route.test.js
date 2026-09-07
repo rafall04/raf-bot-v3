@@ -95,6 +95,8 @@ describe('cron and config ownership routes', () => {
   let readSpy;
   let writeSpy;
   let existsSpy;
+  let renameSpy;
+  let unlinkSpy;
 
   beforeEach(() => {
     mockInitializeAllCronTasks.mockReset();
@@ -154,12 +156,28 @@ describe('cron and config ownership routes', () => {
       }
       return realFs.existsSync(targetPath);
     });
+
+    // #b345: penulis config/cron kini ATOMIK (writeFileAtomicSync = writeFileSync ke .tmp lalu
+    // renameSync). Mock renameSync memindahkan entri fileStore tmp → tujuan; unlinkSync membuang tmp.
+    renameSpy = jest.spyOn(fs, 'renameSync').mockImplementation((src, dest) => {
+      const s = path.resolve(String(src));
+      const d = path.resolve(String(dest));
+      if (Object.prototype.hasOwnProperty.call(fileStore, s)) {
+        fileStore[d] = fileStore[s];
+        delete fileStore[s];
+      }
+    });
+    unlinkSpy = jest.spyOn(fs, 'unlinkSync').mockImplementation((targetPath) => {
+      delete fileStore[path.resolve(String(targetPath))];
+    });
   });
 
   afterEach(() => {
     readSpy.mockRestore();
     writeSpy.mockRestore();
     existsSpy.mockRestore();
+    renameSpy.mockRestore();
+    unlinkSpy.mockRestore();
   });
 
   test('POST /api/cron preserves telegram backup fields on partial save', async () => {

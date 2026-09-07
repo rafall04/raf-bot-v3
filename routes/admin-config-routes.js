@@ -278,7 +278,10 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 ...cronPatch
             };
 
-            fs.writeFileSync(cronDbPath, JSON.stringify(nextCronConfig, null, 2), 'utf8');
+            // #b345: cron.json = state jadwal (gate billing akhir-bulan + isolir). Tulis ATOMIK —
+            // torn-write saat SIGKILL → loadJSON karantina → global.cronConfig=[] → gate undefined →
+            // job billing/isolir diam-diam tak terjadwal.
+            writeFileAtomicSync(cronDbPath, JSON.stringify(nextCronConfig, null, 2));
             global.cronConfig = nextCronConfig;
             initializeAllCronTasks();
 
@@ -325,7 +328,8 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                         }
                         speedBoostConfig.enabled = receivedConfig[key] === 'true';
                         speedBoostConfig.lastUpdated = new Date().toISOString();
-                        fs.writeFileSync(speedBoostConfigPath, JSON.stringify(speedBoostConfig, null, 2), 'utf8');
+                        // #b345: tulis ATOMIK (anti torn-write saat restart).
+                        writeFileAtomicSync(speedBoostConfigPath, JSON.stringify(speedBoostConfig, null, 2));
 
                         if (global.speedBoostConfig) {
                             global.speedBoostConfig = speedBoostConfig;

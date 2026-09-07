@@ -2,12 +2,14 @@
  * Header Doc
  * Purpose: Handler operasi CRUD profil voucher dan statik yang dipakai admin/owner dari perintah WhatsApp.
  * Caller: Dispatcher bot `message/raf.js` pada intent `ADDPROFVOUCHER`, `DELPROFVOUCHER`, `ADDPROFSTATIK`, `DELPROFSTATIK`.
- * Deps: `fs`, `./template-helpers` (renderResponseTemplate).
+ * Deps: `lib/json-store` (saveJSON ATOMIK), `./template-helpers` (renderResponseTemplate).
  * MainFuncs: `handleAddProfVoucher`, `handleDelProfVoucher`, `handleAddProfStatik`, `handleDelProfStatik`.
- * SideEffects: Memutasi `database/voucher.json` / `database/statik.json` dan mengirim reply WhatsApp.
+ * SideEffects: Memutasi `database/voucher.json` / `database/statik.json` (ATOMIK) dan mengirim reply WhatsApp.
  */
 
-const fs = require('fs');
+// #b345: tulis voucher.json/statik.json lewat saveJSON (atomik + path via database/), samakan
+// disiplin dengan lib/voucher.js & lib/statik.js (multi-writer berkas yang sama).
+const { saveJSON } = require('../../lib/json-store');
 const { renderResponseTemplate } = require('./template-helpers');
 
 /**
@@ -68,7 +70,7 @@ async function handleDelProfVoucher({ q, isOwner, reply, mess, checkprofvoucher,
             const index = voucher.findIndex((item) => item.prof === q);
             if (index !== -1) {
                 voucher.splice(index, 1);
-                fs.writeFileSync('./database/voucher.json', JSON.stringify(voucher, null, 2));
+                saveJSON('voucher.json', voucher);
             }
             await reply(renderResponseTemplate(
                 'voucher_profile_delete_success',
@@ -145,7 +147,7 @@ async function handleDelProfStatik({ q, isOwner, reply, mess, checkStatik, stati
             const index = statik.findIndex((item) => item.prof === q);
             if (index !== -1) {
                 statik.splice(index, 1);
-                fs.writeFileSync('./database/statik.json', JSON.stringify(statik, null, 2));
+                saveJSON('statik.json', statik);
             }
             await reply(renderResponseTemplate(
                 'statik_profile_delete_success',

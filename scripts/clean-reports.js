@@ -40,7 +40,7 @@ try {
     console.log(`[CLEANUP] Backup saved to ${backupPath}`);
     
     // Write cleaned data
-    fs.writeFileSync(reportsPath, JSON.stringify(finalReports, null, 2));
+    require('../lib/atomic-file').writeFileAtomicSync(reportsPath, JSON.stringify(finalReports, null, 2)); // #b345 atomik
     console.log(`[CLEANUP] Clean reports.json saved!`);
     
     // Show file size comparison

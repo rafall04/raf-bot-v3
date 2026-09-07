@@ -449,6 +449,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-07 (RONDE 3 P2 wanFailover — rehydrateFromIncidents pulihkan lockedUntilMs dari insiden lock (kind-filter getIncidents anti cap-200) + jendela autoEvents max(24j,flapWindow); lock anti-flapping tahan restart, bot tak thrash uplink sebelum lock habis)](docs/boundary-log.md#b342)
 - [Fix 2026-09-07 (RONDE 3 P3 config.json — lib/atomic-file.writeFileAtomicSync (tmp+rename) dipakai ~13 penulis config.json (anti torn-write boot-fatal), invoice readConfigFresh+saveConfigAtomic (env-config) ganti serialize global.config basi (sisi penulis landmine #b336))](docs/boundary-log.md#b343)
 - [Fix 2026-09-07 (RONDE 3 P3 gateway — settleTagihanPayment markPaid (tandai lunas sebelum reaktivasi lambat) dioper iPaymu/Tripay/Mayar → retry webhook yang lolos lock cleanup-30s tak salah-vonis kelebihan-bayar)](docs/boundary-log.md#b344)
+- [Fix 2026-09-07 (RONDE 4 P1/P2 kelas atomicity — SEMUA penulis JSON kritis (payment/reports/packages/cron/agent_transactions/config technicianSalary/reboot-followups + sibling voucher/statik/reseller/agents/lid-mappings) ke saveJSON/writeFileAtomicSync; guard #b343 daftar-hardcode diganti PEMINDAI REPO scripts/atomic-json-writers)](docs/boundary-log.md#b345)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

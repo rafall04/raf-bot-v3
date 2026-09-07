@@ -76,7 +76,7 @@ try {
     console.log(`[DEEP_CLEAN] Backup saved to ${backupPath}`);
     
     // Write cleaned data
-    fs.writeFileSync(reportsPath, JSON.stringify(reports, null, 2));
+    require('../lib/atomic-file').writeFileAtomicSync(reportsPath, JSON.stringify(reports, null, 2)); // #b345 atomik
     
     // Show file size comparison
     const oldSize = fs.statSync(backupPath).size;

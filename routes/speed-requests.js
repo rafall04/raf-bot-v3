@@ -18,6 +18,7 @@ const { renderTemplate: _renderTemplate, templatesCache } = require('../lib/temp
 const { renderCategoryTemplate } = require('../lib/template-service');
 const { getUploadDir, getUploadPath, generateFilename } = require('../lib/upload-helper');
 const { hasAuthenticatedSession } = require('../lib/whatsapp-gateway');
+const { writeFileAtomicSync } = require('../lib/atomic-file'); // #b345 tulis speed_boost_matrix ATOMIK
 const { ProfileUpdateService } = require('../lib/services/profile-update-service');
 const { sendMessageToMany } = require('../lib/whatsapp-delivery-service');
 
@@ -543,8 +544,8 @@ router.post('/speed-boost-config', ensureAdmin, (req, res) => {
             return res.status(400).json({ message: 'Invalid configuration structure' });
         }
         
-        // Save configuration
-        fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+        // Save configuration — #b345: tulis ATOMIK (anti torn-write saat restart).
+        writeFileAtomicSync(configPath, JSON.stringify(config, null, 2));
         
         // Reload global speed boost config if exists
         if (global.speedBoostConfig) {

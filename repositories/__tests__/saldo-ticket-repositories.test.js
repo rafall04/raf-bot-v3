@@ -14,7 +14,10 @@ jest.mock("../../lib/saldo-manager", () => ({
 }));
 
 jest.mock("fs", () => ({
-    writeFileSync: jest.fn()
+    writeFileSync: jest.fn(),
+    renameSync: jest.fn(),
+    existsSync: jest.fn(() => false),
+    unlinkSync: jest.fn()
 }));
 jest.mock("../../lib/ticket-id", () => ({
     generateTicketId: jest.fn(() => "TKT-001")
@@ -41,6 +44,16 @@ describe("saldo and ticket repository contracts", () => {
         expect(repository.generateTicketId).toEqual(expect.any(Function));
         expect(repository.saveReportDraft(reports)).toBe(reports);
         expect(repository.generateTicketId()).toBe("TKT-001");
-        expect(fs.writeFileSync).toHaveBeenCalledWith(expect.stringContaining("database"), JSON.stringify(reports, null, 2), "utf8");
+        // #b345: tulis ATOMIK — writeFileSync ke berkas SEMENTARA (.tmp-<pid>) lalu renameSync
+        // ke reports.json final; pembaca tak pernah melihat berkas setengah jadi.
+        expect(fs.writeFileSync).toHaveBeenCalledWith(
+            expect.stringMatching(/database.*reports\.json\.tmp-/),
+            JSON.stringify(reports, null, 2),
+            "utf8"
+        );
+        expect(fs.renameSync).toHaveBeenCalledWith(
+            expect.stringMatching(/reports\.json\.tmp-/),
+            expect.stringMatching(/database.*reports\.json$/)
+        );
     });
 });

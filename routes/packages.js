@@ -16,15 +16,18 @@
  */
 const express = require('express');
 const router = express.Router();
-const fs = require('fs');
-const path = require('path');
+const { saveJSON } = require('../lib/json-store');
 const { ensureAdmin, ensureAuthenticatedStaff } = require('./api-route-helpers');
 
 // Helper function to save packages
 function savePackages() {
     try {
-        const packagesPath = path.join(__dirname, '..', 'database', 'packages.json');
-        fs.writeFileSync(packagesPath, JSON.stringify(global.packages, null, 2));
+        // #b345: tulis ATOMIK lewat saveJSON (tmp+rename). writeFileSync polos ke packages.json
+        // berisiko torn-write saat SIGKILL (prod restart 7-13x/hari) → berkas terpotong → loadJSON
+        // karantina → global.packages=[] → getEffectivePrice 0/undefined (tagihan Rp0) + isolir_day
+        // & whitelist kebal-billing hilang = penagihan/isolir salah massal. lib/database.js:94
+        // sudah pakai saveJSON atomik; route ini disamakan disiplinnya.
+        saveJSON('packages.json', global.packages);
         return true;
     } catch (error) {
         console.error('[SAVE_PACKAGES_ERROR]', error);

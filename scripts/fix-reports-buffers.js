@@ -30,7 +30,7 @@ try {
     console.log(`[FIX] Removed photoBuffers from ${buffersRemoved} reports`);
     
     // Write cleaned data
-    fs.writeFileSync(reportsPath, JSON.stringify(reports, null, 2));
+    require('../lib/atomic-file').writeFileAtomicSync(reportsPath, JSON.stringify(reports, null, 2)); // #b345 atomik
     
     // Show file size
     const fileSize = fs.statSync(reportsPath).size;
