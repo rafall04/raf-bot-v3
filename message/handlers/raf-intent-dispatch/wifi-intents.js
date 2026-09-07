@@ -151,6 +151,13 @@ async function handleStopPantauIntent(context) {
     await handleStopPantau({ isOwner, isTeknisi, users, reply, mess, sender, msg, raf });
 }
 
+// #b354: intent WA TEKNISI self-service — `setelan saya` (RONDE 6 Fase A: tampil preferensi aktif).
+// isTeknisi diteruskan sbg OBJEK akun (punya .id) untuk key store per-teknisi; gated config.teknisiPrefs.
+async function handleSetelanSayaIntent(context) {
+    const { handleSetelanSaya, isOwner, isTeknisi, reply, global, mess } = context;
+    await handleSetelanSaya({ isOwner, isTeknisi, reply, global, mess });
+}
+
 const WIFI_INTENT_HANDLERS = Object.freeze({
     GANTI_NAMA_WIFI: handleGantiNamaWifiIntent,
     GANTI_SANDI_WIFI: handleGantiSandiWifiIntent,
@@ -161,6 +168,7 @@ const WIFI_INTENT_HANDLERS = Object.freeze({
     CEK_REDAMAN_TERDAMPAK: handleCekRedamanTerdampakIntent,
     PANTAU_REDAMAN: handlePantauRedamanIntent,
     STOP_PANTAU: handleStopPantauIntent,
+    SETELAN_SAYA: handleSetelanSayaIntent,
     HISTORY_WIFI: handleHistoryWifiIntent
 });
 
@@ -175,5 +183,6 @@ module.exports = {
     handleCekRedamanTerdampakIntent,
     handlePantauRedamanIntent,
     handleStopPantauIntent,
+    handleSetelanSayaIntent,
     handleHistoryWifiIntent
 };

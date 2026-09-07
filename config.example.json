@@ -763,5 +763,6 @@
   },
   "genieacsQueuedOnlyIsFailure": true,
   "redamanTerdampak": { "enabled": false },
-  "redamanWatch": { "enabled": false, "intervalMs": 60000, "durationMs": 1800000, "maxActive": 10, "changeThresholdDb": 1.5, "heartbeatMs": 300000 }
+  "redamanWatch": { "enabled": false, "intervalMs": 60000, "durationMs": 1800000, "maxActive": 10, "changeThresholdDb": 1.5, "heartbeatMs": 300000 },
+  "teknisiPrefs": { "enabled": false }
 }

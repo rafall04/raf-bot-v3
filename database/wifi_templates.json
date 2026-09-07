@@ -1280,5 +1280,18 @@
     "category": "wifi",
     "description": "Hentikan pemantauan redaman aktif — teknisi",
     "icon": "🛑"
+  },
+  {
+    "keywords": [
+      "setelan saya",
+      "pengaturan saya",
+      "setelan teknisi",
+      "preferensi saya",
+      "setting saya"
+    ],
+    "intent": "SETELAN_SAYA",
+    "category": "wifi",
+    "description": "Lihat preferensi alert & pantau pribadi (teknisi self-service)",
+    "icon": "⚙️"
   }
 ]

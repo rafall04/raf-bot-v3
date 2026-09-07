@@ -2882,3 +2882,15 @@
 - **Auto-log tiket:** saat watch kedaluwarsa (default 30 mnt) → kirim ringkasan + tulis redaman SEBELUM/SESUDAH ke tiket (`report.redamanWatch`, atomik via ticket.repository) bila pakai `#tiket` — menutup residu before/after ronde 5.
 - **GATE** `config.redamanWatch.enabled` default OFF (+ intervalMs/durationMs/maxActive 10/changeThresholdDb 1.5/heartbeatMs; config.example.json) → cron INERT bila off/tak ada watch. Cron terdaftar di composer lib/cron.js.
 - **Tes:** redaman-watch-service (13: primaryRx/decideNotify 6/runWatchTick 3), redaman-watch-store (5: durable+atomik+karantina), handler pantau/stop +6; wa-forbidden/template/dispatch hijau; 133 total hijau; lint 0.
+
+<a id="b354"></a>
+
+### Fitur 2026-09-07 (RONDE 6 Fase A — self-service teknisi: FONDASI + "Pengaturan Saya")
+
+- **Owner BARU:** `repositories/teknisi-prefs.repository.js` — store PREFERENSI per-teknisi keyed `account.id` (identitas SAMA di web `req.user.id` & WA `isTeknisi.id`), TERPISAH dari accounts.json; tulis atomik (#b345) + karantina rusak. **Default kosong = PERILAKU LAMA** (semua alert ON, area kosong=semua) → mengaktifkan fitur tak membungkam siapa pun diam-diam.
+- **API** `routes/teknisi-settings-api.js` GET/POST `/api/teknisi/prefs` — di-mount prefix SENDIRI di routes-registry (LOLOS gerbang admin-router; gate `ensureAuthenticatedStaff`). Self-scope: teknisi hanya prefs SENDIRI (`?teknisi_id` diabaikan non-admin), admin/owner boleh target lain. `sanitize()` whitelist field+tipe+rentang (anti-injeksi). GET kirim `featureEnabled` utk banner jujur.
+- **Web** halaman `views/sb-admin/teknisi-pengaturan.php` + `static/js/teknisi-pengaturan.js` + `static/css/teknisi-pengaturan.css` + route `/teknisi-pengaturan` (pages.js, checkRole teknisi) + menu "Pengaturan Saya" (_navbar_teknisi.php). **WA** `setelan saya` (view-only Fase A) — `message/handlers/teknisi-prefs-handler.js`, keyword SETELAN_SAYA (wifi_templates.json), wrapper wifi-intents.js, inject raf.js, 2 template key.
+- **Resolver BERSAMA** `lib/teknisi-recipient-resolver.js` `filterTeknisiRecipients()` — 1 tempat saring penerima notif per-preferensi (master/kelas/area/snooze/jam-diam). Gate OFF/tanpa-accountId/belum-setel/area-null = LOLOS (default=all). Dibuat kini; DIPASANG ke 3 choke-point (LOS broadcaster, pickTeknisi, pasca-perbaikan) pada Fase B.
+- **BONUS fix (latent #b351 Fase 2):** `GET /api/teknisi/diagnosa-redaman/:userId` ditambah ke IZIN_TEKNISI_API — tombol "Cek Redaman" panel tiket dulu 403 utk teknisi (endpoint admin-router-owned tak di-allowlist).
+- **GATE** `config.teknisiPrefs.enabled` default OFF (config.example.json) — resolver/WA `setelan saya` inert; web tetap fungsional (banner jujur, prefs berlaku begitu diaktifkan).
+- **Tes:** repository +5, settings-api (self-scope+sanitize) +10, handler +4, resolver +7 = 26 hijau; wa-forbidden/template-integrity/dispatch hijau; php-lint halaman+navbar bersih; lint 0.

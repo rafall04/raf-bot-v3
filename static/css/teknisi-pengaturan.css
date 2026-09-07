@@ -1,0 +1,31 @@
+/* Header Doc
+ * Purpose: Gaya halaman "Pengaturan Saya" teknisi (#b354). Hanya penataan ringan; warna memakai
+ *   token semantik (tokens.css) agar ikut mode gelap (body.tk-dark). TIDAK memakai primitif tetap.
+ * Caller: views/sb-admin/teknisi-pengaturan.php.
+ */
+#prefsForm .card-header h6 {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+#prefsForm .custom-control-label {
+    cursor: pointer;
+}
+
+#prefsForm code {
+    background: var(--surface-2);
+    color: var(--ink-soft);
+    padding: .1rem .35rem;
+    border-radius: 4px;
+}
+
+#snoozeStatus {
+    color: var(--muted);
+}
+
+@media (max-width: 575.98px) {
+    #prefsForm .form-group.row label.col-form-label {
+        margin-bottom: .25rem;
+    }
+}

@@ -164,6 +164,22 @@ $current_page = strtok($current_page, '?');
     </li>
 
     <!-- Divider -->
+    <hr class="sidebar-divider">
+
+    <!-- Heading - Akun -->
+    <div class="sidebar-heading">
+        Akun
+    </div>
+
+    <!-- Nav Item - Pengaturan Saya (#b354 self-service) -->
+    <li class="nav-item <?php echo ($current_page == '/teknisi-pengaturan.php' || $current_page == '/teknisi-pengaturan') ? 'active' : ''; ?>">
+        <a class="nav-link" href="/teknisi-pengaturan">
+            <i class="fas fa-fw fa-sliders-h"></i>
+            <span>Pengaturan Saya</span>
+        </a>
+    </li>
+
+    <!-- Divider -->
     <hr class="sidebar-divider d-none d-md-block">
 
     <!-- Sidebar Toggler (Sidebar) -->

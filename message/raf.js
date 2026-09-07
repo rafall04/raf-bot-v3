@@ -121,6 +121,7 @@ const { handleGantiPowerWifi } = require('./handlers/wifi-power-handler');
 const { handleRebootModem } = require('./handlers/reboot-modem-handler');
 const { handleCekWifi } = require('./handlers/wifi-check-handler');
 const { handleCekRedaman, handleRedamanTerdampak, handlePantauRedaman, handleStopPantau } = require('./handlers/redaman-check-handler'); // #b351/#b352/#b353 cek redaman (+ terdampak + pantau live)
+const { handleSetelanSaya } = require('./handlers/teknisi-prefs-handler'); // #b354 self-service prefs teknisi (`setelan saya`)
 const { handleHistoryWifi } = require('./handlers/wifi-history-handler');
 const { handleAddProfVoucher, handleDelProfVoucher, handleAddProfStatik, handleDelProfStatik } = require('./handlers/voucher-management-handler');
 const { handleAddBinding, handleAddPPP } = require('./handlers/network-management-handler');
@@ -1356,6 +1357,7 @@ module.exports = async (raf, msg, m, options = {}) => {
             handleRedamanTerdampak,
             handlePantauRedaman,
             handleStopPantau,
+            handleSetelanSaya,
             handleHistoryWifi,
             handleMonitorWifi,
             handleAddProfVoucher,

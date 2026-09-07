@@ -48,6 +48,10 @@ const IZIN_TEKNISI_API = [
     { method: "GET", jalur: "/api/customer-redaman/:deviceId" },
     { method: "GET", jalur: "/api/customer-wifi-info/:deviceId" },
 
+    // /teknisi-tiket — tombol "Cek Redaman" 1-klik (#b351 Fase 2): diagnosa dua-sisi by userId.
+    // Terdaftar di admin-router (admin-wifi-ops) → WAJIB di-allowlist agar teknisi tak 403.
+    { method: "GET", jalur: "/api/teknisi/diagnosa-redaman/:userId" },
+
     // /teknisi-map-viewer — aset jaringan (ODC/ODP) + hitung rute
     { method: "GET", jalur: "/api/map/network-assets" },
     { method: "POST", jalur: "/api/map/network-assets" },
