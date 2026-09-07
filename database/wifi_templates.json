@@ -437,8 +437,7 @@
     "keywords": [
       "cek tiket",
       "cektiket",
-      "status tiket",
-      "tiket saya"
+      "status tiket"
     ],
     "intent": "CEK_TIKET",
     "category": "support",
@@ -865,11 +864,13 @@
       "tiket saya",
       "tiketsaya",
       "my ticket",
-      "tiket aktif"
+      "tiket aktif",
+      "tugas saya",
+      "tiket teknisi"
     ],
     "intent": "TIKET_SAYA",
     "category": "pelanggan",
-    "description": "Lihat semua tiket aktif",
+    "description": "Lihat tiket aktif (pelanggan: miliknya; teknisi: yang ditugaskan)",
     "icon": "📋"
   },
   {

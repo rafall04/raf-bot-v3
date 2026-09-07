@@ -246,8 +246,9 @@ async function handleCekLokasiTeknisiIntent(context) {
 }
 
 async function handleTiketSayaIntent(context) {
-    const { handleTiketSaya, sender, reply } = context;
-    const tiketResult = await handleTiketSaya(sender, reply);
+    const { handleTiketSaya, sender, reply, isTeknisi, isOwner } = context;
+    // #b356: teruskan identitas staf → mode "daftar tugas" (tiket yang ditugaskan ke teknisi ini).
+    const tiketResult = await handleTiketSaya(sender, reply, { isTeknisi, isOwner });
     return reply(tiketResult.message);
 }
 

@@ -62,6 +62,10 @@
                                     <input type="checkbox" class="custom-control-input" id="filterHighPrio">
                                     <label class="custom-control-label" for="filterHighPrio">Prioritas tinggi</label>
                                 </div>
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="filterMineOnly">
+                                    <label class="custom-control-label" for="filterMineOnly">Tugas saya</label>
+                                </div>
                                 <span class="text-muted small ml-auto" id="filterCount"></span>
                             </div>
                             <div class="d-none d-md-block">

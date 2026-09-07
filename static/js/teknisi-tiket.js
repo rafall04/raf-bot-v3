@@ -21,7 +21,7 @@
         let isLoadingTickets = false;
         let ticketProcessedTimeout = null;
         let allTickets = [];
-        const ticketFilter = { source: '', status: '', highPrio: false };
+        const ticketFilter = { source: '', status: '', highPrio: false, mineOnly: false };
         function esc(s) {
             return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
@@ -1401,6 +1401,13 @@
                 const p = (t.priority || '').toUpperCase();
                 if (!(p === 'HIGH' || p === 'URGENT' || p === 'TINGGI')) return false;
             }
+            // #b356 "Tugas Saya": hanya tiket yang ditugaskan ke teknisi yang login.
+            if (ticketFilter.mineOnly) {
+                const myId = currentUser && currentUser.id != null ? String(currentUser.id) : null;
+                if (!myId) return false;
+                const assigned = [t.teknisiId, t.processedById, t.processedByTeknisiId].some((x) => x != null && String(x) === myId);
+                if (!assigned) return false;
+            }
             return true;
         }
 
@@ -1839,6 +1846,8 @@
             if (fStatus) fStatus.addEventListener('change', function () { ticketFilter.status = fStatus.value; renderTickets(); });
             const fHigh = document.getElementById('filterHighPrio');
             if (fHigh) fHigh.addEventListener('change', function () { ticketFilter.highPrio = fHigh.checked; renderTickets(); });
+            const fMine = document.getElementById('filterMineOnly');
+            if (fMine) fMine.addEventListener('change', function () { ticketFilter.mineOnly = fMine.checked; renderTickets(); });
 
             // Fix: Perbaiki event listener untuk mencegah memory leak
             const processModal = document.getElementById('processTicketModal');

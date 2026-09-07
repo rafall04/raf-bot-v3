@@ -10,6 +10,7 @@
 const { setUserState, getUserState, deleteUserState } = require('./conversation-handler');
 const { sendCustomerNotification } = require('./teknisi-workflow-handler');
 const { ensureTicketShape, normalizeStatus } = require('../../lib/ticket-workflow');
+const { renderResponseTemplate } = require('./template-helpers');
 const { initializeDomainNotificationListeners } = require('../../lib/domain-notification-listeners');
 const { hasAuthenticatedSession } = require('../../lib/whatsapp-gateway');
 const fs = require('fs');
@@ -344,11 +345,37 @@ function loadLocationFromFile(ticketId) {
     return null;
 }
 
+// Status tiket "terbuka" untuk daftar staf.
+const TIKET_TERBUKA_STAF = ['baru', 'pending', 'assigned', 'process', 'processing', 'otw', 'arrived', 'working'];
+
 /**
- * Pelanggan cek semua tiket aktif
+ * `tiket saya` — daftar tiket aktif. PELANGGAN: tiketnya sendiri (by pengirim). STAF (#b356): tiket
+ * yang DITUGASKAN ke dirinya (by account.id), one-liner ringkas + cara aksi (cek tiket / cek redaman).
+ * @param {string} sender  JID pengirim (untuk pencocokan tiket pelanggan).
+ * @param {Function} _reply tak dipakai (wrapper yang membalas).
+ * @param {object} [opts]   { isTeknisi, isOwner } — bila staf ber-akun → mode daftar tugas.
  */
-async function handleTiketSaya(sender, _reply) {
+async function handleTiketSaya(sender, _reply, opts = {}) {
     try {
+        const isStaf = !!(opts.isTeknisi || opts.isOwner);
+        const myId = opts.isTeknisi && opts.isTeknisi.id != null ? String(opts.isTeknisi.id) : null;
+        if (isStaf && myId) {
+            const mine = (global.reports || [])
+                .map((t) => ensureTicketShape(t))
+                .filter((r) => TIKET_TERBUKA_STAF.includes(normalizeStatus(r.status))
+                    && [r.teknisiId, r.processedByTeknisiId].some((t) => t != null && String(t) === myId));
+            if (!mine.length) {
+                return { success: true, message: renderResponseTemplate("tiket_saya_kosong_staf", "✅ Tak ada tiket aktif yang ditugaskan ke kamu saat ini.", {}) };
+            }
+            mine.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            const baris = mine.slice(0, 15).map((r, i) => {
+                const nama = r.pelangganName || (r.pelangganDataSystem && r.pelangganDataSystem.name) || '-';
+                const area = r.oltName || (r.pelangganDataSystem && (r.pelangganDataSystem.area || r.pelangganDataSystem.connected_odp_id)) || '';
+                return `${i + 1}. #${r.ticketId} • ${normalizeStatus(r.status)} • ${nama}${area ? ` — ${area}` : ''}`;
+            });
+            return { success: true, message: `🎫 *Tiket aktif kamu (${mine.length})*\n${baris.join('\n')}\n\n_Detail: *cek tiket <ID>* · redaman: *cek redaman #<ID>*_` };
+        }
+
         // Find active tickets for this customer
         const myTickets = global.reports
             .map((ticket) => ensureTicketShape(ticket))

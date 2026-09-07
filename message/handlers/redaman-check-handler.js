@@ -7,8 +7,9 @@
  * Caller: Dispatcher bot `message/raf.js` pada intent `CEK_REDAMAN` (via wifi-intents wrapper).
  * Deps: `../../services/redaman-diagnosis.service` (getRedamanDiagnosisService/formatDetailLines),
  *   `../telegram/customer-lookup` (findOneCustomer/findById — MURNI, read-only), `./template-helpers`
- *   (renderResponseTemplate). TIDAK require Baileys / global.raf / sendMessage mentah (guard wa-forbidden).
- * MainFuncs: `handleCekRedaman`.
+ *   (renderResponseTemplate), `../../repositories/teknisi-prefs.repository` (#b356 override pantau pribadi).
+ *   TIDAK require Baileys / global.raf / sendMessage mentah (guard wa-forbidden).
+ * MainFuncs: `handleCekRedaman`, `handleRedamanTerdampak`, `handlePantauRedaman`, `handleStopPantau`.
  * SideEffects: via service — refresh+query GenieACS + snapshot OLT (ber-cache) + baca sesi PPPoE; balas WA via reply.
  */
 "use strict";
@@ -19,6 +20,7 @@ const { renderResponseTemplate } = require("./template-helpers");
 const { normalizeJidForMessage } = require("../../lib/jid-utils");
 const watchStore = require("../../lib/redaman-watch-store");
 const { primaryRx } = require("../../lib/redaman-watch-service");
+const teknisiPrefs = require("../../repositories/teknisi-prefs.repository");
 
 function displayName(u) {
     return String((u && u.name) || "").split("|")[0].trim() || "(tanpa nama)";
@@ -243,11 +245,20 @@ async function handlePantauRedaman(p) {
         return reply("⚠️ Gagal membaca redaman awal. Coba lagi sebentar lagi ya.");
     }
     const cur = primaryRx(diag);
-    const intervalMs = Number.isFinite(wcfg.intervalMs) ? wcfg.intervalMs : 60000;
-    const durationMs = Number.isFinite(wcfg.durationMs) ? wcfg.durationMs : 30 * 60000;
+    // Override PRIBADI (#b356 prefs.pantau) menang atas config global — hanya bila fitur prefs aktif
+    // & requester ber-akun (teknisi/owner). Selain itu pakai config/default (perilaku lama).
+    const pref = (cfg.teknisiPrefs && cfg.teknisiPrefs.enabled === true && p.isTeknisi && p.isTeknisi.id != null)
+        ? (teknisiPrefs.getPrefs(p.isTeknisi.id).pantau || {})
+        : {};
+    const intervalMs = Number.isFinite(pref.intervalMs) ? pref.intervalMs
+        : (Number.isFinite(wcfg.intervalMs) ? wcfg.intervalMs : 60000);
+    const durationMs = Number.isFinite(pref.durationMs) ? pref.durationMs
+        : (Number.isFinite(wcfg.durationMs) ? wcfg.durationMs : 30 * 60000);
     const rec = watchStore.addWatch({
         requesterJid, userId: user.id, name: diag.nama, pppoe: diag.pppoe, deviceId: user.device_id || null,
         ticketId, intervalMs, expiresAt: new Date(Date.now() + durationMs).toISOString(),
+        changeThresholdDb: Number.isFinite(pref.changeThresholdDb) ? pref.changeThresholdDb : null,
+        targetDbm: Number.isFinite(pref.targetDbm) ? pref.targetDbm : null,
         baseline: { rx: cur.rx, status: cur.status, at: new Date().toISOString() },
     });
     if (!rec) return reply("⚠️ Gagal memulai pemantauan.");

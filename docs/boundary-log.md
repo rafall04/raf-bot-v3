@@ -2904,3 +2904,14 @@
 - **WA `alert ...`** (self-custom lapangan): `alert on|off`, `alert <los|redaman|tiket|perbaikan> on|off`, `alert area <a,b>` / `alert area semua`, `alert kanal dm|grup|both`. Handler `message/handlers/teknisi-prefs-handler.handleAlertPref`; keyword ALERT_PREF (wifi_templates.json), wrapper wifi-intents.js, inject raf.js, 1 template key. Web "Pengaturan Saya" (#b354) sudah jadi surface kaya-nya.
 - **INVARIAN:** gate `config.teknisiPrefs.enabled` OFF / belum-setel prefs ⇒ resolver LOLOS apa adanya = perilaku lama (mengaktifkan tak membungkam siapa pun diam-diam). Kanal (dm/grup) tersimpan tapi BELUM ditegakkan (ditunda).
 - **Tes:** resolver +2 (customerAreaKeys/teknisiCoversArea), los-ticket +2 (assign sadar-area + fail-open), report-notif +2 (filter area gate ON/OFF), broadcaster +3 (kelas LOS gate ON/OFF, area tak-filter LOS), handler alert +9 = 18 baru; regresi LOS/tiket/notif 112 hijau; wa-forbidden/template/dispatch hijau; lint 0.
+
+<a id="b356"></a>
+
+### Fitur 2026-09-08 (RONDE 6 Fase C — pantau pribadi + quiet-hours/snooze + `tiket saya` teknisi)
+
+- **Pantau PRIBADI:** `prefs.pantau` (intervalMs/durationMs/changeThresholdDb/targetDbm) kini MENANG atas config global saat teknisi `pantau redaman` (redaman-check-handler; hanya bila gate teknisiPrefs ON & requester ber-akun). Watch record menyimpan `changeThresholdDb`/`targetDbm` per-watch (redaman-watch-store), dan `decideNotify` (redaman-watch-service) pakai target dBm pribadi (RX ≥ target) + ambang pribadi; fallback config/default = perilaku lama.
+- **Quiet-hours & snooze:** resolver bersama (isQuietNow rentang lewat-tengah-malam + isSnoozed) menindas notif NON-CRITICAL. Terpasang di notif tiket-baru (report-notification-service): teknisi ber-snooze / dalam jam-diam TIDAK diganggu, tapi LOS (critical) tetap tembus. TZ Asia/Jakarta (waktu lokal proses).
+- **`tiket saya` sadar-STAF:** intent TIKET_SAYA lama (pelanggan) DIPERLUAS (simple-location-handler.handleTiketSaya + wrapper meneruskan isTeknisi/isOwner) → teknisi lihat tiket AKTIF yang DITUGASKAN ke dirinya (by account.id), ringkas + cara aksi; pelanggan tetap jalur lama. Keyword "tiket saya" di-DEDUP dari CEK_TIKET → kini tunggal ke TIKET_SAYA; +keyword "tugas saya"/"tiket teknisi". 1 template key.
+- **Web:** filter "Tugas saya" di /teknisi-tiket (client-side, by currentUser.id dari /api/me) — teknisi saring tiket yang ditugaskan ke dirinya.
+- **INVARIAN:** semua override & filter INERT saat gate `config.teknisiPrefs.enabled` OFF / prefs belum-setel = perilaku lama. Kelas alert `redaman`/`post_repair` tersimpan tapi belum ditegakkan per-teknisi (jalur broadcast admin-configured/grup; ditunda — bukan regresi).
+- **Tes:** decideNotify +3 (target dBm/ambang pribadi), tiket-saya-staf +3, report-notif snooze +1; regresi watch/store/resolver/los-ticket/broadcaster 58 hijau; guard wa-forbidden/template/dispatch hijau; php-lint bersih; lint 0.
