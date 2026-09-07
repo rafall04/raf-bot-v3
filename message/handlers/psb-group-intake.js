@@ -129,6 +129,13 @@ async function handlePsbGroupIntake(deps) {
         const freeInstallMonth = (deps.freeInstallMonth !== undefined
             ? deps.freeInstallMonth
             : global.config?.psbIntake?.freeInstallMonth) === true;
+        // #b349: default SSID dual-band ['1','5'] (samakan dgn import routes/users.js), BUKAN default
+        // ['1'] dari create-user-validate. Tanpa ssid_indices, kolom `bulk` jatuh ke ['1'] (2.4GHz saja)
+        // → ganti nama/sandi WiFi berikutnya cuma menyentuh SSID 1; 5GHz mewarisi kredensial pemilik
+        // lama (modem bekas) — persis kasus #b327/genieacs-ssid-index-paths. Group-intake tak push ke
+        // modem (tak ada device_id) jadi index 5 hanya tersaring no-op di modem single-band; aman.
+        const defaultSsidIndices = String(global.config?.psbIntake?.defaultSsidIndices || "1,5")
+            .split(",").map((s) => s.trim()).filter(Boolean);
         const result = await usersService.upsertUserFromAdminPanel({
             userData: {
                 name: d.nama,
@@ -138,6 +145,7 @@ async function handlePsbGroupIntake(deps) {
                 pppoe_password: pppoePass,
                 wifi_ssid: d.wifi_ssid,
                 wifi_password: d.wifi_password,
+                ssid_indices: defaultSsidIndices,
                 registration_mode: "new",
                 free_first_month: freeInstallMonth
             },

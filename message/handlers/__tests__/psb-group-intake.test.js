@@ -54,6 +54,8 @@ describe("handlePsbGroupIntake", () => {
             wifi_ssid: "BudiNet", wifi_password: "budi12345", registration_mode: "new"
         });
         expect(arg.userData.pppoe_username).toBe("budi");
+        // #b349: default SSID dual-band ['1','5'] (bukan ['1']) → ganti WiFi berikutnya sentuh 2.4+5GHz.
+        expect(arg.userData.ssid_indices).toEqual(["1", "5"]);
         expect(arg.actor.role).toBe("teknisi");
         const replyText = deps.reply.mock.calls[0][0];
         expect(replyText).toMatch(/PSB berhasil/);
