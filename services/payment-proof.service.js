@@ -343,6 +343,17 @@ function createPaymentProofService(overrides = {}) {
      * Idempoten: record non-pending ditolak; ledger yang sudah lunas → no_change (tanpa struk ganda).
      */
     async function confirmProof(id, { adminName = "admin", notes = "", allowNoOutstanding = false } = {}) {
+        // #b346: bungkus dalam kunci per-USER (namespace 'payment-status-<userId>' — SAMA dengan
+        // /bulk-update, partial-payment, advance) + re-baca record DI DALAM kunci. Tanpa ini, dua
+        // konfirmasi konkuren (klik ganda web, atau web + WA `ok` bersamaan) sama-sama lolos cek
+        // pending & precheck no_outstanding SEBELUM salah satu commit → keduanya recordPaymentHistory
+        // → kredit ledger DOBEL / pemasukan hantu (jalur uang lain sudah dikunci #b321/#b329).
+        const { withLock } = require("../lib/request-lock");
+        const pre = deps.repository.getById(id);
+        if (!pre) return { ok: false, reason: "not_found" };
+        let __confirmResult;
+        try {
+            __confirmResult = await withLock(`payment-status-${pre.userDbId}`, async () => {
         const record = deps.repository.getById(id);
         if (!record) return { ok: false, reason: "not_found" };
         if (record.status !== "pending") return { ok: false, reason: "already_processed", status: record.status };
@@ -430,6 +441,14 @@ function createPaymentProofService(overrides = {}) {
         // `user` disertakan supaya pemanggil (mis. route web konfirmasi-bayar) bisa mengalarmi
         // admin dgn pppoe_username saat reaktivasi gagal — record bukti tak menyimpan pppoe.
         return { ok: true, record: updated, settlement, user, alreadyPaid: ledgerAction !== "paid" };
+            }, 20000);
+        } catch (lockErr) {
+            // withLock melempar HANYA bila kunci tak didapat dalam timeout (konfirmasi lain untuk
+            // user ini sedang berjalan). Fail-closed: jangan memproses paralel — minta ulang.
+            logWarn("[PAYMENT_PROOF] Konfirmasi ditolak (proses lain memegang kunci):", lockErr.message);
+            return { ok: false, reason: "busy" };
+        }
+        return __confirmResult;
     }
 
     /**
