@@ -11,11 +11,15 @@
 const { createAdminBroadcastService, formatBroadcastMessage } = require("../admin-broadcast.service");
 
 describe("admin-broadcast.service", () => {
-    test("queueBroadcast mengirim accepted dan mempertahankan placeholder user", async () => {
-        const sendMessageToMany = jest.fn(() => Promise.resolve({ ok: true }));
+    test("queueBroadcast mengirim accepted dan mempertahankan placeholder user (lewat queue per-JID)", async () => {
+        // #b348: kirim lewat sendQueueWithRetry (safeSendMessage per-JID), bukan sendMessageToMany.
+        const safeSendMessage = jest.fn(() => Promise.resolve({ success: true }));
         const service = createAdminBroadcastService({
             hasAuthenticatedSession: jest.fn(() => true),
-            sendMessageToMany,
+            safeSendMessage,
+            isReady: () => true,
+            wait: () => Promise.resolve(),
+            getConfig: () => ({ messageDelayMs: 0, jitterMs: 0 }),
             normalizePhoneNumber: jest.fn((value) => value)
         });
 
@@ -25,10 +29,12 @@ describe("admin-broadcast.service", () => {
             selectedUsers: [{ id: 1, name: "Raf", subscription: "20Mbps", phone_number: "08123" }]
         });
 
-        await new Promise((resolve) => setImmediate(resolve));
+        // Kirim fire-and-forget → tunggu beberapa microtask.
+        for (let i = 0; i < 6; i += 1) await new Promise((resolve) => setImmediate(resolve));
 
         expect(result.status).toBe(202);
-        expect(sendMessageToMany).toHaveBeenCalledWith(["08123"], { text: "Halo Raf paket 20Mbps" });
+        // buildJid menormalkan 0→62; teks placeholder tetap diganti.
+        expect(safeSendMessage).toHaveBeenCalledWith("628123@s.whatsapp.net", { text: "Halo Raf paket 20Mbps" });
     });
 
     test("queueBroadcast menolak saat whatsapp offline atau target kosong", async () => {
@@ -47,10 +53,11 @@ describe("admin-broadcast.service", () => {
 
     test("queueBroadcast mencatat riwayat: daftar penerima SUKSES & GAGAL beserta nama + alasan", async () => {
         const insertHistory = jest.fn(() => Promise.resolve("bcast_test"));
-        const sendMessageToMany = jest.fn((numbers) => Promise.resolve({ sent: true, recipients: numbers }));
+        const safeSendMessage = jest.fn(() => Promise.resolve({ success: true }));
         const service = createAdminBroadcastService({
             hasAuthenticatedSession: () => true,
-            sendMessageToMany,
+            safeSendMessage,
+            isReady: () => true,
             normalizePhoneNumber: (value) => (value ? String(value) : null),
             historyRepository: { insertHistory },
             getConfig: () => ({ messageDelayMs: 0, jitterMs: 0 }),

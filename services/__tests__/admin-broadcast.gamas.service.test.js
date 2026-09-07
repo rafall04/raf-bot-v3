@@ -14,7 +14,7 @@ const {
 } = require("../admin-broadcast.service");
 
 const USERS = [
-    { id: 1, name: "A", phone_number: "0811", subscription: "20Mbps", connected_odp_id: "ODP-01", odc: "ODC-A", notify_outage: true },
+    { id: 1, name: "A", phone_number: "081100000001", subscription: "20Mbps", connected_odp_id: "ODP-01", odc: "ODC-A", notify_outage: true },
     { id: 2, name: "B", phone_number: "0812", subscription: "20Mbps", connected_odp_id: "ODP-01", odc: "ODC-A", notify_outage: false },
     { id: 3, name: "C", phone_number: "0813", subscription: "50Mbps", connected_odp_id: "ODP-02", odc: "ODC-B" }, // default opt-in
     { id: 4, name: "D", phone_number: "",     subscription: "20Mbps", connected_odp_id: "ODP-01", odc: "ODC-A", notify_outage: 1 }
@@ -90,15 +90,17 @@ describe("admin-broadcast.service GAMAS", () => {
     });
 
     test("queueBroadcast menerapkan throttle wait antar pelanggan & merekam history sukses", async () => {
-        const sendMessageToMany = jest.fn().mockResolvedValue({ sent: true, recipients: [] });
+        // #b348: kirim lewat sendQueueWithRetry (safeSendMessage per-JID). Jitter kini ditangani
+        // guard anti-ban (config.broadcastGuard) di dalam helper; guard OFF → delay polos messageDelayMs.
+        const safeSendMessage = jest.fn().mockResolvedValue({ success: true });
         const wait = jest.fn().mockResolvedValue();
         const insertHistory = jest.fn().mockResolvedValue();
         const service = createAdminBroadcastService({
             hasAuthenticatedSession: () => true,
-            sendMessageToMany,
+            safeSendMessage,
+            isReady: () => true,
             normalizePhoneNumber: (v) => v,
             wait,
-            randomJitter: () => 200,
             getConfig: () => ({ messageDelayMs: 1000, jitterMs: 500 }),
             historyRepository: { insertHistory }
         });
@@ -115,15 +117,15 @@ describe("admin-broadcast.service GAMAS", () => {
         expect(result.status).toBe(202);
         expect(result.data.totalTargets).toBe(2);
 
-        // Tunggu Promise async di-finish.
-        await new Promise((resolve) => setImmediate(resolve));
-        await new Promise((resolve) => setImmediate(resolve));
+        // Tunggu Promise async (fire-and-forget) di-finish.
+        for (let i = 0; i < 6; i += 1) await new Promise((resolve) => setImmediate(resolve));
 
         // Hanya pelanggan id=1 punya phone; id=4 tidak punya → 1 sukses + 1 failure.
-        expect(sendMessageToMany).toHaveBeenCalledTimes(1);
-        expect(sendMessageToMany).toHaveBeenCalledWith(["0811"], { text: "Halo A, ada gangguan di area Anda" });
-        // Throttle dipanggil sekali antar dua pelanggan (bukan setelah pelanggan terakhir).
-        expect(wait).toHaveBeenCalledWith(1200);
+        // buildJid menormalkan 0→62: "0811" → "62811@s.whatsapp.net".
+        expect(safeSendMessage).toHaveBeenCalledTimes(1);
+        expect(safeSendMessage).toHaveBeenCalledWith("6281100000001@s.whatsapp.net", { text: "Halo A, ada gangguan di area Anda" });
+        // Throttle (delay) dipanggil oleh helper dengan messageDelayMs (guard OFF → tanpa jitter).
+        expect(wait).toHaveBeenCalledWith(1000);
         expect(insertHistory).toHaveBeenCalledTimes(1);
         const historyEntry = insertHistory.mock.calls[0][0];
         expect(historyEntry).toMatchObject({

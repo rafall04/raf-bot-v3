@@ -26,6 +26,14 @@ function defaultDeps() {
     return {
         hasAuthenticatedSession: require("../lib/whatsapp-gateway").hasAuthenticatedSession,
         sendMessageToMany: require("../lib/whatsapp-delivery-service").sendMessageToMany,
+        // #b348: kirim broadcast admin lewat sendQueueWithRetry (SAMA dgn cron reminder/isolir/CSAT) —
+        // retry tahan blip WA + circuit-breaker + ledger + master-switch config.broadcastGuard.enabled
+        // AKTIF di jalur ini. Sebelumnya sendMessageToMany dgn throttle sendiri: blip → sisa antrian
+        // gagal PERMANEN (tak retry), breaker/ledger diabaikan, guard inert (jalur volume-tertinggi).
+        sendQueue: require("../lib/cron/wa-send-queue").sendQueueWithRetry,
+        buildJid: require("../lib/cron/wa-send-queue").buildJid,
+        safeSendMessage: require("../lib/cron/shared").safeSendMessage,
+        isReady: require("../lib/whatsapp-gateway").isReady,
         normalizePhoneNumber: require("../lib/utils").normalizePhoneNumber,
         renderResponseTemplate: (() => {
             try {
@@ -213,46 +221,61 @@ function createAdminBroadcastService(overrides = {}) {
     }
 
     async function sendWithThrottle({ targetUsers, text, templateKey, fallback }) {
-        const { delayMs, jitterMs } = readThrottleConfig();
+        const { delayMs } = readThrottleConfig();
         const successByUserId = [];
         const failureByUserId = [];
 
-        for (let index = 0; index < targetUsers.length; index += 1) {
-            const user = targetUsers[index];
-            const numbers = buildPhoneTargets(user);
-            // Nama disimpan bersama tiap hasil kirim agar riwayat bisa menampilkan "terkirim/gagal ke SIAPA"
-            // walau pelanggan kelak diubah/dihapus (denormalisasi sengaja — potret saat broadcast).
+        // #b348: bangun item PER-NOMOR (kontrak sendQueueWithRetry: 1 item = 1 JID → retry tak
+        // dobel-kirim ke nomor yang sudah sukses) + peta user→jid utk rekonstruksi riwayat "ke SIAPA".
+        const buildJid = deps.buildJid || require("../lib/cron/wa-send-queue").buildJid;
+        const items = [];
+        const perUser = new Map(); // user_id → { name, jids: [] }
+        for (const user of targetUsers) {
+            const userId = user?.id ?? null;
+            // Nama disimpan bersama hasil (denormalisasi sengaja — potret saat broadcast).
             const userName = user?.name || null;
-            if (numbers.length === 0) {
-                failureByUserId.push({ user_id: user?.id ?? null, name: userName, reason: "missing_phone_number" });
+            const numbers = buildPhoneTargets(user);
+            const jids = numbers.map((n) => buildJid(n)).filter(Boolean);
+            if (jids.length === 0) {
+                failureByUserId.push({ user_id: userId, name: userName, reason: "missing_phone_number" });
                 continue;
             }
-
             const personalizedText = renderText({ text, templateKey, user, fallback });
-            try {
-                const result = await deps.sendMessageToMany(numbers, { text: personalizedText });
-                if (result && result.sent === false) {
-                    failureByUserId.push({
-                        user_id: user?.id ?? null,
-                        name: userName,
-                        reason: result.errorCode || "delivery_failed",
-                        warning: result.warning || null
-                    });
-                } else {
-                    successByUserId.push({ user_id: user?.id ?? null, name: userName, recipients: result?.recipients || numbers });
-                }
-            } catch (error) {
-                failureByUserId.push({
-                    user_id: user?.id ?? null,
-                    name: userName,
-                    reason: "send_exception",
-                    warning: error.message
-                });
+            const key = userId === null ? `anon:${items.length}` : `id:${userId}`;
+            perUser.set(key, { user_id: userId, name: userName, jids });
+            for (const jid of jids) {
+                items.push({ jid, text: personalizedText, label: userName || jid, user_id: userId, __key: key });
             }
+        }
 
-            // Throttle antar pelanggan agar nomor WA tidak diblokir (bukan setelah pelanggan terakhir).
-            if (index < targetUsers.length - 1 && delayMs > 0) {
-                await deps.wait(delayMs + deps.randomJitter(jitterMs));
+        if (items.length > 0) {
+            // Salurkan lewat helper anti-ban BERSAMA: retry tahan blip + breaker + ledger +
+            // config.broadcastGuard. safeSendMessage/isReady/delay diinjeksi (uji) atau default runtime.
+            const queueResult = await deps.sendQueue({
+                items,
+                safeSendMessage: deps.safeSendMessage,
+                isReady: deps.isReady,
+                delay: deps.wait,
+                messageDelayMs: delayMs,
+                tag: "ADMIN_BROADCAST",
+                logger: console,
+            });
+            const failedJids = new Set((queueResult.failed || []).map((f) => f.jid));
+            const skippedJids = new Set((queueResult.skipped || []).map((s) => s.jid));
+            // Rekonstruksi per-user: SUKSES bila ≥1 nomornya terkirim; GAGAL bila SEMUA nomor
+            // gagal/di-skip (tetap terlaporkan "ke SIAPA + alasan", tak hilang senyap).
+            for (const info of perUser.values()) {
+                const anySent = info.jids.some((jid) => !failedJids.has(jid) && !skippedJids.has(jid));
+                if (anySent) {
+                    successByUserId.push({ user_id: info.user_id, name: info.name, recipients: info.jids });
+                } else {
+                    const allSkipped = info.jids.every((jid) => skippedJids.has(jid));
+                    failureByUserId.push({
+                        user_id: info.user_id,
+                        name: info.name,
+                        reason: allSkipped ? "skipped_ledger_or_unregistered" : (queueResult.breakerTripped ? "breaker_stopped" : "delivery_failed"),
+                    });
+                }
             }
         }
 
