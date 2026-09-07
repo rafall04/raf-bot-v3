@@ -1231,5 +1231,18 @@
     "category": "teknisi",
     "description": "Teknisi cek gaji & komisinya sendiri",
     "icon": "💼"
+  },
+  {
+    "keywords": [
+      "cek redaman",
+      "cekredaman",
+      "cek redaman modem",
+      "cek redaman olt",
+      "cek redaman pelanggan"
+    ],
+    "intent": "CEK_REDAMAN",
+    "category": "wifi",
+    "description": "Cek redaman (RX power) modem + OLT pelanggan — teknisi",
+    "icon": "📶"
   }
 ]

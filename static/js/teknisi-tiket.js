@@ -186,7 +186,19 @@
             }
             
             let html = '<div class="btn-group-vertical" style="width: 100%;">';
-            
+
+            // #b351: tombol READ-ONLY "Cek Redaman" — MUNCUL DI SEMUA status (tak ubah state machine).
+            // 1-klik dari baris tiket (nol filter): userId dari row.user_id → diagnosa dua-sisi (Modem+OLT).
+            if (row.user_id != null && row.user_id !== '') {
+                html += `
+                    <button class="btn btn-sm btn-outline-secondary"
+                            onclick="showRedamanModal('${esc(String(row.user_id))}')"
+                            title="Cek redaman modem + OLT (realtime)">
+                        <i class="fas fa-signal action-btn-icon"></i> Cek Redaman
+                    </button>
+                `;
+            }
+
             switch(status) {
                 case 'baru':
                     // New ticket - only "Proses" button
@@ -1923,6 +1935,72 @@
             }
             document.getElementById('confirmProcessTicketBtn').setAttribute('data-ticket-id', ticketId);
             $('#processTicketModal').modal('show');
+        }
+
+        // #b351: DIAGNOSA REDAMAN 1-KLIK dari baris tiket (read-only, dua-sisi Modem+OLT). Modal
+        // dibuat dinamis (tanpa ubah .php). Fetch pakai cookie (credentials:'include') → endpoint
+        // staff-gated /api/teknisi/diagnosa-redaman/:userId (reuse service fondasi #b350).
+        function ensureRedamanModal() {
+            if (document.getElementById('redamanModal')) return;
+            const html = `
+            <div class="modal fade" id="redamanModal" tabindex="-1" role="dialog" aria-labelledby="redamanModalLabel" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="redamanModalLabel"><i class="fas fa-signal"></i> Cek Redaman</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                  </div>
+                  <div class="modal-body" id="redamanModalBody"></div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="redamanRefreshBtn"><i class="fas fa-sync"></i> Cek ulang</button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Tutup</button>
+                  </div>
+                </div>
+              </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+
+        function renderRedamanBody(d) {
+            // Warna ringkasan: BURUK/LOS/DG → merah, WASPADA → kuning, selainnya hijau.
+            const worstLabel = (d.modem && d.modem.verdict && d.modem.verdict.label) || '';
+            const oltLabel = (d.olt && d.olt.verdict && d.olt.verdict.label) || '';
+            const bad = worstLabel === 'BURUK' || oltLabel === 'BURUK' || (d.olt && (d.olt.isLos || d.olt.isDyingGasp));
+            const warn = worstLabel === 'WASPADA' || oltLabel === 'WASPADA';
+            const cls = bad ? 'danger' : (warn ? 'warning' : 'success');
+            const lines = (d.detailLines || []).map((l) => esc(l)).join('<br>');
+            const kesimpulan = d.kesimpulan ? `<div class="alert alert-${cls} mt-2 mb-0 py-2 small">${esc(d.kesimpulan)}</div>` : '';
+            return `
+                <div class="mb-2"><b>${esc(d.nama || '-')}</b> <span class="text-muted small">${esc(d.pppoe || '-')}</span></div>
+                <div class="p-2 border rounded small" style="line-height:1.7;">${lines || '<span class="text-muted">Tidak ada data.</span>'}</div>
+                ${kesimpulan}
+                <div class="text-muted mt-2" style="font-size:11px;">RX makin negatif = makin buruk. Angka OLT hanya tampil bila ONU Online (yang tidak valid ditandai).</div>
+            `;
+        }
+
+        async function loadRedaman(userId) {
+            const body = document.getElementById('redamanModalBody');
+            body.innerHTML = '<div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Mengukur redaman modem + OLT… (mohon tunggu)</div>';
+            try {
+                const resp = await fetch('/api/teknisi/diagnosa-redaman/' + encodeURIComponent(userId), { credentials: 'include' });
+                const json = await resp.json();
+                if (!resp.ok || !json || json.status !== 200 || !json.data) {
+                    body.innerHTML = `<div class="alert alert-warning mb-0 py-2 small">${esc((json && json.message) || 'Gagal mengambil data redaman.')}</div>`;
+                    return;
+                }
+                body.innerHTML = renderRedamanBody(json.data);
+            } catch (e) {
+                body.innerHTML = `<div class="alert alert-danger mb-0 py-2 small">Gagal terhubung: ${esc(e.message)}</div>`;
+            }
+        }
+
+        function showRedamanModal(userId) {
+            if (userId == null || userId === '') return;
+            ensureRedamanModal();
+            const btn = document.getElementById('redamanRefreshBtn');
+            if (btn) btn.onclick = function () { loadRedaman(userId); };
+            $('#redamanModal').modal('show');
+            loadRedaman(userId);
         }
         
         // Auto-refresh setiap 30 detik untuk data terbaru (optional)

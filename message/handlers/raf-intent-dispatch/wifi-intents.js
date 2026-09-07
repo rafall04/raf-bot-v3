@@ -128,12 +128,20 @@ async function handleHistoryWifiIntent(context) {
     await handleHistoryWifi(sender, reply, global, msg, raf);
 }
 
+// #b351: intent WA TEKNISI cek redaman dua-sisi (Modem+OLT). Handler konkret di
+// message/handlers/redaman-check-handler.js (di-inject sbg context.handleCekRedaman di raf.js).
+async function handleCekRedamanIntent(context) {
+    const { handleCekRedaman, qAfterKeyword, args, matchedKeywordLength, isOwner, isTeknisi, users, reply, global, mess, msg, raf } = context;
+    await handleCekRedaman({ qAfterKeyword, args, matchedKeywordLength, isOwner, isTeknisi, users, reply, global, mess, msg, raf });
+}
+
 const WIFI_INTENT_HANDLERS = Object.freeze({
     GANTI_NAMA_WIFI: handleGantiNamaWifiIntent,
     GANTI_SANDI_WIFI: handleGantiSandiWifiIntent,
     GANTI_POWER_WIFI: handleGantiPowerWifiIntent,
     REBOOT_MODEM: handleRebootModemIntent,
     CEK_WIFI: handleCekWifiIntent,
+    CEK_REDAMAN: handleCekRedamanIntent,
     HISTORY_WIFI: handleHistoryWifiIntent
 });
 
@@ -144,5 +152,6 @@ module.exports = {
     handleGantiPowerWifiIntent,
     handleRebootModemIntent,
     handleCekWifiIntent,
+    handleCekRedamanIntent,
     handleHistoryWifiIntent
 };

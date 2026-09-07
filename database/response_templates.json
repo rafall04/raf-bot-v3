@@ -5861,5 +5861,10 @@
     "name": "WiFi belum terverifikasi (readback timeout)",
     "template": "⚠️ Perubahannya belum bisa kami *pastikan* tersimpan, Kak.\n\nCoba cek WiFi-nya beberapa saat lagi ya; kalau belum berubah, silakan ulangi 🙏",
     "category": "wifi"
-  }
+  },
+    "redaman_check_help": {"name": "Cek Redaman: Bantuan", "template": "📶 *Cek Redaman*\nKetik:\n• *cek redaman <nama / pppoe / no HP>*\n• *cek redaman #<id tiket>*", "category": "wifi"},
+    "redaman_check_loading": {"name": "Cek Redaman: Sedang Mengukur", "template": "⏳ Sedang cek redaman (modem + OLT), mohon tunggu…", "category": "wifi"},
+    "redaman_check_not_found": {"name": "Cek Redaman: Pelanggan Tak Ditemukan", "template": "🔍 Pelanggan \"${query}\" tidak ditemukan. Coba nama / PPPoE / no HP, atau #<id tiket>.", "category": "wifi"},
+    "redaman_check_ticket_not_found": {"name": "Cek Redaman: Tiket Tak Ditemukan", "template": "🔍 Tiket #${idtiket} tidak ditemukan.", "category": "wifi"},
+    "redaman_check_ambiguous": {"name": "Cek Redaman: Banyak Kandidat", "template": "🔎 Ditemukan beberapa pelanggan. Perjelas kata kunci:\n\n${daftar}", "category": "wifi"}
 }

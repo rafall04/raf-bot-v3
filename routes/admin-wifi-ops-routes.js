@@ -11,6 +11,7 @@ const { writeFileAtomicSync } = require('../lib/atomic-file'); // config.json AT
 
 const { asyncHandler, createError, ErrorTypes } = require("../lib/error-handler");
 const { createNetworkOpsService } = require("../services/network-ops.service");
+const { getRedamanDiagnosisService, formatDetailLines } = require("../services/redaman-diagnosis.service"); // #b351 diagnosa redaman dua-sisi 1-klik
 
 function registerAdminWifiOpsRoutes(router, deps) {
     const {
@@ -225,6 +226,54 @@ function registerAdminWifiOpsRoutes(router, deps) {
         }
         const result = await networkOpsService.getCustomerRedaman({ deviceId: req.params.deviceId }, buildActorContext(req));
         return res.status(result.status).json(result);
+    }));
+
+    // #b351: DIAGNOSA REDAMAN 1-KLIK by userId (dua-sisi: Modem/ACS + OLT) untuk tombol panel tiket
+    // teknisi. Staff-only (RX/PPPoE/slot boleh ke staf, JANGAN ke pelanggan). Reuse service fondasi
+    // #b350 — nol filter manual: userId datang dari baris tiket.
+    router.get("/api/teknisi/diagnosa-redaman/:userId", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        const userId = req.params.userId;
+        if (!userId) throw createError(ErrorTypes.VALIDATION_ERROR, "userId wajib", 400);
+        let users = [];
+        try {
+            const repo = runtime && typeof runtime.getRepository === "function" && runtime.getRepository("users");
+            users = (repo && typeof repo.getAll === "function" && repo.getAll()) || global.users || [];
+        } catch (_e) { users = global.users || []; }
+        const user = (users || []).find((u) => u && String(u.id) === String(userId));
+        if (!user) {
+            return res.status(404).json({ status: 404, message: "Pelanggan tidak ditemukan." });
+        }
+        const diag = await getRedamanDiagnosisService().diagnoseCustomer(user, { caller: `web.teknisi.diagnosa:${buildActorContext(req).username}` });
+        // Payload ramping utk modal panel (staff): angka + verdict + kesimpulan + baris siap-tampil.
+        return res.status(200).json({
+            status: 200,
+            data: {
+                nama: diag.nama,
+                pppoe: diag.pppoe,
+                modem: {
+                    hasDevice: diag.modem.hasDevice,
+                    reachable: diag.modem.reachable,
+                    rx: diag.modem.rxRaw,
+                    verdict: diag.modem.verdict ? { label: diag.modem.verdict.label, emoji: diag.modem.verdict.emoji, value: diag.modem.verdict.value } : null,
+                },
+                olt: diag.olt && diag.olt.matched
+                    ? {
+                        matched: true,
+                        status: diag.olt.status,
+                        rxValid: !!diag.olt.rxPowerValid,
+                        rx: diag.olt.rxPowerValid ? diag.olt.rxPower : null,
+                        verdict: diag.oltVerdict ? { label: diag.oltVerdict.label, emoji: diag.oltVerdict.emoji } : null,
+                        isLos: !!diag.olt.isLos,
+                        isDyingGasp: !!diag.olt.isDyingGasp,
+                        lokasi: [diag.olt.oltName, diag.olt.ponName, diag.olt.onuId != null ? `ONU ${diag.olt.onuId}` : null].filter(Boolean).join(" / "),
+                    }
+                    : { matched: false },
+                terburuk: diag.combined ? diag.combined.terburuk : null,
+                kesimpulan: diag.kesimpulan,
+                detailLines: formatDetailLines(diag),
+                sources: diag.sources,
+            },
+        });
     }));
 
     router.post("/api/test-parameter", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {

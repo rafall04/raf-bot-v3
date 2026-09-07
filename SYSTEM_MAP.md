@@ -455,6 +455,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-07 (RONDE 4 P2 socket/broadcast — createSocketAuthMiddleware re-derive role dari AKUN (bukan klaim token; tutup residu bypass QR #b338 saat demote/hapus akun) + admin-broadcast sendWithThrottle lewat sendQueueWithRetry (retry+breaker+ledger, broadcastGuard aktif di jalur volume-tertinggi))](docs/boundary-log.md#b348)
 - [Fix 2026-09-07 (RONDE 4 P3 gated-OFF PSB/publik — submitPublicRegistration guard isTemplateError (tak bocor 'Error: Template' ke pelanggan/admin) + withLock 'psb-id-alloc' + retry-UNIQUE (lead tak hilang) + psb-group-intake ssid_indices default dual-band ['1','5'])](docs/boundary-log.md#b349)
 - [Fitur 2026-09-07 (RONDE 5 Fase 0 — services/redaman-diagnosis.service.js: SATU diagnosa redaman 1 pelanggan dua-sisi (ACS+OLT via resolveByCustomer+rxVerdict/rx_tolerance, hormati rxPowerValid), murni/never-throw; Telegram redaman-command dialihkan ke sini)](docs/boundary-log.md#b350)
+- [Fitur 2026-09-07 (RONDE 5 Fase 1+2 — intent WA teknisi cek redaman <nama/pppoe/#idtiket> (redaman-check-handler, STAF-ONLY, dua-sisi via service #b350) + tombol Cek Redaman 1-klik panel tiket (GET /api/teknisi/diagnosa-redaman/:userId + modal))](docs/boundary-log.md#b351)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
