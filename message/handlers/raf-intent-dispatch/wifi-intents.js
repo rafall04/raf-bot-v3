@@ -135,6 +135,12 @@ async function handleCekRedamanIntent(context) {
     await handleCekRedaman({ qAfterKeyword, args, matchedKeywordLength, isOwner, isTeknisi, users, reply, global, mess, msg, raf });
 }
 
+// #b352: intent WA TEKNISI daftar pelanggan TERDAMPAK berperingkat (gated config.redamanTerdampak).
+async function handleCekRedamanTerdampakIntent(context) {
+    const { handleRedamanTerdampak, qAfterKeyword, isOwner, isTeknisi, reply, global, mess } = context;
+    await handleRedamanTerdampak({ qAfterKeyword, isOwner, isTeknisi, reply, global, mess });
+}
+
 const WIFI_INTENT_HANDLERS = Object.freeze({
     GANTI_NAMA_WIFI: handleGantiNamaWifiIntent,
     GANTI_SANDI_WIFI: handleGantiSandiWifiIntent,
@@ -142,6 +148,7 @@ const WIFI_INTENT_HANDLERS = Object.freeze({
     REBOOT_MODEM: handleRebootModemIntent,
     CEK_WIFI: handleCekWifiIntent,
     CEK_REDAMAN: handleCekRedamanIntent,
+    CEK_REDAMAN_TERDAMPAK: handleCekRedamanTerdampakIntent,
     HISTORY_WIFI: handleHistoryWifiIntent
 });
 
@@ -153,5 +160,6 @@ module.exports = {
     handleRebootModemIntent,
     handleCekWifiIntent,
     handleCekRedamanIntent,
+    handleCekRedamanTerdampakIntent,
     handleHistoryWifiIntent
 };

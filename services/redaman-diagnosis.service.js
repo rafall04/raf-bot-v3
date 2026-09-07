@@ -22,6 +22,52 @@
 
 const { rxVerdict } = require("../lib/telegram/telegram-format");
 const { ringkasDuaSumber } = require("../lib/redaman-sumber-silang");
+const { isRxPowerValid } = require("../lib/olt-optical-resolver");
+
+/**
+ * #b352 (Fase 3): ringkas pelanggan TERDAMPAK dari SATU snapshot OLT — SNAPSHOT-DIRECT (murni,
+ * O(onus), NOL I/O per-pelanggan) → AMAN dari blast-radius #b251 (tak ada fan-out force-refresh ACS).
+ * Peringkat "terburuk dulu": ONU non-Online (LOS/DG) di atas, lalu RX paling negatif.
+ * @param {object} snapshot - hasil getOltSnapshot ({onus:[...]}).
+ * @param {object} opts - { oltName?, onlyBad?, tolerance, limit? }
+ * @returns {{total:number, truncated:boolean, rows:Array}}
+ */
+function summarizeAffectedFromSnapshot(snapshot, opts = {}) {
+    const onus = (snapshot && Array.isArray(snapshot.onus)) ? snapshot.onus : [];
+    const tol = opts.tolerance;
+    const limit = Number.isFinite(opts.limit) && opts.limit > 0 ? opts.limit : 100;
+    let rows = onus.map((onu) => {
+        const status = onu.status;
+        const online = String(status || "").toLowerCase() === "online";
+        const valid = isRxPowerValid(onu, status);
+        const verdict = valid ? rxVerdict(onu.rxPower, tol) : null;
+        const bad = !online || (verdict && verdict.label === "BURUK");
+        // Peringkat: offline paling parah (kunci sangat kecil); online → pakai RX (makin negatif makin awal).
+        const sortKey = !online ? -1000 : (valid && verdict && verdict.value !== null ? verdict.value : 0);
+        return {
+            label: onu.description || onu.serial || onu.macAddress || "(tanpa id)",
+            oltName: onu.olt_name || null,
+            pon: onu.ponName || null,
+            onuId: onu.id != null ? onu.id : null,
+            status: status || "?",
+            rxValid: valid,
+            rx: valid ? onu.rxPower : null,
+            verdict: verdict ? { label: verdict.label, emoji: verdict.emoji } : null,
+            isLos: !!onu.isLos,
+            isDyingGasp: !!onu.isDyingGasp,
+            bad,
+            sortKey,
+        };
+    });
+    if (opts.oltName) {
+        const q = String(opts.oltName).toLowerCase();
+        rows = rows.filter((r) => String(r.oltName || "").toLowerCase().includes(q));
+    }
+    if (opts.onlyBad) rows = rows.filter((r) => r.bad);
+    rows.sort((a, b) => a.sortKey - b.sortKey);
+    const total = rows.length;
+    return { total, truncated: total > limit, rows: rows.slice(0, limit) };
+}
 
 function displayName(user) {
     return String((user && user.name) || "").split("|")[0].trim() || "(tanpa nama)";
@@ -162,7 +208,29 @@ function createRedamanDiagnosisService(deps = {}) {
         };
     }
 
-    return { diagnoseCustomer };
+    /**
+     * #b352 (Fase 3): daftar pelanggan TERDAMPAK berperingkat dari SATU snapshot OLT bersama (AMAN,
+     * tanpa fan-out force-refresh ACS). NEVER-THROW.
+     * @param {object} [opts] - { oltName?, onlyBad?(default true), limit? }
+     * @returns {Promise<{total,truncated,rows}>}
+     */
+    async function getAffectedRedaman(opts = {}) {
+        const cfg = getConfig() || {};
+        let snapshot = null;
+        try {
+            snapshot = typeof getOltSnapshot === "function" ? await getOltSnapshot() : null;
+        } catch (_e) {
+            snapshot = null;
+        }
+        return summarizeAffectedFromSnapshot(snapshot, {
+            oltName: opts.oltName || null,
+            onlyBad: opts.onlyBad !== false,
+            tolerance: cfg.rx_tolerance,
+            limit: opts.limit,
+        });
+    }
+
+    return { diagnoseCustomer, getAffectedRedaman };
 }
 
 let _default = null;
@@ -182,4 +250,5 @@ module.exports = {
     getRedamanDiagnosisService,
     formatDetailLines,
     buildKesimpulan,
+    summarizeAffectedFromSnapshot,
 };

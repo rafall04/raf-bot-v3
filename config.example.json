@@ -761,5 +761,6 @@
   "authz": {
     "gerbangTeknisi": "tegakkan"
   },
-  "genieacsQueuedOnlyIsFailure": true
+  "genieacsQueuedOnlyIsFailure": true,
+  "redamanTerdampak": { "enabled": false }
 }

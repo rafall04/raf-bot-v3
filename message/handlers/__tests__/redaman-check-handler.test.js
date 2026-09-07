@@ -17,12 +17,18 @@ const mockDiagnose = jest.fn(async () => ({
     kesimpulan: "Kesimpulan: redaman dalam batas wajar. ✅",
     sources: { modem: true, olt: true },
 }));
+const mockAffected = jest.fn(async () => ({
+    total: 2, truncated: false, rows: [
+        { label: "los@isp", oltName: "OLT-A", pon: "PON1", onuId: 3, status: "LOS", rxValid: false, rx: null, verdict: null, isLos: true, isDyingGasp: false, bad: true },
+        { label: "budi@isp", oltName: "OLT-A", pon: "PON1", onuId: 4, status: "Online", rxValid: true, rx: -27, verdict: { label: "BURUK", emoji: "🔴" }, isLos: false, isDyingGasp: false, bad: true },
+    ],
+}));
 jest.mock("../../../services/redaman-diagnosis.service", () => ({
-    getRedamanDiagnosisService: () => ({ diagnoseCustomer: mockDiagnose }),
+    getRedamanDiagnosisService: () => ({ diagnoseCustomer: mockDiagnose, getAffectedRedaman: mockAffected }),
     formatDetailLines: () => ["— Sisi Modem (ONU) —", "RX: 🟢 -24 dBm — BAIK", "", "— Sisi OLT —", "RX: 🟢 -25 dBm — BAIK (status ONU: Online)"],
 }));
 
-const { handleCekRedaman } = require("../redaman-check-handler");
+const { handleCekRedaman, handleRedamanTerdampak } = require("../redaman-check-handler");
 
 const USERS = [
     { id: 5, name: "Budi Santoso", pppoe_username: "budi@isp", device_id: "DEV-5" },
@@ -39,7 +45,7 @@ function mkP(over = {}) {
     };
 }
 
-beforeEach(() => mockDiagnose.mockClear());
+beforeEach(() => { mockDiagnose.mockClear(); mockAffected.mockClear(); });
 
 describe("handleCekRedaman (#b351 Fase 1)", () => {
     test("STAF-ONLY: pelanggan (bukan teknisi/owner) ditolak, service TIDAK dipanggil", async () => {
@@ -94,5 +100,38 @@ describe("handleCekRedaman (#b351 Fase 1)", () => {
         await handleCekRedaman(p);
         expect(mockDiagnose).not.toHaveBeenCalled();
         expect(p.reply.mock.calls[0][0]).toMatch(/tidak ditemukan/i);
+    });
+});
+
+describe("handleRedamanTerdampak (#b352 Fase 3, gated)", () => {
+    test("STAF-ONLY: pelanggan ditolak", async () => {
+        const p = mkP({ isTeknisi: undefined, isOwner: false });
+        await handleRedamanTerdampak(p);
+        expect(p.reply).toHaveBeenCalledWith("⛔ khusus teknisi");
+        expect(mockAffected).not.toHaveBeenCalled();
+    });
+
+    test("gate OFF (config.redamanTerdampak.enabled != true) → pesan belum aktif, service tak dipanggil", async () => {
+        const p = mkP({ global: { config: {} } });
+        await handleRedamanTerdampak(p);
+        expect(mockAffected).not.toHaveBeenCalled();
+        expect(p.reply.mock.calls[0][0]).toMatch(/belum diaktifkan|redamanTerdampak/i);
+    });
+
+    test("gate ON, arg kosong → onlyBad true, daftar terdampak berperingkat", async () => {
+        const p = mkP({ qAfterKeyword: "", global: { config: { redamanTerdampak: { enabled: true } } } });
+        await handleRedamanTerdampak(p);
+        expect(mockAffected).toHaveBeenCalledWith(expect.objectContaining({ onlyBad: true }));
+        const last = p.reply.mock.calls[p.reply.mock.calls.length - 1][0];
+        expect(last).toMatch(/Terdampak/i);
+        expect(last).toMatch(/los@isp/);       // LOS di atas
+        expect(last).toMatch(/budi@isp/);
+        expect(last).toMatch(/RX belum valid/); // ONU non-Online ditandai
+    });
+
+    test("gate ON, arg OLT nama → filter oltName, onlyBad false", async () => {
+        const p = mkP({ qAfterKeyword: "OLT-A", global: { config: { redamanTerdampak: { enabled: true } } } });
+        await handleRedamanTerdampak(p);
+        expect(mockAffected).toHaveBeenCalledWith(expect.objectContaining({ oltName: "OLT-A", onlyBad: false }));
     });
 });

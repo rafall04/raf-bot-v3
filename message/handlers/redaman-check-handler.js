@@ -119,4 +119,55 @@ async function handleCekRedaman(p) {
     return reply(out.join("\n"));
 }
 
-module.exports = { handleCekRedaman, resolveFromTicket };
+/**
+ * #b352 (Fase 3): daftar pelanggan TERDAMPAK berperingkat (redaman terburuk dulu) dari SATU snapshot
+ * OLT bersama — AMAN (tanpa fan-out force-refresh ACS, #b251). GATED config.redamanTerdampak.enabled
+ * (default OFF). "redaman terdampak" → semua ONU bermasalah lintas-OLT; "redaman olt <nama>" → 1 OLT.
+ * @param {object} p - { qAfterKeyword, isOwner, isTeknisi, reply, global, mess }
+ */
+async function handleRedamanTerdampak(p) {
+    const { isOwner, isTeknisi, reply, mess } = p;
+    const globalScope = p.global || (typeof global !== "undefined" ? global : {});
+    if (!isTeknisi && !isOwner) {
+        return reply((mess && mess.teknisiOrOwnerOnly) || "⛔ Fitur ini khusus teknisi/admin.");
+    }
+    const cfg = (globalScope && globalScope.config) || (typeof global !== "undefined" && global.config) || {};
+    if (!cfg.redamanTerdampak || cfg.redamanTerdampak.enabled !== true) {
+        return reply(renderResponseTemplate(
+            "redaman_terdampak_disabled",
+            "ℹ️ Fitur 'redaman terdampak' belum diaktifkan (config.redamanTerdampak.enabled).",
+            {}
+        ));
+    }
+    const arg = String(p.qAfterKeyword || "").trim(); // non-kosong → filter OLT by nama
+
+    await reply(renderResponseTemplate("redaman_terdampak_loading", "⏳ Mengumpulkan redaman pelanggan terdampak (baca OLT)…", {}));
+
+    let res;
+    try {
+        res = await getRedamanDiagnosisService().getAffectedRedaman({ oltName: arg || null, onlyBad: !arg, limit: 30 });
+    } catch (_e) {
+        return reply("⚠️ Gagal mengambil data OLT saat ini. Coba lagi sebentar lagi ya.");
+    }
+    if (!res || !res.rows || res.rows.length === 0) {
+        return reply(arg
+            ? `✅ Tidak ada ONU bermasalah di OLT "${arg}" (atau OLT tak ditemukan).`
+            : "✅ Tidak ada pelanggan terdampak (semua ONU Online & RX wajar).");
+    }
+
+    const shown = res.truncated ? `, tampil ${res.rows.length}` : "";
+    const header = arg
+        ? `📶 *Redaman OLT ${arg}* (${res.total} ONU${shown}) — terburuk dulu`
+        : `🚨 *Pelanggan Terdampak* (${res.total}${shown}) — terburuk dulu`;
+    const lines = res.rows.map((r, i) => {
+        const rx = r.rxValid
+            ? `${r.verdict ? r.verdict.emoji + " " : ""}${r.rx} dBm${r.verdict ? " " + r.verdict.label : ""}`
+            : `${r.status}${r.isLos ? " (LOS)" : r.isDyingGasp ? " (DG)" : ""} — RX belum valid`;
+        const loc = [r.oltName, r.pon, r.onuId != null ? `ONU ${r.onuId}` : null].filter(Boolean).join("/");
+        return `${i + 1}. ${r.label} — ${rx}${loc ? ` [${loc}]` : ""}`;
+    });
+    if (res.truncated) lines.push(`…dan ${res.total - res.rows.length} lainnya.`);
+    return reply([header, "", ...lines].join("\n"));
+}
+
+module.exports = { handleCekRedaman, handleRedamanTerdampak, resolveFromTicket };

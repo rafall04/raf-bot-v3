@@ -7,7 +7,7 @@
  * SideEffects: -
  */
 "use strict";
-const { createRedamanDiagnosisService, formatDetailLines } = require("../redaman-diagnosis.service");
+const { createRedamanDiagnosisService, formatDetailLines, summarizeAffectedFromSnapshot } = require("../redaman-diagnosis.service");
 
 const CFG = () => ({ rx_tolerance: -25 });
 const user = { id: 7, name: "Budi|Net", pppoe_username: "budi@isp|x", device_id: "DEV-1" };
@@ -81,5 +81,44 @@ describe("redaman-diagnosis.service (#b350)", () => {
         const d = await mk({ getActivePPPoEUsers: spy }).diagnoseCustomer(user, { pppoeActive: [{ name: "budi@isp", caller_id: "AA:BB" }] });
         expect(spy).not.toHaveBeenCalled();
         expect(d.sources.olt).toBe(true);
+    });
+});
+
+describe("summarizeAffectedFromSnapshot (#b352 Fase 3, snapshot-direct)", () => {
+    const SNAP = { onus: [
+        { description: "los@isp", status: "LOS", isLos: true, isDyingGasp: false, statusKnown: true, olt_name: "OLT-A", ponName: "PON1", id: 1, rxPower: -40 },
+        { description: "buruk@isp", status: "Online", statusKnown: true, olt_name: "OLT-A", ponName: "PON1", id: 2, rxPower: -27 },
+        { description: "baik@isp", status: "Online", statusKnown: true, olt_name: "OLT-B", ponName: "PON2", id: 3, rxPower: -20 },
+    ] };
+    const TOL = -25;
+
+    test("onlyBad: LOS + Online-BURUK; ranking LOS (offline) dulu lalu RX terburuk; ONU baik dibuang", () => {
+        const r = summarizeAffectedFromSnapshot(SNAP, { onlyBad: true, tolerance: TOL });
+        expect(r.total).toBe(2);
+        expect(r.rows[0].label).toBe("los@isp");   // offline paling parah
+        expect(r.rows[0].rxValid).toBe(false);      // LOS → RX tak valid (tak dipamerkan)
+        expect(r.rows[1].label).toBe("buruk@isp");  // Online -27 BURUK
+        expect(r.rows[1].verdict.label).toBe("BURUK");
+        expect(r.rows.find((x) => x.label === "baik@isp")).toBeUndefined();
+    });
+
+    test("filter oltName → hanya OLT-B (baik@isp), onlyBad off menampilkan semua di OLT itu", () => {
+        const r = summarizeAffectedFromSnapshot(SNAP, { oltName: "olt-b", onlyBad: false, tolerance: TOL });
+        expect(r.total).toBe(1);
+        expect(r.rows[0].label).toBe("baik@isp");
+        expect(r.rows[0].rxValid).toBe(true);
+        expect(r.rows[0].verdict.label).toBe("BAIK");
+    });
+
+    test("limit → truncated true + rows terpotong", () => {
+        const r = summarizeAffectedFromSnapshot(SNAP, { onlyBad: false, tolerance: TOL, limit: 1 });
+        expect(r.total).toBe(3);
+        expect(r.truncated).toBe(true);
+        expect(r.rows.length).toBe(1);
+    });
+
+    test("snapshot null/kosong → total 0 (never-throw)", () => {
+        expect(summarizeAffectedFromSnapshot(null, { tolerance: TOL }).total).toBe(0);
+        expect(summarizeAffectedFromSnapshot({ onus: [] }, { tolerance: TOL }).total).toBe(0);
     });
 });

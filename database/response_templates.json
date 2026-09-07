@@ -5866,5 +5866,7 @@
     "redaman_check_loading": {"name": "Cek Redaman: Sedang Mengukur", "template": "⏳ Sedang cek redaman (modem + OLT), mohon tunggu…", "category": "wifi"},
     "redaman_check_not_found": {"name": "Cek Redaman: Pelanggan Tak Ditemukan", "template": "🔍 Pelanggan \"${query}\" tidak ditemukan. Coba nama / PPPoE / no HP, atau #<id tiket>.", "category": "wifi"},
     "redaman_check_ticket_not_found": {"name": "Cek Redaman: Tiket Tak Ditemukan", "template": "🔍 Tiket #${idtiket} tidak ditemukan.", "category": "wifi"},
-    "redaman_check_ambiguous": {"name": "Cek Redaman: Banyak Kandidat", "template": "🔎 Ditemukan beberapa pelanggan. Perjelas kata kunci:\n\n${daftar}", "category": "wifi"}
+    "redaman_check_ambiguous": {"name": "Cek Redaman: Banyak Kandidat", "template": "🔎 Ditemukan beberapa pelanggan. Perjelas kata kunci:\n\n${daftar}", "category": "wifi"},
+    "redaman_terdampak_disabled": {"name": "Redaman Terdampak: Belum Aktif", "template": "ℹ️ Fitur 'redaman terdampak' belum diaktifkan (config.redamanTerdampak.enabled).", "category": "wifi"},
+    "redaman_terdampak_loading": {"name": "Redaman Terdampak: Mengumpulkan", "template": "⏳ Mengumpulkan redaman pelanggan terdampak (baca OLT)…", "category": "wifi"}
 }

@@ -1237,12 +1237,24 @@
       "cek redaman",
       "cekredaman",
       "cek redaman modem",
-      "cek redaman olt",
       "cek redaman pelanggan"
     ],
     "intent": "CEK_REDAMAN",
     "category": "wifi",
     "description": "Cek redaman (RX power) modem + OLT pelanggan — teknisi",
     "icon": "📶"
+  },
+  {
+    "keywords": [
+      "redaman terdampak",
+      "redaman olt",
+      "daftar redaman",
+      "redaman semua",
+      "redaman bermasalah"
+    ],
+    "intent": "CEK_REDAMAN_TERDAMPAK",
+    "category": "wifi",
+    "description": "Daftar pelanggan terdampak / ONU bermasalah berperingkat (teknisi)",
+    "icon": "🚨"
   }
 ]
