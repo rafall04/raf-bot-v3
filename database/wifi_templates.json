@@ -1256,5 +1256,29 @@
     "category": "wifi",
     "description": "Daftar pelanggan terdampak / ONU bermasalah berperingkat (teknisi)",
     "icon": "🚨"
+  },
+  {
+    "keywords": [
+      "pantau redaman",
+      "pantau redaman modem",
+      "monitor redaman",
+      "pantau optik"
+    ],
+    "intent": "PANTAU_REDAMAN",
+    "category": "wifi",
+    "description": "Pantau redaman live saat perbaikan (durabel) — teknisi",
+    "icon": "📡"
+  },
+  {
+    "keywords": [
+      "stop pantau",
+      "berhenti pantau",
+      "stop pantau redaman",
+      "hentikan pantau"
+    ],
+    "intent": "STOP_PANTAU",
+    "category": "wifi",
+    "description": "Hentikan pemantauan redaman aktif — teknisi",
+    "icon": "🛑"
   }
 ]

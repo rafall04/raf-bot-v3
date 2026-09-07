@@ -5868,5 +5868,10 @@
     "redaman_check_ticket_not_found": {"name": "Cek Redaman: Tiket Tak Ditemukan", "template": "🔍 Tiket #${idtiket} tidak ditemukan.", "category": "wifi"},
     "redaman_check_ambiguous": {"name": "Cek Redaman: Banyak Kandidat", "template": "🔎 Ditemukan beberapa pelanggan. Perjelas kata kunci:\n\n${daftar}", "category": "wifi"},
     "redaman_terdampak_disabled": {"name": "Redaman Terdampak: Belum Aktif", "template": "ℹ️ Fitur 'redaman terdampak' belum diaktifkan (config.redamanTerdampak.enabled).", "category": "wifi"},
-    "redaman_terdampak_loading": {"name": "Redaman Terdampak: Mengumpulkan", "template": "⏳ Mengumpulkan redaman pelanggan terdampak (baca OLT)…", "category": "wifi"}
+    "redaman_terdampak_loading": {"name": "Redaman Terdampak: Mengumpulkan", "template": "⏳ Mengumpulkan redaman pelanggan terdampak (baca OLT)…", "category": "wifi"},
+    "redaman_pantau_help": {"name": "Pantau Redaman: Bantuan", "template": "📶 *Pantau Redaman*\nKetik:\n• *pantau redaman <nama / pppoe / no HP>*\n• *pantau redaman #<id tiket>*\nBerhenti: *stop pantau*", "category": "wifi"},
+    "redaman_pantau_disabled": {"name": "Pantau Redaman: Belum Aktif", "template": "ℹ️ Fitur pantau redaman belum diaktifkan (config.redamanWatch.enabled).", "category": "wifi"},
+    "redaman_pantau_penuh": {"name": "Pantau Redaman: Batas Tercapai", "template": "⚠️ Batas ${max} pemantauan aktif tercapai. Coba lagi setelah ada yang selesai.", "category": "wifi"},
+    "redaman_pantau_stop": {"name": "Pantau Redaman: Dihentikan", "template": "🛑 Pemantauan redaman dihentikan (${jumlah}).", "category": "wifi"},
+    "redaman_pantau_stop_none": {"name": "Pantau Redaman: Tak Ada Aktif", "template": "Tak ada pemantauan redaman aktif dari kamu.", "category": "wifi"}
 }

@@ -16,6 +16,9 @@
 const { getRedamanDiagnosisService, formatDetailLines } = require("../../services/redaman-diagnosis.service");
 const { findOneCustomer, findById } = require("../telegram/customer-lookup");
 const { renderResponseTemplate } = require("./template-helpers");
+const { normalizeJidForMessage } = require("../../lib/jid-utils");
+const watchStore = require("../../lib/redaman-watch-store");
+const { primaryRx } = require("../../lib/redaman-watch-service");
 
 function displayName(u) {
     return String((u && u.name) || "").split("|")[0].trim() || "(tanpa nama)";
@@ -170,4 +173,106 @@ async function handleRedamanTerdampak(p) {
     return reply([header, "", ...lines].join("\n"));
 }
 
-module.exports = { handleCekRedaman, handleRedamanTerdampak, resolveFromTicket };
+// ---- Fase 4 (#b353): PANTAU redaman live saat perbaikan (durabel + smart + auto-log tiket) ----
+
+async function resolveRequesterJid(p) {
+    let jid = p.sender;
+    try {
+        const n = await normalizeJidForMessage(p.sender, { users: p.users, msg: p.msg, raf: p.raf });
+        if (n) jid = n;
+    } catch (_e) { /* pakai sender apa adanya */ }
+    return jid;
+}
+
+/**
+ * `pantau redaman <nama/pppoe/hp>` / `pantau redaman #<idtiket>` — mulai pemantauan durabel.
+ * Kirim pembacaan awal + daftarkan watch; cron 1-menit yang push update pintar berikutnya.
+ */
+async function handlePantauRedaman(p) {
+    const { isOwner, isTeknisi, users, reply, mess } = p;
+    const globalScope = p.global || (typeof global !== "undefined" ? global : {});
+    if (!isTeknisi && !isOwner) return reply((mess && mess.teknisiOrOwnerOnly) || "⛔ Fitur ini khusus teknisi/admin.");
+
+    const cfg = (globalScope && globalScope.config) || (typeof global !== "undefined" && global.config) || {};
+    const wcfg = cfg.redamanWatch || {};
+    if (wcfg.enabled !== true) {
+        return reply(renderResponseTemplate("redaman_pantau_disabled", "ℹ️ Fitur pantau redaman belum diaktifkan (config.redamanWatch.enabled).", {}));
+    }
+
+    const arg = String(p.qAfterKeyword || "").trim();
+    if (!arg) {
+        return reply(renderResponseTemplate("redaman_pantau_help", "📶 *Pantau Redaman*\nKetik:\n• *pantau redaman <nama / pppoe / no HP>*\n• *pantau redaman #<id tiket>*\nBerhenti kapan saja: *stop pantau*", {}));
+    }
+
+    // Resolve pelanggan (sama seperti cek redaman).
+    let user = null;
+    let ticketId = null;
+    if (arg.startsWith("#")) {
+        ticketId = arg.slice(1).trim();
+        const r = resolveFromTicket(ticketId, users, globalScope);
+        if (!r.found) return reply(renderResponseTemplate("redaman_check_ticket_not_found", `🔍 Tiket #${ticketId} tidak ditemukan.`, { idtiket: ticketId }));
+        user = r.user;
+    } else {
+        const res = findOneCustomer(arg, users);
+        if (res && res.user) {
+            user = res.user;
+        } else if (res && res.candidates && res.candidates.length) {
+            const lines = res.candidates.slice(0, 8).map((u, i) => `${i + 1}. ${displayName(u)} — ${firstPart(u.pppoe_username) || "-"}`);
+            return reply(renderResponseTemplate("redaman_check_ambiguous", `🔎 Ditemukan beberapa pelanggan. Perjelas kata kunci:\n\n${lines.join("\n")}`, { daftar: lines.join("\n") }));
+        }
+    }
+    if (!user) return reply(renderResponseTemplate("redaman_check_not_found", `🔍 Pelanggan "${arg}" tidak ditemukan.`, { query: arg }));
+
+    // Batas jumlah watch aktif (anti badai).
+    const maxActive = Number.isFinite(wcfg.maxActive) ? wcfg.maxActive : 10;
+    if (watchStore.countActive() >= maxActive) {
+        return reply(renderResponseTemplate("redaman_pantau_penuh", `⚠️ Batas ${maxActive} pemantauan aktif tercapai. Coba lagi setelah ada yang selesai.`, { max: maxActive }));
+    }
+
+    // JID requester WAJIB kanonik (invarian: cron tak boleh sendMessage ke @lid).
+    const requesterJid = await resolveRequesterJid(p);
+    if (!requesterJid || String(requesterJid).endsWith("@lid")) {
+        return reply("⚠️ Nomormu belum bisa dipetakan (masih @lid) — hubungi admin agar update pemantauan bisa dikirim.");
+    }
+
+    // Pembacaan awal (baseline).
+    let diag;
+    try {
+        diag = await getRedamanDiagnosisService().diagnoseCustomer(user, { caller: "wa.pantau-redaman" });
+    } catch (_e) {
+        return reply("⚠️ Gagal membaca redaman awal. Coba lagi sebentar lagi ya.");
+    }
+    const cur = primaryRx(diag);
+    const intervalMs = Number.isFinite(wcfg.intervalMs) ? wcfg.intervalMs : 60000;
+    const durationMs = Number.isFinite(wcfg.durationMs) ? wcfg.durationMs : 30 * 60000;
+    const rec = watchStore.addWatch({
+        requesterJid, userId: user.id, name: diag.nama, pppoe: diag.pppoe, deviceId: user.device_id || null,
+        ticketId, intervalMs, expiresAt: new Date(Date.now() + durationMs).toISOString(),
+        baseline: { rx: cur.rx, status: cur.status, at: new Date().toISOString() },
+    });
+    if (!rec) return reply("⚠️ Gagal memulai pemantauan.");
+
+    const out = [
+        `📶 *Mulai pantau redaman — ${diag.nama}*`,
+        `PPPoE: ${diag.pppoe || "-"}`,
+        "",
+        ...formatDetailLines(diag),
+        "",
+        `Saya pantau ~${Math.round(durationMs / 60000)} menit — dikabari saat berubah / status flip / target BAIK tercapai 🎉.`,
+        "_ketik *stop pantau* untuk berhenti_",
+    ];
+    return reply(out.join("\n"));
+}
+
+/** `stop pantau` — hentikan semua pemantauan aktif milik teknisi ini. */
+async function handleStopPantau(p) {
+    const { isOwner, isTeknisi, reply, mess } = p;
+    if (!isTeknisi && !isOwner) return reply((mess && mess.teknisiOrOwnerOnly) || "⛔ Fitur ini khusus teknisi/admin.");
+    const requesterJid = await resolveRequesterJid(p);
+    const n = watchStore.removeByRequester(requesterJid);
+    return reply(n > 0
+        ? renderResponseTemplate("redaman_pantau_stop", `🛑 Pemantauan redaman dihentikan (${n}).`, { jumlah: n })
+        : renderResponseTemplate("redaman_pantau_stop_none", "Tak ada pemantauan redaman aktif dari kamu.", {}));
+}
+
+module.exports = { handleCekRedaman, handleRedamanTerdampak, handlePantauRedaman, handleStopPantau, resolveFromTicket };

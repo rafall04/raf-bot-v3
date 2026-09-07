@@ -141,6 +141,16 @@ async function handleCekRedamanTerdampakIntent(context) {
     await handleRedamanTerdampak({ qAfterKeyword, isOwner, isTeknisi, reply, global, mess });
 }
 
+// #b353: intent WA TEKNISI pantau redaman live saat perbaikan (durabel, gated config.redamanWatch).
+async function handlePantauRedamanIntent(context) {
+    const { handlePantauRedaman, qAfterKeyword, isOwner, isTeknisi, users, reply, global, mess, sender, msg, raf } = context;
+    await handlePantauRedaman({ qAfterKeyword, isOwner, isTeknisi, users, reply, global, mess, sender, msg, raf });
+}
+async function handleStopPantauIntent(context) {
+    const { handleStopPantau, isOwner, isTeknisi, users, reply, mess, sender, msg, raf } = context;
+    await handleStopPantau({ isOwner, isTeknisi, users, reply, mess, sender, msg, raf });
+}
+
 const WIFI_INTENT_HANDLERS = Object.freeze({
     GANTI_NAMA_WIFI: handleGantiNamaWifiIntent,
     GANTI_SANDI_WIFI: handleGantiSandiWifiIntent,
@@ -149,6 +159,8 @@ const WIFI_INTENT_HANDLERS = Object.freeze({
     CEK_WIFI: handleCekWifiIntent,
     CEK_REDAMAN: handleCekRedamanIntent,
     CEK_REDAMAN_TERDAMPAK: handleCekRedamanTerdampakIntent,
+    PANTAU_REDAMAN: handlePantauRedamanIntent,
+    STOP_PANTAU: handleStopPantauIntent,
     HISTORY_WIFI: handleHistoryWifiIntent
 });
 
@@ -161,5 +173,7 @@ module.exports = {
     handleCekWifiIntent,
     handleCekRedamanIntent,
     handleCekRedamanTerdampakIntent,
+    handlePantauRedamanIntent,
+    handleStopPantauIntent,
     handleHistoryWifiIntent
 };

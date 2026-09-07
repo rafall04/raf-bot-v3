@@ -2871,3 +2871,14 @@
 - **Wiring:** keyword `CEK_REDAMAN_TERDAMPAK` (wifi_templates.json; CEK_REDAMAN dirapikan buang "cek redaman olt" agar tak bentrok), wrapper `handleCekRedamanTerdampakIntent`, `handleRedamanTerdampak` di redaman-check-handler.js (inject di raf.js), 2 template key. GATE `config.redamanTerdampak.enabled` default OFF (config.example.json) — OFF → balas "belum diaktifkan" (tak sentuh OLT). Limit 30 baris (truncated dilaporkan, tak silent).
 - **CATATAN desain:** sengaja TIDAK mengangkat post-repair buildReport (terikat LOS-recovery, force-refresh) — snapshot-direct lebih sederhana & aman untuk on-demand teknisi. Elevasi buildReport (before/after per-ONU) ditunda bila perlu.
 - **Tes:** service +4 (summarizeAffected: onlyBad+ranking, filter OLT, limit/truncate, snapshot null); handler +4 (staf-only, gate OFF, terdampak ranked, filter OLT). 22 hijau; wa-forbidden/template-integrity/dispatch tetap hijau; lint 0.
+
+<a id="b353"></a>
+
+### Fitur 2026-09-07 (RONDE 5 Fase 4 — pantau redaman LIVE saat perbaikan: durabel + smart + log tiket)
+
+- **Owner BARU:** `lib/redaman-watch-store.js` (store watch DURABEL, atomik+karantina #b345), `lib/redaman-watch-service.js` (otak: `decideNotify` MURNI + `runWatchTick`), `lib/cron/jobs/redaman-watch.js` (cron 1-menit, gated, re-entrancy).
+- **Intent WA teknisi** `pantau redaman <nama/pppoe/#tiket>` → baca awal + daftar watch durabel (tahan restart 7-13x/hari); `stop pantau` → hentikan. Handler `message/handlers/redaman-check-handler.js` (STAF-ONLY; JID requester WAJIB kanonik — @lid ditolak, invarian). Keyword PANTAU_REDAMAN/STOP_PANTAU (wifi_templates.json), wrapper wifi-intents.js, inject raf.js, 5 template key.
+- **SMART push (bukan spam tiap menit):** cron kirim ke WA teknisi HANYA saat RX berubah ≥ambang / status flip / **TARGET BAIK tercapai 🎉** / heartbeat 5-mnt. Reuse service fondasi #b350 (dua-sisi). Snapshot OLT ber-cache 30s → aman blast-radius #b251.
+- **Auto-log tiket:** saat watch kedaluwarsa (default 30 mnt) → kirim ringkasan + tulis redaman SEBELUM/SESUDAH ke tiket (`report.redamanWatch`, atomik via ticket.repository) bila pakai `#tiket` — menutup residu before/after ronde 5.
+- **GATE** `config.redamanWatch.enabled` default OFF (+ intervalMs/durationMs/maxActive 10/changeThresholdDb 1.5/heartbeatMs; config.example.json) → cron INERT bila off/tak ada watch. Cron terdaftar di composer lib/cron.js.
+- **Tes:** redaman-watch-service (13: primaryRx/decideNotify 6/runWatchTick 3), redaman-watch-store (5: durable+atomik+karantina), handler pantau/stop +6; wa-forbidden/template/dispatch hijau; 133 total hijau; lint 0.

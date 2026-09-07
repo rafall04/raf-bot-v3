@@ -120,7 +120,7 @@ const { handleUbahPaket } = require('./handlers/package-management-handler');
 const { handleGantiPowerWifi } = require('./handlers/wifi-power-handler');
 const { handleRebootModem } = require('./handlers/reboot-modem-handler');
 const { handleCekWifi } = require('./handlers/wifi-check-handler');
-const { handleCekRedaman, handleRedamanTerdampak } = require('./handlers/redaman-check-handler'); // #b351/#b352 intent WA teknisi cek redaman (+ terdampak)
+const { handleCekRedaman, handleRedamanTerdampak, handlePantauRedaman, handleStopPantau } = require('./handlers/redaman-check-handler'); // #b351/#b352/#b353 cek redaman (+ terdampak + pantau live)
 const { handleHistoryWifi } = require('./handlers/wifi-history-handler');
 const { handleAddProfVoucher, handleDelProfVoucher, handleAddProfStatik, handleDelProfStatik } = require('./handlers/voucher-management-handler');
 const { handleAddBinding, handleAddPPP } = require('./handlers/network-management-handler');
@@ -1354,6 +1354,8 @@ module.exports = async (raf, msg, m, options = {}) => {
             handleCekWifi,
             handleCekRedaman,
             handleRedamanTerdampak,
+            handlePantauRedaman,
+            handleStopPantau,
             handleHistoryWifi,
             handleMonitorWifi,
             handleAddProfVoucher,

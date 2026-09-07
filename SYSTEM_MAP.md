@@ -457,6 +457,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fitur 2026-09-07 (RONDE 5 Fase 0 — services/redaman-diagnosis.service.js: SATU diagnosa redaman 1 pelanggan dua-sisi (ACS+OLT via resolveByCustomer+rxVerdict/rx_tolerance, hormati rxPowerValid), murni/never-throw; Telegram redaman-command dialihkan ke sini)](docs/boundary-log.md#b350)
 - [Fitur 2026-09-07 (RONDE 5 Fase 1+2 — intent WA teknisi cek redaman <nama/pppoe/#idtiket> (redaman-check-handler, STAF-ONLY, dua-sisi via service #b350) + tombol Cek Redaman 1-klik panel tiket (GET /api/teknisi/diagnosa-redaman/:userId + modal))](docs/boundary-log.md#b351)
 - [Fitur 2026-09-07 (RONDE 5 Fase 3 — intent WA redaman terdampak / redaman olt <nama>: daftar ONU/pelanggan bermasalah berperingkat SNAPSHOT-DIRECT (summarizeAffectedFromSnapshot/getAffectedRedaman, 1x getOltSnapshot, tanpa fan-out ACS #b251); gated config.redamanTerdampak default OFF)](docs/boundary-log.md#b352)
+- [Fitur 2026-09-07 (RONDE 5 Fase 4 — pantau redaman LIVE saat perbaikan: intent WA pantau redaman/stop pantau, store durabel redaman-watch-store + cron 1-menit smart push (berubah/target BAIK/heartbeat) + auto-log tiket sebelum/sesudah; gated config.redamanWatch default OFF)](docs/boundary-log.md#b353)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

@@ -28,7 +28,17 @@ jest.mock("../../../services/redaman-diagnosis.service", () => ({
     formatDetailLines: () => ["— Sisi Modem (ONU) —", "RX: 🟢 -24 dBm — BAIK", "", "— Sisi OLT —", "RX: 🟢 -25 dBm — BAIK (status ONU: Online)"],
 }));
 
-const { handleCekRedaman, handleRedamanTerdampak } = require("../redaman-check-handler");
+const mockCountActive = jest.fn(() => 0);
+const mockAddWatch = jest.fn((w) => ({ id: "RW-1", ...w }));
+const mockRemoveByRequester = jest.fn(() => 2);
+jest.mock("../../../lib/redaman-watch-store", () => ({
+    countActive: (...a) => mockCountActive(...a),
+    addWatch: (...a) => mockAddWatch(...a),
+    removeByRequester: (...a) => mockRemoveByRequester(...a),
+}));
+jest.mock("../../../lib/jid-utils", () => ({ normalizeJidForMessage: async (jid) => jid }));
+
+const { handleCekRedaman, handleRedamanTerdampak, handlePantauRedaman, handleStopPantau } = require("../redaman-check-handler");
 
 const USERS = [
     { id: 5, name: "Budi Santoso", pppoe_username: "budi@isp", device_id: "DEV-5" },
@@ -45,7 +55,7 @@ function mkP(over = {}) {
     };
 }
 
-beforeEach(() => { mockDiagnose.mockClear(); mockAffected.mockClear(); });
+beforeEach(() => { mockDiagnose.mockClear(); mockAffected.mockClear(); mockCountActive.mockClear(); mockAddWatch.mockClear(); mockRemoveByRequester.mockClear(); mockCountActive.mockReturnValue(0); });
 
 describe("handleCekRedaman (#b351 Fase 1)", () => {
     test("STAF-ONLY: pelanggan (bukan teknisi/owner) ditolak, service TIDAK dipanggil", async () => {
@@ -133,5 +143,56 @@ describe("handleRedamanTerdampak (#b352 Fase 3, gated)", () => {
         const p = mkP({ qAfterKeyword: "OLT-A", global: { config: { redamanTerdampak: { enabled: true } } } });
         await handleRedamanTerdampak(p);
         expect(mockAffected).toHaveBeenCalledWith(expect.objectContaining({ oltName: "OLT-A", onlyBad: false }));
+    });
+});
+
+describe("handlePantauRedaman + handleStopPantau (#b353 Fase 4, gated)", () => {
+    const on = { config: { redamanWatch: { enabled: true } } };
+    const withSender = (over = {}) => mkP({ sender: "628@s.whatsapp.net", msg: {}, raf: {}, ...over });
+
+    test("STAF-ONLY: pelanggan ditolak", async () => {
+        const p = withSender({ isTeknisi: undefined, isOwner: false, qAfterKeyword: "budi", global: on });
+        await handlePantauRedaman(p);
+        expect(p.reply).toHaveBeenCalledWith("⛔ khusus teknisi");
+        expect(mockAddWatch).not.toHaveBeenCalled();
+    });
+
+    test("gate OFF → belum aktif, addWatch tak dipanggil", async () => {
+        const p = withSender({ qAfterKeyword: "budi", global: { config: {} } });
+        await handlePantauRedaman(p);
+        expect(mockAddWatch).not.toHaveBeenCalled();
+        expect(p.reply.mock.calls[0][0]).toMatch(/belum diaktifkan|redamanWatch/i);
+    });
+
+    test("gate ON + katakunci unik → baseline diagnose + addWatch + konfirmasi", async () => {
+        const p = withSender({ qAfterKeyword: "budi santoso", global: on });
+        await handlePantauRedaman(p);
+        expect(mockDiagnose).toHaveBeenCalledTimes(1);   // baseline
+        expect(mockAddWatch).toHaveBeenCalledTimes(1);
+        expect(mockAddWatch.mock.calls[0][0]).toMatchObject({ requesterJid: "628@s.whatsapp.net", userId: 5 });
+        const last = p.reply.mock.calls[p.reply.mock.calls.length - 1][0];
+        expect(last).toMatch(/Mulai pantau redaman/);
+    });
+
+    test("cap tercapai → pesan penuh, addWatch tak dipanggil", async () => {
+        mockCountActive.mockReturnValue(10);
+        const p = withSender({ qAfterKeyword: "budi santoso", global: { config: { redamanWatch: { enabled: true, maxActive: 10 } } } });
+        await handlePantauRedaman(p);
+        expect(mockAddWatch).not.toHaveBeenCalled();
+        expect(p.reply.mock.calls[p.reply.mock.calls.length - 1][0]).toMatch(/Batas 10 pemantauan/);
+    });
+
+    test("requester @lid → ditolak (invarian JID), addWatch tak dipanggil", async () => {
+        const p = withSender({ sender: "12345@lid", qAfterKeyword: "budi santoso", global: on });
+        await handlePantauRedaman(p);
+        expect(mockAddWatch).not.toHaveBeenCalled();
+        expect(p.reply.mock.calls[p.reply.mock.calls.length - 1][0]).toMatch(/@lid/);
+    });
+
+    test("stop pantau → removeByRequester + konfirmasi jumlah", async () => {
+        const p = withSender({});
+        await handleStopPantau(p);
+        expect(mockRemoveByRequester).toHaveBeenCalledWith("628@s.whatsapp.net");
+        expect(p.reply.mock.calls[0][0]).toMatch(/dihentikan \(2\)/);
     });
 });
