@@ -5877,5 +5877,12 @@
     "teknisi_prefs_disabled": {"name": "Setelan Teknisi: Belum Aktif", "template": "ℹ️ Fitur setelan teknisi belum diaktifkan (config.teknisiPrefs.enabled).", "category": "wifi"},
     "teknisi_prefs_no_account": {"name": "Setelan Teknisi: Akun Belum Terhubung", "template": "⚠️ Setelan ini untuk akun teknisi. Akunmu belum terhubung — hubungi admin.", "category": "wifi"},
     "teknisi_alert_help": {"name": "Atur Alert Teknisi: Bantuan", "template": "⚙️ *Atur Alert (teknisi)*\n• `alert on` / `alert off` — hidup/matikan SEMUA alert\n• `alert los off` · `alert redaman on` · `alert tiket off` · `alert perbaikan on`\n• `alert area Krajan, ODP-01` — hanya area itu (kosongkan: `alert area semua`)\n• `alert kanal dm|grup|both`\nLihat setelan: `setelan saya`", "category": "wifi"},
-    "tiket_saya_kosong_staf": {"name": "Tiket Saya (teknisi): Kosong", "template": "✅ Tak ada tiket aktif yang ditugaskan ke kamu saat ini.", "category": "support"}
+    "tiket_saya_kosong_staf": {"name": "Tiket Saya (teknisi): Kosong", "template": "✅ Tak ada tiket aktif yang ditugaskan ke kamu saat ini.", "category": "support"},
+    "hubungkan_wa_help": {"name": "Hubungkan WA: Bantuan", "template": "🔗 *Hubungkan WhatsApp*\nBuka halaman *Pengaturan Saya* di web → tombol *Hubungkan WhatsApp* untuk dapat kode, lalu kirim ke sini:\n*hubungkan <kode>*\n\nKode berlaku 10 menit.", "category": "wifi"},
+    "hubungkan_wa_sukses": {"name": "Hubungkan WA: Sukses", "template": "✅ WhatsApp ini terhubung ke *${nama}* (${peran}). Sekarang kamu bisa pakai perintah teknisi & terima alert. Coba: *setelan saya*.", "category": "wifi"},
+    "hubungkan_wa_invalid": {"name": "Hubungkan WA: Kode Salah", "template": "❌ Kode salah atau kedaluwarsa. Minta kode baru di halaman *Pengaturan Saya*.", "category": "wifi"},
+    "hubungkan_wa_rate": {"name": "Hubungkan WA: Terlalu Sering", "template": "⚠️ Terlalu banyak percobaan. Coba lagi nanti (atau minta kode baru di web).", "category": "wifi"},
+    "hubungkan_wa_taken": {"name": "Hubungkan WA: Sudah Tertaut", "template": "⚠️ Nomor WA ini sudah tertaut ke akun lain. Hubungi admin bila ini keliru.", "category": "wifi"},
+    "hubungkan_wa_gagal": {"name": "Hubungkan WA: Gagal", "template": "⚠️ Gagal menautkan akun. Coba lagi sebentar lagi.", "category": "wifi"},
+    "hubungkan_wa_dm_only": {"name": "Hubungkan WA: Chat Pribadi", "template": "⚠️ Kirim perintah *hubungkan* dari chat pribadi (bukan grup).", "category": "wifi"}
 }

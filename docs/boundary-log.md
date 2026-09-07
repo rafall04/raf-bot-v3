@@ -2915,3 +2915,14 @@
 - **Web:** filter "Tugas saya" di /teknisi-tiket (client-side, by currentUser.id dari /api/me) — teknisi saring tiket yang ditugaskan ke dirinya.
 - **INVARIAN:** semua override & filter INERT saat gate `config.teknisiPrefs.enabled` OFF / prefs belum-setel = perilaku lama. Kelas alert `redaman`/`post_repair` tersimpan tapi belum ditegakkan per-teknisi (jalur broadcast admin-configured/grup; ditunda — bukan regresi).
 - **Tes:** decideNotify +3 (target dBm/ambang pribadi), tiket-saya-staf +3, report-notif snooze +1; regresi watch/store/resolver/los-ticket/broadcaster 58 hijau; guard wa-forbidden/template/dispatch hijau; php-lint bersih; lint 0.
+
+<a id="b357"></a>
+
+### Fitur 2026-09-08 (RONDE 6 Fase D — self-profil + hubungkan WhatsApp ke akun teknisi)
+
+- **Owner BARU:** `lib/teknisi-account-link.js` — menutup GAP: `account.lid` tak punya jalur tulis. Verifikasi DUA-SISI: `issueLinkCode(accountId)` (kode 8-char CSPRNG, TTL 10mnt, in-memory, sekali-pakai, anti-brute-force MAX_ATTEMPTS/pengirim) diterbitkan dari sesi web terautentikasi; `redeemLinkCode(code,senderId)` + `linkWaToAccount({accountId,senderId,phoneNumber})` menulis `lid`(+`phone_number` bila kosong) via jalur AMAN accounts.json (withLock 'link-wa-account' + saveAccounts atomik + invalidasi authCache); anti-serobot `lid_taken`; `unlinkWa`; `updateProfile` (name saja).
+- **WA** `hubungkan <kode>` — handler `teknisi-prefs-handler.handleHubungkanWa` (SENGAJA tak butuh isTeknisi: dipakai justru saat WA belum dikenali — KODE=otorisasi; sender=primarySenderId=kunci match raf-context `account.lid`). Keyword HUBUNGKAN_WA (wifi_templates.json, BEDA dari `link`/`verifikasi` milik pelanggan), wrapper wifi-intents.js, inject raf.js, 7 template key. Chat pribadi saja (tolak @g.us).
+- **Web** kartu "Profil & WhatsApp" di /teknisi-pengaturan (teknisi-pengaturan.php/.js): edit nama, lihat peran/nomor/status WA, tombol Hubungkan (minta kode → tampil `hubungkan <kode>`) + Putuskan. API self-scoped (routes/teknisi-settings-api.js): GET/PUT `/profile`, POST `/link-code`, POST `/unlink` — SELALU akun sendiri (req.user.id), BUKAN ?teknisi_id (identitas tak diubah atas nama teknisi lain; admin pakai /api/accounts).
+- **Keamanan:** identitas (lid/phone/role/username/password) TIDAK lewat self-service kecuali link terverifikasi; nama = cosmetic. Kode CSPRNG 32^8 + TTL + sekali-pakai + rate-limit + lid unik → anti tebak/eskalasi. accounts.json CRUD admin (routes/accounts.js) TAK dilonggarkan.
+- **GATE** `config.teknisiPrefs.enabled` OFF → `hubungkan` balas "belum diaktifkan"; web profil tetap muat (kartu opsional).
+- **Tes:** teknisi-account-link +10 (kode valid/invalid/kedaluwarsa/rate, link lid/phone/lid_taken/not_found, unlink, updateProfile), handler hubungkan +6; guard wa-forbidden/template-integrity/dispatch hijau; php+js lint bersih; lint 0.

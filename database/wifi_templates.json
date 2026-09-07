@@ -1305,5 +1305,17 @@
     "category": "wifi",
     "description": "Atur alert teknisi: on/off, per-kelas, area, kanal (self-service)",
     "icon": "🔔"
+  },
+  {
+    "keywords": [
+      "hubungkan",
+      "hubungkan wa",
+      "hubungkan akun",
+      "tautkan akun"
+    ],
+    "intent": "HUBUNGKAN_WA",
+    "category": "wifi",
+    "description": "Tautkan WhatsApp ini ke akun teknisi (pakai kode dari web)",
+    "icon": "🔗"
   }
 ]

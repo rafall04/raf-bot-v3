@@ -1,11 +1,12 @@
 /**
  * Header Doc
- * Purpose: Logika halaman "Pengaturan Saya" teknisi (#b354 self-service, RONDE 6 Fase A). Muat prefs
- *   milik SENDIRI (GET /api/teknisi/prefs, self-scoped by JWT), render ke form, simpan (POST). Snooze
- *   dihitung client → ISO. Banner jujur bila fitur belum diaktifkan admin (featureEnabled=false).
+ * Purpose: Logika halaman "Pengaturan Saya" teknisi (#b354 Fase A + #b357 Fase D). Muat prefs milik
+ *   SENDIRI (GET /api/teknisi/prefs, self-scoped by JWT), render ke form, simpan (POST). Snooze
+ *   dihitung client → ISO. Banner jujur bila fitur belum diaktifkan (featureEnabled=false). Fase D:
+ *   kartu Profil (edit nama) + Hubungkan WhatsApp (minta kode → kirim `hubungkan <kode>` dari WA) + putus.
  * Caller: views/sb-admin/teknisi-pengaturan.php.
  * Deps: Fetch API (credentials:'include' → JWT cookie), jQuery (toast/DOM), Bootstrap.
- * MainFuncs: loadPrefs, renderPrefs, collectPatch, savePrefs.
+ * MainFuncs: loadPrefs, renderPrefs, collectPatch, savePrefs, loadProfile, saveNama, mintaKodeLink, unlinkWa.
  * SideEffects: Panggilan HTTP ke /api/teknisi/prefs; mutasi DOM form.
  */
 (function () {
@@ -134,12 +135,77 @@
         });
     }
 
+    // ── Profil & Hubungkan WhatsApp (Fase D) ──
+    var PROFILE_API = "/api/teknisi/profile";
+
+    async function loadProfile() {
+        try {
+            var res = await fetch(PROFILE_API + "?_=" + Date.now(), { credentials: "include" });
+            var json = await res.json();
+            if (!res.ok || json.status !== 200 || !json.data) return;
+            var d = json.data;
+            $("pf_name").value = d.name || "";
+            $("pf_role").value = d.role || "-";
+            $("pf_phone").value = d.phone_number || "(belum diisi)";
+            renderWaStatus(!!d.waLinked);
+            $("profileCard").hidden = false;
+        } catch (_err) { /* diam: kartu profil opsional */ }
+    }
+
+    function renderWaStatus(linked) {
+        var badge = $("waStatus");
+        badge.textContent = linked ? "WhatsApp: Terhubung ✅" : "WhatsApp: Belum terhubung";
+        badge.className = "badge " + (linked ? "badge-success" : "badge-secondary");
+        $("btnUnlinkWa").hidden = !linked;
+    }
+
+    async function saveNama() {
+        var name = ($("pf_name").value || "").trim();
+        if (!name) { toast("Nama tidak boleh kosong.", "warning"); return; }
+        try {
+            var res = await fetch(PROFILE_API, {
+                method: "PUT", credentials: "include",
+                headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name }),
+            });
+            var json = await res.json();
+            if (!res.ok || json.status !== 200) throw new Error((json && json.message) || "Gagal.");
+            toast('<i class="fas fa-check-circle"></i> Nama disimpan.', "success");
+        } catch (err) { toast('<i class="fas fa-times-circle"></i> ' + (err.message || err), "danger"); }
+    }
+
+    async function mintaKodeLink() {
+        try {
+            var res = await fetch("/api/teknisi/link-code", { method: "POST", credentials: "include" });
+            var json = await res.json();
+            if (!res.ok || json.status !== 200 || !json.data) throw new Error((json && json.message) || "Gagal.");
+            $("linkCodeVal").textContent = json.data.code;
+            $("linkCodeBox").hidden = false;
+            loadProfile(); // segarkan status (kalau sudah dikirim dari WA sebelumnya)
+        } catch (err) { toast('<i class="fas fa-times-circle"></i> ' + (err.message || err), "danger"); }
+    }
+
+    async function unlinkWa() {
+        if (!window.confirm("Putuskan tautan WhatsApp dari akun ini?")) return;
+        try {
+            var res = await fetch("/api/teknisi/unlink", { method: "POST", credentials: "include" });
+            var json = await res.json();
+            if (!res.ok || json.status !== 200) throw new Error((json && json.message) || "Gagal.");
+            $("linkCodeBox").hidden = true;
+            renderWaStatus(false);
+            toast('<i class="fas fa-check-circle"></i> Tautan diputus.', "success");
+        } catch (err) { toast('<i class="fas fa-times-circle"></i> ' + (err.message || err), "danger"); }
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
         var form = $("prefsForm");
         if (form) form.addEventListener("submit", savePrefs);
         var topBtn = $("btnSimpan");
         if (topBtn) topBtn.addEventListener("click", savePrefs);
+        var bN = $("btnSimpanNama"); if (bN) bN.addEventListener("click", saveNama);
+        var bL = $("btnLinkWa"); if (bL) bL.addEventListener("click", mintaKodeLink);
+        var bU = $("btnUnlinkWa"); if (bU) bU.addEventListener("click", unlinkWa);
         bindSnooze();
+        loadProfile();
         loadPrefs();
     });
 })();

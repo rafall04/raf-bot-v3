@@ -162,6 +162,11 @@ async function handleAlertPrefIntent(context) {
     const { handleAlertPref, qAfterKeyword, isOwner, isTeknisi, reply, global, mess } = context;
     await handleAlertPref({ qAfterKeyword, isOwner, isTeknisi, reply, global, mess });
 }
+// #b357: `hubungkan <kode>` — tautkan WA ke akun. TAK butuh isTeknisi (kode=otorisasi). sender=primarySenderId.
+async function handleHubungkanWaIntent(context) {
+    const { handleHubungkanWa, qAfterKeyword, sender, plainSenderNumber, reply, global } = context;
+    await handleHubungkanWa({ qAfterKeyword, sender, plainSenderNumber, reply, global });
+}
 
 const WIFI_INTENT_HANDLERS = Object.freeze({
     GANTI_NAMA_WIFI: handleGantiNamaWifiIntent,
@@ -175,6 +180,7 @@ const WIFI_INTENT_HANDLERS = Object.freeze({
     STOP_PANTAU: handleStopPantauIntent,
     SETELAN_SAYA: handleSetelanSayaIntent,
     ALERT_PREF: handleAlertPrefIntent,
+    HUBUNGKAN_WA: handleHubungkanWaIntent,
     HISTORY_WIFI: handleHistoryWifiIntent
 });
 
@@ -191,5 +197,6 @@ module.exports = {
     handleStopPantauIntent,
     handleSetelanSayaIntent,
     handleAlertPrefIntent,
+    handleHubungkanWaIntent,
     handleHistoryWifiIntent
 };

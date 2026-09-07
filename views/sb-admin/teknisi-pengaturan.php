@@ -40,6 +40,37 @@
                         berlaku otomatis begitu diaktifkan.
                     </div>
 
+                    <!-- Profil & Hubungkan WhatsApp (Fase D) -->
+                    <div class="card shadow mb-4" id="profileCard" hidden>
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-id-badge"></i> Profil &amp; WhatsApp</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group row">
+                                <label class="col-sm-3 col-form-label" for="pf_name">Nama</label>
+                                <div class="col-sm-6"><input type="text" class="form-control" id="pf_name" maxlength="80"></div>
+                                <div class="col-sm-3"><button class="btn btn-outline-primary btn-block" id="btnSimpanNama" type="button">Simpan nama</button></div>
+                            </div>
+                            <div class="form-group row mb-2">
+                                <label class="col-sm-3 col-form-label">Peran</label>
+                                <div class="col-sm-3"><input type="text" class="form-control-plaintext" id="pf_role" readonly></div>
+                                <label class="col-sm-3 col-form-label">Nomor</label>
+                                <div class="col-sm-3"><input type="text" class="form-control-plaintext" id="pf_phone" readonly></div>
+                            </div>
+                            <hr>
+                            <div class="d-flex align-items-center flex-wrap" style="gap:.75rem;">
+                                <span id="waStatus" class="badge badge-secondary">WhatsApp: —</span>
+                                <button class="btn btn-success btn-sm" id="btnLinkWa" type="button"><i class="fab fa-whatsapp"></i> Hubungkan WhatsApp</button>
+                                <button class="btn btn-outline-danger btn-sm" id="btnUnlinkWa" type="button" hidden>Putuskan</button>
+                            </div>
+                            <div id="linkCodeBox" class="alert alert-info mt-3" hidden>
+                                Kirim pesan ini dari WhatsApp kamu:<br>
+                                <code style="font-size:1.2rem;">hubungkan <span id="linkCodeVal">------</span></code>
+                                <div class="small text-muted mt-1">Kode berlaku 10 menit. Setelah terkirim, tekan tombol di atas lagi untuk cek status.</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div id="loadingState" class="text-center text-muted py-5">
                         <i class="fas fa-spinner fa-spin fa-2x"></i>
                         <p class="mt-2">Memuat pengaturan…</p>

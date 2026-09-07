@@ -7,9 +7,9 @@
  *   /api/teknisi (BUKAN admin-router) → lolos gerbang fail-closed, gate cukup ensureAuthenticatedStaff.
  * Caller: lib/routes-registry.js (app.use('/api/teknisi', teknisiSettingsRouter)).
  * Deps: express, ../lib/error-handler (asyncHandler), ./api-route-helpers (ensureAuthenticatedStaff),
- *   ../repositories/teknisi-prefs.repository.
- * MainFuncs: GET /prefs, POST /prefs.
- * SideEffects: Menulis database/teknisi_prefs.json (via repository, atomik).
+ *   ../repositories/teknisi-prefs.repository, ../lib/teknisi-account-link (Fase D profil + hubungkan WA).
+ * MainFuncs: GET/POST /prefs; GET/PUT /profile; POST /link-code; POST /unlink.
+ * SideEffects: Menulis database/teknisi_prefs.json (repo) & database/accounts.json (profil/link, atomik).
  */
 "use strict";
 
@@ -18,6 +18,7 @@ const router = express.Router();
 const { asyncHandler } = require("../lib/error-handler");
 const { ensureAuthenticatedStaff } = require("./api-route-helpers");
 const prefsRepo = require("../repositories/teknisi-prefs.repository");
+const accountLink = require("../lib/teknisi-account-link");
 
 const ADMIN_ROLES = ["admin", "owner", "superadmin"];
 
@@ -88,6 +89,54 @@ router.post("/prefs", ensureAuthenticatedStaff, asyncHandler(async (req, res) =>
     }
     const prefs = prefsRepo.setPrefs(id, patch);
     return res.status(200).json({ status: 200, message: "Preferensi disimpan.", data: { teknisiId: id, prefs } });
+}));
+
+// ── RONDE 6 Fase D: profil diri + hubungkan WhatsApp (self-scoped, #b357) ──
+// Selalu operasi pada AKUN SENDIRI (req.user.id) — bukan ?teknisi_id (identitas tak boleh diubah admin
+// atas nama teknisi lewat sini; admin punya CRUD /api/accounts sendiri).
+function ownAccount(req) {
+    const id = String(req.user && req.user.id);
+    const acc = (Array.isArray(global.accounts) ? global.accounts : []).find((a) => a && String(a.id) === id);
+    return { id, acc };
+}
+
+router.get("/profile", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+    const { id, acc } = ownAccount(req);
+    if (!acc) return res.status(404).json({ status: 404, message: "Akun tidak ditemukan." });
+    return res.status(200).json({
+        status: 200,
+        data: {
+            id,
+            username: acc.username || null,
+            name: acc.name || null,
+            role: acc.role || null,
+            phone_number: acc.phone_number || "",
+            waLinked: !!acc.lid,
+            featureEnabled: featureEnabled(),
+        },
+    });
+}));
+
+router.put("/profile", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+    const name = req.body && req.body.name;
+    if (typeof name !== "string" || !name.trim()) {
+        return res.status(400).json({ status: 400, message: "Nama tidak boleh kosong." });
+    }
+    const r = await accountLink.updateProfile(req.user.id, { name });
+    if (!r.ok) return res.status(r.reason === "not_found" ? 404 : 400).json({ status: 400, message: "Gagal menyimpan profil." });
+    return res.status(200).json({ status: 200, message: "Profil disimpan.", data: { name: r.account.name } });
+}));
+
+// Terbitkan kode hubung WA (ditebus dari WA: `hubungkan <kode>`). Membuktikan kepemilikan web (JWT).
+router.post("/link-code", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+    const out = accountLink.issueLinkCode(req.user.id);
+    return res.status(200).json({ status: 200, data: { code: out.code, expiresAt: out.expiresAt, ttlMs: out.ttlMs } });
+}));
+
+router.post("/unlink", ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+    const r = await accountLink.unlinkWa(req.user.id);
+    if (!r.ok) return res.status(400).json({ status: 400, message: "Gagal memutus tautan." });
+    return res.status(200).json({ status: 200, message: "Tautan WhatsApp diputus." });
 }));
 
 // Helper internal diekspos untuk unit test (self-scope + anti-injeksi field).

@@ -31,7 +31,15 @@ jest.mock("../../../repositories/teknisi-prefs.repository", () => ({
     setPrefs: (...a) => mockSetPrefs(...a),
 }));
 
-const { handleSetelanSaya, handleAlertPref } = require("../teknisi-prefs-handler");
+const mockRedeem = jest.fn();
+const mockLink = jest.fn();
+jest.mock("../../../lib/teknisi-account-link", () => ({
+    redeemLinkCode: (...a) => mockRedeem(...a),
+    linkWaToAccount: (...a) => mockLink(...a),
+}));
+jest.mock("../../../lib/jid-utils", () => ({ normalizePhoneNumber: (p) => String(p || "").replace(/\D/g, "").replace(/^0/, "62") }));
+
+const { handleSetelanSaya, handleAlertPref, handleHubungkanWa } = require("../teknisi-prefs-handler");
 
 const mess = { teknisiOrOwnerOnly: "⛔ khusus teknisi" };
 function mkP(over = {}) {
@@ -44,7 +52,7 @@ function mkP(over = {}) {
         ...over,
     };
 }
-beforeEach(() => { mockGetPrefs.mockClear(); mockSetPrefs.mockClear(); });
+beforeEach(() => { mockGetPrefs.mockClear(); mockSetPrefs.mockClear(); mockRedeem.mockClear(); mockLink.mockClear(); });
 
 describe("handleSetelanSaya", () => {
     test("STAF-ONLY: pelanggan ditolak, store TIDAK dibaca", async () => {
@@ -134,5 +142,52 @@ describe("handleAlertPref", () => {
         await handleAlertPref(p);
         expect(mockSetPrefs).not.toHaveBeenCalled();
         expect(p.reply.mock.calls[0][0]).toMatch(/on.*atau.*off/i);
+    });
+});
+
+describe("handleHubungkanWa (Fase D)", () => {
+    function mkH(over = {}) {
+        return { reply: jest.fn(async () => {}), sender: "111@lid", plainSenderNumber: "081234", global: { config: { teknisiPrefs: { enabled: true } } }, qAfterKeyword: "", ...over };
+    }
+    test("gate OFF → belum-aktif, tak redeem", async () => {
+        const p = mkH({ global: { config: { teknisiPrefs: { enabled: false } } }, qAfterKeyword: "ABCD2345" });
+        await handleHubungkanWa(p);
+        expect(mockRedeem).not.toHaveBeenCalled();
+        expect(p.reply.mock.calls[0][0]).toMatch(/belum diaktifkan/i);
+    });
+    test("dari grup → tolak (chat pribadi)", async () => {
+        const p = mkH({ sender: "12345@g.us", qAfterKeyword: "ABCD2345" });
+        await handleHubungkanWa(p);
+        expect(mockRedeem).not.toHaveBeenCalled();
+        expect(p.reply.mock.calls[0][0]).toMatch(/chat pribadi/i);
+    });
+    test("tanpa kode → bantuan", async () => {
+        const p = mkH({ qAfterKeyword: "" });
+        await handleHubungkanWa(p);
+        expect(mockRedeem).not.toHaveBeenCalled();
+        expect(p.reply.mock.calls[0][0]).toMatch(/Hubungkan WhatsApp/i);
+    });
+    test("kode invalid → tolak, tak link", async () => {
+        mockRedeem.mockReturnValue({ ok: false, reason: "invalid" });
+        const p = mkH({ qAfterKeyword: "SALAH123" });
+        await handleHubungkanWa(p);
+        expect(mockRedeem).toHaveBeenCalledWith("SALAH123", "111@lid");
+        expect(mockLink).not.toHaveBeenCalled();
+        expect(p.reply.mock.calls[0][0]).toMatch(/salah atau kedaluwarsa/i);
+    });
+    test("kode valid → link (lid=sender, phone dinormalkan) + sukses", async () => {
+        mockRedeem.mockReturnValue({ ok: true, accountId: "5" });
+        mockLink.mockResolvedValue({ ok: true, account: { name: "Budi", role: "teknisi" } });
+        const p = mkH({ qAfterKeyword: "ABCD2345" });
+        await handleHubungkanWa(p);
+        expect(mockLink).toHaveBeenCalledWith({ accountId: "5", senderId: "111@lid", phoneNumber: "6281234" });
+        expect(p.reply.mock.calls[0][0]).toMatch(/terhubung ke \*Budi\*/i);
+    });
+    test("link lid_taken → pesan sudah tertaut", async () => {
+        mockRedeem.mockReturnValue({ ok: true, accountId: "5" });
+        mockLink.mockResolvedValue({ ok: false, reason: "lid_taken" });
+        const p = mkH({ qAfterKeyword: "ABCD2345" });
+        await handleHubungkanWa(p);
+        expect(p.reply.mock.calls[0][0]).toMatch(/sudah tertaut ke akun lain/i);
     });
 });

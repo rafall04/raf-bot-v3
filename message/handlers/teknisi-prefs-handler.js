@@ -2,17 +2,20 @@
  * Header Doc
  * Purpose: Handler WA SELF-SERVICE preferensi teknisi (RONDE 6). Fase A: `setelan saya` (tampil
  *   preferensi aktif). Fase B: `alert on|off` / `alert <kelas> on|off` / `alert area <x>` /
- *   `alert kanal dm|grup|both`. Semua STAF-ONLY, one-liner (bukan wizard), baca/tulis store per-
- *   teknisi keyed account.id. GATED config.teknisiPrefs.enabled.
- * Caller: message/raf.js (intent SETELAN_SAYA / ALERT_PREF via wifi-intents wrapper).
- * Deps: ../../repositories/teknisi-prefs.repository, ./template-helpers (renderResponseTemplate).
- * MainFuncs: handleSetelanSaya, handleAlertPref.
- * SideEffects: Menulis database/teknisi_prefs.json (via repository, atomik); balas WA via reply.
+ *   `alert kanal dm|grup|both`. Fase D: `hubungkan <kode>` (tautkan WA ke akun; TAK butuh isTeknisi —
+ *   kode dari web = otorisasi). setelan/alert STAF-ONLY; hubungkan gated config.teknisiPrefs.enabled.
+ * Caller: message/raf.js (intent SETELAN_SAYA / ALERT_PREF / HUBUNGKAN_WA via wifi-intents wrapper).
+ * Deps: ../../repositories/teknisi-prefs.repository, ./template-helpers (renderResponseTemplate),
+ *   ../../lib/teknisi-account-link (redeem+link), ../../lib/jid-utils (normalizePhoneNumber).
+ * MainFuncs: handleSetelanSaya, handleAlertPref, handleHubungkanWa.
+ * SideEffects: Menulis database/teknisi_prefs.json (repo) & database/accounts.json (link, atomik); balas WA.
  */
 "use strict";
 
 const prefsRepo = require("../../repositories/teknisi-prefs.repository");
 const { renderResponseTemplate } = require("./template-helpers");
+const accountLink = require("../../lib/teknisi-account-link");
+const { normalizePhoneNumber } = require("../../lib/jid-utils");
 
 function gateOn(globalScope) {
     const cfg = (globalScope && globalScope.config) || (typeof global !== "undefined" && global.config) || {};
@@ -122,4 +125,49 @@ async function handleAlertPref(p) {
     return p.reply(`✅ ${catatan}\n\n${ringkasPrefs(prefs)}`);
 }
 
-module.exports = { handleSetelanSaya, handleAlertPref, ensureAccess, ringkasPrefs, gateOn, accountOf };
+const HUBUNGKAN_HELP =
+    "🔗 *Hubungkan WhatsApp*\n" +
+    "Buka halaman *Pengaturan Saya* di web → tombol *Hubungkan WhatsApp* untuk dapat kode, " +
+    "lalu kirim ke sini:\n*hubungkan <kode>*\n\nKode berlaku 10 menit.";
+
+/**
+ * `hubungkan <kode>` — tautkan nomor WA ini ke akun teknisi (RONDE 6 Fase D). SENGAJA tak butuh
+ * isTeknisi (justru dipakai saat WA belum dikenali): KODE dari sesi web terautentikasi = otorisasinya.
+ */
+async function handleHubungkanWa(p) {
+    const { reply, sender } = p;
+    if (!gateOn(p.global)) {
+        return reply(renderResponseTemplate("teknisi_prefs_disabled", "ℹ️ Fitur setelan teknisi belum diaktifkan (config.teknisiPrefs.enabled).", {}));
+    }
+    if (typeof sender === "string" && sender.endsWith("@g.us")) {
+        return reply(renderResponseTemplate("hubungkan_wa_dm_only", "⚠️ Kirim perintah *hubungkan* dari chat pribadi (bukan grup).", {}));
+    }
+    const code = String(p.qAfterKeyword || "").trim();
+    if (!code) return reply(renderResponseTemplate("hubungkan_wa_help", HUBUNGKAN_HELP, {}));
+
+    const redeem = accountLink.redeemLinkCode(code, sender);
+    if (!redeem.ok) {
+        if (redeem.reason === "rate") {
+            return reply(renderResponseTemplate("hubungkan_wa_rate", "⚠️ Terlalu banyak percobaan. Coba lagi nanti (atau minta kode baru di web).", {}));
+        }
+        return reply(renderResponseTemplate("hubungkan_wa_invalid", "❌ Kode salah atau kedaluwarsa. Minta kode baru di halaman *Pengaturan Saya*.", {}));
+    }
+
+    const phoneNumber = normalizePhoneNumber(p.plainSenderNumber || "") || null;
+    const res = await accountLink.linkWaToAccount({ accountId: redeem.accountId, senderId: sender, phoneNumber });
+    if (!res.ok) {
+        if (res.reason === "lid_taken") {
+            return reply(renderResponseTemplate("hubungkan_wa_taken", "⚠️ Nomor WA ini sudah tertaut ke akun lain. Hubungi admin bila ini keliru.", {}));
+        }
+        return reply(renderResponseTemplate("hubungkan_wa_gagal", "⚠️ Gagal menautkan akun. Coba lagi sebentar lagi.", {}));
+    }
+    const nama = (res.account && (res.account.name || res.account.username)) || "akun kamu";
+    const peran = (res.account && res.account.role) || "teknisi";
+    return reply(renderResponseTemplate(
+        "hubungkan_wa_sukses",
+        `✅ WhatsApp ini terhubung ke *${nama}* (${peran}). Sekarang kamu bisa pakai perintah teknisi & terima alert. Coba: *setelan saya*.`,
+        { nama, peran }
+    ));
+}
+
+module.exports = { handleSetelanSaya, handleAlertPref, handleHubungkanWa, ensureAccess, ringkasPrefs, gateOn, accountOf };
