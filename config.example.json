@@ -747,6 +747,11 @@
     "draftDay": 28,
     "draftSchedule": "20 7 * * *"
   },
+  "_catatanKomisiCollection": "Fee/komisi saat teknisi/agen MENARIK pembayaran pelanggan (flat per pelanggan tertagih). Dikreditkan HANYA saat pembayaran diotorisasi lunas — bukan dihitung mundur, jadi nyalakan SEBELUM otorisasi pertama. Gerbang: Enabled=true DAN Amount>0 (default OFF). Diatur juga dari /config; dibaca di lib/technician-collection-settlement.js & lib/agen-collection-settlement.js.",
+  "teknisiCollectionCommissionEnabled": false,
+  "teknisiCollectionCommissionAmount": 0,
+  "agenCollectionCommissionEnabled": false,
+  "agenCollectionCommissionAmount": 0,
   "bulkApprovalJob": {
     "_catatan": "Otorisasi massal dijalankan sebagai pekerjaan LATAR: permintaan HTTP balik seketika, worker memproses SELURUH pending satu per satu (tak lagi dibatasi 20), dan hasil per pelanggan tampil sebagai log di halaman otorisasi. Item yang terputus oleh restart TIDAK diulang otomatis — ditandai perlu diperiksa manual.",
     "enabled": false,
