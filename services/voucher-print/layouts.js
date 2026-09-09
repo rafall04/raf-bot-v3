@@ -5,7 +5,9 @@
  * Deps: Tidak ada (data statis).
  * MainFuncs: `getBuiltinLayouts`.
  * SideEffects: Tidak ada.
- * Placeholder yang didukung: wifi, kode, sandi, harga, harga_angka, masa_aktif, durasi, durasi_raw, kuota, paket, qr, logo, cs, portal, login_url, index, warna, tanggal.
+ * Placeholder yang didukung: wifi, kode, sandi, harga, harga_angka, masa_aktif, durasi, durasi_raw, kuota, paket, qr, logo, cs, portal, login_url, index, warna, tanggal, note.
+ *   Alias paritas Mikhmon (semua resolve sama): user, username, password, hotspotname, price, hprice, price_num, getsprice, validity, timelimit, datalimit, profile, comment, footer, type ('up'|'vp').
+ * Logika (engine AMAN, lihat render.js): {{#if KEY}}..{{else}}..{{/if}}, {{#unless KEY}}..{{/unless}}, {{#ifeq KEY VALUE}}..{{else}}..{{/ifeq}}.
  * Metadata opsional `grid:{cols,rows}` menandai layout yang dicetak sebagai lembar grid terpaginasi (mis. mikhmon36 = 4x9=36/lembar). Layout tanpa `grid` dirakit mengalir (flex-wrap) seperti biasa.
  */
 "use strict";
@@ -151,6 +153,19 @@ const BUILTIN_LAYOUTS = [
 <div style="border:1px solid #000;border-radius:2px;text-align:center;font-family:'Courier New',monospace;font-weight:bold;font-size:16px;letter-spacing:.5px;padding:0.6mm 0;">{{kode}}</div>
 <div style="text-align:center;font-weight:bold;font-size:13px;">{{durasi_raw}} {{harga}}</div>
 <div style="text-align:center;font-weight:bold;font-size:9px;margin-top:auto;">Login: {{login_url}}</div></div>`
+    },
+    {
+        // Showcase engine LOGIKA: cabang up/vp (kode-tunggal vs user+password), kuota & catatan
+        // hanya tampil bila ada. Contoh cara pakai {{#ifeq}}/{{#if}}/{{else}} di template.
+        id: "mikhmon-pro",
+        name: "Mikhmon Pro (logika)",
+        width: 210,
+        template: `<div class="vp-card" style="width:210px;border:1px solid #333;border-radius:6px;overflow:hidden;background:#fff;color:#222;font-family:Arial,sans-serif;">
+<div style="background:{{warna}};color:#fff;padding:5px 9px;display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:bold;"><span>{{hotspotname}}</span><span>{{harga}}</span></div>
+<div style="display:flex;gap:8px;padding:8px 9px;align-items:center;"><div style="width:58px;height:58px;flex:none;">{{qr}}</div>
+<div style="flex:1;">{{#ifeq type up}}<div style="font-size:9px;color:#666;">Kode Login</div><div style="font-family:monospace;font-size:17px;font-weight:bold;">{{kode}}</div>{{else}}<div style="font-size:10px;">User: <b>{{user}}</b></div><div style="font-size:10px;">Sandi: <b>{{password}}</b></div>{{/ifeq}}
+<div style="font-size:9px;color:#555;margin-top:2px;">Aktif {{validity}}{{#if kuota}} · {{kuota}}{{/if}}</div></div></div>
+{{#if note}}<div style="font-size:8px;color:#666;padding:4px 9px 6px;border-top:1px solid #eee;">{{note}}</div>{{/if}}</div>`
     }
 ];
 

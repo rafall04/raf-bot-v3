@@ -1,9 +1,9 @@
 /**
  * Header Doc
- * Purpose: Engine render kartu voucher untuk cetak — isi placeholder layout dengan data voucher + settings, generate QR (data-URI via paket `qrcode`), terapkan peta harga->warna, dan rakit lembar cetak HTML. Dua mode rakit: (a) FLOW (flex-wrap, default, layout lama) dan (b) GRID terpaginasi (mis. 4x9=36/lembar ala Mikhmon) yang MENJAMIN jumlah kartu per halaman fisik lewat grid ukuran-mm + page-break.
+ * Purpose: Engine render kartu voucher untuk cetak — engine template AMAN sadar-logika (blok {{#if}}/{{#unless}}/{{#ifeq}}/{{else}}, pengganti PHP mentah Mikhmon), isi placeholder layout dengan data voucher + settings (paritas variabel Mikhmon via alias), generate QR (data-URI via paket `qrcode`), terapkan peta harga->warna, dan rakit lembar cetak HTML. Dua mode rakit: (a) FLOW (flex-wrap, default, layout lama) dan (b) GRID terpaginasi (mis. 4x9=36/lembar ala Mikhmon) yang MENJAMIN jumlah kartu per halaman fisik lewat grid ukuran-mm + page-break.
  * Caller: `services/voucher-print.service.js`.
  * Deps: `./format`, lazy-require `qrcode` (bisa di-inject via deps.qrcode untuk test).
- * MainFuncs: `applyTemplate`, `renderCard`, `renderSheet`, `qrContent`.
+ * MainFuncs: `applyTemplate`, `renderLogic`, `renderTemplateContent`, `renderCard`, `renderSheet`, `qrContent`.
  * SideEffects: Tidak ada (mengembalikan string HTML; QR dibuat in-memory).
  */
 "use strict";
@@ -14,6 +14,61 @@ function applyTemplate(template, map) {
     return String(template || "").replace(/\{\{(\w+)\}\}/g, (_match, key) => (
         map[key] !== null && typeof map[key] !== "undefined" ? String(map[key]) : ""
     ));
+}
+
+// Truthiness untuk blok logika: kosong / "0" / "Rp 0" dianggap FALSE (mis. kuota tak ada,
+// harga nol). Ini yang menentukan {{#if kuota}} tampil atau tidak.
+function isTruthyValue(v) {
+    if (v === null || typeof v === "undefined") return false;
+    const s = String(v).trim();
+    if (s === "" || s === "0") return false;
+    if (/^rp\s*0$/i.test(s)) return false;
+    return true;
+}
+
+// Engine LOGIKA template yang AMAN (tanpa eksekusi kode) — pengganti PHP mentah Mikhmon.
+// Blok yang didukung (boleh bersarang; diproses dari yang terdalam):
+//   {{#if KEY}}...{{else}}...{{/if}}          tampil bila KEY truthy
+//   {{#unless KEY}}...{{else}}...{{/unless}}  tampil bila KEY falsy
+//   {{#ifeq KEY VALUE}}...{{else}}...{{/ifeq}} tampil bila map[KEY] === VALUE (VALUE boleh dikutip)
+// Placeholder {{key}} biasa TIDAK disentuh di sini (dikerjakan applyTemplate setelahnya).
+function renderLogic(template, map) {
+    let out = String(template || "");
+    // Cocokkan blok TERDALAM lebih dulu: isi blok tak boleh memuat pembuka {{# lain.
+    const blockRe = /\{\{#(if|unless|ifeq)\s+([^}]*?)\}\}((?:(?!\{\{#)[\s\S])*?)\{\{\/\1\}\}/;
+    let guard = 0;
+    while (guard++ < 2000) {
+        const m = blockRe.exec(out);
+        if (!m) break;
+        const tag = m[1];
+        const args = String(m[2]).trim();
+        const inner = m[3];
+        let truePart = inner;
+        let falsePart = "";
+        const elseM = /\{\{else\}\}/.exec(inner);
+        if (elseM) {
+            truePart = inner.slice(0, elseM.index);
+            falsePart = inner.slice(elseM.index + elseM[0].length);
+        }
+        let cond;
+        if (tag === "if") {
+            cond = isTruthyValue(map[args]);
+        } else if (tag === "unless") {
+            cond = !isTruthyValue(map[args]);
+        } else {
+            const sp = args.indexOf(" ");
+            const key = sp === -1 ? args : args.slice(0, sp);
+            const val = sp === -1 ? "" : args.slice(sp + 1).trim().replace(/^["']|["']$/g, "");
+            cond = String(map[key] == null ? "" : map[key]).trim() === val;
+        }
+        out = out.slice(0, m.index) + (cond ? truePart : falsePart) + out.slice(m.index + m[0].length);
+    }
+    return out;
+}
+
+// Render lengkap: logika dulu, lalu substitusi placeholder.
+function renderTemplateContent(template, map) {
+    return applyTemplate(renderLogic(template, map), map);
 }
 
 function qrContent(voucher, settings) {
@@ -51,16 +106,25 @@ async function renderCard(layout, voucher, settings, deps, extra = {}) {
     const color = resolveColor(price.num, settings.price_colors, settings.default_color);
     const qrImg = await buildQr(qrContent(voucher, settings), deps);
     const logo = settings.logo_url ? `<img src="${settings.logo_url}" alt="logo" style="max-height:24px;max-width:90px;" />` : "";
+    const code = voucher.username || "";
+    const pass = voucher.password || voucher.username || "";
+    const masaAktif = formatDurationToken(voucher.validity);
+    const durasi = formatDurationToken(voucher.timelimit);
+    const kuota = voucher.datalimit || "";
+    const note = settings.footer_text || settings.note || "";
+    // type ala Mikhmon: 'up' = kode==password (login satu kolom) | 'vp' = user & password terpisah.
+    const type = (pass && pass !== code) ? "vp" : "up";
     const map = {
+        // --- slot kanonik (bahasa Indonesia, dipakai layout bawaan kita) ---
         wifi: settings.wifi_name || "",
-        kode: voucher.username || "",
-        sandi: voucher.password || voucher.username || "",
+        kode: code,
+        sandi: pass,
         harga: price.text,
         harga_angka: price.amount,
-        masa_aktif: formatDurationToken(voucher.validity),
-        durasi: formatDurationToken(voucher.timelimit),
+        masa_aktif: masaAktif,
+        durasi,
         durasi_raw: rawDuration(voucher),
-        kuota: voucher.datalimit || "",
+        kuota,
         paket: voucher.profileName || voucher.profile || "",
         qr: qrImg,
         logo,
@@ -69,9 +133,26 @@ async function renderCard(layout, voucher, settings, deps, extra = {}) {
         login_url: settings.login_url || "",
         index: (extra && extra.index != null) ? extra.index : "",
         warna: color,
-        tanggal: voucher.date || ""
+        tanggal: voucher.date || "",
+        note,
+        // --- alias PARITAS Mikhmon (template Mikhmon asli/impor bisa pakai nama ini) ---
+        user: code,
+        username: code,
+        password: pass,
+        hotspotname: settings.wifi_name || "",
+        price: price.text,
+        hprice: price.text,
+        price_num: String(price.num),
+        getsprice: String(price.num),
+        validity: masaAktif,
+        timelimit: durasi,
+        datalimit: kuota,
+        profile: voucher.profileName || voucher.profile || "",
+        comment: voucher.comment || "",
+        footer: note,
+        type
     };
-    return applyTemplate(layout.template, map);
+    return renderTemplateContent(layout.template, map);
 }
 
 // Resolusi mode grid: request (pageOpts.grid) menang atas metadata layout (layout.grid) supaya
@@ -137,4 +218,4 @@ ${extraCss}
 <body><div class="vp-bar vp-noprint"><button onclick="window.print()">Cetak / Simpan PDF</button> &nbsp; <span>${list.length} voucher</span></div>${body}</body></html>`;
 }
 
-module.exports = { applyTemplate, renderCard, renderSheet, qrContent };
+module.exports = { applyTemplate, renderLogic, renderTemplateContent, renderCard, renderSheet, qrContent };

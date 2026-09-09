@@ -2,8 +2,8 @@
 
 const { formatDurationToken, formatPrice, resolveColor } = require("../format");
 const { getBuiltinLayouts } = require("../layouts");
-const { renderCard, renderSheet, applyTemplate } = require("../render");
-const { convertMikhmonTemplate, parseMikhmonColors } = require("../mikhmon-import");
+const { renderCard, renderSheet, applyTemplate, renderLogic, renderTemplateContent } = require("../render");
+const { convertMikhmonTemplate, parseMikhmonColors, convertConditionals } = require("../mikhmon-import");
 
 const fakeQr = { qrcode: { toDataURL: async () => "data:image/png;base64,TEST" } };
 
@@ -53,13 +53,14 @@ describe("voucher-print/render", () => {
         expect(html).not.toMatch(/\{\{\w+\}\}/);
     });
 
-    test("all 15 builtin layouts render with no leftover placeholders", async () => {
+    test("all 16 builtin layouts render with no leftover placeholders", async () => {
         const layouts = getBuiltinLayouts();
-        expect(layouts.length).toBe(15);
+        expect(layouts.length).toBe(16);
         for (const layout of layouts) {
             const html = await renderCard(layout, VOUCHER, SETTINGS, fakeQr);
             expect(html).toContain("7ChD66");
             expect(html).not.toMatch(/\{\{\w+\}\}/);
+            expect(html).not.toMatch(/\{\{[#/]/); // tak ada blok logika tersisa
         }
     });
 
@@ -102,6 +103,37 @@ describe("voucher-print/render", () => {
         expect(html).toContain("window.print()");
         expect(html).toContain("7ChD66");
         expect(html).toContain("P22TSJ");
+    });
+
+    test("renderLogic: if/unless/ifeq/else (engine aman pengganti PHP Mikhmon)", () => {
+        expect(renderLogic("{{#if k}}ADA{{/if}}", { k: "x" })).toBe("ADA");
+        expect(renderLogic("{{#if k}}ADA{{/if}}", { k: "" })).toBe("");
+        expect(renderLogic("{{#if k}}A{{else}}B{{/if}}", { k: "0" })).toBe("B"); // "0" falsy
+        expect(renderLogic("{{#unless k}}KOSONG{{/unless}}", { k: "" })).toBe("KOSONG");
+        expect(renderLogic("{{#ifeq type up}}U{{else}}V{{/ifeq}}", { type: "up" })).toBe("U");
+        expect(renderLogic("{{#ifeq type up}}U{{else}}V{{/ifeq}}", { type: "vp" })).toBe("V");
+        // bersarang
+        expect(renderLogic("{{#if a}}[{{#if b}}B{{/if}}]{{/if}}", { a: "1", b: "1" })).toBe("[B]");
+        expect(renderLogic("{{#if a}}[{{#if b}}B{{/if}}]{{/if}}", { a: "1", b: "" })).toBe("[]");
+    });
+
+    test("renderTemplateContent: logika + placeholder sekaligus", () => {
+        const tpl = "{{#ifeq type up}}Kode {{kode}}{{else}}U {{user}}/{{sandi}}{{/ifeq}}";
+        expect(renderTemplateContent(tpl, { type: "up", kode: "ABC", user: "ABC", sandi: "ABC" })).toBe("Kode ABC");
+        expect(renderTemplateContent(tpl, { type: "vp", kode: "ABC", user: "ABC", sandi: "PWD" })).toBe("U ABC/PWD");
+    });
+
+    test("renderCard mikhmon-pro: mode vp tampil user+sandi, kuota & note kondisional", async () => {
+        const pro = getBuiltinLayouts().find((l) => l.id === "mikhmon-pro");
+        const vp = await renderCard(pro, { username: "user01", password: "beda99", price: 5000, validity: "7d", datalimit: "2 GB" }, { ...SETTINGS, footer_text: "CS 0812" }, fakeQr);
+        expect(vp).toContain("user01");
+        expect(vp).toContain("beda99");
+        expect(vp).toContain("2 GB");    // {{#if kuota}} tampil
+        expect(vp).toContain("CS 0812"); // {{#if note}} tampil
+        expect(vp).not.toMatch(/\{\{[#/]/);
+        const up = await renderCard(pro, { username: "kode01", password: "kode01", price: 5000, validity: "1d" }, SETTINGS, fakeQr);
+        expect(up).toContain("kode01");
+        expect(up).not.toContain("2 GB"); // tanpa datalimit => blok kuota hilang
     });
 
     test("autologin QR mode builds login URL", async () => {
@@ -154,5 +186,27 @@ else{ $color = "#BA68C8";}
         expect(template).not.toContain("<?php");
         expect(template).not.toContain("<?=");
         expect(colors.map["1000"]).toBe("#FF1493");
+    });
+
+    test("v2: konversi if($type=='up')...else... jadi blok {{#ifeq type up}}", () => {
+        const php = `<?php if($type=='up'){ ?>Kode: <?= $username ?><?php }else{ ?>User: <?= $username ?> Pass: <?= $password ?><?php } ?>`;
+        const { template } = convertMikhmonTemplate(php);
+        expect(template).toContain("{{#ifeq type up}}");
+        expect(template).toContain("{{else}}");
+        expect(template).toContain("{{/ifeq}}");
+        expect(template).toContain("{{kode}}");   // $username
+        expect(template).toContain("{{sandi}}");  // $password
+        expect(template).not.toContain("<?php");
+    });
+
+    test("v2: konversi kondisi datalimit jadi {{#if datalimit}}", () => {
+        const php = `<?php if($datalimit){ ?>Kuota: <?= $datalimit ?><?php } ?>`;
+        // convertConditionals hanya mengubah PHP kondisional -> blok; var di-map tahap berikutnya.
+        expect(convertConditionals(php)).toContain("{{#if datalimit}}");
+        expect(convertConditionals(php)).toContain("{{/if}}");
+        const { template } = convertMikhmonTemplate(php);
+        expect(template).toContain("{{#if datalimit}}");
+        expect(template).toContain("{{kuota}}");
+        expect(template).not.toContain("<?php");
     });
 });

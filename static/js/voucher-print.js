@@ -22,19 +22,56 @@
         }
     }
 
+    // Cermin engine logika server (services/voucher-print/render.js) supaya thumbnail galeri
+    // menampilkan layout ber-logika ({{#if}}/{{#unless}}/{{#ifeq}}/{{else}}) dengan benar.
+    function tplTruthy(v) {
+        if (v === null || typeof v === "undefined") return false;
+        var s = String(v).trim();
+        return !(s === "" || s === "0" || /^rp\s*0$/i.test(s));
+    }
+
+    function renderLogic(tpl, map) {
+        var out = String(tpl || "");
+        var re = /\{\{#(if|unless|ifeq)\s+([^}]*?)\}\}((?:(?!\{\{#)[\s\S])*?)\{\{\/\1\}\}/;
+        var guard = 0, m;
+        while (guard++ < 2000 && (m = re.exec(out))) {
+            var tag = m[1], args = String(m[2]).trim(), inner = m[3];
+            var truePart = inner, falsePart = "";
+            var em = /\{\{else\}\}/.exec(inner);
+            if (em) { truePart = inner.slice(0, em.index); falsePart = inner.slice(em.index + em[0].length); }
+            var cond;
+            if (tag === "if") cond = tplTruthy(map[args]);
+            else if (tag === "unless") cond = !tplTruthy(map[args]);
+            else {
+                var sp = args.indexOf(" ");
+                var key = sp === -1 ? args : args.slice(0, sp);
+                var val = sp === -1 ? "" : args.slice(sp + 1).trim().replace(/^["']|["']$/g, "");
+                cond = String(map[key] == null ? "" : map[key]).trim() === val;
+            }
+            out = out.slice(0, m.index) + (cond ? truePart : falsePart) + out.slice(m.index + m[0].length);
+        }
+        return out;
+    }
+
     function applyTpl(tpl, map) {
-        return String(tpl || "").replace(/\{\{(\w+)\}\}/g, function (_m, k) {
+        return renderLogic(String(tpl || ""), map).replace(/\{\{(\w+)\}\}/g, function (_m, k) {
             return (map[k] !== null && typeof map[k] !== "undefined") ? String(map[k]) : "";
         });
     }
 
     function sampleMap() {
+        var wifi = settings.wifi_name || "WiFi";
+        var note = settings.footer_text || "";
         return {
-            wifi: settings.wifi_name || "WiFi", kode: "7ChD66", sandi: "7ChD66",
+            wifi: wifi, kode: "7ChD66", sandi: "7ChD66",
             harga: "Rp 5.000", harga_angka: "5.000", masa_aktif: "1 Hari", durasi: "1 Hari", durasi_raw: "3h", kuota: "",
             paket: "Paket", qr: '<div style="width:100%;height:100%;background:#eee;border:1px solid #ddd;display:flex;align-items:center;justify-content:center;font-size:8px;color:#888;">QR</div>',
             logo: "", cs: settings.cs_number || "08xx", portal: settings.portal_text || "",
-            login_url: settings.login_url || "http://10.10.0.1", index: "1", warna: "#FF4500", tanggal: ""
+            login_url: settings.login_url || "http://10.10.0.1", index: "1", warna: "#FF4500", tanggal: "", note: note,
+            // alias paritas Mikhmon (thumbnail mode 'up' = kode-tunggal)
+            user: "7ChD66", username: "7ChD66", password: "7ChD66", hotspotname: wifi,
+            price: "Rp 5.000", hprice: "Rp 5.000", price_num: "5000", getsprice: "5000",
+            validity: "1 Hari", timelimit: "1 Hari", datalimit: "", profile: "Paket", comment: "", footer: note, type: "up"
         };
     }
 
@@ -208,6 +245,7 @@
             wifi_name: $("setWifi").value, cs_number: $("setCs").value, portal_text: $("setPortal").value,
             logo_url: $("setLogo").value, qr_mode: $("setQrMode").value, default_color: $("setDefaultColor").value,
             autologin_url_template: $("setAutologin").value, login_url: $("setLoginUrl") ? $("setLoginUrl").value : "",
+            footer_text: $("setNote") ? $("setNote").value : "",
             price_colors: colors
         };
         api("POST", "/api/voucher/print/settings", patch).then(function (res) {
@@ -287,6 +325,7 @@
             $("setDefaultColor").value = settings.default_color || "";
             $("setAutologin").value = settings.autologin_url_template || "";
             if ($("setLoginUrl")) $("setLoginUrl").value = settings.login_url || "";
+            if ($("setNote")) $("setNote").value = settings.footer_text || "";
             if ($("vpPageSize") && settings.print_page_size) $("vpPageSize").value = settings.print_page_size;
             $("setColors").value = JSON.stringify(settings.price_colors || {}, null, 2);
             if ($("vpLen")) $("vpLen").value = settings.code_length || 6;

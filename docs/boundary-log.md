@@ -2937,3 +2937,14 @@
 - **Route/UI:** `routes/api-voucher-routes.js` +`POST /voucher/print/pdf` (unduh) & +`/voucher/print/send-wa`; render/pdf/send terima `pageSize`/`columns`/`rows`. `views/sb-admin/voucher-print.php`+`static/js/voucher-print.js`: selektor 36/lembar+kertas, tombol Unduh PDF & Kirim WA, field URL Login. Print browser (b25) TETAP jalan, tak di-gate.
 - **GATE** `config.voucherPrint.enabled` (render PDF server) & `.sendWhatsApp.enabled` (kirim WA), keduanya default OFF, cek `=== true` (fail-closed; config.json merge-key → key BARU absen di prod = OFF). OFF → /pdf & /send-wa balas 403.
 - **Tes:** render +2 (mono token, grid 36/lembar N halaman), service +8 (renderPdf ok/gagal-keras/engine-missing, gate DISABLED/WA_DISABLED, kirim getAdminJids document+skipDuplicateCheck, tolak @lid, login_url derive), html-to-pdf guard +7; smoke integrasi Chromium NYATA 40→2 lembar (36+4) Letter, caption+fileName benar. template-integrity/wa-forbidden/boundary-index hijau; lint 0.
+
+<a id="b359"></a>
+
+### Fitur 2026-09-10 (Cetak Voucher: engine template sadar-logika + paritas variabel Mikhmon + importer v2)
+
+- **Engine LOGIKA AMAN (tanpa PHP eval):** `services/voucher-print/render.js` +`renderLogic`/`renderTemplateContent` — blok `{{#if}}`/`{{#unless}}`/`{{#ifeq}}`/`{{else}}` (boleh bersarang, diproses terdalam-dulu; truthy: kosong/"0"/"Rp 0"=false). `renderCard` kini pakai `renderTemplateContent` (logika→placeholder). Pengganti AMAN untuk PHP mentah Mikhmon (anti-RCE), ekspresivitas setara.
+- **Paritas variabel Mikhmon:** map renderCard +alias `user/username/password/hotspotname/price/hprice/price_num/getsprice/validity/timelimit/datalimit/profile/comment/note/footer/type('up'|'vp')` — template Mikhmon asli/impor bisa pakai nama nativenya (semua resolve ke slot sama).
+- **Importer v2:** `mikhmon-import.js` +`convertConditionals` — konversi `if($type=='up')…else…` → `{{#ifeq type up}}…{{else}}…{{/ifeq}}` & kondisi `$datalimit` → `{{#if datalimit}}…{{/if}}` (v1 MENGHAPUS semua logika; kini dipertahankan). +var hotspotname/user/note/comment/profile. Ekstraksi peta harga→warna tetap.
+- **Preset showcase:** layout bawaan BARU `mikhmon-pro` (cabang up/vp, kuota & note kondisional). 15→16 bawaan.
+- **UI:** `views/sb-admin/voucher-print.php` help placeholder+alias+sintaks logika; field Catatan/Footer (`{{note}}`→`footer_text`). `static/js/voucher-print.js` cermin engine logika utk thumbnail galeri + sampleMap alias + wiring note.
+- **Tes:** render +3 (renderLogic if/unless/ifeq/else+bersarang, renderTemplateContent, mikhmon-pro up/vp+kondisional), importer +2 (konversi type/datalimit); builtins 16; round-trip impor→render terbukti (PHP habis, 2 mode benar). template-integrity/wa-forbidden hijau; lint 0, php -l bersih.

@@ -165,6 +165,7 @@
                                     </div>
                                     <div class="form-group"><label class="small font-weight-bold">Template URL auto-login</label><input class="form-control form-control-sm" id="setAutologin" placeholder="http://10.10.0.1/login?username={kode}&password={sandi}"></div>
                                     <div class="form-group"><label class="small font-weight-bold">URL Login (baris cetak)</label><input class="form-control form-control-sm" id="setLoginUrl" placeholder="http://10.10.0.1"><small class="text-muted">Ditampilkan sbg "Login: ..." di kartu. Kosong = ambil origin dari URL auto-login.</small></div>
+                                    <div class="form-group"><label class="small font-weight-bold">Catatan / Footer voucher (<code>{{note}}</code>)</label><input class="form-control form-control-sm" id="setNote" placeholder="mis. CS 0812xxxx · S&K berlaku"></div>
                                     <div class="form-group"><label class="small font-weight-bold">Peta harga &rarr; warna (JSON)</label><textarea class="form-control form-control-sm" id="setColors" rows="3"></textarea></div>
                                     <button class="btn btn-primary btn-sm" id="vpBtnSaveSettings"><i class="fas fa-save mr-1"></i>Simpan Pengaturan</button>
                                 </div>
@@ -175,7 +176,11 @@
                             <div class="card shadow h-100">
                                 <div class="card-header py-2 font-weight-bold">Editor Layout &amp; Impor Mikhmon</div>
                                 <div class="card-body">
-                                    <div class="vp-help small text-muted mb-2">Placeholder: <code>{{wifi}}</code> <code>{{kode}}</code> <code>{{sandi}}</code> <code>{{harga}}</code> <code>{{masa_aktif}}</code> <code>{{durasi}}</code> <code>{{durasi_raw}}</code> <code>{{qr}}</code> <code>{{logo}}</code> <code>{{cs}}</code> <code>{{portal}}</code> <code>{{login_url}}</code> <code>{{index}}</code> <code>{{warna}}</code></div>
+                                    <div class="vp-help small text-muted mb-2">
+                                        Placeholder: <code>{{wifi}}</code> <code>{{kode}}</code> <code>{{sandi}}</code> <code>{{harga}}</code> <code>{{masa_aktif}}</code> <code>{{durasi}}</code> <code>{{durasi_raw}}</code> <code>{{kuota}}</code> <code>{{qr}}</code> <code>{{logo}}</code> <code>{{cs}}</code> <code>{{portal}}</code> <code>{{login_url}}</code> <code>{{index}}</code> <code>{{note}}</code> <code>{{warna}}</code><br>
+                                        Alias Mikhmon: <code>{{user}}</code> <code>{{password}}</code> <code>{{hotspotname}}</code> <code>{{validity}}</code> <code>{{datalimit}}</code> <code>{{type}}</code> <code>{{price_num}}</code><br>
+                                        Logika (aman, tanpa PHP): <code>{{#if kuota}}…{{/if}}</code> · <code>{{#ifeq type up}}…{{else}}…{{/ifeq}}</code> · <code>{{#unless note}}…{{/unless}}</code>
+                                    </div>
                                     <div class="form-row">
                                         <div class="form-group col-md-5"><label class="small font-weight-bold">ID layout</label><input class="form-control form-control-sm" id="edLayoutId" placeholder="layout-saya"></div>
                                         <div class="form-group col-md-7"><label class="small font-weight-bold">Nama</label><input class="form-control form-control-sm" id="edLayoutName" placeholder="Layout Saya"></div>
