@@ -2774,6 +2774,11 @@
     "category": "network_admin",
     "template": "Mohon Maaf Profil Yang Akan Ditambahkan Sudah Ada Di Dalam Database. Silahkan Cek Kembali Pada Penulisan Profil Voucher Anda.\n\nTerima Kasih"
   },
+  "voucher_print_sheet_sent": {
+    "name": "Voucher: Lembar Cetak Terkirim (caption WA)",
+    "category": "network_admin",
+    "template": "🎟️ *${jumlah} voucher* siap cetak (${paket}).\nFile PDF terlampir — ${perLembar}/lembar, ${totalLembar} lembar.\nLogin: ${loginUrl}"
+  },
   "voucher_profile_create_success": {
     "name": "Voucher: Profil Berhasil Dibuat",
     "category": "network_admin",

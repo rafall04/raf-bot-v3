@@ -27,6 +27,8 @@ const DEFAULT_SETTINGS = {
     default_layout: "band",
     qr_mode: "code",
     autologin_url_template: "",
+    login_url: "",
+    print_page_size: "a4",
     default_price: 0,
     default_color: "#BA68C8",
     price_colors: DEFAULT_PRICE_COLORS,

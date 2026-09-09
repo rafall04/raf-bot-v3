@@ -2,12 +2,15 @@
  * Header Doc
  * Purpose: Factory router API voucher untuk generate, kirim, dan lacak kredensial/voucher pelanggan.
  * Caller: `routes/api.js` sebagai agregator sub-router voucher.
- * Deps: `express`, templating voucher, history pengiriman voucher, delivery service WhatsApp, serta `voucher-print` service/repository (layout + cetak + impor template Mikhmon).
+ * Deps: `express`, templating voucher, history pengiriman voucher, delivery service WhatsApp, admin-recipients (getAdminJids), html-to-pdf, response-template-helper, serta `voucher-print` service/repository (layout + cetak + impor template Mikhmon).
  * MainFuncs: `createApiVoucherRouter`.
- * SideEffects: Membaca/menulis histori pengiriman voucher, mengirim pesan WhatsApp ke pelanggan, render lembar cetak voucher (HTML/QR), dan menyimpan settings/layout cetak.
+ * SideEffects: Membaca/menulis histori pengiriman voucher, mengirim pesan WhatsApp ke pelanggan, render lembar cetak voucher (HTML/QR/PDF), kirim PDF lembar voucher ke WhatsApp owner/admin (gated config.voucherPrint), dan menyimpan settings/layout cetak.
  */
 const express = require('express');
 const { sendMessageToMany, ensureJid } = require('../lib/whatsapp-delivery-service');
+const { getAdminJids } = require('../lib/admin-recipients');
+const { renderHtmlToPdf } = require('../lib/html-to-pdf');
+const { renderResponseTemplate } = require('../lib/response-template-helper');
 const { createApiVoucherRepository } = require('../repositories/api-voucher.repository');
 const { createApiVoucherService } = require('../services/api-voucher.service');
 const { createVoucherPrintRepository } = require('../repositories/voucher-print.repository');
@@ -123,6 +126,11 @@ function createApiVoucherRouter({
         trackingRepository: createVoucherTrackingRepository(),
         getConfig,
         addHotspotUsersBatch,
+        htmlToPdf: renderHtmlToPdf,
+        sendMessageToMany,
+        ensureJid,
+        getAdminJids,
+        renderResponseTemplate,
         logger: console
     });
 
@@ -441,19 +449,73 @@ function createApiVoucherRouter({
         }
     });
 
+    // Susun argumen render dari body (dipakai render HTML, PDF, dan kirim WA).
+    function renderInputFromBody(body = {}) {
+        return {
+            layoutId: body.layoutId,
+            vouchers: body.vouchers || [],
+            thermal: Boolean(body.thermal),
+            title: body.title,
+            pageSize: body.pageSize,
+            columns: body.columns,
+            rows: body.rows
+        };
+    }
+
     router.post('/voucher/print/render', requireStaff, async (req, res) => {
         try {
-            const result = await voucherPrintService.renderPrint({
-                layoutId: req.body ? req.body.layoutId : undefined,
-                vouchers: (req.body && req.body.vouchers) || [],
-                thermal: Boolean(req.body && req.body.thermal),
-                title: req.body ? req.body.title : undefined
-            });
+            const result = await voucherPrintService.renderPrint(renderInputFromBody(req.body || {}));
             res.set('Content-Type', 'text/html; charset=utf-8');
             return res.send(result.html);
         } catch (error) {
             console.error('[VOUCHER_PRINT_RENDER_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal render cetak', error: error.message });
+        }
+    });
+
+    // Render lembar -> PDF (unduh). Gated config.voucherPrint.enabled (butuh Chromium di server).
+    router.post('/voucher/print/pdf', requireStaff, async (req, res) => {
+        try {
+            const cfg = getConfig() || {};
+            if (!cfg.voucherPrint || cfg.voucherPrint.enabled !== true) {
+                return res.status(403).json({ status: 403, message: 'Cetak PDF server nonaktif (config.voucherPrint.enabled=false).' });
+            }
+            const result = await voucherPrintService.renderPdf(renderInputFromBody(req.body || {}));
+            if (!result.ok) {
+                const code = result.code === 'PDF_FAILED' ? 502 : 400;
+                return res.status(code).json({ status: code, message: result.message || 'Gagal render PDF', code: result.code });
+            }
+            res.set('Content-Type', 'application/pdf');
+            res.set('Content-Disposition', `attachment; filename="voucher-${result.count}pcs.pdf"`);
+            return res.send(result.buffer);
+        } catch (error) {
+            console.error('[VOUCHER_PRINT_PDF_ROUTE_ERROR]', error);
+            return res.status(500).json({ status: 500, message: 'Gagal render PDF', error: error.message });
+        }
+    });
+
+    // Render lembar -> PDF -> kirim ke WhatsApp owner/admin (Opsi A). Gated config.voucherPrint.sendWhatsApp.
+    // Penerima default = getAdminJids; staff boleh override lewat body.phone/phones. Service TAK melempar.
+    router.post('/voucher/print/send-wa', requireStaff, async (req, res) => {
+        try {
+            const input = renderInputFromBody(req.body || {});
+            input.phone = req.body ? req.body.phone : undefined;
+            input.phones = req.body ? req.body.phones : undefined;
+            const result = await voucherPrintService.renderPdfAndSend(input);
+            if (result.ok) {
+                return res.json({
+                    status: 200,
+                    message: `Voucher terkirim ke ${result.recipients.length} penerima (${result.fileName})`,
+                    data: result
+                });
+            }
+            // Pemetaan sebab -> HTTP: gate mati=403, tak ada penerima=422, WA/PDF gagal=502, lainnya=400.
+            const map = { DISABLED: 403, WA_DISABLED: 403, NO_RECIPIENTS: 422, WA_ENGINE_MISSING: 503, PDF_FAILED: 502, PDF_ENGINE_MISSING: 503, SEND_FAILED: 502, WHATSAPP_NOT_CONNECTED: 503 };
+            const code = map[result.code] || 400;
+            return res.status(code).json({ status: code, message: result.message || `Gagal kirim voucher (${result.code})`, code: result.code, warning: result.warning });
+        } catch (error) {
+            console.error('[VOUCHER_PRINT_SEND_WA_ERROR]', error);
+            return res.status(500).json({ status: 500, message: 'Gagal kirim voucher ke WhatsApp', error: error.message });
         }
     });
 

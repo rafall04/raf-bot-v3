@@ -5,7 +5,8 @@
  * Deps: Tidak ada (data statis).
  * MainFuncs: `getBuiltinLayouts`.
  * SideEffects: Tidak ada.
- * Placeholder yang didukung: wifi, kode, sandi, harga, harga_angka, masa_aktif, durasi, kuota, paket, qr, logo, cs, portal, warna, tanggal.
+ * Placeholder yang didukung: wifi, kode, sandi, harga, harga_angka, masa_aktif, durasi, durasi_raw, kuota, paket, qr, logo, cs, portal, login_url, index, warna, tanggal.
+ * Metadata opsional `grid:{cols,rows}` menandai layout yang dicetak sebagai lembar grid terpaginasi (mis. mikhmon36 = 4x9=36/lembar). Layout tanpa `grid` dirakit mengalir (flex-wrap) seperti biasa.
  */
 "use strict";
 
@@ -135,6 +136,21 @@ const BUILTIN_LAYOUTS = [
         template: `<div class="vp-card" style="width:200px;border:1px solid #ddd;border-radius:7px;overflow:hidden;background:#fff;color:#222;font-family:Arial,sans-serif;padding:9px;">
 <div style="background:{{warna}};color:#fff;border-radius:20px;padding:3px 10px;display:inline-block;font-size:10px;font-weight:bold;">{{wifi}}</div>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;"><div><div style="font-family:monospace;font-size:17px;font-weight:bold;">{{kode}}</div><div style="font-size:10px;color:#555;">sandi: {{sandi}} · {{masa_aktif}} · {{harga}}</div></div><div style="width:44px;height:44px;flex:none;">{{qr}}</div></div></div>`
+    },
+    {
+        // Voucher hitam-putih ala Mikhmon: TANPA QR/warna, header nama + nomor urut [N], kotak kode,
+        // durasi+harga, baris login. Metadata grid 4x9 => 36/lembar (renderSheet mode grid, ukuran-mm).
+        // Kartu WAJIB width/height 100% agar mengisi sel grid (jangan hardcode px seperti layout lain).
+        id: "mikhmon36",
+        name: "Mikhmon 36/lembar (mono)",
+        width: 200,
+        grid: { cols: 4, rows: 9 },
+        template: `<div class="vp-card" style="width:100%;height:100%;border:1.4px solid #000;border-radius:3px;overflow:hidden;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;padding:2mm 2.4mm;display:flex;flex-direction:column;gap:1mm;">
+<div style="display:flex;justify-content:space-between;align-items:baseline;font-weight:bold;font-size:12px;line-height:1;"><span>{{wifi}}</span><span>[{{index}}]</span></div>
+<div style="text-align:center;font-size:9px;color:#333;">Kode Voucher</div>
+<div style="border:1px solid #000;border-radius:2px;text-align:center;font-family:'Courier New',monospace;font-weight:bold;font-size:16px;letter-spacing:.5px;padding:0.6mm 0;">{{kode}}</div>
+<div style="text-align:center;font-weight:bold;font-size:13px;">{{durasi_raw}} {{harga}}</div>
+<div style="text-align:center;font-weight:bold;font-size:9px;margin-top:auto;">Login: {{login_url}}</div></div>`
     }
 ];
 

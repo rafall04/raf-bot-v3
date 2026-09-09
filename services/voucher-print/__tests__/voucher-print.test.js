@@ -53,14 +53,46 @@ describe("voucher-print/render", () => {
         expect(html).not.toMatch(/\{\{\w+\}\}/);
     });
 
-    test("all 14 builtin layouts render with no leftover placeholders", async () => {
+    test("all 15 builtin layouts render with no leftover placeholders", async () => {
         const layouts = getBuiltinLayouts();
-        expect(layouts.length).toBe(14);
+        expect(layouts.length).toBe(15);
         for (const layout of layouts) {
             const html = await renderCard(layout, VOUCHER, SETTINGS, fakeQr);
             expect(html).toContain("7ChD66");
             expect(html).not.toMatch(/\{\{\w+\}\}/);
         }
+    });
+
+    test("mono mikhmon36 layout: no QR, grid metadata, index + login_url + durasi_raw", async () => {
+        const mono = getBuiltinLayouts().find((l) => l.id === "mikhmon36");
+        expect(mono).toBeTruthy();
+        expect(mono.grid).toEqual({ cols: 4, rows: 9 });
+        const html = await renderCard(
+            mono,
+            { username: "1n7eurif", password: "1n7eurif", price: 1000, timelimit: "3h", profile: "P3Jam" },
+            { ...SETTINGS, login_url: "http://10.10.0.1" },
+            fakeQr,
+            { index: 7 }
+        );
+        expect(html).toContain("1n7eurif");   // kode
+        expect(html).toContain("[7]");          // nomor urut
+        expect(html).toContain("3h Rp 1.000");  // durasi_raw + harga
+        expect(html).toContain("Login: http://10.10.0.1");
+        expect(html).not.toContain("data:image/png"); // TANPA QR
+        expect(html).not.toMatch(/\{\{\w+\}\}/);
+    });
+
+    test("renderSheet grid mode: exactly N pages of 36 + page-break, index berjalan", async () => {
+        const mono = getBuiltinLayouts().find((l) => l.id === "mikhmon36");
+        const vouchers = Array.from({ length: 40 }, (_v, i) => ({ username: "V" + (i + 1), price: 1000, timelimit: "3h" }));
+        const html = await renderSheet(mono, vouchers, { ...SETTINGS, login_url: "http://10.10.0.1" }, fakeQr, { pageSize: "letter", title: "Grid" });
+        const pages = html.match(/class="vp-page"/g) || [];
+        expect(pages.length).toBe(2);                 // 36 + 4 => 2 halaman
+        expect(html).toContain("break-after:page");
+        expect(html).toContain("@page{size:letter");
+        expect(html).toContain("[1]");
+        expect(html).toContain("[40]");
+        expect(html).not.toMatch(/\{\{\w+\}\}/);
     });
 
     test("renderSheet produces a printable document", async () => {

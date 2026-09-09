@@ -31,9 +31,10 @@
     function sampleMap() {
         return {
             wifi: settings.wifi_name || "WiFi", kode: "7ChD66", sandi: "7ChD66",
-            harga: "Rp 5.000", harga_angka: "5.000", masa_aktif: "1 Hari", durasi: "1 Hari", kuota: "",
+            harga: "Rp 5.000", harga_angka: "5.000", masa_aktif: "1 Hari", durasi: "1 Hari", durasi_raw: "3h", kuota: "",
             paket: "Paket", qr: '<div style="width:100%;height:100%;background:#eee;border:1px solid #ddd;display:flex;align-items:center;justify-content:center;font-size:8px;color:#888;">QR</div>',
-            logo: "", cs: settings.cs_number || "08xx", portal: settings.portal_text || "", warna: "#FF4500", tanggal: ""
+            logo: "", cs: settings.cs_number || "08xx", portal: settings.portal_text || "",
+            login_url: settings.login_url || "http://10.10.0.1", index: "1", warna: "#FF4500", tanggal: ""
         };
     }
 
@@ -61,12 +62,17 @@
             $("edLayoutId").value = layout.id;
             $("edLayoutName").value = layout.name || "";
             $("edLayoutTpl").value = layout.template || "";
+            // Layout ber-metadata grid (mis. mikhmon36 4x9) => otomatis pilih tata letak 36/lembar.
+            if (layout.grid && $("vpGrid")) $("vpGrid").value = "36";
         }
         updatePrintState();
     }
 
     function updatePrintState() {
-        $("vpBtnPrint").disabled = !(vouchers.length > 0 && selectedLayoutId);
+        var ready = vouchers.length > 0 && !!selectedLayoutId;
+        $("vpBtnPrint").disabled = !ready;
+        if ($("vpBtnPdf")) $("vpBtnPdf").disabled = !ready;
+        if ($("vpBtnSendWa")) $("vpBtnSendWa").disabled = !ready;
         $("vpReady").textContent = vouchers.length > 0
             ? (vouchers.length + " voucher siap dicetak.")
             : "Belum ada voucher disiapkan.";
@@ -84,7 +90,13 @@
     }
 
     function renderRequest() {
-        return { layoutId: selectedLayoutId, vouchers: vouchers, thermal: $("vpThermal").checked };
+        var grid = $("vpGrid") && $("vpGrid").value === "36";
+        var req = {
+            layoutId: selectedLayoutId, vouchers: vouchers, thermal: $("vpThermal").checked,
+            pageSize: $("vpPageSize") ? $("vpPageSize").value : "a4"
+        };
+        if (grid) { req.columns = 4; req.rows = 9; }
+        return req;
     }
 
     function fetchRenderHtml() {
@@ -157,6 +169,37 @@
         });
     }
 
+    function doDownloadPdf() {
+        if (!vouchers.length || !selectedLayoutId) return;
+        $("vpBtnPdf").disabled = true;
+        $("vpReady").textContent = "Membuat PDF di server...";
+        fetch("/api/voucher/print/pdf", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(renderRequest())
+        }).then(function (r) {
+            if (!r.ok) return r.json().then(function (j) { throw new Error(j.message || "Gagal membuat PDF"); });
+            return r.blob();
+        }).then(function (blob) {
+            var url = URL.createObjectURL(blob);
+            window.open(url, "_blank");
+            toast("success", "PDF dibuat");
+            updatePrintState();
+        }).catch(function (e) { toast("error", e.message); updatePrintState(); });
+    }
+
+    function doSendWa() {
+        if (!vouchers.length || !selectedLayoutId) return;
+        var phone = $("vpWaPhone").value.trim();
+        var body = renderRequest();
+        if (phone) body.phone = phone;
+        $("vpBtnSendWa").disabled = true;
+        $("vpReady").textContent = "Membuat PDF & mengirim ke WhatsApp...";
+        api("POST", "/api/voucher/print/send-wa", body).then(function (res) {
+            if (res.status === 200) { toast("success", res.message || "Voucher terkirim ke WhatsApp"); }
+            else { toast("error", res.message || ("Gagal kirim" + (res.code ? " (" + res.code + ")" : ""))); }
+            updatePrintState();
+        }).catch(function (e) { toast("error", e.message); updatePrintState(); });
+    }
+
     function saveSettings() {
         var colors;
         try { colors = JSON.parse($("setColors").value || "{}"); }
@@ -164,7 +207,8 @@
         var patch = {
             wifi_name: $("setWifi").value, cs_number: $("setCs").value, portal_text: $("setPortal").value,
             logo_url: $("setLogo").value, qr_mode: $("setQrMode").value, default_color: $("setDefaultColor").value,
-            autologin_url_template: $("setAutologin").value, price_colors: colors
+            autologin_url_template: $("setAutologin").value, login_url: $("setLoginUrl") ? $("setLoginUrl").value : "",
+            price_colors: colors
         };
         api("POST", "/api/voucher/print/settings", patch).then(function (res) {
             if (res.status === 200) { settings = res.data; toast("success", "Pengaturan tersimpan"); renderGallery(); }
@@ -242,6 +286,8 @@
             $("setQrMode").value = settings.qr_mode || "code";
             $("setDefaultColor").value = settings.default_color || "";
             $("setAutologin").value = settings.autologin_url_template || "";
+            if ($("setLoginUrl")) $("setLoginUrl").value = settings.login_url || "";
+            if ($("vpPageSize") && settings.print_page_size) $("vpPageSize").value = settings.print_page_size;
             $("setColors").value = JSON.stringify(settings.price_colors || {}, null, 2);
             if ($("vpLen")) $("vpLen").value = settings.code_length || 6;
             if ($("vpChartype")) $("vpChartype").value = settings.code_chartype || "safe";
@@ -269,6 +315,8 @@
         $("vpBtnManual").addEventListener("click", doManual);
         $("vpBtnPreview").addEventListener("click", doPreview);
         $("vpBtnPrint").addEventListener("click", doPrint);
+        if ($("vpBtnPdf")) $("vpBtnPdf").addEventListener("click", doDownloadPdf);
+        if ($("vpBtnSendWa")) $("vpBtnSendWa").addEventListener("click", doSendWa);
         $("vpBtnSaveSettings").addEventListener("click", saveSettings);
         $("vpBtnSaveLayout").addEventListener("click", saveLayout);
         $("vpBtnDeleteLayout").addEventListener("click", deleteLayout);

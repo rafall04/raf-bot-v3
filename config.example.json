@@ -243,6 +243,13 @@
   "customerVoucher": {
     "enabled": false
   },
+  "voucherPrint": {
+    "_comment": "Cetak voucher server-side (PDF, mis. 36/lembar grid Mikhmon) + auto-kirim ke WhatsApp owner/admin. enabled=false => jalur render PDF + kirim WA INERT; halaman /voucher-print & print browser (b25) TETAP jalan. sendWhatsApp.enabled=false => tombol Kirim WA nonaktif walau render PDF aktif. Gate ini keputusan ops, bukan efek deploy. WAJIB Chromium sehat di server (lihat lib/html-to-pdf.js).",
+    "enabled": false,
+    "sendWhatsApp": {
+      "enabled": false
+    }
+  },
   "voucherFeatured": "",
   "voucherSalesDashboard": {
     "enabled": true

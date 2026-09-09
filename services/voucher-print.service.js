@@ -1,10 +1,10 @@
 /**
  * Header Doc
- * Purpose: Owner orchestration fitur Cetak Voucher — gabungkan settings (repo) dengan default dari `global.config` (nama wifi, CS, logo), daftar layout, render lembar cetak (A4/thermal) via engine, dan impor template Mikhmon. Route tetap adapter tipis.
+ * Purpose: Owner orchestration fitur Cetak Voucher — gabungkan settings (repo) dengan default dari `global.config` (nama wifi, CS, logo, login_url), daftar layout, render lembar cetak (HTML flow/grid), render PDF server-side (via helper html-to-pdf), kirim PDF ke WhatsApp owner/admin, dan impor template Mikhmon. Route tetap adapter tipis.
  * Caller: `routes/api-voucher-routes.js`.
- * Deps: `repositories/voucher-print.repository.js`, `services/voucher-print/render`, `services/voucher-print/mikhmon-import`, `deps.getConfig`.
- * MainFuncs: `createVoucherPrintService` -> getSettings, listLayouts, getLayout, saveSettings, saveLayout, deleteLayout, renderPrint, previewMikhmonImport, importMikhmonLayout.
- * SideEffects: Persistensi via repository (file JSON). Render murni in-memory.
+ * Deps: `repositories/voucher-print.repository.js`, `services/voucher-print/render`, `services/voucher-print/mikhmon-import`, dan (opsional, di-inject) `htmlToPdf`, `sendMessageToMany`, `ensureJid`, `getAdminJids`, `renderCaption`, `getConfig`.
+ * MainFuncs: `createVoucherPrintService` -> getSettings, listLayouts, getLayout, saveSettings, saveLayout, deleteLayout, renderPrint, renderPdf, renderPdfAndSend, generateBatch, importMikhmonLayout.
+ * SideEffects: Persistensi via repository (file JSON). renderPdf menjalankan Chromium headless (via htmlToPdf). renderPdfAndSend mengirim dokumen WhatsApp. Render HTML murni in-memory.
  */
 "use strict";
 
@@ -12,11 +12,28 @@ const { renderSheet } = require("./voucher-print/render");
 const { convertMikhmonTemplate } = require("./voucher-print/mikhmon-import");
 
 function defaultDeps() {
-    return { repository: null, trackingRepository: null, getConfig: () => global.config || {}, qrcode: null, addHotspotUsersBatch: null, logger: console };
+    return {
+        repository: null,
+        trackingRepository: null,
+        getConfig: () => global.config || {},
+        qrcode: null,
+        addHotspotUsersBatch: null,
+        htmlToPdf: null,
+        sendMessageToMany: null,
+        ensureJid: null,
+        getAdminJids: null,
+        renderResponseTemplate: null,
+        logger: console
+    };
 }
 
 function digitsOnly(value) {
     return String(value || "").replace(/[^0-9]/g, "");
+}
+
+function slugify(value, fallback) {
+    const s = String(value || "").trim().replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    return s || fallback;
 }
 
 function createVoucherPrintService(overrides = {}) {
@@ -28,13 +45,49 @@ function createVoucherPrintService(overrides = {}) {
         const ownerDigits = Array.isArray(config.ownerNumber) && config.ownerNumber[0]
             ? digitsOnly(config.ownerNumber[0])
             : "";
+        // login_url: pakai setting eksplisit; bila kosong, TURUNKAN origin dari autologin_url_template
+        // yang SUDAH ada (mis. "http://10.10.0.1/login?u={kode}" -> "http://10.10.0.1") supaya tidak
+        // ada nilai kembar untuk gateway yang sama (anti shadow-ownership). Per-instance dengan sendirinya.
+        let loginUrl = stored.login_url || "";
+        if (!loginUrl && stored.autologin_url_template) {
+            const m = String(stored.autologin_url_template).match(/^(https?:\/\/[^/\s]+)/i);
+            if (m) loginUrl = m[1];
+        }
         return {
             ...stored,
             wifi_name: stored.wifi_name || config.nama || config.nama_wifi || "RAF NET",
             cs_number: stored.cs_number || config.telfon || ownerDigits || "",
             logo_url: stored.logo_url || (config.company && config.company.logoPath) || "",
-            autologin_url_template: stored.autologin_url_template || ""
+            autologin_url_template: stored.autologin_url_template || "",
+            login_url: loginUrl,
+            print_page_size: stored.print_page_size || "a4"
         };
+    }
+
+    // Rakit HTML lembar cetak + resolusi layout/grid/pageSize. Dipakai renderPrint (HTML) & renderPdf (PDF).
+    async function buildSheetHtml({ layoutId, vouchers, thermal = false, title, pageSize, columns, rows } = {}) {
+        const settings = getMergedSettings();
+        const layout = (layoutId && deps.repository.getLayout(layoutId))
+            || deps.repository.getLayout(settings.default_layout)
+            || deps.repository.getLayouts()[0];
+        if (!layout) {
+            throw new Error("Tidak ada layout voucher tersedia");
+        }
+        const list = Array.isArray(vouchers) ? vouchers : [];
+        const resolvedPageSize = String(pageSize || settings.print_page_size || "a4").toLowerCase();
+        const cols = parseInt(columns, 10);
+        const rws = parseInt(rows, 10);
+        // Grid dari request menang; kalau tidak ada, pakai metadata layout (mis. mikhmon36 4x9).
+        const grid = (cols > 0 && rws > 0) ? { cols, rows: rws } : (layout.grid || null);
+        const perPage = grid ? grid.cols * grid.rows : list.length;
+        const pageOpts = {
+            thermal: Boolean(thermal),
+            title: title || `Cetak Voucher - ${settings.wifi_name}`,
+            pageSize: resolvedPageSize
+        };
+        if (grid && !thermal) pageOpts.grid = grid;
+        const html = await renderSheet(layout, list, settings, { qrcode: deps.qrcode }, pageOpts);
+        return { html, layout, settings, count: list.length, perPage, pageSize: resolvedPageSize };
     }
 
     return {
@@ -64,19 +117,115 @@ function createVoucherPrintService(overrides = {}) {
             return deps.repository.deleteLayout(id);
         },
 
-        async renderPrint({ layoutId, vouchers, thermal = false, title } = {}) {
-            const settings = getMergedSettings();
-            const layout = (layoutId && deps.repository.getLayout(layoutId))
-                || deps.repository.getLayout(settings.default_layout)
-                || deps.repository.getLayouts()[0];
-            if (!layout) {
-                throw new Error("Tidak ada layout voucher tersedia");
+        async renderPrint(input = {}) {
+            const { html, layout, count } = await buildSheetHtml(input);
+            return { html, layoutId: layout.id, count };
+        },
+
+        // Render lembar -> PDF Buffer via helper html-to-pdf (Chromium headless). GAGAL-KERAS: kembalikan
+        // {ok:false,...}, JANGAN pernah pulangkan buffer HTML dilabeli PDF (jebakan fallback invoice lama).
+        async renderPdf(input = {}) {
+            if (typeof deps.htmlToPdf !== "function") {
+                return { ok: false, code: "PDF_ENGINE_MISSING", message: "Engine PDF (html-to-pdf) tidak tersedia" };
             }
-            const html = await renderSheet(layout, vouchers || [], settings, { qrcode: deps.qrcode }, {
-                thermal: Boolean(thermal),
-                title: title || `Cetak Voucher - ${settings.wifi_name}`
-            });
-            return { html, layoutId: layout.id, count: Array.isArray(vouchers) ? vouchers.length : 0 };
+            let built;
+            try {
+                built = await buildSheetHtml(input);
+            } catch (error) {
+                return { ok: false, code: "RENDER_FAILED", message: error && error.message ? error.message : "Gagal render lembar" };
+            }
+            const isLetter = String(built.pageSize).toLowerCase() === "letter";
+            try {
+                const buffer = await deps.htmlToPdf(built.html, {
+                    format: isLetter ? "Letter" : "A4",
+                    margin: isLetter ? "8mm" : "7mm",
+                    printBackground: true,
+                    waitUntil: "load"
+                });
+                return { ok: true, buffer, count: built.count, perPage: built.perPage, pageSize: built.pageSize, settings: built.settings, layout: built.layout };
+            } catch (error) {
+                deps.logger.error("[VOUCHER_PRINT_PDF_ERROR]", error && error.message ? error.message : error);
+                return { ok: false, code: "PDF_FAILED", message: error && error.message ? error.message : "Gagal render PDF (Chromium)" };
+            }
+        },
+
+        // Render lembar -> PDF -> kirim ke WhatsApp owner/admin (Opsi A). Gated config.voucherPrint.*.
+        // Penerima default = getAdminJids (accounts role admin/owner); staff boleh override nomor.
+        // JANGAN throw dari jalur kirim; JANGAN @lid sebagai target.
+        async renderPdfAndSend(input = {}) {
+            const config = deps.getConfig() || {};
+            const vp = config.voucherPrint || {};
+            if (vp.enabled !== true) {
+                return { ok: false, code: "DISABLED", message: "Cetak PDF server nonaktif (config.voucherPrint.enabled=false)" };
+            }
+            if (!vp.sendWhatsApp || vp.sendWhatsApp.enabled !== true) {
+                return { ok: false, code: "WA_DISABLED", message: "Kirim WhatsApp voucher nonaktif (config.voucherPrint.sendWhatsApp.enabled=false)" };
+            }
+            if (typeof deps.sendMessageToMany !== "function") {
+                return { ok: false, code: "WA_ENGINE_MISSING", message: "Pengirim WhatsApp tidak tersedia" };
+            }
+
+            // Resolusi penerima: nomor dari staff (dinormalkan) atau owner/admin dari accounts.json.
+            const requested = Array.isArray(input.phones)
+                ? input.phones
+                : (input.phone ? [input.phone] : []);
+            let recipients = [];
+            if (requested.length) {
+                recipients = requested
+                    .map((p) => (typeof deps.ensureJid === "function" ? deps.ensureJid(p) : String(p || "")))
+                    .filter(Boolean);
+            } else if (typeof deps.getAdminJids === "function") {
+                recipients = deps.getAdminJids();
+            }
+            // Buang @lid (angka @lid BUKAN nomor telepon; jangan pernah jadi target kirim).
+            recipients = recipients.filter((jid) => jid && !/@lid$/i.test(jid));
+            if (!recipients.length) {
+                return { ok: false, code: "NO_RECIPIENTS", message: "Tak ada penerima admin/owner valid (cek accounts.json role admin/owner)" };
+            }
+
+            const pdf = await this.renderPdf(input);
+            if (!pdf.ok) return pdf;
+
+            const settings = pdf.settings || getMergedSettings();
+            const jumlah = pdf.count;
+            const perLembar = pdf.perPage || jumlah || 1;
+            const totalLembar = Math.max(1, Math.ceil(jumlah / perLembar));
+            const paket = (Array.isArray(input.vouchers) && input.vouchers[0]
+                && (input.vouchers[0].profileName || input.vouchers[0].profile)) || "voucher";
+            const loginUrl = settings.login_url || "";
+
+            const fallbackCaption = `🎟️ *${jumlah} voucher* siap cetak (${paket}).\nPDF terlampir — ${perLembar}/lembar, ${totalLembar} lembar.${loginUrl ? `\nLogin: ${loginUrl}` : ""}`;
+            const caption = typeof deps.renderResponseTemplate === "function"
+                ? deps.renderResponseTemplate("voucher_print_sheet_sent", fallbackCaption, {
+                    jumlah, paket, perLembar, totalLembar, loginUrl,
+                    wifi: settings.wifi_name || ""
+                })
+                : fallbackCaption;
+
+            const dateTag = new Date().toISOString().slice(0, 10);
+            const fileName = `Voucher-${slugify(settings.wifi_name, "RAFNET")}-${jumlah}pcs-${dateTag}.pdf`;
+
+            let delivery;
+            try {
+                delivery = await deps.sendMessageToMany(
+                    recipients,
+                    { document: pdf.buffer, fileName, mimetype: "application/pdf", caption },
+                    { skipDuplicateCheck: true }
+                );
+            } catch (error) {
+                deps.logger.error("[VOUCHER_PRINT_SEND_ERROR]", error && error.message ? error.message : error);
+                return { ok: false, code: "SEND_FAILED", message: error && error.message ? error.message : "Gagal kirim WhatsApp" };
+            }
+
+            const sent = Boolean(delivery && delivery.sent);
+            return {
+                ok: sent,
+                code: sent ? null : ((delivery && delivery.errorCode) || "SEND_FAILED"),
+                count: jumlah,
+                fileName,
+                recipients: (delivery && delivery.recipients) || [],
+                warning: (delivery && delivery.warning) || null
+            };
         },
 
         async generateBatch({ profile, count, length, chartype, prefix, usernames } = {}) {

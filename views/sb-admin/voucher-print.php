@@ -91,13 +91,44 @@
                                 <div class="card-header py-2 font-weight-bold">2. Pilih Layout &amp; Cetak</div>
                                 <div class="card-body">
                                     <div class="vp-gallery" id="vpGallery"><span class="text-muted small">Memuat layout...</span></div>
-                                    <div class="form-check mt-3">
-                                        <input class="form-check-input" type="checkbox" id="vpThermal">
-                                        <label class="form-check-label small" for="vpThermal">Mode thermal 58mm</label>
+                                    <div class="form-row mt-3">
+                                        <div class="form-group col-sm-4 mb-2">
+                                            <label class="small font-weight-bold">Tata letak</label>
+                                            <select class="form-control form-control-sm" id="vpGrid">
+                                                <option value="flow">Bebas (mengalir)</option>
+                                                <option value="36">36/lembar (4×9)</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group col-sm-4 mb-2">
+                                            <label class="small font-weight-bold">Ukuran kertas</label>
+                                            <select class="form-control form-control-sm" id="vpPageSize">
+                                                <option value="a4">A4</option>
+                                                <option value="letter">US Letter</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group col-sm-4 mb-2">
+                                            <label class="small font-weight-bold">&nbsp;</label>
+                                            <div class="form-check pt-1">
+                                                <input class="form-check-input" type="checkbox" id="vpThermal">
+                                                <label class="form-check-label small" for="vpThermal">Thermal 58mm</label>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="mt-2">
+                                    <div class="mt-1 mb-2">
                                         <button class="btn btn-outline-secondary btn-sm" id="vpBtnPreview"><i class="fas fa-eye mr-1"></i>Pratinjau</button>
-                                        <button class="btn btn-primary btn-sm" id="vpBtnPrint" disabled><i class="fas fa-print mr-1"></i>Cetak / PDF</button>
+                                        <button class="btn btn-primary btn-sm" id="vpBtnPrint" disabled><i class="fas fa-print mr-1"></i>Cetak (browser)</button>
+                                        <button class="btn btn-outline-primary btn-sm" id="vpBtnPdf" disabled><i class="fas fa-file-pdf mr-1"></i>Unduh PDF</button>
+                                    </div>
+                                    <hr class="my-2">
+                                    <div class="form-group mb-2">
+                                        <label class="small font-weight-bold">Kirim PDF ke WhatsApp</label>
+                                        <div class="input-group input-group-sm">
+                                            <input class="form-control form-control-sm" id="vpWaPhone" placeholder="No. WA tujuan (kosongkan = owner/admin)">
+                                            <div class="input-group-append">
+                                                <button class="btn btn-success btn-sm" id="vpBtnSendWa" disabled><i class="fab fa-whatsapp mr-1"></i>Kirim</button>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">Kosongkan nomor untuk mengirim ke owner/admin (accounts.json). Perlu gate <code>config.voucherPrint.sendWhatsApp.enabled</code>.</small>
                                     </div>
                                 </div>
                             </div>
@@ -133,6 +164,7 @@
                                         <div class="form-group col-md-6"><label class="small font-weight-bold">Warna default</label><input class="form-control form-control-sm" id="setDefaultColor" placeholder="#BA68C8"></div>
                                     </div>
                                     <div class="form-group"><label class="small font-weight-bold">Template URL auto-login</label><input class="form-control form-control-sm" id="setAutologin" placeholder="http://10.10.0.1/login?username={kode}&password={sandi}"></div>
+                                    <div class="form-group"><label class="small font-weight-bold">URL Login (baris cetak)</label><input class="form-control form-control-sm" id="setLoginUrl" placeholder="http://10.10.0.1"><small class="text-muted">Ditampilkan sbg "Login: ..." di kartu. Kosong = ambil origin dari URL auto-login.</small></div>
                                     <div class="form-group"><label class="small font-weight-bold">Peta harga &rarr; warna (JSON)</label><textarea class="form-control form-control-sm" id="setColors" rows="3"></textarea></div>
                                     <button class="btn btn-primary btn-sm" id="vpBtnSaveSettings"><i class="fas fa-save mr-1"></i>Simpan Pengaturan</button>
                                 </div>
@@ -143,7 +175,7 @@
                             <div class="card shadow h-100">
                                 <div class="card-header py-2 font-weight-bold">Editor Layout &amp; Impor Mikhmon</div>
                                 <div class="card-body">
-                                    <div class="vp-help small text-muted mb-2">Placeholder: <code>{{wifi}}</code> <code>{{kode}}</code> <code>{{sandi}}</code> <code>{{harga}}</code> <code>{{masa_aktif}}</code> <code>{{durasi}}</code> <code>{{qr}}</code> <code>{{logo}}</code> <code>{{cs}}</code> <code>{{portal}}</code> <code>{{warna}}</code></div>
+                                    <div class="vp-help small text-muted mb-2">Placeholder: <code>{{wifi}}</code> <code>{{kode}}</code> <code>{{sandi}}</code> <code>{{harga}}</code> <code>{{masa_aktif}}</code> <code>{{durasi}}</code> <code>{{durasi_raw}}</code> <code>{{qr}}</code> <code>{{logo}}</code> <code>{{cs}}</code> <code>{{portal}}</code> <code>{{login_url}}</code> <code>{{index}}</code> <code>{{warna}}</code></div>
                                     <div class="form-row">
                                         <div class="form-group col-md-5"><label class="small font-weight-bold">ID layout</label><input class="form-control form-control-sm" id="edLayoutId" placeholder="layout-saya"></div>
                                         <div class="form-group col-md-7"><label class="small font-weight-bold">Nama</label><input class="form-control form-control-sm" id="edLayoutName" placeholder="Layout Saya"></div>

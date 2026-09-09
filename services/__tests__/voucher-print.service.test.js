@@ -72,6 +72,106 @@ describe("voucher-print.service", () => {
     });
 });
 
+describe("voucher-print.service renderPdf + renderPdfAndSend", () => {
+    const baseVouchers = Array.from({ length: 40 }, (_v, i) => ({ username: "V" + (i + 1), price: 1000, timelimit: "3h", profileName: "Paket 3 Jam" }));
+
+    function svc(extra = {}) {
+        return createVoucherPrintService({
+            repository: tmpRepo(),
+            getConfig: () => ({ nama: "RAF NET", ...(extra.config || {}) }),
+            qrcode: fakeQr,
+            ...extra.deps
+        });
+    }
+
+    test("renderPdf: PDF_ENGINE_MISSING bila htmlToPdf tak diinjeksi", async () => {
+        const out = await svc().renderPdf({ layoutId: "mikhmon36", vouchers: baseVouchers });
+        expect(out.ok).toBe(false);
+        expect(out.code).toBe("PDF_ENGINE_MISSING");
+    });
+
+    test("renderPdf: sukses -> buffer + count + perPage; Letter diteruskan ke htmlToPdf", async () => {
+        let capturedOpts = null;
+        const htmlToPdf = async (_html, opts) => { capturedOpts = opts; return Buffer.from("%PDF-fake"); };
+        const out = await svc({ deps: { htmlToPdf } }).renderPdf({ layoutId: "mikhmon36", vouchers: baseVouchers, pageSize: "letter" });
+        expect(out.ok).toBe(true);
+        expect(Buffer.isBuffer(out.buffer)).toBe(true);
+        expect(out.count).toBe(40);
+        expect(out.perPage).toBe(36);
+        expect(capturedOpts.format).toBe("Letter");
+        expect(capturedOpts.waitUntil).toBe("load");
+    });
+
+    test("renderPdf: GAGAL-KERAS -> {ok:false, PDF_FAILED} saat Chromium melempar (tak melempar, tak buffer HTML)", async () => {
+        const htmlToPdf = async () => { throw new Error("Chromium tidak ditemukan"); };
+        const out = await svc({ deps: { htmlToPdf } }).renderPdf({ layoutId: "mikhmon36", vouchers: baseVouchers });
+        expect(out.ok).toBe(false);
+        expect(out.code).toBe("PDF_FAILED");
+        expect(out.buffer).toBeUndefined();
+    });
+
+    test("renderPdfAndSend: DISABLED bila config.voucherPrint.enabled != true", async () => {
+        const out = await svc({ deps: { htmlToPdf: async () => Buffer.from("x") } })
+            .renderPdfAndSend({ layoutId: "mikhmon36", vouchers: baseVouchers });
+        expect(out.ok).toBe(false);
+        expect(out.code).toBe("DISABLED");
+    });
+
+    test("renderPdfAndSend: WA_DISABLED bila sendWhatsApp.enabled != true", async () => {
+        const out = await svc({
+            config: { voucherPrint: { enabled: true } },
+            deps: { htmlToPdf: async () => Buffer.from("x") }
+        }).renderPdfAndSend({ layoutId: "mikhmon36", vouchers: baseVouchers });
+        expect(out.ok).toBe(false);
+        expect(out.code).toBe("WA_DISABLED");
+    });
+
+    test("renderPdfAndSend: kirim ke getAdminJids sebagai dokumen PDF + caption + skipDuplicateCheck", async () => {
+        let sendArgs = null;
+        const service = svc({
+            config: { voucherPrint: { enabled: true, sendWhatsApp: { enabled: true } } },
+            deps: {
+                htmlToPdf: async () => Buffer.from("%PDF-fake"),
+                getAdminJids: () => ["628123456789@s.whatsapp.net"],
+                ensureJid: (p) => (p.includes("@") ? p : p.replace(/\D/g, "") + "@s.whatsapp.net"),
+                renderResponseTemplate: (_key, fallback) => fallback,
+                sendMessageToMany: async (recipients, payload, options) => {
+                    sendArgs = { recipients, payload, options };
+                    return { sent: true, successCount: recipients.length, recipients };
+                }
+            }
+        });
+        const out = await service.renderPdfAndSend({ layoutId: "mikhmon36", vouchers: baseVouchers });
+        expect(out.ok).toBe(true);
+        expect(out.recipients).toEqual(["628123456789@s.whatsapp.net"]);
+        expect(sendArgs.payload.mimetype).toBe("application/pdf");
+        expect(Buffer.isBuffer(sendArgs.payload.document)).toBe(true);
+        expect(sendArgs.payload.fileName).toMatch(/\.pdf$/);
+        expect(sendArgs.payload.caption).toContain("40 voucher");
+        expect(sendArgs.options.skipDuplicateCheck).toBe(true);
+    });
+
+    test("renderPdfAndSend: tolak @lid sebagai target -> NO_RECIPIENTS", async () => {
+        const out = await svc({
+            config: { voucherPrint: { enabled: true, sendWhatsApp: { enabled: true } } },
+            deps: {
+                htmlToPdf: async () => Buffer.from("x"),
+                ensureJid: (p) => p,
+                sendMessageToMany: async () => ({ sent: true })
+            }
+        }).renderPdfAndSend({ layoutId: "mikhmon36", vouchers: baseVouchers, phone: "12345@lid" });
+        expect(out.ok).toBe(false);
+        expect(out.code).toBe("NO_RECIPIENTS");
+    });
+
+    test("login_url diturunkan dari origin autologin_url_template bila kosong", () => {
+        const repo = tmpRepo();
+        repo.saveSettings({ autologin_url_template: "http://10.10.0.1/login?username={kode}&password={sandi}" });
+        const service = createVoucherPrintService({ repository: repo, getConfig: () => ({}), qrcode: fakeQr });
+        expect(service.getSettings().login_url).toBe("http://10.10.0.1");
+    });
+});
+
 describe("voucher-print.service generateBatch", () => {
     const config = { nama: "VANS 45NET" };
 
