@@ -1,10 +1,10 @@
 /**
  * Header Doc
- * Purpose: Owner persistensi fitur Cetak Voucher — settings branding/warna (database/voucher_print_settings.json) dan layout custom (database/voucher_layouts.json). Layout bawaan diambil dari `services/voucher-print/layouts.js` lalu digabung dengan custom.
+ * Purpose: Owner persistensi fitur Cetak Voucher — settings branding/warna (database/voucher_print_settings.json), layout custom (database/voucher_layouts.json), dan REGISTRI BATCH voucher tercetak (database/voucher_print_batches.json) untuk cetak-ulang/kirim-ulang TANPA generate user MikroTik lagi + audit. Layout bawaan diambil dari `services/voucher-print/layouts.js` lalu digabung dengan custom.
  * Caller: `services/voucher-print.service.js`.
  * Deps: `fs`, `path`, `../services/voucher-print/layouts`.
- * MainFuncs: `createVoucherPrintRepository` -> getSettings, saveSettings, getLayouts, getLayout, saveLayout, deleteLayout.
- * SideEffects: Baca/tulis dua file JSON di `database/`.
+ * MainFuncs: `createVoucherPrintRepository` -> getSettings, saveSettings, getLayouts, getLayout, saveLayout, deleteLayout, getBatches, saveBatch, getBatch, listBatchSummaries.
+ * SideEffects: Baca/tulis tiga file JSON di `database/`.
  */
 "use strict";
 
@@ -37,10 +37,15 @@ const DEFAULT_SETTINGS = {
     code_prefix: ""
 };
 
+// Batas jumlah batch yang disimpan (registri di-prune ke N terbaru supaya file tak tumbuh tanpa batas).
+const DEFAULT_BATCH_CAP = 200;
+
 function defaultDeps() {
     return {
         settingsPath: path.join(__dirname, "..", "database", "voucher_print_settings.json"),
-        layoutsPath: path.join(__dirname, "..", "database", "voucher_layouts.json")
+        layoutsPath: path.join(__dirname, "..", "database", "voucher_layouts.json"),
+        batchesPath: path.join(__dirname, "..", "database", "voucher_print_batches.json"),
+        batchCap: DEFAULT_BATCH_CAP
     };
 }
 
@@ -121,8 +126,42 @@ function createVoucherPrintRepository(overrides = {}) {
             const next = customs.filter((item) => item.id !== id);
             writeJson(deps.layoutsPath, next);
             return { deleted: customs.length - next.length };
+        },
+
+        // ===== Registri batch tercetak (cetak-ulang tanpa provision lagi + audit) =====
+        getBatches() {
+            const list = readJsonSafe(deps.batchesPath, []);
+            return Array.isArray(list) ? list : [];
+        },
+
+        saveBatch(record = {}) {
+            if (!record.id) throw new Error("Batch butuh id");
+            const cap = deps.batchCap || DEFAULT_BATCH_CAP;
+            const list = this.getBatches().filter((b) => b && b.id !== record.id);
+            list.unshift(record); // terbaru dulu
+            const pruned = list.slice(0, cap); // buang yang terlama bila melewati cap
+            writeJson(deps.batchesPath, pruned);
+            return record;
+        },
+
+        getBatch(id) {
+            return this.getBatches().find((b) => b && b.id === id) || null;
+        },
+
+        // Ringkasan (tanpa array kode) untuk daftar riwayat — ringan.
+        listBatchSummaries() {
+            return this.getBatches().map((b) => ({
+                id: b.id,
+                created_at: b.created_at,
+                profile: b.profile,
+                profileName: b.profileName,
+                wifi: b.wifi,
+                count: b.count,
+                requested: b.requested,
+                failed: b.failed
+            }));
         }
     };
 }
 
-module.exports = { createVoucherPrintRepository, DEFAULT_SETTINGS, DEFAULT_PRICE_COLORS };
+module.exports = { createVoucherPrintRepository, DEFAULT_SETTINGS, DEFAULT_PRICE_COLORS, DEFAULT_BATCH_CAP };

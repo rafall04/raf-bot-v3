@@ -159,6 +159,7 @@
             if (res.status !== 200 || !res.data) { updatePrintState(); toast("error", res.message || "Gagal generate"); return; }
             vouchers = attachProfileData(res.data.vouchers || []);
             updatePrintState();
+            loadBatches(); // segarkan riwayat: batch baru tersimpan otomatis
             toast("success", "Generate " + vouchers.length + " voucher" + (res.data.failed ? " (" + res.data.failed + " gagal)" : ""));
         }).catch(function (e) { $("vpBtnGenerate").disabled = false; updatePrintState(); toast("error", e.message); });
     }
@@ -297,6 +298,41 @@
         }).catch(function (e) { toast("error", e.message); });
     }
 
+    // ---- riwayat batch (cetak ulang tanpa provision) ----
+    function fmtTime(iso) {
+        if (!iso) return "-";
+        try { return new Date(iso).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }); }
+        catch (_e) { return iso; }
+    }
+
+    function loadBatches() {
+        api("GET", "/api/voucher/print/batches").then(function (res) {
+            if (res.status !== 200) { toast("error", res.message || "Gagal memuat riwayat"); return; }
+            var rows = res.data || [];
+            $("vpBatchBody").innerHTML = rows.length
+                ? rows.map(function (b) {
+                    return '<tr><td class="small">' + fmtTime(b.created_at) + '</td><td class="small">' + (b.profileName || b.profile || "-") +
+                        '</td><td class="text-right">' + (b.count || 0) + (b.failed ? ' <span class="text-danger small">(' + b.failed + ' gagal)</span>' : '') +
+                        '</td><td class="text-right"><button class="btn btn-outline-primary btn-sm vp-load-batch" data-id="' + b.id + '"><i class="fas fa-redo mr-1"></i>Muat</button></td></tr>';
+                }).join("")
+                : '<tr><td colspan="4" class="text-muted text-center">Belum ada batch tersimpan.</td></tr>';
+        }).catch(function (e) { toast("error", e.message); });
+    }
+
+    function loadBatch(id) {
+        api("GET", "/api/voucher/print/batches/" + encodeURIComponent(id)).then(function (res) {
+            if (res.status !== 200 || !res.data) { toast("error", res.message || "Batch tak ditemukan"); return; }
+            var b = res.data;
+            // Kode tersimpan SUDAH ter-enrich (harga/durasi/nama) — pakai langsung, tanpa provision lagi.
+            vouchers = (b.vouchers || []).map(function (v) {
+                return { username: v.username, password: v.password || v.username, profile: v.profile, price: v.price || 0, validity: v.validity || "", profileName: v.profileName || v.profile };
+            });
+            if (b.profile && $("vpProfile")) { $("vpProfile").value = b.profile; }
+            updatePrintState();
+            toast("success", "Batch dimuat: " + vouchers.length + " voucher — siap cetak/kirim ulang");
+        }).catch(function (e) { toast("error", e.message); });
+    }
+
     // ---- loaders ----
     function loadProfiles() {
         api("GET", "/api/voucher/profiles").then(function (res) {
@@ -361,5 +397,13 @@
         $("vpBtnDeleteLayout").addEventListener("click", deleteLayout);
         $("vpBtnImportMikhmon").addEventListener("click", importMikhmon);
         $("vpBtnReport").addEventListener("click", loadReport);
+        if ($("vpBtnBatches")) $("vpBtnBatches").addEventListener("click", loadBatches);
+        if ($("vpBatchBody")) {
+            $("vpBatchBody").addEventListener("click", function (e) {
+                var btn = e.target.closest ? e.target.closest(".vp-load-batch") : null;
+                if (btn) loadBatch(btn.getAttribute("data-id"));
+            });
+        }
+        loadBatches();
     });
 })();

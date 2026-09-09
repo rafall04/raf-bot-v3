@@ -42,6 +42,11 @@ database/accounts.json
 database/agents.json
 database/lid-mappings.json
 
+# Cetak Voucher — data runtime (self-heal dari default; jangan di-commit)
+database/voucher_print_settings.json
+database/voucher_layouts.json
+database/voucher_print_batches.json
+
 # Reports & tickets
 database/reports.json
 database/reports.backup*.json

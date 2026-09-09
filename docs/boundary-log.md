@@ -2959,3 +2959,14 @@
 - **Dikonfirmasi sudah aman:** cap 1000, satu koneksi RouterOS per batch, dedup+regenerate (maxRetry 6), validasi profil pra-loop, partial-failure dilaporkan (kode gagal tak masuk lembar), kirim WA hanya owner/admin (bukan broadcast queue text-only), PDF gagal-keras.
 - **Sisa (R2, DEFER):** cetak-ulang masih bisa provision-ulang (batch hanya di memori client); rencana simpan batch server-side (id+kode+profil+ts) utk reprint/kirim-ulang TANPA provision lagi + audit trail.
 - **Tes:** service +3 (generate BUSY konkurensi + kunci lepas, renderPdf BUSY, timeoutMs=90000 diteruskan). lint 0.
+
+<a id="b361"></a>
+
+### Fitur 2026-09-10 (Cetak Voucher: registri batch server-side — cetak-ulang/kirim-ulang TANPA provision + audit)
+
+- **Owner registri:** `repositories/voucher-print.repository.js` +`database/voucher_print_batches.json` (`getBatches`/`saveBatch`/`getBatch`/`listBatchSummaries`; prune ke `DEFAULT_BATCH_CAP=200`, terbaru dulu). File runtime (self-heal) — di-gitignore bersama voucher_print_settings/voucher_layouts.
+- **Simpan OTOMATIS saat generate:** `voucher-print.service.js generateBatch` menyimpan snapshot batch TER-ENRICH (username/password/profile + harga/durasi/nama dari profil SAAT generate via inject `getVoucherProfiles`) → cetak-ulang faithful tanpa lookup profil lagi. Balikan ke client TETAP raw (client enrich spt biasa) + `batchId`. Simpan gagal TIDAK menggagalkan generate (user sudah di router). +`listBatches()`/`getBatch(id)`.
+- **Route:** `GET /voucher/print/batches` (ringkasan tanpa kode) & `GET /voucher/print/batches/:id` (penuh; 404 bila sudah terpangkas). Inject `getVoucherProfiles` ke voucherPrintService.
+- **UI:** kartu "Riwayat Batch" (`views/sb-admin/voucher-print.php` + `static/js/voucher-print.js`) — daftar waktu/paket/jumlah + tombol **Muat** → load kode tersimpan ke `vouchers` (langsung siap Cetak/Unduh PDF/Kirim WA ulang) TANPA generate MikroTik. Auto-muat saat buka + refresh sesudah generate.
+- **Menutup R2** (#b360): cetak-ulang tak lagi = provision-ulang. Kunci konkurensi `generate` (#b360) juga men-serialize tulis file batch (tak ada tulis bersamaan).
+- **Tes:** repo +1 (save terbaru-dulu/list ringan/get penuh/prune cap), service +1 (persist ter-enrich snapshot harga + list/get); `tmpRepo` diisolasi `batchesPath` (anti polusi data prod). 46 tes area voucher hijau; lint 0, php -l bersih.

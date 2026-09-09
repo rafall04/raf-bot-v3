@@ -10,7 +10,8 @@ function tmpRepo() {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vp-"));
     return createVoucherPrintRepository({
         settingsPath: path.join(dir, "settings.json"),
-        layoutsPath: path.join(dir, "layouts.json")
+        layoutsPath: path.join(dir, "layouts.json"),
+        batchesPath: path.join(dir, "batches.json")
     });
 }
 
@@ -34,6 +35,25 @@ describe("voucher-print.repository", () => {
         expect(repo.getLayout("myx").builtin).toBe(false);
         repo.deleteLayout("myx");
         expect(repo.getLayout("myx")).toBeNull();
+    });
+
+    test("registri batch: save (terbaru dulu), list ringan, get penuh, prune ke cap", () => {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vpb-"));
+        const repo = createVoucherPrintRepository({
+            settingsPath: path.join(dir, "s.json"), layoutsPath: path.join(dir, "l.json"),
+            batchesPath: path.join(dir, "b.json"), batchCap: 3
+        });
+        expect(repo.getBatches()).toEqual([]);
+        repo.saveBatch({ id: "a", profile: "P", count: 2, vouchers: [{ username: "x" }, { username: "y" }] });
+        repo.saveBatch({ id: "b", profile: "P", count: 1, vouchers: [{ username: "z" }] });
+        const summaries = repo.listBatchSummaries();
+        expect(summaries[0].id).toBe("b");                 // terbaru dulu
+        expect(summaries[0]).not.toHaveProperty("vouchers"); // ringkasan tanpa kode
+        expect(repo.getBatch("a").vouchers.length).toBe(2);  // get penuh
+        repo.saveBatch({ id: "c", vouchers: [] });
+        repo.saveBatch({ id: "d", vouchers: [] });
+        expect(repo.getBatches().map((x) => x.id)).toEqual(["d", "c", "b"]); // 'a' terbuang oleh cap 3
+        expect(repo.getBatch("a")).toBeNull();
     });
 });
 
@@ -203,6 +223,28 @@ describe("voucher-print.service generateBatch", () => {
         expect(captured.profile).toBe("Paket-1Hari");
         expect(captured.chartype).toBe("lower_num");
         expect(captured.prefix).toBe("vcr-");
+    });
+
+    test("menyimpan batch ter-enrich untuk cetak-ulang tanpa provision", async () => {
+        const repo = tmpRepo();
+        const profiles = [{ prof: "Paket-1Hari", namavc: "Paket 1 Hari", hargavc: 3000, durasivc: "1d" }];
+        const batchFn = async () => ({ ok: true, data: { vouchers: [
+            { username: "u1", password: "u1", profile: "Paket-1Hari" },
+            { username: "u2", password: "u2", profile: "Paket-1Hari" }
+        ], created: 2, failed: 0, requested: 2 } });
+        const service = createVoucherPrintService({ repository: repo, getConfig: () => config, addHotspotUsersBatch: batchFn, getVoucherProfiles: () => profiles });
+        const out = await service.generateBatch({ profile: "Paket-1Hari", count: 2 });
+        expect(out.ok).toBe(true);
+        expect(out.batchId).toBeTruthy();
+        const list = service.listBatches();
+        expect(list.length).toBe(1);
+        expect(list[0].count).toBe(2);
+        expect(list[0].profileName).toBe("Paket 1 Hari");
+        const full = service.getBatch(out.batchId);
+        expect(full.vouchers).toHaveLength(2);
+        expect(full.vouchers[0].price).toBe(3000);   // snapshot harga saat generate
+        expect(full.vouchers[0].validity).toBe("1d");
+        expect(full.vouchers[0].profileName).toBe("Paket 1 Hari");
     });
 
     test("uses settings defaults when format omitted", async () => {

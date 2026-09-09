@@ -8,8 +8,17 @@
  */
 "use strict";
 
+const crypto = require("crypto");
 const { renderSheet } = require("./voucher-print/render");
 const { convertMikhmonTemplate } = require("./voucher-print/mikhmon-import");
+
+function makeBatchId() {
+    let rand = "0000";
+    try {
+        rand = crypto.randomBytes(3).toString("hex");
+    } catch (_e) { /* fallback tetap unik-cukup lewat timestamp */ }
+    return `vb-${Date.now().toString(36)}-${rand}`;
+}
 
 function defaultDeps() {
     return {
@@ -23,6 +32,7 @@ function defaultDeps() {
         ensureJid: null,
         getAdminJids: null,
         renderResponseTemplate: null,
+        getVoucherProfiles: null,
         logger: console
     };
 }
@@ -105,6 +115,22 @@ function createVoucherPrintService(overrides = {}) {
         if (grid && !thermal) pageOpts.grid = grid;
         const html = await renderSheet(layout, list, settings, { qrcode: deps.qrcode }, pageOpts);
         return { html, layout, settings, count: list.length, perPage, pageSize: resolvedPageSize };
+    }
+
+    // Lengkapi baris voucher MENTAH dari MikroTik ({username,password,profile}) dengan snapshot
+    // harga/durasi/nama dari profil voucher SAAT INI — supaya batch tersimpan bisa dicetak-ulang
+    // apa adanya tanpa lookup profil lagi (audit: harga direkam saat generate).
+    function enrichVoucherRows(rows, prof) {
+        const profiles = typeof deps.getVoucherProfiles === "function" ? (deps.getVoucherProfiles() || []) : [];
+        const p = profiles.find((x) => x && x.prof === prof) || {};
+        return (Array.isArray(rows) ? rows : []).map((v) => ({
+            username: v.username,
+            password: v.password || v.username,
+            profile: v.profile || prof,
+            profileName: p.namavc || v.profile || prof,
+            price: p.hargavc || 0,
+            validity: p.durasivc || ""
+        }));
     }
 
     return {
@@ -274,14 +300,48 @@ function createVoucherPrintService(overrides = {}) {
                     return { ok: false, message: (result && result.message) || "Gagal generate batch dari MikroTik" };
                 }
                 const data = result.data || {};
+                // Simpan batch (snapshot ter-enrich) utk cetak-ulang tanpa provision lagi + audit.
+                // Balikan ke client TETAP raw (client meng-enrich seperti biasa) — hanya +batchId.
+                let batchId = null;
+                const enriched = enrichVoucherRows(data.vouchers || [], profile);
+                if (enriched.length > 0) {
+                    try {
+                        const settings = getMergedSettings();
+                        const record = {
+                            id: makeBatchId(),
+                            created_at: new Date().toISOString(),
+                            profile,
+                            profileName: enriched[0].profileName || profile,
+                            wifi: settings.wifi_name || "",
+                            count: enriched.length,
+                            requested: data.requested || n,
+                            failed: data.failed || 0,
+                            vouchers: enriched
+                        };
+                        deps.repository.saveBatch(record);
+                        batchId = record.id;
+                    } catch (e) {
+                        // Gagal simpan TIDAK menggagalkan generate (user sudah dibuat di router).
+                        deps.logger.error("[VOUCHER_PRINT_BATCH_SAVE_ERROR]", e && e.message ? e.message : e);
+                    }
+                }
                 return {
                     ok: true,
+                    batchId,
                     vouchers: data.vouchers || [],
                     created: data.created || 0,
                     failed: data.failed || 0,
                     requested: data.requested || n
                 };
             });
+        },
+
+        listBatches() {
+            return deps.repository.listBatchSummaries();
+        },
+
+        getBatch(id) {
+            return deps.repository.getBatch(id);
         },
 
         async getVoucherReport(filters = {}) {

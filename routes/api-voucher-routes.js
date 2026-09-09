@@ -131,6 +131,7 @@ function createApiVoucherRouter({
         ensureJid,
         getAdminJids,
         renderResponseTemplate,
+        getVoucherProfiles,
         logger: console
     });
 
@@ -518,6 +519,29 @@ function createApiVoucherRouter({
         } catch (error) {
             console.error('[VOUCHER_PRINT_SEND_WA_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal kirim voucher ke WhatsApp', error: error.message });
+        }
+    });
+
+    // Riwayat batch tercetak (untuk cetak-ulang/kirim-ulang TANPA provision user MikroTik lagi).
+    router.get('/voucher/print/batches', requireStaff, (req, res) => {
+        try {
+            return res.json({ status: 200, data: voucherPrintService.listBatches() });
+        } catch (error) {
+            console.error('[VOUCHER_PRINT_BATCHES_ERROR]', error);
+            return res.status(500).json({ status: 500, message: 'Gagal memuat riwayat batch', error: error.message });
+        }
+    });
+
+    router.get('/voucher/print/batches/:id', requireStaff, (req, res) => {
+        try {
+            const batch = voucherPrintService.getBatch(req.params.id);
+            if (!batch) {
+                return res.status(404).json({ status: 404, message: 'Batch tidak ditemukan (mungkin sudah terhapus oleh pemangkasan riwayat).' });
+            }
+            return res.json({ status: 200, data: batch });
+        } catch (error) {
+            console.error('[VOUCHER_PRINT_BATCH_GET_ERROR]', error);
+            return res.status(500).json({ status: 500, message: 'Gagal memuat batch', error: error.message });
         }
     });
 

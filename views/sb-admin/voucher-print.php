@@ -147,6 +147,26 @@
                     </div>
 
                     <div class="row">
+                        <div class="col-12 mb-4">
+                            <div class="card shadow">
+                                <div class="card-header py-2 font-weight-bold d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-history mr-1"></i>Riwayat Batch (cetak ulang tanpa buat user baru)</span>
+                                    <button class="btn btn-outline-secondary btn-sm" id="vpBtnBatches"><i class="fas fa-sync mr-1"></i>Muat Riwayat</button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm mb-1">
+                                            <thead><tr><th>Waktu</th><th>Paket</th><th class="text-right">Jumlah</th><th class="text-right">Aksi</th></tr></thead>
+                                            <tbody id="vpBatchBody"><tr><td colspan="4" class="text-muted text-center">Klik "Muat Riwayat" untuk menampilkan batch tersimpan.</td></tr></tbody>
+                                        </table>
+                                    </div>
+                                    <small class="text-muted">Batch tersimpan otomatis saat Generate. Klik <b>Muat</b> untuk memuat kode yang sama, lalu cetak/kirim ulang — <b>tanpa</b> membuat voucher baru di MikroTik.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
                         <div class="col-lg-6 mb-4">
                             <div class="card shadow h-100">
                                 <div class="card-header py-2 font-weight-bold">Pengaturan Voucher</div>
