@@ -2948,3 +2948,14 @@
 - **Preset showcase:** layout bawaan BARU `mikhmon-pro` (cabang up/vp, kuota & note kondisional). 15→16 bawaan.
 - **UI:** `views/sb-admin/voucher-print.php` help placeholder+alias+sintaks logika; field Catatan/Footer (`{{note}}`→`footer_text`). `static/js/voucher-print.js` cermin engine logika utk thumbnail galeri + sampleMap alias + wiring note.
 - **Tes:** render +3 (renderLogic if/unless/ifeq/else+bersarang, renderTemplateContent, mikhmon-pro up/vp+kondisional), importer +2 (konversi type/datalimit); builtins 16; round-trip impor→render terbukti (PHP habis, 2 mode benar). template-integrity/wa-forbidden hijau; lint 0, php -l bersih.
+
+<a id="b360"></a>
+
+### Fitur 2026-09-10 (Cetak Voucher: pengerasan skala 360 — kunci konkurensi + timeout render)
+
+- **G1 kunci in-flight per-instance** (`services/voucher-print.service.js` `withInFlight`): operasi berat/berisiko `generate` (cegah provision GANDA di MikroTik saat double-submit/2 tab → 2×N user) & `render` (cegah dua render Chromium 360-kartu bersamaan → lonjakan memori). Menolak CEPAT `code:'BUSY'` (bukan antre). App single-instance → cukup lock closure.
+- **G2 timeout render eksplisit** (`lib/html-to-pdf.js` +opsi `timeoutMs` default 60s; service kirim 90s): `page.setDefaultTimeout` + `setContent`/`page.pdf` `timeout` → batch besar ber-QR yang macet GAGAL-KERAS bersih, tak menggantung (hindari putus Cloudflare tunnel ~100s).
+- **Rute** map `BUSY`→409, `RENDER_FAILED`→502 di `/voucher/print/{generate,pdf,send-wa}`.
+- **Dikonfirmasi sudah aman:** cap 1000, satu koneksi RouterOS per batch, dedup+regenerate (maxRetry 6), validasi profil pra-loop, partial-failure dilaporkan (kode gagal tak masuk lembar), kirim WA hanya owner/admin (bukan broadcast queue text-only), PDF gagal-keras.
+- **Sisa (R2, DEFER):** cetak-ulang masih bisa provision-ulang (batch hanya di memori client); rencana simpan batch server-side (id+kode+profil+ts) utk reprint/kirim-ulang TANPA provision lagi + audit trail.
+- **Tes:** service +3 (generate BUSY konkurensi + kunci lepas, renderPdf BUSY, timeoutMs=90000 diteruskan). lint 0.

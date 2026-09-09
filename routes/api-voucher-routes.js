@@ -436,7 +436,8 @@ function createApiVoucherRouter({
                 usernames: req.body ? req.body.usernames : undefined
             });
             if (!result.ok) {
-                return res.status(400).json({ status: 400, message: result.message });
+                const status = result.code === 'BUSY' ? 409 : 400;
+                return res.status(status).json({ status, message: result.message, code: result.code });
             }
             return res.json({
                 status: 200,
@@ -482,7 +483,8 @@ function createApiVoucherRouter({
             }
             const result = await voucherPrintService.renderPdf(renderInputFromBody(req.body || {}));
             if (!result.ok) {
-                const code = result.code === 'PDF_FAILED' ? 502 : 400;
+                const httpMap = { PDF_FAILED: 502, BUSY: 409, PDF_ENGINE_MISSING: 503, RENDER_FAILED: 502 };
+                const code = httpMap[result.code] || 400;
                 return res.status(code).json({ status: code, message: result.message || 'Gagal render PDF', code: result.code });
             }
             res.set('Content-Type', 'application/pdf');
@@ -510,7 +512,7 @@ function createApiVoucherRouter({
                 });
             }
             // Pemetaan sebab -> HTTP: gate mati=403, tak ada penerima=422, WA/PDF gagal=502, lainnya=400.
-            const map = { DISABLED: 403, WA_DISABLED: 403, NO_RECIPIENTS: 422, WA_ENGINE_MISSING: 503, PDF_FAILED: 502, PDF_ENGINE_MISSING: 503, SEND_FAILED: 502, WHATSAPP_NOT_CONNECTED: 503 };
+            const map = { DISABLED: 403, WA_DISABLED: 403, NO_RECIPIENTS: 422, WA_ENGINE_MISSING: 503, PDF_FAILED: 502, RENDER_FAILED: 502, PDF_ENGINE_MISSING: 503, BUSY: 409, SEND_FAILED: 502, WHATSAPP_NOT_CONNECTED: 503 };
             const code = map[result.code] || 400;
             return res.status(code).json({ status: code, message: result.message || `Gagal kirim voucher (${result.code})`, code: result.code, warning: result.warning });
         } catch (error) {

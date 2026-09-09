@@ -100,6 +100,20 @@ describe("voucher-print.service renderPdf + renderPdfAndSend", () => {
         expect(out.perPage).toBe(36);
         expect(capturedOpts.format).toBe("Letter");
         expect(capturedOpts.waitUntil).toBe("load");
+        expect(capturedOpts.timeoutMs).toBe(90000); // timeout eksplisit (anti-hang batch besar)
+    });
+
+    test("renderPdf: kunci render — panggilan kedua saat in-flight = BUSY", async () => {
+        let release;
+        const gate = new Promise((r) => { release = r; });
+        const htmlToPdf = async () => { await gate; return Buffer.from("%PDF"); };
+        const service = svc({ deps: { htmlToPdf } });
+        const p1 = service.renderPdf({ layoutId: "mikhmon36", vouchers: baseVouchers });
+        const r2 = await service.renderPdf({ layoutId: "mikhmon36", vouchers: baseVouchers });
+        expect(r2.ok).toBe(false);
+        expect(r2.code).toBe("BUSY");
+        release();
+        expect((await p1).ok).toBe(true);
     });
 
     test("renderPdf: GAGAL-KERAS -> {ok:false, PDF_FAILED} saat Chromium melempar (tak melempar, tak buffer HTML)", async () => {
@@ -201,6 +215,23 @@ describe("voucher-print.service generateBatch", () => {
         expect(captured.length).toBe(8);
         expect(captured.chartype).toBe("num");
         expect(captured.prefix).toBe("WIFI-");
+    });
+
+    test("kunci konkurensi: generate kedua saat batch in-flight = BUSY (cegah provision ganda)", async () => {
+        let release;
+        const gate = new Promise((r) => { release = r; });
+        const batchFn = async () => { await gate; return { ok: true, data: { vouchers: [{ username: "a", password: "a", profile: "P" }], created: 1, failed: 0, requested: 1 } }; };
+        const service = createVoucherPrintService({ repository: tmpRepo(), getConfig: () => config, addHotspotUsersBatch: batchFn });
+        const p1 = service.generateBatch({ profile: "P", count: 1 });
+        const r2 = await service.generateBatch({ profile: "P", count: 1 });
+        expect(r2.ok).toBe(false);
+        expect(r2.code).toBe("BUSY");
+        release();
+        const r1 = await p1;
+        expect(r1.ok).toBe(true);
+        // Kunci lepas setelah selesai -> generate berikutnya boleh jalan lagi (gate sudah resolved).
+        const r3 = await service.generateBatch({ profile: "P", count: 1 });
+        expect(r3.ok).toBe(true);
     });
 
     test("rejects without profile and surfaces bridge failure", async () => {

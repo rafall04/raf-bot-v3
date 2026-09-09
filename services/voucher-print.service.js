@@ -39,6 +39,23 @@ function slugify(value, fallback) {
 function createVoucherPrintService(overrides = {}) {
     const deps = { ...defaultDeps(), ...overrides };
 
+    // Kunci in-flight per-instance (app single-instance) untuk operasi BERAT/BERISIKO:
+    //   'generate' — cegah provision GANDA di MikroTik (2 klik/2 tab -> 2x N user).
+    //   'render'   — cegah dua render Chromium 360-kartu bersamaan (lonjakan memori).
+    // Menolak CEPAT (code 'BUSY') alih-alih antre, supaya double-submit tak diam-diam jalan dua kali.
+    const inFlight = new Set();
+    async function withInFlight(key, busyMessage, fn) {
+        if (inFlight.has(key)) {
+            return { ok: false, code: "BUSY", message: busyMessage };
+        }
+        inFlight.add(key);
+        try {
+            return await fn();
+        } finally {
+            inFlight.delete(key);
+        }
+    }
+
     function getMergedSettings() {
         const config = deps.getConfig() || {};
         const stored = deps.repository.getSettings();
@@ -128,25 +145,30 @@ function createVoucherPrintService(overrides = {}) {
             if (typeof deps.htmlToPdf !== "function") {
                 return { ok: false, code: "PDF_ENGINE_MISSING", message: "Engine PDF (html-to-pdf) tidak tersedia" };
             }
-            let built;
-            try {
-                built = await buildSheetHtml(input);
-            } catch (error) {
-                return { ok: false, code: "RENDER_FAILED", message: error && error.message ? error.message : "Gagal render lembar" };
-            }
-            const isLetter = String(built.pageSize).toLowerCase() === "letter";
-            try {
-                const buffer = await deps.htmlToPdf(built.html, {
-                    format: isLetter ? "Letter" : "A4",
-                    margin: isLetter ? "8mm" : "7mm",
-                    printBackground: true,
-                    waitUntil: "load"
-                });
-                return { ok: true, buffer, count: built.count, perPage: built.perPage, pageSize: built.pageSize, settings: built.settings, layout: built.layout };
-            } catch (error) {
-                deps.logger.error("[VOUCHER_PRINT_PDF_ERROR]", error && error.message ? error.message : error);
-                return { ok: false, code: "PDF_FAILED", message: error && error.message ? error.message : "Gagal render PDF (Chromium)" };
-            }
+            // Kunci 'render' cegah dua render Chromium 360-kartu bersamaan (lonjakan memori single-instance).
+            return withInFlight("render", "Render PDF voucher lain sedang berjalan. Tunggu sebentar lalu coba lagi.", async () => {
+                let built;
+                try {
+                    built = await buildSheetHtml(input);
+                } catch (error) {
+                    return { ok: false, code: "RENDER_FAILED", message: error && error.message ? error.message : "Gagal render lembar" };
+                }
+                const isLetter = String(built.pageSize).toLowerCase() === "letter";
+                try {
+                    const buffer = await deps.htmlToPdf(built.html, {
+                        format: isLetter ? "Letter" : "A4",
+                        margin: isLetter ? "8mm" : "7mm",
+                        printBackground: true,
+                        waitUntil: "load",
+                        // Timeout eksplisit: batch besar ber-QR yang lambat GAGAL-KERAS bersih, tak menggantung.
+                        timeoutMs: 90000
+                    });
+                    return { ok: true, buffer, count: built.count, perPage: built.perPage, pageSize: built.pageSize, settings: built.settings, layout: built.layout };
+                } catch (error) {
+                    deps.logger.error("[VOUCHER_PRINT_PDF_ERROR]", error && error.message ? error.message : error);
+                    return { ok: false, code: "PDF_FAILED", message: error && error.message ? error.message : "Gagal render PDF (Chromium)" };
+                }
+            });
         },
 
         // Render lembar -> PDF -> kirim ke WhatsApp owner/admin (Opsi A). Gated config.voucherPrint.*.
@@ -236,27 +258,30 @@ function createVoucherPrintService(overrides = {}) {
             if (typeof deps.addHotspotUsersBatch !== "function") {
                 return { ok: false, message: "Bridge MikroTik batch tidak tersedia" };
             }
-            const stored = deps.repository.getSettings();
-            const result = await deps.addHotspotUsersBatch({
-                profile,
-                count: n,
-                comment: "VoucherPrint",
-                length: parseInt(length, 10) || stored.code_length || 6,
-                chartype: chartype || stored.code_chartype || "safe",
-                prefix: (prefix !== null && typeof prefix !== "undefined") ? prefix : (stored.code_prefix || ""),
-                usernames: custom
-            }, { caller: "voucher-print.generateBatch" });
-            if (!result || result.ok !== true) {
-                return { ok: false, message: (result && result.message) || "Gagal generate batch dari MikroTik" };
-            }
-            const data = result.data || {};
-            return {
-                ok: true,
-                vouchers: data.vouchers || [],
-                created: data.created || 0,
-                failed: data.failed || 0,
-                requested: data.requested || n
-            };
+            // Kunci 'generate' cegah provision GANDA (double-submit -> 2x N user di router).
+            return withInFlight("generate", "Batch voucher lain sedang diproses. Tunggu hingga selesai lalu coba lagi.", async () => {
+                const stored = deps.repository.getSettings();
+                const result = await deps.addHotspotUsersBatch({
+                    profile,
+                    count: n,
+                    comment: "VoucherPrint",
+                    length: parseInt(length, 10) || stored.code_length || 6,
+                    chartype: chartype || stored.code_chartype || "safe",
+                    prefix: (prefix !== null && typeof prefix !== "undefined") ? prefix : (stored.code_prefix || ""),
+                    usernames: custom
+                }, { caller: "voucher-print.generateBatch" });
+                if (!result || result.ok !== true) {
+                    return { ok: false, message: (result && result.message) || "Gagal generate batch dari MikroTik" };
+                }
+                const data = result.data || {};
+                return {
+                    ok: true,
+                    vouchers: data.vouchers || [],
+                    created: data.created || 0,
+                    failed: data.failed || 0,
+                    requested: data.requested || n
+                };
+            });
         },
 
         async getVoucherReport(filters = {}) {
