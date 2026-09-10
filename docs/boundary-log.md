@@ -3049,3 +3049,11 @@
 - **AKAR:** `startBulkApprovalWorker` HANYA dipanggil saat boot (lib/app-runtime.js:245); POST `/api/feature-flags` cuma `setConfig`+`initializeAllCronTasks` (worker latar ≠ cron). Toggle `bulkApprovalJob` OFF→ON via panel #b368 → rute mengantre job (`aktif()`=true) tapi TIMER worker tak jalan → job "queued" selamanya + enqueue berikut 409 permanen → otorisasi massal MATI diam-diam. Terkonfirmasi via baca kode.
 - **FIX:** `lib/feature-flags.js` — marker `worker:"bulkApprovalJob"` di entri gate + `resyncWorkerForFlag(key)` (LAZY require service, panggil `startBulkApprovalWorker` yang idempoten dua-arah: clear timer→start bila ON / stop+null bila OFF). `routes/admin-config-routes.js` POST /api/feature-flags panggil resync setelah setConfig (never-throw). getAdminJids/cron tak berubah.
 - **Tes:** feature-flags-worker-resync +4 (marker worker, resync worker→startBulkApprovalWorker 1×, gate biasa→diam, key ngawur→false tak lempar) hijau; feature-flags 5 hijau; lint 0.
+
+<a id="b370"></a>
+
+### Fix 2026-09-11 (P2 — kejujuran UI halaman Otorisasi: copy "maksimal 20" + log beku + 409 menakutkan)
+
+- **AKAR:** backend sudah async tanpa batas sejak #b363 (202 + worker latar + kartu Log), TAPI frontend `static/js/otorisasi.js` masih menampilkan overlay pra-AJAX "Sedang memproses maksimal 20 request" (bikin operator kira sistem cap 20 → hindari tombol; bukti prod approval_jobs KOSONG). Dua bau lain: polling log hanya nyala oleh event 202 di sesi sama → log BEKU saat halaman di-refresh di tengah job; respons 409 (job lain jalan) tampil dialog "Gagal!" menakutkan padahal bukan kegagalan.
+- **FIX (murni frontend):** (1) overlay → "Menyiapkan Antrean / Mengantre seluruh pengajuan pending" (netral, benar untuk 202 & sinkron); (2) `render()` self-start `setInterval(muat,3000)` saat `masihJalan && !timer` → log hidup walau halaman dibuka di tengah job; (3) `error` handler cabang `xhr.status===409` → dialog info "Masih Ada Proses Berjalan" + panggil `pantauLogOtorisasi()` + scroll ke `#kartuLogOtorisasi`. Jalur sinkron fallback (cap-20, gate OFF) TAK diubah — copy-nya benar saat jalan.
+- **Tes:** otorisasi-kejujuran +3 (pemindai sumber: "maksimal 20 request" absen, self-start `masihJalan && !timer` ada, 409→pantauLogOtorisasi) hijau; node --check OK; lint bersih (warning pra-ada).

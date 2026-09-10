@@ -474,6 +474,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-10 (P1 — create user dedup pppoe_username: prepareNewUser gagal-LOUD 409 bila pppoe sudah dipakai, cegah duplikat massal importer VANS yg dulu cuma cek nomor telepon)](docs/boundary-log.md#b367)
 - [Fitur 2026-09-10 (P2 — panel Feature Flags: lib/feature-flags registri 13 gate terkurasi + GET/POST /api/feature-flags admin-only fail-closed (tulis config.json atomik + hot-reload setConfig + initializeAllCronTasks) + halaman feature-flags.php/js; menyalakan fitur "deploy gelap" tanpa SSH edit config.json manual)](docs/boundary-log.md#b368)
 - [Fix 2026-09-11 (P1 — landmine panel Feature Flags: toggle bulkApprovalJob tak menyalakan worker latar (hanya distart saat boot) → job antre selamanya + 409 permanen; fix lib/feature-flags.resyncWorkerForFlag lazy-require startBulkApprovalWorker idempoten dua-arah dipanggil POST /api/feature-flags setelah setConfig)](docs/boundary-log.md#b369)
+- [Fix 2026-09-11 (P2 — kejujuran UI halaman Otorisasi static/js/otorisasi.js: cabut copy overlay "maksimal 20 request" (backend sudah async tanpa batas), self-start polling log saat halaman dibuka di tengah job (anti-beku), 409 job-lain→info+scroll kartu Log bukan "Gagal!")](docs/boundary-log.md#b370)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

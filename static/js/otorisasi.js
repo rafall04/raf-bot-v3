@@ -415,12 +415,12 @@
         
         // Show loading overlay
         Swal.fire({
-          title: 'Memproses Request',
+          title: 'Menyiapkan Antrean',
           html: `
             <div class="mb-3">
               <div class="loading-spinner mx-auto"></div>
-              <p>Sedang memproses maksimal 20 request...</p>
-              <small class="text-muted">Mohon tunggu sebentar</small>
+              <p>Mengantre seluruh pengajuan pending...</p>
+              <small class="text-muted">Sebentar — proses berjalan di latar, hasil per pelanggan muncul di kartu Log.</small>
             </div>
           `,
           allowOutsideClick: false,
@@ -483,10 +483,25 @@
             });
           },
           error: function(xhr) {
+            // 409 = sudah ada job otorisasi berjalan. Itu BUKAN kegagalan — arahkan operator ke
+            // kartu Log (server memang menyuruh "buka log di bawah") alih-alih dialog "Gagal!" menakutkan.
+            if (xhr.status === 409) {
+              Swal.fire({
+                icon: 'info',
+                title: 'Masih Ada Proses Berjalan',
+                html: `<p>${(xhr.responseJSON && xhr.responseJSON.message) || 'Otorisasi lain sedang diproses.'}</p><p class="text-muted small">Lihat kemajuannya di kartu <strong>Log Otorisasi</strong> di bawah.</p>`,
+                confirmButtonText: 'Lihat Log'
+              }).then(() => {
+                if (typeof window.pantauLogOtorisasi === 'function') window.pantauLogOtorisasi();
+                const kartu = document.getElementById('kartuLogOtorisasi');
+                if (kartu) kartu.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              });
+              return;
+            }
             Swal.fire({
               icon: 'error',
               title: 'Gagal!',
-              text: 'Error: ' + (xhr.responseJSON ? xhr.responseJSON.message : 'Unknown error'),
+              text: 'Error: ' + (xhr.responseJSON ? xhr.responseJSON.message : ('HTTP ' + xhr.status)),
               confirmButtonText: 'OK'
             });
             dataTable.ajax.reload();
@@ -923,6 +938,11 @@
     $('#tabelLogOtorisasi tbody').html(baris || '<tr><td colspan="3" class="text-muted">Belum ada rincian.</td></tr>');
 
     const masihJalan = d.status === 'running' || d.status === 'queued';
+    // Halaman dibuka/di-refresh di TENGAH job → mulai polling sendiri. Dulu polling hanya
+    // dinyalakan oleh event 202 di sesi yang sama, jadi log tampil sekali lalu BEKU saat refresh.
+    if (masihJalan && !timer) {
+      timer = setInterval(muat, 3000);
+    }
     if (!masihJalan && timer) {
       clearInterval(timer);
       timer = null;
