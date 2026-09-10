@@ -3041,3 +3041,11 @@
 - **OWNER:** `lib/feature-flags.js` — registri 13 gate terkurasi (`{key, path, kategori, label, desc}`; dukung path bersarang mis. `customerAssist.fallback.enabled`); `readFlags`/`flagByKey`/`getFlagEnabled`/`applyFlag` (set immutable jalur bersarang).
 - **UI/API:** GET+POST `/api/feature-flags` di `routes/admin-config-routes.js` (`ensureAuthenticatedStaff` + `requireAdmin` fail-closed 403); POST tulis config.json ATOMIK + hot-reload `setConfig` + `initializeAllCronTasks` + logActivity. Halaman `views/sb-admin/feature-flags.php` + `static/js/feature-flags.js` (toggle per-kategori, rollback UI saat gagal); link navbar grup Sistem; rute dilayani handler generik admin-only `/:type` di pages.js.
 - **Tes:** feature-flags +5 (readFlags default false + path bersarang, applyFlag immutable/nested/lempar, flagByKey konsisten) hijau; docs-sync + boundary-index hijau; lint 0; php -l OK. Registri = pendataan; menyalakan tetap keputusan ops.
+
+<a id="b369"></a>
+
+### Fix 2026-09-11 (P1 — landmine panel Feature Flags: toggle bulkApprovalJob tak menyalakan worker latar)
+
+- **AKAR:** `startBulkApprovalWorker` HANYA dipanggil saat boot (lib/app-runtime.js:245); POST `/api/feature-flags` cuma `setConfig`+`initializeAllCronTasks` (worker latar ≠ cron). Toggle `bulkApprovalJob` OFF→ON via panel #b368 → rute mengantre job (`aktif()`=true) tapi TIMER worker tak jalan → job "queued" selamanya + enqueue berikut 409 permanen → otorisasi massal MATI diam-diam. Terkonfirmasi via baca kode.
+- **FIX:** `lib/feature-flags.js` — marker `worker:"bulkApprovalJob"` di entri gate + `resyncWorkerForFlag(key)` (LAZY require service, panggil `startBulkApprovalWorker` yang idempoten dua-arah: clear timer→start bila ON / stop+null bila OFF). `routes/admin-config-routes.js` POST /api/feature-flags panggil resync setelah setConfig (never-throw). getAdminJids/cron tak berubah.
+- **Tes:** feature-flags-worker-resync +4 (marker worker, resync worker→startBulkApprovalWorker 1×, gate biasa→diam, key ngawur→false tak lempar) hijau; feature-flags 5 hijau; lint 0.

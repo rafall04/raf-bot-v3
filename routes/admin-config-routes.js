@@ -14,7 +14,7 @@ const path = require('path');
 const { asyncHandler, createError, ErrorTypes } = require('../lib/error-handler');
 const { createGenieAcsParameterConfigService } = require('../services/genieacs-parameter-config.service');
 const { createMikrotikDeviceConfigService } = require('../services/mikrotik-device-config.service');
-const { readFlags, flagByKey, applyFlag } = require('../lib/feature-flags');
+const { readFlags, flagByKey, applyFlag, resyncWorkerForFlag } = require('../lib/feature-flags');
 
 const {
     initializeAllCronTasks,
@@ -619,6 +619,9 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
         writeFileAtomicSync(mainConfigPath, JSON.stringify(nextConfig, null, 4));
         requireRuntimeConfig().setConfig(nextConfig);
         try { initializeAllCronTasks(); } catch (e) { console.error('[FEATURE_FLAG] re-init cron gagal:', e && e.message); }
+        // Gate yang menggerakkan WORKER latar (bukan cron) hanya distart saat boot — resync saat toggle,
+        // kalau tidak menyalakannya lewat panel = job antre selamanya (worker mati). Idempoten & dua-arah.
+        try { resyncWorkerForFlag(key); } catch (e) { console.error('[FEATURE_FLAG] resync worker gagal:', e && e.message); }
         try {
             await logActivity({
                 userId: req.user.id, username: req.user.username, role: req.user.role,

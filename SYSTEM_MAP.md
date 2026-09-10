@@ -473,6 +473,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-10 (P1 — eskalasi kegagalan SENYAP: lib/admin-alarm.sendAdminAlarm; isolir/set-unpaid failedCount→alarm admin, telegram-backup gagal→alarm, CSAT breadcrumb sukses, package-change-rollover notif via sendCritical + fix regresi laten response-template-helper lazy-require)](docs/boundary-log.md#b366)
 - [Fix 2026-09-10 (P1 — create user dedup pppoe_username: prepareNewUser gagal-LOUD 409 bila pppoe sudah dipakai, cegah duplikat massal importer VANS yg dulu cuma cek nomor telepon)](docs/boundary-log.md#b367)
 - [Fitur 2026-09-10 (P2 — panel Feature Flags: lib/feature-flags registri 13 gate terkurasi + GET/POST /api/feature-flags admin-only fail-closed (tulis config.json atomik + hot-reload setConfig + initializeAllCronTasks) + halaman feature-flags.php/js; menyalakan fitur "deploy gelap" tanpa SSH edit config.json manual)](docs/boundary-log.md#b368)
+- [Fix 2026-09-11 (P1 — landmine panel Feature Flags: toggle bulkApprovalJob tak menyalakan worker latar (hanya distart saat boot) → job antre selamanya + 409 permanen; fix lib/feature-flags.resyncWorkerForFlag lazy-require startBulkApprovalWorker idempoten dua-arah dipanggil POST /api/feature-flags setelah setConfig)](docs/boundary-log.md#b369)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
