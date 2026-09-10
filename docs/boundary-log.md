@@ -3012,3 +3012,15 @@
 - **AKAR (blindspot terkonfirmasi):** `lib/olt-log-scraper.js:97` alarm `alertOltAllDown` HANYA berbunyi saat `successCount === 0` (SEMUA OLT mati) + `:1121` reset "sehat" selama ≥1 OLT sukses. Insiden nyata: olt1 (~78% pelanggan) mati, olt2 hidup → successCount>0 → NOL alarm, deteksi LOS/cek-koneksi BUTA untuk mayoritas pelanggan.
 - **FIX:** tambah `alertOltPartialDown({successCount})` — dipanggil sesudah alertOltAllDown tiap scrape tick. Alarm PER-OLT saat sebuah device `unreachable` (throttle 30mnt per-OLT via `_deviceAlarmAt`) + notif PULIH saat kembali healthy. Dilewati saat successCount===0 (all-down sudah ditangani, anti-dobel). Opt-out `config.oltMonitor.alertPartialDown === false` (default ON). Never-throw.
 - **Tes:** olt-partial-down-alarm +6 (1-dari-2 alarm, skip all-down, throttle, pulih, opt-out, semua sehat); regresi alldown 5 hijau; lint 0.
+
+<a id="b366"></a>
+
+### Fix 2026-09-10 (P1 — eskalasi kegagalan SENYAP + hardening delivery cron)
+
+- **Owner BARU** `lib/admin-alarm.js` `sendAdminAlarm(text,{label})` — eskalasi TERJAMIN ke admin (getAdminJids + sendCritical retry/dead-letter), never-throw. Menutup kelas "gagal-diam" (dulu hanya console.error, ketahuan baru saat insiden).
+- **isolir.js:** `failedCount>0` → alarm admin daftar pelanggan unpaid yang GAGAL diisolir (dulu cuma di-console → bocor pendapatan senyap: unpaid tetap nikmati layanan).
+- **set-unpaid.js:** `failedCount>0` → alarm (status paid periode baru bisa tak konsisten).
+- **telegram-backup.js:** setiap backup gagal (result.success=false / throw) → alarm admin (dulu senyap → data-loss baru terasa saat butuh restore).
+- **csat-survey-service.js:** notifyOwnerDetractor tambah breadcrumb SUKSES `[CSAT_DETRACTOR] terkirim ke N/M` + log empty-accounts lebih keras (dugaan "alert MATI" ternyata krn sukses tak nge-log; kini terverifikasi).
+- **package-change-rollover.js:** notif rollover (SATU-KALI) pindah dari safeSendMessage (antrian lokal, bisa hilang saat WA blip) ke sendCritical (dead-letter). SEKALIGUS fix regresi laten #b362: `response-template-helper` di-require LAZY (top-level require menyeret template-service loadAllCategories→loadJSON ke graph load cron.js → memecah test cron ber-mock database).
+- **Tes:** admin-alarm +4, olt-partial (#b365) +6; regresi cron-whatsapp (kini hijau), set-unpaid, csat, cron-config, package-change-rollover, wa-forbidden — 78 hijau; lint 0.
