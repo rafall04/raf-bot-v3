@@ -766,6 +766,18 @@
     "itemDelayMs": 0,
     "maxItemsPerJob": 500
   },
+  "notifRouting": {
+    "_catatan": "Routing notifikasi operasional per-KATEGORI ke GRUP WhatsApp (anti-ketindihan di DM admin). OFF = perilaku sekarang: semua ke DM admin (getAdminJids). Kategori terdaftar di lib/notif-categories.js; di sini HANYA tujuannya. groups = daftar JID grup (@g.us). Kosong/invalid → FAIL-OPEN ke DM admin (notifikasi tak pernah hilang). Atur lewat halaman /notif-routing, bukan edit manual.",
+    "enabled": false,
+    "routes": {
+      "otorisasi_gagal": { "groups": [], "severity": "critical" },
+      "payment_request": { "groups": [], "severity": "info" },
+      "network_quality": { "groups": [], "severity": "info" },
+      "los_alarm": { "groups": [], "severity": "critical" },
+      "voucher_sale": { "groups": [], "severity": "info" },
+      "billing_isolir": { "groups": [], "severity": "info" }
+    }
+  },
   "genieacsRefreshConcurrency": 8,
   "genieacsRefreshTimeoutMs": 10000,
   "redamanCronAlertAfter": 3,
