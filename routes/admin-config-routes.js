@@ -14,6 +14,7 @@ const path = require('path');
 const { asyncHandler, createError, ErrorTypes } = require('../lib/error-handler');
 const { createGenieAcsParameterConfigService } = require('../services/genieacs-parameter-config.service');
 const { createMikrotikDeviceConfigService } = require('../services/mikrotik-device-config.service');
+const { readFlags, flagByKey, applyFlag } = require('../lib/feature-flags');
 
 const {
     initializeAllCronTasks,
@@ -589,6 +590,45 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
             console.error('[API_CONFIG_SAVE_ERROR]', error);
             res.status(500).json({ message: 'Gagal memproses konfigurasi.', error: error.message });
         }
+    }));
+
+    // ── Feature Flags (P2) — satu panel toggle gate perilaku yang dulu "deploy gelap" tanpa UI ──
+    // Menutup pola "fitur dibangun lalu terlupakan karena hanya bisa dinyalakan via SSH edit config.json".
+    router.get('/api/feature-flags', ensureAuthenticatedStaff, (req, res) => {
+        try {
+            requireAdmin(req);
+            return res.status(200).json({ status: 200, data: readFlags(requireRuntimeConfig().getConfig()) });
+        } catch (err) {
+            return res.status(err.statusCode || 500).json({ status: err.statusCode || 500, message: err.message });
+        }
+    });
+
+    router.post('/api/feature-flags', ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        requireAdmin(req);
+        const { key, enabled } = req.body || {};
+        if (!flagByKey(key)) {
+            return res.status(400).json({ status: 400, message: `Feature flag tak dikenal: ${key}` });
+        }
+        if (typeof enabled !== 'boolean') {
+            return res.status(400).json({ status: 400, message: 'Field `enabled` wajib boolean.' });
+        }
+        const mainConfigPath = path.join(__dirname, '..', 'config.json');
+        const currentMainConfig = JSON.parse(fs.readFileSync(mainConfigPath, 'utf8'));
+        const nextConfig = applyFlag(currentMainConfig, key, enabled);
+        // Tulis ATOMIK + hot-reload global.config + re-init cron (gate yang menggerakkan cron langsung berlaku).
+        writeFileAtomicSync(mainConfigPath, JSON.stringify(nextConfig, null, 4));
+        requireRuntimeConfig().setConfig(nextConfig);
+        try { initializeAllCronTasks(); } catch (e) { console.error('[FEATURE_FLAG] re-init cron gagal:', e && e.message); }
+        try {
+            await logActivity({
+                userId: req.user.id, username: req.user.username, role: req.user.role,
+                actionType: 'UPDATE', resourceType: 'config', resourceId: 'feature-flag',
+                resourceName: key, description: `Feature flag ${key} → ${enabled ? 'ON' : 'OFF'}`,
+                ipAddress: req.ip, userAgent: req.headers['user-agent']
+            });
+        } catch (_e) { /* log best-effort */ }
+        console.log(`[FEATURE_FLAG] ${key} = ${enabled} oleh ${req.user.username}`);
+        return res.status(200).json({ status: 200, message: `Fitur "${flagByKey(key).label}" ${enabled ? 'DINYALAKAN' : 'DIMATIKAN'}.`, data: readFlags(nextConfig) });
     }));
 
     // Daftar grup WhatsApp tempat bot jadi member — untuk dropdown pemilih grup PSB di halaman Config.

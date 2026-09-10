@@ -3032,3 +3032,12 @@
 - **AKAR (landmine):** `services/api-users/create-user-validate.prepareNewUser` dulu HANYA validasi nomor telepon kembar (`validatePhoneNumbers`), TIDAK pernah cek `pppoe_username` sudah ada. Impor Excel mentah VANS = duplikat tiap baris bila rekonsiliasi 3-arah manual terlewat. Semua jalur tulis (web/#PSB/import) bermuara ke sini.
 - **FIX:** tambah cek dedup — bila `pppoe_username` (nilai pertama split `|`, case-insensitive) sudah dipakai pelanggan lain → gagal-LOUD 409 + `conflictUser`, TIDAK membuat duplikat. Kosong = SAH. Importer memperlakukan 409 sbg skip-baris (bukan duplikat senyap).
 - **Tes:** create-user-pppoe-dedup +4 (dup 409, case-insensitive+multi-value, unik lolos, kosong sah); regresi create-user-bulk-band + api-users 33 hijau; lint 0.
+
+<a id="b368"></a>
+
+### Fitur 2026-09-10 (P2 — panel Feature Flags: nyalakan/matikan gate tanpa SSH edit config.json)
+
+- **AKAR (pola):** fitur berulang di-"deploy gelap" (`config.<x>.enabled` default OFF) lalu TERLUPAKAN karena satu-satunya cara menyalakan = SSH + edit `config.json` manual. Tak ada UI, tak ada daftar fitur apa saja yang dorman.
+- **OWNER:** `lib/feature-flags.js` — registri 13 gate terkurasi (`{key, path, kategori, label, desc}`; dukung path bersarang mis. `customerAssist.fallback.enabled`); `readFlags`/`flagByKey`/`getFlagEnabled`/`applyFlag` (set immutable jalur bersarang).
+- **UI/API:** GET+POST `/api/feature-flags` di `routes/admin-config-routes.js` (`ensureAuthenticatedStaff` + `requireAdmin` fail-closed 403); POST tulis config.json ATOMIK + hot-reload `setConfig` + `initializeAllCronTasks` + logActivity. Halaman `views/sb-admin/feature-flags.php` + `static/js/feature-flags.js` (toggle per-kategori, rollback UI saat gagal); link navbar grup Sistem; rute dilayani handler generik admin-only `/:type` di pages.js.
+- **Tes:** feature-flags +5 (readFlags default false + path bersarang, applyFlag immutable/nested/lempar, flagByKey konsisten) hijau; docs-sync + boundary-index hijau; lint 0; php -l OK. Registri = pendataan; menyalakan tetap keputusan ops.

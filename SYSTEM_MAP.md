@@ -472,6 +472,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-10 (P0 — alarm OLT mati SEBAGIAN: alertOltPartialDown per-device di olt-log-scraper, throttle per-OLT + notif pulih; menutup blindspot 1-dari-N OLT unreachable yg lolos alertOltAllDown total-only; opt-out config.oltMonitor.alertPartialDown)](docs/boundary-log.md#b365)
 - [Fix 2026-09-10 (P1 — eskalasi kegagalan SENYAP: lib/admin-alarm.sendAdminAlarm; isolir/set-unpaid failedCount→alarm admin, telegram-backup gagal→alarm, CSAT breadcrumb sukses, package-change-rollover notif via sendCritical + fix regresi laten response-template-helper lazy-require)](docs/boundary-log.md#b366)
 - [Fix 2026-09-10 (P1 — create user dedup pppoe_username: prepareNewUser gagal-LOUD 409 bila pppoe sudah dipakai, cegah duplikat massal importer VANS yg dulu cuma cek nomor telepon)](docs/boundary-log.md#b367)
+- [Fitur 2026-09-10 (P2 — panel Feature Flags: lib/feature-flags registri 13 gate terkurasi + GET/POST /api/feature-flags admin-only fail-closed (tulis config.json atomik + hot-reload setConfig + initializeAllCronTasks) + halaman feature-flags.php/js; menyalakan fitur "deploy gelap" tanpa SSH edit config.json manual)](docs/boundary-log.md#b368)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
