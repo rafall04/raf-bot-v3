@@ -212,15 +212,13 @@ async function beritahuAdminGagal(job, gagal) {
     try {
         if (!Array.isArray(gagal) || gagal.length === 0) return;
         const { getAdminJids } = require("../lib/admin-recipients");
-        const { sendMessage } = require("../lib/whatsapp-delivery-service");
-        const jids = getAdminJids() || [];
-        if (!jids.length) return;
+        const { dispatch } = require("../lib/notif-router");
         const baris = gagal.slice(0, 30).map((g, i) => `${i + 1}. ${g.nama} — ${g.alasan}`).join("\n");
         const sisa = gagal.length > 30 ? `\n…dan ${gagal.length - 30} lagi.` : "";
         const text = `🚨 *Otorisasi bayar: ${gagal.length} GAGAL*\n(job ${job.id})\n\n${baris}${sisa}\n\nPengajuan ini TETAP menunggu — cek panel /pembayaran/otorisasi.`;
-        for (const jid of jids) {
-            try { await sendMessage(jid, { text }, { skipDuplicateCheck: true }); } catch (_e) { /* per-jid best-effort */ }
-        }
+        // Lewat choke-point routing: kirim ke grup 'otorisasi_gagal' bila diarahkan, jika tidak
+        // FAIL-OPEN ke DM admin (getAdminJids) — persis perilaku lama saat notifRouting OFF.
+        await dispatch("otorisasi_gagal", { text, adminFallback: getAdminJids() });
     } catch (e) {
         console.error("[OTORISASI_JOB] beritahuAdminGagal gagal:", e && e.message);
     }
