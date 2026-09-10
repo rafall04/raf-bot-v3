@@ -3004,3 +3004,11 @@
 - **Wiring:** keyword `setoran saya`/`rekap saya`/`tarikan saya`/`rekap setoran` (wifi_templates.json, category teknisi); 5 template key baru (setoran_saya_*). Intent otomatis tersambung via GAJI_TEKNISI_INTENT_HANDLERS (sudah di-spread di dispatch map).
 - **Agen:** jalur agen (agen_collection_ledger) belum ditambah — DEFER (mudah reuse getSettlementReport agen bila diminta).
 - **Tes:** setoran-saya +5 (gate/akun/fee-off/hitung sisa/varian hari ini); dispatch-connectivity + template-integrity hijau; lint 0.
+
+<a id="b365"></a>
+
+### Fix 2026-09-10 (P0 housekeeping — alarm OLT mati SEBAGIAN, bukan cuma total)
+
+- **AKAR (blindspot terkonfirmasi):** `lib/olt-log-scraper.js:97` alarm `alertOltAllDown` HANYA berbunyi saat `successCount === 0` (SEMUA OLT mati) + `:1121` reset "sehat" selama ≥1 OLT sukses. Insiden nyata: olt1 (~78% pelanggan) mati, olt2 hidup → successCount>0 → NOL alarm, deteksi LOS/cek-koneksi BUTA untuk mayoritas pelanggan.
+- **FIX:** tambah `alertOltPartialDown({successCount})` — dipanggil sesudah alertOltAllDown tiap scrape tick. Alarm PER-OLT saat sebuah device `unreachable` (throttle 30mnt per-OLT via `_deviceAlarmAt`) + notif PULIH saat kembali healthy. Dilewati saat successCount===0 (all-down sudah ditangani, anti-dobel). Opt-out `config.oltMonitor.alertPartialDown === false` (default ON). Never-throw.
+- **Tes:** olt-partial-down-alarm +6 (1-dari-2 alarm, skip all-down, throttle, pulih, opt-out, semua sehat); regresi alldown 5 hijau; lint 0.
