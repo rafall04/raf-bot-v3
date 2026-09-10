@@ -22,6 +22,7 @@ const { handleGantiModemState } = require("./state-domains/ganti-modem.state");
 const { handleWanSwitchConversationState } = require("./state-domains/wan-switch.state");
 const { handleOperJalurConversationState } = require("./state-domains/oper-jalur.state");
 const { handlePaymentProofAdminState } = require("./state-domains/payment-proof-admin.state");
+const { handlePaymentRequestAdminState } = require("./state-domains/payment-request-admin.state");
 const { handlePackageRequestAdminState } = require("./state-domains/package-request-admin.state");
 const { handleNetworkAssetConversationState } = require("./state-domains/network-asset.state");
 const { handleSpeedBoostConversationState } = require("./state-domains/speed-boost.state");
@@ -77,6 +78,9 @@ async function routeConversationState(context) {
     }
     if (owner === "payment-proof") {
         return { owner, ...(await handlePaymentProofAdminState(domainContext)) };
+    }
+    if (owner === "payment-request") {
+        return { owner, ...(await handlePaymentRequestAdminState(domainContext)) };
     }
     if (owner === "package-request") {
         return { owner, ...(await handlePackageRequestAdminState(domainContext)) };

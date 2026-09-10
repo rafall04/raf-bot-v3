@@ -1191,6 +1191,34 @@ module.exports = async (raf, msg, m, options = {}) => {
             }
         }
 
+        // ── OTORISASI pengajuan pembayaran teknisi/agen, langsung dari WhatsApp (BAGIAN 2) ──
+        // Admin ketik `otorisasi` (daftar) / `setujui RPQ-<id>` / `setujui 1` / `tolak 2 <alasan>` /
+        // `setujui semua`, atau membalas notif pengajuan (RPQ-<id> dibaca dari quote). Setara halaman
+        // /pembayaran/otorisasi tapi via WA (batch tanpa batas 20 lewat job latar). Gate peran presisi
+        // di handler (non-admin senyap). Lanjutan (`ya`/angka) via state PAYREQ_* (owner "payment-request").
+        // GATED config.paymentRequestWa.enabled default OFF (deploy gelap).
+        if (typeof chats === 'string' && chats.trim() !== ''
+            && !userState?.step
+            && (runtimeGlobalScope?.config?.paymentRequestWa?.enabled === true)) {
+            try {
+                const { handlePaymentRequestAdminDecision } = require('./handlers/payment-request-admin-handler');
+                const decision = await handlePaymentRequestAdminDecision({
+                    chats,
+                    msg,
+                    sender,
+                    plainSenderNumber,
+                    stateSender,
+                    pushname,
+                    accounts,
+                    reply,
+                    setUserState
+                });
+                if (decision && decision.handled) return;
+            } catch (payreqAdminErr) {
+                console.error('[PAYMENT_REQUEST_ADMIN_TRIGGER_ERROR]', payreqAdminErr.message);
+            }
+        }
+
         let intent;
         let entities = {}; // Default entitas kosong
         let matchedKeywordLength = 0; // Menyimpan jumlah kata dari keyword yang cocok

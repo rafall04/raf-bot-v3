@@ -308,10 +308,13 @@ router.post('/', rateLimit('create-request', 30, 60000), async (req, res) => {
             });
             
             // Link panel yang bisa diketuk dari HP (loopback → dibiarkan kosong oleh template).
-            const adminPanelUrl = resolveAdminPanelUrl('/pembayaran/requests');
+            // Halaman NYATA = /pembayaran/otorisasi (dulu salah /pembayaran/requests → 404).
+            const adminPanelUrl = resolveAdminPanelUrl('/pembayaran/otorisasi');
             const messageToAdmins = renderResponseTemplate('routes_request_payment_new_owner_notification', {
                 technicianName: teknisiName,
-                requestId: newRequest.id,
+                // Token RPQ-<id> = self-identifying, agar admin bisa BALAS notif ini `setujui`/`tolak`
+                // via WA (BAGIAN 2) tanpa bentrok dgn nomor antrian. id internal tetap numerik.
+                requestId: `RPQ-${newRequest.id}`,
                 requestedAt: currentDate,
                 customerName: user.name,
                 packageName: user.subscription || 'Tidak ada',

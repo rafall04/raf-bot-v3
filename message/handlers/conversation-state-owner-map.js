@@ -75,6 +75,7 @@ const CONVERSATION_STATE_PREFIX_OWNER_MAP = {
     WANSW_: "wan-switch",
     OPERJALUR_: "oper-jalur",
     PAYPROOF_: "payment-proof",
+    PAYREQ_: "payment-request", // otorisasi pembayaran teknisi/agen via WA (BAGIAN 2)
     PKGREQ_: "package-request",
     REBOOTFU_: "reboot-followup",
     COPOT_: "customer-removal", // wizard WA `copot <nama/HP/ID>` — copot pelanggan (admin)

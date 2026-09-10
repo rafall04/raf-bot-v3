@@ -110,6 +110,7 @@ async function tickOnce({ approvalService = null, jeda = null } = {}) {
         const svc = approvalService || require("./payment-approval.service").createPaymentApprovalService();
         const tidur = jeda || ((ms) => new Promise((r) => setTimeout(r, ms)));
         const disetujui = [];
+        const gagal = []; // {nama, alasan} — dilaporkan ke admin via WA di akhir (BAGIAN 2)
 
         for (;;) {
             const item = await repo.nextPendingItem(job.id);
@@ -130,6 +131,7 @@ async function tickOnce({ approvalService = null, jeda = null } = {}) {
                     disetujui.push(...r.approved);
                     await repo.finishItem({ jobId: job.id, itemId: item.id, status: "ok", message: "Disetujui" });
                 } else if ((r.failed || []).length > 0) {
+                    gagal.push({ nama: item.user_name || item.userName || `#${item.request_id}`, alasan: r.failed[0].reason || "gagal" });
                     await repo.finishItem({ jobId: job.id, itemId: item.id, status: "failed", message: r.failed[0].reason || "gagal" });
                 } else if ((r.notFound || []).length > 0) {
                     await repo.finishItem({ jobId: job.id, itemId: item.id, status: "skipped", message: "Pengajuan tidak ditemukan lagi" });
@@ -139,6 +141,7 @@ async function tickOnce({ approvalService = null, jeda = null } = {}) {
             } catch (error) {
                 // Satu pelanggan gagal TIDAK menghentikan sisanya — itu inti dari log ini.
                 console.error("[OTORISASI_JOB_ITEM_ERROR]", item.request_id, error && error.message);
+                gagal.push({ nama: item.user_name || item.userName || `#${item.request_id}`, alasan: (error && error.message) || "kesalahan tak terduga" });
                 await repo.finishItem({ jobId: job.id, itemId: item.id, status: "failed", message: (error && error.message) || "kesalahan tak terduga" });
             }
 
@@ -146,9 +149,10 @@ async function tickOnce({ approvalService = null, jeda = null } = {}) {
         }
 
         await kirimRingkasanTeknisi(svc, disetujui);
+        await beritahuAdminGagal(job, gagal);
         await repo.finishJob(job.id, "done");
-        console.log(`[OTORISASI_JOB] ${job.id} selesai`);
-        return { ok: true, jobId: job.id, disetujui: disetujui.length };
+        console.log(`[OTORISASI_JOB] ${job.id} selesai (ok=${disetujui.length}, gagal=${gagal.length})`);
+        return { ok: true, jobId: job.id, disetujui: disetujui.length, gagal: gagal.length };
     } catch (error) {
         console.error("[OTORISASI_JOB_ERROR]", error && error.message);
         return { ok: false, alasan: error && error.message };
@@ -181,6 +185,28 @@ async function kirimRingkasanTeknisi(svc, disetujui) {
         } catch (error) {
             console.error("[OTORISASI_JOB_SUMMARY_ERROR]", teknisiId, error && error.message);
         }
+    }
+}
+
+/**
+ * BAGIAN 2: "jika error langsung info WA admin". Rangkum item GAGAL otorisasi lalu kirim ke semua
+ * admin (getAdminJids). Never-throw, guarded — kegagalan kirim tak boleh menjatuhkan worker.
+ */
+async function beritahuAdminGagal(job, gagal) {
+    try {
+        if (!Array.isArray(gagal) || gagal.length === 0) return;
+        const { getAdminJids } = require("../lib/admin-recipients");
+        const { sendMessage } = require("../lib/whatsapp-delivery-service");
+        const jids = getAdminJids() || [];
+        if (!jids.length) return;
+        const baris = gagal.slice(0, 30).map((g, i) => `${i + 1}. ${g.nama} — ${g.alasan}`).join("\n");
+        const sisa = gagal.length > 30 ? `\n…dan ${gagal.length - 30} lagi.` : "";
+        const text = `🚨 *Otorisasi bayar: ${gagal.length} GAGAL*\n(job ${job.id})\n\n${baris}${sisa}\n\nPengajuan ini TETAP menunggu — cek panel /pembayaran/otorisasi.`;
+        for (const jid of jids) {
+            try { await sendMessage(jid, { text }, { skipDuplicateCheck: true }); } catch (_e) { /* per-jid best-effort */ }
+        }
+    } catch (e) {
+        console.error("[OTORISASI_JOB] beritahuAdminGagal gagal:", e && e.message);
     }
 }
 

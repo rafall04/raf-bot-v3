@@ -2981,3 +2981,15 @@
 - **GATE** `config.packageChangeDeferred.enabled` default OFF (config.example.json) → perilaku LAMA (apply seketika) utuh. Cron rollover terdaftar di composer lib/cron.js (inert bila OFF).
 - **Template:** 3 key baru response_templates.json (customer_scheduled, activated_customer, activated_technician).
 - **Tes:** scheduler +8, apply +3, rollover cron +4, admin.service defer +1 = 16 baru; regresi admin.service 9 hijau; template-integrity hijau; lint 0.
+
+<a id="b363"></a>
+
+### Fitur 2026-09-10 (BAGIAN 2 — OTORISASI pembayaran teknisi/agen via WhatsApp)
+
+- **Owner BARU:** `message/handlers/payment-request-admin-handler.js` + `message/handlers/state-domains/payment-request-admin.state.js` (prefix `PAYREQ_`). Admin otorisasi pengajuan (database/requests.json BELUM→SUDAH BAYAR) langsung dari WA, setara halaman /pembayaran/otorisasi. Perintah: `otorisasi` (daftar bernomor), `setujui RPQ-<id>|N`, `tolak RPQ-<id>|N <alasan>`, balas-quote notif, `setujui semua` → `ya`.
+- **Eksekutor REUSE (bukan jalur uang kedua):** `services/payment-approval.service.bulkApproveRequests([id])` untuk single (idempoten: withLock+guard pending+plafon sisa+event_key), `services/bulk-approval-job.service.enqueueBulkApproval` untuk borongan TANPA BATAS 20 (job latar maks 500). Reject = set status 'rejected' (tanpa ledger) di dalam withLock(`request-${id}`).
+- **Batch web JUGA tanpa batas:** route /bulk-approve sudah delegasi ke job latar bila `config.bulkApprovalJob.enabled` (tinggal ON di deploy) — frontend kirim semua id.
+- **"Jika error → info WA admin":** `bulk-approval-job.tickOnce` kini kumpulkan item GAGAL → `beritahuAdminGagal` broadcast ringkasan ke getAdminJids (menutup jalur web & WA). Single approve gagal dibalas ke admin di WA.
+- **GAP ditutup:** notif pengajuan (routes/requests.js) kini pakai token self-identifying `RPQ-<id>` (id internal tetap numerik) agar quote-approve tak bentrok nomor antrian; link panel dibetulkan `/pembayaran/requests` → `/pembayaran/otorisasi` (dulu 404).
+- **Gate & wiring:** hook pre-intent di raf.js gated `config.paymentRequestWa.enabled` default OFF (deploy gelap); gate peran admin/owner/superadmin SESUDAH parse (non-admin senyap); state PAYREQ_ di owner-map + router; 9 template key baru.
+- **Tes:** parser +4, handler flow +6 (gate/empty/approve/reject/approve-all/job-latar) = 10; regresi requests-approval-atomic 3 + state owner-map/router/boundary 12 hijau; wa-forbidden/template-integrity hijau; lint 0.
