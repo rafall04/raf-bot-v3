@@ -29,3 +29,9 @@ test("respons 409 diarahkan ke kartu Log (bukan dialog 'Gagal!')", () => {
     expect(SRC).toMatch(/xhr\.status\s*===\s*409/);
     expect(SRC).toMatch(/pantauLogOtorisasi/);
 });
+
+test("banner worker-mati/stale digerakkan server (d.stale / d.workerAktif)", () => {
+    expect(SRC).toMatch(/d\.stale/);
+    expect(SRC).toMatch(/d\.workerAktif\s*===\s*false/);
+    expect(SRC).toMatch(/logOtorisasiBanner/);
+});

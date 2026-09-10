@@ -242,6 +242,11 @@
               <span class="badge badge-secondary" id="logOtorisasiStatus">-</span>
             </div>
             <div class="card-body">
+              <!-- Peringatan worker-mati/stale: diisi otorisasi.js bila proses tampak berhenti
+                   atau job antre tapi worker tak aktif. Tersembunyi saat sehat. -->
+              <div class="alert alert-warning d-flex align-items-center mb-3" id="logOtorisasiBanner" style="display:none" role="alert">
+                <i class="fas fa-triangle-exclamation mr-2"></i><span id="logOtorisasiBannerText"></span>
+              </div>
               <div class="progress mb-2" style="height: 20px">
                 <div class="progress-bar" id="logOtorisasiBar" role="progressbar" style="width: 0%">0%</div>
               </div>

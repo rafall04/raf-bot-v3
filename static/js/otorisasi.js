@@ -920,6 +920,21 @@
     $('#logOtorisasiBar').css('width', persen + '%').text(persen + '%');
     $('#logOtorisasiStatus').text(d.status === 'running' ? 'Sedang berjalan' : d.status === 'queued' ? 'Menunggu giliran' : 'Selesai');
 
+    // Peringatan buta: proses tampak berhenti (heartbeat basi) atau job antre tapi worker mati.
+    // Server yang memutuskan (d.stale / d.workerAktif) — FE hanya menampilkan.
+    let peringatan = '';
+    if (d.stale) {
+      peringatan = 'Proses otorisasi tampak BERHENTI (tak ada kemajuan beberapa saat). Coba muat ulang halaman; bila tetap, hubungi admin/teknisi untuk cek bot.';
+    } else if (d.status === 'queued' && d.workerAktif === false) {
+      peringatan = 'Pengajuan sudah diantre tapi WORKER otorisasi tidak aktif (fitur mungkin OFF / bot belum di-restart). Job tak akan jalan sampai worker hidup.';
+    }
+    if (peringatan) {
+      $('#logOtorisasiBannerText').text(peringatan);
+      $('#logOtorisasiBanner').show();
+    } else {
+      $('#logOtorisasiBanner').hide();
+    }
+
     const ringkas = [`${d.selesai}/${d.total} diproses`];
     if (d.berhasil) ringkas.push(`<span class="text-success">${d.berhasil} berhasil</span>`);
     if (d.gagal) ringkas.push(`<span class="text-danger">${d.gagal} gagal</span>`);

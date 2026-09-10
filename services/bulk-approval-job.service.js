@@ -40,6 +40,22 @@ function aktif() {
     return setelan().enabled;
 }
 
+/** Ambang "stale": worker sehat mem-bump heartbeat tiap item; > 3×tick (min 60 dtk) tanpa bump = macet. */
+function staleThresholdMs() {
+    return Math.max(setelan().tickMs * 3, 60000);
+}
+
+/**
+ * Job 'running' tapi heartbeat_at basi > ambang → worker kemungkinan macet/mati (mis. item menembak
+ * MikroTik menggantung, atau proses mati sebelum finishItem). Job 'queued'/'done' bukan stale (yang
+ * antre ditangani cek workerAktif; yang selesai jelas tak stale). Pure agar bisa diuji.
+ */
+function isJobStale(job, now = Date.now()) {
+    if (!job || job.status !== "running" || !job.heartbeat_at) return false;
+    const hb = Date.parse(job.heartbeat_at);
+    return !Number.isNaN(hb) && now - hb > staleThresholdMs();
+}
+
 function buatIdJob() {
     return `BAJ-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 }
@@ -244,5 +260,7 @@ module.exports = {
     startBulkApprovalWorker,
     kirimRingkasanTeknisi,
     aktif,
-    setelan
+    setelan,
+    staleThresholdMs,
+    isJobStale
 };

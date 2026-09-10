@@ -137,13 +137,18 @@ router.get('/', async (req, res) => {
             return res.status(403).json({ status: 403, message: "Akses ditolak" });
         }
         
+        // Peta by-id dibangun SEKALI: enrichment dulu `.find` per baris (O(riwayat × users/accounts))
+        // dan itu akar utama "berat muat halaman" di sisi server saat riwayat menumpuk. Map = O(R+U).
+        const usersById = new Map((global.users || []).map(u => [String(u.id), u]));
+        const accountsById = new Map((global.accounts || []).map(a => [String(a.id), a]));
+
         // Enrich data dengan informasi package, requestor name, dan updated_by_name
         const enrichedRequests = filteredRequests.map(request => {
-            const user = global.users.find(u => String(u.id) === String(request.userId));
+            const user = usersById.get(String(request.userId));
             const requestorId = request.requested_by_agen_id || request.requested_by_teknisi_id;
-            const requestorAccount = global.accounts.find(a => String(a.id) === String(requestorId));
-            const updatedByAccount = request.updated_by ? 
-                (request.updated_by === 'system' ? null : global.accounts.find(a => String(a.id) === String(request.updated_by))) 
+            const requestorAccount = accountsById.get(String(requestorId));
+            const updatedByAccount = request.updated_by ?
+                (request.updated_by === 'system' ? null : accountsById.get(String(request.updated_by)))
                 : null;
             
             // Determine the actual current status of the user
@@ -710,6 +715,17 @@ router.post('/bulk-approve', ensureAdmin, rateLimit('bulk-approve', 30, 60000), 
                 if (!antre.ok) {
                     return res.status(400).json({ status: 400, message: 'Tidak ada pengajuan yang bisa diproses' });
                 }
+                // Audit: siapa memulai otorisasi massal APA & KAPAN. Approve tunggal mencatat ini
+                // (activity-logger), tapi jalur massal (paling berdampak) dulu tak meninggalkan jejak.
+                try {
+                    await logActivity({
+                        userId: req.user.id, username: req.user.username, role: req.user.role,
+                        actionType: 'UPDATE', resourceType: 'payment', resourceId: 'bulk-approve',
+                        resourceName: antre.job.id,
+                        description: `Otorisasi massal diantre: ${antre.antre} pengajuan (job ${antre.job.id})`,
+                        ipAddress: req.ip, userAgent: req.headers['user-agent']
+                    });
+                } catch (_e) { /* audit best-effort — jangan jatuhkan alur */ }
                 return res.status(202).json({
                     status: 202,
                     job_id: antre.job.id,
@@ -723,6 +739,16 @@ router.post('/bulk-approve', ensureAdmin, rateLimit('bulk-approve', 30, 60000), 
                 requestIds,
                 actor: req.user
             });
+            try {
+                const r = (result && result.results) || {};
+                await logActivity({
+                    userId: req.user.id, username: req.user.username, role: req.user.role,
+                    actionType: 'UPDATE', resourceType: 'payment', resourceId: 'bulk-approve-sync',
+                    resourceName: `${(r.approved || []).length} disetujui`,
+                    description: `Otorisasi massal (sinkron): ${(r.approved || []).length} disetujui, ${(r.failed || []).length} gagal`,
+                    ipAddress: req.ip, userAgent: req.headers['user-agent']
+                });
+            } catch (_e) { /* audit best-effort — jangan jatuhkan alur */ }
             return res.json(result);
         });
     } catch (error) {
@@ -750,6 +776,15 @@ router.get('/bulk-approve/log', ensureAdmin, async (req, res) => {
             return res.json({ status: 200, data: null });
         }
         const items = await repo.getJobItems(job.id, { limit: 300 });
+
+        // Deteksi worker-mati/stale: heartbeat_at di-bump tiap item (repo.finishItem). Kalau job
+        // 'running' tapi heartbeat sudah basi > ambang, worker kemungkinan macet/mati; kalau
+        // 'queued' tapi worker tak aktif (gate OFF/belum restart), job tak akan pernah jalan.
+        // Tanpa ini, UI menampilkan "Menunggu giliran"/"Sedang berjalan" selamanya (buta).
+        const jobSvc = require('../services/bulk-approval-job.service');
+        const workerAktif = (typeof jobSvc.aktif === 'function') ? jobSvc.aktif() : true;
+        const stale = (typeof jobSvc.isJobStale === 'function') ? jobSvc.isJobStale(job) : false;
+
         res.json({
             status: 200,
             data: {
@@ -763,6 +798,9 @@ router.get('/bulk-approve/log', ensureAdmin, async (req, res) => {
                 dilewati: job.skipped_count,
                 mulai: job.started_at,
                 akhir: job.finished_at,
+                heartbeat: job.heartbeat_at || null,
+                workerAktif,
+                stale,
                 items
             }
         });
