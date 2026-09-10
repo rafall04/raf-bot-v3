@@ -5719,6 +5719,31 @@
     "template": "💼 *GAJI SAYA — ${periode}*\n\n${rincian}",
     "category": "teknisi"
   },
+  "setoran_saya_bukan_teknisi": {
+    "name": "Setoran Saya - Bukan Teknisi",
+    "template": "Perintah ini khusus untuk teknisi terdaftar.",
+    "category": "teknisi"
+  },
+  "setoran_saya_akun_tak_dikenali": {
+    "name": "Setoran Saya - Akun Tak Dikenali",
+    "template": "Akun teknisi Anda belum bisa dikenali dari nomor ini. Minta admin memeriksa nomor WhatsApp di akun Anda.",
+    "category": "teknisi"
+  },
+  "setoran_saya_fitur_off": {
+    "name": "Setoran Saya - Fitur Nonaktif",
+    "template": "ℹ️ Fitur rekap penarikan (fee teknisi) belum diaktifkan admin. Hubungi admin bila mestinya aktif.",
+    "category": "teknisi"
+  },
+  "setoran_saya_gagal": {
+    "name": "Setoran Saya - Gagal Baca",
+    "template": "Maaf, data setoran sedang tidak bisa dibaca. Coba lagi nanti.",
+    "category": "teknisi"
+  },
+  "setoran_saya_ringkasan": {
+    "name": "Setoran Saya - Ringkasan",
+    "template": "📊 *SETORAN SAYA — ${periode}*\n\n• Uang tertagih: ${tertagih} (${tarikan} tarikan)\n• Fee kamu: ${fee}\n💰 *Sisa setor ke kantor: ${sisa}*",
+    "category": "teknisi"
+  },
   "agent_voucher_sale_delivery_failed_agent": {
     "name": "Agent Voucher: Terjual tapi Gagal Terkirim",
     "category": "agent_voucher",

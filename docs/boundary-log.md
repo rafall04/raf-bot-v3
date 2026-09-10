@@ -2993,3 +2993,14 @@
 - **GAP ditutup:** notif pengajuan (routes/requests.js) kini pakai token self-identifying `RPQ-<id>` (id internal tetap numerik) agar quote-approve tak bentrok nomor antrian; link panel dibetulkan `/pembayaran/requests` → `/pembayaran/otorisasi` (dulu 404).
 - **Gate & wiring:** hook pre-intent di raf.js gated `config.paymentRequestWa.enabled` default OFF (deploy gelap); gate peran admin/owner/superadmin SESUDAH parse (non-admin senyap); state PAYREQ_ di owner-map + router; 9 template key baru.
 - **Tes:** parser +4, handler flow +6 (gate/empty/approve/reject/approve-all/job-latar) = 10; regresi requests-approval-atomic 3 + state owner-map/router/boundary 12 hijau; wa-forbidden/template-integrity hijau; lint 0.
+
+<a id="b364"></a>
+
+### Fitur 2026-09-10 (BAGIAN 3 — rekap uang teknisi via WA `setoran saya`)
+
+- **Intent BARU** `SETORAN_SAYA` (`message/handlers/raf-intent-dispatch/gaji-teknisi-intents.js` handleSetoranSayaIntent). READ-ONLY: reuse `lib/technician-collection-settlement.getSettlementReport` — SUMBER SAMA dengan tabel "Pemasukan per Teknisi" panel admin. Tampilkan: uang tertagih (totals.total_collected), jumlah tarikan (summary.collected_count), fee (totals.net_total), dan **Sisa Setor = tertagih − fee** (kebijakan owner: fee dipotong saat setor).
+- **Periode:** default bulan berjalan; `setoran saya hari ini` (dateFrom/dateTo hari ini); `setoran saya bulan lalu`. teknisiId dari isTeknisi.id (LID-aware, pola sama GAJI_SAYA). Angka NET (sudah dikurangi pembatalan).
+- **Gate:** getCommissionConfig().enabled — bila fee OFF balas "belum diaktifkan" (tak query). Tak menyentuh jalur tulis (payroll/ledger). Tak duplikasi GAJI_SAYA (gaji vs setoran dipisah).
+- **Wiring:** keyword `setoran saya`/`rekap saya`/`tarikan saya`/`rekap setoran` (wifi_templates.json, category teknisi); 5 template key baru (setoran_saya_*). Intent otomatis tersambung via GAJI_TEKNISI_INTENT_HANDLERS (sudah di-spread di dispatch map).
+- **Agen:** jalur agen (agen_collection_ledger) belum ditambah — DEFER (mudah reuse getSettlementReport agen bila diminta).
+- **Tes:** setoran-saya +5 (gate/akun/fee-off/hitung sisa/varian hari ini); dispatch-connectivity + template-integrity hijau; lint 0.

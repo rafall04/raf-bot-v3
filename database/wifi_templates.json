@@ -1235,6 +1235,19 @@
   },
   {
     "keywords": [
+      "setoran saya",
+      "rekap saya",
+      "tarikan saya",
+      "uang tarikan",
+      "rekap setoran"
+    ],
+    "intent": "SETORAN_SAYA",
+    "category": "teknisi",
+    "description": "Teknisi cek rekap uang tertagih, fee, & sisa setoran",
+    "icon": "📊"
+  },
+  {
+    "keywords": [
       "cek redaman",
       "cekredaman",
       "cek redaman modem",
