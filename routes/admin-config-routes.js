@@ -15,6 +15,7 @@ const { asyncHandler, createError, ErrorTypes } = require('../lib/error-handler'
 const { createGenieAcsParameterConfigService } = require('../services/genieacs-parameter-config.service');
 const { createMikrotikDeviceConfigService } = require('../services/mikrotik-device-config.service');
 const { readFlags, flagByKey, applyFlag, resyncWorkerForFlag } = require('../lib/feature-flags');
+const { readRouting, setEnabled: setNotifRoutingEnabled, setRoute: setNotifRoute } = require('../lib/notif-routing-config');
 
 const {
     initializeAllCronTasks,
@@ -632,6 +633,77 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
         } catch (_e) { /* log best-effort */ }
         console.log(`[FEATURE_FLAG] ${key} = ${enabled} oleh ${req.user.username}`);
         return res.status(200).json({ status: 200, message: `Fitur "${flagByKey(key).label}" ${enabled ? 'DINYALAKAN' : 'DIMATIKAN'}.`, data: readFlags(nextConfig) });
+    }));
+
+    // ── Routing Notifikasi ke Grup (/notif-routing) — arahkan alert per-kategori ke GRUP WA ──
+    // Anti-ketindihan: OFF = semua ke DM admin (perilaku sekarang). Semua endpoint admin-only fail-closed.
+    router.get('/api/notif-routing', ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        requireAdmin(req);
+        let grup = [];
+        let waSiap = false;
+        try {
+            grup = await require('../lib/whatsapp.adapter').getGroups();
+            waSiap = true;
+        } catch (_e) { waSiap = false; }
+        const { getAdminJids } = require('../lib/admin-recipients');
+        const routing = readRouting(requireRuntimeConfig().getConfig());
+        return res.status(200).json({ status: 200, data: { ...routing, grup, waSiap, adminFallbackCount: (getAdminJids() || []).length } });
+    }));
+
+    // Master switch — DIDAFTARKAN SEBELUM '/:category' agar 'aktif' tak tertangkap sebagai kategori.
+    router.put('/api/notif-routing/aktif', ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        requireAdmin(req);
+        const enabled = !!(req.body && req.body.enabled === true);
+        const mainConfigPath = path.join(__dirname, '..', 'config.json');
+        const cur = JSON.parse(fs.readFileSync(mainConfigPath, 'utf8'));
+        const next = setNotifRoutingEnabled(cur, enabled);
+        writeFileAtomicSync(mainConfigPath, JSON.stringify(next, null, 4));
+        requireRuntimeConfig().setConfig(next);
+        try {
+            await logActivity({ userId: req.user.id, username: req.user.username, role: req.user.role, actionType: 'UPDATE', resourceType: 'config', resourceId: 'notif-routing', resourceName: 'aktif', description: `Routing notifikasi grup ${enabled ? 'ON' : 'OFF'}`, ipAddress: req.ip, userAgent: req.headers['user-agent'] });
+        } catch (_e) { /* audit best-effort */ }
+        return res.status(200).json({ status: 200, message: `Routing notifikasi grup ${enabled ? 'DINYALAKAN' : 'DIMATIKAN'}.`, data: readRouting(next) });
+    }));
+
+    router.put('/api/notif-routing/:category', ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        requireAdmin(req);
+        const category = String(req.params.category || '');
+        const { categoryByKey } = require('../lib/notif-categories');
+        if (!categoryByKey(category)) return res.status(400).json({ status: 400, message: `Kategori tak dikenal: ${category}` });
+        const groups = Array.isArray(req.body && req.body.groups) ? req.body.groups : [];
+        const severity = req.body && req.body.severity;
+        // Verifikasi bot benar anggota grup (bila WA konek) — bukan blokir, tapi peringatan jujur.
+        let waSiap = false;
+        let known = new Set();
+        try { known = new Set(((await require('../lib/whatsapp.adapter').getGroups()) || []).map((g) => g.id)); waSiap = true; } catch (_e) { waSiap = false; }
+        const unknownGroups = waSiap ? groups.filter((j) => /@g\.us$/.test(String(j)) && !known.has(j)) : [];
+        const mainConfigPath = path.join(__dirname, '..', 'config.json');
+        let next;
+        try {
+            next = setNotifRoute(JSON.parse(fs.readFileSync(mainConfigPath, 'utf8')), category, { groups, severity });
+        } catch (e) {
+            return res.status(400).json({ status: 400, message: e.message });
+        }
+        writeFileAtomicSync(mainConfigPath, JSON.stringify(next, null, 4));
+        requireRuntimeConfig().setConfig(next);
+        try {
+            await logActivity({ userId: req.user.id, username: req.user.username, role: req.user.role, actionType: 'UPDATE', resourceType: 'config', resourceId: 'notif-routing', resourceName: category, description: `Routing ${category} → ${groups.length} grup`, ipAddress: req.ip, userAgent: req.headers['user-agent'] });
+        } catch (_e) { /* audit best-effort */ }
+        return res.status(200).json({ status: 200, message: `Routing "${categoryByKey(category).label}" disimpan.`, data: readRouting(next), waSiap, unknownGroups });
+    }));
+
+    // Kirim pesan UJI ke penerima ter-resolve kategori — buktikan hasil, bukan tebak.
+    router.post('/api/notif-routing/:category/uji', ensureAuthenticatedStaff, asyncHandler(async (req, res) => {
+        requireAdmin(req);
+        const category = String(req.params.category || '');
+        const { categoryByKey } = require('../lib/notif-categories');
+        if (!categoryByKey(category)) return res.status(400).json({ status: 400, message: `Kategori tak dikenal: ${category}` });
+        const { getAdminJids } = require('../lib/admin-recipients');
+        const { dispatch } = require('../lib/notif-router');
+        const text = `🔔 *Uji Routing Notifikasi*\nKategori: ${categoryByKey(category).label} (${category})\nBila kamu menerima pesan ini, routing kategori ini sudah benar. Ini pesan UJI — abaikan.`;
+        const hasil = await dispatch(category, { text, adminFallback: getAdminJids() });
+        const tujuan = hasil.mode === 'group' ? 'grup' : 'DM admin (fallback)';
+        return res.status(200).json({ status: 200, message: `Pesan uji terkirim ke ${hasil.sent} ${tujuan}.`, data: hasil });
     }));
 
     // Daftar grup WhatsApp tempat bot jadi member — untuk dropdown pemilih grup PSB di halaman Config.

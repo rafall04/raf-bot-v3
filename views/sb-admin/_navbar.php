@@ -580,12 +580,12 @@ function isParentActive($pages, $current) {
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/accounts', '/config', '/feature-flags', '/parameter-management', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseSistem" aria-expanded="<?php echo isParentActive(['/accounts', '/config', '/feature-flags', '/parameter-management', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseSistem">
+    <li class="nav-item <?php echo isParentActive(['/accounts', '/config', '/feature-flags', '/notif-routing', '/parameter-management', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseSistem" aria-expanded="<?php echo isParentActive(['/accounts', '/config', '/feature-flags', '/notif-routing', '/parameter-management', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseSistem">
             <i class="fas fa-fw fa-cogs"></i>
             <span>Pengaturan</span>
         </a>
-        <div id="collapseSistem" class="collapse <?php echo isParentActive(['/accounts', '/config', '/feature-flags', '/parameter-management', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingSistem" data-parent="#accordionSidebar">
+        <div id="collapseSistem" class="collapse <?php echo isParentActive(['/accounts', '/config', '/feature-flags', '/notif-routing', '/parameter-management', '/cron', '/migrate', '/telegram-teknisi'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingSistem" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/accounts', $current_page) ? 'active' : ''; ?>" href="/accounts">
                     <i class="fas fa-fw fa-users-cog mr-2"></i>
@@ -598,6 +598,10 @@ function isParentActive($pages, $current) {
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/feature-flags', $current_page) ? 'active' : ''; ?>" href="/feature-flags">
                     <i class="fas fa-fw fa-toggle-on mr-2"></i>
                     <span>Feature Flags</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/notif-routing', $current_page) ? 'active' : ''; ?>" href="/notif-routing">
+                    <i class="fas fa-fw fa-bell mr-2"></i>
+                    <span>Routing Notifikasi</span>
                 </a>
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/parameter-management', $current_page) ? 'active' : ''; ?>" href="/parameter-management">
                     <i class="fas fa-fw fa-sliders-h mr-2"></i>
