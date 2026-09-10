@@ -2970,3 +2970,14 @@
 - **UI:** kartu "Riwayat Batch" (`views/sb-admin/voucher-print.php` + `static/js/voucher-print.js`) — daftar waktu/paket/jumlah + tombol **Muat** → load kode tersimpan ke `vouchers` (langsung siap Cetak/Unduh PDF/Kirim WA ulang) TANPA generate MikroTik. Auto-muat saat buka + refresh sesudah generate.
 - **Menutup R2** (#b360): cetak-ulang tak lagi = provision-ulang. Kunci konkurensi `generate` (#b360) juga men-serialize tulis file batch (tak ada tulis bersamaan).
 - **Tes:** repo +1 (save terbaru-dulu/list ringan/get penuh/prune cap), service +1 (persist ter-enrich snapshot harga + list/get); `tmpRepo` diisolasi `batchesPath` (anti polusi data prod). 46 tes area voucher hijau; lint 0, php -l bersih.
+
+<a id="b362"></a>
+
+### Fitur 2026-09-10 (BAGIAN 1 — ganti paket TERTUNDA: harga & kecepatan mulai siklus berikutnya)
+
+- **AKAR BUG (kebocoran pendapatan):** ganti paket dulu diterapkan SEKETIKA (subscription+profil MikroTik) & nominal tagihan dihitung LIVE dari `getEffectivePrice(user.subscription)` tanpa snapshot → pindah ke paket murah sebelum lunas = tagihan bulan berjalan ikut harga baru padahal paket lama sudah dipakai sebulan.
+- **Owner BARU:** `lib/package-change-scheduler.js` (isDeferEnabled/computeNextCycleEffective=awal bulan kalender berikutnya WIB/isDue/formatTanggalWIB), `lib/package-change-apply.js` (`applyApprovedPackageChange` — langkah apply bersama diekstrak dari admin.service: profil MikroTik+putus sesi+updateUserSubscription; gagal MikroTik=THROW), `lib/cron/jobs/package-change-rollover.js` (per-JAM, gated, apply saat jatuh tempo → status approved+applied_at + notif; gagal=tetap scheduled+alarm admin; user/paket hilang=cancelled_by_system).
+- **Perilaku (opsi B, gate ON):** approve/ubah-paket TIDAK apply sekarang; request jadi status `scheduled`+`effective_date` (awal siklus berikutnya), supersede jadwal lama user sama. Harga LAMA & kecepatan LAMA sampai akhir periode; cron rollover menerapkan di awal bulan depan lalu notif pelanggan+teknisi. Menutup DUA jalur: `services/admin.service.approvePackageChange` (WA `ok` + panel-approve) & `routes/change-package.js` POST /:userId (panel ubah-langsung — bypass ditutup).
+- **GATE** `config.packageChangeDeferred.enabled` default OFF (config.example.json) → perilaku LAMA (apply seketika) utuh. Cron rollover terdaftar di composer lib/cron.js (inert bila OFF).
+- **Template:** 3 key baru response_templates.json (customer_scheduled, activated_customer, activated_technician).
+- **Tes:** scheduler +8, apply +3, rollover cron +4, admin.service defer +1 = 16 baru; regresi admin.service 9 hijau; template-integrity hijau; lint 0.

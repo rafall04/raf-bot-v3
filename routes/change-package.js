@@ -23,6 +23,9 @@ const { renderTemplate } = require('../lib/templating');
 const { withLock } = require('../lib/request-lock');
 const { sendCritical } = require('../lib/whatsapp-critical-delivery');
 const { withoutClose } = require('../lib/sqlite-shared-reader');
+const { isDeferEnabled, computeNextCycleEffective, formatTanggalWIB } = require('../lib/package-change-scheduler');
+const { createPackageChangeRequestRecord, persistPackageChangeRequests } = require('../lib/admin-request-persistence');
+const { renderResponseTemplate } = require('../lib/response-template-helper');
 
 // Pakai koneksi app persisten (`global.db`), BUKAN koneksi baru per request. Membuka lalu
 // menutup koneksi ke users.sqlite yang LIVE me-yatimkan file `-wal`/`-shm` sehingga koneksi
@@ -176,7 +179,56 @@ router.post('/:userId', ensureAdmin, rateLimit('change-package', 20, 60000), asy
     if (user.subscription === new_package) {
         return res.status(400).json({ status: 400, message: 'Paket baru sama dengan paket saat ini' });
     }
-    
+
+    // Ganti paket TERTUNDA (opsi B, gate config.packageChangeDeferred.enabled): fitur aktif →
+    // JANGAN ubah subscription/MikroTik sekarang; jadwalkan ke awal siklus berikutnya (cron rollover
+    // yang menerapkan). Paket & tagihan bulan berjalan tetap LAMA. Menutup bypass jalur panel-langsung.
+    if (isDeferEnabled()) {
+        const effectiveDate = computeNextCycleEffective();
+        const requester = {
+            id: req.user && req.user.id,
+            username: (req.user && req.user.username) || 'admin',
+            role: (req.user && req.user.role) || 'admin'
+        };
+        const record = createPackageChangeRequestRecord({ user, requestedPackage: newPackageData, requester, newPackageName: new_package, notes: _notes });
+        record.status = 'scheduled';
+        record.apply_mode = 'deferred';
+        record.effective_date = effectiveDate;
+        record.applied_at = null;
+        record.sync_policy = 'deferred';
+        record.sync_status = 'scheduled';
+        record.sync_message = `Dijadwalkan berlaku ${formatTanggalWIB(effectiveDate)}.`;
+        if (!Array.isArray(global.packageChangeRequests)) global.packageChangeRequests = [];
+        for (const r of global.packageChangeRequests) {
+            if (r && String(r.userId) === String(userId) && r.status === 'scheduled') {
+                r.status = 'superseded';
+                r.updatedAt = new Date().toISOString();
+            }
+        }
+        global.packageChangeRequests.push(record);
+        persistPackageChangeRequests(global.packageChangeRequests);
+        try {
+            const priceNum = Number(newPackageData.price) || 0;
+            const priceLine = priceNum > 0 ? ` (Rp ${priceNum.toLocaleString('id-ID')}/bulan)` : '';
+            const msg = renderResponseTemplate(
+                'admin_service_package_change_customer_scheduled',
+                `*Permintaan Ganti Paket Diterima* ✅\n\nHalo ${user.name},\nPaket Anda akan berubah ke *${new_package}*${priceLine} mulai *${formatTanggalWIB(effectiveDate)}*. Paket saat ini tetap berjalan sampai tanggal itu. Terima kasih 🙏`,
+                { customerName: user.name, packageName: new_package, priceLine, effectiveDate: formatTanggalWIB(effectiveDate) }
+            );
+            for (const ph of String(user.phone_number || '').split('|').map((s) => s.trim()).filter(Boolean)) {
+                await sendCritical(ph, { text: msg }, { label: 'package_change_scheduled', waitForReadyMs: 8000 });
+            }
+        } catch (e) {
+            console.error('[CHANGE_PACKAGE_SCHEDULE_NOTIF]', e.message);
+        }
+        return res.status(200).json({
+            status: 200,
+            message: `Perubahan paket dijadwalkan berlaku ${formatTanggalWIB(effectiveDate)}. Paket & tagihan bulan berjalan tetap sesuai paket lama.`,
+            deferred: true,
+            effective_date: effectiveDate
+        });
+    }
+
     // Use lock to prevent race condition
     try {
         return await withLock(`change-package-${userId}`, async () => {

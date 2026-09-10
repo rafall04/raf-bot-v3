@@ -346,4 +346,52 @@ describe("admin.service", () => {
         // sync_message internal tetap boleh ada di request (audit), tapi TIDAK dikirim ke pelanggan.
         expect(request.sync_message).toMatch(/pppoe|komari|16Mbps/i);
     });
+
+    test("BAGIAN 1: gate defer ON → approve MENJADWALKAN (bukan apply seketika); MikroTik & subscription TAK disentuh", async () => {
+        const request = {
+            id: "REQ-DEF", userId: 40, requestedPackageName: "PAKET-110K", requestedById: 50,
+            currentPackageName: "PAKET-125K", status: "pending"
+        };
+        const older = { id: "REQ-OLD-SCHED", userId: 40, requestedPackageName: "PAKET-90K", status: "scheduled" };
+        const store = [request, older];
+        const repository = {
+            findPackageChangeRequestIndexById: jest.fn().mockReturnValue(0),
+            getPackageChangeRequests: jest.fn().mockReturnValue(store),
+            getUserById: jest.fn().mockReturnValue({ id: 40, name: "User D", pppoe_username: "ppp-d", subscription: "PAKET-125K", phone_number: "08123" }),
+            getPackageByName: jest.fn().mockReturnValue({ name: "PAKET-110K", profile: "prof-110", price: 110000 }),
+            getConfig: jest.fn().mockReturnValue({ packageChangeDeferred: { enabled: true } }),
+            updateUserSubscription: jest.fn(),
+            syncUserSubscriptionCache: jest.fn(),
+            replacePackageChangeRequest: jest.fn((i, r) => { store[i] = r; }),
+            persistPackageChangeRequests: jest.fn(),
+            getAccountById: jest.fn().mockReturnValue({ id: 50, name: "Teknisi X", phone_number: "08999" })
+        };
+        const updatePPPoEProfile = jest.fn();
+        const service = createAdminService({
+            repository,
+            withLock: jest.fn(async (_key, handler) => handler()),
+            isMikrotikSyncEnabled: jest.fn().mockReturnValue(true),
+            updatePPPoEProfile,
+            deleteActivePPPoEUser: jest.fn(),
+            assertMikrotikResult: jest.fn((v) => v),
+            logActivity: jest.fn().mockResolvedValue(true),
+            sendCritical: jest.fn().mockResolvedValue({ delivered: true })
+        });
+
+        const result = await service.approvePackageChange(
+            { requestId: "REQ-DEF", action: "approve", notes: "" },
+            { id: 1, username: "admin", role: "admin" }
+        );
+
+        expect(result.status).toBe(200);
+        // DIJADWALKAN, bukan diterapkan:
+        expect(request.status).toBe("scheduled");
+        expect(typeof request.effective_date).toBe("string");
+        expect(request.apply_mode).toBe("deferred");
+        // MikroTik & subscription TIDAK disentuh sekarang.
+        expect(updatePPPoEProfile).not.toHaveBeenCalled();
+        expect(repository.updateUserSubscription).not.toHaveBeenCalled();
+        // Jadwal lama untuk user yang sama di-supersede.
+        expect(older.status).toBe("superseded");
+    });
 });

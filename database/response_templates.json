@@ -2170,6 +2170,38 @@
       "priceLine"
     ]
   },
+  "admin_service_package_change_customer_scheduled": {
+    "name": "Admin Service: Ubah Paket Dijadwalkan ke Customer",
+    "category": "routes_outbound",
+    "template": "*Permintaan Ganti Paket Diterima* ✅\n\nHalo ${customerName},\nPaket internet Anda akan berubah ke *${packageName}*${priceLine} mulai *${effectiveDate}*.\n\nSampai tanggal itu, paket Anda saat ini tetap berjalan seperti biasa (tagihan bulan ini juga tetap sesuai paket lama). Terima kasih 🙏",
+    "placeholders": [
+      "customerName",
+      "packageName",
+      "priceLine",
+      "effectiveDate"
+    ]
+  },
+  "package_change_activated_customer": {
+    "name": "Rollover Paket: Aktif ke Customer",
+    "category": "routes_outbound",
+    "template": "*Paket Baru Aktif* 🎉\n\nHalo ${customerName},\nPaket internet Anda kini *${packageName}*${priceLine} dan sudah aktif hari ini.\n\nJika kecepatan belum terasa berubah, coba matikan router ±1 menit lalu nyalakan lagi ya. Terima kasih 🙏",
+    "placeholders": [
+      "customerName",
+      "packageName",
+      "priceLine"
+    ]
+  },
+  "package_change_activated_technician": {
+    "name": "Rollover Paket: Aktif ke Teknisi",
+    "category": "routes_outbound",
+    "template": "✅ Paket pelanggan *${customerName}* resmi berganti ke *${packageName}* mulai hari ini (${effectiveDate}).",
+    "placeholders": [
+      "technicianName",
+      "customerName",
+      "packageName",
+      "effectiveDate"
+    ]
+  },
   "admin_service_package_change_customer_rejected": {
     "name": "Admin Service: Ubah Paket Ditolak ke Customer",
     "category": "routes_outbound",

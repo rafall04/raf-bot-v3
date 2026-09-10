@@ -22,6 +22,8 @@ const {
     assertMikrotikResult,
     isMikrotikSyncEnabled
 } = require("../lib/mikrotik");
+const { applyApprovedPackageChange } = require("../lib/package-change-apply");
+const { isDeferEnabled, computeNextCycleEffective, formatTanggalWIB } = require("../lib/package-change-scheduler");
 
 const ADMIN_ROLES = ["admin", "owner", "superadmin"];
 
@@ -358,23 +360,53 @@ function createAdminService(overrides = {}) {
                         }
 
                         const oldPackage = user.subscription;
-                        const syncToMikrotik = deps.isMikrotikSyncEnabled(deps.repository.getConfig());
-                        let mikrotikSync = {
-                            status: "skipped_no_pppoe",
-                            message: "Tidak ada sinkronisasi MikroTik yang perlu dijalankan."
-                        };
+                        const approvedPriceNum = Number(requestedPackage.price) || 0;
+                        // PENTING: pesan ke PELANGGAN TIDAK boleh memuat detail internal (PPPoE/profil MikroTik).
+                        const priceLine = approvedPriceNum > 0 ? ` (Rp ${approvedPriceNum.toLocaleString("id-ID")}/bulan)` : "";
 
-                        if (syncToMikrotik) {
+                        if (isDeferEnabled(deps.repository.getConfig())) {
+                            // TERTUNDA (opsi B): harga & kecepatan paket baru berlaku SIKLUS BERIKUTNYA.
+                            // JANGAN sentuh MikroTik/subscription sekarang — cron rollover yang menerapkannya.
+                            const effectiveDate = computeNextCycleEffective();
+                            // Supersede jadwal lama utk user yang sama (ganti paket berkali-kali sebelum rollover).
+                            const reqs = deps.repository.getPackageChangeRequests();
+                            for (let i = 0; i < reqs.length; i++) {
+                                if (i !== requestIndex && reqs[i] && String(reqs[i].userId) === String(user.id) && reqs[i].status === "scheduled") {
+                                    reqs[i].status = "superseded";
+                                    reqs[i].updatedAt = new Date().toISOString();
+                                    deps.repository.replacePackageChangeRequest(i, reqs[i]);
+                                }
+                            }
+                            request.status = "scheduled";
+                            request.apply_mode = "deferred";
+                            request.effective_date = effectiveDate;
+                            request.applied_at = null;
+                            request.sync_policy = "deferred";
+                            request.sync_status = "scheduled";
+                            request.sync_message = `Dijadwalkan berlaku ${formatTanggalWIB(effectiveDate)}.`;
+                            notificationMessage = renderResponseTemplate("admin_service_package_change_customer_scheduled", {
+                                customerName: user.name,
+                                packageName: request.requestedPackageName,
+                                priceLine,
+                                effectiveDate: formatTanggalWIB(effectiveDate)
+                            });
+                        } else {
+                            // SEKETIKA (perilaku lama, gate OFF). Gagal MikroTik => 502, DB tak diubah.
+                            let mikrotikSync;
                             try {
-                                deps.assertMikrotikResult(
-                                    await deps.updatePPPoEProfile(user.pppoe_username, requestedPackage.profile, {
-                                        caller: "admin.approve-package-change"
-                                    })
-                                );
-                                mikrotikSync = {
-                                    status: "applied",
-                                    message: `Profile MikroTik untuk ${user.pppoe_username} berhasil diperbarui ke ${requestedPackage.profile}.`
-                                };
+                                const res = await applyApprovedPackageChange({
+                                    user,
+                                    requestedPackage,
+                                    caller: "admin.approve-package-change",
+                                    deps: {
+                                        updatePPPoEProfile: deps.updatePPPoEProfile,
+                                        deleteActivePPPoEUser: deps.deleteActivePPPoEUser,
+                                        assertMikrotikResult: deps.assertMikrotikResult,
+                                        isMikrotikSyncEnabled: deps.isMikrotikSyncEnabled,
+                                        repository: deps.repository
+                                    }
+                                });
+                                mikrotikSync = res.mikrotikSync;
                             } catch (error) {
                                 throw createError(
                                     ErrorTypes.MIKROTIK_ERROR,
@@ -382,31 +414,16 @@ function createAdminService(overrides = {}) {
                                     502
                                 );
                             }
-
-                            try {
-                                const disconnectResult = await deps.deleteActivePPPoEUser(user.pppoe_username, {
-                                    caller: "admin.approve-package-change"
-                                });
-                                if (!disconnectResult.ok) {
-                                    throw new Error(disconnectResult.message);
-                                }
-                            } catch (error) {
-                                console.warn("[PKG_CHANGE_APPROVE_WARN]", error.message);
-                            }
-                        } else {
-                            mikrotikSync = {
-                                status: "applied_locally_sync_disabled",
-                                message: "Sinkronisasi MikroTik dinonaktifkan. Perubahan paket hanya disimpan lokal."
-                            };
+                            request.status = "approved";
+                            request.sync_policy = deps.isMikrotikSyncEnabled(deps.repository.getConfig()) ? "enabled" : "disabled";
+                            request.sync_status = mikrotikSync.status;
+                            request.sync_message = mikrotikSync.message;
+                            notificationMessage = renderResponseTemplate("admin_service_package_change_customer_approved", {
+                                customerName: user.name,
+                                packageName: request.requestedPackageName,
+                                priceLine
+                            });
                         }
-
-                        await deps.repository.updateUserSubscription(user.id, request.requestedPackageName);
-                        deps.repository.syncUserSubscriptionCache(user.id, request.requestedPackageName);
-
-                        request.status = "approved";
-                        request.sync_policy = syncToMikrotik ? "enabled" : "disabled";
-                        request.sync_status = mikrotikSync.status;
-                        request.sync_message = mikrotikSync.message;
 
                         try {
                             await deps.logActivity(buildAuditPayload(actorCtx, {
@@ -414,10 +431,12 @@ function createAdminService(overrides = {}) {
                                 resourceType: "package",
                                 resourceId: String(user.id),
                                 resourceName: user.name,
-                                description: `Approved package change for user ${user.name}: ${oldPackage} -> ${request.requestedPackageName}`,
+                                description: `${request.status === "scheduled" ? "Scheduled" : "Approved"} package change for user ${user.name}: ${oldPackage} -> ${request.requestedPackageName}${request.status === "scheduled" ? ` (berlaku ${formatTanggalWIB(request.effective_date)})` : ""}`,
                                 oldValue: { subscription: oldPackage },
                                 newValue: {
-                                    subscription: request.requestedPackageName,
+                                    subscription: request.status === "scheduled" ? oldPackage : request.requestedPackageName,
+                                    pending_subscription: request.status === "scheduled" ? request.requestedPackageName : undefined,
+                                    effective_date: request.effective_date || undefined,
                                     sync_policy: request.sync_policy,
                                     sync_status: request.sync_status,
                                     sync_message: request.sync_message
@@ -426,17 +445,6 @@ function createAdminService(overrides = {}) {
                         } catch (error) {
                             console.error("[ACTIVITY_LOG_ERROR] Failed to log package change:", error);
                         }
-
-                        // PENTING: pesan ke PELANGGAN TIDAK boleh memuat detail internal — nama PPPoE,
-                        // nama profil MikroTik, atau jargon "Profile MikroTik". `sync_message` memuat
-                        // pppoe_username (lihat mikrotikSync di atas) dan hanya untuk audit/admin, JANGAN
-                        // dikirim ke pelanggan. Cukup nama paket + harga yang ramah.
-                        const approvedPriceNum = Number(requestedPackage.price) || 0;
-                        notificationMessage = renderResponseTemplate("admin_service_package_change_customer_approved", {
-                            customerName: user.name,
-                            packageName: request.requestedPackageName,
-                            priceLine: approvedPriceNum > 0 ? ` (Rp ${approvedPriceNum.toLocaleString("id-ID")}/bulan)` : ""
-                        });
                     } else if (input.action === "reject") {
                         request.status = "rejected";
                         const user = deps.repository.getUserById(request.userId);
@@ -480,7 +488,9 @@ function createAdminService(overrides = {}) {
 
                     const technician = deps.repository.getAccountById(request.requestedById);
                     if (technician && technician.phone_number) {
-                        const statusText = statusTextMap[input.action];
+                        const statusText = request.status === "scheduled"
+                            ? `DIJADWALKAN (berlaku ${formatTanggalWIB(request.effective_date)})`
+                            : statusTextMap[input.action];
                         const technicianMessage = renderResponseTemplate("admin_service_package_change_technician_result", {
                             statusText,
                             technicianName: technician.name || technician.username,
