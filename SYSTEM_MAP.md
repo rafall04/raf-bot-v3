@@ -471,6 +471,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fitur 2026-09-10 (BAGIAN 3 — rekap uang teknisi via WA: intent SETORAN_SAYA (gaji-teknisi-intents) reuse getSettlementReport; tampil uang tertagih + jumlah tarikan + fee + Sisa Setor=tertagih−fee; periode bulan berjalan/hari ini/bulan lalu; gated getCommissionConfig)](docs/boundary-log.md#b364)
 - [Fix 2026-09-10 (P0 — alarm OLT mati SEBAGIAN: alertOltPartialDown per-device di olt-log-scraper, throttle per-OLT + notif pulih; menutup blindspot 1-dari-N OLT unreachable yg lolos alertOltAllDown total-only; opt-out config.oltMonitor.alertPartialDown)](docs/boundary-log.md#b365)
 - [Fix 2026-09-10 (P1 — eskalasi kegagalan SENYAP: lib/admin-alarm.sendAdminAlarm; isolir/set-unpaid failedCount→alarm admin, telegram-backup gagal→alarm, CSAT breadcrumb sukses, package-change-rollover notif via sendCritical + fix regresi laten response-template-helper lazy-require)](docs/boundary-log.md#b366)
+- [Fix 2026-09-10 (P1 — create user dedup pppoe_username: prepareNewUser gagal-LOUD 409 bila pppoe sudah dipakai, cegah duplikat massal importer VANS yg dulu cuma cek nomor telepon)](docs/boundary-log.md#b367)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

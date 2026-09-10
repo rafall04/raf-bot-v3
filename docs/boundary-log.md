@@ -3024,3 +3024,11 @@
 - **csat-survey-service.js:** notifyOwnerDetractor tambah breadcrumb SUKSES `[CSAT_DETRACTOR] terkirim ke N/M` + log empty-accounts lebih keras (dugaan "alert MATI" ternyata krn sukses tak nge-log; kini terverifikasi).
 - **package-change-rollover.js:** notif rollover (SATU-KALI) pindah dari safeSendMessage (antrian lokal, bisa hilang saat WA blip) ke sendCritical (dead-letter). SEKALIGUS fix regresi laten #b362: `response-template-helper` di-require LAZY (top-level require menyeret template-service loadAllCategories→loadJSON ke graph load cron.js → memecah test cron ber-mock database).
 - **Tes:** admin-alarm +4, olt-partial (#b365) +6; regresi cron-whatsapp (kini hijau), set-unpaid, csat, cron-config, package-change-rollover, wa-forbidden — 78 hijau; lint 0.
+
+<a id="b367"></a>
+
+### Fix 2026-09-10 (P1 — importer/create user: dedup pppoe_username, cegah duplikat massal)
+
+- **AKAR (landmine):** `services/api-users/create-user-validate.prepareNewUser` dulu HANYA validasi nomor telepon kembar (`validatePhoneNumbers`), TIDAK pernah cek `pppoe_username` sudah ada. Impor Excel mentah VANS = duplikat tiap baris bila rekonsiliasi 3-arah manual terlewat. Semua jalur tulis (web/#PSB/import) bermuara ke sini.
+- **FIX:** tambah cek dedup — bila `pppoe_username` (nilai pertama split `|`, case-insensitive) sudah dipakai pelanggan lain → gagal-LOUD 409 + `conflictUser`, TIDAK membuat duplikat. Kosong = SAH. Importer memperlakukan 409 sbg skip-baris (bukan duplikat senyap).
+- **Tes:** create-user-pppoe-dedup +4 (dup 409, case-insensitive+multi-value, unik lolos, kosong sah); regresi create-user-bulk-band + api-users 33 hijau; lint 0.

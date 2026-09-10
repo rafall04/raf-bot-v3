@@ -44,6 +44,29 @@ async function prepareNewUser(deps, { userData }) {
         }
     }
 
+    // Dedup PPPoE (P1): create dulu HANYA cek nomor telepon kembar, TIDAK pernah cek pppoe_username →
+    // impor Excel mentah = duplikat tiap baris bila rekonsiliasi manual terlewat. Kini gagal-LOUD 409
+    // bila pppoe_username (nilai pertama, case-insensitive) sudah dipakai. Kosong = SAH (belum di-set).
+    const pppoeRaw = userData.pppoe_username || userData.pppoe;
+    const pppoeKey = String(pppoeRaw || "").split("|")[0].trim().toLowerCase();
+    if (pppoeKey) {
+        const dup = deps.repository.getUsersSnapshot().find(
+            (u) => String(u.pppoe_username || "").split("|")[0].trim().toLowerCase() === pppoeKey
+        );
+        if (dup) {
+            return {
+                errorResponse: {
+                    status: 409,
+                    body: {
+                        status: 409,
+                        message: `PPPoE username "${pppoeKey}" sudah dipakai pelanggan lain (${dup.name || `ID ${dup.id}`}). Pelanggan TIDAK dibuat (cegah duplikat).`,
+                        conflictUser: { id: dup.id, name: dup.name || null }
+                    }
+                }
+            };
+        }
+    }
+
     const idExists = deps.repository.getUsersSnapshot().some((user) => parseInt(user.id, 10) === parseInt(newUserId, 10));
     if (idExists) {
         return {
