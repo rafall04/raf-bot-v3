@@ -88,15 +88,21 @@
     let filteredData = [];
     let autoRefreshInterval = null;
     let teknisiList = new Set();
+    let lastMeta = null; // {counts:{total,pending,approved,rejected}, returned, sinceMonths} dari /api/requests
     
     // Initialize DataTable with AJAX
+    // sinceMonths: server hanya kirim pending (umur berapa pun) + resolved N bulan terakhir, jadi
+    // halaman tak lagi mengunduh SELURUH arsip pengajuan. Kartu statistik pakai meta.counts (total
+    // penuh), tabel pakai window. Ubah di satu tempat bila perlu jendela lebih panjang.
+    const LOAD_SINCE_MONTHS = 6;
     const dataTable = $('#dataTable').DataTable({
       ajax: {
-        url: '/api/requests',
+        url: '/api/requests?sinceMonths=' + LOAD_SINCE_MONTHS,
         type: 'GET',
         dataSrc: function(json) {
           allData = json.data || [];
-          updateStatistics(allData);
+          lastMeta = json.meta || null;
+          updateStatistics(allData, false, lastMeta);
           updateTeknisiList(allData);
           return allData;
         },
@@ -196,18 +202,25 @@
     }
 
     // Update statistics
-    function updateStatistics(data, isFiltered = false) {
-      const total = data.length;
+    function updateStatistics(data, isFiltered = false, meta = null) {
       const pending = data.filter(d => d.status === 'pending');
-      const approved = data.filter(d => d.status === 'approved');
-      const rejected = data.filter(d => d.status === 'rejected');
-      
-      $('#totalRequests').text(total);
-      $('#pendingRequests').text(pending.length);
-      $('#approvedRequests').text(approved.length);
-      $('#rejectedRequests').text(rejected.length);
-      $('#pendingCount').text(pending.length);
-      
+
+      // Kartu hitungan: saat TAK difilter, pakai meta.counts (total penuh dari server) supaya angka
+      // akurat walau tabel hanya memuat window sinceMonths. Saat difilter (client-side), pakai data
+      // yang tampak. pendingValue selalu dari data — pending umur berapa pun ikut di-load, jadi akurat.
+      const c = (!isFiltered && meta && meta.counts) ? meta.counts : {
+        total: data.length,
+        pending: pending.length,
+        approved: data.filter(d => d.status === 'approved').length,
+        rejected: data.filter(d => d.status === 'rejected').length
+      };
+
+      $('#totalRequests').text(c.total);
+      $('#pendingRequests').text(c.pending);
+      $('#approvedRequests').text(c.approved);
+      $('#rejectedRequests').text(c.rejected);
+      $('#pendingCount').text(c.pending);
+
       const pendingValue = pending.reduce((sum, d) => sum + (d.packagePrice || 0), 0);
       $('#pendingValue').text(rupiah.format(pendingValue));
 
@@ -339,7 +352,7 @@
       
       $.fn.dataTable.ext.search.pop();
       dataTable.draw();
-      updateStatistics(allData);
+      updateStatistics(allData, false, lastMeta);
     });
     
     // Bulk approve - only for current month

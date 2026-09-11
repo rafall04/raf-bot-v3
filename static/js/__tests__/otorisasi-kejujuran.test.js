@@ -35,3 +35,8 @@ test("banner worker-mati/stale digerakkan server (d.stale / d.workerAktif)", () 
     expect(SRC).toMatch(/d\.workerAktif\s*===\s*false/);
     expect(SRC).toMatch(/logOtorisasiBanner/);
 });
+
+test("payload dipangkas: ajax kirim sinceMonths + kartu pakai meta.counts", () => {
+    expect(SRC).toMatch(/sinceMonths=/);
+    expect(SRC).toMatch(/meta\.counts/);
+});

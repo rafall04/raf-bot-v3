@@ -149,13 +149,23 @@ router.get('/', async (req, res) => {
             return res.status(403).json({ status: 403, message: "Akses ditolak" });
         }
         
+        // Hitungan status atas SELURUH himpunan peran (sebelum window) — dipakai kartu statistik FE
+        // supaya total tetap akurat meski payload tabel dipangkas. Window `?sinceMonths=N` memangkas
+        // resolved lama (pending SELALU ikut); tanpa param = semua baris (3 halaman teknisi/agen tak
+        // berubah). Logika di lib/request-window (teruji).
+        const { applyRequestWindow, countByStatus } = require('../lib/request-window');
+        const counts = countByStatus(filteredRequests);
+        const sinceMonthsRaw = parseInt(req.query.sinceMonths, 10);
+        const workingSet = applyRequestWindow(filteredRequests, sinceMonthsRaw);
+        const sinceMonths = (Number.isFinite(sinceMonthsRaw) && sinceMonthsRaw > 0) ? sinceMonthsRaw : null;
+
         // Peta by-id dibangun SEKALI: enrichment dulu `.find` per baris (O(riwayat × users/accounts))
         // dan itu akar utama "berat muat halaman" di sisi server saat riwayat menumpuk. Map = O(R+U).
         const usersById = new Map((global.users || []).map(u => [String(u.id), u]));
         const accountsById = new Map((global.accounts || []).map(a => [String(a.id), a]));
 
         // Enrich data dengan informasi package, requestor name, dan updated_by_name
-        const enrichedRequests = filteredRequests.map(request => {
+        const enrichedRequests = workingSet.map(request => {
             const user = usersById.get(String(request.userId));
             const requestorId = request.requested_by_agen_id || request.requested_by_teknisi_id;
             const requestorAccount = accountsById.get(String(requestorId));
@@ -193,11 +203,12 @@ router.get('/', async (req, res) => {
             };
         });
         
-        console.log(`[REQUESTS] ${req.user.username} (${req.user.role}): ${enrichedRequests.length} requests`);
-        
-        return res.status(200).json({ 
-            status: 200, 
-            data: enrichedRequests 
+        console.log(`[REQUESTS] ${req.user.username} (${req.user.role}): ${enrichedRequests.length}/${counts.total} requests${sinceMonths ? ` (window ${sinceMonths}bln)` : ''}`);
+
+        return res.status(200).json({
+            status: 200,
+            data: enrichedRequests,
+            meta: { counts, returned: enrichedRequests.length, sinceMonths }
         });
     } catch (error) {
         console.error('[REQUESTS] Error:', error.message);
