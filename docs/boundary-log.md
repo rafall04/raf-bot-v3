@@ -3168,4 +3168,12 @@
 - **FIX:** lib/feature-flags.js — getFlagEnabled kini hormati flag.defaultEnabled saat nilai ABSEN (eksplisit true/false tetap menang). isFeatureEnabled(key,{config,fallback}) = SATU cara baca kanonik (key tak dikenal → lempar kecuali fallback). Registrasi voucherSalesDashboard (defaultEnabled:true) → kini punya TOGGLE WEB di /feature-flags (dulu hanya SSH). routes/pages.js /voucher-sales migrasi ke isFeatureEnabled.
 - **Tes:** feature-flags +2 (defaultEnabled absen→true, eksplisit-false menang, deploy-gelap absen→false; isFeatureEnabled kanonik+fallback+lempar); worker-resync+docs-sync+pages-role-guard hijau (75 total); lint 0. Migrasi ~38 call-site sisa bertahap.
 
+<a id="b385"></a>
+
+### Fix 2026-09-11 (FASE 2 — hardening JID @lid di jalur saldo (defense-in-depth) + guard kunci proteksi)
+
+- **TEMUAN (mengoreksi audit):** jalur TULIS saldo TERNYATA SUDAH fail-closed pada @lid — addSaldo(:123)/deductSaldo(:357)/transfer(:38) menolak (resolve false) bila userId masih @lid. Jadi TAK ada lubang korupsi uang aktif. Sisa: normalizeUserJid (sync) dulu biarkan @lid lolos apa adanya → @lid yang SEBENARNYA ter-peta pun ikut ditolak hilir (user dgn @lid ter-map gagal topup bila caller lupa normalize).
+- **FIX (defense-in-depth, low-risk — hanya ubah perilaku input @lid):** normalizeUserJid kini coba resolve @lid SINKRON via jid-utils.getStoredMappingByLid (lid-mappings + global.users). Ter-peta → JID kanonik (baca/tulis benar); TIDAK ter-peta → biar @lid lolos (guard fail-closed hilir tetap menolak, uang tak nyasar); never-throw. Non-@lid & `:0`-strip tak berubah.
+- **Tes:** normalize-user-jid +7 (JID normal utuh, :0 strip, digit polos utuh, @lid ter-peta→kanonik, tak-ter-peta→lolos, error peta→never-throw, GUARD pemindai-sumber ketiga jalur tulis menolak @lid = proteksi tak boleh regres); regresi topup-store-safety 4 hijau; lint 0. Dedup 5 alerter = ditunda (notif-router sudah jadi choke-point penerima).
+
 

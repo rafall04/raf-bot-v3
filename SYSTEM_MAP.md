@@ -489,6 +489,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-11 (FASE 0 — drift: cabut ref file hantu report-state-handler.js dari indeks #b38; +Header Doc routes/users.js (langgar invariant))](docs/boundary-log.md#b382)
 - [Fitur 2026-09-11 (FASE 1 — lib/config-writer.saveConfigGate: jalur kanonik tulis config.json (readConfigFresh+saveConfigAtomic+sync runtime+reinit cron+resync worker, never-throw); ganti pola manual ~15× + fix olt.js saveConfig yang buang field ephemeral)](docs/boundary-log.md#b383)
 - [Fitur 2026-09-11 (FASE 1 — isFeatureEnabled(key) kanonik + getFlagEnabled hormati defaultEnabled (gate default-aktif nyala walau key absen, anti 404-senyap merge-key); daftar voucherSalesDashboard → toggle web; migrasi pages.js /voucher-sales)](docs/boundary-log.md#b384)
+- [Fix 2026-09-11 (FASE 2 — hardening JID @lid saldo: normalizeUserJid resolve @lid SINKRON via getStoredMappingByLid (defense-in-depth; jalur tulis add/deduct/transfer SUDAH fail-closed @lid) + guard pemindai-sumber kunci proteksi fail-closed)](docs/boundary-log.md#b385)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
