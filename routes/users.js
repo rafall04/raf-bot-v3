@@ -1,3 +1,17 @@
+/**
+ * Header Doc
+ * Purpose: Router admin pengelolaan pelanggan — pencarian, set kredensial portal, bulk-import
+ *   (provisioning MikroTik/GenieACS + welcome WA), buka-isolir, dan REKONSILIASI profil/device-id/
+ *   bulk WiFi (diff MikroTik/ACS vs DB + sync). Semua endpoint admin-only (ensureAdmin).
+ * Caller: routes-registry (di-mount di bawah /api/users).
+ * Deps: lib/mikrotik (profil/PPPoE), lib/services/isolir-service, lib/templating, lib/activity-logger,
+ *   lib/whatsapp-delivery-service, repositories users (via global.db/global.users).
+ * MainFuncs: /search, /:id/credentials, /bulk-import, /isolated, /buka-isolir, /profile-diff,
+ *   /sync-profiles, /device-id-diff, /sync-device-ids, /bulk-diff, /sync-bulk.
+ * SideEffects: Tulis users (DB), profil MikroTik, kirim WA welcome, activity-log. CATATAN utang:
+ *   logika diff/sync masih inline di controller (audit struktur #b378-map) — kandidat pindah ke
+ *   repository/service; SQL mentah global.db.* di sini belum ditipiskan.
+ */
 const express = require('express');
 const crypto = require('crypto');
 const { hashPassword } = require('../lib/password');

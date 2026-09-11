@@ -3143,3 +3143,13 @@
 - **AKAR:** `message/handlers/raf-intent-dispatch/index.js` `getIntentDispatchMap()` dulu punya daftar-spread MANUAL kembar dari `INTENT_DISPATCH_MODULES` yang wajib disinkron tangan; #b218 membuktikan: `gajiTeknisi` terdaftar di modules tapi LUPA di-spread → intent GAJI_SAYA tak ketemu handler → bot DIAM, fitur tak pernah bisa dipakai teknisi.
 - **FIX:** ganti spread manual jadi `Object.assign({}, ...Object.values(INTENT_DISPATCH_MODULES))` → modul apa pun di registry OTOMATIS tergabung; mustahil "lupa spread" lagi. Nambah modul intent = tambah 1 entri di INTENT_DISPATCH_MODULES saja.
 - **Tes:** raf-intent-dispatch/__tests__ 42 hijau (semua-modul-tersambung, gaji-teknisi, verifikasi-otp, menu-access-guard); node --check + lint 0.
+
+<a id="b382"></a>
+
+### Fix 2026-09-11 (FASE 0 — drift peta + Header Doc: SYSTEM_MAP nunjuk file hantu, users.js tanpa Header Doc)
+
+- **AKAR:** SYSTEM_MAP.md:#b38 mereferensikan `message/handlers/states/report-state-handler.js` yang sudah TIDAK ADA (guard boundary-index cuma cek hitungan anchor, tak validasi path di prosa) → penelusuran buka file hantu. routes/users.js (1133 baris) TANPA Header Doc (langgar invariant CLAUDE.md; invariant-lint menandai tiap edit).
+- **FIX:** cabut ref file hantu dari baris index #b38 (sisakan other-state-handler.js yang nyata). Tambah Header Doc routes/users.js (Purpose/Caller/Deps/MainFuncs/SideEffects) + catat utang inline diff/sync sebagai kandidat pindah ke repo/service. TIDAK menambah guard path-exists ke docs-sync: SYSTEM_MAP sah memakai BASENAME (mis. isolir-paket.js) sehingga validasi path ketat = false-positive.
+- **Tes:** boundary-index hijau; node --check users.js OK.
+
+

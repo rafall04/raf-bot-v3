@@ -141,7 +141,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [`repositories/auto-outage.repository.js` + `services/auto-outage-*.service.js` + `routes/admin-auto-outage-routes.js` + `views/sb-admin/auto-outage.php`](docs/boundary-log.md#b35)
 - [`database/response_templates.json` + `message/handlers/raf-intent-dispatch.js` + `message/handlers/agent.js` + `message/handlers/monitoring-handler.js`](docs/boundary-log.md#b36)
 - [`database/response_templates.json` + `message/handlers/agent.js`](docs/boundary-log.md#b37)
-- [`database/response_templates.json` + `message/handlers/states/other-state-handler.js` + `message/handlers/states/report-state-handler.js`](docs/boundary-log.md#b38)
+- [`database/response_templates.json` + `message/handlers/states/other-state-handler.js`](docs/boundary-log.md#b38)
 - [`database/response_templates.json` + `message/handlers/domains/reporting.domain.js` + `message/handlers/steps/general-steps.js`](docs/boundary-log.md#b39)
 - [`database/response_templates.json` + `routes/public.js` + `routes/saldo.js` + `routes/tickets.js` + `services/admin.service.js` + `lib/report-notification-service.js`](docs/boundary-log.md#b40)
 - [`database/response_templates.json` + `lib/topup-expiry.js` + `lib/psb-notification.js` + `lib/alert-system.js` + `routes/tickets.js`](docs/boundary-log.md#b41)
@@ -486,6 +486,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-11 (FASE 0 buang dead-code: hapus 5 modul lib/ yatim 0-require (rate-limiter/mikrotik-cache/response-tracker/simple-tracking/error-response) + pangkas 255 baris unreachable di routes/requests.js bulk-approve-legacy-disabled jadi stub 410; reseller.js/baileys-import ditahan)](docs/boundary-log.md#b379)
 - [Fix 2026-09-11 (FASE 0 — retensi message_logs: repositories/message-log.repository.pruneOld(180) + jadwal harian app-runtime; inbound_messages dulu tumbuh tanpa batas, kini seragam dgn olt_events/activity_logs; gate config.messageLogging.retentionDays)](docs/boundary-log.md#b380)
 - [Fix 2026-09-11 (FASE 0 — registry intent auto-gabung: getIntentDispatchMap pakai Object.values(INTENT_DISPATCH_MODULES), buang daftar-spread kembar; mustahil "lupa spread" lagi (akar #b218 fitur mati diam))](docs/boundary-log.md#b381)
+- [Fix 2026-09-11 (FASE 0 — drift: cabut ref file hantu report-state-handler.js dari indeks #b38; +Header Doc routes/users.js (langgar invariant))](docs/boundary-log.md#b382)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
