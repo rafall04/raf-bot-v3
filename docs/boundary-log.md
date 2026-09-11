@@ -3135,3 +3135,11 @@
 - **AKAR:** `inbound_messages` (korpus pesan masuk, ratusan/hari) di `repositories/message-log.repository.js` tak punya purge — beda dari olt_events (pruneOld 90hr, dijadwal app-runtime) & activity_logs (retensi 2thn). message_logs.sqlite membengkak tanpa batas di prod restart 7-13x/hari.
 - **FIX:** tambah `pruneOld(retentionDays=180)` (DELETE received_at<cutoff ISO; never-throw) + ekspor; jadwalkan di `lib/app-runtime.js` bersebelahan dgn prune olt-event (sekali saat init + timer harian ber-unref). Gate `config.messageLogging.retentionDays` (default 180) didokumentasikan di config.example.json. Pola retensi kini seragam lintas store log.
 - **Tes:** message-log.repository +2 (prune buang >retensi sisakan baru, never-throw default 180); docs-sync hijau; config.example valid JSON; node --check OK.
+
+<a id="b381"></a>
+
+### Fix 2026-09-11 (FASE 0 — registry intent auto-gabung: buang daftar-spread kembar (akar #b218 fitur mati diam))
+
+- **AKAR:** `message/handlers/raf-intent-dispatch/index.js` `getIntentDispatchMap()` dulu punya daftar-spread MANUAL kembar dari `INTENT_DISPATCH_MODULES` yang wajib disinkron tangan; #b218 membuktikan: `gajiTeknisi` terdaftar di modules tapi LUPA di-spread → intent GAJI_SAYA tak ketemu handler → bot DIAM, fitur tak pernah bisa dipakai teknisi.
+- **FIX:** ganti spread manual jadi `Object.assign({}, ...Object.values(INTENT_DISPATCH_MODULES))` → modul apa pun di registry OTOMATIS tergabung; mustahil "lupa spread" lagi. Nambah modul intent = tambah 1 entri di INTENT_DISPATCH_MODULES saja.
+- **Tes:** raf-intent-dispatch/__tests__ 42 hijau (semua-modul-tersambung, gaji-teknisi, verifikasi-otp, menu-access-guard); node --check + lint 0.

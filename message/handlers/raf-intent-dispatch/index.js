@@ -41,26 +41,10 @@ const INTENT_DISPATCH_MODULES = Object.freeze({
 });
 
 function getIntentDispatchMap() {
-    return {
-        ...INTENT_DISPATCH_MODULES.conversation,
-        ...INTENT_DISPATCH_MODULES.menu,
-        ...INTENT_DISPATCH_MODULES.reporting,
-        ...INTENT_DISPATCH_MODULES.ticketCustomer,
-        ...INTENT_DISPATCH_MODULES.ticketTeknisi,
-        ...INTENT_DISPATCH_MODULES.statusMikrotik,
-        ...INTENT_DISPATCH_MODULES.saldo,
-        ...INTENT_DISPATCH_MODULES.agent,
-        ...INTENT_DISPATCH_MODULES.wifi,
-        ...INTENT_DISPATCH_MODULES.networkAdmin,
-        ...INTENT_DISPATCH_MODULES.customerService,
-        ...INTENT_DISPATCH_MODULES.ownerAdmin,
-        ...INTENT_DISPATCH_MODULES.verification,
-        // Terdaftar di INTENT_DISPATCH_MODULES sejak #b218 tapi TAK PERNAH di-spread ke sini,
-        // sehingga `gaji saya` / `cek gaji` / `slip gaji` / `komisi saya` mencetak
-        // "[INTENT_DEBUG] Final intent: GAJI_SAYA" lalu dispatchIntent tak menemukan handler
-        // dan bot DIAM. Fiturnya tak pernah bisa dipakai teknisi.
-        ...INTENT_DISPATCH_MODULES.gajiTeknisi
-    };
+    // Gabung SEMUA sub-map dari INTENT_DISPATCH_MODULES otomatis. Dulu di sini ada daftar-spread
+    // manual KEMBAR yang wajib disinkron tangan; #b218 membuktikan bahayanya (gajiTeknisi terdaftar
+    // tapi LUPA di-spread -> intent GAJI_SAYA tak ketemu handler, bot DIAM). Object.values = mustahil lupa.
+    return Object.assign({}, ...Object.values(INTENT_DISPATCH_MODULES));
 }
 
 module.exports = {

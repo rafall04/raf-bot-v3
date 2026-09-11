@@ -485,6 +485,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-11 (UX — /notif-routing dirapikan: static/js/notif-routing kelompokkan 6 kategori per DOMAIN (Pembayaran/Jaringan/Voucher), pemilih grup jadi CHECKBOX (bukan select-multiple), status "Sekarang: ke grup X/chat admin" tegas, badge Penting/Biasa; render diverifikasi live di browser)](docs/boundary-log.md#b378)
 - [Fix 2026-09-11 (FASE 0 buang dead-code: hapus 5 modul lib/ yatim 0-require (rate-limiter/mikrotik-cache/response-tracker/simple-tracking/error-response) + pangkas 255 baris unreachable di routes/requests.js bulk-approve-legacy-disabled jadi stub 410; reseller.js/baileys-import ditahan)](docs/boundary-log.md#b379)
 - [Fix 2026-09-11 (FASE 0 — retensi message_logs: repositories/message-log.repository.pruneOld(180) + jadwal harian app-runtime; inbound_messages dulu tumbuh tanpa batas, kini seragam dgn olt_events/activity_logs; gate config.messageLogging.retentionDays)](docs/boundary-log.md#b380)
+- [Fix 2026-09-11 (FASE 0 — registry intent auto-gabung: getIntentDispatchMap pakai Object.values(INTENT_DISPATCH_MODULES), buang daftar-spread kembar; mustahil "lupa spread" lagi (akar #b218 fitur mati diam))](docs/boundary-log.md#b381)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
