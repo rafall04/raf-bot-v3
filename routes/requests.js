@@ -95,13 +95,25 @@ function resolveAdminPanelUrl(pathSuffix = '/pembayaran/requests') {
     return '';
 }
 
+// Penerima notif pengajuan (kategori 'payment_request') lewat choke-point routing: ke grup bila
+// diarahkan, jika tidak FAIL-OPEN ke daftar admin (getAdminNotificationRecipients = ownerNumber ∪
+// accounts admin) — persis perilaku lama saat notifRouting OFF. Dipakai jalur broadcast & digest.
+function getPaymentRequestRecipients(excludePhoneNumbers = []) {
+    const base = getAdminNotificationRecipients(excludePhoneNumbers);
+    try {
+        return require('../lib/notif-router').recipientsFor('payment_request', { adminFallback: base }).recipients || base;
+    } catch (_e) {
+        return base;
+    }
+}
+
 async function broadcastToAdmins(message, excludePhoneNumbers = []) {
     if (!hasAuthenticatedSession()) {
         console.log('[BROADCAST_TO_ADMINS] WhatsApp connection not available');
         return;
     }
 
-    const recipientsToSend = getAdminNotificationRecipients(excludePhoneNumbers);
+    const recipientsToSend = getPaymentRequestRecipients(excludePhoneNumbers);
     const delivery = await sendMessageToMany(recipientsToSend, { text: message });
     console.log('[BROADCAST_TO_ADMINS_RESULT]', {
         requested: recipientsToSend.length,
@@ -343,7 +355,7 @@ router.post('/', rateLimit('create-request', 30, 60000), async (req, res) => {
                     const windowMs = Number.isFinite(digestCfg.windowMinutes)
                         ? digestCfg.windowMinutes * 60000
                         : undefined;
-                    const recipients = getAdminNotificationRecipients();
+                    const recipients = getPaymentRequestRecipients();
                     for (const recipient of recipients) {
                         await enqueueOrSendFirst({
                             recipient,

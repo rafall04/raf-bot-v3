@@ -69,8 +69,23 @@ const customerVoucherService = createCustomerVoucherService({
 
 // Alert admin yang ANDAL: kirim ke tiap JID admin valid via sendCritical (retry + dead-letter).
 // Dipakai saat voucher gagal / reaktivasi tagihan gagal — wajib sampai ke operator.
+// Peta tag→kategori notif-router (tanpa menyentuh 6 call-site). Kirim TETAP sendCritical durable;
+// routing hanya mengubah PENERIMA (grup vs DM admin). notifRouting OFF/grup kosong → DM admin (lama).
+function _kategoriDariTag(tag) {
+    const t = String(tag || '').toLowerCase();
+    if (t.startsWith('voucher')) return 'voucher_sale';
+    if (t.includes('reaktivasi') || t.startsWith('tagihan')) return 'billing_isolir';
+    return null;
+}
+
 async function alertAdmins(text, tag) {
-    const jids = getAdminJids();
+    const adminFallback = getAdminJids();
+    const kategori = _kategoriDariTag(tag);
+    let jids = adminFallback;
+    if (kategori) {
+        try { jids = require('../lib/notif-router').recipientsFor(kategori, { adminFallback }).recipients || adminFallback; }
+        catch (_e) { jids = adminFallback; }
+    }
     if (!jids.length) { console.error(`[ADMIN_ALERT] Tidak ada JID admin valid untuk: ${tag}`); return; }
     for (const jid of jids) {
         try { await sendCritical(jid, { text }, { label: tag || 'admin-alert' }); }

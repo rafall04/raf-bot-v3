@@ -3095,3 +3095,11 @@
 
 - **MIGRASI (behavior-preserving saat OFF):** (1) `lib/admin-alarm.sendAdminAlarm` — tambah opsi `category`; bila diberi, penerima via `recipientsFor(category,{adminFallback:getAdminJids()})` (kirim TETAP sendCritical durable). `lib/cron/jobs/isolir.js` + `set-unpaid.js` pass `category:'billing_isolir'` → alarm kegagalan cron isolir/set-unpaid ke grup bila diarahkan. telegram-backup DIBIARKAN tanpa category (bukan billing → DM admin). (2) `lib/quality-alarm.js` (alarm kestabilan jaringan) — penerima via `recipientsFor("network_quality")`, kirim tetap sendCritical(waitForReadyMs).
 - **Tes:** admin-alarm +2 (category ON→grup, OFF→fail-open DM); notif-routing-migration +2 (sendAdminAlarm category + isolir/set-unpaid pass, quality-alarm network_quality); regresi admin-alarm 4 + quality-alarm 13 hijau; lint 0 error.
+
+<a id="b376"></a>
+
+### Fitur 2026-09-11 (P1 — routing notif: migrasi voucher_sale + payment_request; 6/6 kategori tuntas)
+
+- **MIGRASI (behavior-preserving saat OFF):** (1) `routes/public.js alertAdmins(text,tag)` — tambah `_kategoriDariTag(tag)`: `voucher*`→`voucher_sale`, `reaktivasi`/`tagihan*`→`billing_isolir`; penerima via `recipientsFor(kategori,{adminFallback:getAdminJids()})`, kirim TETAP sendCritical. Tanpa sentuh 6 call-site (voucher gagal/terjual + reaktivasi gagal) — tag sudah mengkode kategori. (2) `routes/requests.js` — `getPaymentRequestRecipients()` (getAdminNotificationRecipients ∪ ownerNumber → recipientsFor('payment_request')); dipakai `broadcastToAdmins` (jalur non-digest) DAN loop digest `enqueueOrSendFirst` (bucketKey per-recipient aman utk @g.us). Digest windowing tetap jalan ke grup.
+- **STATUS:** 6/6 kategori termigrasi — otorisasi_gagal+los_alarm (#b374), billing_isolir(cron)+network_quality (#b375), voucher_sale+payment_request+billing_isolir(reaktivasi) (#b376). notifRouting tetap default OFF; halaman /notif-routing untuk aktifkan per kategori.
+- **Tes:** notif-routing-migration +2 (public tag→kategori, payment_request via getPaymentRequestRecipients); regresi requests-approval-atomic + payment-approval-bulk-summary (digest) hijau; node --check public/requests OK; lint 0 error.
