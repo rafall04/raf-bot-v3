@@ -3088,3 +3088,10 @@
 - **MIGRASI (2 titik, behavior-preserving saat notifRouting OFF):** (1) `services/bulk-approval-job.service.beritahuAdminGagal` → `dispatch("otorisasi_gagal", {text, adminFallback:getAdminJids()})` — sebelumnya loop `sendMessage` langsung ke getAdminJids; kini lewat choke-point (upgrade ke sendCritical durable karena severity critical), ke grup bila diarahkan. (2) `lib/olt-log-scraper._kirimAlarmOltAdmin` (all-down + partial-down #b365 + pulih) → penerima via `recipientsFor("los_alarm", {adminFallback:getAdminJids()})`, kirim TETAP `sendCritical(waitForReadyMs:8000)` (OLT alarm saat WA baru pulih). Gate OFF/grup kosong → FAIL-OPEN DM admin = persis perilaku lama.
 - **Sisa (didokumentasikan, belum dimigrasi):** payment_request (terjalin notification-digest windowing), network_quality (upstream/wan/complaint — sebagian sudah punya cfg.groupJid sendiri), voucher_sale, billing_isolir. Mesin + halaman sudah mendukung 6 kategori; migrasi menyusul per kebutuhan.
 - **Tes:** notif-routing-migration +2 (pemindai sumber: otorisasi_gagal via dispatch, los_alarm via recipientsFor + waitForReadyMs dipertahankan); regresi bulk-approval-job 9 + olt-partial-down 6 hijau; lint 0 error.
+
+<a id="b375"></a>
+
+### Fitur 2026-09-11 (P1 — routing notif: migrasi billing_isolir + network_quality)
+
+- **MIGRASI (behavior-preserving saat OFF):** (1) `lib/admin-alarm.sendAdminAlarm` — tambah opsi `category`; bila diberi, penerima via `recipientsFor(category,{adminFallback:getAdminJids()})` (kirim TETAP sendCritical durable). `lib/cron/jobs/isolir.js` + `set-unpaid.js` pass `category:'billing_isolir'` → alarm kegagalan cron isolir/set-unpaid ke grup bila diarahkan. telegram-backup DIBIARKAN tanpa category (bukan billing → DM admin). (2) `lib/quality-alarm.js` (alarm kestabilan jaringan) — penerima via `recipientsFor("network_quality")`, kirim tetap sendCritical(waitForReadyMs).
+- **Tes:** admin-alarm +2 (category ON→grup, OFF→fail-open DM); notif-routing-migration +2 (sendAdminAlarm category + isolir/set-unpaid pass, quality-alarm network_quality); regresi admin-alarm 4 + quality-alarm 13 hijau; lint 0 error.
