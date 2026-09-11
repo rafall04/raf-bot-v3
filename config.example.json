@@ -375,7 +375,8 @@
     "messageUp": ""
   },
   "messageLogging": {
-    "enabled": true
+    "enabled": true,
+    "retentionDays": 180
   },
   "customerAssist": {
     "looseMatcher": {

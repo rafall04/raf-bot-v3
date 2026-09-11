@@ -256,6 +256,25 @@ function createMessageLogRepository(overrides = {}) {
         );
     }
 
+    /**
+     * Prune korpus pesan masuk lebih tua dari retentionDays. Dulu inbound_messages tumbuh TANPA
+     * BATAS (satu-satunya store log yang lolos retensi; olt_events & activity_logs sudah dijaga).
+     * received_at = ISO string → perbandingan leksikografis ISO valid. Never-throw.
+     */
+    async function pruneOld(retentionDays = 180) {
+        try {
+            await ensureSchema();
+            const days = Number.isFinite(retentionDays) && retentionDays > 0 ? retentionDays : 180;
+            const cutoffIso = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+            const res = await run("DELETE FROM inbound_messages WHERE received_at < ?", [cutoffIso]);
+            if (res.changes > 0) console.log(`[MESSAGE_LOG] Prune ${res.changes} pesan masuk > ${days} hari.`);
+            return res.changes;
+        } catch (err) {
+            console.warn(`[MESSAGE_LOG] prune gagal: ${err.message}`);
+            return 0;
+        }
+    }
+
     function close() {
         return new Promise((resolve, reject) => {
             db.close((err) => {
@@ -277,6 +296,7 @@ function createMessageLogRepository(overrides = {}) {
         saveAdminOutbound,
         saveComplaint,
         loadRecentChatActivity,
+        pruneOld,
         close
     };
 }

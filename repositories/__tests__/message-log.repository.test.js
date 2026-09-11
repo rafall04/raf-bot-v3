@@ -68,4 +68,23 @@ describe("message-log.repository", () => {
         expect(customer.count).toBe(2);
         await repo.close();
     });
+
+    test("pruneOld membuang pesan lebih tua dari retensi, menyisakan yang baru", async () => {
+        const repo = makeRepo();
+        const iso = (dhariLalu) => new Date(Date.now() - dhariLalu * 24 * 60 * 60 * 1000).toISOString();
+        await repo.logInbound({ received_at: iso(200), body: "lama-200hari" });
+        await repo.logInbound({ received_at: iso(10), body: "baru-10hari" });
+        const dihapus = await repo.pruneOld(180);
+        expect(dihapus).toBe(1);
+        const sisa = await repo.getRecent({ limit: 10 });
+        expect(sisa).toHaveLength(1);
+        expect(sisa[0].body).toBe("baru-10hari");
+        await repo.close();
+    });
+
+    test("pruneOld never-throw + default 180 saat argumen tak wajar", async () => {
+        const repo = makeRepo();
+        await expect(repo.pruneOld("abc")).resolves.toBe(0);
+        await repo.close();
+    });
 });

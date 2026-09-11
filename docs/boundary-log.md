@@ -3127,3 +3127,11 @@
 - **AKAR (audit struktur):** modul lib/ nol-require yang menyerupai util aktif → agen berikut bisa import ulang util basi & bercabang perilaku; + 255 baris impl bulk-approve lama tertinggal DI BELAKANG `return res.status(410)` di routes/requests.js (terbaca seolah endpoint uang hidup).
 - **FIX:** hapus `lib/rate-limiter.js` (323) + `lib/mikrotik-cache.js` (192) + `lib/response-tracker.js` (105) + `lib/simple-tracking.js` (191) + `lib/error-response.js` (236) — SEMUA diverifikasi 0 require di source (grep repo). Cabut `lib/error-response.js` dari daftar file di `wa-boundary-guardrails.test.js` (guard baca file itu). Pangkas `routes/requests.js` body `bulk-approve-legacy-disabled` (843-1097) → sisakan stub 410 tiga baris (1100→845 baris). **DITAHAN (belum dihapus):** `lib/reseller.js` (modul domain +JSON store, 0-ref tapi perlu konfirmasi owner) & `lib/baileys-import.js` (pola tersanksi di allowlist invariant-lint).
 - **Tes:** wa-boundary-guardrails 16 hijau (dari 17, entri error-response dicabut); requests-approval-atomic + payment-status-routing 6 hijau; node --check OK; lint 0 error. Permukaan lib/ turun 5 file, requests.js −255 baris.
+
+<a id="b380"></a>
+
+### Fix 2026-09-11 (FASE 0 — retensi message_logs: satu-satunya store log yang dulu tumbuh TANPA BATAS)
+
+- **AKAR:** `inbound_messages` (korpus pesan masuk, ratusan/hari) di `repositories/message-log.repository.js` tak punya purge — beda dari olt_events (pruneOld 90hr, dijadwal app-runtime) & activity_logs (retensi 2thn). message_logs.sqlite membengkak tanpa batas di prod restart 7-13x/hari.
+- **FIX:** tambah `pruneOld(retentionDays=180)` (DELETE received_at<cutoff ISO; never-throw) + ekspor; jadwalkan di `lib/app-runtime.js` bersebelahan dgn prune olt-event (sekali saat init + timer harian ber-unref). Gate `config.messageLogging.retentionDays` (default 180) didokumentasikan di config.example.json. Pola retensi kini seragam lintas store log.
+- **Tes:** message-log.repository +2 (prune buang >retensi sisakan baru, never-throw default 180); docs-sync hijau; config.example valid JSON; node --check OK.
