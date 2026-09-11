@@ -18,7 +18,7 @@
                 <div class="container-fluid">
                     <div class="dashboard-header">
                         <h1>Routing Notifikasi ke Grup</h1>
-                        <p>Arahkan tiap jenis notifikasi ke GRUP WhatsApp tertentu agar tak menumpuk di DM admin. Saat master OFF (atau grup belum dipilih), notifikasi tetap dikirim ke DM admin seperti biasa — jadi aman, tak ada yang hilang.</p>
+                        <p>Pilih grup WhatsApp untuk tiap jenis notifikasi supaya tidak menumpuk di chat pribadi admin. Contoh: notifikasi <b>pembayaran</b> ke grup admin keuangan, notifikasi <b>gangguan jaringan</b> ke grup teknisi. Kalau sebuah jenis belum dipilih grupnya, notifikasinya tetap dikirim ke chat pribadi admin seperti biasa (jadi tidak ada yang hilang).</p>
                     </div>
 
                     <div id="nrMessage" class="mb-3"></div>
@@ -26,13 +26,13 @@
                     <div class="card shadow mb-4">
                         <div class="card-body d-flex align-items-center justify-content-between flex-wrap" style="gap:1rem;">
                             <div>
-                                <div style="font-weight:700;">Master: Routing ke Grup</div>
-                                <div class="small text-muted">OFF = semua notifikasi ke DM admin (perilaku sekarang). ON = pakai grup yang dipilih per kategori, dengan fallback ke DM admin bila grup kosong.</div>
-                                <div class="small" id="nrWaStatus" style="opacity:.7;"></div>
+                                <div style="font-weight:700;">Aktifkan Routing ke Grup</div>
+                                <div class="small text-muted">MATI = semua notifikasi ke chat pribadi admin (seperti sekarang). AKTIF = pakai grup yang dipilih per jenis di bawah.</div>
+                                <div class="small mt-1" id="nrWaStatus"></div>
                             </div>
                             <div class="custom-control custom-switch" style="white-space:nowrap;">
                                 <input type="checkbox" class="custom-control-input" id="nrMaster">
-                                <label class="custom-control-label" for="nrMaster" id="nrMasterLabel">OFF</label>
+                                <label class="custom-control-label" for="nrMaster" id="nrMasterLabel">MATI</label>
                             </div>
                         </div>
                     </div>
