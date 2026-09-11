@@ -3176,4 +3176,12 @@
 - **FIX (defense-in-depth, low-risk — hanya ubah perilaku input @lid):** normalizeUserJid kini coba resolve @lid SINKRON via jid-utils.getStoredMappingByLid (lid-mappings + global.users). Ter-peta → JID kanonik (baca/tulis benar); TIDAK ter-peta → biar @lid lolos (guard fail-closed hilir tetap menolak, uang tak nyasar); never-throw. Non-@lid & `:0`-strip tak berubah.
 - **Tes:** normalize-user-jid +7 (JID normal utuh, :0 strip, digit polos utuh, @lid ter-peta→kanonik, tak-ter-peta→lolos, error peta→never-throw, GUARD pemindai-sumber ketiga jalur tulis menolak @lid = proteksi tak boleh regres); regresi topup-store-safety 4 hijau; lint 0. Dedup 5 alerter = ditunda (notif-router sudah jadi choke-point penerima).
 
+<a id="b386"></a>
+
+### Fitur 2026-09-11 (FASE 3 langkah 1 — pecah routes/public.js: ekstrak sub-router KONTEN via facade)
+
+- **AKAR:** routes/public.js grab-bag 5 domain (auth/self-service/reports/konten/pembayaran) dalam 1897 baris; nambah endpoint di satu domain = risiko regresi lintas-domain. Callback pembayaran 305 baris money-logic inline (belum diekstrak — SENGAJA, kontrol-alur sentinel throw !0/!1 rawan, dikerjakan terpisah dgn characterization test lengkap).
+- **FIX (facade, path TAK berubah):** `routes/public/content.js` (baru) = sub-router KONTEN read-only (GET /api/wifi-name, /api/announcements(+/recent), /api/news(+/recent)) — dep mandiri (PublicService/sendSuccess/asyncHandler), bukan helper closure public.js. public.js `router.use(require('./public/content'))` → mount di path sama. public.js 1897→1770 baris. Domain sisa (self-service, auth, payment-callback-service) bertahap.
+- **Tes:** public-content-router +2 (5 path terdaftar di sub-router + public.js mount facade & tak ada route konten inline); regresi 5 suite public (anonymous-trx, otp-limiter, payment-callback voucher/topup/tagihan) 46 hijau; node --check + lint 0.
+
 
