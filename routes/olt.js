@@ -33,7 +33,6 @@ const express = require('express');
 const router = express.Router();
 const { assertBolehAksesPelanggan } = require('./api-route-helpers');
 const fs = require('fs');
-const { writeFileAtomicSync } = require('../lib/atomic-file'); // config.json ATOMIK (#b343)
 const path = require('path');
 
 // Import OLT library
@@ -341,13 +340,12 @@ function loadConfig() {
     }
 }
 
-// Helper to save config
+// Helper to save config — delegasi ke env-config.saveConfigAtomic (indent 2 konsisten + STRIP field
+// ephemeral lalu re-add ke global.config). Dulu `global.config = config` di sini MENJATUHKAN
+// environment/isProduction/isTest (config dibaca dari disk tanpa field itu) — bug terkonfirmasi audit.
 function saveConfig(config) {
     try {
-        const configPath = path.join(__dirname, '..', 'config.json');
-        writeFileAtomicSync(configPath, JSON.stringify(config, null, 4));
-        // Update global config
-        global.config = config;
+        require('../lib/env-config').saveConfigAtomic(config);
         return true;
     } catch (error) {
         console.error('[OLT] Error saving config:', error.message);

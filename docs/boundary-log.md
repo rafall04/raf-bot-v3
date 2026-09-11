@@ -3152,4 +3152,12 @@
 - **FIX:** cabut ref file hantu dari baris index #b38 (sisakan other-state-handler.js yang nyata). Tambah Header Doc routes/users.js (Purpose/Caller/Deps/MainFuncs/SideEffects) + catat utang inline diff/sync sebagai kandidat pindah ke repo/service. TIDAK menambah guard path-exists ke docs-sync: SYSTEM_MAP sah memakai BASENAME (mis. isolir-paket.js) sehingga validasi path ketat = false-positive.
 - **Tes:** boundary-index hijau; node --check users.js OK.
 
+<a id="b383"></a>
+
+### Fitur 2026-09-11 (FASE 1 — lib/config-writer.saveConfigGate: satu jalur kanonik tulis config.json)
+
+- **AKAR:** pola read→modify→writeAtomic→sync→reinit disalin ~15× di 10 route; 3 varian sync (setConfig / mutasi global.config / replace-utuh), indent 4↔2 (drift bising), dan `routes/olt.js saveConfig` `global.config=config` MENJATUHKAN field ephemeral (environment/isProduction/isTest) — bug terkonfirmasi. Helper kanonik `env-config.readConfigFresh/saveConfigAtomic` ada tapi cuma dipakai 2 file.
+- **FIX:** `lib/config-writer.js` `saveConfigGate(mutate,{runtime,reinitCron,resyncWorkerKey})` — baca segar (merge-key aman) → mutate subkey → saveConfigAtomic (atomik + strip ephemeral + set global.config + indent 2) → opsional sync runtime holder + initializeAllCronTasks + resyncWorkerForFlag; efek samping never-throw. Migrasi pertama: `routes/olt.js saveConfig` → delegasi `saveConfigAtomic` (fix ephemeral-drop + indent), buang import writeFileAtomicSync yatim. Migrasi ~14 situs sisa = bertahap (helper siap).
+- **Tes:** config-writer +5 (mutate in-place jaga subkey lain, runtime.setConfig, reinitCron+resyncWorker, never-throw, kontrak mutate-fungsi); node --check olt.js + lint 0.
+
 

@@ -487,6 +487,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-11 (FASE 0 — retensi message_logs: repositories/message-log.repository.pruneOld(180) + jadwal harian app-runtime; inbound_messages dulu tumbuh tanpa batas, kini seragam dgn olt_events/activity_logs; gate config.messageLogging.retentionDays)](docs/boundary-log.md#b380)
 - [Fix 2026-09-11 (FASE 0 — registry intent auto-gabung: getIntentDispatchMap pakai Object.values(INTENT_DISPATCH_MODULES), buang daftar-spread kembar; mustahil "lupa spread" lagi (akar #b218 fitur mati diam))](docs/boundary-log.md#b381)
 - [Fix 2026-09-11 (FASE 0 — drift: cabut ref file hantu report-state-handler.js dari indeks #b38; +Header Doc routes/users.js (langgar invariant))](docs/boundary-log.md#b382)
+- [Fitur 2026-09-11 (FASE 1 — lib/config-writer.saveConfigGate: jalur kanonik tulis config.json (readConfigFresh+saveConfigAtomic+sync runtime+reinit cron+resync worker, never-throw); ganti pola manual ~15× + fix olt.js saveConfig yang buang field ephemeral)](docs/boundary-log.md#b383)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
