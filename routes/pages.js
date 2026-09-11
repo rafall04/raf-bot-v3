@@ -491,8 +491,9 @@ router.get('/voucher-print', checkRole(['admin', 'owner', 'superadmin']), (req, 
 // message/raf.js, messageLogging di repositories/message-log.repository.js) dan
 // tahan terhadap instalasi yang belum memerge kunci baru.
 router.get('/voucher-sales', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
-    const cfg = (global.config && global.config.voucherSalesDashboard) || {};
-    if (cfg.enabled === false) {
+    // Baca gate lewat SATU helper kanonik (registry FEATURE_FLAGS, defaultEnabled:true) — bukan
+    // idiom truthy/`!==false` tersebar. Absen di config = tetap AKTIF (default), toggle di /feature-flags.
+    if (!require('../lib/feature-flags').isFeatureEnabled('voucherSalesDashboard')) {
         return res.status(404).render('sb-admin/404.php');
     }
     res.render('sb-admin/voucher-sales.php');

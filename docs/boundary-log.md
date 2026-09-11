@@ -3160,4 +3160,12 @@
 - **FIX:** `lib/config-writer.js` `saveConfigGate(mutate,{runtime,reinitCron,resyncWorkerKey})` — baca segar (merge-key aman) → mutate subkey → saveConfigAtomic (atomik + strip ephemeral + set global.config + indent 2) → opsional sync runtime holder + initializeAllCronTasks + resyncWorkerForFlag; efek samping never-throw. Migrasi pertama: `routes/olt.js saveConfig` → delegasi `saveConfigAtomic` (fix ephemeral-drop + indent), buang import writeFileAtomicSync yatim. Migrasi ~14 situs sisa = bertahap (helper siap).
 - **Tes:** config-writer +5 (mutate in-place jaga subkey lain, runtime.setConfig, reinitCron+resyncWorker, never-throw, kontrak mutate-fungsi); node --check olt.js + lint 0.
 
+<a id="b384"></a>
+
+### Fitur 2026-09-11 (FASE 1 — isFeatureEnabled(key) kanonik + defaultEnabled anti-404-senyap)
+
+- **AKAR:** ~39 gate dibaca 3 idiom (===true / !==false / truthy); salah default = bug (voucher-sales pernah 404-senyap: key absen di config.json prod merge-key). getFlagEnabled dulu hanya cur===true → tak bisa memodelkan gate DEFAULT-AKTIF.
+- **FIX:** lib/feature-flags.js — getFlagEnabled kini hormati flag.defaultEnabled saat nilai ABSEN (eksplisit true/false tetap menang). isFeatureEnabled(key,{config,fallback}) = SATU cara baca kanonik (key tak dikenal → lempar kecuali fallback). Registrasi voucherSalesDashboard (defaultEnabled:true) → kini punya TOGGLE WEB di /feature-flags (dulu hanya SSH). routes/pages.js /voucher-sales migrasi ke isFeatureEnabled.
+- **Tes:** feature-flags +2 (defaultEnabled absen→true, eksplisit-false menang, deploy-gelap absen→false; isFeatureEnabled kanonik+fallback+lempar); worker-resync+docs-sync+pages-role-guard hijau (75 total); lint 0. Migrasi ~38 call-site sisa bertahap.
+
 
