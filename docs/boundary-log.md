@@ -3184,4 +3184,13 @@
 - **FIX (facade, path TAK berubah):** `routes/public/content.js` (baru) = sub-router KONTEN read-only (GET /api/wifi-name, /api/announcements(+/recent), /api/news(+/recent)) — dep mandiri (PublicService/sendSuccess/asyncHandler), bukan helper closure public.js. public.js `router.use(require('./public/content'))` → mount di path sama. public.js 1897→1770 baris. Domain sisa (self-service, auth, payment-callback-service) bertahap.
 - **Tes:** public-content-router +2 (5 path terdaftar di sub-router + public.js mount facade & tak ada route konten inline); regresi 5 suite public (anonymous-trx, otp-limiter, payment-callback voucher/topup/tagihan) 46 hijau; node --check + lint 0.
 
+<a id="b387"></a>
+
+### Fix 2026-09-12 (invoice tak terkirim [1/2] — ekstrak hook post-lunas + decouple gate notif + anti silent-drop)
+
+- **AKAR (telusur 3-agen):** kirim invoice PDF otomatis HANYA ada di lib/approval-logic.handlePaidStatusChange, TERGABUNG di gate notif-teks `if(isReady() && isNotifEnabled)` (status_message_paid_notification). Akibat: (a) invoice mati bila toggle notif OFF; (b) `if(invoiceData)` tanpa else → createInvoice null = NOL pesan (silent-drop); (c) cek `===true||===1` tolak '1'/'true'.
+- **FIX [1/2]:** `lib/invoice-on-paid.js` (baru) `sendPaidInvoiceOrReceipt(user,{messageText,notifEnabled,deps})` — sub-rutin BERSAMA (nanti dipakai jalur settle juga): send_invoice ON → PDF SELALU (DECOUPLE dari notifEnabled); OFF → teks hanya bila notifEnabled; createInvoice null / PDF gagal → fallback TEKS (anti silent-drop); flag ternormalisasi (true/1/'1'/'true'); never-throw. handlePaidStatusChange di-rewire pakai hook (invoice keluar dari gate notif). approval-logic 515→378 baris.
+- **Perubahan perilaku:** pelanggan send_invoice=ON kini terima invoice walau toggle notif-bayar OFF (sesuai niat: invoice = opt-in per-pelanggan, terpisah dari notif teks). Langkah [2/2] #b388: wire ke settleTagihanPayment (jalur WA foto-bukti/callback).
+- **Tes:** invoice-on-paid +8 (decouple, anti-silent-drop, OFF+notif-off skip, PDF-gagal→fallback, normalize, never-throw); regresi invoice-customization + paid-receipt-single-source + approval-reaktivasi 20 hijau; lint 0.
+
 
