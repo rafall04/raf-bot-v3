@@ -330,7 +330,16 @@ router.post("/callback/tripay", asyncHandler(async (req, res) => {
             if (tindakan.jenis === "kelebihan") {
                 console.warn("[TRIPAY_CALLBACK] KELEBIHAN BAYAR", { merchantRef, ledgerDicatat: tindakan.ledgerDicatat });
             }
-            if (pay.sender) await sendMessage(pay.sender, { text: tindakan.teksPelanggan });
+            if (pay.sender) {
+                // FIX invoice-tak-terkirim (callback online): gate invoiceOnSettle ON & send_invoice
+                // ON & pelunasan BERSIH (bukan kelebihan) → invoice PDF; jika tidak → struk teks. No dobel.
+                const sentInvoice = await require("../lib/invoice-on-paid").trySendSettleInvoice(user, {
+                    messageText: tindakan.teksPelanggan,
+                    paymentDetails: { method: "Online", paidDate: new Date().toISOString(), paymentHistoryId: pay.reffId },
+                    isCleanPaid: tindakan.jenis !== "kelebihan",
+                });
+                if (!sentInvoice) await sendMessage(pay.sender, { text: tindakan.teksPelanggan });
+            }
         } catch (notifyErr) {
             console.error("[TRIPAY_CALLBACK] Gagal kirim struk:", notifyErr.message);
         }
@@ -425,7 +434,16 @@ router.post("/callback/mayar", asyncHandler(async (req, res) => {
             if (tindakan.jenis === "kelebihan") {
                 console.warn("[MAYAR_CALLBACK] KELEBIHAN BAYAR", { reffId: pay.reffId, ledgerDicatat: tindakan.ledgerDicatat });
             }
-            if (pay.sender) await sendMessage(pay.sender, { text: tindakan.teksPelanggan });
+            if (pay.sender) {
+                // FIX invoice-tak-terkirim (callback online): gate invoiceOnSettle ON & send_invoice
+                // ON & pelunasan BERSIH (bukan kelebihan) → invoice PDF; jika tidak → struk teks. No dobel.
+                const sentInvoice = await require("../lib/invoice-on-paid").trySendSettleInvoice(user, {
+                    messageText: tindakan.teksPelanggan,
+                    paymentDetails: { method: "Online", paidDate: new Date().toISOString(), paymentHistoryId: pay.reffId },
+                    isCleanPaid: tindakan.jenis !== "kelebihan",
+                });
+                if (!sentInvoice) await sendMessage(pay.sender, { text: tindakan.teksPelanggan });
+            }
         } catch (notifyErr) {
             console.error("[MAYAR_CALLBACK] Gagal kirim struk:", notifyErr.message);
         }

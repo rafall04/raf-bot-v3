@@ -1430,7 +1430,17 @@ router.post('/callback/payment', async (req, res) => {
                     if (tindakan.jenis === 'kelebihan') {
                         console.warn('[IPAYMU_TAGIHAN] KELEBIHAN BAYAR', { reference_id, ledgerDicatat: tindakan.ledgerDicatat });
                     }
-                    if (pay.sender) await sendMessage(pay.sender, { text: tindakan.teksPelanggan });
+                    if (pay.sender) {
+                        // FIX invoice-tak-terkirim (callback online): bila gate invoiceOnSettle ON &
+                        // send_invoice ON & pelunasan BERSIH (bukan kelebihan) → kirim invoice PDF
+                        // (caption = struk yang sama); jika tidak → struk teks lama. Cegah dobel-kirim.
+                        const sentInvoice = await require('../lib/invoice-on-paid').trySendSettleInvoice(user, {
+                            messageText: tindakan.teksPelanggan,
+                            paymentDetails: { method: pay.method || 'QRIS', paidDate: new Date().toISOString(), paymentHistoryId: reference_id },
+                            isCleanPaid: tindakan.jenis !== 'kelebihan',
+                        });
+                        if (!sentInvoice) await sendMessage(pay.sender, { text: tindakan.teksPelanggan });
+                    }
                 } catch (notifyErr) {
                     console.error('[IPAYMU_TAGIHAN] Gagal kirim struk:', notifyErr.message);
                 }

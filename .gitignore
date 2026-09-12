@@ -61,6 +61,7 @@ database/topup_requests.json
 # Payment & billing
 database/invoices.json
 database/invoice-counter.json
+database/invoice_errors.json
 database/payment.json
 database/saldo_transactions.json
 

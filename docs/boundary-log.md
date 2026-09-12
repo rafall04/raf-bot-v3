@@ -3203,3 +3203,12 @@
 - **Tes:** payment-proof-invoice-wiring +2 (gate+hook+cek flag+fallback teks; flag terdaftar default OFF); regresi payment-proof/paid-receipt/reaktivasi 48 hijau; config valid; lint 0. Aktivasi: nyalakan invoiceOnSettle di /feature-flags.
 
 
+
+<a id="b389"></a>
+
+### Fix 2026-09-12 (invoice tak terkirim [3/3] — wire hook ke callback online iPaymu/Tripay/Mayar, gated)
+
+- **AKAR (jalur sisa #b388):** callback gateway online (iPaymu tagihan di routes/public.js; Tripay+Mayar di routes/bill-payment.js) pasca settleTagihanPayment cuma `sendMessage(pay.sender,{text:tindakan.teksPelanggan})` (struk teks) — tak pernah invoice PDF meski send_invoice=ON, sama seperti jalur foto-bukti.
+- **FIX [3/3]:** `lib/invoice-on-paid.trySendSettleInvoice(user,{messageText,paymentDetails,isCleanPaid})` (baru) — bungkus jalur settle: gate `config.invoiceOnSettle.enabled` ON & send_invoice ON & isCleanPaid → kirim invoice PDF via `sendPaidInvoiceOrReceipt`, return true (caller SKIP teks, cegah dobel); else false → caller kirim struk teks. 3 callback di-rewire ke pola `sentInvoice = await trySendSettleInvoice(...); if(!sentInvoice) sendMessage(text)`. `isCleanPaid = tindakan.jenis !== 'kelebihan'` → kelebihan-bayar TETAP teks (bukan invoice).
+- **Hygiene:** dead-letter invoice_errors.json kini via `getDatabasePath` → NODE_ENV=test terisolasi ke invoice_errors_test.json (auto-diignore), tak mengotori data prod; path prod tetap database/invoice_errors.json (perilaku prod tak berubah) + di-gitignore (sekelas invoices.json).
+- **Tes:** callback-invoice-wiring +2 (guard pemindai: 3 callback panggil trySendSettleInvoice + isCleanPaid + fallback teks); regresi callback-tagihan/topup/voucher/content-router/invoice-on-paid/proof-wiring 42 hijau (lebarkan jendela slice tagihan.test 3600->4400 & after 1100->1700); lint 0. Aktivasi: nyalakan invoiceOnSettle di /feature-flags.

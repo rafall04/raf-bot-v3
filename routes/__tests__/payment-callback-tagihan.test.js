@@ -18,10 +18,10 @@ const path = require("path");
 
 const source = fs.readFileSync(path.join(__dirname, "..", "public.js"), "utf8");
 const idx = source.indexOf("pay.tag == 'tagihan'");
-// Jendela blok dilebarkan 2600 → 3600 (#b238): blok tagihan kini juga menangani kasus
-// kelebihan bayar (catat ledger + alarm admin) sebelum penutup try/catch-nya, sehingga
-// bloknya bertambah panjang. Yang diuji suite ini tidak berubah.
-const block = idx > -1 ? source.slice(idx, idx + 3600) : "";
+// Jendela blok dilebarkan 2600 → 3600 (#b238) → 4400: blok tagihan kini juga menangani kasus
+// kelebihan bayar (catat ledger + alarm admin) DAN branch invoice-PDF-vs-teks (trySendSettleInvoice)
+// sebelum penutup try/catch-nya, sehingga bloknya bertambah panjang. Yang diuji suite ini tidak berubah.
+const block = idx > -1 ? source.slice(idx, idx + 4400) : "";
 
 describe("callback tagihan — fail-closed catat lunas + auto-reaktivasi", () => {
     test("blok tagihan ada di routes/public.js", () => {
@@ -67,10 +67,10 @@ describe("callback tagihan — fail-closed catat lunas + auto-reaktivasi", () =>
         // try/catch supaya gagal render/kirim WA tak menggagalkan callback gateway.
         const idxStruk = block.indexOf("putuskanTindakanPascaLunas");
         const before = block.slice(Math.max(0, idxStruk - 400), idxStruk);
-        // Jendela dilebarkan 600 → 1100: blok ini kini juga mencatat/mewartakan kasus
-        // kelebihan bayar sebelum `catch`, jadi jarak ke penutupnya bertambah. Yang diuji
-        // tetap sama — keberadaan pembungkus try/catch, bukan panjang bloknya.
-        const after = block.slice(idxStruk, idxStruk + 1100);
+        // Jendela dilebarkan 600 → 1100 → 1700: blok ini kini juga mencatat kasus kelebihan bayar
+        // DAN mem-branch invoice-PDF-vs-teks (trySendSettleInvoice) sebelum `catch`, jadi jarak ke
+        // penutupnya bertambah. Yang diuji tetap sama — keberadaan pembungkus try/catch, bukan panjangnya.
+        const after = block.slice(idxStruk, idxStruk + 1700);
         expect(idxStruk).toBeGreaterThan(-1);
         // Dibungkus try { ... } catch: gagal render/kirim WA ditelan, callback tetap 200.
         expect(before).toMatch(/try\s*{/);
