@@ -3193,4 +3193,13 @@
 - **Perubahan perilaku:** pelanggan send_invoice=ON kini terima invoice walau toggle notif-bayar OFF (sesuai niat: invoice = opt-in per-pelanggan, terpisah dari notif teks). Langkah [2/2] #b388: wire ke settleTagihanPayment (jalur WA foto-bukti/callback).
 - **Tes:** invoice-on-paid +8 (decouple, anti-silent-drop, OFF+notif-off skip, PDF-gagal→fallback, normalize, never-throw); regresi invoice-customization + paid-receipt-single-source + approval-reaktivasi 20 hijau; lint 0.
 
+<a id="b388"></a>
+
+### Fix 2026-09-12 (invoice tak terkirim [2/2] — wire hook ke jalur WA foto-bukti, gated)
+
+- **AKAR (keluhan utama):** konfirmasi bukti foto WA (`ok`/`terima BP-…`/`terima semua`) → payment-proof.service.notifyCustomerConfirmed → HANYA `sendCritical({text})` (struk teks), tak pernah invoice PDF meski send_invoice=ON (jalur settle tak lewat handlePaidStatusChange).
+- **FIX [2/2]:** notifyCustomerConfirmed kini — bila gate `config.invoiceOnSettle.enabled` ON & `isSendInvoiceEnabled(user.send_invoice)` → kirim INVOICE PDF via hook bersama `sendPaidInvoiceOrReceipt` (#b387; caption = struk sama, deliver via whatsapp-delivery-service.sendMessage). Bila hook tak mengirim (tanpa nomor/gagal) → FALLBACK struk teks durable `sendCritical` lama (konfirmasi tak pernah hilang). Gate `invoiceOnSettle` DEFAULT OFF, terdaftar di FEATURE_FLAGS (toggle web /feature-flags) + config.example.json.
+- **SISA (jalur sama, belum di-wire):** callback online iPaymu (public.js) + Tripay/Mayar (bill-payment.js) + bayar-di-muka + cicilan — pola identik (ganti kirim-teks jadi hook), menyusul. Tandai gratis/waiver = keputusan produk (biasanya tanpa invoice).
+- **Tes:** payment-proof-invoice-wiring +2 (gate+hook+cek flag+fallback teks; flag terdaftar default OFF); regresi payment-proof/paid-receipt/reaktivasi 48 hijau; config valid; lint 0. Aktivasi: nyalakan invoiceOnSettle di /feature-flags.
+
 

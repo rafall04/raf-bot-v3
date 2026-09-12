@@ -325,7 +325,38 @@ function createPaymentProofService(overrides = {}) {
             refId: record.id,
             reactivation: settlement && settlement.reactivation
         });
-        // Kontrak sendCritical: payload WAJIB objek { text }.
+
+        // FIX invoice-tak-terkirim: jalur konfirmasi bukti foto WA dulu HANYA kirim struk TEKS —
+        // tak pernah invoice PDF meski send_invoice=ON (invoice cuma hidup di handlePaidStatusChange
+        // yang tak dilewati jalur settle ini). Kini: bila gate config.invoiceOnSettle.enabled ON &
+        // pelanggan send_invoice ON → kirim INVOICE PDF via hook bersama (lib/invoice-on-paid); caption
+        // = struk yang SAMA. Gate default OFF (deploy-gelap). Bila hook tak mengirim apa pun (mis. tanpa
+        // nomor / gagal), JATUH ke struk teks durable lama supaya konfirmasi tak pernah hilang.
+        try {
+            const gateOn = !!(global.config && global.config.invoiceOnSettle && global.config.invoiceOnSettle.enabled === true);
+            if (gateOn && user) {
+                const { isSendInvoiceEnabled, sendPaidInvoiceOrReceipt } = require("../lib/invoice-on-paid");
+                if (isSendInvoiceEnabled(user.send_invoice)) {
+                    const hasil = await sendPaidInvoiceOrReceipt(user, {
+                        messageText: text,
+                        paymentDetails: { method: "Transfer Bank", paidDate: new Date().toISOString(), approvedBy: "admin", paymentHistoryId: record.id },
+                        config: global.config,
+                        notifEnabled: true,
+                        deps: {
+                            deliver: (jid, payload) => require("../lib/whatsapp-delivery-service").sendMessage(jid, payload, { skipDuplicateCheck: true }),
+                            waitForWhatsAppDelay: require("../lib/wa-timing").waitForWhatsAppDelay,
+                            normalizePhoneNumber: require("../lib/utils").normalizePhoneNumber,
+                            renderTemplate: require("../lib/templating").renderTemplate,
+                        },
+                    });
+                    if (hasil && hasil.sent > 0) return; // invoice/teks sudah terkirim via hook
+                }
+            }
+        } catch (e) {
+            logWarn("[PAYMENT_PROOF] kirim invoice PDF gagal (fallback struk teks):", e && e.message);
+        }
+
+        // Perilaku lama (default): struk teks durable. Kontrak sendCritical: payload WAJIB objek { text }.
         await deps.sendCritical(record.userId, { text }, { label: "payment-proof-confirmed" });
     }
 

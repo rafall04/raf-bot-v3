@@ -767,6 +767,10 @@
     "itemDelayMs": 0,
     "maxItemsPerJob": 500
   },
+  "invoiceOnSettle": {
+    "_catatan": "Kirim invoice PDF (bila pelanggan send_invoice ON) juga di jalur SETTLE — konfirmasi bukti foto WA & bayar online (iPaymu/Tripay/Mayar) — yang dulu cuma kirim struk teks. OFF = perilaku lama (teks). Atur di /feature-flags.",
+    "enabled": false
+  },
   "notifRouting": {
     "_catatan": "Routing notifikasi operasional per-KATEGORI ke GRUP WhatsApp (anti-ketindihan di DM admin). OFF = perilaku sekarang: semua ke DM admin (getAdminJids). Kategori terdaftar di lib/notif-categories.js; di sini HANYA tujuannya. groups = daftar JID grup (@g.us). Kosong/invalid → FAIL-OPEN ke DM admin (notifikasi tak pernah hilang). Atur lewat halaman /notif-routing, bukan edit manual.",
     "enabled": false,
