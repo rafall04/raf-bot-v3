@@ -499,6 +499,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Refactor 2026-09-19 (routes/public.js dipecah → routes/public/{shared,auth,customer,payment-callback,reports,requests} + composer)](docs/boundary-log.md#b392)
 - [Refactor 2026-09-19 (lib/genieacs.js dipecah → lib/genieacs/{session,device-read,reboot-verify,wifi-params,pppoe-params} + facade)](docs/boundary-log.md#b393)
 - [Refactor 2026-09-19 (lib/payment-finance-service.js dipecah → lib/payment-finance/{ledger,waivers,read-model} + facade)](docs/boundary-log.md#b394)
+- [Refactor 2026-09-19 (routes/olt.js dipecah → routes/olt/{shared,snapshot,matching,health} + composer)](docs/boundary-log.md#b395)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

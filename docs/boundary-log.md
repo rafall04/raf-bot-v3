@@ -3257,3 +3257,11 @@
 - **Layering asiklik:** ledger ← {waivers, read-model}; `initializationPromise` + koneksi reader bersama tetap singleton (semua submodul berbagi `./ledger`).
 - **Status path lama:** tak ada — semua caller tetap `require('lib/payment-finance-service')`; require internal `./x` → `../x` (turun satu level).
 - **Gate:** n/a. **Tes:** users-sqlite-connection-policy dialihkan ke `payment-finance/ledger.js` (assertion `getSharedReader` tak berubah); suite domain payment 15 file hijau; suite penuh menyusul sebelum push.
+
+<a id="b395"></a>
+
+### Refactor 2026-09-19 (routes/olt.js dipecah → routes/olt/{shared,snapshot,matching,health} + composer)
+
+- **Owner baru:** `routes/olt.js` jadi composer murni (mount health→matching→snapshot; `nextOltDeviceId` tetap diekspos di router untuk uji). `shared.js` memegang state singleton (oltDataCacheMap stale-while-revalidate + freshness, pppoeCache, lastCallerIdCache) + helper lintas-rute (loadConfig/saveConfig, getCached*, getMacForUser, resolveOnuDisplayStatus). `snapshot.js`: /status /onus /customer/:userId /refresh-single /scrape-now. `matching.js`: /matched /infra-status. `health.js`: /config /test /test-web /scraper-status /events /devices CRUD+test /drivers /event-log.
+- **Status path lama:** tak ada — 20 route (method+path) diverifikasi identik saat runtime; require internal `../lib/x` → `../../lib/x`, `__dirname,'..'` → `'..','..'`.
+- **Gate:** n/a. **Tes:** gerbang-kepemilikan dialihkan ke `olt/snapshot.js`; 115+ tes domain OLT hijau; suite penuh menyusul.

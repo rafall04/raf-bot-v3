@@ -100,11 +100,11 @@ describe("endpoint benar-benar memakai gerbangnya", () => {
     });
 
     test("endpoint OLT per-pelanggan memakai gerbangnya", () => {
-        expect(baca("olt.js")).toMatch(/assertBolehAksesPelanggan\(req, userId\)/);
+        expect(baca("olt/snapshot.js")).toMatch(/assertBolehAksesPelanggan\(req, userId\)/);
     });
 
     test("/refresh-single tidak lagi meloloskan sesi pelanggan", () => {
-        const src = baca("olt.js");
+        const src = baca("olt/snapshot.js");
         const blok = src.slice(src.indexOf("router.post('/refresh-single'"));
 
         expect(blok.slice(0, 600)).not.toMatch(/!req\.user && !req\.customer/);
