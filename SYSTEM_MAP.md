@@ -497,6 +497,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-19 (dead path: handler transfer/ubah-paket ganda + route monitoring orphan dihapus)](docs/boundary-log.md#b390)
 - [Feat 2026-09-19 (Logging: jembatan console.*→lib/logger saat boot)](docs/boundary-log.md#b391)
 - [Refactor 2026-09-19 (routes/public.js dipecah → routes/public/{shared,auth,customer,payment-callback,reports,requests} + composer)](docs/boundary-log.md#b392)
+- [Refactor 2026-09-19 (lib/genieacs.js dipecah → lib/genieacs/{session,device-read,reboot-verify,wifi-params,pppoe-params} + facade)](docs/boundary-log.md#b393)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.
