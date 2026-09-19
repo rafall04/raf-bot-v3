@@ -3231,3 +3231,11 @@
 - **Bypass:** `printRaw` untuk output mentah terminal — dipakai ASCII-art QR pairing WA di `index.js` (prefix timestamp akan merusak QR).
 - **Status path lama:** tak ada callsite yang dihapus — ribuan `console.*` tetap, kini ikut tertulis ke file; `tools/`/`scripts/` CLI tak terpengaruh (jembatan hanya dipasang di index.js).
 - **Tes:** scoped index-scanning suites (socket-auth, uploads-terlindungi, otp-limiter-alias, runtime-wiring, broken-requires) hijau; verifikasi manual log file round-trip.
+
+<a id="b392"></a>
+
+### Refactor 2026-09-19 (routes/public.js dipecah → routes/public/{shared,auth,customer,payment-callback,reports,requests} + composer)
+
+- **Owner baru:** `routes/public.js` kini composer 28 baris yang me-mount sub-router per konteks dalam urutan sama seperti aslinya — `auth.js` (login/OTP), `customer.js` (self-service `/api/customer/*` + voucher + wifi + speed-request/buys), `payment-callback.js` (`POST /callback/payment` iPaymu), `reports.js` (`/api/lapor` + upload foto laporan), `requests.js` (`/api/request-speed` + speed-boost packages); `shared.js` memuat helper lintas sub-router (renderResponseTemplate, getCustomerAuthPayload, setSensitiveResponseHeaders, ensureCustomerAuthenticated); `content.js` (dari #b386) tak berubah.
+- **Status path lama:** murni pemindahan — tak ada handler/logika diubah, tak ada stub; satu-satunya penyesuaian teknis: `getProjectRoot` di reports.js dioper `path.join(__dirname, '..')` karena file turun satu level (root upload `uploads/` identik).
+- **Gate:** n/a. **Tes:** guard-scan diarahkan ke file pemiliknya (payment-callback-*, settle-markpaid, reaktivasi-gagal, callback-invoice-wiring, notif-routing-migration → payment-callback.js; otp-limiter-alias → auth.js; upload-guard → reports.js + regex `../../lib` diperdalam; wa-hardcoded → requests.js; paid-receipt-single-source + public-anonymous-trx-scope → payment-callback.js); composer masih lulus public-content-router & public-customer-api.contract; suite penuh 625/625 hijau.

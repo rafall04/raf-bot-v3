@@ -12,7 +12,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const pub = fs.readFileSync(path.join(__dirname, "..", "public.js"), "utf8");
+const pub = fs.readFileSync(path.join(__dirname, "..", "public", "payment-callback.js"), "utf8");
 const bill = fs.readFileSync(path.join(__dirname, "..", "bill-payment.js"), "utf8");
 
 test("iPaymu callback (public.js) wire trySendSettleInvoice + isCleanPaid (bukan kelebihan)", () => {

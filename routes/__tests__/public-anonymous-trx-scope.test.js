@@ -106,7 +106,7 @@ describe("/app/qr — hanya QRIS transaksi buynowweb (#b334)", () => {
 
 describe("prof disimpan di record buynowweb (#b334 — voucher durasi benar walau harga kembar)", () => {
     const src = fs.readFileSync(path.join(__dirname, "..", "public-anonymous.js"), "utf8");
-    const callback = fs.readFileSync(path.join(__dirname, "..", "public.js"), "utf8");
+    const callback = fs.readFileSync(path.join(__dirname, "..", "public", "payment-callback.js"), "utf8");
 
     test("public-anonymous menyimpan prof di addPayment buynowweb", () => {
         expect(src).toMatch(/addPayment\([^)]*buynowweb[\s\S]*?prof:\s*id/);

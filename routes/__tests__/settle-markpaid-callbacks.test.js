@@ -15,7 +15,7 @@ const read = (rel) => fs.readFileSync(path.join(__dirname, '..', '..', rel), 'ut
 
 describe('settle markPaid dioper semua callback gateway (#b344)', () => {
     test('iPaymu (public.js) mengoper markPaid → updateStatusPayment', () => {
-        const src = read('routes/public.js');
+        const src = read('routes/public/payment-callback.js');
         const i = src.indexOf('settleTagihanPayment({');
         expect(i).toBeGreaterThan(-1);
         const blk = src.slice(i, i + 500);

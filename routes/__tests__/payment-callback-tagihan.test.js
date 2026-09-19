@@ -16,7 +16,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const source = fs.readFileSync(path.join(__dirname, "..", "public.js"), "utf8");
+const source = fs.readFileSync(path.join(__dirname, "..", "public", "payment-callback.js"), "utf8");
 const idx = source.indexOf("pay.tag == 'tagihan'");
 // Jendela blok dilebarkan 2600 → 3600 (#b238) → 4400: blok tagihan kini juga menangani kasus
 // kelebihan bayar (catat ledger + alarm admin) DAN branch invoice-PDF-vs-teks (trySendSettleInvoice)
