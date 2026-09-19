@@ -4,13 +4,13 @@
  *   dikenali schema (header/normalisasi/export) dan diteruskan ke commit payload import (create),
  *   karena field ini kunci pencocokan rekonsiliasi/auto-outage/isolir ke MikroTik.
  * Caller: Jest test runner.
- * Deps: `../api-users/users-excel-schema`, `../api-users/import-users-excel`, package `xlsx`.
+ * Deps: `../api-users/users-excel-schema`, `../api-users/import-users-excel`, package `exceljs`.
  * MainFuncs: Verifikasi getExcelColumnKeys/normalizeImportRow/mapUserToExportRow + preview import.
  * SideEffects: Tidak ada; buffer Excel dibuat in-memory.
  */
 "use strict";
 
-const XLSX = require("xlsx");
+const ExcelJS = require("exceljs");
 const {
     getExcelColumnKeys,
     normalizeImportRow,
@@ -18,11 +18,12 @@ const {
 } = require("../api-users/users-excel-schema");
 const { importUsersFromExcel } = require("../api-users/import-users-excel");
 
-function buildWorkbookBuffer(aoa) {
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Pelanggan");
-    return XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+async function buildWorkbookBuffer(aoa) {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Pelanggan");
+    aoa.forEach((row) => ws.addRow(row));
+    const buffer = await wb.xlsx.writeBuffer();
+    return Buffer.from(buffer);
 }
 
 describe("users excel schema: pppoe_username column", () => {
@@ -54,7 +55,7 @@ describe("import-users-excel: pppoe_username diteruskan ke commit payload", () =
     };
 
     test("preview create memuat pppoe_username di daftar field yang akan ditulis", async () => {
-        const buffer = buildWorkbookBuffer([
+        const buffer = await buildWorkbookBuffer([
             ["name", "subscription", "pppoe_username"],
             ["Budi Santoso", "PAKET-165K", "kacangan@abidin"]
         ]);
