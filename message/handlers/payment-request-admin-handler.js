@@ -130,10 +130,14 @@ async function replyPendingList(ctx, items) {
     if (typeof ctx.setUserState === "function" && ctx.stateSender) {
         ctx.setUserState(ctx.stateSender, { step: STEP_SELECT, items: items.map((r) => ({ id: r.id, userName: r.userName })) });
     }
+    // Fallback WAJIB backtick: renderResponseTemplate memulangkan fallback via expandSpintax
+    // TANPA substitusi slot — fallback berkutip biasa akan terkirim mentah "${total}" ke admin.
+    const total = items.length;
+    const daftar = buildListBody(items);
     return ctx.reply(renderResponseTemplate(
         "payment_request_admin_list",
-        "🧾 *ANTRIAN OTORISASI BAYAR* (${total})\n\n${daftar}\n\nBalas: *setujui 1* / *tolak 2 <alasan>* / *setujui semua*.",
-        { total: items.length, daftar: buildListBody(items) }
+        `🧾 *ANTRIAN OTORISASI BAYAR* (${total})\n\n${daftar}\n\nBalas: *setujui 1* / *tolak 2 <alasan>* / *setujui semua*.`,
+        { total, daftar }
     ), { skipDuplicateCheck: true });
 }
 
@@ -154,14 +158,14 @@ async function approveOne(ctx, id) {
         const nama = r.approved[0].userName || "-";
         return ctx.reply(renderResponseTemplate(
             "payment_request_admin_approve_ok",
-            "✅ Pengajuan *RPQ-${id}* (${nama}) disetujui & tercatat LUNAS.\nStruk dikirim ke pelanggan.\n\nSisa antrian: ${sisa}.",
+            `✅ Pengajuan *RPQ-${id}* (${nama}) disetujui & tercatat LUNAS.\nStruk dikirim ke pelanggan.\n\nSisa antrian: ${sisa}.`,
             { id, nama, sisa }
         ), { skipDuplicateCheck: true });
     }
     const reason = (r.failed || [])[0]?.reason || (r.notFound || []).length ? "pengajuan tidak ditemukan / sudah diproses" : "tidak ada perubahan";
     return ctx.reply(renderResponseTemplate(
         "payment_request_admin_approve_fail",
-        "⚠️ Gagal menyetujui *RPQ-${id}*: ${reason}.",
+        `⚠️ Gagal menyetujui *RPQ-${id}*: ${reason}.`,
         { id, reason }
     ), { skipDuplicateCheck: true });
 }
@@ -177,17 +181,19 @@ async function rejectOne(ctx, id, reason) {
         if (idx === -1) {
             return ctx.reply(renderResponseTemplate(
                 "payment_request_admin_not_found",
-                "❌ Pengajuan *RPQ-${id}* tidak ditemukan / sudah diproses.",
+                `❌ Pengajuan *RPQ-${id}* tidak ditemukan / sudah diproses.`,
                 { id }
             ), { skipDuplicateCheck: true });
         }
         all[idx] = { ...all[idx], status: "rejected", updated_at: new Date().toISOString(), updated_by: adminActor(ctx).username, reject_reason: reason || "" };
         saveJSON("database/requests.json", all);
+        const nama = all[idx].userName || "-";
+        const alasan = reason ? `\nAlasan: ${reason}` : "";
         const sisa = all.filter((r) => r.status === "pending").length;
         return ctx.reply(renderResponseTemplate(
             "payment_request_admin_reject_ok",
-            "🚫 Pengajuan *RPQ-${id}* (${nama}) DITOLAK.${alasan}\n\nSisa antrian: ${sisa}.",
-            { id, nama: all[idx].userName || "-", alasan: reason ? `\nAlasan: ${reason}` : "", sisa }
+            `🚫 Pengajuan *RPQ-${id}* (${nama}) DITOLAK.${alasan}\n\nSisa antrian: ${sisa}.`,
+            { id, nama, alasan, sisa }
         ), { skipDuplicateCheck: true });
     });
 }
@@ -196,10 +202,12 @@ async function promptConfirmAll(ctx, items) {
     if (typeof ctx.setUserState === "function" && ctx.stateSender) {
         ctx.setUserState(ctx.stateSender, { step: STEP_CONFIRM_ALL });
     }
+    const total = items.length;
+    const daftar = buildListBody(items);
     return ctx.reply(renderResponseTemplate(
         "payment_request_admin_confirm_all_prompt",
-        "💰 *Setujui SEMUA pengajuan* (${total})\n\n${daftar}\n\nBalas *ya* untuk menyetujui semuanya (tanpa batas), atau *batal*.",
-        { total: items.length, daftar: buildListBody(items) }
+        `💰 *Setujui SEMUA pengajuan* (${total})\n\n${daftar}\n\nBalas *ya* untuk menyetujui semuanya (tanpa batas), atau *batal*.`,
+        { total, daftar }
     ), { skipDuplicateCheck: true });
 }
 
@@ -222,7 +230,7 @@ async function approveAll(ctx) {
         }
         return ctx.reply(renderResponseTemplate(
             "payment_request_admin_batch_queued",
-            "⏳ ${antre} pengajuan diproses di latar (tanpa batas). Hasil menyusul; yang GAGAL akan diberitahukan ke admin lewat WA.",
+            `⏳ ${antre.antre} pengajuan diproses di latar (tanpa batas). Hasil menyusul; yang GAGAL akan diberitahukan ke admin lewat WA.`,
             { antre: antre.antre }
         ), { skipDuplicateCheck: true });
     }
@@ -240,10 +248,12 @@ async function approveAll(ctx) {
         remainingIds = loadPending(ctx).map((x) => x.id); // sisa pending yang masih ada
         if ((r.approved || []).length === 0 && (r.failed || []).length === 0 && (r.notFound || []).length === 0) break;
     }
+    const failedLine = failed ? ` • ⚠️ ${failed} gagal` : "";
+    const sisa = loadPending(ctx).length;
     return ctx.reply(renderResponseTemplate(
         "payment_request_admin_batch_done",
-        "💰 *Otorisasi borongan selesai*\n✅ ${approved} disetujui${failedLine}\nSisa antrian: ${sisa}.",
-        { approved, failedLine: failed ? ` • ⚠️ ${failed} gagal` : "", sisa: loadPending(ctx).length }
+        `💰 *Otorisasi borongan selesai*\n✅ ${approved} disetujui${failedLine}\nSisa antrian: ${sisa}.`,
+        { approved, failedLine, sisa }
     ), { skipDuplicateCheck: true });
 }
 

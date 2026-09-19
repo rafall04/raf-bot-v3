@@ -90,7 +90,8 @@ function daftarAktif() {
 describe("#b300 — tak ada halaman jatuh dari menu", () => {
     test("menu memuat jumlah halaman yang diharapkan", () => {
         // Angka tetap: kalau berubah, seseorang menambah/menghapus item dan harus sadar.
-        expect(MENU.semua.length).toBe(72);
+        // 74 = 3 item atas + 13 sub-menu (#b373 menambah /notif-routing & 1 item lain).
+        expect(MENU.semua.length).toBe(74);
     });
 
     test("tak ada rute kembar di seluruh menu", () => {

@@ -3,7 +3,7 @@
 
 <head>
 <?php
-    $pageTitle = 'RAF BOT - Routing Notifikasi';
+    $pageTitle = 'RAF BOT - Routing Notifikasi ke Grup';
     $themeRole = 'admin';
     include __DIR__ . '/_head.php';
 ?>

@@ -139,11 +139,11 @@ describe("admin-broadcast.service GAMAS", () => {
     });
 
     test("queueBroadcast dryRun tidak mengirim dan tidak menulis history", async () => {
-        const sendMessageToMany = jest.fn();
+        const sendQueue = jest.fn();
         const insertHistory = jest.fn();
         const service = createAdminBroadcastService({
             hasAuthenticatedSession: () => true,
-            sendMessageToMany,
+            sendQueue,
             normalizePhoneNumber: (v) => v,
             wait: () => Promise.resolve(),
             randomJitter: () => 0,
@@ -160,7 +160,7 @@ describe("admin-broadcast.service GAMAS", () => {
         });
         expect(result.status).toBe(200);
         expect(result.data.total_targets).toBe(2);
-        expect(sendMessageToMany).not.toHaveBeenCalled();
+        expect(sendQueue).not.toHaveBeenCalled();
         expect(insertHistory).not.toHaveBeenCalled();
     });
 
@@ -196,29 +196,34 @@ describe("admin-broadcast.service GAMAS", () => {
     // jadi memperbaiki template saja tidak menutup lubangnya. Ditolak SEBELUM satu pesan pun keluar —
     // pesan WhatsApp tidak bisa ditarik kembali.
     describe("penjaga data internal", () => {
-        function guardService(sendMessageToMany = jest.fn()) {
+        // sendQueue WAJIB dimock: bila diinjeksi deps asli, broadcast lolos-penjaga menjalankan
+        // sendQueueWithRetry sungguhan — retry waitForWa terus berputar setelah suite selesai
+        // (open handle: "Jest did not exit") dan recordHistory membuka broadcast_test.sqlite.
+        function guardService(sendQueue = jest.fn().mockResolvedValue({ sent: 0, failed: [], skipped: [], rounds: 1 })) {
             return {
                 service: createAdminBroadcastService({
                     hasAuthenticatedSession: () => true,
-                    sendMessageToMany,
+                    sendQueue,
+                    safeSendMessage: jest.fn().mockResolvedValue({ success: true }),
+                    isReady: () => true,
                     normalizePhoneNumber: (v) => v,
                     wait: () => Promise.resolve(),
                     randomJitter: () => 0,
                     getConfig: () => ({}),
                     historyRepository: { insertHistory: jest.fn() }
                 }),
-                sendMessageToMany
+                sendQueue
             };
         }
 
         test("menolak teks yang menyebut jumlah pelanggan terdampak", async () => {
-            const { service, sendMessageToMany } = guardService();
+            const { service, sendQueue } = guardService();
             await expect(service.queueBroadcast({
                 mode: "all",
                 allUsers: USERS,
                 text: "Mohon maaf, gangguan area — sekitar 96 pelanggan ikut terdampak."
             })).rejects.toMatchObject({ statusCode: 400 });
-            expect(sendMessageToMany).not.toHaveBeenCalled();
+            expect(sendQueue).not.toHaveBeenCalled();
         });
 
         test("menolak teks yang memuat slot identitas internal (ODP / PPPoE)", async () => {

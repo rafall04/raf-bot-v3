@@ -23,7 +23,6 @@
   "license": "MIT",
   "dependencies": {
     "@adiwajshing/keyed-db": "^0.2.4",
-    "@faker-js/faker": "^9.3.0",
     "@hapi/boom": "^10.0.1",
     "@whiskeysockets/baileys": "^7.0.0-rc.6",
     "axios": "^1.15.2",
@@ -41,7 +40,6 @@
     "figlet": "^1.5.2",
     "fluent-ffmpeg": "^2.1.2",
     "form-data": "^4.0.0",
-    "fs": "0.0.1-security",
     "fs-extra": "^10.0.0",
     "ftp-srv": "^4.6.3",
     "helmet": "^8.1.0",
@@ -74,10 +72,10 @@
   },
   "overrides": {
     "follow-redirects": "1.16.0",
-    "body-parser": "1.20.5",
+    "body-parser": "1.20.8",
     "path-to-regexp": "0.1.13",
-    "basic-ftp": "5.3.0",
-    "qs": "6.15.1",
-    "socket.io-parser": "4.2.6"
+    "basic-ftp": "5.3.1",
+    "qs": "6.16.0",
+    "socket.io-parser": "4.2.7"
   }
 }

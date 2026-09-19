@@ -211,7 +211,12 @@ function setUserState(userId, state, options = {}) {
 
     // Set auto cleanup timer — handler step (kalau ada) dipanggil dulu
     // supaya draft tiket bisa dipromosikan jadi tiket asli.
+    // unref: timer ini housekeeping in-memory — tak layak menahan event loop
+    // (di test/CLI menahan proses; di produksi loop tetap hidup via listener HTTP).
     stateTimers[userId] = setTimeout(() => runTimeoutHandlerThenDelete(userId), STATE_TIMEOUT);
+    if (typeof stateTimers[userId].unref === 'function') {
+        stateTimers[userId].unref();
+    }
 }
 
 function updateUserState(userId, updater, options = {}) {
@@ -312,6 +317,9 @@ function resetStateTimer(userId) {
     if (stateTimers[userId]) {
         clearTimeout(stateTimers[userId]);
         stateTimers[userId] = setTimeout(() => runTimeoutHandlerThenDelete(userId), STATE_TIMEOUT);
+        if (typeof stateTimers[userId].unref === 'function') {
+            stateTimers[userId].unref();
+        }
     }
 }
 
