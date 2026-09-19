@@ -3248,3 +3248,12 @@
 - **Layering asiklik:** session ← device-read ← reboot-verify ← {wifi-params, pppoe-params}; state singleton (circuit/locks/agents) tetap satu karena semua submodul berbagi `./session`.
 - **Status path lama:** tak ada — semua caller tetap `require('lib/genieacs')`; satu penyesuaian teknis: `require('./database')` di `getParameterPaths` jadi `../database` (file turun satu level).
 - **Gate:** n/a. **Tes:** guard-scan diarahkan ke pemilik baru (cron-correctness-r4 #15 & probe-device-reachable #b261 → device-read.js); suite penuh 625/625 hijau; lint 0 error.
+
+<a id="b394"></a>
+
+### Refactor 2026-09-19 (lib/payment-finance-service.js dipecah → lib/payment-finance/{ledger,waivers,read-model} + facade)
+
+- **Owner baru:** `lib/payment-finance-service.js` jadi facade murni (18 export, urutan & API identik); implementasi: `ledger.js` (infra runtime/DB/reader bersama, schema self-heal, harga efektif, konsumsi diskon, record history/reversal, posisi bayar, `applyPaymentStatusChange`), `waivers.js` (`recordPaymentWaiverEntry`, `applyFreeMonth` — tabel `payment_waivers`), `read-model.js` (`getPaymentTimelineForPeriod`, `getPaymentReportForPeriod`, `getPaymentDiagnostics`).
+- **Layering asiklik:** ledger ← {waivers, read-model}; `initializationPromise` + koneksi reader bersama tetap singleton (semua submodul berbagi `./ledger`).
+- **Status path lama:** tak ada — semua caller tetap `require('lib/payment-finance-service')`; require internal `./x` → `../x` (turun satu level).
+- **Gate:** n/a. **Tes:** users-sqlite-connection-policy dialihkan ke `payment-finance/ledger.js` (assertion `getSharedReader` tak berubah); suite domain payment 15 file hijau; suite penuh menyusul sebelum push.
