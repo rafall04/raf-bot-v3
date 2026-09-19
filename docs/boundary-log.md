@@ -3265,3 +3265,12 @@
 - **Owner baru:** `routes/olt.js` jadi composer murni (mount health→matching→snapshot; `nextOltDeviceId` tetap diekspos di router untuk uji). `shared.js` memegang state singleton (oltDataCacheMap stale-while-revalidate + freshness, pppoeCache, lastCallerIdCache) + helper lintas-rute (loadConfig/saveConfig, getCached*, getMacForUser, resolveOnuDisplayStatus). `snapshot.js`: /status /onus /customer/:userId /refresh-single /scrape-now. `matching.js`: /matched /infra-status. `health.js`: /config /test /test-web /scraper-status /events /devices CRUD+test /drivers /event-log.
 - **Status path lama:** tak ada — 20 route (method+path) diverifikasi identik saat runtime; require internal `../lib/x` → `../../lib/x`, `__dirname,'..'` → `'..','..'`.
 - **Gate:** n/a. **Tes:** gerbang-kepemilikan dialihkan ke `olt/snapshot.js`; 115+ tes domain OLT hijau; suite penuh menyusul.
+
+<a id="b396"></a>
+
+### Refactor 2026-09-19 (state-domains/psb.state.js dipecah → psb/{shared,intake,slot-filling,confirm}.state.js + facade)
+
+- **Owner baru:** `psb.state.js` jadi facade murni (19 export, urutan & nama identik — `conversation-state-router` & `raf.js` tak berubah). `psb/shared.js` = konstanta step + helper teks (checklist/dusun/alamat/PPPoE/SN) + draft-store plumbing + safeReply + media — state helper SATU instance. `intake.state.js` = trigger/panduan/`startPsbSession`/`handleResumeAnswer`. `confirm.state.js` = deteksi modem (provenance/search/pick/takeover), `detectAndAskConfirm`, `provision*`, `startLinkedSession`, anti-dobel `SEDANG_PROVISION`. `slot-filling.state.js` = dispatcher `handlePsbConversationState` + `handlePsbStateTimeout`/`handlePsbStateCancel` + registrasi ke `conversation-handler`.
+- **Layering:** shared ← confirm ← intake ← slot-filling (asiklik; diverifikasi call-graph per-fungsi).
+- **Status path lama:** tak ada — facade re-export identik; require dalam subdir `../x`→`../../x`, `../../../lib`→`../../../../lib`.
+- **Gate:** n/a. **Tes:** 13 suite state-domains hijau (287 tes, termasuk happy-path wizard + kembar-provision + draft-resume); suite penuh menyusul.

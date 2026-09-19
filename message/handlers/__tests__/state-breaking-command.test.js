@@ -150,7 +150,7 @@ describe('message/raf.js memakai gerbang shouldBreakState di ketiga titik', () =
     test('kegagalan senyap ditutup di PEMILIK state: sesi PSB hilang wajib dibalas', () => {
         // Ini keluhan aslinya — teknisi kehilangan sesi PSB dan bot bisu total.
         const psbSrc = fs.readFileSync(
-            path.join(__dirname, '..', 'state-domains', 'psb.state.js'),
+            path.join(__dirname, '..', 'state-domains', 'psb', 'slot-filling.state.js'),
             'utf8'
         );
         const idx = psbSrc.indexOf('if (!ctx || !ctx.data)');
