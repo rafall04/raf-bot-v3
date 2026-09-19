@@ -148,7 +148,6 @@ router.get('/telegram-teknisi', checkRole(['admin', 'owner', 'superadmin']), (re
 });
 
 router.get('/login-logs', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
-    console.log(`[ROUTE_HANDLER] /login-logs: Route handler called. User: ${req.user ? req.user.username : 'null'}, Role: ${req.user ? req.user.role : 'null'}`);
     res.render('sb-admin/login-logs.php');
 });
 
