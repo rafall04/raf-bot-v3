@@ -78,7 +78,10 @@ async function handleTanyaHargaVoucherIntent(context) {
         format
     } = context;
     const senderInfo = extractSenderInfo(msg, sender);
-    const phoneNumberToSearch = senderInfo.phoneNumber || sender.split('@')[0];
+    // @lid tanpa phoneNumber: prefix numeriknya bukan nomor HP — oper JID utuh supaya
+    // getAgentByWhatsapp pakai jalur @lid (mapping/actualPhoneNumber), bukan false-match telepon.
+    const senderIsLid = typeof sender === 'string' && sender.endsWith('@lid');
+    const phoneNumberToSearch = senderInfo.phoneNumber || (senderIsLid ? sender : sender.split('@')[0]);
     const agentCred = agentTransactionManager.getAgentByWhatsapp(phoneNumberToSearch);
 
     if (agentCred && chats.toLowerCase().includes('jual')) {
@@ -110,24 +113,6 @@ async function handleLegacyDelSaldoIntent(context) {
     await handleDelSaldo({ q, isOwner, reply, mess, checkATMuser, checkRegisteredATM, delSaldo });
 }
 
-async function handleLegacyTransferIntent(context) {
-    const {
-        handleTransfer,
-        q,
-        normalizedSenderForSaldo,
-        reply,
-        msg,
-        mess,
-        raf,
-        checkATMuser,
-        addATM,
-        addKoinUser,
-        confirmATM,
-        format
-    } = context;
-    await handleTransfer({ q, sender: normalizedSenderForSaldo, reply, msg, mess, raf, checkATMuser, addATM, addKoinUser, confirmATM, format });
-}
-
 const SALDO_INTENT_HANDLERS = Object.freeze({
     TOPUP_SALDO: handleTopupSaldoIntent,
     buynow: handleTopupSaldoIntent,
@@ -137,8 +122,11 @@ const SALDO_INTENT_HANDLERS = Object.freeze({
     BATAL_TOPUP: handleBatalTopupIntent,
     TANYA_HARGA_VOUCHER: handleTanyaHargaVoucherIntent,
     '<topup': handleLegacyTopupIntent,
-    '<delsaldo': handleLegacyDelSaldoIntent,
-    transfer: handleLegacyTransferIntent
+    '<delsaldo': handleLegacyDelSaldoIntent
+    // Kunci 'transfer' (legacy) sengaja DIHAPUS: keyword "transfer" resolve ke intent
+    // TRANSFER_SALDO → handleTransferSaldo (saldo/transfer-operations, ber-kunci tulis).
+    // Handler lama memanggil confirmATM/addKoinUser tanpa await → debit bisa gagal senyap
+    // sementara kredit jalan (double-spend laten).
 });
 
 module.exports = {
@@ -150,6 +138,5 @@ module.exports = {
     handleBatalTopupIntent,
     handleTanyaHargaVoucherIntent,
     handleLegacyTopupIntent,
-    handleLegacyDelSaldoIntent,
-    handleLegacyTransferIntent
+    handleLegacyDelSaldoIntent
 };

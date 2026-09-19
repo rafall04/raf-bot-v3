@@ -3212,3 +3212,13 @@
 - **FIX [3/3]:** `lib/invoice-on-paid.trySendSettleInvoice(user,{messageText,paymentDetails,isCleanPaid})` (baru) — bungkus jalur settle: gate `config.invoiceOnSettle.enabled` ON & send_invoice ON & isCleanPaid → kirim invoice PDF via `sendPaidInvoiceOrReceipt`, return true (caller SKIP teks, cegah dobel); else false → caller kirim struk teks. 3 callback di-rewire ke pola `sentInvoice = await trySendSettleInvoice(...); if(!sentInvoice) sendMessage(text)`. `isCleanPaid = tindakan.jenis !== 'kelebihan'` → kelebihan-bayar TETAP teks (bukan invoice).
 - **Hygiene:** dead-letter invoice_errors.json kini via `getDatabasePath` → NODE_ENV=test terisolasi ke invoice_errors_test.json (auto-diignore), tak mengotori data prod; path prod tetap database/invoice_errors.json (perilaku prod tak berubah) + di-gitignore (sekelas invoices.json).
 - **Tes:** callback-invoice-wiring +2 (guard pemindai: 3 callback panggil trySendSettleInvoice + isCleanPaid + fallback teks); regresi callback-tagihan/topup/voucher/content-router/invoice-on-paid/proof-wiring 42 hijau (lebarkan jendela slice tagihan.test 3600->4400 & after 1100->1700); lint 0. Aktivasi: nyalakan invoiceOnSettle di /feature-flags.
+
+<a id="b390"></a>
+
+### Fix 2026-09-19 (dead path: handler transfer/ubah-paket ganda + route monitoring orphan dihapus)
+
+- **Dihapus:** `balance-management-handler.handleTransfer` + intent-map key `transfer` di `raf-intent-dispatch/saldo-intents` (keyword "transfer" tetap → TRANSFER_SALDO → `saldo/transfer-operations` ber-kunci tulis). Jalur lama memanggil `confirmATM`/`addKoinUser` tanpa await — debit gagal senyap sementara kredit jalan (double-spend laten).
+- **Dihapus:** `billing-management-handler.handleUbahPaket` (salinan ter-shadow — owner live `package-management-handler.handleUbahPaket` juga yang set state `ASK_PACKAGE_CHOICE`).
+- **Dihapus:** `routes/monitoring-dashboard.js` + `views/monitoring-dashboard.html` + test khususnya — route tak pernah di-mount (live: `routes/monitoring-api.js` di `/api/monitoring`); endpoint `restart-service` tak reachable dari luar.
+- **Tersisa (live):** `handleTopup`/`handleDelSaldo` untuk intent `<topup`/`<delsaldo` di `balance-management-handler`.
+- **Tes:** suite penuh; lint file tersentuh.

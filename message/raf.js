@@ -37,9 +37,7 @@ const {
     handleGangguanLemotResponse
 } = require('./handlers/smart-report-handler');
 const {
-    handleCompletionConfirmation,
-    handleRemoteRequest: _handleRemoteRequest,
-    handleRemoteResponse
+    handleFinalConfirmation
 } = require('./handlers/ticket-process-handler');
 const { getUserState, setUserState, deleteUserState, runCancelHandler } = require('./handlers/conversation-handler');
 const { handleConversationState } = require('./handlers/conversation-state-handler');
@@ -125,7 +123,7 @@ const { handleSetelanSaya, handleAlertPref, handleHubungkanWa } = require('./han
 const { handleHistoryWifi } = require('./handlers/wifi-history-handler');
 const { handleAddProfVoucher, handleDelProfVoucher, handleAddProfStatik, handleDelProfStatik } = require('./handlers/voucher-management-handler');
 const { handleAddBinding, handleAddPPP } = require('./handlers/network-management-handler');
-const { handleTopup, handleDelSaldo, handleTransfer } = require('./handlers/balance-management-handler');
+const { handleTopup, handleDelSaldo } = require('./handlers/balance-management-handler');
 const { handleProsesTicket, handleOTW, handleSampaiLokasi, handleVerifikasiOTP, handleSelesaiTicket, handleCompleteTicket, handleTeknisiPhotoUpload, handleTeknisiResolutionNotesState, handleTeknisiCompletionConfirmationState } = require('./handlers/teknisi-workflow-handler');
 const {
     extractMessageContext,
@@ -1338,8 +1336,7 @@ module.exports = async (raf, msg, m, options = {}) => {
             handleStatusHotspot,
             handleCekTiket,
             handleAgentConfirmation,
-            handleRemoteResponse,
-            handleCompletionConfirmation,
+            handleFinalConfirmation,
             addPayment,
             getvoucher,
             handleBantuan,
@@ -1402,7 +1399,6 @@ module.exports = async (raf, msg, m, options = {}) => {
             // skip dependency raf-bot self-call (axios → Express → php-express → spawn).
             handleTopup,
             handleDelSaldo,
-            handleTransfer,
             handleCekTagihan,
             renderTemplate,
             findUserWithLidSupport,

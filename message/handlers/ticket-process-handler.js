@@ -8,11 +8,10 @@
  *
  * DEPRECATED: Handler ini sebagian besar sudah tidak digunakan.
  * - handleProsesTicket, handleVerifikasiOTP, handleCompleteTicket sudah diganti dengan teknisi-workflow-handler.js
- * - handleRemoteResponse masih digunakan untuk CUSTOMER_CONFIRM_DONE
- * - handleFinalConfirmation masih digunakan untuk final confirmation flow
+ * - handleFinalConfirmation masih dipakai dispatcher untuk intent KONFIRMASI_SELESAI dan
+ *   CUSTOMER_CONFIRM_DONE (finalisasi tiket ber-completionCode via finalizeCustomerConfirmation).
  * 
- * TODO: Migrate handleRemoteResponse dan handleFinalConfirmation ke teknisi-workflow-handler.js
- * TODO: Hapus handler yang tidak digunakan setelah migration selesai.
+ * TODO: Migrate handleFinalConfirmation ke teknisi-workflow-handler.js, lalu hapus modul ini.
  */
 
 const { setUserState, getUserState, deleteUserState, format } = require('./conversation-handler');
