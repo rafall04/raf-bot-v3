@@ -495,6 +495,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-12 (invoice tak terkirim [2/2]: payment-proof.service.notifyCustomerConfirmed wire hook sendPaidInvoiceOrReceipt (gate config.invoiceOnSettle default OFF + send_invoice) → jalur WA foto-bukti kirim invoice PDF; fallback struk teks durable; sisa callback iPaymu/Tripay/Mayar pola sama menyusul)](docs/boundary-log.md#b388)
 - [Fix 2026-09-12 (invoice tak terkirim [3/3]: lib/invoice-on-paid.trySendSettleInvoice bungkus jalur settle (gate invoiceOnSettle+send_invoice+isCleanPaid); wire 3 callback online iPaymu (public.js)+Tripay/Mayar (bill-payment.js) → invoice PDF, kelebihan-bayar tetap teks; dead-letter invoice_errors.json via getDatabasePath (isolasi test) + gitignore)](docs/boundary-log.md#b389)
 - [Fix 2026-09-19 (dead path: handler transfer/ubah-paket ganda + route monitoring orphan dihapus)](docs/boundary-log.md#b390)
+- [Feat 2026-09-19 (Logging: jembatan console.*→lib/logger saat boot)](docs/boundary-log.md#b391)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

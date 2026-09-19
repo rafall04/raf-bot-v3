@@ -3222,3 +3222,12 @@
 - **Dihapus:** `routes/monitoring-dashboard.js` + `views/monitoring-dashboard.html` + test khususnya — route tak pernah di-mount (live: `routes/monitoring-api.js` di `/api/monitoring`); endpoint `restart-service` tak reachable dari luar.
 - **Tersisa (live):** `handleTopup`/`handleDelSaldo` untuk intent `<topup`/`<delsaldo` di `balance-management-handler`.
 - **Tes:** suite penuh; lint file tersentuh.
+
+<a id="b391"></a>
+
+### Feat 2026-09-19 (Logging: jembatan console.*→lib/logger saat boot)
+
+- **Owner:** `lib/console-to-logger.js` (BARU) — dipasang `index.js` via `installConsoleBridge()` sebelum runtime; seluruh `console.log/info/debug/warn/error` lama diteruskan ke `lib/logger` (file rotasi `logs/app-*.log` + `error-*.log`, level `LOG_LEVEL`) via `util.format` (multi-arg/Error stack utuh). Guard `insideBridge` cegah rekursi (logger sendiri mencetak via console saat `logToConsole`).
+- **Bypass:** `printRaw` untuk output mentah terminal — dipakai ASCII-art QR pairing WA di `index.js` (prefix timestamp akan merusak QR).
+- **Status path lama:** tak ada callsite yang dihapus — ribuan `console.*` tetap, kini ikut tertulis ke file; `tools/`/`scripts/` CLI tak terpengaruh (jembatan hanya dipasang di index.js).
+- **Tes:** scoped index-scanning suites (socket-auth, uploads-terlindungi, otp-limiter-alias, runtime-wiring, broken-requires) hijau; verifikasi manual log file round-trip.
