@@ -42,21 +42,22 @@ Ubah hanya bagian yang relevan: **Core Logic Flow** (urutan jalur berubah), **DB
 SATU baris di urutan paling akhir, teks link = heading entri:
 
 ```
-- [Feat 2026-07-25 (Voucher: rekap penjualan harian ke grup owner)](docs/boundary-log.md#b173)
+- [Fix 2026-09-19 (PSB dual-band tak aktif + kode voucher web tak tampil)](docs/boundary-log.md#b390)
 ```
 
 **JANGAN** menulis ringkasan fitur / daftar file / gotcha di baris indeks — semua itu milik badan entri. Pembaca yang butuh konteks membuka entrinya.
 
-**Contoh badan entri (Langkah 1):**
+**Contoh badan entri (Langkah 1)** — kutipan NYATA dari log (semua path-nya ada; contoh fiktif dengan path karangan menyesatkan pembaca yang mengeceknya):
 
 ```markdown
-<a id="b173"></a>
+<a id="b390"></a>
 
-### Feat 2026-07-25 (Voucher: rekap penjualan harian ke grup owner)
+### Fix 2026-09-19 (PSB dual-band tak aktif + kode voucher web tak tampil)
 
-- **Owner:** `lib/cron/jobs/voucher-daily-recap.js` (BARU) + `repositories/voucher.repository.getDailySales`.
-- **Status path lama:** rekap manual di `menuowner` tetap ada (paritas); tak ada path yang dimatikan.
-- **Gate:** `config.voucherRecap.enabled` (default OFF). **Tes:** cron job 4, repo 2.
+- **Owner:** `lib/genieacs.updatePsbDeviceConfig` kini push `Enable=true` per index WiFi (template path baru `wifiEnable`, TR-098+TR-181) + refresh container WLAN UTUH (bukan hanya instance ter-push); `psb.state.js` baca-ulang band pasca-push DIPERLUAS — dulu hanya `!bandDetected` (found:false), kini juga saat verdict single-band (cache ACS basi: WLAN.5 belum keenumerasi), koreksi `bulk` hanya bila ada index baru.
+- **Voucher web:** `routes/public-anonymous.js` `statustrx` kini mengembalikan `ket` untuk record `buynowweb` LUNAS — kode voucher tampil lagi di `/voucher` (halaman membaca `rec.ket` sejak awal; penyembunyian `ket` di #b334 adalah regresi tak disengaja). `detailtrx` & semua lintas-tag TETAP tanpa `ket`/`sender`/`trxId` (scope #b334 dijaga).
+- **Status path lama:** tak ada yang dimatikan; `statustrx` tanpa `ket` hanyalah regresi, bukan kontrak.
+- **Gate:** tidak ada (perilaku inti). **Tes:** psb.state +2 (verdict basi→koreksi bulk+push '5'; single-band asli→tanpa tulis sia-sia), public-anonymous-trx-scope direvisi (+detailtrx tetap tanpa `ket`); psb-push-dan-breaker/wifi-bulk-reconcile/create-user-mikrotik-sync hijau; lint 0.
 ```
 
 ## Verifikasi sebelum commit

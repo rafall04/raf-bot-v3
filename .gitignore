@@ -41,6 +41,7 @@ views/users.json
 database/accounts.json
 database/agents.json
 database/lid-mappings.json
+database/telegram_teknisi.json
 
 # Cetak Voucher — data runtime (self-heal dari default; jangan di-commit)
 database/voucher_print_settings.json

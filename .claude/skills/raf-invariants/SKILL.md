@@ -30,7 +30,7 @@ Tujuan skill ini: sebelum mengubah jalur berisiko, **kunci dulu invariant yang r
 
 **Kenapa kritis:** ini uang pelanggan. Race condition = double-spend; init yang salah = saldo hantu.
 
-- **Semua mutasi saldo lewat modul `lib/saldo`** (sering di-`require` sebagai `saldoManager`). Fungsi publik `addSaldo` / `deductSaldo` / `transferSaldo` sudah men-serialize lewat `withSaldoWriteLock(fn)` (`lib/saldo/shared.js:208`) di atas satu koneksi SQLite singleton. **Kalau kamu menambah jalur mutasi saldo baru, bungkus juga dengan `withSaldoWriteLock`** — jangan menulis saldo di luar lock. Lihat [[saldo-write-serialization]].
+- **Semua mutasi saldo lewat modul `lib/saldo`** (sering di-`require` sebagai `saldoManager`). Fungsi publik `addSaldo` / `deductSaldo` / `transferSaldo` sudah men-serialize lewat `withSaldoWriteLock(fn)` (`lib/saldo/shared.js`) di atas satu koneksi SQLite singleton. **Kalau kamu menambah jalur mutasi saldo baru, bungkus juga dengan `withSaldoWriteLock`** — jangan menulis saldo di luar lock. Lihat [[saldo-write-serialization]].
 - **Jangan pernah `addSaldo()` / `addKoinUser()` dengan amount `0` / `undefined` / negatif.** Validasi `amount > 0` dulu. Untuk sekadar memastikan record ada, pakai `saldoManager.createUserSaldo(userId)` (idempotent, read-only init) — **bukan** `addKoinUser(userId, 0)`.
 - **Normalisasi JID dulu** sebelum operasi saldo (lihat bagian JID). `addKoinUser` bersifat _fail-closed_: kalau JID tak bisa di-resolve, ia mengembalikan `false` dan tidak menambah saldo — periksa nilai baliknya, jangan diabaikan.
 - **Sumber kebenaran status bayar** = ledger periodik di `routes/payment-status.js` + `lib/payment-finance-service.js`. Flag `users.paid` di dashboard hanya cache turunan — jangan menulisnya sebagai sumber final dari route lain. Lihat [[payment-paid-two-sources]].
@@ -64,8 +64,8 @@ Tujuan skill ini: sebelum mengubah jalur berisiko, **kunci dulu invariant yang r
 **Kenapa kritis:** semua teks yang dibaca pelanggan harus bisa diedit admin di `/api/templates`. Hardcode = tak bisa diubah operator + lolos audit.
 
 - **Semua teks user-facing dirender dari template**, tidak pernah string literal. Helper:
-    - `renderResponseTemplate(key, fallback, data)` — `lib/response-template-helper.js:23` (juga `message/handlers/template-helpers`).
-    - `renderTemplate(templateName, data)` — `lib/templating.js:109`.
+    - `renderResponseTemplate(key, fallback, data)` — `lib/response-template-helper.js` (juga `message/handlers/template-helpers`).
+    - `renderTemplate(templateName, data)` — `lib/templating.js`.
 - Template tinggal di `database/*_templates.json` (utamanya `response_templates.json`).
 - **Pesan baru = key template baru.** Sediakan `fallback` runtime yang aman, tapi tetap render lewat key — jangan kirim object diagnostik, kirim `.text`-nya.
 
@@ -73,7 +73,7 @@ Tujuan skill ini: sebelum mengubah jalur berisiko, **kunci dulu invariant yang r
 
 **Kenapa kritis:** state nyangkut atau salah-key bikin bot "tuli" untuk user tertentu (akar bug @lid + reboot).
 
-- Pakai `conversation-handler` (`message/handlers/conversation-handler.js`): `getUserState(userId)` (`:134`), `setUserState(userId, state, options)` (`:156`), `deleteUserState(userId)` (`:186`). **Jangan** baca/tulis `temp[sender]` mentah.
+- Pakai `conversation-handler` (`message/handlers/conversation-handler.js`): `getUserState(userId)`, `setUserState(userId, state, options)`, `deleteUserState(userId)`. **Jangan** baca/tulis `temp[sender]` mentah.
 - **Key dengan sender kanonik (`stateSender`), bukan `@lid`** — lihat [[conversation-state-canonical-key]].
 - State butuh field `step`, auto-expire ~15 menit, dan harus menghormati kata batal universal (`batal`/`cancel`/`ga jadi`). Sebagian step "protected" dari intersepsi command global — cek konvensi sebelum menambah step.
 
