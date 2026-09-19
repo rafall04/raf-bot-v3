@@ -7,6 +7,9 @@
  *   yang berisi `sender` (nomor HP) & `ket` (kode voucher = uang). Jalur anonim hanya boleh membaca
  *   transaksi buynowweb-nya sendiri, dan hanya field aman (proyeksi allowlist). Juga menjaga #b334
  *   penyimpanan `prof` di record buynowweb (voucher durasi benar walau harga kembar).
+ *   Revisi: `ket` BOLEH ikut pada `statustrx` buynowweb yang LUNAS saja — reff = token pembawa
+ *   pembeli dan halaman /voucher membaca `data.ket` untuk menampilkan kodenya (regresi #b334
+ *   yang menyembunyikan `ket` membuat voucher tak pernah tampil di halaman).
  * Caller: Jest.
  * Deps: routes/public-anonymous (handler dipanggil langsung), fs/path (source-scan).
  * SideEffects: set/hapus global.payment.
@@ -78,9 +81,20 @@ describe("/app/statustrx — scoping tag + proyeksi (#b334)", () => {
         expect(r.statusCode).toBe(404);
     });
 
-    test("buynowweb lunas → field aman, kode voucher (ket) TIDAK ikut", async () => {
+    test("buynowweb lunas → `ket` (kode voucher) IKUT — saluran tampil halaman; field lain tetap aman", async () => {
+        // Reff = token pembawa: hanya pembeli yang memegangnya. Tanpa `ket`, finish() di
+        // voucher-buy.html membaca string kosong → layar "voucher sedang diproses" selamanya.
         const r = await callTrx("statustrx", "reff-web-paid", [WEB_PAID]);
         expect(r.statusCode).toBe(200);
+        expect(r.payload.data.ket).toBe("VC-WEB-KODE");
+        // sender & trxId tetap disembunyikan walau record-nya milik jalur ini.
+        expect(r.payload.data).not.toHaveProperty("sender");
+        expect(r.payload.data).not.toHaveProperty("trxId");
+        expect(JSON.stringify(r.payload.data)).not.toContain("62812345");
+    });
+
+    test("buynowweb lunas via detailtrx (pra-tampil QR) → `ket` TETAP disembunyikan", async () => {
+        const r = await callTrx("detailtrx", "reff-web-paid", [WEB_PAID]);
         expect(r.payload.data).not.toHaveProperty("ket");
         expect(JSON.stringify(r.payload.data)).not.toContain("VC-WEB-KODE");
     });

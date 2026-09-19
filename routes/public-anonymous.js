@@ -56,6 +56,12 @@ function toPublicVoucher(item, featured) {
  * ALLOWLIST — JANGAN pernah pantulkan `sender` (nomor HP pelanggan), `ket` (untuk voucher = KODE
  * voucher yang bernilai uang), atau `trxId`/`gateway`/`id` internal. `global.payment` menampung
  * SEMUA jenis transaksi (tagihan bulanan, topup, buynowpanel) — record mentah membocorkan semua itu.
+ *
+ * PENGECUALIAN `ket`: dibolehkan HANYA pada respons `statustrx` untuk record `buynowweb` yang
+ * SUDAH LUNAS — reff bertindak sebagai token pembawa yang cuma dipegang pembeli, dan halaman
+ * `/voucher` memang dirancang menampilkan kode voucher dari field itu (saluran pengiriman kedua
+ * selain WhatsApp). Tanpa itu pembeli lunas melihat "voucher sedang diproses" selamanya.
+ * `detailtrx` (pra-bayar) tetap TANPA `ket`.
  */
 const PUBLIC_TRX_FIELDS = ['reffId', 'status', 'amount', 'method', 'qrStr', 'priceTotal', 'fee', 'subtotal', 'createdAt'];
 function toPublicTrx(rec) {
@@ -107,7 +113,10 @@ router.get('/app/:type/:id?', async (req, res) => {
                 let trx = findPublicWebTrx(id);
                 if (!trx) return res.status(404).json({ status: 404, message: "" });
                 if (!trx.status) return res.status(400).json({ status: 400, message: "menunggu pembayaran!" });
-                return res.status(200).json({ status: 200, message: 'Success', data: toPublicTrx(trx) });
+                // `ket` (kode voucher / prefix GAGAL) disertakan HANYA di sini — record sudah
+                // ter-scope buynowweb + sudah lunas, dan pembeli memegang reff-nya sendiri.
+                // Halaman /voucher membaca `data.ket` untuk menampilkan kodenya.
+                return res.status(200).json({ status: 200, message: 'Success', data: { ...toPublicTrx(trx), ket: trx.ket } });
             }
             case 'qr': {
                 // Render QRIS string (tersimpan saat charge) menjadi gambar PNG agar tampil di

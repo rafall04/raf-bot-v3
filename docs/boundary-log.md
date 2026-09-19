@@ -3212,3 +3212,12 @@
 - **FIX [3/3]:** `lib/invoice-on-paid.trySendSettleInvoice(user,{messageText,paymentDetails,isCleanPaid})` (baru) — bungkus jalur settle: gate `config.invoiceOnSettle.enabled` ON & send_invoice ON & isCleanPaid → kirim invoice PDF via `sendPaidInvoiceOrReceipt`, return true (caller SKIP teks, cegah dobel); else false → caller kirim struk teks. 3 callback di-rewire ke pola `sentInvoice = await trySendSettleInvoice(...); if(!sentInvoice) sendMessage(text)`. `isCleanPaid = tindakan.jenis !== 'kelebihan'` → kelebihan-bayar TETAP teks (bukan invoice).
 - **Hygiene:** dead-letter invoice_errors.json kini via `getDatabasePath` → NODE_ENV=test terisolasi ke invoice_errors_test.json (auto-diignore), tak mengotori data prod; path prod tetap database/invoice_errors.json (perilaku prod tak berubah) + di-gitignore (sekelas invoices.json).
 - **Tes:** callback-invoice-wiring +2 (guard pemindai: 3 callback panggil trySendSettleInvoice + isCleanPaid + fallback teks); regresi callback-tagihan/topup/voucher/content-router/invoice-on-paid/proof-wiring 42 hijau (lebarkan jendela slice tagihan.test 3600->4400 & after 1100->1700); lint 0. Aktivasi: nyalakan invoiceOnSettle di /feature-flags.
+
+<a id="b390"></a>
+
+### Fix 2026-09-19 (PSB dual-band tak aktif + kode voucher web tak tampil)
+
+- **Owner:** `lib/genieacs.updatePsbDeviceConfig` kini push `Enable=true` per index WiFi (template path baru `wifiEnable`, TR-098+TR-181) + refresh container WLAN UTUH (bukan hanya instance ter-push); `psb.state.js` baca-ulang band pasca-push DIPERLUAS — dulu hanya `!bandDetected` (found:false), kini juga saat verdict single-band (cache ACS basi: WLAN.5 belum keenumerasi), koreksi `bulk` hanya bila ada index baru.
+- **Voucher web:** `routes/public-anonymous.js` `statustrx` kini mengembalikan `ket` untuk record `buynowweb` LUNAS — kode voucher tampil lagi di `/voucher` (halaman membaca `rec.ket` sejak awal; penyembunyian `ket` di #b334 adalah regresi tak disengaja). `detailtrx` & semua lintas-tag TETAP tanpa `ket`/`sender`/`trxId` (scope #b334 dijaga).
+- **Status path lama:** tak ada yang dimatikan; `statustrx` tanpa `ket` hanyalah regresi, bukan kontrak.
+- **Gate:** tidak ada (perilaku inti). **Tes:** psb.state +2 (verdict basi→koreksi bulk+push '5'; single-band asli→tanpa tulis sia-sia), public-anonymous-trx-scope direvisi (+detailtrx tetap tanpa `ket`); psb-push-dan-breaker/wifi-bulk-reconcile/create-user-mikrotik-sync hijau; lint 0.

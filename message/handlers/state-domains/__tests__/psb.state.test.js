@@ -747,6 +747,54 @@ describe("PSB koreksi band setelah push", () => {
         expect(mockPushDevice).toHaveBeenCalledWith("dev-A", expect.objectContaining({ ssidIndices: ["5"] }), expect.anything());
     });
 
+    test("bacaan pertama SALAH-VONIS single-band (cache basi) → bacaan kedua mengoreksi: bulk + push band 5", async () => {
+        // Bug "modem dual-band tak diaktifkan": device DITEMUKAN tapi cache ACS belum enumerasi
+        // WLAN.5 → expectedBulk ["1"]. Dulu bandDetected=true mematikan retry → dual-band selamanya
+        // hanya di-push 2.4GHz. Pemicu diperluas: baca ulang juga saat '5' tak ikut ter-push.
+        let panggilan = 0;
+        const fetchDeviceCapability = jest.fn(async () => {
+            panggilan += 1;
+            return panggilan === 1
+                ? { found: true, deviceId: "dev-A", model: "HG8145V5", has5G: false, expectedBulk: ["1"] }
+                : { found: true, deviceId: "dev-A", model: "HG8145V5", has5G: true, expectedBulk: ["1", "5"] };
+        });
+        const updateUserById = jest.fn(async () => ({ status: 200, body: {} }));
+        const upsert = jest.fn(async () => ({ status: 201, body: { data: { id: 99 }, device_config: { attempted: true, ok: true } } }));
+        const h = harness({
+            fetchDeviceCapability,
+            usersService: { upsertUserFromAdminPanel: upsert, updateUserById }
+        });
+        mockPushDevice.mockClear();
+
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+
+        expect(upsert.mock.calls[0][0].userData.ssid_indices).toEqual(["1"]);
+        expect(fetchDeviceCapability).toHaveBeenCalledTimes(2);
+        expect(updateUserById).toHaveBeenCalledWith(expect.objectContaining({
+            id: 99,
+            userData: { bulk: ["1", "5"] }
+        }));
+        expect(mockPushDevice).toHaveBeenCalledWith("dev-A", expect.objectContaining({ ssidIndices: ["5"] }), expect.anything());
+    });
+
+    test("modem memang single-band → baca ulang MENGONFIRMASI ['1'] tanpa tulisan bulk sia-sia", async () => {
+        // Biaya perluasan pemicu: modem single-band ikut dibaca dua kali (read-only, murah) —
+        // tapi TIDAK boleh menghasilkan updateUserById/push susulan karena tak ada yang berubah.
+        const fetchDeviceCapability = jest.fn(async () => ({ found: true, deviceId: "dev-A", model: "HG8145", has5G: false, expectedBulk: ["1"] }));
+        const updateUserById = jest.fn(async () => ({ status: 200, body: {} }));
+        const upsert = jest.fn(async () => ({ status: 201, body: { data: { id: 99 }, device_config: { attempted: true, ok: true } } }));
+        const h = harness({ fetchDeviceCapability, usersService: { upsertUserFromAdminPanel: upsert, updateUserById } });
+        mockPushDevice.mockClear();
+
+        await reachConfirm(h);
+        await handlePsbConversationState({ ...h.base, stateStep: h.getState().step, teknisiState: h.getState(), type: "conversation", chats: "YA" });
+
+        expect(fetchDeviceCapability).toHaveBeenCalledTimes(2);
+        expect(updateUserById).not.toHaveBeenCalled();
+        expect(mockPushDevice).not.toHaveBeenCalled();
+    });
+
     test("band tetap tak terbaca setelah push → TIDAK menulis tebakan bulk apa pun", async () => {
         const fetchDeviceCapability = jest.fn(async () => ({ found: false }));
         const updateUserById = jest.fn(async () => ({ status: 200, body: {} }));

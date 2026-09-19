@@ -1185,13 +1185,18 @@ async function provisionInner(context, ctx, candidate) {
     const pushFailed = body.warning === "device_config_failed" || Boolean(dc.attempted && !dc.ok);
     const pushOk = Boolean(dc.attempted && dc.ok);
 
-    // ── Deteksi band yang GAGAL jangan mengendap jadi "fakta" ──
+    // ── Deteksi band yang GAGAL/BASI jangan mengendap jadi "fakta" ──
     // Modem yang baru semenit terdaftar di ACS sering belum selesai ditelusuri, sehingga WLAN 5GHz
     // tak terlihat dan `bulk` tersimpan ["1"]. Akibatnya nyata: saat pelanggan minta ganti nama/sandi
     // WiFi, band 5GHz TAK ikut berubah — dan pada modem BEKAS, WiFi pemilik lama bisa tetap hidup di
-    // sana. Push barusan memicu refresh parameter, jadi baca ULANG sekali: bila ternyata dual-band,
-    // betulkan `bulk` DAN dorong WiFi ke indeks yang belum tersentuh. Best-effort, never-throw.
-    if (!bandDetected && pushOk && newUserId && candidate && candidate.deviceId) {
+    // sana. Push barusan memicu refresh container WLAN utuh, jadi baca ULANG sekali: bila ternyata
+    // dual-band, betulkan `bulk` DAN dorong WiFi ke indeks yang belum tersentuh. Best-effort, never-throw.
+    // Pemicu DIPERLUAS: bukan hanya saat device tak terbaca sama sekali (`!bandDetected`), tapi juga
+    // saat bacaan pertama memberi vonis single-band — vonis itu bisa BASI untuk alasan yang sama
+    // (instance 5 belum keenumerasi), dan dulu ia mematikan retry sehingga modem dual-band selamanya
+    // hanya di-push 2.4GHz.
+    const { SSID_5G_INDEX } = require("../../../lib/wifi-bulk-reconcile");
+    if (pushOk && newUserId && candidate && candidate.deviceId && (!bandDetected || !ssidIndices.includes(SSID_5G_INDEX))) {
         const secondRead = await readBandCapability(
             fetchDeviceCapability, candidate.deviceId, "psb.dm.ssidCapability.retry", logger
         );
@@ -1200,28 +1205,33 @@ async function provisionInner(context, ctx, candidate) {
             bandDetected = true;
             bandLabel = secondRead.label;
             ssidIndices = secondRead.indices;
-            try {
-                await usersService.updateUserById({
-                    id: newUserId,
-                    userData: { bulk: secondRead.indices },
-                    actor: { id: ctx.staff.id, username: ctx.staff.username, name: ctx.staff.name || ctx.staff.username, role: ctx.staff.role },
-                    requestMeta: { ipAddress: "wa-dm-psb", userAgent: "psb-dm-wizard" }
-                });
-                logger?.log?.(`[PSB_DM] bulk dikoreksi ke [${secondRead.indices.join(",")}] setelah band terbaca`);
-            } catch (e) { logger?.error?.("[PSB_DM] koreksi bulk gagal:", e.message); }
-
-            if (missing.length && ctx.data.wifi_ssid && ctx.data.wifi_password) {
+            // Koreksi `bulk` HANYA bila ada index yang benar-benar berubah — modem yang memang
+            // single-band memicu baca-ulang ini juga, dan menulis ulang nilai yang sama hanya
+            // menambah riwayat audit tanpa guna.
+            if (missing.length) {
                 try {
-                    const { updatePsbDeviceConfig: pushDeviceConfig } = require("../../../lib/genieacs-helper");
-                    const extra = await pushDeviceConfig(candidate.deviceId, {
-                        wifiSSID: ctx.data.wifi_ssid,
-                        wifiPassword: ctx.data.wifi_password,
-                        ssidIndices: missing
-                    }, { context: { caller: "psb.dm.bandRetry", deviceId: candidate.deviceId } });
-                    if (!extra || !extra.ok) {
-                        logger?.warn?.(`[PSB_DM] push WiFi band tambahan gagal: ${extra && extra.message}`);
-                    }
-                } catch (e) { logger?.error?.("[PSB_DM] push WiFi band tambahan gagal:", e.message); }
+                    await usersService.updateUserById({
+                        id: newUserId,
+                        userData: { bulk: secondRead.indices },
+                        actor: { id: ctx.staff.id, username: ctx.staff.username, name: ctx.staff.name || ctx.staff.username, role: ctx.staff.role },
+                        requestMeta: { ipAddress: "wa-dm-psb", userAgent: "psb-dm-wizard" }
+                    });
+                    logger?.log?.(`[PSB_DM] bulk dikoreksi ke [${secondRead.indices.join(",")}] setelah band terbaca`);
+                } catch (e) { logger?.error?.("[PSB_DM] koreksi bulk gagal:", e.message); }
+
+                if (ctx.data.wifi_ssid && ctx.data.wifi_password) {
+                    try {
+                        const { updatePsbDeviceConfig: pushDeviceConfig } = require("../../../lib/genieacs-helper");
+                        const extra = await pushDeviceConfig(candidate.deviceId, {
+                            wifiSSID: ctx.data.wifi_ssid,
+                            wifiPassword: ctx.data.wifi_password,
+                            ssidIndices: missing
+                        }, { context: { caller: "psb.dm.bandRetry", deviceId: candidate.deviceId } });
+                        if (!extra || !extra.ok) {
+                            logger?.warn?.(`[PSB_DM] push WiFi band tambahan gagal: ${extra && extra.message}`);
+                        }
+                    } catch (e) { logger?.error?.("[PSB_DM] push WiFi band tambahan gagal:", e.message); }
+                }
             }
         }
     }
