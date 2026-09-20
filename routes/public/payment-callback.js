@@ -135,7 +135,10 @@ router.post('/callback/payment', async (req, res) => {
             }
 
             if (pay.tag == 'buynow') {
-                const prof = checkprofvc(`${pay.amount}`);
+                // Profil DARI record bila ada (disimpan saat charge di payment-flow buynow) —
+                // checkprofvc(harga) hanya fallback record lama: ia TERTUKAR bila dua paket
+                // berharga sama (mengembalikan profil terdaftar terakhir) → voucher durasi salah.
+                const prof = pay.prof || checkprofvc(`${pay.amount}`);
                 const durasivc = checkdurasivc(prof);
                 const hargavc = checkhargavc(prof);
                 await getvoucher(prof, pay.sender, { caller: 'public.payment-callback.buynow' }).then(async voucherResult => {

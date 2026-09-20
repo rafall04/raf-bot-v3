@@ -141,7 +141,11 @@ function createPaymentFlowService(overrides = {}) {
             total_bayar: res.total.toLocaleString("id-ID")
         });
 
-        await createPaymentRequest(reff, res.id, sender, command, number, "QRIS", `Topup ${number} to ${sender}`);
+        // `buynow` (voucher instan): simpan `prof` yang dipilih pembeli di record. Callback
+        // fulfillment (payment-callback.js) memakainya — checkprofvc(harga) tertukar bila dua
+        // paket berharga sama. Pola sama dengan buynowweb/buynowpanel yang sudah simpan prof.
+        const paymentOpts = command === "buynow" ? { prof: profvc } : {};
+        await createPaymentRequest(reff, res.id, sender, command, number, "QRIS", `Topup ${number} to ${sender}`, paymentOpts);
 
         const qrr = qr.imageSync(res.qrString, { type: "png", ec_level: "H" });
         await deps.sendMessage(from, { image: qrr, caption: text }, { quoted: msg, skipDuplicateCheck: true });

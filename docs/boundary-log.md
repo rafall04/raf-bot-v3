@@ -3274,3 +3274,13 @@
 - **Layering:** shared ← confirm ← intake ← slot-filling (asiklik; diverifikasi call-graph per-fungsi).
 - **Status path lama:** tak ada — facade re-export identik; require dalam subdir `../x`→`../../x`, `../../../lib`→`../../../../lib`.
 - **Gate:** n/a. **Tes:** 13 suite state-domains hijau (287 tes, termasuk happy-path wizard + kembar-provision + draft-resume); suite penuh menyusul.
+
+<a id="b397"></a>
+
+### Fix 2026-09-19 (voucher online: kode tak tampil di layar + prof WA + guard buy + wifi-name publik)
+
+- **Bug:** `/app/statustrx` memproyeksikan record via `PUBLIC_TRX_FIELDS` tanpa `ket` — kode voucher tak pernah sampai ke layar sukses `voucher-buy.html`/`portal-voucher.html` walau lunas (kode hanya via WA). `statustrx` kini pakai `PUBLIC_PAID_TRX_FIELDS` (+= `ket`, `trxId`) untuk record `buynowweb` paid; scoping tag `findPublicWebTrx` tetap membatasi ke pemegang reff. `detailtrx` tetap tanpa `ket`/`trxId`.
+- **WA `buynow`:** `payment-flow` kini menyimpan `prof` paket terpilih di record (opts ke-8 `createPaymentRequest`); callback `payment-callback.js` memakai `pay.prof || checkprofvc(amount)` — menutup bug "salah durasi saat dua paket berharga sama" yang sudah ditambal untuk buynowweb/buynowpanel (#b334) tapi belum untuk jalur WA.
+- **`/app/buy`:** guard `isprofvc(id)` → 400 untuk prof tak terdaftar (sebelumnya `checkhargavc` → undefined → `parseInt` → charge iPaymu `NaN` + record sampah).
+- **public-site-app:** mount `routes/public/content` → `/api/wifi-name` kini hidup di listener publik (sebelumnya 404 → halaman `/voucher` kehilangan tombol lapor-admin, login-otomatis, flag waConnected).
+- **Gate:** n/a. **Tes:** `public-anonymous-trx-scope` diperbarui (ket+trxId ikut hanya di statustrx lunas; sender tetap tak bocor; buy prof-ngasal → 400) + `payment-flow.service` (buynow simpan prof). 62 tes scoped hijau; suite penuh menyusul.
