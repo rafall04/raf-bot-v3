@@ -503,6 +503,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Refactor 2026-09-19 (state-domains/psb.state.js dipecah → psb/{shared,intake,slot-filling,confirm}.state.js + facade)](docs/boundary-log.md#b396)
 - [Fix 2026-09-19 (voucher online: statustrx kembalikan ket+trxId saat lunas, prof WA buynow, guard buy, wifi-name di listener publik)](docs/boundary-log.md#b397)
 - [Feat 2026-09-19 (worklist voucher orphan: GET/resolve /api/voucher/orphans + halaman /voucher-orphans; voucher-orphan.js punya list/resolve atomik)](docs/boundary-log.md#b398)
+- [Refactor 2026-09-19 (lib/mikrotik.js dipecah → lib/mikrotik/{core,pppoe,netwatch,hotspot,site-http} + facade)](docs/boundary-log.md#b399)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

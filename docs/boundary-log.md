@@ -3294,3 +3294,12 @@
 - **Halaman:** `/voucher-orphans` (views/sb-admin/voucher-orphans.php + static/js|css/voucher-orphans.*), item sidebar grup Voucher Hotspot; flag `voucherOrphanWorklist` default-aktif (registry + config.example.json).
 - **Status path lama:** n/a — fitur baru; `voucher-sales` tetap punya tombol Terbitkan-ulang per-transaksi (jalur beda: reff-based).
 - **Gate:** `voucherOrphanWorklist.enabled`. **Tes:** `lib/__tests__/voucher-orphan.test.js` (record/list/resolve/anti-ganda) + `routes/__tests__/api-voucher-orphans.test.js` (fulfill pakai profil tercatat, send tak generate, guard & in-flight); navbar count 74→75. Suite penuh menyusul.
+
+<a id="b399"></a>
+
+### Refactor 2026-09-19 (lib/mikrotik.js dipecah → lib/mikrotik/{core,pppoe,netwatch,hotspot,site-http} + facade)
+
+- **Owner baru:** `lib/mikrotik/core.js` — config (.env + mikrotik_devices.json + cache 5 mnt), retry + circuit breaker + per-key lock, result helpers, dua transport (spawn bridge PHP `views/*.php` & `getJsonOverHttp` ke siteUrl), keepAlive agents, `getMikrotikDiagnostics`. `pppoe.js` = secret/profil/sesi/user/stats + steering lists. `netwatch.js` = list/full/add/set/remove netwatch (envSecrets). `hotspot.js` = profil/stats/user-aktif/batch-add/script-log Mikhmon. `site-http.js` = voucher/binding/queue/statusap via `site_url_bot` HTTP (non-idempotent, lock per-key).
+- **Layering:** semua submodule → `core` (asiklik). State (configCache, circuitState, keyLocks, agents) tinggal di core = singleton identik.
+- **Status path lama:** tak ada — `lib/mikrotik.js` jadi facade murni (33 export identik + `_resetMikrotikKeyLocksForTests` kini ikut diekspos). Path repo di core kini lewat konstanta `REPO_ROOT` (__dirname/../..) karena file turun satu level.
+- **Gate:** n/a. **Tes:** 8 suite mikrotik+consumer hijau (76 tes — mikrotik.test.js, cctv-netwatch-sync, voucher-manager-purchase, isolir-service, customer-path-resolver, create-user-mikrotik-sync, voucher orphans & generate-send); suite penuh menyusul.
