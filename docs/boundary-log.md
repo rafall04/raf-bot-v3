@@ -3284,3 +3284,13 @@
 - **`/app/buy`:** guard `isprofvc(id)` → 400 untuk prof tak terdaftar (sebelumnya `checkhargavc` → undefined → `parseInt` → charge iPaymu `NaN` + record sampah).
 - **public-site-app:** mount `routes/public/content` → `/api/wifi-name` kini hidup di listener publik (sebelumnya 404 → halaman `/voucher` kehilangan tombol lapor-admin, login-otomatis, flag waConnected).
 - **Gate:** n/a. **Tes:** `public-anonymous-trx-scope` diperbarui (ket+trxId ikut hanya di statustrx lunas; sender tetap tak bocor; buy prof-ngasal → 400) + `payment-flow.service` (buynow simpan prof). 62 tes scoped hijau; suite penuh menyusul.
+
+<a id="b398"></a>
+
+### Feat 2026-09-19 (worklist voucher orphan: panel admin + API resolve)
+
+- **Owner baru:** `routes/api-voucher-routes.js` — `GET /api/voucher/orphans` (list+stats; status open|resolved|all) & `POST /api/voucher/orphans/:id/resolve` (aksi `fulfill`|`send`|`manual`|`refund`, staff-guarded). `lib/voucher-orphan.js` kini punya `listVoucherOrphans`/`getVoucherOrphan`/`resolveVoucherOrphan` dan tulis ATOMIK via `json-store.saveJSON` (dulu writeFileSync mentah).
+- **Semantik resolve:** `fulfill` hanya untuk entri paid-unissued (tanpa voucherCode; butuh `reference_id`+`profile`+`sender`) → `reissueVoucher` dengan **profil tercatat** (param baru `prof` menang atas lookup-harga — anti salah-durasi paket kembar). `send` untuk entri created-unpaid (`voucherCode` ada) → `resendVoucherCode` kode existing — JANGAN generate ulang (bocor voucher ke-2). `manual`/`refund` = tanda selesai + catatan (aksi keuangan di luar sistem). Resolve ganda ditolak (409) + kunci `_orphanInFlight` per-id.
+- **Halaman:** `/voucher-orphans` (views/sb-admin/voucher-orphans.php + static/js|css/voucher-orphans.*), item sidebar grup Voucher Hotspot; flag `voucherOrphanWorklist` default-aktif (registry + config.example.json).
+- **Status path lama:** n/a — fitur baru; `voucher-sales` tetap punya tombol Terbitkan-ulang per-transaksi (jalur beda: reff-based).
+- **Gate:** `voucherOrphanWorklist.enabled`. **Tes:** `lib/__tests__/voucher-orphan.test.js` (record/list/resolve/anti-ganda) + `routes/__tests__/api-voucher-orphans.test.js` (fulfill pakai profil tercatat, send tak generate, guard & in-flight); navbar count 74→75. Suite penuh menyusul.

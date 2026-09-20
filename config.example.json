@@ -254,6 +254,10 @@
   "voucherSalesDashboard": {
     "enabled": true
   },
+  "voucherOrphanWorklist": {
+    "_comment": "Worklist rekonsiliasi voucher orphan (/voucher-orphans): voucher yang dibayar tapi gagal terbit (MikroTik down saat callback) atau terbit tanpa tagihan. Admin bisa fulfill/kirim-ulang/tandai selesai dari halaman itu.",
+    "enabled": true
+  },
   "teknisiTutorialUrl": "",
   "monitoring": {
     "enabled": true

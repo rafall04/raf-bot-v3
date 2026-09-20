@@ -493,6 +493,15 @@ router.get('/voucher-sales', checkRole(['admin', 'owner', 'superadmin']), (req, 
     res.render('sb-admin/voucher-sales.php');
 });
 
+// Worklist voucher orphan (bayar sukses tapi voucher gagal terbit / terbit tanpa tagihan) —
+// rekonsiliasi admin. Gate lewat registry FEATURE_FLAGS (voucherOrphanWorklist, default-aktif).
+router.get('/voucher-orphans', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    if (!require('../lib/feature-flags').isFeatureEnabled('voucherOrphanWorklist')) {
+        return res.status(404).render('sb-admin/404.php');
+    }
+    res.render('sb-admin/voucher-orphans.php');
+});
+
 // Stok Voucher Agent (dashboard reseller) page - ADMIN ONLY
 router.get('/agent-voucher-management', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/agent-voucher-management.php');

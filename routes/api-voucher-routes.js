@@ -17,8 +17,9 @@ const { createVoucherPrintRepository } = require('../repositories/voucher-print.
 const { createVoucherPrintService } = require('../services/voucher-print.service');
 const { createVoucherTrackingRepository } = require('../repositories/voucher-tracking.repository');
 const { addHotspotUsersBatch, getvoucher } = require('../lib/mikrotik');
-const { checkprofvc } = require('../lib/voucher');
+const { checkprofvc, checknamavc } = require('../lib/voucher');
 const { updateKetPayment, updateStatusPayment } = require('../lib/payment');
+const { listVoucherOrphans, getVoucherOrphan, resolveVoucherOrphan } = require('../lib/voucher-orphan');
 
 function createApiVoucherRouter({
     fs,
@@ -320,13 +321,144 @@ function createApiVoucherRouter({
             const amt = parseInt(rec.amount, 10) || 0;
             const match = vouchers.find((v) => (parseInt(v.hargavc, 10) || 0) === amt);
             const namaPaket = (match && (match.namavc || match.durasivc || match.prof)) || ('Rp' + amt.toLocaleString('id-ID'));
-            const result = await apiVoucherService.reissueVoucher({ reff, amount: amt, sender: rec.sender, namaPaket });
+            // Profil dari record pembayaran (disimpan saat charge) menang atas lookup-by-harga —
+            // anti salah-durasi saat dua paket berharga sama.
+            const result = await apiVoucherService.reissueVoucher({ reff, amount: amt, sender: rec.sender, namaPaket, prof: rec.prof });
             return res.status(result.status).json(result.body);
         } catch (e) {
             console.error('[VOUCHER_REISSUE]', e && e.message);
             return res.status(500).json({ status: 500, message: 'Terjadi kesalahan saat terbitkan ulang.' });
         } finally {
             _reissueInFlight.delete(reff);
+        }
+    });
+
+    // ---------- Worklist voucher ORPHAN (/voucher-orphans) ----------
+    // Orphan = entri di database/voucher_orphans.json. Dua bentuk:
+    //   (a) paid-unissued — pelanggan BAYAR tapi voucher gagal dibuat (callback gagal):
+    //       field {type, reference_id, sender, amount, profile, error} → aksi `fulfill`.
+    //   (b) created-unpaid — voucher SUDAH terbit di MikroTik tapi penagihan gagal
+    //       (saldo/agent rollback): field {sender, voucherCode, profile, price, reason} →
+    //       aksi `send` (kirim kode existing) atau `manual`. JANGAN generate ulang — voucher
+    //       sudah ada, membuat lagi = bocor voucher kedua.
+    function toOrphanView(o) {
+        return {
+            id: o.id,
+            timestamp: o.timestamp || null,
+            kind: o.voucherCode ? 'created_unpaid' : 'paid_unissued',
+            type: o.type || null,
+            referenceId: o.reference_id || null,
+            sender: o.sender || null,
+            profile: o.profile || null,
+            amount: o.amount != null ? o.amount : (o.price != null ? o.price : null),
+            voucherCode: o.voucherCode || null,
+            error: o.error || o.reason || null,
+            resolved: !!o.resolved,
+            resolvedAt: o.resolvedAt || null,
+            resolvedBy: o.resolvedBy || null,
+            resolution: o.resolution || null
+        };
+    }
+
+    router.get('/voucher/orphans', requireStaff, (req, res) => {
+        try {
+            const status = ['open', 'resolved', 'all'].includes(String(req.query.status))
+                ? String(req.query.status) : 'open';
+            const all = listVoucherOrphans({ status: 'all' });
+            const items = listVoucherOrphans({ status });
+            return res.json({
+                status: 200,
+                stats: {
+                    total: all.length,
+                    open: all.filter((o) => !o.resolved).length,
+                    resolved: all.filter((o) => !!o.resolved).length
+                },
+                items: items.map(toOrphanView)
+            });
+        } catch (e) {
+            console.error('[VOUCHER_ORPHANS_LIST]', e && e.message);
+            return res.status(500).json({ status: 500, message: 'Gagal memuat worklist orphan.' });
+        }
+    });
+
+    // Kunci per-orphan: `fulfill`/`send` non-idempotent (membuat voucher / mengirim WA).
+    const _orphanInFlight = new Set();
+
+    router.post('/voucher/orphans/:id/resolve', requireStaff, async (req, res) => {
+        const id = String(req.params.id || '').trim();
+        const action = String((req.body && req.body.action) || '').trim();
+        const note = String((req.body && req.body.note) || '').trim();
+        const resolvedBy = (req.user && req.user.username) || 'admin';
+        if (!id) return res.status(400).json({ status: 400, message: 'ID orphan kosong.' });
+        if (!['fulfill', 'send', 'manual', 'refund'].includes(action)) {
+            return res.status(400).json({ status: 400, message: 'Aksi tidak dikenal (fulfill|send|manual|refund).' });
+        }
+        if (_orphanInFlight.has(id)) {
+            return res.status(409).json({ status: 409, message: 'Orphan ini sedang diproses — tunggu sebentar.' });
+        }
+        _orphanInFlight.add(id);
+        try {
+            const entry = getVoucherOrphan(id);
+            if (!entry) return res.status(404).json({ status: 404, message: 'Orphan tidak ditemukan.' });
+            if (entry.resolved) return res.status(409).json({ status: 409, message: 'Orphan sudah ter-resolve.' });
+
+            if (action === 'fulfill') {
+                // Terbitkan voucher BARU untuk pembelian yang sudah dibayar — pakai profile yang
+                // TERCATAT di entri (bukan lookup harga: dua paket bisa berharga sama).
+                if (entry.voucherCode) {
+                    return res.status(409).json({ status: 409, message: 'Voucher sudah terbit (kode ada) — pakai aksi Kirim/Manual, jangan generate ulang.' });
+                }
+                if (!entry.reference_id) {
+                    return res.status(400).json({ status: 400, message: 'Entri tanpa reference_id — selesaikan manual.' });
+                }
+                if (!entry.profile) {
+                    return res.status(400).json({ status: 400, message: 'Entri tanpa profil voucher — selesaikan manual.' });
+                }
+                if (!entry.sender) {
+                    return res.status(400).json({ status: 400, message: 'Entri tanpa nomor pembeli — selesaikan manual.' });
+                }
+                const result = await apiVoucherService.reissueVoucher({
+                    reff: entry.reference_id,
+                    amount: entry.amount != null ? entry.amount : entry.price,
+                    sender: entry.sender,
+                    namaPaket: checknamavc(entry.profile) || entry.profile,
+                    prof: entry.profile
+                });
+                if (result.status !== 200) return res.status(result.status).json(result.body);
+                resolveVoucherOrphan(id, { action: 'fulfill', note, resolvedBy, voucherCode: result.body.code });
+                return res.status(200).json(result.body);
+            }
+
+            if (action === 'send') {
+                // Voucher SUDAH ada di MikroTik — kirim ulang kode yang sama, JANGAN generate baru.
+                if (!entry.voucherCode) {
+                    return res.status(400).json({ status: 400, message: 'Tidak ada kode tersimpan — pakai fulfill (terbitkan baru) atau manual.' });
+                }
+                const digits = String(entry.sender || '').replace(/\D/g, '');
+                if (digits.length < 9) {
+                    return res.status(400).json({ status: 400, message: 'Sender bukan nomor HP (mis. agent_*) — kirim manual.' });
+                }
+                const result = await apiVoucherService.resendVoucherCode({
+                    phone: digits,
+                    code: entry.voucherCode,
+                    namaPaket: checknamavc(entry.profile) || entry.profile || 'Voucher',
+                    amount: entry.amount != null ? entry.amount : entry.price
+                });
+                if (result.status !== 200) return res.status(result.status).json(result.body);
+                resolveVoucherOrphan(id, { action: 'send', note, resolvedBy, voucherCode: entry.voucherCode });
+                return res.status(200).json(result.body);
+            }
+
+            // manual / refund — hanya tandai resolved + catatan (refund = uang sudah dikembalikan
+            // di luar sistem; manual = admin fulfill lewat jalur lain).
+            const updated = resolveVoucherOrphan(id, { action, note, resolvedBy });
+            if (!updated) return res.status(409).json({ status: 409, message: 'Orphan sudah ter-resolve.' });
+            return res.status(200).json({ status: 200, message: 'Orphan ditandai selesai.', item: toOrphanView(updated) });
+        } catch (e) {
+            console.error('[VOUCHER_ORPHAN_RESOLVE]', e && e.message);
+            return res.status(500).json({ status: 500, message: 'Terjadi kesalahan saat memproses orphan.' });
+        } finally {
+            _orphanInFlight.delete(id);
         }
     });
 
