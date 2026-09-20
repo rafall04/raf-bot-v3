@@ -18,6 +18,8 @@
  *   jalur `capture`, membalas pelanggan lewat `reply` yang diinjeksi. Tidak pernah throw.
  */
 "use strict";
+const log = require('../../lib/logger').logger.child('PAYMENT_PROOF_HANDLER');
+
 
 const { getPaymentProofService } = require("../../services/payment-proof.service");
 const { ACTION } = require("../../lib/payment-proof-intake-policy");
@@ -72,7 +74,7 @@ async function handleIncomingPaymentProof({
         // Admin sedang menangani chat ini → jangan bersuara & jangan menandai handled: biarkan pesan
         // jatuh persis seperti sebelum fitur ini ada (guard chats-kosong di raf.js yang membuangnya).
         if (decision.action === ACTION.SILENT) {
-            console.log(`[PAYMENT_PROOF] Intake dilewati — ${decision.reason}.`);
+            log.info(`[PAYMENT_PROOF] Intake dilewati — ${decision.reason}.`);
             return { handled: false, action: decision.action, reason: decision.reason };
         }
 
@@ -80,7 +82,7 @@ async function handleIncomingPaymentProof({
         // jangan ganggu admin. Pelanggan tetap dapat respons (bug lama "foto ditelan diam-diam"
         // tidak kembali), dan fotonya tetap terlihat admin di chat WhatsApp seperti biasa.
         if (decision.action !== ACTION.CAPTURE) {
-            console.log(`[PAYMENT_PROOF] Foto TIDAK dianggap bukti bayar — ${decision.reason} (aksi: ${decision.action}).`);
+            log.info(`[PAYMENT_PROOF] Foto TIDAK dianggap bukti bayar — ${decision.reason} (aksi: ${decision.action}).`);
             if (decision.ackText) {
                 await reply(decision.ackText, { skipDuplicateCheck: true });
             }
@@ -92,7 +94,7 @@ async function handleIncomingPaymentProof({
             return { handled: false };
         }
 
-        console.log(`[PAYMENT_PROOF] Foto ditangkap sebagai kandidat bukti bayar — ${decision.reason}.`);
+        log.info(`[PAYMENT_PROOF] Foto ditangkap sebagai kandidat bukti bayar — ${decision.reason}.`);
         const { ackText } = await svc.handleIncomingProof({
             user,
             canonicalSender,
@@ -110,7 +112,7 @@ async function handleIncomingPaymentProof({
         }
         return { handled: true, action: decision.action, reason: decision.reason };
     } catch (err) {
-        console.error("[PAYMENT_PROOF_HANDLER_ERROR]", err.message);
+        log.error("[PAYMENT_PROOF_HANDLER_ERROR]", err.message);
         // Jangan biarkan foto pelanggan ditelan diam-diam — beri konfirmasi lembut. Teks ini sengaja
         // NETRAL (tak menyebut pembayaran): saat gerbang gagal, kita tidak tahu ini foto apa.
         try {

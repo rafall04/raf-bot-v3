@@ -14,6 +14,7 @@
  *           `lib/http-auth-bootstrap.js`, sehingga POST/PUT/DELETE terbuka tanpa login.
  *           Hanya `/api/packages/public` yang boleh anonim.
  */
+const log = require('../lib/logger').logger.child('PACKAGES');
 const express = require('express');
 const router = express.Router();
 const { saveJSON } = require('../lib/json-store');
@@ -30,7 +31,7 @@ function savePackages() {
         saveJSON('packages.json', global.packages);
         return true;
     } catch (error) {
-        console.error('[SAVE_PACKAGES_ERROR]', error);
+        log.error('[SAVE_PACKAGES_ERROR]', error);
         return false;
     }
 }
@@ -42,7 +43,7 @@ router.get('/api/packages', ensureAuthenticatedStaff, (req, res) => {
         const packages = global.packages || [];
         res.json({ data: packages });
     } catch (error) {
-        console.error('[GET_PACKAGES_ERROR]', error);
+        log.error('[GET_PACKAGES_ERROR]', error);
         res.status(500).json({ message: 'Gagal memuat daftar paket' });
     }
 });
@@ -70,7 +71,7 @@ router.get('/api/packages/public', (req, res) => {
             data: packages 
         });
     } catch (error) {
-        console.error('[GET_PUBLIC_PACKAGES_ERROR]', error);
+        log.error('[GET_PUBLIC_PACKAGES_ERROR]', error);
         res.status(500).json({ 
             success: false,
             message: 'Gagal memuat daftar paket' 
@@ -110,7 +111,7 @@ router.post('/api/packages', ensureAdmin, (req, res) => {
             res.status(500).json({ message: 'Gagal menyimpan paket' });
         }
     } catch (error) {
-        console.error('[CREATE_PACKAGE_ERROR]', error);
+        log.error('[CREATE_PACKAGE_ERROR]', error);
         res.status(500).json({ message: 'Gagal menambahkan paket' });
     }
 });
@@ -154,7 +155,7 @@ router.put('/api/packages/:id', ensureAdmin, (req, res) => {
             res.status(500).json({ message: 'Gagal menyimpan perubahan' });
         }
     } catch (error) {
-        console.error('[UPDATE_PACKAGE_ERROR]', error);
+        log.error('[UPDATE_PACKAGE_ERROR]', error);
         res.status(500).json({ message: 'Gagal memperbarui paket' });
     }
 });
@@ -177,7 +178,7 @@ router.delete('/api/packages/:id', ensureAdmin, (req, res) => {
             res.status(500).json({ message: 'Gagal menyimpan perubahan' });
         }
     } catch (error) {
-        console.error('[DELETE_PACKAGE_ERROR]', error);
+        log.error('[DELETE_PACKAGE_ERROR]', error);
         res.status(500).json({ message: 'Gagal menghapus paket' });
     }
 });

@@ -6,6 +6,7 @@
  * MainFuncs: `createApiPsbRouter`.
  * SideEffects: Menulis record PSB, memindahkan pelanggan ke users, mengakses DB PSB/users, dan mengirim notifikasi operasional.
  */
+const log = require('../lib/logger').logger.child('API_PSB_ROUTES');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -185,7 +186,7 @@ const psbStorage = multer.diskStorage({
         currentDir: __dirname,
         ambilSegmen: (req) => req.body?.tempId || req.query?.tempId || req.headers['x-temp-id'],
         saatDitolak: (req, segmen) => {
-            console.warn(`[PSB_UPLOAD] tempId ditolak: ${String(segmen)}`);
+            log.warn(`[PSB_UPLOAD] tempId ditolak: ${String(segmen)}`);
         }
     }),
     filename: function (req, file, cb) {
@@ -248,11 +249,11 @@ router.post('/psb/upload-photo', ensureAuthenticatedStaff, rateLimit('psb-upload
 
         // Log untuk debugging
         const fieldnameUsed = req.file.filename;
-        console.log(`[PSB_UPLOAD_SUCCESS] File uploaded: ${req.file.filename}`);
-        console.log(`[PSB_UPLOAD_SUCCESS] fieldname used: ${fieldnameUsed}`);
-        console.log(`[PSB_UPLOAD_SUCCESS] tempId: ${tempId} (satu folder untuk 2 foto: KTP + Rumah)`);
-        console.log(`[PSB_UPLOAD_SUCCESS] Web path: ${webPath}`);
-        console.log(`[PSB_UPLOAD_SUCCESS] Storage path: ${fullStoragePath}`);
+        log.info(`[PSB_UPLOAD_SUCCESS] File uploaded: ${req.file.filename}`);
+        log.info(`[PSB_UPLOAD_SUCCESS] fieldname used: ${fieldnameUsed}`);
+        log.info(`[PSB_UPLOAD_SUCCESS] tempId: ${tempId} (satu folder untuk 2 foto: KTP + Rumah)`);
+        log.info(`[PSB_UPLOAD_SUCCESS] Web path: ${webPath}`);
+        log.info(`[PSB_UPLOAD_SUCCESS] Storage path: ${fullStoragePath}`);
         
         return res.json({
             status: 200,
@@ -269,7 +270,7 @@ router.post('/psb/upload-photo', ensureAuthenticatedStaff, rateLimit('psb-upload
             }
         });
     } catch (error) {
-        console.error('[PSB_UPLOAD_ERROR]', error);
+        log.error('[PSB_UPLOAD_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal upload foto',
@@ -292,7 +293,7 @@ router.post('/psb/submit-phase1', ensureAuthenticatedStaff, rateLimit('psb-submi
         });
         return res.status(result.status).json(result.body);
     } catch (error) {
-        console.error('[PSB_PHASE1_ERROR]', error);
+        log.error('[PSB_PHASE1_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal menyimpan data awal PSB',
@@ -336,8 +337,8 @@ router.post('/psb/find-device', ensureAuthenticatedStaff, async (req, res) => {
             });
         }
     } catch (error) {
-        console.error('[PSB_FIND_DEVICE_ERROR]', error);
-        console.error('[PSB_FIND_DEVICE_ERROR] Stack:', error.stack);
+        log.error('[PSB_FIND_DEVICE_ERROR]', error);
+        log.error('[PSB_FIND_DEVICE_ERROR] Stack:', error.stack);
         
         // Handle specific error cases
         if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
@@ -372,7 +373,7 @@ router.get('/psb/list-customers', ensureAuthenticatedStaff, async (req, res) => 
         });
         return res.status(result.status).json(result.body);
     } catch (error) {
-        console.error('[PSB_LIST_CUSTOMERS_ERROR]', error);
+        log.error('[PSB_LIST_CUSTOMERS_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal mengambil data customers',
@@ -439,7 +440,7 @@ router.get('/psb/list-devices', ensureAuthenticatedStaff, async (req, res) => {
         const psbSummary = psbResult.summary || {};
         const psbTruncated = psbResult.truncated === true;
 
-        console.log('[PSB_LIST_DEVICES]', {
+        log.info('[PSB_LIST_DEVICES]', {
             filterType: psbFilterType,
             serialNumberFilter: psbSerialNumberFilter || null,
             pppoeUsernameFilter: redactPppoeFilter(psbPppoeUsernameFilter),
@@ -452,11 +453,11 @@ router.get('/psb/list-devices', ensureAuthenticatedStaff, async (req, res) => {
         });
 
         if (psbFilterType === 'new' && psbSummary.withoutRegisteredDate === (psbResult.normalizedCount || 0) && (psbResult.normalizedCount || 0) > 0) {
-            console.warn('[PSB_LIST_DEVICES] Events.Registered tidak ditemukan pada seluruh device saat filter new.');
+            log.warn('[PSB_LIST_DEVICES] Events.Registered tidak ditemukan pada seluruh device saat filter new.');
         }
 
         if (psbTruncated) {
-            console.warn('[PSB_LIST_DEVICES] Device fetch terpotong karena mencapai batas maxDevices.', {
+            log.warn('[PSB_LIST_DEVICES] Device fetch terpotong karena mencapai batas maxDevices.', {
                 maxDevices: psbResult.fetchedCount || 0
             });
         }
@@ -477,8 +478,8 @@ router.get('/psb/list-devices', ensureAuthenticatedStaff, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('[PSB_LIST_DEVICES_ERROR]', error);
-        console.error('[PSB_LIST_DEVICES_ERROR] Stack:', error.stack);
+        log.error('[PSB_LIST_DEVICES_ERROR]', error);
+        log.error('[PSB_LIST_DEVICES_ERROR] Stack:', error.stack);
         
         // Handle specific error cases
         if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
@@ -558,7 +559,7 @@ router.post('/psb/update-device-config', ensureAuthenticatedStaff, async (req, r
         throw new Error(response.message || 'Task GenieACS tidak diterima');
         
     } catch (error) {
-        console.error('[UPDATE_DEVICE_CONFIG_ERROR]', error);
+        log.error('[UPDATE_DEVICE_CONFIG_ERROR]', error);
         
         // Handle specific error cases
         if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
@@ -599,7 +600,7 @@ router.post('/psb/update-status', ensureAuthenticatedStaff, rateLimit('psb-updat
         });
         return res.status(result.status).json(result.body);
     } catch (error) {
-        console.error('[PSB_UPDATE_STATUS_ERROR]', error);
+        log.error('[PSB_UPDATE_STATUS_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal update status',
@@ -640,7 +641,7 @@ router.get('/psb/validate-pppoe-username', ensureAuthenticatedStaff, async (req,
             });
         } catch (mikrotikError) {
             // If MikroTik connection error, still allow but warn
-            console.warn('[PSB_VALIDATE_USERNAME] MikroTik check failed:', mikrotikError.message);
+            log.warn('[PSB_VALIDATE_USERNAME] MikroTik check failed:', mikrotikError.message);
             return res.status(200).json({
                 status: 200,
                 available: true, // Allow if check fails (MikroTik might be down)
@@ -649,7 +650,7 @@ router.get('/psb/validate-pppoe-username', ensureAuthenticatedStaff, async (req,
             });
         }
     } catch (error) {
-        console.error('[PSB_VALIDATE_USERNAME_ERROR]', error);
+        log.error('[PSB_VALIDATE_USERNAME_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal mengecek username',
@@ -737,7 +738,7 @@ router.get('/users/validate-pppoe-exists', ensureAdmin, async (req, res) => {
             });
             
         } catch (mikrotikError) {
-            console.error('[VALIDATE_PPPOE_EXISTS] MikroTik error:', mikrotikError.message);
+            log.error('[VALIDATE_PPPOE_EXISTS] MikroTik error:', mikrotikError.message);
             return res.status(500).json({
                 status: 500,
                 exists: false,
@@ -746,7 +747,7 @@ router.get('/users/validate-pppoe-exists', ensureAdmin, async (req, res) => {
         }
         
     } catch (error) {
-        console.error('[VALIDATE_PPPOE_EXISTS_ERROR]', error);
+        log.error('[VALIDATE_PPPOE_EXISTS_ERROR]', error);
         return res.status(500).json({
             status: 500,
             exists: false,
@@ -832,7 +833,7 @@ router.get('/psb/test-connections', ensureAuthenticatedStaff, async (req, res) =
                 : 'Beberapa koneksi bermasalah. Periksa detail di bawah.'
         });
     } catch (error) {
-        console.error('[PSB_TEST_CONNECTIONS_ERROR]', error);
+        log.error('[PSB_TEST_CONNECTIONS_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal mengetes koneksi',
@@ -858,7 +859,7 @@ router.post('/psb/submit-phase2', ensureAuthenticatedStaff, async (req, res) => 
         });
         return res.status(result.status).json(result.body);
     } catch (error) {
-        console.error('[PSB_PHASE2_ERROR]', error);
+        log.error('[PSB_PHASE2_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal menyimpan data pemasangan',
@@ -888,7 +889,7 @@ router.post('/psb/submit-phase3', ensureAuthenticatedStaff, async (req, res) => 
         });
         return res.status(result.status).json(result.body);
     } catch (error) {
-        console.error('[PSB_PHASE3_ERROR]', error);
+        log.error('[PSB_PHASE3_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal menyelesaikan PSB Phase 3',
@@ -909,7 +910,7 @@ router.post('/psb/delete-all', ensureAdmin, async (req, res) => {
         });
         return res.status(result.status).json(result.body);
     } catch (error) {
-        console.error('[PSB_DELETE_ALL_ERROR]', error);
+        log.error('[PSB_DELETE_ALL_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal menghapus data PSB',

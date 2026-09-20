@@ -1,4 +1,6 @@
 "use strict";
+const log = require('../../../lib/logger').logger.child('SALDO_STEPS');
+
 
 /**
  * Header Doc
@@ -336,19 +338,19 @@ async function handleSaldoSteps({ userState, sender, chats, pushname, reply: _re
                             if (!delivery.sent) {
                                 throw new Error(delivery.warning || delivery.errorCode || 'SEND_FAILED');
                             }
-                            console.log('[TOPUP] Agent notified:', agentPhone);
+                            log.info('[TOPUP] Agent notified:', agentPhone);
                         } catch (error) {
-                            console.error('[SEND_MESSAGE_ERROR]', {
+                            log.error('[SEND_MESSAGE_ERROR]', {
                                 agentPhone,
                                 error: error.message
                             });
-                            console.error('[TOPUP] Failed to notify agent:', error);
+                            log.error('[TOPUP] Failed to notify agent:', error);
                         }
                     } else {
-                        console.warn('[SEND_MESSAGE_SKIP] WhatsApp not connected, skipping send to agent', agentPhone);
+                        log.warn('[SEND_MESSAGE_SKIP] WhatsApp not connected, skipping send to agent', agentPhone);
                     }
                 } catch (error) {
-                    console.error('[TOPUP] Failed to prepare or notify agent:', error);
+                    log.error('[TOPUP] Failed to prepare or notify agent:', error);
                 }
             }
             
@@ -381,22 +383,22 @@ async function handleSaldoSteps({ userState, sender, chats, pushname, reply: _re
                                 if (!delivery.sent) {
                                     throw new Error(delivery.warning || delivery.errorCode || 'SEND_FAILED');
                                 }
-                                console.log('[TOPUP] Admin notified:', adminJid);
+                                log.info('[TOPUP] Admin notified:', adminJid);
                             } catch (error) {
-                                console.error('[SEND_MESSAGE_ERROR]', {
+                                log.error('[SEND_MESSAGE_ERROR]', {
                                     adminJid,
                                     error: error.message
                                 });
-                                console.error('[TOPUP] Failed to notify admin:', adminJid, error);
+                                log.error('[TOPUP] Failed to notify admin:', adminJid, error);
                                 // Continue to next admin
                             }
                         } else {
-                            console.warn('[SEND_MESSAGE_SKIP] WhatsApp not connected, skipping send to admin', adminJid);
+                            log.warn('[SEND_MESSAGE_SKIP] WhatsApp not connected, skipping send to admin', adminJid);
                         }
                     }
                 }
             } catch (error) {
-                console.error('[TOPUP] Failed to send admin notifications:', error);
+                log.error('[TOPUP] Failed to send admin notifications:', error);
                 // Don't let notification failure break the flow
             }
             

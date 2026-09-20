@@ -6,6 +6,7 @@
  * MainFuncs: `handleCekSaldo`, `handleTransferSaldo`, dan helper resolusi sender.
  * SideEffects: Membaca/memperbarui saldo dan mengirim notifikasi transfer masuk ke penerima.
  */
+const log = require('../../lib/logger').logger.child('SALDO_HANDLER');
 const saldoManager = require('../../lib/saldo-manager');
 const convertRupiah = require('rupiah-format');
 const { logger } = require('../../lib/logger');
@@ -336,7 +337,7 @@ async function executeTransferAfterConfirmation({ senderId, senderNumber, sender
             });
         }
     } catch (error) {
-        console.error('[SEND_MESSAGE_ERROR]', { targetId, error: error.message });
+        log.error('[SEND_MESSAGE_ERROR]', { targetId, error: error.message });
         logger.error('Failed to send transfer notification to recipient:', error);
     }
 }

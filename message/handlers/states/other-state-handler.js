@@ -7,6 +7,7 @@
  * SideEffects: Mengirim reply berbasis responseTemplates, memanggil operasi tiket/WiFi, dan membersihkan state.
  */
 
+const log = require('../../../lib/logger').logger.child('OTHER_STATE_HANDLER');
 const { deleteUserState } = require("../conversation-handler");
 const { cancelTicket } = require("../../../lib/ticket-workflow");
 const { rebootRouter } = require("../../../lib/wifi");
@@ -36,7 +37,7 @@ async function handleConfirmCancelTicket(userState, userReply, reply, sender, gl
                 cancelledByType: "pelanggan"
             });
 
-            console.warn("[legacyCancelAdapterUsed]", {
+            log.warn("[legacyCancelAdapterUsed]", {
                 ticketId: ticket.ticketId || ticket.id,
                 sender
             });
@@ -60,7 +61,7 @@ async function handleConfirmCancelTicket(userState, userReply, reply, sender, gl
                 return reply(renderResponseTemplate("other_cancel_ticket_already_cancelled"));
             }
 
-            console.error("[legacyCancelAdapterError]", {
+            log.error("[legacyCancelAdapterError]", {
                 ticketId: ticketIdToCancel,
                 sender,
                 error: error.message
@@ -102,11 +103,11 @@ async function handleConfirmReboot(userState, userReply, reply, sender, _global)
                     const { scheduleFollowupForReboot } = require("../../../lib/reboot-followup-service");
                     scheduleFollowupForReboot({ user: targetUser, jid: sender, reason: "reboot_modem_intent" });
                 } catch (scheduleError) {
-                    console.error("[REBOOT] Gagal menjadwalkan follow-up:", scheduleError.message);
+                    log.error("[REBOOT] Gagal menjadwalkan follow-up:", scheduleError.message);
                 }
             }
         } catch (error) {
-            console.error("[REBOOT_ERROR]", error);
+            log.error("[REBOOT_ERROR]", error);
             reply(renderResponseTemplate("other_reboot_failed"));
         }
 

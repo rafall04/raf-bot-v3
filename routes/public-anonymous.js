@@ -17,6 +17,7 @@
  *   saldo/voucher fulfillment — penyelesaian ada di callback `POST /callback/payment` (tetap di
  *   `routes/public.js`, port utama), berbagi `global.payment` dalam proses yang sama.
  */
+const log = require('../lib/logger').logger.child('PUBLIC_ANONYMOUS');
 const express = require('express');
 const path = require('path');
 const qr = require('qr-image');
@@ -155,7 +156,7 @@ router.get('/app/:type/:id?', async (req, res) => {
         }
     } catch(err) {
         if (typeof err === "string") return res.json({ status: 400, message: err });
-        console.log(err);
+        log.info(err);
         return res.json({ status: 500, message: "Internal server error" });
     }
 });

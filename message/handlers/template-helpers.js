@@ -7,6 +7,8 @@
  * SideEffects: Tidak ada; pure function yang membaca dari template cache.
  */
 "use strict";
+const log = require('../../lib/logger').logger.child('TEMPLATE_HELPERS');
+
 
 const { renderCategoryTemplate } = require('../../lib/template-service');
 
@@ -37,7 +39,7 @@ function renderResponseTemplate(key, fallback, data = {}) {
         // Karena itu: ada slot tak terselesaikan → JATUH ke fallback kode (selalu
         // self-consistent) + cetak peringatan supaya template basinya bisa dirapikan.
         if (result && result.found && Array.isArray(result.unresolved) && result.unresolved.length) {
-            console.warn('[TEMPLATE_SLOT_BASI]', {
+            log.warn('[TEMPLATE_SLOT_BASI]', {
                 key,
                 unresolved: result.unresolved.slice(0, 5),
                 tindakan: 'pakai fallback kode — rapikan template di /api/templates'
@@ -49,7 +51,7 @@ function renderResponseTemplate(key, fallback, data = {}) {
         }
     } catch (error) {
         // Jaga-jaga kalau template-service error, jangan crash handler.
-        console.warn('[TEMPLATE_HELPER_WARN]', {
+        log.warn('[TEMPLATE_HELPER_WARN]', {
             key,
             error: error?.message || String(error)
         });

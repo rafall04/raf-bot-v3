@@ -10,6 +10,7 @@
  *            `handleReportPhotoUpload` + handler.
  * SideEffects: Menulis file foto ke uploads/reports/..., update global.reports.
  */
+const log = require('../../lib/logger').logger.child('REPORTS');
 const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
@@ -127,7 +128,7 @@ router.post('/api/customer/reports/upload-photo', apiAuth, handleReportPhotoUplo
             try {
                 fs.unlinkSync(req.file.path);
             } catch (err) {
-                console.error('[REPORT_UPLOAD_PHOTO] Failed to delete file:', err);
+                log.error('[REPORT_UPLOAD_PHOTO] Failed to delete file:', err);
             }
         }
         return sendError(res, "Tiket tidak ditemukan atau tidak memiliki akses", 404);
@@ -143,7 +144,7 @@ router.post('/api/customer/reports/upload-photo', apiAuth, handleReportPhotoUplo
             try {
                 fs.unlinkSync(req.file.path);
             } catch (err) {
-                console.error('[REPORT_UPLOAD_PHOTO] Failed to delete file:', err);
+                log.error('[REPORT_UPLOAD_PHOTO] Failed to delete file:', err);
             }
         }
         return sendError(res, `Tidak bisa upload foto. Status tiket: ${report.status}`, 400);
@@ -175,7 +176,7 @@ router.post('/api/customer/reports/upload-photo', apiAuth, handleReportPhotoUplo
             try {
                 fs.unlinkSync(req.file.path);
             } catch (err) {
-                console.error('[REPORT_UPLOAD_PHOTO] Failed to delete file:', err);
+                log.error('[REPORT_UPLOAD_PHOTO] Failed to delete file:', err);
             }
         }
         return sendError(res, error.message, error.code === 'MAX_CUSTOMER_PHOTOS' ? 400 : 500);

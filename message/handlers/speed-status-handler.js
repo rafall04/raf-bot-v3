@@ -7,6 +7,7 @@
  * SideEffects: Membaca `global.speed_requests`/`global.users` dan mengirim pesan WhatsApp.
  */
 
+const log = require('../../lib/logger').logger.child('SPEED_STATUS_HANDLER');
 const convertRupiah = require('rupiah-format');
 const { sendMessage } = require('../../lib/whatsapp-delivery-service');
 const { renderCategoryTemplate } = require('../../lib/template-service');
@@ -152,7 +153,7 @@ async function checkSpeedBoostStatus(msg, user, sender, isAdmin = false, targetU
         await deliverText(msg.key.remoteJid, statusMsg);
         
     } catch (error) {
-        console.error('[CHECK_SPEED_STATUS_ERROR]', error);
+        log.error('[CHECK_SPEED_STATUS_ERROR]', error);
         await deliverText(msg.key.remoteJid, renderResponseTemplate('speed_status_check_error'));
     }
 }

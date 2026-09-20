@@ -7,6 +7,8 @@
  * SideEffects: Mengubah paid status user, persist approval request, evaluasi settlement, activity log, dan notifikasi payment.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('BILLING_SERVICE');
+
 
 const { createBillingRepository } = require("../repositories/billing.repository");
 const { createError, ErrorTypes } = require("../lib/error-handler");
@@ -231,7 +233,7 @@ function createBillingService(overrides = {}) {
                             newValue: { paid: user.paid }
                         }));
                     } catch (error) {
-                        console.error("[ACTIVITY_LOG_ERROR] Failed to log payment approval:", error);
+                        log.error("[ACTIVITY_LOG_ERROR] Failed to log payment approval:", error);
                     }
 
                     requests[requestIndex] = request;
@@ -351,7 +353,7 @@ function createBillingService(overrides = {}) {
                                 newValue: { paid: input.paid }
                             }));
                         } catch (error) {
-                            console.error(`[ACTIVITY_LOG_ERROR] Failed to log bulk payment update for user ${userId}:`, error);
+                            log.error(`[ACTIVITY_LOG_ERROR] Failed to log bulk payment update for user ${userId}:`, error);
                         }
                     }
 

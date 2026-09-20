@@ -11,6 +11,8 @@
  *              ke grup kas untuk pengeluaran di atas ambang.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('EXPENSES');
+
 
 const express = require("express");
 const { logActivity } = require("../lib/activity-logger");
@@ -41,7 +43,7 @@ function getActor(req) {
     };
 }
 
-ensureExpenseTables().catch(console.error);
+ensureExpenseTables().catch((e) => log.error(e));
 
 router.get("/meta", ensureAdmin, (req, res) => {
     res.json({
@@ -72,7 +74,7 @@ router.get("/", ensureAdmin, async (req, res) => {
             summary
         });
     } catch (error) {
-        console.error("[EXPENSE_LIST_ERROR]", error);
+        log.error("[EXPENSE_LIST_ERROR]", error);
         res.status(500).json({ status: 500, message: "Gagal mengambil daftar pengeluaran" });
     }
 });
@@ -91,7 +93,7 @@ router.post("/", ensureAdmin, async (req, res) => {
             description: `Membuat pengeluaran ${expense.category} sebesar Rp ${expense.amount.toLocaleString("id-ID")}`,
             ipAddress: req.ip,
             userAgent: req.headers["user-agent"]
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
 
         // Kabari grup kas untuk pengeluaran BESAR yang dibuat dari halaman.
         // Sengaja hanya jalur WEB: pengeluaran yang dicatat lewat `kas …` sudah dibalas di
@@ -114,7 +116,7 @@ router.post("/", ensureAdmin, async (req, res) => {
                 }).catch(() => {});
             }
         } catch (notifErr) {
-            console.error("[EXPENSE_NOTIF]", notifErr && notifErr.message);
+            log.error("[EXPENSE_NOTIF]", notifErr && notifErr.message);
         }
 
         res.status(201).json({
@@ -123,7 +125,7 @@ router.post("/", ensureAdmin, async (req, res) => {
             data: expense
         });
     } catch (error) {
-        console.error("[EXPENSE_CREATE_ERROR]", error);
+        log.error("[EXPENSE_CREATE_ERROR]", error);
         res.status(400).json({ status: 400, message: error.message || "Gagal menyimpan pengeluaran" });
     }
 });
@@ -142,7 +144,7 @@ router.put("/:id", ensureAdmin, async (req, res) => {
             description: `Merevisi pengeluaran #${req.params.id} menjadi #${result.current.id}`,
             ipAddress: req.ip,
             userAgent: req.headers["user-agent"]
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
 
         res.json({
             status: 200,
@@ -150,7 +152,7 @@ router.put("/:id", ensureAdmin, async (req, res) => {
             data: result
         });
     } catch (error) {
-        console.error("[EXPENSE_UPDATE_ERROR]", error);
+        log.error("[EXPENSE_UPDATE_ERROR]", error);
         res.status(400).json({ status: 400, message: error.message || "Gagal merevisi pengeluaran" });
     }
 });
@@ -169,7 +171,7 @@ router.put("/:id/cancel", ensureAdmin, async (req, res) => {
             description: `Membatalkan pengeluaran #${expense.id}`,
             ipAddress: req.ip,
             userAgent: req.headers["user-agent"]
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
 
         res.json({
             status: 200,
@@ -177,7 +179,7 @@ router.put("/:id/cancel", ensureAdmin, async (req, res) => {
             data: expense
         });
     } catch (error) {
-        console.error("[EXPENSE_CANCEL_ERROR]", error);
+        log.error("[EXPENSE_CANCEL_ERROR]", error);
         res.status(400).json({ status: 400, message: error.message || "Gagal membatalkan pengeluaran" });
     }
 });

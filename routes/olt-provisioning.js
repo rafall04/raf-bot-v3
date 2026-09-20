@@ -19,6 +19,8 @@
  */
 
 'use strict';
+const log = require('../lib/logger').logger.child('OLT_PROVISIONING');
+
 
 const express = require('express');
 const fs = require('fs');
@@ -74,7 +76,7 @@ function registerOltProvisioningRoutes(router, deps) {
                 ...data,
             });
         } catch (e) {
-            console.error('[OLT-PROVISION] activity log error:', e.message);
+            log.error('[OLT-PROVISION] activity log error:', e.message);
         }
     }
 
@@ -264,7 +266,7 @@ function registerOltProvisioningRoutes(router, deps) {
                 factIssues = checkVarsAgainstFacts(built.vars, built.profile.scriptTemplate, facts);
                 factsChecked = true;
             } catch (e) {
-                console.warn(`[OLT-PROVISION] facts tidak terbaca utk preview ${device.id}: ${e.message}`);
+                log.warn(`[OLT-PROVISION] facts tidak terbaca utk preview ${device.id}: ${e.message}`);
             }
         }
 
@@ -303,7 +305,7 @@ function registerOltProvisioningRoutes(router, deps) {
                     });
                 }
             } catch (e) {
-                console.warn(`[OLT-PROVISION] facts tidak terbaca utk register ${device.id}: ${e.message}`);
+                log.warn(`[OLT-PROVISION] facts tidak terbaca utk register ${device.id}: ${e.message}`);
             }
         }
         // 2) Okupansi: ONU ID & SN tidak boleh sudah terpakai di port itu (hard block —
@@ -325,7 +327,7 @@ function registerOltProvisioningRoutes(router, deps) {
                 });
             }
         } catch (e) {
-            console.warn(`[OLT-PROVISION] cek okupansi gagal utk ${device.id}: ${e.message} — lanjut (OLT akan menolak sendiri bila konflik)`);
+            log.warn(`[OLT-PROVISION] cek okupansi gagal utk ${device.id}: ${e.message} — lanjut (OLT akan menolak sendiri bila konflik)`);
         }
 
         let result;
@@ -582,7 +584,7 @@ function registerOltProvisioningRoutes(router, deps) {
                 }
             }
         } catch (e) {
-            console.warn('[OLT-PROVISION] GenieACS query gagal:', e.message);
+            log.warn('[OLT-PROVISION] GenieACS query gagal:', e.message);
         }
         return map;
     }
@@ -623,7 +625,7 @@ function registerOltProvisioningRoutes(router, deps) {
                 }
             }
         } catch (e) {
-            console.warn(`[OLT-ACS] gagal map SN→info OLT (SNMP) ${device.id}: ${e.message}`);
+            log.warn(`[OLT-ACS] gagal map SN→info OLT (SNMP) ${device.id}: ${e.message}`);
         }
         snOltInfoCache.set(device.id, { map, ts: Date.now() });
         return map;

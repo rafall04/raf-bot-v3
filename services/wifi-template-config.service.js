@@ -7,6 +7,8 @@
  * SideEffects: Menulis `wifi_templates.json` dan mencoba reload cache template WiFi setelah perubahan.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('WIFI_TEMPLATE_CONFIG_SERVICE');
+
 
 const { createError, ErrorTypes } = require("../lib/error-handler");
 
@@ -40,9 +42,9 @@ function requireKeywords(keywords) {
 function tryReloadTemplateCache(loadWifiTemplates) {
     try {
         loadWifiTemplates();
-        console.log("[WIFI_TEMPLATES] Template cache reloaded");
+        log.info("[WIFI_TEMPLATES] Template cache reloaded");
     } catch (reloadError) {
-        console.error("[WIFI_TEMPLATES] Failed to reload template cache:", reloadError.message);
+        log.error("[WIFI_TEMPLATES] Failed to reload template cache:", reloadError.message);
     }
 }
 
@@ -90,7 +92,7 @@ function createWifiTemplateConfigService(overrides = {}) {
             const nextTemplates = [...templates, newTemplate];
             deps.saveJSON("wifi_templates.json", nextTemplates);
             tryReloadTemplateCache(deps.loadWifiTemplates);
-            console.log(`[WIFI_TEMPLATES] Template baru ditambahkan: ${intent} (${newTemplate.category}) oleh ${actorCtx.username || "system"}`);
+            log.info(`[WIFI_TEMPLATES] Template baru ditambahkan: ${intent} (${newTemplate.category}) oleh ${actorCtx.username || "system"}`);
 
             return {
                 status: 201,
@@ -135,7 +137,7 @@ function createWifiTemplateConfigService(overrides = {}) {
 
             deps.saveJSON("wifi_templates.json", nextTemplates);
             tryReloadTemplateCache(deps.loadWifiTemplates);
-            console.log(`[WIFI_TEMPLATES] Template diupdate: ${currentIntent} oleh ${actorCtx.username || "system"}`);
+            log.info(`[WIFI_TEMPLATES] Template diupdate: ${currentIntent} oleh ${actorCtx.username || "system"}`);
 
             return {
                 status: 200,
@@ -158,7 +160,7 @@ function createWifiTemplateConfigService(overrides = {}) {
 
             deps.saveJSON("wifi_templates.json", filteredTemplates);
             tryReloadTemplateCache(deps.loadWifiTemplates);
-            console.log(`[WIFI_TEMPLATES] Template dihapus: ${currentIntent} oleh ${actorCtx.username || "system"}`);
+            log.info(`[WIFI_TEMPLATES] Template dihapus: ${currentIntent} oleh ${actorCtx.username || "system"}`);
 
             return {
                 status: 200,

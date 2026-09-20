@@ -20,6 +20,8 @@
  * SideEffects: Lewat service — tulis ledger + reaktivasi MikroTik + notif teknisi + requests.json; balas admin via reply.
  */
 "use strict";
+const log = require('../../lib/logger').logger.child('PAYMENT_REQUEST_ADMIN_HANDLER');
+
 
 const { renderResponseTemplate } = require("../../lib/response-template-helper");
 const { extractQuotedText } = require("./payment-proof-admin-handler");
@@ -309,7 +311,7 @@ async function handlePaymentRequestAdminDecision(ctx) {
         await replyPendingList(ctx, pend);
         return { handled: true };
     } catch (err) {
-        console.error("[PAYMENT_REQUEST_ADMIN_ERROR]", err && err.message ? err.message : err);
+        log.error("[PAYMENT_REQUEST_ADMIN_ERROR]", err && err.message ? err.message : err);
         try { await ctx.reply("⚠️ Gagal memproses otorisasi. Coba lagi atau buka panel admin.", { skipDuplicateCheck: true }); } catch (_e) { /* best-effort */ }
         return { handled: true };
     }

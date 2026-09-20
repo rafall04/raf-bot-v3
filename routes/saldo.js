@@ -8,6 +8,7 @@
  * INVARIAN: `router.use(ensureAdmin)` menjaga SELURUH endpoint di file ini (admin/owner/superadmin).
  *           Jangan melepasnya — endpoint di sini memutasi saldo tanpa memeriksa peran sendiri.
  */
+const log = require('../lib/logger').logger.child('SALDO');
 const express = require('express');
 const router = express.Router();
 const fs = require('fs');
@@ -114,7 +115,7 @@ router.get('/statistics', async (req, res) => {
             todayTransactions
         });
     } catch (error) {
-        console.error('Error getting statistics:', error);
+        log.error('Error getting statistics:', error);
         res.status(500).json({ error: 'Failed to get statistics' });
     }
 });
@@ -159,7 +160,7 @@ router.get('/users', async (req, res) => {
         
         res.json(enrichedData);
     } catch (error) {
-        console.error('Error getting users:', error);
+        log.error('Error getting users:', error);
         res.status(500).json({ error: 'Failed to get users' });
     }
 });
@@ -187,7 +188,7 @@ router.get('/topup-requests', (req, res) => {
         
         res.json(requests);
     } catch (error) {
-        console.error('Error getting topup requests:', error);
+        log.error('Error getting topup requests:', error);
         res.status(500).json({ error: 'Failed to get topup requests' });
     }
 });
@@ -212,8 +213,8 @@ router.post('/add-manual', async (req, res) => {
         try {
             success = await saldoManager.addSaldo(userId, amount, description || 'Topup manual by admin');
         } catch (error) {
-            console.error('[SALDO_API] Error adding saldo:', error);
-            console.error('[SALDO_API] Error stack:', error.stack);
+            log.error('[SALDO_API] Error adding saldo:', error);
+            log.error('[SALDO_API] Error stack:', error.stack);
             return res.status(500).json({ 
                 success: false, 
                 message: 'Gagal menambah saldo: ' + error.message,
@@ -231,15 +232,15 @@ router.post('/add-manual', async (req, res) => {
                 });
                 const delivery = await sendMessage(userId, { text: message });
                 if (delivery.sent) {
-                    console.log(`[SALDO] Notifikasi WhatsApp terkirim ke ${userId}`);
+                    log.info(`[SALDO] Notifikasi WhatsApp terkirim ke ${userId}`);
                 } else {
-                    console.warn('[SALDO] Notifikasi WhatsApp tidak terkirim', {
+                    log.warn('[SALDO] Notifikasi WhatsApp tidak terkirim', {
                         userId,
                         errorCode: delivery.errorCode
                     });
                 }
             } catch (error) {
-                console.error('[SALDO] Error mengirim notifikasi:', error);
+                log.error('[SALDO] Error mengirim notifikasi:', error);
             }
 
             res.json({ success: true, message: 'Saldo berhasil ditambahkan' });
@@ -247,7 +248,7 @@ router.post('/add-manual', async (req, res) => {
             res.status(500).json({ success: false, message: 'Gagal menambah saldo' });
         }
     } catch (error) {
-        console.error('Error adding saldo:', error);
+        log.error('Error adding saldo:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 });
@@ -287,7 +288,7 @@ router.post('/topup-request', upload.single('proof'), async (req, res) => {
             requestId: request.id 
         });
     } catch (error) {
-        console.error('Error creating topup request:', error);
+        log.error('Error creating topup request:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 });
@@ -311,7 +312,7 @@ router.post('/verify-topup', async (req, res) => {
         
         res.json(result);
     } catch (error) {
-        console.error('Error verifying topup:', error);
+        log.error('Error verifying topup:', error);
         res.status(500).json({ 
             success: false, 
             message: error.message || 'Server error' 
@@ -325,7 +326,7 @@ router.get('/vouchers', (req, res) => {
         const vouchers = voucherManager.getVoucherProfiles();
         res.json(vouchers);
     } catch (error) {
-        console.error('Error getting vouchers:', error);
+        log.error('Error getting vouchers:', error);
         res.status(500).json({ error: 'Failed to get vouchers' });
     }
 });
@@ -336,7 +337,7 @@ router.get('/voucher-stats', (req, res) => {
         const stats = voucherManager.getVoucherStatistics();
         res.json(stats);
     } catch (error) {
-        console.error('Error getting voucher stats:', error);
+        log.error('Error getting voucher stats:', error);
         res.status(500).json({ error: 'Failed to get statistics' });
     }
 });
@@ -348,7 +349,7 @@ router.get('/voucher-history/:userId', (req, res) => {
         const history = voucherManager.getUserPurchaseHistory(userId);
         res.json(history);
     } catch (error) {
-        console.error('Error getting purchase history:', error);
+        log.error('Error getting purchase history:', error);
         res.status(500).json({ error: 'Failed to get history' });
     }
 });
@@ -374,7 +375,7 @@ router.post('/add-voucher', (req, res) => {
         
         res.json(result);
     } catch (error) {
-        console.error('Error adding voucher:', error);
+        log.error('Error adding voucher:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 });
@@ -404,7 +405,7 @@ router.post('/update-voucher', (req, res) => {
         
         res.json(result);
     } catch (error) {
-        console.error('Error updating voucher:', error);
+        log.error('Error updating voucher:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 });
@@ -429,7 +430,7 @@ router.post('/delete-voucher', (req, res) => {
         
         res.json(result);
     } catch (error) {
-        console.error('Error deleting voucher:', error);
+        log.error('Error deleting voucher:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 });
@@ -458,12 +459,12 @@ router.post('/purchase-voucher', async (req, res) => {
                 password: result.voucher.password,
                 sisa_saldo: saldoManager.formatCurrency(result.remainingSaldo)
             });
-            sendMessage(userId, { text: message }).catch(console.error);
+            sendMessage(userId, { text: message }).catch((e) => log.error(e));
         }
         
         res.json(result);
     } catch (error) {
-        console.error('Error purchasing voucher:', error);
+        log.error('Error purchasing voucher:', error);
         res.status(500).json({ success: false, message: 'Server error: ' + error.message });
     }
 });
@@ -524,7 +525,7 @@ router.get('/transactions', async (req, res) => {
         
         res.json({ success: true, data: enrichedTransactions });
     } catch (error) {
-        console.error('Error getting transactions:', error);
+        log.error('Error getting transactions:', error);
         res.status(500).json({ success: false, message: 'Failed to get transactions' });
     }
 });
@@ -570,7 +571,7 @@ router.get('/transaction/:id/proof', (req, res) => {
         // Send file
         res.sendFile(proofPath);
     } catch (error) {
-        console.error('Error getting topup proof:', error);
+        log.error('Error getting topup proof:', error);
         res.status(500).json({ success: false, message: 'Failed to get proof: ' + error.message });
     }
 });
@@ -625,7 +626,7 @@ router.get('/agents', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('[SALDO_AGENTS] Error:', error);
+        log.error('[SALDO_AGENTS] Error:', error);
         res.status(500).json({
             status: 500,
             message: 'Error retrieving agent saldo: ' + error.message,
@@ -679,15 +680,15 @@ router.post('/agent-topup', async (req, res) => {
                 });
                 const delivery = await sendMessage(userId, { text: message });
                 if (delivery.sent) {
-                    console.log(`[SALDO_AGENT] Notifikasi WhatsApp terkirim ke ${userId}`);
+                    log.info(`[SALDO_AGENT] Notifikasi WhatsApp terkirim ke ${userId}`);
                 } else {
-                    console.warn('[SALDO_AGENT] Notifikasi WhatsApp tidak terkirim', {
+                    log.warn('[SALDO_AGENT] Notifikasi WhatsApp tidak terkirim', {
                         userId,
                         errorCode: delivery.errorCode
                     });
                 }
             } catch (error) {
-                console.error('[SALDO_AGENT] Error:', error);
+                log.error('[SALDO_AGENT] Error:', error);
             }
 
             // Ambil saldo untuk response (await karena getUserSaldo return Promise)
@@ -708,7 +709,7 @@ router.post('/agent-topup', async (req, res) => {
             });
         }
     } catch (error) {
-        console.error('Error adding agent saldo:', error);
+        log.error('Error adding agent saldo:', error);
         res.status(500).json({
             success: false,
             message: 'Server error: ' + error.message

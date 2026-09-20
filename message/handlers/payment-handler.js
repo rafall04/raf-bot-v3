@@ -1,4 +1,6 @@
 "use strict";
+const log = require('../../lib/logger').logger.child('PAYMENT_HANDLER');
+
 
 /**
  * Payment Request Handler
@@ -82,7 +84,7 @@ async function handlePaymentRequest({ sender: _sender, userTeknisi, targetUser, 
             };
         }
     } catch (error) {
-        console.error('[PAYMENT_REQUEST_ERROR]', error);
+        log.error('[PAYMENT_REQUEST_ERROR]', error);
         
         // Handle specific error cases
         if (error.response?.status === 409) {
@@ -182,7 +184,7 @@ async function checkPaymentRequestStatus({ requestId, teknisiId }) {
             message: message
         };
     } catch (error) {
-        console.error('[CHECK_REQUEST_STATUS_ERROR]', error);
+        log.error('[CHECK_REQUEST_STATUS_ERROR]', error);
         return {
             success: false,
             message: '❌ Gagal mengambil status request. Silakan coba lagi.'

@@ -7,6 +7,8 @@
  * SideEffects: Mendaftarkan registrar domain baru lalu memasang router admin legacy untuk endpoint yang belum dipindah.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('ADMIN_ROUTER');
+
 
 const express = require("express");
 const fs = require("fs");
@@ -49,7 +51,7 @@ function registerAdminPersonalFinanceRoutes(router, deps) {
     } catch (e) {
         // Aktif di config tapi berkasnya tak terpasang = salah pasang yang harus TERLIHAT,
         // bukan didiamkan. Bot tetap hidup; halaman dompetnya yang absen.
-        console.error("[ADMIN_ROUTER] Dompet pribadi aktif di config tapi modulnya tak terpasang:", e && e.message);
+        log.error("[ADMIN_ROUTER] Dompet pribadi aktif di config tapi modulnya tak terpasang:", e && e.message);
     }
 }
 const { registerAdminKasUsahaRoutes } = require("./admin-kas-usaha-routes");

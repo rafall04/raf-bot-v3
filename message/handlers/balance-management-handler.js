@@ -7,6 +7,7 @@
  * SideEffects: Mengubah saldo user dan mengirim notifikasi penerima via gateway runtime WA.
  */
 
+const log = require('../../lib/logger').logger.child('BALANCE_MANAGEMENT_HANDLER');
 const convertRupiah = require('rupiah-format');
 const { sendMessage } = require('../../lib/whatsapp-delivery-service');
 const { renderResponseTemplate } = require('./template-helpers');
@@ -29,7 +30,7 @@ async function handleTopup({ q, isOwner, sender, reply, msg, mess, raf: _raf, ch
             const saldoManager = require('../../lib/saldo-manager');
             saldoManager.createUserSaldo(tujuantf);
         } catch (err) {
-            console.error('[TOPUP_INIT] Error creating user saldo:', err);
+            log.error('[TOPUP_INIT] Error creating user saldo:', err);
         }
 
         // addKoinUser fail-closed: return false bila JID tak ter-resolve / amount invalid / DB sibuk.
@@ -37,7 +38,7 @@ async function handleTopup({ q, isOwner, sender, reply, msg, mess, raf: _raf, ch
         // menerima notif "berhasil / saldo Rp X masuk" (bohong). Selaras jalur callback iPaymu 'topup'.
         const credited = await addKoinUser(tujuantf, jumblah);
         if (!credited) {
-            console.error('[TOPUP_FAILED] addKoinUser mengembalikan false — saldo TIDAK bertambah', { tujuantf, jumlah: jumblah });
+            log.error('[TOPUP_FAILED] addKoinUser mengembalikan false — saldo TIDAK bertambah', { tujuantf, jumlah: jumblah });
             throw new Error('TOPUP_NOT_CREDITED'); // → catch: balas error template ke owner, penerima TIDAK di-notif
         }
         const kerupiah123 = convertRupiah.convert(jumblah);
@@ -59,25 +60,25 @@ async function handleTopup({ q, isOwner, sender, reply, msg, mess, raf: _raf, ch
         try {
             const delivery = await sendMessage(tujuantf, { text: recipientMessage }, { quoted: msg });
             if (!delivery.sent) {
-                console.warn('[SEND_MESSAGE_SKIP] Delivery not sent to recipient', {
+                log.warn('[SEND_MESSAGE_SKIP] Delivery not sent to recipient', {
                     tujuantf,
                     errorCode: delivery.errorCode,
                     warning: delivery.warning || null
                 });
             }
         } catch (error) {
-            console.error('[SEND_MESSAGE_ERROR]', {
+            log.error('[SEND_MESSAGE_ERROR]', {
                 tujuantf,
                 error: error.message
             });
-            console.error('[TOPUP_HANDLER] Error sending notification to recipient:', error);
+            log.error('[TOPUP_HANDLER] Error sending notification to recipient:', error);
         }
 
     } catch (error) {
         if (typeof error === 'string') {
             await reply(error);
         } else {
-            console.error('[TOPUP_HANDLER] Error:', error);
+            log.error('[TOPUP_HANDLER] Error:', error);
             await reply(renderResponseTemplate(
                 'balance_topup_generic_error',
                 'Terjadi kesalahan saat melakukan topup.'
@@ -131,7 +132,7 @@ async function handleDelSaldo({ q, isOwner, reply, mess, checkATMuser, checkRegi
         if (typeof error === 'string') {
             await reply(error);
         } else {
-            console.error('[DELSALDO_HANDLER] Error:', error);
+            log.error('[DELSALDO_HANDLER] Error:', error);
             await reply(renderResponseTemplate(
                 'balance_del_saldo_generic_error',
                 'Terjadi kesalahan saat menghapus saldo.'

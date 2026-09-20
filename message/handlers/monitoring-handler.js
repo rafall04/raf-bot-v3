@@ -7,6 +7,7 @@
  * SideEffects: Membaca MikroTik/RouterOS API dan mengirim reply WhatsApp statistik.
  */
 
+const log = require('../../lib/logger').logger.child('MONITORING_HANDLER');
 const { getPppStats, getHotspotStats, statusap } = require('../../lib/mikrotik');
 const { format: _format } = require('./conversation-handler');
 const { renderResponseTemplate } = require('./template-helpers');
@@ -75,7 +76,7 @@ async function handleStatusPpp(isOwner, isTeknisi, reply, mess, config) {
         );
         reply(replyText);
     } catch (err) {
-        console.error("[statusppp_ERROR_COMMAND]", err.message);
+        log.error("[statusppp_ERROR_COMMAND]", err.message);
         reply(renderResponseTemplate(
             'monitoring_ppp_error',
             `🚫 Gagal mengambil statistik PPPoE: ${err.message}. Silakan coba lagi nanti atau hubungi Admin.`,
@@ -113,7 +114,7 @@ async function handleStatusHotspot(isOwner, isTeknisi, reply, mess, config) {
             { nama_layanan: namaLayanan, total, active, timestamp, nama_bot: namaBot }
         ));
     } catch (err) {
-        console.error("[statushotspot_ERROR_COMMAND]", err.message);
+        log.error("[statushotspot_ERROR_COMMAND]", err.message);
         reply(renderResponseTemplate(
             'monitoring_hotspot_error',
             `🚫 Gagal mengambil statistik Hotspot: ${err.message}. Silakan coba lagi nanti atau hubungi Admin.`,
@@ -143,7 +144,7 @@ async function handleStatusAp(isOwner, reply, mess) {
             { statusApData: splitnya }
         ));
     } catch (err) {
-        console.error(err);
+        log.error(err);
         await reply(renderResponseTemplate(
             'monitoring_statusap_error',
             'Error!'

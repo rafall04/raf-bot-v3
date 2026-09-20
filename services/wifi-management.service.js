@@ -7,6 +7,8 @@
  * SideEffects: Mengubah konfigurasi WiFi perangkat, menulis log perubahan WiFi, dan memperbarui state percakapan WiFi melalui callback caller.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('WIFI_MANAGEMENT_SERVICE');
+
 
 const { formatWifiSsidInfo } = require("../lib/wifi-ssid-summary");
 const { assertWifiChangeApplied } = require("../lib/wifi-apply-guard");
@@ -248,7 +250,7 @@ function createWifiManagementService(overrides = {}) {
         try {
             await deps.wifiRepository.saveWifiNameChange(user, newName, sender, type, actor, oldName);
         } catch (error) {
-            console.error("[LOG_WIFI_NAME_CHANGE] Error:", error);
+            log.error("[LOG_WIFI_NAME_CHANGE] Error:", error);
         }
     }
 
@@ -256,7 +258,7 @@ function createWifiManagementService(overrides = {}) {
         try {
             await deps.wifiRepository.saveWifiPasswordChange(user, newPassword, sender, type, actor);
         } catch (error) {
-            console.error("[LOG_WIFI_PASSWORD_CHANGE] Error:", error);
+            log.error("[LOG_WIFI_PASSWORD_CHANGE] Error:", error);
         }
     }
 
@@ -310,7 +312,7 @@ function createWifiManagementService(overrides = {}) {
                 { ssidInfo, newName }
             ));
         } catch (error) {
-            console.error("[SINGLE_NAME_CHANGE] Error:", error);
+            log.error("[SINGLE_NAME_CHANGE] Error:", error);
             deleteUserState(stateKey);
             return replyWifiNameFailed(reply, renderResponseTemplate, error);
         }
@@ -353,7 +355,7 @@ function createWifiManagementService(overrides = {}) {
                 { ssidInfo, newName }
             ));
         } catch (error) {
-            console.error("[BULK_AUTO_NAME_CHANGE] Error:", error);
+            log.error("[BULK_AUTO_NAME_CHANGE] Error:", error);
             deleteUserState(stateKey);
             return replyWifiNameFailed(reply, renderResponseTemplate, error);
         }
@@ -392,7 +394,7 @@ function createWifiManagementService(overrides = {}) {
             deleteUserState(stateKey);
             return replyWifiPasswordSuccess(reply, renderResponseTemplate, newPassword, formatWifiSsidInfo([user.ssid_id || "1"]));
         } catch (error) {
-            console.error("[SINGLE_PASSWORD_CHANGE] Error:", error);
+            log.error("[SINGLE_PASSWORD_CHANGE] Error:", error);
             deleteUserState(stateKey);
             return replyWifiPasswordFailed(reply, renderResponseTemplate, error);
         }
@@ -425,7 +427,7 @@ function createWifiManagementService(overrides = {}) {
             deleteUserState(stateKey);
             return replyWifiPasswordSuccess(reply, renderResponseTemplate, newPassword, formatWifiSsidInfo(user.bulk));
         } catch (error) {
-            console.error("[BULK_AUTO_PASSWORD_CHANGE] Error:", error);
+            log.error("[BULK_AUTO_PASSWORD_CHANGE] Error:", error);
             deleteUserState(stateKey);
             return replyWifiPasswordFailed(reply, renderResponseTemplate, error);
         }
@@ -536,7 +538,7 @@ function createWifiManagementService(overrides = {}) {
                         newNameLine: ""
                     });
                 } catch (error) {
-                    console.error("[GANTI_NAMA_WIFI] Error getting current SSID:", error);
+                    log.error("[GANTI_NAMA_WIFI] Error getting current SSID:", error);
                     return handleFallbackNameChange({ stateKey, user, newName, reply, setUserState, deleteUserState, renderResponseTemplate, actor });
                 }
             }
@@ -547,7 +549,7 @@ function createWifiManagementService(overrides = {}) {
 
             return handleSingleSSIDNameChange({ stateKey, user, newName, reply, global, rawSender: sender, setUserState, deleteUserState, renderResponseTemplate, actor });
         } catch (error) {
-            console.error("[GANTI_NAMA_WIFI_ERROR]", error);
+            log.error("[GANTI_NAMA_WIFI_ERROR]", error);
             return replyWifiTemplate(context.reply, renderResponseTemplate, "wifi_management_info_check_failed");
         }
     }
@@ -586,7 +588,7 @@ function createWifiManagementService(overrides = {}) {
                 newPasswordLine: ""
             });
         }).catch((error) => {
-            console.error("[GANTI_SANDI_WIFI] Error getting current SSID:", error);
+            log.error("[GANTI_SANDI_WIFI] Error getting current SSID:", error);
             return handleFallbackPasswordChange({ stateKey, user, newPassword, reply, setUserState, renderResponseTemplate, actor });
         });
     }
@@ -668,7 +670,7 @@ function createWifiManagementService(overrides = {}) {
 
             return handleSingleSSIDPasswordChange({ stateKey, user, newPassword, reply, global, rawSender: sender, setUserState, deleteUserState, renderResponseTemplate, actor });
         } catch (error) {
-            console.error("[GANTI_SANDI_WIFI_ERROR]", error);
+            log.error("[GANTI_SANDI_WIFI_ERROR]", error);
             return replyWifiTemplate(context.reply, renderResponseTemplate, "wifi_management_info_check_failed");
         }
     }

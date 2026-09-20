@@ -7,6 +7,8 @@
  * SideEffects: Menulis status request JSON, sinkronisasi `send_invoice`, mencatat payment ledger, activity log, dan notifikasi teknisi.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('PAYMENT_APPROVAL_SERVICE');
+
 
 const { loadJSON, saveJSON } = require("../lib/database");
 const { handlePaidStatusChange, sendTechnicianNotification, sendTechnicianBulkSummary } = require("../lib/approval-logic");
@@ -93,7 +95,7 @@ function createPaymentApprovalService(overrides = {}) {
         return new Promise((resolve) => {
             deps.getDb().all("PRAGMA table_info(users)", (err, columns) => {
                 if (err) {
-                    console.error("[BULK_APPROVE_PRAGMA_ERROR]", err);
+                    log.error("[BULK_APPROVE_PRAGMA_ERROR]", err);
                     resolve(false);
                     return;
                 }
@@ -123,7 +125,7 @@ function createPaymentApprovalService(overrides = {}) {
             };
             const hasSendInvoiceColumn = await checkSendInvoiceColumn();
 
-            console.log(`[BULK_APPROVE] Processing ${requestIdsToProcess.length} of ${totalRequested} requests by ${actor.username}`);
+            log.info(`[BULK_APPROVE] Processing ${requestIdsToProcess.length} of ${totalRequested} requests by ${actor.username}`);
             const startTime = Date.now();
 
             for (const requestId of requestIdsToProcess) {
@@ -280,7 +282,7 @@ function createPaymentApprovalService(overrides = {}) {
                         teknisiId: approvedRequest.requested_by_teknisi_id || null
                     });
                 } catch (error) {
-                    console.error(`[BULK_APPROVE_ERROR] Failed to approve request ${requestId}:`, error);
+                    log.error(`[BULK_APPROVE_ERROR] Failed to approve request ${requestId}:`, error);
                     results.failed.push({
                         id: requestId,
                         reason: error.message
@@ -290,7 +292,7 @@ function createPaymentApprovalService(overrides = {}) {
 
             deps.saveJSON("database/requests.json", allRequests);
             const elapsedTime = Date.now() - startTime;
-            console.log(`[BULK_APPROVE] Completed in ${elapsedTime}ms. Approved: ${results.approved.length}, Failed: ${results.failed.length}, Not Found: ${results.notFound.length}, Remaining: ${remainingCount}`);
+            log.info(`[BULK_APPROVE] Completed in ${elapsedTime}ms. Approved: ${results.approved.length}, Failed: ${results.failed.length}, Not Found: ${results.notFound.length}, Remaining: ${remainingCount}`);
 
             // SATU ringkasan per teknisi (bukan N pesan). Hanya saat digest aktif; never-throw.
             const digestOn = !!(global.config && global.config.paymentRequestDigest && global.config.paymentRequestDigest.enabled === true);
@@ -305,7 +307,7 @@ function createPaymentApprovalService(overrides = {}) {
                     try {
                         await deps.sendTechnicianBulkSummary(teknisiId, items);
                     } catch (summaryErr) {
-                        console.error(`[BULK_APPROVE_SUMMARY_ERROR] teknisi ${teknisiId}: ${summaryErr.message}`);
+                        log.error(`[BULK_APPROVE_SUMMARY_ERROR] teknisi ${teknisiId}: ${summaryErr.message}`);
                     }
                 }
             }

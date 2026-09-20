@@ -7,6 +7,8 @@
  * SideEffects: Menulis voucher profile ke persistence lama dan mengirim voucher via WhatsApp bila diminta.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('ADMIN_VOUCHER_ROUTES');
+
 
 const { asyncHandler } = require("../lib/error-handler");
 
@@ -51,7 +53,7 @@ function registerAdminVoucherRoutes(router, deps) {
             });
             res.json(vouchersWithReseller);
         } catch (error) {
-            console.error("[VOUCHER_API] Error getting vouchers:", error);
+            log.error("[VOUCHER_API] Error getting vouchers:", error);
             res.status(500).json({ error: "Failed to get vouchers", message: error.message });
         }
     });
@@ -74,7 +76,7 @@ function registerAdminVoucherRoutes(router, deps) {
             syncVoucherRuntime();
             res.json({ success: true, message: "Voucher created successfully" });
         } catch (error) {
-            console.error("[VOUCHER_API] Error creating voucher:", error);
+            log.error("[VOUCHER_API] Error creating voucher:", error);
             res.status(500).json({ error: "Failed to create voucher" });
         }
     }));
@@ -100,7 +102,7 @@ function registerAdminVoucherRoutes(router, deps) {
             syncVoucherRuntime();
             res.json({ success: true, message: "Voucher updated successfully" });
         } catch (error) {
-            console.error("[VOUCHER_API] Error updating voucher:", error);
+            log.error("[VOUCHER_API] Error updating voucher:", error);
             res.status(500).json({ error: "Failed to update voucher" });
         }
     }));
@@ -113,7 +115,7 @@ function registerAdminVoucherRoutes(router, deps) {
             syncVoucherRuntime();
             res.json({ success: true, message: "Voucher deleted successfully" });
         } catch (error) {
-            console.error("[VOUCHER_API] Error deleting voucher:", error);
+            log.error("[VOUCHER_API] Error deleting voucher:", error);
             res.status(500).json({ error: "Failed to delete voucher" });
         }
     }));
@@ -142,7 +144,7 @@ function registerAdminVoucherRoutes(router, deps) {
             agentStats.sort((a, b) => b.totalProfit - a.totalProfit);
             res.json({ status: 200, message: "Statistics retrieved successfully", data: { overall: { totalAgents: agentStats.length, totalStok, totalPurchases, totalSales, totalRevenue, totalProfit }, topAgents: agentStats.slice(0, 10) } });
         } catch (error) {
-            console.error("[AGENT_VOUCHER_STATS] Error:", error);
+            log.error("[AGENT_VOUCHER_STATS] Error:", error);
             res.status(500).json({ status: 500, message: "Error retrieving statistics: " + error.message, data: null });
         }
     });
@@ -152,7 +154,7 @@ function registerAdminVoucherRoutes(router, deps) {
             const agents = agentManager.getAllAgents().map((agent) => ({ id: agent.id, name: agent.name, phone: agent.phone, area: agent.area }));
             res.json({ status: 200, message: "Agents retrieved successfully", data: agents });
         } catch (error) {
-            console.error("[AGENT_VOUCHER_AGENTS] Error:", error);
+            log.error("[AGENT_VOUCHER_AGENTS] Error:", error);
             res.status(500).json({ status: 500, message: "Error retrieving agents: " + error.message, data: null });
         }
     });
@@ -192,7 +194,7 @@ function registerAdminVoucherRoutes(router, deps) {
             }
             res.json({ status: 200, message: result.message, data: { purchase: result.purchase, inventory: result.inventory, delivery: { requested: delivery.requestedPhones.length, sent: delivery.sentTo.length, sent_to: delivery.sentTo, failed_to: delivery.failedTo } } });
         } catch (error) {
-            console.error("[AGENT_VOUCHER_PURCHASE] Error:", error);
+            log.error("[AGENT_VOUCHER_PURCHASE] Error:", error);
             res.status(500).json({ status: 500, message: "Error creating agent purchase: " + error.message });
         }
     }));
@@ -271,7 +273,7 @@ function registerAdminVoucherRoutes(router, deps) {
                 }
             });
         } catch (error) {
-            console.error("[AGENT_VOUCHER_SALE] Error:", error);
+            log.error("[AGENT_VOUCHER_SALE] Error:", error);
             res.status(500).json({ status: 500, message: "Error creating agent sale: " + error.message });
         }
     }));
@@ -281,7 +283,7 @@ function registerAdminVoucherRoutes(router, deps) {
             const inventories = agentManager.getAllAgents().map((agent) => ({ agentId: agent.id, agentName: agent.name, agentPhone: agent.phone, agentArea: agent.area, inventory: agentVoucherManager.getAgentInventory(agent.id) })).filter((item) => item.inventory.totalStok > 0 || item.inventory.totalTerjual > 0);
             res.json({ status: 200, message: "Inventories retrieved successfully", data: inventories });
         } catch (error) {
-            console.error("[AGENT_VOUCHER_INVENTORY] Error:", error);
+            log.error("[AGENT_VOUCHER_INVENTORY] Error:", error);
             res.status(500).json({ status: 500, message: "Error retrieving inventories: " + error.message, data: null });
         }
     });
@@ -295,7 +297,7 @@ function registerAdminVoucherRoutes(router, deps) {
             const stats = agentVoucherManager.getAgentVoucherStats(agentId);
             res.json({ status: 200, message: "Inventory retrieved successfully", data: { agent: { id: agent.id, name: agent.name, phone: agent.phone, area: agent.area }, inventory, stats } });
         } catch (error) {
-            console.error("[AGENT_VOUCHER_AGENT_INVENTORY] Error:", error);
+            log.error("[AGENT_VOUCHER_AGENT_INVENTORY] Error:", error);
             res.status(500).json({ status: 500, message: "Error retrieving inventory: " + error.message, data: null });
         }
     });
@@ -309,7 +311,7 @@ function registerAdminVoucherRoutes(router, deps) {
             const purchases = agentVoucherManager.getPurchaseHistory(agentId, limit);
             res.json({ status: 200, message: "Purchase history retrieved successfully", data: { agent: { id: agent.id, name: agent.name }, purchases } });
         } catch (error) {
-            console.error("[AGENT_VOUCHER_AGENT_PURCHASES] Error:", error);
+            log.error("[AGENT_VOUCHER_AGENT_PURCHASES] Error:", error);
             res.status(500).json({ status: 500, message: "Error retrieving purchase history: " + error.message, data: null });
         }
     });
@@ -323,7 +325,7 @@ function registerAdminVoucherRoutes(router, deps) {
             const sales = agentVoucherManager.getSalesHistory(agentId, limit);
             res.json({ status: 200, message: "Sales history retrieved successfully", data: { agent: { id: agent.id, name: agent.name }, sales } });
         } catch (error) {
-            console.error("[AGENT_VOUCHER_AGENT_SALES] Error:", error);
+            log.error("[AGENT_VOUCHER_AGENT_SALES] Error:", error);
             res.status(500).json({ status: 500, message: "Error retrieving sales history: " + error.message, data: null });
         }
     });
@@ -355,7 +357,7 @@ function registerAdminVoucherRoutes(router, deps) {
 
             res.json({ status: 200, message: "Top agents retrieved successfully", data: { sortBy, agents: agentStats.slice(0, limit) } });
         } catch (error) {
-            console.error("[AGENT_VOUCHER_TOP_AGENTS] Error:", error);
+            log.error("[AGENT_VOUCHER_TOP_AGENTS] Error:", error);
             res.status(500).json({ status: 500, message: "Error retrieving top agents: " + error.message, data: null });
         }
     });

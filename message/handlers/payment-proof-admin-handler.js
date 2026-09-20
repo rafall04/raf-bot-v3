@@ -31,6 +31,8 @@
  *   admin lewat `reply` yang diinjeksi; menulis conversation state.
  */
 "use strict";
+const log = require('../../lib/logger').logger.child('PAYMENT_PROOF_ADMIN_HANDLER');
+
 
 const { renderResponseTemplate } = require("../../lib/response-template-helper");
 const { isCleanConsent } = require("../../lib/affirmative-parser");
@@ -568,7 +570,7 @@ async function handlePaymentProofAdminDecision(ctx) {
         }
         return { handled: true };
     } catch (err) {
-        console.error("[PAYMENT_PROOF_ADMIN_ERROR]", err && err.message ? err.message : err);
+        log.error("[PAYMENT_PROOF_ADMIN_ERROR]", err && err.message ? err.message : err);
         // Sudah kadung mengklaim pesan ini — beri tahu admin, jangan diam.
         try {
             await ctx.reply(renderResponseTemplate(

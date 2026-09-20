@@ -3,6 +3,7 @@
  * Properly handles concurrent uploads without hanging
  */
 
+const log = require('../../lib/logger').logger.child('TEKNISI_PHOTO_HANDLER_V3');
 const { getUserState, setUserState } = require('./conversation-handler');
 
 // Photo upload sessions
@@ -45,7 +46,7 @@ async function processBatch(sender) {
         }
         
         const photoCount = session.photos.length;
-        console.log(`[PHOTO_BATCH] Processing batch for ${sender}: ${photoCount} photos`);
+        log.info(`[PHOTO_BATCH] Processing batch for ${sender}: ${photoCount} photos`);
         
         // Update teknisi state
         const state = getUserState(sender);
@@ -77,7 +78,7 @@ async function processBatch(sender) {
             const resolver = resolvers[lastReplyIndex];
             if (resolver.reply) {
                 await resolver.reply(message).catch(err => {
-                    console.error('[PHOTO_REPLY_ERROR]', err);
+                    log.error('[PHOTO_REPLY_ERROR]', err);
                 });
             }
         }
@@ -91,10 +92,10 @@ async function processBatch(sender) {
             });
         });
         
-        console.log(`[PHOTO_BATCH] Batch complete. Resolved ${resolvers.length} promises`);
+        log.info(`[PHOTO_BATCH] Batch complete. Resolved ${resolvers.length} promises`);
         
     } catch (error) {
-        console.error('[PHOTO_BATCH_ERROR]', error);
+        log.error('[PHOTO_BATCH_ERROR]', error);
         
         // Resolve all with error
         session.pendingResolvers.forEach(({ resolve }) => {
@@ -188,7 +189,7 @@ async function handleTeknisiPhotoUpload(sender, fileName, buffer, reply, canonic
         session.lastActivity = Date.now();
         
         const currentCount = session.photos.length;
-        console.log(`[PHOTO_UPLOAD] Photo added: ${currentCount} total for ${stateKey}`);
+        log.info(`[PHOTO_UPLOAD] Photo added: ${currentCount} total for ${stateKey}`);
         
         // Check if we should process immediately (max photos reached)
         if (currentCount >= 5) {
@@ -207,7 +208,7 @@ async function handleTeknisiPhotoUpload(sender, fileName, buffer, reply, canonic
             const immediateMessage = getResponseMessage(currentCount);
             if (reply) {
                 await reply(immediateMessage).catch(err => {
-                    console.error('[PHOTO_IMMEDIATE_REPLY_ERROR]', err);
+                    log.error('[PHOTO_IMMEDIATE_REPLY_ERROR]', err);
                 });
             }
         }
@@ -227,13 +228,13 @@ async function handleTeknisiPhotoUpload(sender, fileName, buffer, reply, canonic
                 try {
                     await processBatch(stateKey);
                 } catch (err) {
-                    console.error('[PHOTO_TIMEOUT_ERROR]', err);
+                    log.error('[PHOTO_TIMEOUT_ERROR]', err);
                 }
             }, 1500); // Wait 1.5 seconds for batch
         });
         
     } catch (error) {
-        console.error('[TEKNISI_PHOTO_ERROR]', error);
+        log.error('[TEKNISI_PHOTO_ERROR]', error);
         return {
             success: false,
             message: '❌ Gagal menyimpan foto. Coba lagi.'
@@ -280,7 +281,7 @@ function clearUploadQueue(sender) {
         });
         
         uploadSessions.delete(sender);
-        console.log(`[PHOTO_SESSION] Cleared session for ${sender}`);
+        log.info(`[PHOTO_SESSION] Cleared session for ${sender}`);
     }
 }
 

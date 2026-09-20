@@ -6,6 +6,8 @@
  * SideEffects: identik psb.state.js asli — tulis draft/uploads, kirim reply lewat deps ter-inject.
  */
 "use strict";
+const log = require('../../../../lib/logger').logger.child('SLOT_FILLING_STATE');
+
 
 const { extractPsbFields, validatePsbData } = require("../../psb-caption-parser");
 const { KATA_AMBIL_ALIH, PSB_STEPS, RESUMABLE_STEPS, STEP_COLLECT, STEP_CONFIRM, STEP_PICK, STEP_RESUME, STEP_TAKEOVER, cariBentrokNomor, collectChecklistText, draftFromCtx, dusunOptions, pesanBatalPsb, pesanBentrokNomor, safeReply, saveMedia, saveStep, withPsbDeps } = require("./shared");
@@ -199,7 +201,7 @@ async function handlePsbStateTimeout(userId, state, deps = {}) {
         const store = deps.draftStore || require("../../../../lib/psb-draft-store");
         store.putDraft(userId, draftFromCtx(state.step, ctx));
     } catch (e) {
-        console.error("[PSB_DM] simpan draft saat timeout gagal:", e.message);
+        log.error("[PSB_DM] simpan draft saat timeout gagal:", e.message);
     }
 
     try {
@@ -215,7 +217,7 @@ async function handlePsbStateTimeout(userId, state, deps = {}) {
             ].join("\n")
         });
     } catch (e) {
-        console.error("[PSB_DM] kabar sesi kedaluwarsa gagal:", e.message);
+        log.error("[PSB_DM] kabar sesi kedaluwarsa gagal:", e.message);
     }
 }
 
@@ -235,7 +237,7 @@ async function handlePsbStateCancel(userId, state, deps = {}) {
         await kirim(pesanBatalPsb());
         return { handled: true };
     } catch (e) {
-        console.error("[PSB_DM] balasan pembatalan gagal:", e.message);
+        log.error("[PSB_DM] balasan pembatalan gagal:", e.message);
         return { handled: false };
     }
 }
@@ -252,7 +254,7 @@ try {
         RESUMABLE_STEPS.forEach((step) => registerStateCancelHandler(step, handlePsbStateCancel));
     }
 } catch (e) {
-    console.error("[PSB_DM] gagal mendaftarkan handler timeout/batal PSB:", e.message);
+    log.error("[PSB_DM] gagal mendaftarkan handler timeout/batal PSB:", e.message);
 }
 
 module.exports = {

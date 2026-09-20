@@ -7,6 +7,7 @@
  * SideEffects: Membaca global users/reports/accounts/config, menulis state percakapan, membuat tiket laporan, dan mengirim notifikasi WhatsApp teknisi.
  */
 
+const log = require('../../lib/logger').logger.child('SMART_REPORT_HANDLER');
 const { setUserState, getUserState, deleteUserState, format, registerStateTimeoutHandler, registerStateCancelHandler } = require('./conversation-handler');
 const { getResponseTimeMessage } = require('../../lib/working-hours-helper');
 const { createCustomerReportTicket } = require('../../lib/report-orchestration-service');
@@ -147,7 +148,7 @@ async function handleGangguanMatiOfflineResponse({ sender, body, reply: _reply, 
             });
         } catch (error) {
             // Gagal menulis draft TIDAK boleh menjatuhkan alur laporan pelanggan.
-            console.error('[MATI_DRAFT_PERSIST] gagal menulis draft durabel:', error?.message);
+            log.error('[MATI_DRAFT_PERSIST] gagal menulis draft durabel:', error?.message);
         }
 
         // Don't save yet - wait for photo upload or skip
@@ -320,14 +321,14 @@ async function createLemotTicket(sender, state, _reply) {
         }
     });
     const ticketId = newReport.ticketId;
-    console.log(`[REPORT_CREATE] Ticket ${ticketId} created for ${state.targetUser.name}`);
+    log.info(`[REPORT_CREATE] Ticket ${ticketId} created for ${state.targetUser.name}`);
 
     // Clear state BEFORE notifying (important!)
     deleteUserState(sender);
 
     // NOTIFY TECHNICIANS - THIS WAS MISSING!
     await notifyTechnicians(newReport);
-    console.log(`[REPORT_CREATE] Technicians notified for ticket ${ticketId}`);
+    log.info(`[REPORT_CREATE] Technicians notified for ticket ${ticketId}`);
 
     // Clear photo buffers from saved data to prevent huge JSON files
     // (buffers were only needed for sending to technicians)
@@ -367,7 +368,7 @@ async function handleLemotPhotoUpload({ sender, response, photoPath, photoBuffer
 
         // Handle SKIP
         if (lowerResponse === 'skip') {
-            console.log('[LEMOT_PHOTO] User skipped photo upload');
+            log.info('[LEMOT_PHOTO] User skipped photo upload');
             state.photoSkipped = true;
             state.uploadedPhotos = [];
 
@@ -395,7 +396,7 @@ async function handleLemotPhotoUpload({ sender, response, photoPath, photoBuffer
 
         // Handle LANJUT with photos
         if (lowerResponse === 'lanjut' && state.uploadedPhotos && state.uploadedPhotos.length > 0) {
-            console.log(`[LEMOT_PHOTO] Processing ${state.uploadedPhotos.length} photos`);
+            log.info(`[LEMOT_PHOTO] Processing ${state.uploadedPhotos.length} photos`);
 
             // If for ticket creation, create ticket now with photos
             if (isForTicketCreation) {
@@ -423,7 +424,7 @@ async function handleLemotPhotoUpload({ sender, response, photoPath, photoBuffer
 
     // Handle photo upload
     if (photoPath) {
-        console.log('[LEMOT_PHOTO] Photo received:', photoPath);
+        log.info('[LEMOT_PHOTO] Photo received:', photoPath);
 
         // Initialize photo array if not exists
         if (!state.uploadedPhotos) {
@@ -699,11 +700,11 @@ async function handleGangguanLemotResponse({ sender, body, reply: _reply, msg: _
 
 async function promoteMatiDraftOnTimeout(userId, state) {
     if (!state?.ticketData) {
-        console.warn('[MATI_TIMEOUT_PROMOTE] state.ticketData kosong, skip', { userId });
+        log.warn('[MATI_TIMEOUT_PROMOTE] state.ticketData kosong, skip', { userId });
         return;
     }
     if (!state.targetUser) {
-        console.warn('[MATI_TIMEOUT_PROMOTE] state.targetUser kosong, skip', { userId, ticketId: state.ticketData.ticketId });
+        log.warn('[MATI_TIMEOUT_PROMOTE] state.targetUser kosong, skip', { userId, ticketId: state.ticketData.ticketId });
         return;
     }
 
@@ -720,7 +721,7 @@ async function promoteMatiDraftOnTimeout(userId, state) {
         && (r.pelangganUserId === custId || (r.pelangganDataSystem && r.pelangganDataSystem.id === custId))
         && !['selesai', 'completed', 'cancelled', 'dibatalkan', 'resolved'].includes(r.status));
     if (sudahAda) {
-        console.warn('[MATI_TIMEOUT_PROMOTE] Draft sudah dipromosikan jadi tiket — lewati (anti-dobel).', { userId, ticketId: sudahAda.ticketId });
+        log.warn('[MATI_TIMEOUT_PROMOTE] Draft sudah dipromosikan jadi tiket — lewati (anti-dobel).', { userId, ticketId: sudahAda.ticketId });
         hapusDraftLaporan(userId);
         deleteUserState(userId);
         return;
@@ -744,14 +745,14 @@ async function promoteMatiDraftOnTimeout(userId, state) {
                 autoRedirected: ticketData.autoRedirected || false
             }
         });
-        console.log(`[MATI_TIMEOUT_PROMOTE] Tiket ${report.ticketId} dibuat dari draft timeout untuk ${userId}`);
+        log.info(`[MATI_TIMEOUT_PROMOTE] Tiket ${report.ticketId} dibuat dari draft timeout untuk ${userId}`);
         // Sudah jadi tiket — draft durabel DAN state in-memory tak perlu lagi. Hapus state juga supaya
         // promotor lain (timer in-memory vs pemindaian disk) tak memicu promosi kedua. (#b322)
         hapusDraftLaporan(userId);
         deleteUserState(userId);
     } catch (error) {
         // Draft SENGAJA tidak dihapus saat gagal: biarkan pemindaian berikutnya mencobanya lagi.
-        console.error('[MATI_TIMEOUT_PROMOTE] gagal promote draft jadi tiket', { userId, error: error?.message });
+        log.error('[MATI_TIMEOUT_PROMOTE] gagal promote draft jadi tiket', { userId, error: error?.message });
     }
 }
 
@@ -772,7 +773,7 @@ async function pindaiDraftLaporanTertunda(now = Date.now()) {
     try {
         kedaluwarsa = listDraftKedaluwarsa(now);
     } catch (error) {
-        console.error('[MATI_DRAFT_SCAN] gagal membaca store draft:', error?.message);
+        log.error('[MATI_DRAFT_SCAN] gagal membaca store draft:', error?.message);
         return { dipromosikan: 0, gagal: 0, diperiksa: 0 };
     }
 
@@ -797,7 +798,7 @@ async function pindaiDraftLaporanTertunda(now = Date.now()) {
             dipromosikan += 1;
         } catch (error) {
             gagal += 1;
-            console.error('[MATI_DRAFT_SCAN] gagal promote satu draft', {
+            log.error('[MATI_DRAFT_SCAN] gagal promote satu draft', {
                 userId: draft.userId,
                 error: error?.message
             });
@@ -805,7 +806,7 @@ async function pindaiDraftLaporanTertunda(now = Date.now()) {
     }
 
     if (kedaluwarsa.length) {
-        console.log(
+        log.info(
             `[MATI_DRAFT_SCAN] ${kedaluwarsa.length} draft kedaluwarsa diperiksa — ` +
             `${dipromosikan} jadi tiket, ${gagal} gagal (akan dicoba lagi tick berikutnya)`
         );
@@ -816,7 +817,7 @@ async function pindaiDraftLaporanTertunda(now = Date.now()) {
 
 async function promoteLemotDraftOnTimeout(userId, state) {
     if (!state?.targetUser) {
-        console.warn('[LEMOT_TIMEOUT_PROMOTE] state.targetUser kosong, skip', { userId });
+        log.warn('[LEMOT_TIMEOUT_PROMOTE] state.targetUser kosong, skip', { userId });
         return;
     }
     // Hanya promote kalau memang sedang menunggu foto sebagai tahap akhir bikin tiket.
@@ -841,9 +842,9 @@ async function promoteLemotDraftOnTimeout(userId, state) {
             }
         });
         await notifyTechnicians(report);
-        console.log(`[LEMOT_TIMEOUT_PROMOTE] Tiket ${report.ticketId} dibuat dari draft timeout untuk ${userId}`);
+        log.info(`[LEMOT_TIMEOUT_PROMOTE] Tiket ${report.ticketId} dibuat dari draft timeout untuk ${userId}`);
     } catch (error) {
-        console.error('[LEMOT_TIMEOUT_PROMOTE] gagal promote draft jadi tiket', { userId, error: error?.message });
+        log.error('[LEMOT_TIMEOUT_PROMOTE] gagal promote draft jadi tiket', { userId, error: error?.message });
     }
 }
 
@@ -862,7 +863,7 @@ if (typeof registerStateCancelHandler === 'function') {
         try {
             hapusDraftLaporan(userId);
         } catch (error) {
-            console.error('[LAPORAN_DRAFT] gagal menghapus draft saat pembatalan:', error?.message);
+            log.error('[LAPORAN_DRAFT] gagal menghapus draft saat pembatalan:', error?.message);
         }
         // handled:false — domain ini tak membalas apa pun; biarkan pesan batal universal
         // yang menjawab pelanggan.

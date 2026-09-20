@@ -7,6 +7,7 @@
  * SideEffects: Menyimpan batch foto di memori, mengirim reply error/acknowledgment ke user, membatasi rate.
  */
 
+const log = require('../../lib/logger').logger.child('PHOTO_UPLOAD_QUEUE');
 const path = require('path');
 const fs = require('fs');
 const { renderResponseTemplate } = require('./template-helpers');
@@ -164,7 +165,7 @@ class PhotoUploadQueue {
                             await reply(message);
                             this.updateLastReplyTime(sender);
                         } catch (err) {
-                            console.error('[QUEUE_ACK_ERROR]', err);
+                            log.error('[QUEUE_ACK_ERROR]', err);
                         }
                     }, CONFIG.ACKNOWLEDGMENT_DELAY);
                 }
@@ -191,7 +192,7 @@ class PhotoUploadQueue {
             
             // Log current status
             const totalInSession = session.totalPhotosUploaded + queue.photos.length;
-            console.log(`[PHOTO_QUEUE] Photo ${totalInSession} queued for ${sender} (${queue.photos.length} in current batch)`);
+            log.info(`[PHOTO_QUEUE] Photo ${totalInSession} queued for ${sender} (${queue.photos.length} in current batch)`);
             
             return {
                 success: true,
@@ -202,7 +203,7 @@ class PhotoUploadQueue {
             };
             
         } catch (error) {
-            console.error('[QUEUE_ADD_ERROR]', error);
+            log.error('[QUEUE_ADD_ERROR]', error);
             return {
                 success: false,
                 message: 'Failed to queue photo'
@@ -236,7 +237,7 @@ class PhotoUploadQueue {
         const session = this.userSessions.get(sender);
         
         try {
-            console.log(`[QUEUE_PROCESS] Processing ${photos.length} photos for ${sender}`);
+            log.info(`[QUEUE_PROCESS] Processing ${photos.length} photos for ${sender}`);
             
             // Create upload directory
             const date = new Date();
@@ -275,7 +276,7 @@ class PhotoUploadQueue {
                     });
                     
                 } catch (err) {
-                    console.error(`[QUEUE_SAVE_ERROR] ${photo.fileName}:`, err);
+                    log.error(`[QUEUE_SAVE_ERROR] ${photo.fileName}:`, err);
                     failedUploads.push(photo.fileName);
                 }
             }
@@ -316,12 +317,12 @@ class PhotoUploadQueue {
                         });
                         this.updateLastReplyTime(sender);
                     } catch (err) {
-                        console.error('[QUEUE_REPLY_ERROR]', err);
+                        log.error('[QUEUE_REPLY_ERROR]', err);
                     }
                 }, CONFIG.QUEUE_PROCESS_DELAY);
             }
             
-            console.log(`[QUEUE_PROCESS] Completed: ${successfulUploads.length}/${photos.length} photos. Total in session: ${session?.totalPhotosUploaded || 0}`);
+            log.info(`[QUEUE_PROCESS] Completed: ${successfulUploads.length}/${photos.length} photos. Total in session: ${session?.totalPhotosUploaded || 0}`);
             
             // Clear processed photos from queue
             queue.photos = [];
@@ -331,7 +332,7 @@ class PhotoUploadQueue {
             queue.acknowledged = false;
             
         } catch (error) {
-            console.error('[QUEUE_PROCESS_ERROR]', error);
+            log.error('[QUEUE_PROCESS_ERROR]', error);
             
             // Try to send error message with rate limit check
             const canReply = await this.checkRateLimit(sender);
@@ -343,7 +344,7 @@ class PhotoUploadQueue {
                     ));
                     this.updateLastReplyTime(sender);
                 } catch (err) {
-                    console.error('[QUEUE_ERROR_REPLY]', err);
+                    log.error('[QUEUE_ERROR_REPLY]', err);
                 }
             }
             
@@ -357,7 +358,7 @@ class PhotoUploadQueue {
             if (clearSession) {
                 this.userQueues.delete(sender);
                 this.userSessions.delete(sender);
-                console.log(`[QUEUE_CLEANUP] Session cleared for ${sender}`);
+                log.info(`[QUEUE_CLEANUP] Session cleared for ${sender}`);
             } else {
                 // Keep queue alive but mark as not processing
                 queue.isProcessing = false;
@@ -432,7 +433,7 @@ class PhotoUploadQueue {
         this.userQueues.delete(sender);
         this.userSessions.delete(sender);
         this.lastReplyTime.delete(sender);
-        console.log(`[QUEUE_CLEAR] Cleared all data for ${sender}`);
+        log.info(`[QUEUE_CLEAR] Cleared all data for ${sender}`);
     }
     
     /**

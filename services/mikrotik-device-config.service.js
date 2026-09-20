@@ -7,6 +7,8 @@
  * SideEffects: Menulis `database/mikrotik_devices.json` dan sinkronisasi `.env` ketika device aktif berubah.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('MIKROTIK_DEVICE_CONFIG_SERVICE');
+
 
 const fs = require("fs");
 const path = require("path");
@@ -30,7 +32,7 @@ function readDevices(deps) {
         const parsed = JSON.parse(data);
         return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
-        console.error("[MIKROTIK_DEVICES] Error reading devices file:", error);
+        log.error("[MIKROTIK_DEVICES] Error reading devices file:", error);
         return [];
     }
 }
@@ -208,7 +210,7 @@ function createMikrotikDeviceConfigService(overrides = {}) {
                     updateEnvFile(deps, "PORT_MC", updatedDevice.port);
                     updateEnvFile(deps, "MONITOR_INTERFACE", updatedDevice.monitoring_interface);
                 } catch (envError) {
-                    console.error("[ENV_UPDATE_WARN] Failed to update .env file after editing active device:", envError.message);
+                    log.error("[ENV_UPDATE_WARN] Failed to update .env file after editing active device:", envError.message);
                 }
             }
 
@@ -249,7 +251,7 @@ function createMikrotikDeviceConfigService(overrides = {}) {
                 updateEnvFile(deps, "PORT_MC", activeDevice.port || "8728");
                 updateEnvFile(deps, "MONITOR_INTERFACE", activeDevice.monitoring_interface || "ether1");
             } catch (envError) {
-                console.error("[ENV_UPDATE_WARN] Failed to update .env file after setting active device:", envError.message);
+                log.error("[ENV_UPDATE_WARN] Failed to update .env file after setting active device:", envError.message);
             }
             writeDevices(deps, devices);
 

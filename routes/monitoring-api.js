@@ -14,6 +14,7 @@
  *              Menyimpan cache pengguna aktif di memori (TTL 5 detik / stale 30 detik).
  */
 
+const log = require('../lib/logger').logger.child('MONITORING_API');
 const express = require('express');
 const router = express.Router();
 const path = require('path');
@@ -49,7 +50,7 @@ function executePHP(phpFile, req, res) {
         }
     }, (error, stdout, stderr) => {
         if (error) {
-            console.error(`[Monitoring API] Error executing ${phpFile}:`, error);
+            log.error(`[Monitoring API] Error executing ${phpFile}:`, error);
             return res.status(500).json({
                 status: 500,
                 message: 'Internal server error',
@@ -59,7 +60,7 @@ function executePHP(phpFile, req, res) {
         
         // Only log actual PHP errors, filter out debug logs
         if (stderr && !stderr.includes('[API]')) {
-            console.error(`[PHP Error]:`, stderr);
+            log.error(`[PHP Error]:`, stderr);
         }
         
         try {

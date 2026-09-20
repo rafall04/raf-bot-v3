@@ -3,6 +3,7 @@
  * API compat untuk mengelola template pesan WhatsApp dengan placeholder ${nama}
  */
 
+const log = require('../lib/logger').logger.child('MESSAGE_TEMPLATES');
 const express = require('express');
 const router = express.Router();
 const templateService = require('../lib/template-service');
@@ -52,7 +53,7 @@ router.get('/', ensureAdmin, (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[MESSAGE_TEMPLATES_GET_ERROR]', error);
+        log.error('[MESSAGE_TEMPLATES_GET_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal mengambil templates' });
     }
 });
@@ -66,7 +67,7 @@ router.get('/diagnostics', ensureAdmin, (req, res) => {
             data: templateService.getDiagnostics()
         });
     } catch (error) {
-        console.error('[MESSAGE_TEMPLATE_DIAGNOSTICS_ERROR]', error);
+        log.error('[MESSAGE_TEMPLATE_DIAGNOSTICS_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal mengambil diagnostics template' });
     }
 });
@@ -82,7 +83,7 @@ router.get('/:id', ensureAdmin, (req, res) => {
         
         res.json({ status: 200, data: template });
     } catch (error) {
-        console.error('[MESSAGE_TEMPLATE_GET_ERROR]', error);
+        log.error('[MESSAGE_TEMPLATE_GET_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal mengambil template' });
     }
 });
@@ -125,7 +126,7 @@ router.put('/:id', ensureAdmin, (req, res) => {
             description: `Admin mengupdate template pesan: ${updatedTemplate.name}`,
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
         
         res.json({ 
             status: 200, 
@@ -133,7 +134,7 @@ router.put('/:id', ensureAdmin, (req, res) => {
             data: updatedTemplate 
         });
     } catch (error) {
-        console.error('[MESSAGE_TEMPLATE_UPDATE_ERROR]', error);
+        log.error('[MESSAGE_TEMPLATE_UPDATE_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal mengupdate template' });
     }
 });
@@ -187,7 +188,7 @@ router.post('/', ensureAdmin, (req, res) => {
             description: `Admin membuat template pesan baru: ${name}`,
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
         
         res.status(201).json({ 
             status: 201, 
@@ -195,7 +196,7 @@ router.post('/', ensureAdmin, (req, res) => {
             data: newTemplate 
         });
     } catch (error) {
-        console.error('[MESSAGE_TEMPLATE_CREATE_ERROR]', error);
+        log.error('[MESSAGE_TEMPLATE_CREATE_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal membuat template' });
     }
 });
@@ -267,7 +268,7 @@ router.post('/:id/test', ensureAdmin, (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[MESSAGE_TEMPLATE_TEST_ERROR]', error);
+        log.error('[MESSAGE_TEMPLATE_TEST_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal menguji template' });
     }
 });

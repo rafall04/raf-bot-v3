@@ -18,6 +18,8 @@
  *              percakapan; kirim WA. NEVER-THROW.
  */
 "use strict";
+const log = require('../../../lib/logger').logger.child('OPER_JALUR_STATE');
+
 
 const { resolveStaffRole } = require("./wan-switch.state");
 const { isAffirmative } = require("../../../lib/affirmative-parser");
@@ -158,7 +160,7 @@ async function startOperJalur(context) {
         if (seg) return await startSegment(context, svc, seg, jalur, segmentIds);
         return await startCustomer(context, svc, target, jalur);
     } catch (err) {
-        console.warn(`[OPERJALUR] start gagal: ${err.message}`);
+        log.warn(`[OPERJALUR] start gagal: ${err.message}`);
         try { await reply("Maaf, gagal menyiapkan oper. Coba lagi ya."); } catch (_e) { /* abaikan */ }
         return { handled: true };
     }
@@ -207,7 +209,7 @@ async function handleOperJalurConversationState(context) {
         }
         return { handled: false };
     } catch (err) {
-        console.warn(`[OPERJALUR] state gagal: ${err.message}`);
+        log.warn(`[OPERJALUR] state gagal: ${err.message}`);
         try {
             if (context.deleteUserState) context.deleteUserState(context.stateSender);
             await context.reply("Maaf, terjadi kendala. Proses oper dibatalkan.");

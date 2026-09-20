@@ -7,6 +7,8 @@
  * SideEffects: Membuka koneksi SQLite dan menyiapkan table auto outage saat dipanggil.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('AUTO_OUTAGE_REPOSITORY');
+
 
 function defaultDeps() {
     return {
@@ -76,7 +78,7 @@ function createAutoOutageRepository(overrides = {}) {
         try {
             const { applySqlitePragmas } = require("../lib/sqlite-pragmas");
             applySqlitePragmas(db).catch((pragmaErr) => {
-                console.warn(`[AUTO_OUTAGE_REPO_PRAGMA_WARN] ${pragmaErr.message}`);
+                log.warn(`[AUTO_OUTAGE_REPO_PRAGMA_WARN] ${pragmaErr.message}`);
             });
         } catch (__e) {
             // Ignore — pragma helper opsional, jangan break repository instantiation.

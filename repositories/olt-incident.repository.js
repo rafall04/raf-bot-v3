@@ -16,6 +16,8 @@
  * SideEffects: Membuka koneksi SQLite & menulis baris insiden/state. Best-effort dari jalur ingest.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('OLT_INCIDENT_REPOSITORY');
+
 
 const INCIDENT_TYPES = new Set(["los", "dying_gasp", "reboot", "flapping", "unknown"]);
 const MODEM_STATES = new Set(["online", "los", "dying_gasp", "rebooting", "unknown"]);
@@ -45,7 +47,7 @@ function createOltIncidentRepository(overrides = {}) {
         try {
             const { applySqlitePragmas } = require("../lib/sqlite-pragmas");
             applySqlitePragmas(db).catch((pragmaErr) => {
-                console.warn(`[OLT_STATE_PRAGMA_WARN] ${pragmaErr.message}`);
+                log.warn(`[OLT_STATE_PRAGMA_WARN] ${pragmaErr.message}`);
             });
         } catch (_error) {
             // Pragma helper opsional.
@@ -303,7 +305,7 @@ function createOltIncidentRepository(overrides = {}) {
             const res = await run("DELETE FROM olt_incidents WHERE status != 'open' AND started_at_ms < ?", [cutoff]);
             return res.changes;
         } catch (err) {
-            console.warn(`[OLT_STATE] prune gagal: ${err.message}`);
+            log.warn(`[OLT_STATE] prune gagal: ${err.message}`);
             return 0;
         }
     }

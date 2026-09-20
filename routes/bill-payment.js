@@ -16,6 +16,8 @@
  * SideEffects: Membuat transaksi/sesi gateway + menulis record payment.json (tag 'tagihan') + settle + struk WA.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('BILL_PAYMENT');
+
 
 const express = require("express");
 const path = require("path");
@@ -89,7 +91,7 @@ async function resolveBillContext(token) {
                 sudahDibayar = Math.max(0, hargaEfektif - amount);
             }
         } catch (posErr) {
-            console.warn("[BAYAR] Posisi ledger tak terbaca, pakai harga efektif:", posErr && posErr.message);
+            log.warn("[BAYAR] Posisi ledger tak terbaca, pakai harga efektif:", posErr && posErr.message);
         }
     }
 
@@ -195,7 +197,7 @@ router.get("/bayar/:token", chargeLimiter, asyncHandler(async (req, res) => {
         maxAgeMs: UMUR_PENDING_BOLEH_PAKAI_ULANG_MS,
     });
     if (pendingLama && pendingLama.redirectUrl) {
-        console.log(`[BILL_REDIRECT_REUSE] Memakai ulang transaksi pending ${pendingLama.reffId} untuk user ${ctx.user.id} periode ${periodMonth}/${periodYear}`);
+        log.info(`[BILL_REDIRECT_REUSE] Memakai ulang transaksi pending ${pendingLama.reffId} untuk user ${ctx.user.id} periode ${periodMonth}/${periodYear}`);
         return res.redirect(302, pendingLama.redirectUrl);
     }
 
@@ -265,7 +267,7 @@ router.post("/callback/tripay", asyncHandler(async (req, res) => {
         // sudah pakai pola ini; Tripay/Mayar dulu terlewat. Tak dapat lock = ref ini SEDANG diproses
         // callback lain → ACK saja (biar tak dobel; holder yang menuntaskan).
         if (!(await acquireLock(`bill-callback-${merchantRef}`, 8000))) {
-            console.warn("[TRIPAY_CALLBACK] Tak dapat lock (ref diproses callback lain) — ACK.", { merchantRef });
+            log.warn("[TRIPAY_CALLBACK] Tak dapat lock (ref diproses callback lain) — ACK.", { merchantRef });
             return res.json({ success: true });
         }
         tripayLockRef = merchantRef;
@@ -274,21 +276,21 @@ router.post("/callback/tripay", asyncHandler(async (req, res) => {
         // KEAMANAN: jangan percaya body mentah — verifikasi langsung ke Tripay.
         const verify = await tripay.checkTransaction(pay.trxId || reference, { sandbox: pay.sandbox === true });
         if (!verify || !verify.ok || !verify.paid) {
-            console.warn("[TRIPAY_CALLBACK_REJECT] Tripay belum konfirmasi PAID — kredit ditolak.", { merchantRef, reference, status: verify?.status, error: verify?.error });
+            log.warn("[TRIPAY_CALLBACK_REJECT] Tripay belum konfirmasi PAID — kredit ditolak.", { merchantRef, reference, status: verify?.status, error: verify?.error });
             return res.status(400).json({ success: false });
         }
         if (verify.referenceId != null && String(verify.referenceId) !== String(merchantRef)) {
-            console.warn("[TRIPAY_CALLBACK_REJECT] merchant_ref Tripay tidak cocok.", { merchantRef, tripay_ref: verify.referenceId });
+            log.warn("[TRIPAY_CALLBACK_REJECT] merchant_ref Tripay tidak cocok.", { merchantRef, tripay_ref: verify.referenceId });
             return res.status(400).json({ success: false });
         }
         if (verify.amount != null && pay.amount != null && parseInt(verify.amount, 10) < parseInt(pay.amount, 10)) {
-            console.warn("[TRIPAY_CALLBACK_REJECT] amount Tripay kurang dari tagihan.", { merchantRef, tripay_amount: verify.amount, expected: pay.amount });
+            log.warn("[TRIPAY_CALLBACK_REJECT] amount Tripay kurang dari tagihan.", { merchantRef, tripay_amount: verify.amount, expected: pay.amount });
             return res.status(400).json({ success: false });
         }
 
         const user = (global.users || []).find((u) => String(u.id) === String(pay.userId));
         if (!user) {
-            console.error("[TRIPAY_CALLBACK] User tidak ditemukan — TIDAK ditandai paid", { merchantRef, userId: pay.userId });
+            log.error("[TRIPAY_CALLBACK] User tidak ditemukan — TIDAK ditandai paid", { merchantRef, userId: pay.userId });
             return res.status(400).json({ success: false });
         }
 
@@ -302,7 +304,7 @@ router.post("/callback/tripay", asyncHandler(async (req, res) => {
                 markPaid: () => updateStatusPayment(merchantRef, true),
             });
         } catch (settleErr) {
-            console.error("[TRIPAY_CALLBACK] Catat lunas GAGAL — TIDAK ditandai paid", { merchantRef, error: settleErr.message });
+            log.error("[TRIPAY_CALLBACK] Catat lunas GAGAL — TIDAK ditandai paid", { merchantRef, error: settleErr.message });
             return res.status(400).json({ success: false });
         }
 
@@ -328,7 +330,7 @@ router.post("/callback/tripay", asyncHandler(async (req, res) => {
                 method: body.payment_name || "Tripay", refId: merchantRef, gateway: "tripay",
             });
             if (tindakan.jenis === "kelebihan") {
-                console.warn("[TRIPAY_CALLBACK] KELEBIHAN BAYAR", { merchantRef, ledgerDicatat: tindakan.ledgerDicatat });
+                log.warn("[TRIPAY_CALLBACK] KELEBIHAN BAYAR", { merchantRef, ledgerDicatat: tindakan.ledgerDicatat });
             }
             if (pay.sender) {
                 // FIX invoice-tak-terkirim (callback online): gate invoiceOnSettle ON & send_invoice
@@ -341,12 +343,12 @@ router.post("/callback/tripay", asyncHandler(async (req, res) => {
                 if (!sentInvoice) await sendMessage(pay.sender, { text: tindakan.teksPelanggan });
             }
         } catch (notifyErr) {
-            console.error("[TRIPAY_CALLBACK] Gagal kirim struk:", notifyErr.message);
+            log.error("[TRIPAY_CALLBACK] Gagal kirim struk:", notifyErr.message);
         }
 
         return res.json({ success: true });
     } catch (err) {
-        console.error("[TRIPAY_CALLBACK_ERROR]", err.message);
+        log.error("[TRIPAY_CALLBACK_ERROR]", err.message);
         return res.status(500).json({ success: false });
     } finally {
         if (tripayLockRef) releaseLock(`bill-callback-${tripayLockRef}`);
@@ -380,7 +382,7 @@ router.post("/callback/mayar", asyncHandler(async (req, res) => {
         // #b321: SERIALISASI per-ref + re-check DALAM lock (sama seperti Tripay/iPaymu) — anti
         // double-settle dari webhook duplikat/retry. Tak dapat lock = ref diproses callback lain → ACK.
         if (!(await acquireLock(`bill-callback-${pay.reffId}`, 8000))) {
-            console.warn("[MAYAR_CALLBACK] Tak dapat lock (ref diproses callback lain) — ACK.", { reffId: pay.reffId });
+            log.warn("[MAYAR_CALLBACK] Tak dapat lock (ref diproses callback lain) — ACK.", { reffId: pay.reffId });
             return res.json({ success: true });
         }
         mayarLockRef = pay.reffId;
@@ -389,17 +391,17 @@ router.post("/callback/mayar", asyncHandler(async (req, res) => {
         // KEAMANAN: verifikasi langsung ke Mayar (S2S) — id invoice = pay.trxId.
         const verify = await mayar.checkTransaction(pay.trxId, { sandbox: pay.sandbox === true });
         if (!verify || !verify.ok || !verify.paid) {
-            console.warn("[MAYAR_CALLBACK_REJECT] Mayar belum konfirmasi PAID — kredit ditolak.", { reffId: pay.reffId, status: verify?.status, error: verify?.error });
+            log.warn("[MAYAR_CALLBACK_REJECT] Mayar belum konfirmasi PAID — kredit ditolak.", { reffId: pay.reffId, status: verify?.status, error: verify?.error });
             return res.status(400).json({ success: false });
         }
         if (verify.amount != null && pay.amount != null && parseInt(verify.amount, 10) < parseInt(pay.amount, 10)) {
-            console.warn("[MAYAR_CALLBACK_REJECT] amount Mayar kurang dari tagihan.", { reffId: pay.reffId, mayar_amount: verify.amount, expected: pay.amount });
+            log.warn("[MAYAR_CALLBACK_REJECT] amount Mayar kurang dari tagihan.", { reffId: pay.reffId, mayar_amount: verify.amount, expected: pay.amount });
             return res.status(400).json({ success: false });
         }
 
         const user = (global.users || []).find((u) => String(u.id) === String(pay.userId));
         if (!user) {
-            console.error("[MAYAR_CALLBACK] User tidak ditemukan — TIDAK ditandai paid", { reffId: pay.reffId, userId: pay.userId });
+            log.error("[MAYAR_CALLBACK] User tidak ditemukan — TIDAK ditandai paid", { reffId: pay.reffId, userId: pay.userId });
             return res.status(400).json({ success: false });
         }
 
@@ -411,7 +413,7 @@ router.post("/callback/mayar", asyncHandler(async (req, res) => {
                 markPaid: () => updateStatusPayment(pay.reffId, true), // lihat catatan Tripay di atas
             });
         } catch (settleErr) {
-            console.error("[MAYAR_CALLBACK] Catat lunas GAGAL — TIDAK ditandai paid", { reffId: pay.reffId, error: settleErr.message });
+            log.error("[MAYAR_CALLBACK] Catat lunas GAGAL — TIDAK ditandai paid", { reffId: pay.reffId, error: settleErr.message });
             return res.status(400).json({ success: false });
         }
 
@@ -432,7 +434,7 @@ router.post("/callback/mayar", asyncHandler(async (req, res) => {
                 method: "Mayar", refId: pay.reffId, gateway: "mayar",
             });
             if (tindakan.jenis === "kelebihan") {
-                console.warn("[MAYAR_CALLBACK] KELEBIHAN BAYAR", { reffId: pay.reffId, ledgerDicatat: tindakan.ledgerDicatat });
+                log.warn("[MAYAR_CALLBACK] KELEBIHAN BAYAR", { reffId: pay.reffId, ledgerDicatat: tindakan.ledgerDicatat });
             }
             if (pay.sender) {
                 // FIX invoice-tak-terkirim (callback online): gate invoiceOnSettle ON & send_invoice
@@ -445,12 +447,12 @@ router.post("/callback/mayar", asyncHandler(async (req, res) => {
                 if (!sentInvoice) await sendMessage(pay.sender, { text: tindakan.teksPelanggan });
             }
         } catch (notifyErr) {
-            console.error("[MAYAR_CALLBACK] Gagal kirim struk:", notifyErr.message);
+            log.error("[MAYAR_CALLBACK] Gagal kirim struk:", notifyErr.message);
         }
 
         return res.json({ success: true });
     } catch (err) {
-        console.error("[MAYAR_CALLBACK_ERROR]", err.message);
+        log.error("[MAYAR_CALLBACK_ERROR]", err.message);
         return res.status(500).json({ success: false });
     } finally {
         if (mayarLockRef) releaseLock(`bill-callback-${mayarLockRef}`);
@@ -521,7 +523,7 @@ router.post("/api/bayar/:token/charge", chargeLimiter, asyncHandler(async (req, 
         maxAgeMs: UMUR_PENDING_BOLEH_PAKAI_ULANG_MS,
     });
     if (pendingLama && pendingLama.artefak && pendingLama.artefak.method === method && pendingLama.artefak.channel === channel) {
-        console.log(`[BILL_CHARGE_REUSE] Memakai ulang transaksi pending ${pendingLama.reffId} untuk user ${ctx.user.id} periode ${periodMonth}/${periodYear}`);
+        log.info(`[BILL_CHARGE_REUSE] Memakai ulang transaksi pending ${pendingLama.reffId} untuk user ${ctx.user.id} periode ${periodMonth}/${periodYear}`);
         return res.json({ ok: true, reffId: pendingLama.reffId, dipakaiUlang: true, ...pendingLama.artefak });
     }
 

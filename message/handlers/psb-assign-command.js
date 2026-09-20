@@ -14,6 +14,8 @@
  *              semua NEVER-THROW.
  */
 "use strict";
+const log = require('../../lib/logger').logger.child('PSB_ASSIGN_COMMAND');
+
 
 const ADMIN_ROLES = ["admin", "owner", "superadmin"];
 
@@ -79,7 +81,7 @@ async function notifyGroupAndTeknisi(deps, record, teknisiAccount, { mode, assig
         const psbCfg = deps.config.psbIntake || {};
         const groupId = psbCfg.summaryGroupId || psbCfg.groupId;
         if (groupId) await deps.sendReply({ recipient: groupId, text: deps.scheduleService.buildAssignmentGroupNotif(record, { mode, assignedByName }) });
-    } catch (e) { console.error("[PSB_ASSIGN_WA_NOTIF_ERROR]", e.message); }
+    } catch (e) { log.error("[PSB_ASSIGN_WA_NOTIF_ERROR]", e.message); }
 }
 
 // ── ambil PSB-<n> (teknisi/staf klaim sendiri) ──
@@ -148,7 +150,7 @@ async function handlePsbAssignCommand(context, _deps) {
         if (/^\s*tugaskan\s+psb/i.test(t)) return await handleTugaskan({ text: t, staff, reply }, deps);
         if (/^\s*ambil\s+psb/i.test(t)) return await handleAmbil({ text: t, staff, reply }, deps);
     } catch (err) {
-        console.warn(`[PSB_ASSIGN_CMD] gagal: ${err.message}`);
+        log.warn(`[PSB_ASSIGN_CMD] gagal: ${err.message}`);
         try { await reply("Maaf, gagal memproses perintah PSB. Coba lagi ya."); } catch (_e) { /* NEVER-THROW */ }
     }
 }

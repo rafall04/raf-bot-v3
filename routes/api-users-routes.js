@@ -6,6 +6,7 @@
  * MainFuncs: `createApiUsersRouter`.
  * SideEffects: Membaca/menulis data pelanggan, memanggil integrasi jaringan, membentuk file Excel di memory, memproses upload workbook, dan mengirim welcome message pelanggan.
  */
+const log = require('../lib/logger').logger.child('API_USERS_ROUTES');
 const express = require('express');
 const multer = require('multer');
 const { sendMessage } = require('../lib/whatsapp-delivery-service');
@@ -198,7 +199,7 @@ function createApiUsersRouter(deps) {
          apiUsersService.listUsersWithIntegrityCheck()
              .then((result) => res.status(result.status).json(result.body))
              .catch((error) => {
-                 console.error('[GET_USERS_ERROR]', error);
+                 log.error('[GET_USERS_ERROR]', error);
                  return res.status(500).json({
                      status: 500,
                      message: "Terjadi kesalahan saat memuat data pengguna",
@@ -206,7 +207,7 @@ function createApiUsersRouter(deps) {
                  });
              });
      } catch (error) {
-         console.error('[GET_USERS_ERROR]', error);
+         log.error('[GET_USERS_ERROR]', error);
          return res.status(500).json({
              status: 500,
              message: "Terjadi kesalahan saat memuat data pengguna",
@@ -265,7 +266,7 @@ function createApiUsersRouter(deps) {
 
          return res.status(result.status).json(result.body);
      } catch (error) {
-         console.error('[USER_UPDATE_ERROR]', error);
+         log.error('[USER_UPDATE_ERROR]', error);
          return res.status(500).json({
              status: 500,
              message: "Terjadi kesalahan saat memperbarui data",
@@ -289,7 +290,7 @@ function createApiUsersRouter(deps) {
          return res.status(result.status).json(result.body);
          
      } catch (error) {
-         console.error('[API_USERS_POST_ERROR]', error);
+         log.error('[API_USERS_POST_ERROR]', error);
          return res.status(500).json({
              status: 500,
              message: 'Terjadi kesalahan saat menyimpan data user',
@@ -305,7 +306,7 @@ router.post('/users/:id/send-welcome', ensureAdmin, async (req, res) => {
         const result = await apiUsersService.sendWelcomeToUser({ id: req.params.id });
         return res.status(result.status).json(result.body);
     } catch (error) {
-        console.error('[API_USERS_SEND_WELCOME_ERROR]', error);
+        log.error('[API_USERS_SEND_WELCOME_ERROR]', error);
         return res.status(500).json({ status: 500, message: 'Gagal mengirim pesan selamat datang', error: error.message });
     }
 });
@@ -417,9 +418,9 @@ router.post('/users/bulk-change-profile', ensureAdmin, async (req, res) => {
         const packageConfig = getPackages().find(p => p.name === packageName);
         const oldProfile = packageConfig ? packageConfig.profile : null;
         
-        console.log(`[BULK_CHANGE_PROFILE] Starting bulk profile change for package "${packageName}"`);
-        console.log(`[BULK_CHANGE_PROFILE] Old profile: ${oldProfile} → New profile: ${targetProfile}`);
-        console.log(`[BULK_CHANGE_PROFILE] Affected users: ${affectedUsers.length}`);
+        log.info(`[BULK_CHANGE_PROFILE] Starting bulk profile change for package "${packageName}"`);
+        log.info(`[BULK_CHANGE_PROFILE] Old profile: ${oldProfile} → New profile: ${targetProfile}`);
+        log.info(`[BULK_CHANGE_PROFILE] Affected users: ${affectedUsers.length}`);
         
         let successCount = 0;
         let failedCount = 0;
@@ -442,7 +443,7 @@ router.post('/users/bulk-change-profile', ensureAdmin, async (req, res) => {
                 );
                 
                 successCount++;
-                console.log(`[BULK_CHANGE_PROFILE] Success: ${user.pppoe_username} (${user.name})`);
+                log.info(`[BULK_CHANGE_PROFILE] Success: ${user.pppoe_username} (${user.name})`);
                 
             } catch (error) {
                 failedCount++;
@@ -454,7 +455,7 @@ router.post('/users/bulk-change-profile', ensureAdmin, async (req, res) => {
                     name: user.name,
                     error: error.message
                 });
-                console.error(`[BULK_CHANGE_PROFILE] Failed: ${user.pppoe_username} - ${error.message}`);
+                log.error(`[BULK_CHANGE_PROFILE] Failed: ${user.pppoe_username} - ${error.message}`);
             }
         }
         
@@ -470,9 +471,9 @@ router.post('/users/bulk-change-profile', ensureAdmin, async (req, res) => {
                 // Save to packages.json
                 await savePackage(nextPackages);
                 packageUpdated = true;
-                console.log(`[BULK_CHANGE_PROFILE] Package "${packageName}" profile updated to "${targetProfile}" in packages.json`);
+                log.info(`[BULK_CHANGE_PROFILE] Package "${packageName}" profile updated to "${targetProfile}" in packages.json`);
             } catch (saveError) {
-                console.error(`[BULK_CHANGE_PROFILE] Failed to update packages.json:`, saveError);
+                log.error(`[BULK_CHANGE_PROFILE] Failed to update packages.json:`, saveError);
             }
         }
         
@@ -501,10 +502,10 @@ router.post('/users/bulk-change-profile', ensureAdmin, async (req, res) => {
                 userAgent: req.headers['user-agent']
             });
         } catch (logErr) {
-            console.error('[BULK_CHANGE_PROFILE] Activity log error:', logErr);
+            log.error('[BULK_CHANGE_PROFILE] Activity log error:', logErr);
         }
         
-        console.log(`[BULK_CHANGE_PROFILE] Completed: ${successCount} success, ${failedCount} failed, package updated: ${packageUpdated}`);
+        log.info(`[BULK_CHANGE_PROFILE] Completed: ${successCount} success, ${failedCount} failed, package updated: ${packageUpdated}`);
         
         return res.json({
             status: 200,
@@ -522,7 +523,7 @@ router.post('/users/bulk-change-profile', ensureAdmin, async (req, res) => {
         });
         
     } catch (error) {
-        console.error('[BULK_CHANGE_PROFILE_ERROR]', error);
+        log.error('[BULK_CHANGE_PROFILE_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal melakukan perubahan profil massal',
@@ -547,7 +548,7 @@ router.post('/users/:id', ensureAdmin, async (req, res) => {
         return res.status(result.status).json(result.body);
         
     } catch (error) {
-        console.error('[API_USERS_UPDATE_ERROR]', error);
+        log.error('[API_USERS_UPDATE_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat memperbarui user',
@@ -579,7 +580,7 @@ router.get('/users/orphan-pppoe', ensureAdmin, async (req, res) => {
         if (!hasil.ok) return res.status(502).json({ status: 502, message: hasil.message });
         return res.json({ status: 200, ...hasil });
     } catch (error) {
-        console.error('[API_ORPHAN_PPPOE_LIST_ERROR]', error);
+        log.error('[API_ORPHAN_PPPOE_LIST_ERROR]', error);
         return res.status(500).json({ status: 500, message: 'Gagal membaca sisa PPPoE', error: error.message });
     }
 });
@@ -600,11 +601,11 @@ router.delete('/users/orphan-pppoe/:username', ensureAdmin, async (req, res) => 
                 description: `Hapus sisa secret PPPoE ${req.params.username} (tanpa pelanggan)`,
                 ipAddress: req.ip, userAgent: req.headers['user-agent']
             });
-        } catch (logErr) { console.error('[API_ORPHAN_PPPOE_LOG_ERROR]', logErr.message); }
+        } catch (logErr) { log.error('[API_ORPHAN_PPPOE_LOG_ERROR]', logErr.message); }
 
         return res.json({ status: 200, message: hasil.message });
     } catch (error) {
-        console.error('[API_ORPHAN_PPPOE_DELETE_ERROR]', error);
+        log.error('[API_ORPHAN_PPPOE_DELETE_ERROR]', error);
         return res.status(500).json({ status: 500, message: 'Gagal menghapus sisa PPPoE', error: error.message });
     }
 });
@@ -624,7 +625,7 @@ router.delete('/users/:id', ensureAdmin, async (req, res) => {
         return res.status(result.status).json(result.body);
         
     } catch (error) {
-        console.error('[API_USERS_DELETE_ERROR]', error);
+        log.error('[API_USERS_DELETE_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat menghapus user',
@@ -644,7 +645,7 @@ router.post('/users/delete-all', ensureAdmin, async (req, res) => {
         return res.status(result.status).json(result.body);
         
     } catch (error) {
-        console.error('[API_USERS_DELETE_ALL_ERROR]', error);
+        log.error('[API_USERS_DELETE_ALL_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat menghapus semua user',
@@ -676,7 +677,7 @@ router.get('/start', ensureAdmin, async (req, res) => {
             });
         }
     } catch (error) {
-        console.error('[API_START_ERROR]', error);
+        log.error('[API_START_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat memulai koneksi WhatsApp',

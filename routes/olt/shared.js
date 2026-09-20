@@ -10,6 +10,7 @@
  *            `getCachedPppoeData`, `loadConfig`/`saveConfig`, `resolveOnuDisplayStatus`.
  * SideEffects: membaca OLT via web + API MikroTik; menulis `database/last-caller-id-cache.json`.
  */
+const log = require('../../lib/logger').logger.child('SHARED');
 const fs = require('fs');
 const path = require('path');
 const { ambilDataOlt } = require('../../lib/olt-optical-resolver');
@@ -161,10 +162,10 @@ function loadLastCallerIdCache() {
             Object.entries(data).forEach(([username, info]) => {
                 lastCallerIdCache.set(username, info);
             });
-            console.log(`[OLT] Loaded ${lastCallerIdCache.size} last caller IDs from cache`);
+            log.info(`[OLT] Loaded ${lastCallerIdCache.size} last caller IDs from cache`);
         }
     } catch (e) {
-        console.error('[OLT] Error loading last caller ID cache:', e.message);
+        log.error('[OLT] Error loading last caller ID cache:', e.message);
     }
 }
 
@@ -178,7 +179,7 @@ function saveLastCallerIdCache() {
         });
         fs.writeFileSync(LAST_CALLER_ID_FILE, JSON.stringify(data, null, 2), 'utf8');
     } catch (e) {
-        console.error('[OLT] Error saving last caller ID cache:', e.message);
+        log.error('[OLT] Error saving last caller ID cache:', e.message);
     }
 }
 
@@ -214,7 +215,7 @@ function updateLastCallerIdCache(pppoeActiveData, oltMatchedData = null) {
     });
     
     if (updated > 0) {
-        console.log(`[OLT] Updated ${updated} last caller IDs`);
+        log.info(`[OLT] Updated ${updated} last caller IDs`);
         saveLastCallerIdCache(); // Persist ke file
     }
 }
@@ -299,7 +300,7 @@ async function getCachedPppoeData(forceRefresh = false) {
 async function getPPPoEActiveUsers() {
     const result = await getActivePPPoEUsers({ caller: 'olt.ppp-active-users' });
     if (!result.ok) {
-        console.warn('[OLT] PPP active users unavailable:', result.message);
+        log.warn('[OLT] PPP active users unavailable:', result.message);
         return [];
     }
 
@@ -314,7 +315,7 @@ function loadConfig() {
         const configData = fs.readFileSync(configPath, 'utf8');
         return JSON.parse(configData);
     } catch (error) {
-        console.error('[OLT] Error loading config:', error.message);
+        log.error('[OLT] Error loading config:', error.message);
         return {};
     }
 }
@@ -328,7 +329,7 @@ function saveConfig(config) {
         require('../../lib/env-config').saveConfigAtomic(config);
         return true;
     } catch (error) {
-        console.error('[OLT] Error saving config:', error.message);
+        log.error('[OLT] Error saving config:', error.message);
         return false;
     }
 }

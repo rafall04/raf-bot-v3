@@ -7,6 +7,8 @@
  * SideEffects: Tidak ada.
  */
 "use strict";
+const log = require('../../../lib/logger').logger.child('AGENT_INTENTS');
+
 
 async function handleAccessManagementIntent(context) {
     const { sender, args, users, reply, global, db, msg, raf, handleAccessManagement } = context;
@@ -32,7 +34,7 @@ async function handleListAgentsIntent(context) {
             await handleListAgents(msg, sender, reply, pushname);
         }
     } catch (error) {
-        console.error('[LIST_AGENTS] Error:', error);
+        log.error('[LIST_AGENTS] Error:', error);
         await reply(format('error_agent_data_failed'));
     }
 }

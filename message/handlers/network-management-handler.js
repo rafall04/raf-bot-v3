@@ -7,6 +7,8 @@
  * SideEffects: Memanggil MikroTik adapter untuk mutasi binding/queue/ppp dan mengirim reply WhatsApp.
  */
 "use strict";
+const log = require('../../lib/logger').logger.child('NETWORK_MANAGEMENT_HANDLER');
+
 
 const { renderResponseTemplate } = require('./template-helpers');
 
@@ -106,7 +108,7 @@ async function handleAddBinding({ q, isOwner, reply, mess, global, checkStatik, 
                 const result = await addbinding(komen, ip, undefined, { caller: 'network-management.addbinding' });
                 await handleBindingResult(reply, result, komen, ip, mac);
             } catch (err) {
-                console.error('[ADD_BINDING] Error:', err);
+                log.error('[ADD_BINDING] Error:', err);
                 await reply(renderResponseTemplate(
                     'network_generic_error',
                     'Terjadi kesalahan saat memproses operasi jaringan.'
@@ -119,7 +121,7 @@ async function handleAddBinding({ q, isOwner, reply, mess, global, checkStatik, 
             const result = await addbinding(komen, ip, mac, { caller: 'network-management.addbinding' });
             await handleBindingResult(reply, result, komen, ip, mac);
         } catch (err) {
-            console.error('[ADD_BINDING] Error:', err);
+            log.error('[ADD_BINDING] Error:', err);
             await reply(renderResponseTemplate(
                 'network_generic_error',
                 'Terjadi kesalahan saat memproses operasi jaringan.'
@@ -138,7 +140,7 @@ async function handleAddBinding({ q, isOwner, reply, mess, global, checkStatik, 
                 { komen, ip, parent, limit_at: ceklimitat, max_limit: cekmaxlimit }
             ));
         } catch (err) {
-            console.error('[ADD_QUEUE] Error:', err);
+            log.error('[ADD_QUEUE] Error:', err);
             await reply(renderResponseTemplate(
                 'network_generic_error',
                 'Terjadi kesalahan saat memproses operasi jaringan.'
@@ -148,7 +150,7 @@ async function handleAddBinding({ q, isOwner, reply, mess, global, checkStatik, 
         if (typeof error === 'string') {
             await reply(error);
         } else {
-            console.error('[ADD_BINDING_HANDLER] Unexpected error:', error);
+            log.error('[ADD_BINDING_HANDLER] Unexpected error:', error);
             await reply(renderResponseTemplate(
                 'network_generic_error',
                 'Terjadi kesalahan saat menambahkan binding.'
@@ -195,7 +197,7 @@ async function handleAddPPP({ q, isOwner, reply, mess, addpppoe }) {
         if (typeof error === 'string') {
             await reply(error);
         } else {
-            console.error('[ADD_PPP] Error:', error);
+            log.error('[ADD_PPP] Error:', error);
             await reply(renderResponseTemplate(
                 'network_generic_error',
                 'Terjadi kesalahan saat menambahkan akun PPPoE.'

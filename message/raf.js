@@ -7,6 +7,8 @@
  * SideEffects: Membaca/menulis state percakapan, mengirim pesan WhatsApp, mencatat pesan masuk ke message_logs (read-only/fire-and-forget), dan memanggil service domain existing.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('RAF');
+
 
 const { isProcessing, setProcessing, clearProcessing } = require('../lib/state-manager');
 
@@ -219,7 +221,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 || msg.message?.extendedTextMessage?.text
                 || '';
             // Jejak SETIAP pesan di grup dompet — tanpa ini kegagalan di sini tak berjejak.
-            console.warn('[PF_GRUP_MASUK]',
+            log.warn('[PF_GRUP_MASUK]',
                 'fromMe=', !!msg.key?.fromMe,
                 'participant=', msg.key?.participant || '-',
                 'participantAlt=', msg.key?.participantAlt || '-',
@@ -236,7 +238,7 @@ module.exports = async (raf, msg, m, options = {}) => {
             }
         }
     } catch (pfFmErr) {
-        console.error('[PF_GRUP_FROMME_ERROR]', pfFmErr.message);
+        log.error('[PF_GRUP_FROMME_ERROR]', pfFmErr.message);
     }
 
     // ── Perintah KAS USAHA `fromMe` di grup kas — alasan & bentuk sama dgn blok dompet ──
@@ -245,7 +247,7 @@ module.exports = async (raf, msg, m, options = {}) => {
         const jidKas = msg.key?.remoteJid || '';
         if (beCfgFm.enabled === true && beCfgFm.groupId && jidKas === beCfgFm.groupId) {
             const teksKas = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
-            console.warn('[KAS_GRUP_MASUK]',
+            log.warn('[KAS_GRUP_MASUK]',
                 'fromMe=', !!msg.key?.fromMe,
                 'participant=', msg.key?.participant || '-',
                 'teks=', JSON.stringify(String(teksKas).slice(0, 40)));
@@ -261,7 +263,7 @@ module.exports = async (raf, msg, m, options = {}) => {
             }
         }
     } catch (beFmErr) {
-        console.error('[KAS_GRUP_FROMME_ERROR]', beFmErr.message);
+        log.error('[KAS_GRUP_FROMME_ERROR]', beFmErr.message);
     }
 
     if (msg.key?.fromMe) {
@@ -298,7 +300,7 @@ module.exports = async (raf, msg, m, options = {}) => {
 
     const messageContext = extractMessageContext(msg);
     if (!messageContext) {
-        console.log('[WARNING] chats is undefined, skipping message processing');
+        log.info('[WARNING] chats is undefined, skipping message processing');
         return;
     }
 
@@ -344,7 +346,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 });
             }
         } catch (psbGroupErr) {
-            console.error('[PSB_GROUP_INTAKE_ERROR]', psbGroupErr.message);
+            log.error('[PSB_GROUP_INTAKE_ERROR]', psbGroupErr.message);
         }
 
         // ── Keuangan pribadi via GRUP — "keluar/masuk <nominal> ..." atau "uang ..." ──
@@ -386,7 +388,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                     // perintah dompet di grup yang BENAR tapi pengirimnya tak dikenali dulu
                     // hilang tanpa jejak — mustahil didiagnosis. Catat identitas mentahnya
                     // supaya `ownerLids` bisa diisi bila WhatsApp hanya memberi @lid.
-                    console.warn('[PF_GRUP_BUKAN_PEMILIK]',
+                    log.warn('[PF_GRUP_BUKAN_PEMILIK]',
                         'participant=', pfParticipant,
                         'plainPhone=', pfPlainPhone,
                         'keyParticipant=', (msg.key && msg.key.participant) || '-',
@@ -396,7 +398,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 }
             }
         } catch (pfGroupErr) {
-            console.error('[PF_GROUP_ERROR]', pfGroupErr.message);
+            log.error('[PF_GROUP_ERROR]', pfGroupErr.message);
         }
 
         // ── KAS USAHA via GRUP — "kas 150rb kabel dropcore" ──
@@ -421,17 +423,17 @@ module.exports = async (raf, msg, m, options = {}) => {
                         actor: `WhatsApp (${bePlain || 'pemilik'})`
                     });
                 } else {
-                    console.warn('[KAS_GRUP_BUKAN_PEMILIK]', 'participant=', bePart, 'plainPhone=', bePlain);
+                    log.warn('[KAS_GRUP_BUKAN_PEMILIK]', 'participant=', bePart, 'plainPhone=', bePlain);
                 }
             }
         } catch (beGroupErr) {
-            console.error('[KAS_GRUP_ERROR]', beGroupErr.message);
+            log.error('[KAS_GRUP_ERROR]', beGroupErr.message);
         }
         return;
     }
 
     if (chats === undefined || chats === null) {
-        console.log('[WARNING] chats is undefined, skipping message processing');
+        log.info('[WARNING] chats is undefined, skipping message processing');
         return;
     }
 
@@ -480,7 +482,7 @@ module.exports = async (raf, msg, m, options = {}) => {
     }
 
     if (sender.endsWith('@lid')) {
-        console.log(`[AUTH_DEBUG] PrimaryID: ${primarySenderId}, OpsionalJID: ${optionalJid}, isSaldo: ${isSaldo !== false && isSaldo !== null}, isOwner: ${isOwner}, isTeknisi: ${!!isTeknisi}`);
+        log.info(`[AUTH_DEBUG] PrimaryID: ${primarySenderId}, OpsionalJID: ${optionalJid}, isSaldo: ${isSaldo !== false && isSaldo !== null}, isOwner: ${isOwner}, isTeknisi: ${!!isTeknisi}`);
     }
 
     (uri) => {
@@ -537,7 +539,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 });
                 if (handledCsat) return;
             } catch (csatErr) {
-                console.error('[CSAT_REPLY_HOOK_ERROR]', csatErr && csatErr.message);
+                log.error('[CSAT_REPLY_HOOK_ERROR]', csatErr && csatErr.message);
             }
         }
     }
@@ -573,7 +575,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 await saldoRepository.createSaldoUser(primarySenderId, pushname);
             }
         } catch (err) {
-            console.error('[SALDO_INIT] Error creating user saldo:', err);
+            log.error('[SALDO_INIT] Error creating user saldo:', err);
         }
     }
 
@@ -588,7 +590,7 @@ module.exports = async (raf, msg, m, options = {}) => {
     let lockDiambil = false;
     try {
         if (isProcessing(stateSender)) {
-            console.log(`[CONCURRENT_PREVENTED] ${stateSender} already being processed, skipping`);
+            log.info(`[CONCURRENT_PREVENTED] ${stateSender} already being processed, skipping`);
             return;
         }
 
@@ -644,7 +646,7 @@ module.exports = async (raf, msg, m, options = {}) => {
         // perintah. Kegagalan senyap yang jadi keluhan asli ditutup di pemilik state masing-masing
         // (mis. `psb.state.js` membalas saat konteks sesi hilang), bukan dengan ack umum di sini.
         if (smartReportState && shouldBreakState({ chats, step: smartReportState.step, isGlobalCommand }) && !isInProtectedState) {
-            console.log(`[GLOBAL_COMMAND] User ${stateSender} broke out of state with command: "${chats}"`);
+            log.info(`[GLOBAL_COMMAND] User ${stateSender} broke out of state with command: "${chats}"`);
             deleteUserState(stateSender);
         }
         const conversationTeknisiState = getUserState(stateSender);
@@ -738,7 +740,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 }
             }
         } catch (psbTutErr) {
-            console.error('[PSB_TUTORIAL_TRIGGER_ERROR]', psbTutErr.message);
+            log.error('[PSB_TUTORIAL_TRIGGER_ERROR]', psbTutErr.message);
         }
 
         // ── Trigger DAFTAR/JADWAL PSB (teknisi/admin) — teks "#jadwal" / "jadwal psb" / "psb baru" ──
@@ -756,7 +758,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 }
             }
         } catch (jadwalErr) {
-            console.error('[PSB_JADWAL_TRIGGER_ERROR]', jadwalErr.message);
+            log.error('[PSB_JADWAL_TRIGGER_ERROR]', jadwalErr.message);
         }
 
         // ── Trigger PETAKAN ASET (teknisi/admin) — teks "#ODC <nama>" / "#ODP <nama>" ──
@@ -810,7 +812,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 const perintahJelas = aset.TRIGGER_RE.test(teksAset) || aset.FILL_RE.test(teksAset)
                     || aset.LOC_RE.test(teksAset) || aset.ROUTE_RE.test(teksAset) || aset.HELP_RE.test(teksAset);
                 if (perintahJelas) {
-                    console.warn('[ASET_TRIGGER_DITOLAK] nomor belum terdaftar sebagai petugas:', plainSenderNumber);
+                    log.warn('[ASET_TRIGGER_DITOLAK] nomor belum terdaftar sebagai petugas:', plainSenderNumber);
                     const { renderResponseTemplate } = require('./handlers/template-helpers');
                     await reply(renderResponseTemplate(
                         'aset_bukan_petugas',
@@ -821,7 +823,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 }
             }
         } catch (asetErr) {
-            console.error('[ASET_TRIGGER_ERROR]', asetErr.message);
+            log.error('[ASET_TRIGGER_ERROR]', asetErr.message);
         }
 
         // ── Perintah KEUANGAN PRIBADI owner — "keluar/masuk <nominal> ..." atau "uang ..." ──
@@ -864,7 +866,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 }
             }
         } catch (pfErr) {
-            console.error('[PF_TRIGGER_ERROR]', pfErr.message);
+            log.error('[PF_TRIGGER_ERROR]', pfErr.message);
         }
 
         // ── Perintah assignment papan PSB (Fase B/2 [[psb-papan-terjadwal]]) — "ambil/tugaskan/papan psb" ──
@@ -883,7 +885,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 }
             }
         } catch (psbAssignErr) {
-            console.error('[PSB_ASSIGN_TRIGGER_ERROR]', psbAssignErr.message);
+            log.error('[PSB_ASSIGN_TRIGGER_ERROR]', psbAssignErr.message);
         }
 
         // ── Trigger COPOT PELANGGAN via DM (ADMIN saja) ──
@@ -911,7 +913,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 }
             }
         } catch (copotErr) {
-            console.error('[COPOT_TRIGGER_ERROR]', copotErr.message);
+            log.error('[COPOT_TRIGGER_ERROR]', copotErr.message);
         }
 
         // ── Trigger wizard PSB via DM teknisi (Fase 2 [[psb-simplification-plan]]) ──
@@ -956,7 +958,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 }
             }
         } catch (psbDmErr) {
-            console.error('[PSB_DM_TRIGGER_ERROR]', psbDmErr.message);
+            log.error('[PSB_DM_TRIGGER_ERROR]', psbDmErr.message);
         }
 
         // ── Trigger wizard GANTI MODEM via DM staf ──
@@ -978,7 +980,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 }
             }
         } catch (gantiModemErr) {
-            console.error('[GANTI_MODEM_TRIGGER_ERROR]', gantiModemErr.message);
+            log.error('[GANTI_MODEM_TRIGGER_ERROR]', gantiModemErr.message);
         }
 
         // ── Trigger wizard TITIK LOKASI pelanggan via DM staf ──
@@ -1001,7 +1003,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 }
             }
         } catch (custLocErr) {
-            console.error('[CUSTLOC_TRIGGER_ERROR]', custLocErr.message);
+            log.error('[CUSTLOC_TRIGGER_ERROR]', custLocErr.message);
         }
 
         const activeTicketLocationResult = await handleActiveTicketLocationUpdate({
@@ -1039,7 +1041,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 }
             }
         } catch (selfLocErr) {
-            console.error('[CUSTLOC_SELF_ERROR]', selfLocErr.message);
+            log.error('[CUSTLOC_SELF_ERROR]', selfLocErr.message);
         }
 
         const isInManagedWifiInputState = userState?.step && userState.step.startsWith('ASK_NEW_');
@@ -1048,7 +1050,7 @@ module.exports = async (raf, msg, m, options = {}) => {
         // state terkelola. Sebelumnya sembarang keyword ikut membuangnya, sehingga jawaban
         // wajar di tengah wizard (mis. "internet mati" sebagai isi keluhan) menghapus sesi.
         if (userState?.step && shouldBreakState({ chats, step: userState.step, isGlobalCommand }) && !isInManagedWifiInputState) {
-            console.log(`[GLOBAL_COMMAND] Clearing managed state for ${stateSender}`);
+            log.info(`[GLOBAL_COMMAND] Clearing managed state for ${stateSender}`);
             deleteUserState(stateSender);
         }
 
@@ -1124,7 +1126,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 });
                 if (proofResult && proofResult.handled) return;
             } catch (proofErr) {
-                console.error('[PAYMENT_PROOF_TRIGGER_ERROR]', proofErr.message);
+                log.error('[PAYMENT_PROOF_TRIGGER_ERROR]', proofErr.message);
             }
         }
 
@@ -1155,7 +1157,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 });
                 if (decision && decision.handled) return;
             } catch (pkgAdminErr) {
-                console.error('[PACKAGE_REQUEST_ADMIN_TRIGGER_ERROR]', pkgAdminErr.message);
+                log.error('[PACKAGE_REQUEST_ADMIN_TRIGGER_ERROR]', pkgAdminErr.message);
             }
         }
 
@@ -1185,7 +1187,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 });
                 if (decision && decision.handled) return;
             } catch (proofAdminErr) {
-                console.error('[PAYMENT_PROOF_ADMIN_TRIGGER_ERROR]', proofAdminErr.message);
+                log.error('[PAYMENT_PROOF_ADMIN_TRIGGER_ERROR]', proofAdminErr.message);
             }
         }
 
@@ -1213,7 +1215,7 @@ module.exports = async (raf, msg, m, options = {}) => {
                 });
                 if (decision && decision.handled) return;
             } catch (payreqAdminErr) {
-                console.error('[PAYMENT_REQUEST_ADMIN_TRIGGER_ERROR]', payreqAdminErr.message);
+                log.error('[PAYMENT_REQUEST_ADMIN_TRIGGER_ERROR]', payreqAdminErr.message);
             }
         }
 
@@ -1264,7 +1266,7 @@ module.exports = async (raf, msg, m, options = {}) => {
         if (keywordIntentResult.intent) {
             intent = keywordIntentResult.intent;
             matchedKeywordLength = keywordIntentResult.matchedKeywordLength;
-            console.log(`[INTENT_DEBUG] Keyword match found: ${intent} for message: "${chats}"${keywordIntentResult.isLooseMatch ? ' (loose)' : ''}`);
+            log.info(`[INTENT_DEBUG] Keyword match found: ${intent} for message: "${chats}"${keywordIntentResult.isLooseMatch ? ' (loose)' : ''}`);
         }
         let qAfterKeyword = keywordIntentResult.qAfterKeyword;
 
@@ -1288,11 +1290,11 @@ module.exports = async (raf, msg, m, options = {}) => {
                 intent = fallbackResult.intent;
                 matchedKeywordLength = Array.isArray(args) ? args.length : 0;
                 qAfterKeyword = '';
-                console.log(`[INTENT_DEBUG] Fallback intent: ${intent} for message: "${chats}"`);
+                log.info(`[INTENT_DEBUG] Fallback intent: ${intent} for message: "${chats}"`);
             }
         }
 
-        console.log(`[INTENT_DEBUG] Final intent: ${intent} for message: "${chats}", matchedKeywordLength: ${matchedKeywordLength}, qAfterKeyword: "${qAfterKeyword}"`);
+        log.info(`[INTENT_DEBUG] Final intent: ${intent} for message: "${chats}", matchedKeywordLength: ${matchedKeywordLength}, qAfterKeyword: "${qAfterKeyword}"`);
 
         await dispatchIntent({
             ...botContext,
@@ -1424,7 +1426,7 @@ module.exports = async (raf, msg, m, options = {}) => {
 
     } catch (err) {
         if (typeof err === "string") return reply(String(err));
-        console.log(err)
+        log.info(err)
     } finally {
         // Lihat catatan di atas: JANGAN lepas kunci yang bukan milik pemanggilan ini.
         if (lockDiambil) clearProcessing(stateSender);

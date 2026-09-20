@@ -8,6 +8,7 @@
  * - POST /api/compensation/apply - Apply compensation to customer(s)
  */
 
+const log = require('../lib/logger').logger.child('COMPENSATION');
 const express = require('express');
 const router = express.Router();
 const fs = require('fs');
@@ -53,7 +54,7 @@ router.get('/compensations/active', ensureAdmin, async (req, res) => {
         });
 
     } catch (error) {
-        console.error("[API_COMPENSATIONS_ACTIVE_ERROR] Gagal mengambil daftar kompensasi aktif:", error);
+        log.error("[API_COMPENSATIONS_ACTIVE_ERROR] Gagal mengambil daftar kompensasi aktif:", error);
         return res.status(500).json({ message: "Terjadi kesalahan internal server saat mengambil data." });
     }
 });
@@ -87,7 +88,7 @@ router.post('/compensation/apply', ensureAdmin, async (req, res) => {
     try {
         notificationConfig = JSON.parse(fs.readFileSync(path.join(__dirname, '../database/cron.json'), 'utf8'));
     } catch (e) {
-        console.error("[KOMPENSASI_APPLY_ERROR] Gagal membaca konfigurasi (cron.json) untuk notifikasi:", e);
+        log.error("[KOMPENSASI_APPLY_ERROR] Gagal membaca konfigurasi (cron.json) untuk notifikasi:", e);
         notificationConfig = { status_message_compensation_applied_user: false, message_compensation_applied_user: "", date_locale_for_notification: "id-ID", date_options_for_notification: { weekday: "long", year: "numeric", month: "long", day: "numeric" } };
     }
     
@@ -121,7 +122,7 @@ router.post('/compensation/apply', ensureAdmin, async (req, res) => {
             userResult.status = 'error_critical';
             userResult.details.push(`Pelanggan ${user.name} tidak memiliki paket langganan (user.subscription) yang terdefinisi.`);
             anyOperationFailedCritically = true;
-            console.warn(`[KOMPENSASI_WARN] Pelanggan ${user.name} (ID: ${userId}) tidak memiliki 'subscription'.`);
+            log.warn(`[KOMPENSASI_WARN] Pelanggan ${user.name} (ID: ${userId}) tidak memiliki 'subscription'.`);
             overallResults.push(userResult);
             continue;
         }
@@ -131,7 +132,7 @@ router.post('/compensation/apply', ensureAdmin, async (req, res) => {
             userResult.status = 'error_critical';
             userResult.details.push(`Paket langganan '${userPackageName}' untuk pelanggan ${user.name} tidak ditemukan di packages.json atau tidak memiliki properti 'profile' (nama profil Mikrotik).`);
             anyOperationFailedCritically = true;
-            console.warn(`[KOMPENSASI_WARN] Paket '${userPackageName}' untuk ${user.name} tidak ditemukan atau tidak ada 'profile' di packages.json.`);
+            log.warn(`[KOMPENSASI_WARN] Paket '${userPackageName}' untuk ${user.name} tidak ditemukan atau tidak ada 'profile' di packages.json.`);
             overallResults.push(userResult);
             continue;
         }
@@ -142,7 +143,7 @@ router.post('/compensation/apply', ensureAdmin, async (req, res) => {
             userResult.status = 'error_critical';
             userResult.details.push(`Pelanggan ${user.name} sudah memiliki kompensasi aktif. Selesaikan atau tunggu hingga berakhir.`);
             anyOperationFailedCritically = true;
-            console.warn(`[KOMPENSASI_WARN] Pelanggan ${user.name} (ID: ${userId}) sudah memiliki kompensasi aktif.`);
+            log.warn(`[KOMPENSASI_WARN] Pelanggan ${user.name} (ID: ${userId}) sudah memiliki kompensasi aktif.`);
             overallResults.push(userResult);
             continue;
         }
@@ -250,7 +251,7 @@ router.post('/compensation/apply', ensureAdmin, async (req, res) => {
             }
         } catch (mikrotikError) {
             const errMsg = `Gagal mengubah profil Mikrotik: ${mikrotikError.message || mikrotikError}`;
-            console.error(`[KOMPENSASI_APPLY_ERROR] [User: ${user.name}] ${errMsg}`);
+            log.error(`[KOMPENSASI_APPLY_ERROR] [User: ${user.name}] ${errMsg}`);
             userResult.status = 'error_critical';
             userResult.details.push(errMsg);
             anyOperationFailedCritically = true;

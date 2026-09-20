@@ -5,6 +5,7 @@
  * MainFuncs: GET `/matched`, GET `/infra-status`.
  * SideEffects: sama seperti routes/olt.js asli (split #b395 — murni pemindahan kode).
  */
+const log = require('../../lib/logger').logger.child('MATCHING');
 const express = require('express');
 const router = express.Router();
 const { normalizeMAC } = require('../../lib/olt-hioso');
@@ -54,7 +55,7 @@ router.get('/matched', async (req, res) => {
         }
 
         // Get OLT data dari semua OLT (parallel query, dengan cache 30 dtk)
-        console.log(`[OLT] Fetching matched ONT data from ${oltDevices.length} OLT(s)`);
+        log.info(`[OLT] Fetching matched ONT data from ${oltDevices.length} OLT(s)`);
         const forceRefresh = req.query.force === 'true';
         const { data: oltResult, freshness } = await getCachedMultipleOltData(oltDevices, forceRefresh);
 
@@ -73,10 +74,10 @@ router.get('/matched', async (req, res) => {
         try {
             pppoeActive = await getCachedPppoeData();
             if (pppoeActive && Array.isArray(pppoeActive)) {
-                console.log(`[OLT] Got ${pppoeActive.length} PPPoE active users`);
+                log.info(`[OLT] Got ${pppoeActive.length} PPPoE active users`);
             }
         } catch (mikrotikError) {
-            console.error('[OLT] Error getting MikroTik data:', mikrotikError.message);
+            log.error('[OLT] Error getting MikroTik data:', mikrotikError.message);
         }
 
         // Get users from global
@@ -106,7 +107,7 @@ router.get('/matched', async (req, res) => {
 
             // Debug log untuk user tertentu
             if (user.pppoe_username.includes('tes@') || user.pppoe_username.includes('mbah')) {
-                console.log(`[OLT DEBUG] User: ${user.pppoe_username}, MAC: ${macInfo.mac}, Source: ${macInfo.source}, Found in OLT: ${!!matchedOnu}`);
+                log.info(`[OLT DEBUG] User: ${user.pppoe_username}, MAC: ${macInfo.mac}, Source: ${macInfo.source}, Found in OLT: ${!!matchedOnu}`);
             }
             
             if (matchedOnu) {
@@ -202,7 +203,7 @@ router.get('/matched', async (req, res) => {
                     statusKnown = false;
                 }
 
-                console.log(`[OLT] User ${user.pppoe_username}: ONT not in OLT, status: ${finalStatus}`
+                log.info(`[OLT] User ${user.pppoe_username}: ONT not in OLT, status: ${finalStatus}`
                     + `${statusKnown ? '' : ' (OLT TIDAK TERBACA — bukan vonis)'}`
                     + ` (cached slot/onu: ${cachedInfo?.slot_id}/${cachedInfo?.onu_id})`);
 
@@ -255,7 +256,7 @@ router.get('/matched', async (req, res) => {
             }
         });
 
-        console.log(`[OLT] Matched ${matchedData.length} customers with OLT data`);
+        log.info(`[OLT] Matched ${matchedData.length} customers with OLT data`);
         
         // Update cache dengan slot_id dan onu_id dari matched data
         matchedData.forEach(item => {
@@ -291,7 +292,7 @@ router.get('/matched', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('[OLT] Error getting matched data:', error);
+        log.error('[OLT] Error getting matched data:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -327,7 +328,7 @@ router.get('/infra-status', async (req, res) => {
         try {
             pppoeActive = await getCachedPppoeData(req.query.force === 'true');
         } catch (mikrotikError) {
-            console.warn('[OLT-INFRA] PPPoE active tidak tersedia:', mikrotikError.message);
+            log.warn('[OLT-INFRA] PPPoE active tidak tersedia:', mikrotikError.message);
         }
         const ipByPppoe = new Map();
         for (const session of Array.isArray(pppoeActive) ? pppoeActive : []) {
@@ -361,7 +362,7 @@ router.get('/infra-status', async (req, res) => {
                 }
             }
         } catch (oltError) {
-            console.warn('[OLT-INFRA] Enrichment OLT tidak tersedia:', oltError.message);
+            log.warn('[OLT-INFRA] Enrichment OLT tidak tersedia:', oltError.message);
         }
 
         const data = infraUsers.map((user) => {
@@ -385,7 +386,7 @@ router.get('/infra-status', async (req, res) => {
 
         return res.json({ status: 200, message: 'OK', data, count: data.length, oltEnabled });
     } catch (error) {
-        console.error('[OLT-INFRA] Error:', error.message);
+        log.error('[OLT-INFRA] Error:', error.message);
         return res.status(500).json({ status: 500, message: error.message, data: [] });
     }
 });

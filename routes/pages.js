@@ -11,6 +11,7 @@
  *           melonggarkan handler generik. Halaman bergerbang-sendiri (dompet pribadi owner) terdaftar
  *           di `HALAMAN_BERGERBANG_SENDIRI` dan dijawab 404 agar keberadaannya tidak bocor.
  */
+const log = require('../lib/logger').logger.child('PAGES');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -569,7 +570,7 @@ router.get('/logout', async (req, res) => {
             });
         } catch (err) {
             // Log error but don't fail logout
-            console.error(`[AUTH_LOG] ❌ Failed to log logout: ${req.user?.username || 'unknown'} - ${err.message}`);
+            log.error(`[AUTH_LOG] ❌ Failed to log logout: ${req.user?.username || 'unknown'} - ${err.message}`);
         }
     }
     

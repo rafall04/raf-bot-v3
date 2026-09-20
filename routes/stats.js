@@ -13,6 +13,7 @@
  *           `/stats/config` menyajikan ALLOWLIST kunci (`KUNCI_CONFIG_UNTUK_STAF`), tak pernah
  *           config mentah — di dalamnya ada `jwt` yang bisa dipakai menempa token admin.
  */
+const log = require('../lib/logger').logger.child('STATS');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -133,12 +134,12 @@ router.get('/stats/config', ensureAuthenticatedStaff, async (req, res) => {
                 mainConfig = JSON.parse(fs.readFileSync(mainConfigPath, 'utf8'));
             }
         } catch (err) {
-            console.warn('[STATS_CONFIG] Gagal membaca config.json, memakai global.config:', err.message);
+            log.warn('[STATS_CONFIG] Gagal membaca config.json, memakai global.config:', err.message);
         }
 
         return res.json({ data: ambilKunciTerdaftar(mainConfig) });
     } catch (err) {
-        console.error('[STATS_CONFIG_ERROR]', err);
+        log.error('[STATS_CONFIG_ERROR]', err);
         // Pesan galat tak lagi membawa `err.message` ke klien — isinya bisa memuat path berkas.
         return res.status(500).json({ status: 500, message: 'Gagal mengambil konfigurasi.' });
     }
@@ -202,7 +203,7 @@ router.get('/:type/:id?', ensureAuthenticatedStaff, async (req, res) => {
                     // Update global state if different
                     if (status.connectionState !== actualState) {
                         const oldState = status.connectionState;
-                        if (DEBUG) console.log(`[SYNC] State updated: ${oldState} → ${actualState}`);
+                        if (DEBUG) log.info(`[SYNC] State updated: ${oldState} → ${actualState}`);
                     }
                     
                     return res.json({
@@ -363,7 +364,7 @@ router.get('/:type/:id?', ensureAuthenticatedStaff, async (req, res) => {
                         genieAcsStatus: normalizedGenieAcsResult,
                     });
                 } catch (e) {
-                    console.error("[STATS_API_FATAL_ERROR] A critical error occurred while fetching dashboard stats:", e);
+                    log.error("[STATS_API_FATAL_ERROR] A critical error occurred while fetching dashboard stats:", e);
                     return res.status(500).json({ status: 500, message: "A critical error occurred on the server while gathering dashboard statistics." });
                 }
             
@@ -380,7 +381,7 @@ router.get('/:type/:id?', ensureAuthenticatedStaff, async (req, res) => {
             case "reboot":
                 const rebootResult = await rebootRouter(req.params.id, { context: { caller: 'stats.reboot', id: req.params.id } });
                 if (rebootResult.success) {
-                    if (DEBUG) console.log(`[API_REBOOT] Perintah reboot untuk device ID ${req.params.id} berhasil dikirim.`);
+                    if (DEBUG) log.info(`[API_REBOOT] Perintah reboot untuk device ID ${req.params.id} berhasil dikirim.`);
                     return res.status(200).json({
                         status: 200,
                         message: rebootResult.message,
@@ -404,12 +405,12 @@ router.get('/:type/:id?', ensureAuthenticatedStaff, async (req, res) => {
                 }
                 const validAndMappedRequests = requestsToFilter.reduce((acc, v) => {
                     if (!v || !v.userId) {
-                        console.warn(`[API_REQUESTS_SKIP] Melewatkan item permintaan karena tidak valid atau tidak memiliki userId. Item:`, v);
+                        log.warn(`[API_REQUESTS_SKIP] Melewatkan item permintaan karena tidak valid atau tidak memiliki userId. Item:`, v);
                         return acc;
                     }
                     const findUserPelanggan = global.users.find(u => String(u.id) === String(v.userId));
                     if (!findUserPelanggan) {
-                        console.warn(`[API_REQUESTS_SKIP] Melewatkan permintaan ID ${v.id} karena pengguna terkait ID ${v.userId} tidak ditemukan.`);
+                        log.warn(`[API_REQUESTS_SKIP] Melewatkan permintaan ID ${v.id} karena pengguna terkait ID ${v.userId} tidak ditemukan.`);
                         return acc;
                     }
                     const findTeknisiRequestor = global.accounts.find(acc => String(acc.id) === String(v.requested_by_teknisi_id));
@@ -445,7 +446,7 @@ router.get('/:type/:id?', ensureAuthenticatedStaff, async (req, res) => {
                         mainConfig = JSON.parse(fs.readFileSync(mainConfigPath, 'utf8'));
                     }
                 } catch (err) {
-                    console.warn('[STATS_CONFIG] Failed to read config.json, using global.config:', err.message);
+                    log.warn('[STATS_CONFIG] Failed to read config.json, using global.config:', err.message);
                 }
                 
                 try {
@@ -455,7 +456,7 @@ router.get('/:type/:id?', ensureAuthenticatedStaff, async (req, res) => {
                         cronConfig = JSON.parse(fs.readFileSync(cronConfigPath, 'utf8'));
                     }
                 } catch (err) {
-                    console.warn('[STATS_CONFIG] Failed to read cron.json, using global.cronConfig:', err.message);
+                    log.warn('[STATS_CONFIG] Failed to read cron.json, using global.cronConfig:', err.message);
                 }
                 
                 // Merge configs: mainConfig first, then cronConfig (cronConfig can override)
@@ -468,10 +469,10 @@ router.get('/:type/:id?', ensureAuthenticatedStaff, async (req, res) => {
                 
                 // Debug logging
                 if (DEBUG) {
-                    console.log('[STATS_CONFIG] mainConfig.accessLimit:', mainConfig?.accessLimit, 'type:', typeof mainConfig?.accessLimit);
-                    console.log('[STATS_CONFIG] mergedConfig.accessLimit:', mergedConfig.accessLimit, 'type:', typeof mergedConfig.accessLimit);
+                    log.info('[STATS_CONFIG] mainConfig.accessLimit:', mainConfig?.accessLimit, 'type:', typeof mainConfig?.accessLimit);
+                    log.info('[STATS_CONFIG] mergedConfig.accessLimit:', mergedConfig.accessLimit, 'type:', typeof mergedConfig.accessLimit);
                 }
-                console.log('[STATS_CONFIG] mergedConfig keys count:', Object.keys(mergedConfig).length);
+                log.info('[STATS_CONFIG] mergedConfig keys count:', Object.keys(mergedConfig).length);
                 
                 return res.json({ data: mergedConfig });
             
@@ -505,7 +506,7 @@ router.get('/:type/:id?', ensureAuthenticatedStaff, async (req, res) => {
                 return res.json({ data: type == 'users' ? global.users : type == 'packages' ? global.packages : type == 'payment' ? global.payment : type == 'payment-method' ? global.paymentMethod : type == 'statik' ? global.statik : type == 'voucher' ? global.voucher : type == 'atm' ? global.atm : type == 'cron' ? global.cronConfig : type == 'accounts' ? global.accounts : [] })
         }
     } catch (e){
-        console.log(e);
+        log.info(e);
         res.json({ status: 500, message: "Internal server error" });
     }
 });

@@ -7,6 +7,8 @@
  * SideEffects: Membuat folder upload bila belum ada saat multer destination dipanggil.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('TICKETS_SHARED');
+
 
 const express = require('express');
 const fs = require('fs');
@@ -101,7 +103,7 @@ const storage = multer.diskStorage({
         try {
             uploadDir = getTicketsUploadsPathByTicket(year, month, ticketId, __dirname);
         } catch (err) {
-            console.warn(`[TICKET_UPLOAD] Tujuan upload ditolak: ${err.message}`);
+            log.warn(`[TICKET_UPLOAD] Tujuan upload ditolak: ${err.message}`);
             return cb(new Error('ID tiket tidak valid.'), null);
         }
 
@@ -110,7 +112,7 @@ const storage = multer.diskStorage({
                 fs.mkdirSync(uploadDir, { recursive: true });
             }
         } catch (err) {
-            console.error('[TICKET_UPLOAD] Gagal menyiapkan folder upload:', err);
+            log.error('[TICKET_UPLOAD] Gagal menyiapkan folder upload:', err);
             return cb(new Error('Gagal menyiapkan folder upload.'), null);
         }
 

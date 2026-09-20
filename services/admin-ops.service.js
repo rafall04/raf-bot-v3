@@ -7,6 +7,8 @@
  * SideEffects: Menghapus data SQLite/JSON, mereset cache memori, melakukan VACUUM, dan menghapus file foto yatim.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('ADMIN_OPS_SERVICE');
+
 
 const fs = require("fs");
 const path = require("path");
@@ -253,7 +255,7 @@ function createAdminOpsService(overrides = {}) {
                             userAgent: requestMeta.userAgent
                         });
                     } catch (error) {
-                        console.error("[ACTIVITY_LOG_ERROR] Failed to log user delete:", error);
+                        log.error("[ACTIVITY_LOG_ERROR] Failed to log user delete:", error);
                     }
 
                         await deps.runDb("DELETE FROM users WHERE id = ?", [id]);
@@ -368,7 +370,7 @@ function createAdminOpsService(overrides = {}) {
                         throw new Error(disconnectResult.message);
                     }
                 } catch (error) {
-                    console.error(`[DELETE_ALL] Failed to delete PPPoE user ${user.pppoe_username}:`, error);
+                    log.error(`[DELETE_ALL] Failed to delete PPPoE user ${user.pppoe_username}:`, error);
                 }
             }
 
@@ -378,13 +380,13 @@ function createAdminOpsService(overrides = {}) {
             try {
                 await deps.runDb("DELETE FROM sqlite_sequence WHERE name='users'");
             } catch (error) {
-                console.warn("[/api/admin/delete-all-users] Warning: Could not reset sequence:", error.message);
+                log.warn("[/api/admin/delete-all-users] Warning: Could not reset sequence:", error.message);
             }
 
             try {
                 await deps.runDb("VACUUM");
             } catch (_error) {
-                console.warn("[/api/admin/delete-all-users] WARNING: VACUUM failed. Deleted data may still exist in file.");
+                log.warn("[/api/admin/delete-all-users] WARNING: VACUUM failed. Deleted data may still exist in file.");
             }
 
             deps.userRepository.clear();
@@ -414,7 +416,7 @@ function createAdminOpsService(overrides = {}) {
                     fileSizeAfter = fs.statSync(dbPath).size;
                 }
             } catch (error) {
-                console.warn("[/api/admin/delete-all-users] Could not get file size:", error.message);
+                log.warn("[/api/admin/delete-all-users] Could not get file size:", error.message);
             }
 
             return {

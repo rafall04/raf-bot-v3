@@ -16,6 +16,8 @@
  * SideEffects: Tulis papan `psb_schedule` + kirim WA notif grup & DM teknisi (best-effort, never-throw).
  */
 "use strict";
+const log = require('../lib/logger').logger.child('PSB_SCHEDULE_ROUTES');
+
 
 const express = require("express");
 const scheduleService = require("../lib/psb-schedule-service");
@@ -81,7 +83,7 @@ function createPsbScheduleRouter() {
             const psbCfg = (global.config && global.config.psbIntake) || {};
             const groupId = psbCfg.summaryGroupId || psbCfg.groupId;
             if (groupId) await sendReply({ recipient: groupId, text: scheduleService.buildAssignmentGroupNotif(record, { mode, assignedByName }) });
-        } catch (e) { console.error("[PSB_SCHEDULE_ASSIGN_NOTIF_ERROR]", e.message); }
+        } catch (e) { log.error("[PSB_SCHEDULE_ASSIGN_NOTIF_ERROR]", e.message); }
     }
 
     // Notif grup (best-effort, never-throw) via delivery boundary — TEKS sama dgn jalur WA.
@@ -92,7 +94,7 @@ function createPsbScheduleRouter() {
             if (!groupId) return;
             const { sendReply } = require("../message/handlers/reply-runtime");
             await sendReply({ recipient: groupId, text: scheduleService.buildScheduleGroupNotif(record, { requestedByName }) });
-        } catch (e) { console.error("[PSB_SCHEDULE_NOTIF_ERROR]", e.message); }
+        } catch (e) { log.error("[PSB_SCHEDULE_NOTIF_ERROR]", e.message); }
     }
 
     // POST /api/psb-schedule — DAFTAR PSB (menunggu). Wajib identitas + 3 bukti (path foto via upload-photo + koordinat).
@@ -138,7 +140,7 @@ function createPsbScheduleRouter() {
             await notifyGroup(record, req.user.name || req.user.username || "-");
             return res.status(201).json({ status: 201, message: `Terjadwal ${record.ref}`, data: record });
         } catch (e) {
-            console.error("[PSB_SCHEDULE_CREATE_ERROR]", e.message);
+            log.error("[PSB_SCHEDULE_CREATE_ERROR]", e.message);
             return res.status(500).json({ status: 500, message: "Gagal menyimpan jadwal: " + e.message });
         }
     });
@@ -190,7 +192,7 @@ function createPsbScheduleRouter() {
             await sendAssignmentNotifs(result.record, teknisi, { mode: "assign", assignedByName: req.user.name || req.user.username });
             return res.json({ status: 200, message: `Ditugaskan ke ${teknisi.name}`, data: result.record });
         } catch (e) {
-            console.error("[PSB_SCHEDULE_ASSIGN_ERROR]", e.message);
+            log.error("[PSB_SCHEDULE_ASSIGN_ERROR]", e.message);
             return res.status(500).json({ status: 500, message: "Gagal menugaskan: " + e.message });
         }
     });
@@ -207,7 +209,7 @@ function createPsbScheduleRouter() {
             await sendAssignmentNotifs(result.record, meAcc, { mode: "claim", assignedByName: req.user.name || req.user.username });
             return res.json({ status: 200, message: `Kamu mengambil ${result.record.ref}`, data: result.record });
         } catch (e) {
-            console.error("[PSB_SCHEDULE_CLAIM_ERROR]", e.message);
+            log.error("[PSB_SCHEDULE_CLAIM_ERROR]", e.message);
             return res.status(500).json({ status: 500, message: "Gagal mengambil: " + e.message });
         }
     });
@@ -241,7 +243,7 @@ function createPsbScheduleRouter() {
             }
             return res.json({ status: 200, message: "Pemberi lead & komisi disimpan.", data: result.record });
         } catch (e) {
-            console.error("[PSB_SCHEDULE_MARKETING_ERROR]", e.message);
+            log.error("[PSB_SCHEDULE_MARKETING_ERROR]", e.message);
             return res.status(500).json({ status: 500, message: "Gagal menyimpan komisi: " + e.message });
         }
     });
@@ -275,7 +277,7 @@ function createPsbScheduleRouter() {
             }
             return res.json({ status: 200, message: "Komisi dibayar (kas) & tercatat sebagai pengeluaran.", data: result.record });
         } catch (e) {
-            console.error("[PSB_SCHEDULE_MARKETING_PAY_ERROR]", e.message);
+            log.error("[PSB_SCHEDULE_MARKETING_PAY_ERROR]", e.message);
             return res.status(500).json({ status: 500, message: "Gagal membayar komisi: " + e.message });
         }
     });

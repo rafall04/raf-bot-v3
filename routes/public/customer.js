@@ -15,6 +15,7 @@
  * SideEffects: Menulis file bukti bayar ke uploads/, update global.speed_requests, kirim WA ke
  *              owner; charge iPaymu lewat voucher service.
  */
+const logger = require('../../lib/logger').logger.child('CUSTOMER');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const multer = require('multer');
@@ -288,10 +289,10 @@ async function handleSodPaymentProof(req, res, customer, caption) {
             });
             const delivery = await sendMessageToMany(global.config.ownerNumber, { text: notifMessage });
             if (!delivery.sent) {
-                console.error('[PAYMENT_PROOF_SOD_NOTIF_ERROR]', delivery.errorCode || 'SEND_FAILED');
+                logger.error('[PAYMENT_PROOF_SOD_NOTIF_ERROR]', delivery.errorCode || 'SEND_FAILED');
             }
         } catch (error) {
-            console.error('[PAYMENT_PROOF_SOD_NOTIF_ERROR]', error.message);
+            logger.error('[PAYMENT_PROOF_SOD_NOTIF_ERROR]', error.message);
         }
     }
 

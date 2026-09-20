@@ -5,6 +5,7 @@
  * MainFuncs: GET `/status`, GET `/onus`, GET `/customer/:userId`, POST `/refresh-single`, POST `/scrape-now`.
  * SideEffects: sama seperti routes/olt.js asli (split #b395 — murni pemindahan kode).
  */
+const log = require('../../lib/logger').logger.child('SNAPSHOT');
 const express = require('express');
 const router = express.Router();
 const { assertBolehAksesPelanggan } = require('../api-route-helpers');
@@ -47,7 +48,7 @@ router.get('/status', async (req, res) => {
             });
         }
 
-        console.log(`[OLT] Fetching ONT status from ${oltConfig.host}`);
+        log.info(`[OLT] Fetching ONT status from ${oltConfig.host}`);
         
         // Lewat driver merek — HIOSO dibaca via web (SNMP HIOSO dilarang, bikin OLT hang).
         const result = await resolveDriver({ host: oltConfig.host, brand: oltConfig.brand }).getOltData(oltConfig);
@@ -70,7 +71,7 @@ router.get('/status', async (req, res) => {
             });
         }
     } catch (error) {
-        console.error('[OLT] Error getting status:', error);
+        log.error('[OLT] Error getting status:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -130,7 +131,7 @@ router.get('/onus', async (req, res) => {
         try {
             sesiPppoe = (await getCachedPppoeData()) || [];
         } catch (pppoeErr) {
-            console.warn('[OLT-onus] Gagal segarkan PPPoE caller-id cache:', pppoeErr.message);
+            log.warn('[OLT-onus] Gagal segarkan PPPoE caller-id cache:', pppoeErr.message);
         }
 
         // Index pelanggan untuk anotasi (ONU → pelanggan).
@@ -206,7 +207,7 @@ router.get('/onus', async (req, res) => {
             try {
                 statusByOlt.set(dev.id, await oltLogScraper.getOnuStatusMap(dev, { maxPages: 12 }));
             } catch (e) {
-                console.warn(`[OLT-onus] klasifikasi log gagal utk ${dev.name}: ${e.message}`);
+                log.warn(`[OLT-onus] klasifikasi log gagal utk ${dev.name}: ${e.message}`);
             }
         }));
 
@@ -269,7 +270,7 @@ router.get('/onus', async (req, res) => {
 
         // Diagnostik: berapa baris yang DIKIRIM ke browser dengan redaman terisi.
         const rxFilled = rows.filter(r => r.rx_power && r.rx_power !== 'N/A').length;
-        console.log(`[OLT-onus] oltId=${wantOltId || 'all'} → kirim ${rows.length} baris ke browser, rx terisi=${rxFilled}`);
+        log.info(`[OLT-onus] oltId=${wantOltId || 'all'} → kirim ${rows.length} baris ke browser, rx terisi=${rxFilled}`);
 
         // Jangan biarkan browser meng-cache JSON ini (selalu data segar).
         res.set('Cache-Control', 'no-store');
@@ -295,7 +296,7 @@ router.get('/onus', async (req, res) => {
             oltResults: oltResult.oltResults
         });
     } catch (error) {
-        console.error('[OLT] Error getting all ONUs:', error);
+        log.error('[OLT] Error getting all ONUs:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -373,7 +374,7 @@ router.get('/customer/:userId', async (req, res) => {
             res.json({ status: 200, message: 'Data ONT tidak ditemukan', enabled: true, data: null });
         }
     } catch (error) {
-        console.error('[OLT] Error getting customer ONT:', error);
+        log.error('[OLT] Error getting customer ONT:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -424,7 +425,7 @@ router.post('/refresh-single', async (req, res) => {
             });
         }
 
-        console.log(`[OLT] Refresh single ONT: slot=${slotId}, onu=${onuId}, mac=${mac || 'N/A'}`);
+        log.info(`[OLT] Refresh single ONT: slot=${slotId}, onu=${onuId}, mac=${mac || 'N/A'}`);
         
         // Query dengan cache strategy jika MAC tersedia
         let result;
@@ -432,7 +433,7 @@ router.post('/refresh-single', async (req, res) => {
             result = await getSingleOnuDataWithCache(mac, slotId, onuId);
         } else {
             // Fallback: query all OLT jika MAC tidak tersedia
-            console.log(`[OLT] No MAC provided, querying all OLTs...`);
+            log.info(`[OLT] No MAC provided, querying all OLTs...`);
             const promises = oltDevices.map(async (olt) => {
                 const config = {
                     host: olt.host,
@@ -520,7 +521,7 @@ router.post('/refresh-single', async (req, res) => {
         }
 
     } catch (error) {
-        console.error('[OLT] Error refresh single ONT:', error);
+        log.error('[OLT] Error refresh single ONT:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -536,7 +537,7 @@ router.post('/scrape-now', async (req, res) => {
             return res.status(403).json({ status: 403, message: 'Forbidden' });
         }
 
-        console.log('[OLT] Manual scrape triggered');
+        log.info('[OLT] Manual scrape triggered');
         
         // Set debug mode
         process.env.DEBUG_OLT_SCRAPER = 'true';
@@ -560,7 +561,7 @@ router.post('/scrape-now', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[OLT] Error manual scrape:', error);
+        log.error('[OLT] Error manual scrape:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });

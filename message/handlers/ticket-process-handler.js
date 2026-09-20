@@ -14,6 +14,7 @@
  * TODO: Migrate handleFinalConfirmation ke teknisi-workflow-handler.js, lalu hapus modul ini.
  */
 
+const log = require('../../lib/logger').logger.child('TICKET_PROCESS_HANDLER');
 const { setUserState, getUserState, deleteUserState, format } = require('./conversation-handler');
 const {
     markWaitingCustomerConfirmation,
@@ -54,7 +55,7 @@ function formatPhoneNumber(phone) {
  */
 async function handleProsesTicket(sender, ticketId, teknisiInfo, _reply) {
     try {
-        console.warn('[legacyTicketProcessAdapterUsed]', {
+        log.warn('[legacyTicketProcessAdapterUsed]', {
             action: 'handleProsesTicket',
             ticketId,
             sender
@@ -178,7 +179,7 @@ async function handleProsesTicket(sender, ticketId, teknisiInfo, _reply) {
         }
         const customerDelivery = await sendMessageToMany(customerRecipients, { text: customerMessage });
         if (customerDelivery.sent) {
-            console.log(`[TICKET_PROCESS] OTP sent to ${customerDelivery.successCount} customer recipient(s)`);
+            log.info(`[TICKET_PROCESS] OTP sent to ${customerDelivery.successCount} customer recipient(s)`);
         }
         
         // Notify admins
@@ -228,7 +229,7 @@ async function handleProsesTicket(sender, ticketId, teknisiInfo, _reply) {
         };
         
     } catch (error) {
-        console.error('[PROSES_TICKET_ERROR]', error);
+        log.error('[PROSES_TICKET_ERROR]', error);
         return {
             success: false,
             message: renderResponseTemplate(
@@ -328,7 +329,7 @@ async function handleVerifikasiOTP(sender, ticketId, otp, _reply) {
         };
         
     } catch (error) {
-        console.error('[VERIFY_OTP_ERROR]', error);
+        log.error('[VERIFY_OTP_ERROR]', error);
         return {
             success: false,
             message: renderResponseTemplate(
@@ -348,7 +349,7 @@ async function handleVerifikasiOTP(sender, ticketId, otp, _reply) {
  */
 async function handleCompleteTicket({ sender, ticketId, resolutionNotes, uploadedPhotos, reply: _reply }) {
     try {
-        console.warn('[legacyTicketProcessAdapterUsed]', {
+        log.warn('[legacyTicketProcessAdapterUsed]', {
             action: 'handleCompleteTicket',
             ticketId,
             sender
@@ -437,7 +438,7 @@ async function handleCompleteTicket({ sender, ticketId, resolutionNotes, uploade
         };
         
     } catch (error) {
-        console.error('[COMPLETE_TICKET_ERROR]', error);
+        log.error('[COMPLETE_TICKET_ERROR]', error);
         return {
             success: false,
             message: renderResponseTemplate(
@@ -453,7 +454,7 @@ async function handleCompleteTicket({ sender, ticketId, resolutionNotes, uploade
  */
 async function handleFinalConfirmation({ ticketId, completionCode, isFromCustomer = false, sender }) {
     try {
-        console.warn('[legacyTicketProcessAdapterUsed]', {
+        log.warn('[legacyTicketProcessAdapterUsed]', {
             action: 'handleFinalConfirmation',
             ticketId,
             sender
@@ -484,7 +485,7 @@ async function handleFinalConfirmation({ ticketId, completionCode, isFromCustome
         };
         
     } catch (error) {
-        console.error('[FINAL_CONFIRMATION_ERROR]', error);
+        log.error('[FINAL_CONFIRMATION_ERROR]', error);
         return {
             success: false,
             message: error.message || renderResponseTemplate(

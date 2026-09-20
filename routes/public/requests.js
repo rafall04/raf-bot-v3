@@ -10,6 +10,7 @@
  * MainFuncs: handler request-speed (validasi→hitung harga→simpan→notif owner) + packages read.
  * SideEffects: Menulis global.speed_requests, kirim WA ke owner.
  */
+const log = require('../../lib/logger').logger.child('REQUESTS');
 const express = require('express');
 const { apiAuth } = require('../../lib/auth');
 const { requestSpeedValidation } = require('../../lib/middleware/validation');
@@ -129,7 +130,7 @@ router.post('/api/request-speed', apiAuth, requestSpeedValidation, asyncHandler(
             needsPaymentProof: ['cash', 'transfer'].includes(paymentMethod)
         }, responseMessage, 201);
     } catch (error) {
-        console.error('[API_SPEED_REQUEST_FATAL_ERROR]', error);
+        log.error('[API_SPEED_REQUEST_FATAL_ERROR]', error);
         return sendError(res, "Terjadi kesalahan pada server.", 500);
     }
 }));

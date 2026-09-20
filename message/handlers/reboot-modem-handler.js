@@ -6,6 +6,7 @@
  * MainFuncs: `handleRebootModem`.
  * SideEffects: Menyimpan state konfirmasi `CONFIRM_REBOOT` (di-key dengan JID kanonik `stateSender`) dan mengirim reply WhatsApp.
  */
+const log = require('../../lib/logger').logger.child('REBOOT_MODEM_HANDLER');
 const { setUserState } = require('./conversation-handler');
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
 const { renderResponseTemplate } = require('./template-helpers');
@@ -32,8 +33,8 @@ async function handleRebootModem({ sender, stateSender, entities, isOwner, isTek
 
         // Debug logging for @lid format
         if (sender.endsWith('@lid') && !user) {
-            console.log('[REBOOT_MODEM] @lid format detected, user not found');
-            console.log('[REBOOT_MODEM] Sender:', sender);
+            log.info('[REBOOT_MODEM] @lid format detected, user not found');
+            log.info('[REBOOT_MODEM] Sender:', sender);
         }
     }
 
@@ -79,14 +80,14 @@ async function handleRebootModem({ sender, stateSender, entities, isOwner, isTek
             const { resolveLineStatus } = require('./connection-check-handler');
             const { areaOutage } = await resolveLineStatus({ user, userList: users, routerId: null });
             if (areaOutage) {
-                console.log(`[REBOOT_MODEM] Permintaan reboot ditahan: gangguan area (pelanggan ${user.name || user.id}).`);
+                log.info(`[REBOOT_MODEM] Permintaan reboot ditahan: gangguan area (pelanggan ${user.name || user.id}).`);
                 return reply(renderResponseTemplate(
                     'reboot_gate_area',
                     'Saat ini terdeteksi *gangguan area* Kak 🙏 Menyalakan ulang modem tidak akan membantu karena kendalanya ada di jaringan kami, bukan di modem Anda. Tim teknisi sedang menanganinya — mohon ditunggu ya.'
                 ));
             }
         } catch (gateErr) {
-            console.error('[REBOOT_MODEM] Cek gangguan area gagal (lanjut ke konfirmasi):', gateErr && gateErr.message);
+            log.error('[REBOOT_MODEM] Cek gangguan area gagal (lanjut ke konfirmasi):', gateErr && gateErr.message);
         }
     }
 

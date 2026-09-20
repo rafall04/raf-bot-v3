@@ -7,6 +7,7 @@
  * SideEffects: Menyimpan tracking per-user di memori dan mengirim reminder WhatsApp.
  */
 
+const log = require('../../lib/logger').logger.child('PHOTO_WORKFLOW_HANDLER');
 const { setUserState: _setUserState, getUserState: _getUserState } = require('./conversation-handler');
 const { renderResponseTemplate } = require('./template-helpers');
 
@@ -154,7 +155,7 @@ async function handlePhotoUploadComplete({
         return { success: true };
         
     } catch (error) {
-        console.error('[PHOTO_COMPLETE_ERROR]', error);
+        log.error('[PHOTO_COMPLETE_ERROR]', error);
         return { 
             success: false, 
             message: '❌ Error processing photo completion' 

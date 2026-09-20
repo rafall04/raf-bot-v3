@@ -6,6 +6,7 @@
  * MainFuncs: `createApiVoucherRouter`.
  * SideEffects: Membaca/menulis histori pengiriman voucher, mengirim pesan WhatsApp ke pelanggan, render lembar cetak voucher (HTML/QR/PDF), kirim PDF lembar voucher ke WhatsApp owner/admin (gated config.voucherPrint), dan menyimpan settings/layout cetak.
  */
+const log = require('../lib/logger').logger.child('API_VOUCHER_ROUTES');
 const express = require('express');
 const { sendMessageToMany, ensureJid } = require('../lib/whatsapp-delivery-service');
 const { getAdminJids } = require('../lib/admin-recipients');
@@ -141,7 +142,7 @@ function createApiVoucherRouter({
             const result = await apiVoucherService.listVoucherProfiles();
             return res.status(result.status).json(result.body);
         } catch (error) {
-            console.error('[VOUCHER_PROFILES_ERROR]', error);
+            log.error('[VOUCHER_PROFILES_ERROR]', error);
             return res.status(500).json({
                 status: 500,
                 message: 'Gagal memuat paket voucher',
@@ -158,7 +159,7 @@ function createApiVoucherRouter({
             });
             return res.status(result.status).json(result.body);
         } catch (error) {
-            console.error('[VOUCHER_GENERATE_SEND_ERROR]', error);
+            log.error('[VOUCHER_GENERATE_SEND_ERROR]', error);
             return res.status(500).json({
                 status: 500,
                 message: 'Terjadi kesalahan',
@@ -174,7 +175,7 @@ function createApiVoucherRouter({
             })
                 .then((result) => res.status(result.status).json(result.body))
                 .catch((error) => {
-                    console.error('[VOUCHER_HISTORY_ERROR]', error);
+                    log.error('[VOUCHER_HISTORY_ERROR]', error);
                     return res.status(500).json({
                         status: 500,
                         message: 'Gagal memuat riwayat',
@@ -182,7 +183,7 @@ function createApiVoucherRouter({
                     });
                 });
         } catch (error) {
-            console.error('[VOUCHER_HISTORY_ERROR]', error);
+            log.error('[VOUCHER_HISTORY_ERROR]', error);
             return res.status(500).json({
                 status: 500,
                 message: 'Gagal memuat riwayat',
@@ -196,7 +197,7 @@ function createApiVoucherRouter({
             apiVoucherService.getSentStats()
                 .then((result) => res.status(result.status).json(result.body))
                 .catch((error) => {
-                    console.error('[VOUCHER_STATS_ERROR]', error);
+                    log.error('[VOUCHER_STATS_ERROR]', error);
                     return res.status(500).json({
                         status: 500,
                         message: 'Gagal memuat statistik',
@@ -204,7 +205,7 @@ function createApiVoucherRouter({
                     });
                 });
         } catch (error) {
-            console.error('[VOUCHER_STATS_ERROR]', error);
+            log.error('[VOUCHER_STATS_ERROR]', error);
             return res.status(500).json({
                 status: 500,
                 message: 'Gagal memuat statistik',
@@ -255,7 +256,7 @@ function createApiVoucherRouter({
                 today, week, total, topPackages, recent: recent.slice(0, 15)
             });
         } catch (e) {
-            console.error('[VOUCHER_SALES_STATS]', e.message);
+            log.error('[VOUCHER_SALES_STATS]', e.message);
             return res.status(500).json({ error: 'Gagal menghitung statistik penjualan.' });
         }
     });
@@ -285,7 +286,7 @@ function createApiVoucherRouter({
             const result = await apiVoucherService.resendVoucherCode({ phone: rec.sender, code, namaPaket, amount: amt });
             return res.status(result.status).json(result.body);
         } catch (e) {
-            console.error('[VOUCHER_RESEND]', e && e.message);
+            log.error('[VOUCHER_RESEND]', e && e.message);
             return res.status(500).json({ status: 500, message: 'Terjadi kesalahan saat kirim ulang.' });
         }
     });
@@ -326,7 +327,7 @@ function createApiVoucherRouter({
             const result = await apiVoucherService.reissueVoucher({ reff, amount: amt, sender: rec.sender, namaPaket, prof: rec.prof });
             return res.status(result.status).json(result.body);
         } catch (e) {
-            console.error('[VOUCHER_REISSUE]', e && e.message);
+            log.error('[VOUCHER_REISSUE]', e && e.message);
             return res.status(500).json({ status: 500, message: 'Terjadi kesalahan saat terbitkan ulang.' });
         } finally {
             _reissueInFlight.delete(reff);
@@ -376,7 +377,7 @@ function createApiVoucherRouter({
                 items: items.map(toOrphanView)
             });
         } catch (e) {
-            console.error('[VOUCHER_ORPHANS_LIST]', e && e.message);
+            log.error('[VOUCHER_ORPHANS_LIST]', e && e.message);
             return res.status(500).json({ status: 500, message: 'Gagal memuat worklist orphan.' });
         }
     });
@@ -455,7 +456,7 @@ function createApiVoucherRouter({
             if (!updated) return res.status(409).json({ status: 409, message: 'Orphan sudah ter-resolve.' });
             return res.status(200).json({ status: 200, message: 'Orphan ditandai selesai.', item: toOrphanView(updated) });
         } catch (e) {
-            console.error('[VOUCHER_ORPHAN_RESOLVE]', e && e.message);
+            log.error('[VOUCHER_ORPHAN_RESOLVE]', e && e.message);
             return res.status(500).json({ status: 500, message: 'Terjadi kesalahan saat memproses orphan.' });
         } finally {
             _orphanInFlight.delete(id);
@@ -472,7 +473,7 @@ function createApiVoucherRouter({
             });
             return res.status(result.status).json(result.body);
         } catch (error) {
-            console.error('[MEMBER_CREDENTIALS_ERROR]', error);
+            log.error('[MEMBER_CREDENTIALS_ERROR]', error);
             return res.status(500).json({
                 status: 500,
                 message: 'Terjadi kesalahan',
@@ -486,7 +487,7 @@ function createApiVoucherRouter({
         try {
             return res.json({ status: 200, data: voucherPrintService.listLayouts() });
         } catch (error) {
-            console.error('[VOUCHER_PRINT_LAYOUTS_ERROR]', error);
+            log.error('[VOUCHER_PRINT_LAYOUTS_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal memuat layout', error: error.message });
         }
     });
@@ -495,7 +496,7 @@ function createApiVoucherRouter({
         try {
             return res.json({ status: 200, data: voucherPrintService.getSettings() });
         } catch (error) {
-            console.error('[VOUCHER_PRINT_SETTINGS_GET_ERROR]', error);
+            log.error('[VOUCHER_PRINT_SETTINGS_GET_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal memuat pengaturan', error: error.message });
         }
     });
@@ -505,7 +506,7 @@ function createApiVoucherRouter({
             const saved = voucherPrintService.saveSettings(req.body || {});
             return res.json({ status: 200, message: 'Pengaturan tersimpan', data: saved });
         } catch (error) {
-            console.error('[VOUCHER_PRINT_SETTINGS_SAVE_ERROR]', error);
+            log.error('[VOUCHER_PRINT_SETTINGS_SAVE_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal menyimpan pengaturan', error: error.message });
         }
     });
@@ -518,7 +519,7 @@ function createApiVoucherRouter({
             const saved = voucherPrintService.saveLayout(req.body);
             return res.json({ status: 200, message: 'Layout tersimpan', data: saved });
         } catch (error) {
-            console.error('[VOUCHER_PRINT_LAYOUT_SAVE_ERROR]', error);
+            log.error('[VOUCHER_PRINT_LAYOUT_SAVE_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal menyimpan layout', error: error.message });
         }
     });
@@ -528,7 +529,7 @@ function createApiVoucherRouter({
             const result = voucherPrintService.deleteLayout(req.params.id);
             return res.json({ status: 200, message: 'Layout dihapus', data: result });
         } catch (error) {
-            console.error('[VOUCHER_PRINT_LAYOUT_DELETE_ERROR]', error);
+            log.error('[VOUCHER_PRINT_LAYOUT_DELETE_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal menghapus layout', error: error.message });
         }
     });
@@ -538,7 +539,7 @@ function createApiVoucherRouter({
             const result = voucherPrintService.previewMikhmonImport({ php: req.body ? req.body.php : '' });
             return res.json({ status: 200, data: result });
         } catch (error) {
-            console.error('[VOUCHER_PRINT_MIKHMON_PREVIEW_ERROR]', error);
+            log.error('[VOUCHER_PRINT_MIKHMON_PREVIEW_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal konversi template', error: error.message });
         }
     });
@@ -553,7 +554,7 @@ function createApiVoucherRouter({
             });
             return res.json({ status: 200, message: 'Template Mikhmon diimpor', data: result });
         } catch (error) {
-            console.error('[VOUCHER_PRINT_MIKHMON_IMPORT_ERROR]', error);
+            log.error('[VOUCHER_PRINT_MIKHMON_IMPORT_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal impor template', error: error.message });
         }
     });
@@ -578,7 +579,7 @@ function createApiVoucherRouter({
                 data: result
             });
         } catch (error) {
-            console.error('[VOUCHER_PRINT_GENERATE_ERROR]', error);
+            log.error('[VOUCHER_PRINT_GENERATE_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal generate voucher batch', error: error.message });
         }
     });
@@ -602,7 +603,7 @@ function createApiVoucherRouter({
             res.set('Content-Type', 'text/html; charset=utf-8');
             return res.send(result.html);
         } catch (error) {
-            console.error('[VOUCHER_PRINT_RENDER_ERROR]', error);
+            log.error('[VOUCHER_PRINT_RENDER_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal render cetak', error: error.message });
         }
     });
@@ -624,7 +625,7 @@ function createApiVoucherRouter({
             res.set('Content-Disposition', `attachment; filename="voucher-${result.count}pcs.pdf"`);
             return res.send(result.buffer);
         } catch (error) {
-            console.error('[VOUCHER_PRINT_PDF_ROUTE_ERROR]', error);
+            log.error('[VOUCHER_PRINT_PDF_ROUTE_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal render PDF', error: error.message });
         }
     });
@@ -649,7 +650,7 @@ function createApiVoucherRouter({
             const code = map[result.code] || 400;
             return res.status(code).json({ status: code, message: result.message || `Gagal kirim voucher (${result.code})`, code: result.code, warning: result.warning });
         } catch (error) {
-            console.error('[VOUCHER_PRINT_SEND_WA_ERROR]', error);
+            log.error('[VOUCHER_PRINT_SEND_WA_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal kirim voucher ke WhatsApp', error: error.message });
         }
     });
@@ -659,7 +660,7 @@ function createApiVoucherRouter({
         try {
             return res.json({ status: 200, data: voucherPrintService.listBatches() });
         } catch (error) {
-            console.error('[VOUCHER_PRINT_BATCHES_ERROR]', error);
+            log.error('[VOUCHER_PRINT_BATCHES_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal memuat riwayat batch', error: error.message });
         }
     });
@@ -672,7 +673,7 @@ function createApiVoucherRouter({
             }
             return res.json({ status: 200, data: batch });
         } catch (error) {
-            console.error('[VOUCHER_PRINT_BATCH_GET_ERROR]', error);
+            log.error('[VOUCHER_PRINT_BATCH_GET_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal memuat batch', error: error.message });
         }
     });
@@ -686,7 +687,7 @@ function createApiVoucherRouter({
             });
             return res.json({ status: 200, data });
         } catch (error) {
-            console.error('[VOUCHER_PRINT_REPORT_ERROR]', error);
+            log.error('[VOUCHER_PRINT_REPORT_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal memuat laporan', error: error.message });
         }
     });
@@ -699,7 +700,7 @@ function createApiVoucherRouter({
             });
             return res.json({ status: 200, data });
         } catch (error) {
-            console.error('[VOUCHER_PRINT_ACTIVATIONS_ERROR]', error);
+            log.error('[VOUCHER_PRINT_ACTIVATIONS_ERROR]', error);
             return res.status(500).json({ status: 500, message: 'Gagal memuat aktivasi', error: error.message });
         }
     });

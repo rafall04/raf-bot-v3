@@ -1,3 +1,4 @@
+const log = require('../lib/logger').logger.child('TECHNICIAN_SETTLEMENT');
 const express = require('express');
 const router = express.Router();
 const {
@@ -51,7 +52,7 @@ router.get('/summary', ensureAuthenticatedStaff, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[TECHNICIAN_SETTLEMENT_SUMMARY_ERROR]', error);
+        log.error('[TECHNICIAN_SETTLEMENT_SUMMARY_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal mengambil ringkasan settlement teknisi' });
     }
 });
@@ -79,7 +80,7 @@ router.get('/entries', ensureAuthenticatedStaff, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[TECHNICIAN_SETTLEMENT_ENTRIES_ERROR]', error);
+        log.error('[TECHNICIAN_SETTLEMENT_ENTRIES_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal mengambil detail settlement teknisi' });
     }
 });

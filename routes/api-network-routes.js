@@ -6,6 +6,7 @@
  * MainFuncs: `createApiNetworkRouter`.
  * SideEffects: Membaca read-model MikroTik/GenieACS dan mengirim pesan WhatsApp manual untuk kebutuhan operasional.
  */
+const log = require('../lib/logger').logger.child('API_NETWORK_ROUTES');
 const express = require('express');
 const { sendMessage } = require('../lib/whatsapp-delivery-service');
 const { getSocket, isReady } = require('../lib/whatsapp-gateway');
@@ -60,7 +61,7 @@ function createApiNetworkRouter({
             const result = await apiNetworkService.listUnregisteredPppoeSecrets();
             return res.status(result.status).json(result.body);
         } catch (error) {
-            console.error('[MIKROTIK_UNREGISTERED_ERROR]', error);
+            log.error('[MIKROTIK_UNREGISTERED_ERROR]', error);
             return res.status(500).json({
                 status: 500,
                 message: 'Gagal mengambil data dari MikroTik',
@@ -78,7 +79,7 @@ function createApiNetworkRouter({
             });
             return res.status(result.status).json(result.body);
         } catch (error) {
-            console.error('[MIKROTIK_EXPORT_SOURCES_ERROR]', error);
+            log.error('[MIKROTIK_EXPORT_SOURCES_ERROR]', error);
             return res.status(500).json({
                 status: 500,
                 message: 'Gagal menyiapkan skeleton source export MikroTik',
@@ -92,7 +93,7 @@ function createApiNetworkRouter({
             const result = await apiNetworkService.listDevicesForImport();
             return res.status(result.status).json(result.body);
         } catch (error) {
-            console.error('[GENIEACS_DEVICES_FOR_IMPORT_ERROR]', error);
+            log.error('[GENIEACS_DEVICES_FOR_IMPORT_ERROR]', error);
             return res.status(500).json({
                 status: 500,
                 message: 'Gagal mengambil data dari GenieACS',

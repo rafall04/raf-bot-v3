@@ -10,6 +10,7 @@
  * MainFuncs: handleOtpRequest, handleOtpVerify, handleCustomerLogin + route registrations.
  * SideEffects: Menulis cookie JWT, mengirim OTP via WhatsApp, mencatat login ke activity log.
  */
+const log = require('../../lib/logger').logger.child('AUTH');
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { authCache } = require('../../lib/auth-cache');
@@ -124,7 +125,7 @@ router.post('/api/login', loginValidation, asyncHandler(async (req, res) => {
     // Validate required fields
     const validateStart = Date.now();
     validateRequired(req.body, ['username', 'password']);
-    console.log(`[LOGIN_TIMING] Validation: ${Date.now() - validateStart}ms`);
+    log.info(`[LOGIN_TIMING] Validation: ${Date.now() - validateStart}ms`);
 
     // Get client info for logging
     const ipAddress = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
@@ -134,12 +135,12 @@ router.post('/api/login', loginValidation, asyncHandler(async (req, res) => {
     const importStart = Date.now();
     const { logLogin } = require('../../lib/activity-logger');
     const { checkRateLimit } = require('../../lib/security');
-    console.log(`[LOGIN_TIMING] Import modules: ${Date.now() - importStart}ms`);
+    log.info(`[LOGIN_TIMING] Import modules: ${Date.now() - importStart}ms`);
     
     // Rate limiting: max 5 attempts per 15 minutes per IP
     const rateLimitStart = Date.now();
     const rateLimitResult = checkRateLimit('login', 5, 15 * 60 * 1000, ipAddress);
-    console.log(`[LOGIN_TIMING] Rate limit check: ${Date.now() - rateLimitStart}ms`);
+    log.info(`[LOGIN_TIMING] Rate limit check: ${Date.now() - rateLimitStart}ms`);
     
     // Check rate limit
     if (!rateLimitResult.allowed) {
@@ -168,12 +169,12 @@ router.post('/api/login', loginValidation, asyncHandler(async (req, res) => {
     const account = authCache.getAccountByUsername(username, () => {
         return global.accounts.find(acc => acc.username === username);
     });
-    console.log(`[LOGIN_TIMING] Account lookup: ${Date.now() - accountLookupStart}ms`);
+    log.info(`[LOGIN_TIMING] Account lookup: ${Date.now() - accountLookupStart}ms`);
     
     // Password verification - ini yang paling mungkin lambat
     const passwordStart = Date.now();
     const isValid = account && await comparePassword(password, account.password);
-    console.log(`[LOGIN_TIMING] Password verification: ${Date.now() - passwordStart}ms`);
+    log.info(`[LOGIN_TIMING] Password verification: ${Date.now() - passwordStart}ms`);
 
     if (!isValid) {
         // Log failed login attempt (fire-and-forget, tidak blocking)
@@ -187,7 +188,7 @@ router.post('/api/login', loginValidation, asyncHandler(async (req, res) => {
             failureReason: 'Invalid username or password',
             actionType: 'login'
         }).catch(logErr => {
-            console.error(`[AUTH_LOG] ❌ Failed to log login: ${username} - ${logErr.message}`);
+            log.error(`[AUTH_LOG] ❌ Failed to log login: ${username} - ${logErr.message}`);
         });
         
         throw createError(
@@ -213,7 +214,7 @@ router.post('/api/login', loginValidation, asyncHandler(async (req, res) => {
         expiresIn: tokenExpiry,
         algorithm: 'HS256'
     });
-    console.log(`[LOGIN_TIMING] Token generation: ${Date.now() - tokenStart}ms`);
+    log.info(`[LOGIN_TIMING] Token generation: ${Date.now() - tokenStart}ms`);
 
     const cookieStart = Date.now();
     const useSecureCookie =
@@ -226,7 +227,7 @@ router.post('/api/login', loginValidation, asyncHandler(async (req, res) => {
         maxAge: process.env.NODE_ENV === 'production' ? 8 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000,
         path: '/'
     });
-    console.log(`[LOGIN_TIMING] Cookie set: ${Date.now() - cookieStart}ms`);
+    log.info(`[LOGIN_TIMING] Cookie set: ${Date.now() - cookieStart}ms`);
 
     // Log successful login attempt (fire-and-forget, tidak blocking response)
     logLogin({
@@ -239,11 +240,11 @@ router.post('/api/login', loginValidation, asyncHandler(async (req, res) => {
         failureReason: null,
         actionType: 'login'
     }).catch(logErr => {
-        console.error(`[AUTH_LOG] ❌ Failed to log login: ${username} - ${logErr.message}`);
+        log.error(`[AUTH_LOG] ❌ Failed to log login: ${username} - ${logErr.message}`);
     });
 
     const totalTime = Date.now() - loginStartTime;
-    console.log(`[LOGIN_TIMING] ⏱️ TOTAL LOGIN TIME: ${totalTime}ms`);
+    log.info(`[LOGIN_TIMING] ⏱️ TOTAL LOGIN TIME: ${totalTime}ms`);
 
     // Check if request wants JSON response (API call)
     if (req.headers.accept && req.headers.accept.includes('application/json')) {

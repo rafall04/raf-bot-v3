@@ -14,6 +14,8 @@
  * SideEffects: Tidak ada (hanya baca agregasi).
  */
 "use strict";
+const log = require('../lib/logger').logger.child('ADMIN_CSAT_ROUTES');
+
 const { writeFileAtomicSync } = require('../lib/atomic-file'); // config.json ATOMIK (#b343)
 
 const fs = require("fs");
@@ -87,8 +89,8 @@ function registerAdminCsatRoutes(router, deps = {}) {
         }
         const { runRatingSurveyCycle } = require("../lib/cron/jobs/rating-survey");
         runRatingSurveyCycle()
-            .then((r) => console.log(`[CSAT_MANUAL_RUN] selesai oleh ${req.user && req.user.username}: ${JSON.stringify(r && { surveys: r.surveys, sent: r.sent, skipped: r.skipped })}`))
-            .catch((e) => console.error("[CSAT_MANUAL_RUN_ERR]", e && e.message));
+            .then((r) => log.info(`[CSAT_MANUAL_RUN] selesai oleh ${req.user && req.user.username}: ${JSON.stringify(r && { surveys: r.surveys, sent: r.sent, skipped: r.skipped })}`))
+            .catch((e) => log.error("[CSAT_MANUAL_RUN_ERR]", e && e.message));
         res.json({ success: true, message: "Survei mulai dikirim ke pelanggan yang layak. Pengiriman ber-jeda (anti-ban) — hasil muncul di halaman ini beberapa menit lagi." });
     }));
 
@@ -109,8 +111,8 @@ function registerAdminCsatRoutes(router, deps = {}) {
             return res.json({ success: true, dryRun: true, data: r, message: `Rencana: ${r.plan.length} balasan akan dipulihkan (belum dieksekusi).` });
         }
         recoverLostResponders({ period })
-            .then((r) => console.log(`[CSAT_RECOVERY] dipicu ${req.user && req.user.username}: ${JSON.stringify(r)}`))
-            .catch((e) => console.error("[CSAT_RECOVERY_ERR]", e && e.message));
+            .then((r) => log.info(`[CSAT_RECOVERY] dipicu ${req.user && req.user.username}: ${JSON.stringify(r)}`))
+            .catch((e) => log.error("[CSAT_RECOVERY_ERR]", e && e.message));
         res.json({ success: true, message: "Pemulihan balasan yang terlewat mulai berjalan (ber-jeda anti-ban). Hasil muncul di halaman ini beberapa menit lagi." });
     }));
 
@@ -149,7 +151,7 @@ function registerAdminCsatRoutes(router, deps = {}) {
         if ("minGapMs" in bg) cfg.broadcastGuard.minGapMs = clampNum(bg.minGapMs, 0, 0);
         writeFileAtomicSync(cfgPath, JSON.stringify(cfg, null, 2));
         if (global.config) { global.config.csatSurvey = cfg.csatSurvey; global.config.broadcastGuard = cfg.broadcastGuard; }
-        console.log(`[CSAT_SETTINGS] disimpan oleh ${req.user && req.user.username}: csatSurvey.enabled=${cfg.csatSurvey.enabled} broadcastGuard.enabled=${cfg.broadcastGuard.enabled} validateOnWhatsApp=${cfg.broadcastGuard.validateOnWhatsApp}`);
+        log.info(`[CSAT_SETTINGS] disimpan oleh ${req.user && req.user.username}: csatSurvey.enabled=${cfg.csatSurvey.enabled} broadcastGuard.enabled=${cfg.broadcastGuard.enabled} validateOnWhatsApp=${cfg.broadcastGuard.validateOnWhatsApp}`);
         res.json({ success: true, message: "Setelan disimpan & langsung aktif.", data: readCsatSettings(cfg) });
     }));
 }

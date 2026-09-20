@@ -7,6 +7,7 @@
  * SideEffects: Membaca/menulis data pelanggan/request, update MikroTik, log activity, dan kirim notifikasi WhatsApp ke pelanggan (dead-letter bila gagal).
  */
 
+const log = require('../lib/logger').logger.child('CHANGE_PACKAGE');
 const express = require('express');
 const router = express.Router();
 const { loadJSON } = require('../lib/database');
@@ -80,7 +81,7 @@ async function syncPackageChangeToMikrotik(user, newPackage, requestedSync, call
 
         const disconnectResult = await deleteActivePPPoEUser(user.pppoe_username, { caller });
         if (!disconnectResult.ok) {
-            console.warn(`[CHANGE_PACKAGE_WARN] Disconnect session warning for ${user.pppoe_username}: ${disconnectResult.message}`);
+            log.warn(`[CHANGE_PACKAGE_WARN] Disconnect session warning for ${user.pppoe_username}: ${disconnectResult.message}`);
         }
 
         return buildSyncOutcome(
@@ -89,7 +90,7 @@ async function syncPackageChangeToMikrotik(user, newPackage, requestedSync, call
             { profile: targetProfile }
         );
     } catch (error) {
-        console.error('[CHANGE_PACKAGE_MIKROTIK_ERROR]', error);
+        log.error('[CHANGE_PACKAGE_MIKROTIK_ERROR]', error);
         return buildSyncOutcome(
             'failed_sync',
             error.message || 'Sinkronisasi MikroTik gagal.',
@@ -120,7 +121,7 @@ router.get('/packages', ensureAdmin, (req, res) => {
             }))
         });
     } catch (error) {
-        console.error('[GET_PACKAGES_ERROR]', error);
+        log.error('[GET_PACKAGES_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal mengambil daftar paket' });
     }
 });
@@ -219,7 +220,7 @@ router.post('/:userId', ensureAdmin, rateLimit('change-package', 20, 60000), asy
                 await sendCritical(ph, { text: msg }, { label: 'package_change_scheduled', waitForReadyMs: 8000 });
             }
         } catch (e) {
-            console.error('[CHANGE_PACKAGE_SCHEDULE_NOTIF]', e.message);
+            log.error('[CHANGE_PACKAGE_SCHEDULE_NOTIF]', e.message);
         }
         return res.status(200).json({
             status: 200,
@@ -262,7 +263,7 @@ router.post('/:userId', ensureAdmin, rateLimit('change-package', 20, 60000), asy
                 db.run(sql, [new_package, newPackageData.price, now, userId], async function(err) {
                     if (err) {
                         db.close();
-                        console.error('[CHANGE_PACKAGE_DB_ERROR]', err);
+                        log.error('[CHANGE_PACKAGE_DB_ERROR]', err);
                         return resolve(res.status(500).json({ status: 500, message: 'Gagal mengubah paket di database' }));
                     }
                     
@@ -297,7 +298,7 @@ router.post('/:userId', ensureAdmin, rateLimit('change-package', 20, 60000), asy
                         },
                         ipAddress: req.ip,
                         userAgent: req.headers['user-agent']
-                    }).catch(console.error);
+                    }).catch((e) => log.error(e));
                     
                     // Notify customer via WhatsApp (terjamin: sendCritical + dead-letter).
                     // Di-await supaya status notifikasi bisa ditampilkan ke admin, tapi
@@ -325,7 +326,7 @@ router.post('/:userId', ensureAdmin, rateLimit('change-package', 20, 60000), asy
             });
         });
     } catch (error) {
-        console.error('[CHANGE_PACKAGE_ERROR]', error);
+        log.error('[CHANGE_PACKAGE_ERROR]', error);
         return res.status(500).json({ 
             status: 500, 
             message: error.message?.includes('Could not acquire lock') 
@@ -444,7 +445,7 @@ router.post('/bulk/change', ensureAdmin, rateLimit('bulk-change-package', 5, 600
             description: `Admin mengubah paket ${successCount} pelanggan ke ${new_package} (${notifiedCount} pelanggan diberi tahu via WA)`,
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
 
         db.close();
         res.json({
@@ -459,7 +460,7 @@ router.post('/bulk/change', ensureAdmin, rateLimit('bulk-change-package', 5, 600
         });
     } catch (error) {
         db.close();
-        console.error('[BULK_CHANGE_PACKAGE_ERROR]', error);
+        log.error('[BULK_CHANGE_PACKAGE_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Terjadi kesalahan server' });
     }
 });
@@ -493,7 +494,7 @@ async function notifyCustomerPackageChange(user, oldPackage, newPackage, newPric
             message = unifiedMessage;
         }
     } catch (e) {
-        console.error('[PACKAGE_CHANGE_TEMPLATE_ERROR]', e.message);
+        log.error('[PACKAGE_CHANGE_TEMPLATE_ERROR]', e.message);
     }
 
     // Fallback message if template not available
@@ -525,12 +526,12 @@ async function notifyCustomerPackageChange(user, oldPackage, newPackage, newPric
             });
             if (result && result.delivered) {
                 delivered += 1;
-                console.log(`[PACKAGE_CHANGE_NOTIF] Terkirim ke ${user.name} (${phone})`);
+                log.info(`[PACKAGE_CHANGE_NOTIF] Terkirim ke ${user.name} (${phone})`);
             } else {
-                console.warn(`[PACKAGE_CHANGE_NOTIF] Masuk antrian dead-letter untuk ${user.name} (${phone})`);
+                log.warn(`[PACKAGE_CHANGE_NOTIF] Masuk antrian dead-letter untuk ${user.name} (${phone})`);
             }
         } catch (e) {
-            console.error('[PACKAGE_CHANGE_NOTIF_ERROR]', e.message);
+            log.error('[PACKAGE_CHANGE_NOTIF_ERROR]', e.message);
         }
     }
 

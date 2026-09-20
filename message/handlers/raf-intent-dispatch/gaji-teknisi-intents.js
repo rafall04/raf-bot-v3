@@ -14,6 +14,8 @@
  * SideEffects: Tidak ada (baca saja). Tak pernah mengubah payroll/ledger.
  */
 "use strict";
+const log = require('../../../lib/logger').logger.child('GAJI_TEKNISI_INTENTS');
+
 
 function rupiah(n) {
     return "Rp" + (Number(n) || 0).toLocaleString("id-ID");
@@ -60,7 +62,7 @@ async function handleGajiSayaIntent(context) {
     try {
         finance = require("../../../lib/technician-finance-service");
     } catch (error) {
-        console.error("[GAJI_SAYA_MODUL_ERROR]", error.message);
+        log.error("[GAJI_SAYA_MODUL_ERROR]", error.message);
         return reply(renderResponseTemplate("gaji_saya_gagal", "Maaf, data gaji sedang tidak bisa dibaca. Coba lagi nanti."));
     }
 
@@ -122,7 +124,7 @@ async function handleGajiSayaIntent(context) {
             rincian: baris.slice(2).join("\n")
         }));
     } catch (error) {
-        console.error("[GAJI_SAYA_ERROR]", error.message);
+        log.error("[GAJI_SAYA_ERROR]", error.message);
         return reply(renderResponseTemplate("gaji_saya_gagal", "Maaf, data gaji sedang tidak bisa dibaca. Coba lagi nanti."));
     }
 }
@@ -151,7 +153,7 @@ async function handleSetoranSayaIntent(context) {
     try {
         settlement = require("../../../lib/technician-collection-settlement");
     } catch (error) {
-        console.error("[SETORAN_SAYA_MODUL_ERROR]", error.message);
+        log.error("[SETORAN_SAYA_MODUL_ERROR]", error.message);
         return reply(renderResponseTemplate("setoran_saya_gagal", "Maaf, data setoran sedang tidak bisa dibaca. Coba lagi nanti."));
     }
 
@@ -211,7 +213,7 @@ async function handleSetoranSayaIntent(context) {
             tarikan: jumlahTarikan
         }));
     } catch (error) {
-        console.error("[SETORAN_SAYA_ERROR]", error.message);
+        log.error("[SETORAN_SAYA_ERROR]", error.message);
         return reply(renderResponseTemplate("setoran_saya_gagal", "Maaf, data setoran sedang tidak bisa dibaca. Coba lagi nanti."));
     }
 }

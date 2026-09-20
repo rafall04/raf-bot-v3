@@ -4,6 +4,7 @@
  * Ticket creation and notifications are delegated to orchestration services.
  */
 
+const log = require('../../lib/logger').logger.child('CUSTOMER_PHOTO_HANDLER');
 const { deleteUserState } = require('./conversation-handler');
 const { hapusDraft: hapusDraftLaporan } = require('../../lib/laporan-draft-store');
 
@@ -23,7 +24,7 @@ function tutupPercakapanLaporan(sender) {
     } catch (error) {
         // Gagal menghapus draft tak boleh menjatuhkan balasan ke pelanggan; pemindai
         // berikutnya akan menemukannya dan promosinya sendiri idempoten-per-tiket.
-        console.error('[LAPORAN_DRAFT] gagal menghapus draft sesudah tiket dibuat:', error?.message);
+        log.error('[LAPORAN_DRAFT] gagal menghapus draft sesudah tiket dibuat:', error?.message);
     }
 }
 const { getResponseTimeMessage } = require('../../lib/working-hours-helper');

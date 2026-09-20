@@ -8,6 +8,7 @@
  * SideEffects: Mengirim reply WhatsApp berisi status tagihan + link bayar.
  */
 
+const log = require('../../lib/logger').logger.child('BILLING_MANAGEMENT_HANDLER');
 const convertRupiah = require('rupiah-format');
 
 const { renderResponseTemplate } = require('./template-helpers');
@@ -69,7 +70,7 @@ async function handleCekTagihan({ plainSenderNumber: _plainSenderNumber, pushnam
                 sudahDibayar = Math.max(0, hargaEfektif - tagihan);
             }
         } catch (posErr) {
-            console.warn('[CEK_TAGIHAN] Posisi ledger tak terbaca, pakai harga efektif:', posErr && posErr.message);
+            log.warn('[CEK_TAGIHAN] Posisi ledger tak terbaca, pakai harga efektif:', posErr && posErr.message);
         }
 
         // Slot cicilan: string KOSONG bila tak ada cicilan, supaya template tak menampilkan
@@ -96,7 +97,7 @@ async function handleCekTagihan({ plainSenderNumber: _plainSenderNumber, pushnam
             try {
                 linkBayar = buildBillPayUrl(user, { periodMonth: now.getMonth() + 1, periodYear: now.getFullYear() });
             } catch (linkErr) {
-                console.error('[CEK_TAGIHAN] Gagal buat link bayar:', linkErr.message);
+                log.error('[CEK_TAGIHAN] Gagal buat link bayar:', linkErr.message);
             }
             responseMessage = renderTemplate('tagihan_belum_lunas', { ...templateData, link_bayar: linkBayar });
         }
@@ -104,7 +105,7 @@ async function handleCekTagihan({ plainSenderNumber: _plainSenderNumber, pushnam
         await reply(responseMessage);
 
     } catch (error) {
-        console.error('[CEK_TAGIHAN] Error:', error);
+        log.error('[CEK_TAGIHAN] Error:', error);
         await reply(renderResponseTemplate(
             'billing_check_generic_error',
             'Terjadi kesalahan saat mengecek tagihan. Silakan coba lagi.'

@@ -20,6 +20,8 @@
  *   Menghapus/menulis conversation state. Balas admin lewat `reply`.
  */
 "use strict";
+const log = require('../../../lib/logger').logger.child('PACKAGE_REQUEST_ADMIN_STATE');
+
 
 const { renderResponseTemplate } = require("../../../lib/response-template-helper");
 const {
@@ -206,7 +208,7 @@ async function handlePackageRequestAdminState(ctx) {
         if (step === STEP_CONFIRM) return await handleConfirm(ctx, userState || {});
         return { handled: false };
     } catch (err) {
-        console.warn(`[PKGREQ_STATE] gagal: ${err && err.message ? err.message : err}`);
+        log.warn(`[PKGREQ_STATE] gagal: ${err && err.message ? err.message : err}`);
         try {
             clearState(ctx);
             await ctx.reply(renderResponseTemplate(

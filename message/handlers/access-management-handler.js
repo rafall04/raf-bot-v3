@@ -8,6 +8,8 @@
  */
 
 "use strict";
+const log = require('../../lib/logger').logger.child('ACCESS_MANAGEMENT_HANDLER');
+
 
 const { renderResponseTemplate } = require('./template-helpers');
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
@@ -138,7 +140,7 @@ function handleAccessAdd(args, user, phoneNumbers, primaryPhone, accessLimit, se
 
     db.run(`UPDATE users SET phone_number = ? WHERE id = ?`, [newPhoneNumbersAdd, user.id], function (err) {
         if (err) {
-            console.error("[DB_UPDATE_ERROR] Gagal update nomor telepon:", err.message);
+            log.error("[DB_UPDATE_ERROR] Gagal update nomor telepon:", err.message);
             reply(renderResponseTemplate(
                 'access_add_db_error',
                 "❌ Maaf, terjadi kesalahan sistem saat memperbarui data.\n\nSilakan coba lagi dalam beberapa saat atau hubungi admin jika masalah berlanjut."
@@ -146,7 +148,7 @@ function handleAccessAdd(args, user, phoneNumbers, primaryPhone, accessLimit, se
             return;
         }
 
-        console.log(`[DB_UPDATE_SUCCESS] Nomor telepon untuk user ID ${user.id} berhasil diperbarui.`);
+        log.info(`[DB_UPDATE_SUCCESS] Nomor telepon untuk user ID ${user.id} berhasil diperbarui.`);
 
         // Update in-memory global.users as well
         const userIndex = global.users.findIndex(u => u.id === user.id);
@@ -198,7 +200,7 @@ function handleAccessDelete(args, user, phoneNumbers, primaryPhone, accessLimit,
 
     db.run(`UPDATE users SET phone_number = ? WHERE id = ?`, [newPhoneNumbersDel, user.id], function (err) {
         if (err) {
-            console.error("[DB_UPDATE_ERROR] Gagal menghapus nomor telepon:", err.message);
+            log.error("[DB_UPDATE_ERROR] Gagal menghapus nomor telepon:", err.message);
             reply(renderResponseTemplate(
                 'access_add_db_error',
                 "❌ Maaf, terjadi kesalahan sistem saat memperbarui data.\n\nSilakan coba lagi dalam beberapa saat atau hubungi admin jika masalah berlanjut."
@@ -206,7 +208,7 @@ function handleAccessDelete(args, user, phoneNumbers, primaryPhone, accessLimit,
             return;
         }
 
-        console.log(`[DB_UPDATE_SUCCESS] Nomor telepon untuk user ID ${user.id} berhasil dihapus.`);
+        log.info(`[DB_UPDATE_SUCCESS] Nomor telepon untuk user ID ${user.id} berhasil dihapus.`);
 
         // Update in-memory global.users as well
         const userIndex = global.users.findIndex(u => u.id === user.id);

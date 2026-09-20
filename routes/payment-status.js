@@ -6,6 +6,7 @@
  * MainFuncs: `POST /bulk-update`, `GET /read-model`, `GET /diagnostics`, `POST /advance`, `POST /free`.
  * SideEffects: Menulis histori/reversal pembayaran via payment finance service, mengirim side effect final paid, dan mencatat prabayar + struk WA bila diperlukan.
  */
+const log = require('../lib/logger').logger.child('PAYMENT_STATUS');
 const express = require('express');
 const { handlePaidStatusChange } = require('../lib/approval-logic');
 const { getPeriodParts } = require('../lib/technician-collection-settlement');
@@ -35,7 +36,7 @@ function ensureAdmin(req, res, next) {
 // POST /api/payment-status/bulk-update
 router.post('/bulk-update', ensureAdmin, async (req, res) => {
     const { userIds, paid } = req.body;
-    console.log('[PAYMENT_STATUS_BULK_UPDATE_ROUTE_HIT]', {
+    log.info('[PAYMENT_STATUS_BULK_UPDATE_ROUTE_HIT]', {
         userCount: Array.isArray(userIds) ? userIds.length : 0,
         paid,
         period_month: req.body.period_month,
@@ -137,7 +138,7 @@ router.post('/bulk-update', ensureAdmin, async (req, res) => {
 
             results.success.push(userId);
         } catch (error) {
-            console.error(`[BULK_UPDATE_ERROR] Failed to process user ${userId}:`, error);
+            log.error(`[BULK_UPDATE_ERROR] Failed to process user ${userId}:`, error);
             results.failed.push({ userId, reason: error.message });
         }
     }
@@ -188,7 +189,7 @@ router.get('/read-model', ensureAdmin, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[PAYMENT_STATUS_READ_MODEL_ERROR]', error);
+        log.error('[PAYMENT_STATUS_READ_MODEL_ERROR]', error);
         return res.status(500).json({ status: 500, message: 'Gagal memuat read model payment status' });
     }
 });
@@ -208,7 +209,7 @@ router.get('/diagnostics', ensureAdmin, async (req, res) => {
             data: diagnostics
         });
     } catch (error) {
-        console.error('[PAYMENT_STATUS_DIAGNOSTICS_ERROR]', error);
+        log.error('[PAYMENT_STATUS_DIAGNOSTICS_ERROR]', error);
         return res.status(500).json({ status: 500, message: 'Gagal memuat diagnostics payment status' });
     }
 });
@@ -275,7 +276,7 @@ router.post('/advance', ensureAdmin, async (req, res) => {
             });
         });
     } catch (error) {
-        console.error('[PAYMENT_STATUS_ADVANCE_ERROR]', error);
+        log.error('[PAYMENT_STATUS_ADVANCE_ERROR]', error);
         return res.status(500).json({ status: 500, message: error.message || 'Gagal mencatat bayar di muka' });
     }
 });
@@ -325,7 +326,7 @@ router.post('/free', ensureAdmin, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[PAYMENT_STATUS_FREE_ERROR]', error);
+        log.error('[PAYMENT_STATUS_FREE_ERROR]', error);
         return res.status(500).json({ status: 500, message: error.message || 'Gagal menandai periode gratis' });
     }
 });

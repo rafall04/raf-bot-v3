@@ -7,6 +7,8 @@
  * SideEffects: Membaca `global.reports` dan `global.users` untuk melengkapi data response.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('TICKETS_LIST_ROUTES');
+
 
 const {
     express,
@@ -66,7 +68,7 @@ router.get('/tickets', ensureAuthenticatedStaff, async (req, res) => {
             data: reportsWithDetails
         });
     } catch (error) {
-        console.error('[API_TICKETS_ERROR]', error);
+        log.error('[API_TICKETS_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat mengambil data tiket'
@@ -131,7 +133,7 @@ router.get('/admin/tickets', ensureAdmin, async (req, res) => {
             data: reportsWithDetails
         });
     } catch (error) {
-        console.error('[API_ADMIN_TICKETS_ERROR]', error);
+        log.error('[API_ADMIN_TICKETS_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat mengambil data tiket'

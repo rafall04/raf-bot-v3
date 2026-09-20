@@ -13,6 +13,7 @@
  * SideEffects: Kredit voucher/saldo/tagihan ke data global, kirim WA pelanggan/admin,
  *              catat orphan voucher, update ket/status payment.
  */
+const log = require('../../lib/logger').logger.child('PAYMENT_CALLBACK');
 const express = require('express');
 const convertRupiah = require('rupiah-format');
 // Verifikasi server-to-server status transaksi iPaymu (dipakai di callback).
@@ -56,10 +57,10 @@ async function alertAdmins(text, tag) {
         try { jids = require('../../lib/notif-router').recipientsFor(kategori, { adminFallback }).recipients || adminFallback; }
         catch (_e) { jids = adminFallback; }
     }
-    if (!jids.length) { console.error(`[ADMIN_ALERT] Tidak ada JID admin valid untuk: ${tag}`); return; }
+    if (!jids.length) { log.error(`[ADMIN_ALERT] Tidak ada JID admin valid untuk: ${tag}`); return; }
     for (const jid of jids) {
         try { await sendCritical(jid, { text }, { label: tag || 'admin-alert' }); }
-        catch (e) { console.error(`[ADMIN_ALERT] Gagal kirim ke ${jid}:`, e.message); }
+        catch (e) { log.error(`[ADMIN_ALERT] Gagal kirim ke ${jid}:`, e.message); }
     }
 }
 
@@ -115,20 +116,20 @@ router.post('/callback/payment', async (req, res) => {
             const effectiveTrxId = pay.trxId || req.body.trx_id || req.body.sid;
             const verify = await verifyIpaymuTransaction(effectiveTrxId, { sandbox: pay.sandbox === true });
             if (!verify || !verify.ok || !verify.paid) {
-                console.warn('[PAYMENT_CALLBACK_REJECT] iPaymu belum konfirmasi LUNAS — kredit ditolak.', {
+                log.warn('[PAYMENT_CALLBACK_REJECT] iPaymu belum konfirmasi LUNAS — kredit ditolak.', {
                     reference_id, trxId: effectiveTrxId, ipaymu_status: verify?.status, ipaymu_error: verify?.error
                 });
                 throw !1; // 500 → minta iPaymu retry callback; jangan kredit.
             }
             // Cegah substitusi trx: referenceId & amount dari iPaymu harus cocok dgn record kita.
             if (verify.referenceId != null && String(verify.referenceId) !== String(reference_id)) {
-                console.warn('[PAYMENT_CALLBACK_REJECT] referenceId iPaymu tidak cocok.', {
+                log.warn('[PAYMENT_CALLBACK_REJECT] referenceId iPaymu tidak cocok.', {
                     reference_id, ipaymu_referenceId: verify.referenceId
                 });
                 throw !1;
             }
             if (verify.amount != null && pay.amount != null && parseInt(verify.amount, 10) < parseInt(pay.amount, 10)) {
-                console.warn('[PAYMENT_CALLBACK_REJECT] amount iPaymu kurang dari tagihan.', {
+                log.warn('[PAYMENT_CALLBACK_REJECT] amount iPaymu kurang dari tagihan.', {
                     reference_id, ipaymu_amount: verify.amount, expected: pay.amount
                 });
                 throw !1;
@@ -173,7 +174,7 @@ router.post('/callback/payment', async (req, res) => {
                         updateKetPayment(reference_id, `GAGAL voucher: ${errorMessage}`);
                         if (pay.sender != "buynow") {
                             try { await sendMessage(pay.sender, { text: renderTemplate('voucher_pending_manual', {}) }, { skipDuplicateCheck: true }); }
-                            catch (notifyErr) { console.error('[BUYNOW_FAIL] gagal notif pelanggan:', notifyErr.message); }
+                            catch (notifyErr) { log.error('[BUYNOW_FAIL] gagal notif pelanggan:', notifyErr.message); }
                         }
                         updateStatusPayment(reference_id, true);
                         throw !0;
@@ -208,7 +209,7 @@ router.post('/callback/payment', async (req, res) => {
                             await sendCritical(jid, { text: message }, { label: 'voucher-web-code' });
                         }
                     } catch (waErr) {
-                        console.error('[BUYNOWWEB] Gagal kirim kode voucher ke WA:', waErr.message);
+                        log.error('[BUYNOWWEB] Gagal kirim kode voucher ke WA:', waErr.message);
                     }
                     // Notif admin bahwa voucher online TERJUAL (OPSIONAL, anti-spam via config).
                     // Best-effort + never-throw: gagal notif TIDAK menggagalkan callback.
@@ -223,7 +224,7 @@ router.post('/callback/payment', async (req, res) => {
                             }), 'voucher-terjual');
                         }
                     } catch (notifErr) {
-                        console.error('[BUYNOWWEB] Gagal notif admin penjualan:', notifErr.message);
+                        log.error('[BUYNOWWEB] Gagal notif admin penjualan:', notifErr.message);
                     }
                     throw !0;
                 }).catch(async err => {
@@ -270,7 +271,7 @@ router.post('/callback/payment', async (req, res) => {
                             await sendCritical(jid, { text: message }, { label: 'voucher-panel-code' });
                         }
                     } catch (waErr) {
-                        console.error('[BUYNOWPANEL] Gagal kirim kode voucher ke WA:', waErr.message);
+                        log.error('[BUYNOWPANEL] Gagal kirim kode voucher ke WA:', waErr.message);
                     }
                     // Notif admin penjualan (opsional, anti-spam via config). Never-throw.
                     try {
@@ -284,7 +285,7 @@ router.post('/callback/payment', async (req, res) => {
                             }), 'voucher-terjual');
                         }
                     } catch (notifErr) {
-                        console.error('[BUYNOWPANEL] Gagal notif admin penjualan:', notifErr.message);
+                        log.error('[BUYNOWPANEL] Gagal notif admin penjualan:', notifErr.message);
                     }
                     throw !0;
                 }).catch(async err => {
@@ -310,7 +311,7 @@ router.post('/callback/payment', async (req, res) => {
                 // (addKoinUser kini fail-closed: return false bila JID tak bisa di-resolve.)
                 const credited = await addKoinUser(pay.sender, pay.amount);
                 if (!credited) {
-                    console.error('[IPAYMU_TOPUP] Kredit saldo GAGAL — payment TIDAK ditandai paid', {
+                    log.error('[IPAYMU_TOPUP] Kredit saldo GAGAL — payment TIDAK ditandai paid', {
                         reference_id, sender: pay.sender, amount: pay.amount
                     });
                     throw !1;
@@ -328,7 +329,7 @@ router.post('/callback/payment', async (req, res) => {
                 // Bayar tagihan bulanan: cari pelanggan dari userId yang KITA simpan saat charge.
                 const user = (global.users || []).find(u => String(u.id) === String(pay.userId));
                 if (!user) {
-                    console.error('[IPAYMU_TAGIHAN] User tidak ditemukan — payment TIDAK ditandai paid', { reference_id, userId: pay.userId });
+                    log.error('[IPAYMU_TAGIHAN] User tidak ditemukan — payment TIDAK ditandai paid', { reference_id, userId: pay.userId });
                     throw !1; // 500 → iPaymu retry
                 }
 
@@ -347,7 +348,7 @@ router.post('/callback/payment', async (req, res) => {
                         markPaid: () => updateStatusPayment(reference_id, true),
                     });
                 } catch (settleErr) {
-                    console.error('[IPAYMU_TAGIHAN] Catat lunas GAGAL — payment TIDAK ditandai paid', { reference_id, error: settleErr.message });
+                    log.error('[IPAYMU_TAGIHAN] Catat lunas GAGAL — payment TIDAK ditandai paid', { reference_id, error: settleErr.message });
                     throw !1; // 500 → iPaymu retry; jangan tandai paid.
                 }
 
@@ -366,7 +367,7 @@ router.post('/callback/payment', async (req, res) => {
                         method: pay.method || 'QRIS', refId: reference_id, gateway: 'ipaymu',
                     });
                     if (tindakan.jenis === 'kelebihan') {
-                        console.warn('[IPAYMU_TAGIHAN] KELEBIHAN BAYAR', { reference_id, ledgerDicatat: tindakan.ledgerDicatat });
+                        log.warn('[IPAYMU_TAGIHAN] KELEBIHAN BAYAR', { reference_id, ledgerDicatat: tindakan.ledgerDicatat });
                     }
                     if (pay.sender) {
                         // FIX invoice-tak-terkirim (callback online): bila gate invoiceOnSettle ON &
@@ -380,7 +381,7 @@ router.post('/callback/payment', async (req, res) => {
                         if (!sentInvoice) await sendMessage(pay.sender, { text: tindakan.teksPelanggan });
                     }
                 } catch (notifyErr) {
-                    console.error('[IPAYMU_TAGIHAN] Gagal kirim struk:', notifyErr.message);
+                    log.error('[IPAYMU_TAGIHAN] Gagal kirim struk:', notifyErr.message);
                 }
 
                 // Alert admin bila reaktivasi PERLU dicek (gagal ubah profil ATAU router tak terbaca =

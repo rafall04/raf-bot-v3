@@ -5,6 +5,7 @@
  * MainFuncs: GET/POST `/config`, GET `/test`, POST `/test-web`, `/devices` CRUD, GET `/drivers`, GET `/event-log`.
  * SideEffects: sama seperti routes/olt.js asli (split #b395 — murni pemindahan kode).
  */
+const log = require('../../lib/logger').logger.child('HEALTH');
 const express = require('express');
 const router = express.Router();
 const oltLogScraper = require('../../lib/olt-log-scraper');
@@ -41,7 +42,7 @@ router.get('/config', (req, res) => {
             data: oltConfig
         });
     } catch (error) {
-        console.error('[OLT] Error getting config:', error);
+        log.error('[OLT] Error getting config:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -95,7 +96,7 @@ router.post('/config', (req, res) => {
             res.status(500).json({ status: 500, message: 'Gagal menyimpan konfigurasi' });
         }
     } catch (error) {
-        console.error('[OLT] Error saving config:', error);
+        log.error('[OLT] Error saving config:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -129,7 +130,7 @@ router.get('/test', async (req, res) => {
             });
         }
 
-        console.log(`[OLT] Testing connection to ${oltConfig.host}:${oltConfig.port}`);
+        log.info(`[OLT] Testing connection to ${oltConfig.host}:${oltConfig.port}`);
         
         // Lewat driver merek — HIOSO dibaca via web (SNMP HIOSO dilarang, bikin OLT hang).
         const result = await resolveDriver({ host: oltConfig.host, brand: oltConfig.brand }).getOltData(oltConfig);
@@ -150,7 +151,7 @@ router.get('/test', async (req, res) => {
             });
         }
     } catch (error) {
-        console.error('[OLT] Error testing connection:', error);
+        log.error('[OLT] Error testing connection:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -176,7 +177,7 @@ router.post('/test-web', async (req, res) => {
             });
         }
 
-        console.log(`[OLT] Testing web connection to ${host}`);
+        log.info(`[OLT] Testing web connection to ${host}`);
         
         const result = await oltLogScraper.testWebConnection(host, username, password);
 
@@ -192,7 +193,7 @@ router.post('/test-web', async (req, res) => {
             });
         }
     } catch (error) {
-        console.error('[OLT] Error testing web connection:', error);
+        log.error('[OLT] Error testing web connection:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -214,7 +215,7 @@ router.get('/scraper-status', (req, res) => {
             data: status
         });
     } catch (error) {
-        console.error('[OLT] Error getting scraper status:', error);
+        log.error('[OLT] Error getting scraper status:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -236,7 +237,7 @@ router.get('/events', (req, res) => {
             data: events
         });
     } catch (error) {
-        console.error('[OLT] Error getting events:', error);
+        log.error('[OLT] Error getting events:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -264,7 +265,7 @@ router.get('/devices', (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[OLT] Error getting devices:', error);
+        log.error('[OLT] Error getting devices:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -353,7 +354,7 @@ router.post('/devices', (req, res) => {
             res.status(500).json({ status: 500, message: 'Gagal menyimpan konfigurasi' });
         }
     } catch (error) {
-        console.error('[OLT] Error adding device:', error);
+        log.error('[OLT] Error adding device:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -423,7 +424,7 @@ router.put('/devices/:id', (req, res) => {
             res.status(500).json({ status: 500, message: 'Gagal menyimpan konfigurasi' });
         }
     } catch (error) {
-        console.error('[OLT] Error updating device:', error);
+        log.error('[OLT] Error updating device:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -476,7 +477,7 @@ router.delete('/devices/:id', (req, res) => {
             res.status(500).json({ status: 500, message: 'Gagal menyimpan konfigurasi' });
         }
     } catch (error) {
-        console.error('[OLT] Error deleting device:', error);
+        log.error('[OLT] Error deleting device:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -499,7 +500,7 @@ router.post('/devices/:id/test', async (req, res) => {
             return res.status(404).json({ status: 404, message: 'OLT tidak ditemukan' });
         }
 
-        console.log(`[OLT] Testing connection to ${device.name} (${device.host}) brand=${device.brand || 'auto'}`);
+        log.info(`[OLT] Testing connection to ${device.name} (${device.host}) brand=${device.brand || 'auto'}`);
 
         const config = {
             host: device.host,
@@ -551,7 +552,7 @@ router.post('/devices/:id/test', async (req, res) => {
             });
         }
     } catch (error) {
-        console.error('[OLT] Error testing device:', error);
+        log.error('[OLT] Error testing device:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -568,7 +569,7 @@ router.get('/drivers', (req, res) => {
         }
         res.json({ status: 200, data: listDrivers() });
     } catch (error) {
-        console.error('[OLT] Error listing drivers:', error);
+        log.error('[OLT] Error listing drivers:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });
@@ -619,7 +620,7 @@ router.get('/event-log', async (req, res) => {
         });
         res.json({ status: 200, data: { items, total, stats } });
     } catch (error) {
-        console.error('[OLT] Error event-log:', error);
+        log.error('[OLT] Error event-log:', error);
         res.status(500).json({ status: 500, message: error.message });
     }
 });

@@ -10,6 +10,7 @@
  *   ke teknisi saat pengajuannya diputuskan (never-throw).
  */
 
+const log = require('../lib/logger').logger.child('KASBON');
 const express = require('express');
 const router = express.Router();
 const { logActivity } = require('../lib/activity-logger');
@@ -79,7 +80,7 @@ async function kabariTeknisiKasbon({ kasbon, approved, notes, oleh }) {
 
     const nomor = resolveTechnicianPhones(kasbon.teknisi_id, global.accounts);
     if (!nomor || nomor.length === 0) {
-        console.warn(`[KASBON_NOTIF] Teknisi #${kasbon.teknisi_id} tak punya nomor WA — keputusan kasbon tak diberitahukan.`);
+        log.warn(`[KASBON_NOTIF] Teknisi #${kasbon.teknisi_id} tak punya nomor WA — keputusan kasbon tak diberitahukan.`);
         return { terkirim: false };
     }
 
@@ -126,7 +127,7 @@ function actorName(req) {
     return req.user?.name || req.user?.username || 'system';
 }
 
-ensureFinanceTables().catch(console.error);
+ensureFinanceTables().catch((e) => log.error(e));
 
 router.get('/', ensureAuthenticatedStaff, async (req, res) => {
     try {
@@ -134,7 +135,7 @@ router.get('/', ensureAuthenticatedStaff, async (req, res) => {
         const rows = await getKasbonList({ teknisiId });
         res.json({ status: 200, data: rows });
     } catch (error) {
-        console.error('[KASBON_GET_ERROR]', error);
+        log.error('[KASBON_GET_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal mengambil data kasbon' });
     }
 });
@@ -161,7 +162,7 @@ router.get('/summary', ensureAuthenticatedStaff, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[KASBON_SUMMARY_ERROR]', error);
+        log.error('[KASBON_SUMMARY_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal mengambil summary kasbon' });
     }
 });
@@ -220,7 +221,7 @@ router.post('/', ensureAuthenticatedStaff, rateLimit('create-kasbon', 10, 60000)
                 description: `Mengajukan kasbon Rp ${amount.toLocaleString('id-ID')}`,
                 ipAddress: req.ip,
                 userAgent: req.headers['user-agent']
-            }).catch(console.error);
+            }).catch((e) => log.error(e));
 
             res.status(201).json({
                 status: 201,
@@ -229,7 +230,7 @@ router.post('/', ensureAuthenticatedStaff, rateLimit('create-kasbon', 10, 60000)
             });
         });
     } catch (error) {
-        console.error('[KASBON_CREATE_ERROR]', error);
+        log.error('[KASBON_CREATE_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal membuat pengajuan kasbon' });
     }
 });
@@ -271,7 +272,7 @@ router.put('/:id/approve', ensureAdmin, async (req, res) => {
         try {
             await kabariTeknisiKasbon({ kasbon, approved, notes, oleh: actorName(req) });
         } catch (notifErr) {
-            console.error('[KASBON_NOTIF_ERROR]', notifErr && notifErr.message);
+            log.error('[KASBON_NOTIF_ERROR]', notifErr && notifErr.message);
         }
 
         logActivity({
@@ -287,7 +288,7 @@ router.put('/:id/approve', ensureAdmin, async (req, res) => {
             newValue: { status: newStatus, ledger_applied: ledgerResult.applied },
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
 
         res.json({
             status: 200,
@@ -295,7 +296,7 @@ router.put('/:id/approve', ensureAdmin, async (req, res) => {
             data: await getKasbonById(id)
         });
     } catch (error) {
-        console.error('[KASBON_APPROVE_ERROR]', error);
+        log.error('[KASBON_APPROVE_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal memproses kasbon' });
     }
 });
@@ -323,7 +324,7 @@ router.put('/:id/paid', ensureAdmin, async (req, res) => {
             description: `Admin melunasi kasbon #${id}`,
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
 
         res.json({
             status: 200,
@@ -331,7 +332,7 @@ router.put('/:id/paid', ensureAdmin, async (req, res) => {
             data: await getKasbonById(id)
         });
     } catch (error) {
-        console.error('[KASBON_SETTLE_ERROR]', error);
+        log.error('[KASBON_SETTLE_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal melunasi kasbon' });
     }
 });
@@ -353,7 +354,7 @@ router.delete('/:id', ensureAuthenticatedStaff, async (req, res) => {
         await dbRun('DELETE FROM technician_kasbon WHERE id = ?', [id]);
         res.json({ status: 200, message: 'Kasbon berhasil dibatalkan' });
     } catch (error) {
-        console.error('[KASBON_DELETE_ERROR]', error);
+        log.error('[KASBON_DELETE_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal membatalkan kasbon' });
     }
 });

@@ -13,6 +13,8 @@
  * SideEffects: Membuka koneksi SQLite `database/upstream_quality.sqlite` dan menulis baris probe.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('UPSTREAM_QUALITY_REPOSITORY');
+
 
 function defaultDeps() {
     return {
@@ -30,7 +32,7 @@ function createUpstreamQualityRepository(overrides = {}) {
         try {
             const { applySqlitePragmas } = require("../lib/sqlite-pragmas");
             applySqlitePragmas(db).catch((pragmaErr) => {
-                console.warn(`[UPQ_PRAGMA_WARN] ${pragmaErr.message}`);
+                log.warn(`[UPQ_PRAGMA_WARN] ${pragmaErr.message}`);
             });
         } catch (_error) {
             // Pragma helper opsional — jangan break repo bila tidak tersedia.

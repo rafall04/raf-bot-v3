@@ -10,6 +10,7 @@
  *          `syncFinancialLedgerSources()` menyinkronkan sumber sebelum melaporkan.
  */
 
+const log = require('../lib/logger').logger.child('REKAP_KEUANGAN');
 const express = require("express");
 const router = express.Router();
 const { loadJSON } = require("../lib/database");
@@ -233,7 +234,7 @@ function buildCashflowHealth(report, expenseSummary) {
     };
 }
 
-ensureFinancialLedgerTable().catch(console.error);
+ensureFinancialLedgerTable().catch((e) => log.error(e));
 
 router.get("/", ensureAdmin, async (req, res) => {
     try {
@@ -305,7 +306,7 @@ router.get("/", ensureAdmin, async (req, res) => {
                 recurringUnbooked = { total, count, overdue, byKategori };
             }
         } catch (recErr) {
-            console.error("[REKAP_RECURRING_UNBOOKED_ERROR]", recErr && recErr.message);
+            log.error("[REKAP_RECURRING_UNBOOKED_ERROR]", recErr && recErr.message);
         }
 
         const cashflowHealth = buildCashflowHealth({ summary: cashflowSummary }, expenseSummary);
@@ -335,7 +336,7 @@ router.get("/", ensureAdmin, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error("[REKAP_KEUANGAN_ERROR]", error);
+        log.error("[REKAP_KEUANGAN_ERROR]", error);
         res.status(500).json({ status: 500, message: "Gagal mengambil rekap keuangan" });
     }
 });
@@ -350,7 +351,7 @@ router.get("/adjustments", ensureAdmin, async (req, res) => {
         });
         res.json({ status: 200, data: rows.map(mapEntry) });
     } catch (error) {
-        console.error("[REKAP_ADJUSTMENT_GET_ERROR]", error);
+        log.error("[REKAP_ADJUSTMENT_GET_ERROR]", error);
         res.status(500).json({ status: 500, message: "Gagal mengambil adjustment" });
     }
 });
@@ -388,7 +389,7 @@ router.post("/adjustments", ensureAdmin, async (req, res) => {
                 description: `Membuat manual adjustment ${payload.direction} Rp ${parseInt(payload.amount, 10).toLocaleString("id-ID")} untuk ${payload.domainTarget}`,
                 ipAddress: req.ip,
                 userAgent: req.headers["user-agent"]
-            }).catch(console.error);
+            }).catch((e) => log.error(e));
 
             return res.status(201).json({
                 status: 201,
@@ -403,7 +404,7 @@ router.post("/adjustments", ensureAdmin, async (req, res) => {
             data: { result: "duplicate_retry", request_action_id: result.requestActionId }
         });
     } catch (error) {
-        console.error("[REKAP_ADJUSTMENT_CREATE_ERROR]", error);
+        log.error("[REKAP_ADJUSTMENT_CREATE_ERROR]", error);
         res.status(400).json({ status: 400, message: error.message || "Gagal membuat adjustment" });
     }
 });
@@ -456,7 +457,7 @@ router.get("/diagnostics", ensureAdmin, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error("[REKAP_DIAGNOSTICS_ERROR]", error);
+        log.error("[REKAP_DIAGNOSTICS_ERROR]", error);
         res.status(500).json({ status: 500, message: "Gagal mengambil diagnostics keuangan" });
     }
 });

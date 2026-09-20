@@ -1,4 +1,6 @@
 "use strict";
+const log = require('../../lib/logger').logger.child('ADMIN_HANDLER');
+
 const { normalizeStatus: normalizeTicketStatus } = require("../../lib/ticket-workflow");
 
 /**
@@ -52,7 +54,7 @@ async function handlePppStats() {
             message: replyText
         };
     } catch (error) {
-        console.error("[statusppp_ERROR]", error.message);
+        log.error("[statusppp_ERROR]", error.message);
         return {
             success: false,
             message: `🚫 Gagal mengambil statistik PPPoE: ${error.message}. Silakan coba lagi nanti atau hubungi Admin.`
@@ -82,7 +84,7 @@ async function handleHotspotStats() {
             message: replyText
         };
     } catch (error) {
-        console.error("[statushotspot_ERROR]", error.message);
+        log.error("[statushotspot_ERROR]", error.message);
         return {
             success: false,
             message: `🚫 Gagal mengambil statistik Hotspot: ${error.message}. Silakan coba lagi nanti atau hubungi Admin.`
@@ -180,7 +182,7 @@ function handleListUsers({ filter = null, page = 1 }) {
             message: message
         };
     } catch (error) {
-        console.error('[LIST_USERS_ERROR]', error);
+        log.error('[LIST_USERS_ERROR]', error);
         return {
             success: false,
             message: '❌ Gagal mengambil daftar pelanggan. Silakan coba lagi.'
@@ -244,7 +246,7 @@ function handleSearchUser({ query }) {
             message: message
         };
     } catch (error) {
-        console.error('[SEARCH_USER_ERROR]', error);
+        log.error('[SEARCH_USER_ERROR]', error);
         return {
             success: false,
             message: '❌ Gagal melakukan pencarian. Silakan coba lagi.'
@@ -334,7 +336,7 @@ function handleReportList({ status = 'all' }) {
             message: message
         };
     } catch (error) {
-        console.error('[REPORT_LIST_ERROR]', error);
+        log.error('[REPORT_LIST_ERROR]', error);
         return {
             success: false,
             message: '❌ Gagal mengambil daftar laporan. Silakan coba lagi.'

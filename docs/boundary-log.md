@@ -3303,3 +3303,13 @@
 - **Layering:** semua submodule → `core` (asiklik). State (configCache, circuitState, keyLocks, agents) tinggal di core = singleton identik.
 - **Status path lama:** tak ada — `lib/mikrotik.js` jadi facade murni (33 export identik + `_resetMikrotikKeyLocksForTests` kini ikut diekspos). Path repo di core kini lewat konstanta `REPO_ROOT` (__dirname/../..) karena file turun satu level.
 - **Gate:** n/a. **Tes:** 8 suite mikrotik+consumer hijau (76 tes — mikrotik.test.js, cctv-netwatch-sync, voucher-manager-purchase, isolir-service, customer-path-resolver, create-user-mikrotik-sync, voucher orphans & generate-send); suite penuh menyusul.
+
+<a id="b400"></a>
+
+### Refactor 2026-09-19 (migrasi console.* → logger terstruktur + fix rekursi jembatan)
+
+- **Migrasi massal:** `tools/migrate-console-to-logger.js` (codemod Babel, splice-by-posisi) mengubah ~2.120 callsite `console.(log|info|warn|error|debug)(...)` → `log.<level>(...)` di ~308 file (lib/services/routes/message/repositories + lib/mikrotik/*). Tiap file dapat `const log = require('<rel>lib/logger').logger.child('<BASENAME>')` disisipkan setelah directive (anti-TDZ); binding `log` diverifikasi vs semua binding file + scope per-callsite (anti-shadow param). `tools/` `scripts/` `static/` sengaja dikecualikan (console.* memang output CLI/browser).
+- **Fix bug jembatan (PR #3):** `logger.*` yang dipanggil LANGSUNG kena wrapper bridge → double-prefix console + dobel tulis file. `lib/logger.js`: flag `emittingToConsole` + `emitConsole()` untuk semua tulis internal; `lib/console-to-logger.js` passthrough saat flag aktif. Method Logger kini variadic `(...args)` → `util.format` (semantik console 1:1: %s/%j, util.inspect, stack Error).
+- **`logToFile` off saat `NODE_ENV=test`** (Jest auto-set) — tulis log real saat test menggeser spy `fs.writeFileSync` (Node internal appendFileSync → writeFileSync) di `voucher-generate-send`.
+- **Tak dimigrasi (dipin test):** 5 callsite tetap `console.*` — `[TEMPLATE_SLOT_BASI]` (template-service + response-template-helper), `[DOMAIN_EVENTS_ERROR]`, CELAH-DATA olt-log-scraper, DIBUANG-whitelist api-users.repository (guard test memverifikasi bentuk `console.*` literal / argumen spy mentah). Jembatan tetap merutekan mereka ke logger saat runtime. `.catch(console.error)` → `.catch(e => log.error(e))` (9 file routes); `console[level]` di jid-utils → `log[method].bind(log)`.
+- **Status path lama:** n/a — tidak ada API berubah; `isEmittingToConsole` diekspor baru. **Gate:** n/a. **Tes:** 3 mock `lib/logger` di test (topup-expiry, saldo-canonical, bot-hardening) dilengkapi `.child`; suite penuh 627/627 (6302 tes) hijau.

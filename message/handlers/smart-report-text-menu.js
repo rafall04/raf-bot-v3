@@ -7,6 +7,7 @@
  * SideEffects: Membaca state/customer/report global legacy, menulis state percakapan, membuat tiket, dan mengirim notifikasi WhatsApp teknisi.
  */
 
+const log = require('../../lib/logger').logger.child('SMART_REPORT_TEXT_MENU');
 const { isDeviceOnline, getDeviceOfflineMessage: _getDeviceOfflineMessage } = require('../../lib/device-status');
 const { setUserState, getUserState, deleteUserState, format, registerStateTimeoutHandler } = require('./conversation-handler');
 // Draft DURABEL: state percakapan + timer timeout sama-sama hidup di memori dan lenyap saat
@@ -135,7 +136,7 @@ async function startReportFlow({ sender, pushname: _pushname, reply: _reply, msg
         };
 
     } catch (error) {
-        console.error('[REPORT_START_ERROR]', error);
+        log.error('[REPORT_START_ERROR]', error);
         return {
             success: false,
             message: renderResponseTemplate(
@@ -288,7 +289,7 @@ async function handleInternetMati({ sender, pushname: _pushname, reply: _reply, 
         };
 
     } catch (error) {
-        console.error('[HANDLE_MATI_ERROR]', error);
+        log.error('[HANDLE_MATI_ERROR]', error);
         deleteUserState(getReportStateId(sender, stateKey));
         return {
             success: false,
@@ -363,7 +364,7 @@ async function handleInternetLemot({ sender, pushname: _pushname, reply: _reply,
                 buktiJangkau = { reachable: null, reason: 'probe gagal dimuat' };
             }
             alihkanKeMati = buktiJangkau && buktiJangkau.reachable === false;
-            console.log(
+            log.info(
                 `[LEMOT_BUKTI] inform ${deviceStatus.minutesAgo} mnt lalu | probe: ${buktiJangkau ? buktiJangkau.reason : '-'}` +
                 ` (${buktiJangkau && buktiJangkau.httpStatus ? 'HTTP ' + buktiJangkau.httpStatus : 'tanpa status'})` +
                 ` -> ${alihkanKeMati ? 'ALIHKAN ke MATI' : 'TETAP di alur LEMOT'}`
@@ -372,7 +373,7 @@ async function handleInternetLemot({ sender, pushname: _pushname, reply: _reply,
 
         // IMPORTANT: Check if device is OFFLINE and auto-redirect to MATI flow
         if (alihkanKeMati) {
-            console.log('[AUTO-REDIRECT] User selected LEMOT but device is OFFLINE - redirecting to MATI flow');
+            log.info('[AUTO-REDIRECT] User selected LEMOT but device is OFFLINE - redirecting to MATI flow');
 
             // Get offline duration
             let lastOnlineText = 'Tidak diketahui';
@@ -474,9 +475,9 @@ async function handleInternetLemot({ sender, pushname: _pushname, reply: _reply,
             const cc = require('./connection-check-handler');
             const stab = await cc.resolveStabilitas(user);
             catatanJaringan = cc.buildStabilitasNote(stab.tingkat) || '';
-            console.log(`[LEMOT_JARINGAN] tingkat=${stab.tingkat} -> ${catatanJaringan ? 'kabari pelanggan' : 'tak ada yang perlu dikabarkan'}`);
+            log.info(`[LEMOT_JARINGAN] tingkat=${stab.tingkat} -> ${catatanJaringan ? 'kabari pelanggan' : 'tak ada yang perlu dikabarkan'}`);
         } catch (e) {
-            console.warn('[LEMOT_JARINGAN_WARN]', e && e.message);
+            log.warn('[LEMOT_JARINGAN_WARN]', e && e.message);
         }
 
         // Initialize or get state
@@ -522,7 +523,7 @@ async function handleInternetLemot({ sender, pushname: _pushname, reply: _reply,
         };
 
     } catch (error) {
-        console.error('[HANDLE_LEMOT_ERROR]', error);
+        log.error('[HANDLE_LEMOT_ERROR]', error);
         deleteUserState(getReportStateId(sender, stateKey));
         return {
             success: false,
@@ -697,7 +698,7 @@ async function handleMatiPhotoUpload({ sender, response, photoPath, photoBuffer,
 
     // Handle text response (SKIP)
     if (response && response.toLowerCase().trim() === 'skip') {
-        console.log('[PHOTO_UPLOAD] User skipped photo upload');
+        log.info('[PHOTO_UPLOAD] User skipped photo upload');
         const nextState = buildReportState(state, {
             step: 'REPORT_TICKET_CREATED',
             diagnostic: {
@@ -722,7 +723,7 @@ async function handleMatiPhotoUpload({ sender, response, photoPath, photoBuffer,
 
     // Handle photo upload
     if (photoPath) {
-        console.log('[PHOTO_UPLOAD] Photo received:', photoPath);
+        log.info('[PHOTO_UPLOAD] Photo received:', photoPath);
 
         const uploadedPhotos = [
             ...getReportAttachments(state),
@@ -872,7 +873,7 @@ async function createReportTicket({ sender, state, reply: _reply }) {
         };
 
     } catch (error) {
-        console.error('[CREATE_REPORT_ERROR]', error);
+        log.error('[CREATE_REPORT_ERROR]', error);
         deleteUserState(sender);
         buangDraftLaporanIni(sender);
         return {
@@ -927,7 +928,7 @@ function simpanDraftLaporanIni(sender, state) {
             deviceStatus: state && state.deviceStatus ? state.deviceStatus : null
         });
     } catch (e) {
-        console.warn('[REPORT_DRAFT] gagal menulis draft durabel:', e && e.message);
+        log.warn('[REPORT_DRAFT] gagal menulis draft durabel:', e && e.message);
     }
 }
 
@@ -936,14 +937,14 @@ function buangDraftLaporanIni(sender) {
     try {
         hapusDraft(sender);
     } catch (e) {
-        console.warn('[REPORT_DRAFT] gagal menghapus draft:', e && e.message);
+        log.warn('[REPORT_DRAFT] gagal menghapus draft:', e && e.message);
     }
 }
 
 async function promoteReportDraftOnTimeout(userId, state) {
     try {
         if (!state || !getReportCustomer(state)) {
-            console.warn('[REPORT_TIMEOUT_PROMOTE] state/pelanggan kosong, dilewati', { userId });
+            log.warn('[REPORT_TIMEOUT_PROMOTE] state/pelanggan kosong, dilewati', { userId });
             // Draft yang tak bisa dipromosikan WAJIB dibuang — kalau tidak, pemindai boot
             // mencobanya lagi setiap kali proses start, selamanya.
             buangDraftLaporanIni(userId);
@@ -951,7 +952,7 @@ async function promoteReportDraftOnTimeout(userId, state) {
         }
         const hasil = await createReportTicket({ sender: userId, state, reply: async () => {} });
         const ticketId = hasil && (hasil.ticketId || (hasil.data && hasil.data.ticketId));
-        console.log('[REPORT_TIMEOUT_PROMOTE] draft laporan dipromosikan jadi tiket', { userId, ticketId: ticketId || null });
+        log.info('[REPORT_TIMEOUT_PROMOTE] draft laporan dipromosikan jadi tiket', { userId, ticketId: ticketId || null });
 
         // Pelanggan WAJIB diberi tahu — kalau tidak, dari sisinya laporannya tetap "hilang".
         if (ticketId) {
@@ -966,11 +967,11 @@ async function promoteReportDraftOnTimeout(userId, state) {
                     )
                 }, { skipDuplicateCheck: true });
             } catch (kirimErr) {
-                console.error('[REPORT_TIMEOUT_PROMOTE] gagal beri tahu pelanggan:', kirimErr && kirimErr.message);
+                log.error('[REPORT_TIMEOUT_PROMOTE] gagal beri tahu pelanggan:', kirimErr && kirimErr.message);
             }
         }
     } catch (error) {
-        console.error('[REPORT_TIMEOUT_PROMOTE] gagal promote draft jadi tiket', { userId, error: error && error.message });
+        log.error('[REPORT_TIMEOUT_PROMOTE] gagal promote draft jadi tiket', { userId, error: error && error.message });
     }
 }
 

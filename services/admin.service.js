@@ -7,6 +7,8 @@
  * SideEffects: Menulis SQLite/JSON via repository, sinkronisasi MikroTik, activity log, dan notifikasi WhatsApp. Notif request paket dikirim ke admin accounts.json (getAdminJids) ∪ config.ownerNumber; aksi cancel TIDAK menyentuh pelanggan.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('ADMIN_SERVICE');
+
 
 const { createAdminRepository } = require("../repositories/admin.repository");
 const { createError, ErrorTypes } = require("../lib/error-handler");
@@ -97,7 +99,7 @@ async function deliverCritical(deps, recipient, message, label) {
     try {
         return await send(recipient, message, { label, waitForReadyMs: 8000 });
     } catch (err) {
-        console.error(`[PKG_CHANGE_NOTIF_ERROR] ${label}:`, err.message);
+        log.error(`[PKG_CHANGE_NOTIF_ERROR] ${label}:`, err.message);
         return { delivered: false, error: err.message };
     }
 }
@@ -443,7 +445,7 @@ function createAdminService(overrides = {}) {
                                 }
                             }));
                         } catch (error) {
-                            console.error("[ACTIVITY_LOG_ERROR] Failed to log package change:", error);
+                            log.error("[ACTIVITY_LOG_ERROR] Failed to log package change:", error);
                         }
                     } else if (input.action === "reject") {
                         request.status = "rejected";
