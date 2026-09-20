@@ -12,6 +12,7 @@
  *   logika diff/sync masih inline di controller (audit struktur #b378-map) — kandidat pindah ke
  *   repository/service; SQL mentah global.db.* di sini belum ditipiskan.
  */
+const log = require('../lib/logger').logger.child('USERS');
 const express = require('express');
 const crypto = require('crypto');
 const { hashPassword } = require('../lib/password');
@@ -127,7 +128,7 @@ router.post('/:id/credentials', ensureAdmin, async (req, res) => {
         await new Promise((resolve, reject) => {
             global.db.run(sql, params, function (err) {
                 if (err) {
-                    console.error("[DB_UPDATE_CREDS_ERROR]", err.message);
+                    log.error("[DB_UPDATE_CREDS_ERROR]", err.message);
                     return reject(new Error("Gagal memperbarui kredensial pengguna di database."));
                 }
                 resolve();
@@ -157,15 +158,15 @@ router.post('/:id/credentials', ensureAdmin, async (req, res) => {
                 const recipients = userToUpdate.phone_number.split('|').map(p => p.trim()).filter(Boolean);
                 const delivery = await sendMessageToMany(recipients, { text: messageText });
                 if (delivery.sent) {
-                    console.log(`[CREDENTIAL_NOTIF_SUCCESS] Credentials sent to ${delivery.successCount} recipient(s)`);
+                    log.info(`[CREDENTIAL_NOTIF_SUCCESS] Credentials sent to ${delivery.successCount} recipient(s)`);
                 } else {
-                    console.warn('[CREDENTIAL_NOTIF_SKIP] Credentials notification not sent', {
+                    log.warn('[CREDENTIAL_NOTIF_SKIP] Credentials notification not sent', {
                         errorCode: delivery.errorCode
                     });
                 }
             } else {
                 if (getConnectionState() !== 'open') {
-                    console.warn('[CREDENTIAL_NOTIF_SKIP] WhatsApp not connected, skipping send to', userToUpdate.phone_number);
+                    log.warn('[CREDENTIAL_NOTIF_SKIP] WhatsApp not connected, skipping send to', userToUpdate.phone_number);
                 }
             }
         }
@@ -180,7 +181,7 @@ router.post('/:id/credentials', ensureAdmin, async (req, res) => {
         });
 
     } catch (error) {
-        console.error(`[USER_CREDENTIALS_ERROR] Failed to process credentials for user ${id}:`, error);
+        log.error(`[USER_CREDENTIALS_ERROR] Failed to process credentials for user ${id}:`, error);
         return res.status(500).json({ status: 500, message: `Operasi gagal: ${error.message}` });
     }
 });
@@ -234,7 +235,7 @@ router.post('/bulk-import', ensureAdmin, async (req, res) => {
                 
                 if (!userData.phone_number || !userData.phone_number.trim()) {
                     // Phone number is optional, just log warning
-                    console.log(`[BULK_IMPORT] User ${userData.pppoe_username} has no phone number`);
+                    log.info(`[BULK_IMPORT] User ${userData.pppoe_username} has no phone number`);
                 }
                 
                 if (!userData.pppoe_username) {
@@ -365,20 +366,20 @@ router.post('/bulk-import', ensureAdmin, async (req, res) => {
                                 const recipients = newUser.phone_number.split('|').map((phone) => phone.trim()).filter(Boolean);
                                 const delivery = await sendMessageToMany(recipients, { text: message });
                                 if (delivery.sent) {
-                                    console.log(`[BULK_IMPORT] Import Welcome sent to ${delivery.successCount} recipient(s) for ${newUser.pppoe_username}`);
+                                    log.info(`[BULK_IMPORT] Import Welcome sent to ${delivery.successCount} recipient(s) for ${newUser.pppoe_username}`);
                                 } else {
-                                    console.warn(`[BULK_IMPORT] Import Welcome not sent for ${newUser.pppoe_username}`, {
+                                    log.warn(`[BULK_IMPORT] Import Welcome not sent for ${newUser.pppoe_username}`, {
                                         errorCode: delivery.errorCode
                                     });
                                 }
                             } else {
-                                console.warn(`[BULK_IMPORT] Template import_welcome rendered empty for ${newUser.pppoe_username}`);
+                                log.warn(`[BULK_IMPORT] Template import_welcome rendered empty for ${newUser.pppoe_username}`);
                             }
                         } else {
-                            console.warn(`[BULK_IMPORT] Template import_welcome not found in templatesCache`);
+                            log.warn(`[BULK_IMPORT] Template import_welcome not found in templatesCache`);
                         }
                     } catch (msgErr) {
-                        console.error(`[BULK_IMPORT] Failed to send Import Welcome for ${newUser.pppoe_username}:`, msgErr.message);
+                        log.error(`[BULK_IMPORT] Failed to send Import Welcome for ${newUser.pppoe_username}:`, msgErr.message);
                         // Don't fail the import if message fails
                     }
                 }
@@ -391,7 +392,7 @@ router.post('/bulk-import', ensureAdmin, async (req, res) => {
                 });
                 
             } catch (userError) {
-                console.error(`[BULK_IMPORT_ERROR] Failed to import ${userData.pppoe_username}:`, userError);
+                log.error(`[BULK_IMPORT_ERROR] Failed to import ${userData.pppoe_username}:`, userError);
                 results.failed.push({
                     pppoe_username: userData.pppoe_username || 'unknown',
                     reason: userError.message
@@ -420,10 +421,10 @@ router.post('/bulk-import', ensureAdmin, async (req, res) => {
                 userAgent: req.headers['user-agent']
             });
         } catch (logErr) {
-            console.error('[BULK_IMPORT] Activity log error:', logErr);
+            log.error('[BULK_IMPORT] Activity log error:', logErr);
         }
         
-        console.log(`[BULK_IMPORT] User ${req.user.username} imported ${results.success.length} users (${results.failed.length} failed)`);
+        log.info(`[BULK_IMPORT] User ${req.user.username} imported ${results.success.length} users (${results.failed.length} failed)`);
         
         // Tambahkan info status WhatsApp untuk debugging
         const whatsappStatus = {
@@ -440,7 +441,7 @@ router.post('/bulk-import', ensureAdmin, async (req, res) => {
         });
         
     } catch (error) {
-        console.error('[BULK_IMPORT_ERROR]', error);
+        log.error('[BULK_IMPORT_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal melakukan bulk import',
@@ -473,7 +474,7 @@ router.get('/isolated', ensureAdmin, async (req, res) => {
         });
         
     } catch (error) {
-        console.error('[GET_ISOLATED_USERS_ERROR]', error);
+        log.error('[GET_ISOLATED_USERS_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal mengambil data pelanggan terisolir',
@@ -516,7 +517,7 @@ router.post('/buka-isolir', ensureAdmin, async (req, res) => {
                 userAgent: req.headers['user-agent']
             });
         } catch (logErr) {
-            console.error('[BUKA_ISOLIR] Activity log error:', logErr);
+            log.error('[BUKA_ISOLIR] Activity log error:', logErr);
         }
         
         return res.json({
@@ -526,7 +527,7 @@ router.post('/buka-isolir', ensureAdmin, async (req, res) => {
         });
         
     } catch (error) {
-        console.error('[BUKA_ISOLIR_ERROR]', error);
+        log.error('[BUKA_ISOLIR_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal melakukan buka isolir',
@@ -538,7 +539,7 @@ router.post('/buka-isolir', ensureAdmin, async (req, res) => {
 // GET /api/users/profile-diff - Scan profile differences between system and MikroTik
 router.get('/profile-diff', ensureAdmin, async (req, res) => {
     try {
-        console.log('[PROFILE_DIFF] Starting scan...');
+        log.info('[PROFILE_DIFF] Starting scan...');
         
         // Get all PPPoE secrets from MikroTik
         let mikrotikSecrets = [];
@@ -546,9 +547,9 @@ router.get('/profile-diff', ensureAdmin, async (req, res) => {
             const secretsResult = await getAllPPPoESecrets({ caller: 'users.sync-secrets' });
             assertMikrotikResult(secretsResult);
             mikrotikSecrets = secretsResult.data?.secrets || [];
-            console.log(`[PROFILE_DIFF] Fetched ${mikrotikSecrets.length} PPPoE secrets from MikroTik`);
+            log.info(`[PROFILE_DIFF] Fetched ${mikrotikSecrets.length} PPPoE secrets from MikroTik`);
         } catch (err) {
-            console.error('[PROFILE_DIFF] Failed to fetch PPPoE secrets:', err.message);
+            log.error('[PROFILE_DIFF] Failed to fetch PPPoE secrets:', err.message);
             return res.status(500).json({
                 status: 500,
                 message: 'Gagal mengambil data dari MikroTik: ' + err.message
@@ -608,7 +609,7 @@ router.get('/profile-diff', ensureAdmin, async (req, res) => {
             }
         }
         
-        console.log(`[PROFILE_DIFF] Scan complete: ${different.length} different, ${sameCount} same, ${notFound.length} not found`);
+        log.info(`[PROFILE_DIFF] Scan complete: ${different.length} different, ${sameCount} same, ${notFound.length} not found`);
         
         return res.json({
             status: 200,
@@ -620,7 +621,7 @@ router.get('/profile-diff', ensureAdmin, async (req, res) => {
         });
         
     } catch (error) {
-        console.error('[PROFILE_DIFF_ERROR]', error);
+        log.error('[PROFILE_DIFF_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal scan perbedaan profil',
@@ -692,7 +693,7 @@ router.post('/sync-profiles', ensureAdmin, async (req, res) => {
             
             try {
                 // Update PPPoE profile in MikroTik
-                console.log(`[SYNC_PROFILE] Updating ${user.pppoe_username} to profile: ${targetProfile}`);
+                log.info(`[SYNC_PROFILE] Updating ${user.pppoe_username} to profile: ${targetProfile}`);
                 assertMikrotikResult(
                     await updatePPPoEProfile(user.pppoe_username, targetProfile, { caller: 'users.bulk-buka-isolir' })
                 );
@@ -705,7 +706,7 @@ router.post('/sync-profiles', ensureAdmin, async (req, res) => {
                     }
                 } catch (disconnectErr) {
                     // Session might not be active, continue anyway
-                    console.log(`[SYNC_PROFILE] Session disconnect note for ${user.pppoe_username}: ${disconnectErr.message}`);
+                    log.info(`[SYNC_PROFILE] Session disconnect note for ${user.pppoe_username}: ${disconnectErr.message}`);
                 }
                 
                 results.success.push({
@@ -716,10 +717,10 @@ router.post('/sync-profiles', ensureAdmin, async (req, res) => {
                     newProfile: targetProfile
                 });
                 
-                console.log(`[SYNC_PROFILE_SUCCESS] ${user.name} (${user.pppoe_username}): ${userData.mikrotikProfile} -> ${targetProfile}`);
+                log.info(`[SYNC_PROFILE_SUCCESS] ${user.name} (${user.pppoe_username}): ${userData.mikrotikProfile} -> ${targetProfile}`);
                 
             } catch (error) {
-                console.error(`[SYNC_PROFILE_ERROR] Failed for ${user.name}:`, error);
+                log.error(`[SYNC_PROFILE_ERROR] Failed for ${user.name}:`, error);
                 results.failed.push({
                     id: userData.id,
                     name: userData.name,
@@ -749,7 +750,7 @@ router.post('/sync-profiles', ensureAdmin, async (req, res) => {
                 userAgent: req.headers['user-agent']
             });
         } catch (logErr) {
-            console.error('[SYNC_PROFILE] Activity log error:', logErr);
+            log.error('[SYNC_PROFILE] Activity log error:', logErr);
         }
         
         const message = results.success.length > 0
@@ -768,7 +769,7 @@ router.post('/sync-profiles', ensureAdmin, async (req, res) => {
         });
         
     } catch (error) {
-        console.error('[SYNC_PROFILE_ERROR]', error);
+        log.error('[SYNC_PROFILE_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal melakukan sinkronisasi profil',
@@ -780,7 +781,7 @@ router.post('/sync-profiles', ensureAdmin, async (req, res) => {
 // GET /api/users/device-id-diff - Scan device ID differences between system and GenieACS
 router.get('/device-id-diff', ensureAdmin, async (req, res) => {
     try {
-        console.log('[DEVICE_ID_DIFF] Starting scan...');
+        log.info('[DEVICE_ID_DIFF] Starting scan...');
         
         const projectionFields = [
             'Device.DeviceInfo',
@@ -803,14 +804,14 @@ router.get('/device-id-diff', ensureAdmin, async (req, res) => {
             }
             genieacsDevices = response.data || [];
         } catch (err) {
-            console.error('[DEVICE_ID_DIFF] Failed to fetch GenieACS devices:', err.message);
+            log.error('[DEVICE_ID_DIFF] Failed to fetch GenieACS devices:', err.message);
             return res.status(500).json({
                 status: 500,
                 message: 'Gagal mengambil data dari GenieACS: ' + err.message
             });
         }
         
-        console.log(`[DEVICE_ID_DIFF] Fetched ${genieacsDevices.length} devices from GenieACS`);
+        log.info(`[DEVICE_ID_DIFF] Fetched ${genieacsDevices.length} devices from GenieACS`);
         
         // Create map of pppUsername -> device info
         const pppToDeviceMap = new Map();
@@ -832,7 +833,7 @@ router.get('/device-id-diff', ensureAdmin, async (req, res) => {
             }
         }
         
-        console.log(`[DEVICE_ID_DIFF] Found ${pppToDeviceMap.size} devices with PPP username`);
+        log.info(`[DEVICE_ID_DIFF] Found ${pppToDeviceMap.size} devices with PPP username`);
         
         // Find differences
         const different = [];
@@ -866,7 +867,7 @@ router.get('/device-id-diff', ensureAdmin, async (req, res) => {
             }
         }
         
-        console.log(`[DEVICE_ID_DIFF] Results: ${different.length} different, ${sameCount} same, ${notFoundCount} not found`);
+        log.info(`[DEVICE_ID_DIFF] Results: ${different.length} different, ${sameCount} same, ${notFoundCount} not found`);
         
         return res.json({
             status: 200,
@@ -881,7 +882,7 @@ router.get('/device-id-diff', ensureAdmin, async (req, res) => {
         });
         
     } catch (error) {
-        console.error('[DEVICE_ID_DIFF_ERROR]', error);
+        log.error('[DEVICE_ID_DIFF_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal melakukan scan Device ID',
@@ -953,10 +954,10 @@ router.post('/sync-device-ids', ensureAdmin, async (req, res) => {
                         });
                         user.bulk = cap.expectedBulk;
                         bulkAdjusted = { from: oldBulk, to: cap.expectedBulk };
-                        console.log(`[SYNC_DEVICE_ID] Bulk #${user.id} disesuaikan: [${oldBulk.join(',')}] -> [${cap.expectedBulk.join(',')}] (model ${cap.model || '-'})`);
+                        log.info(`[SYNC_DEVICE_ID] Bulk #${user.id} disesuaikan: [${oldBulk.join(',')}] -> [${cap.expectedBulk.join(',')}] (model ${cap.model || '-'})`);
                     }
                 } catch (capErr) {
-                    console.warn(`[SYNC_DEVICE_ID] Lewati penyesuaian bulk untuk #${user.id}: ${capErr.message}`);
+                    log.warn(`[SYNC_DEVICE_ID] Lewati penyesuaian bulk untuk #${user.id}: ${capErr.message}`);
                 }
                 
                 results.success.push({
@@ -967,10 +968,10 @@ router.post('/sync-device-ids', ensureAdmin, async (req, res) => {
                     bulkAdjusted: bulkAdjusted
                 });
                 
-                console.log(`[SYNC_DEVICE_ID] Updated ${user.name}: ${oldDeviceId} -> ${newDeviceId}`);
+                log.info(`[SYNC_DEVICE_ID] Updated ${user.name}: ${oldDeviceId} -> ${newDeviceId}`);
                 
             } catch (err) {
-                console.error(`[SYNC_DEVICE_ID] Failed for user ${userId}:`, err.message);
+                log.error(`[SYNC_DEVICE_ID] Failed for user ${userId}:`, err.message);
                 results.failed.push({
                     userId: userId,
                     name: user.name,
@@ -1000,7 +1001,7 @@ router.post('/sync-device-ids', ensureAdmin, async (req, res) => {
                 userAgent: req.headers['user-agent']
             });
         } catch (logErr) {
-            console.error('[SYNC_DEVICE_ID] Activity log error:', logErr);
+            log.error('[SYNC_DEVICE_ID] Activity log error:', logErr);
         }
         
         const message = results.success.length > 0
@@ -1014,7 +1015,7 @@ router.post('/sync-device-ids', ensureAdmin, async (req, res) => {
         });
         
     } catch (error) {
-        console.error('[SYNC_DEVICE_ID_ERROR]', error);
+        log.error('[SYNC_DEVICE_ID_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal melakukan sinkronisasi Device ID',
@@ -1034,7 +1035,7 @@ router.get('/bulk-diff', ensureAdmin, async (req, res) => {
             stats: result.stats,
         });
     } catch (error) {
-        console.error('[BULK_DIFF_ERROR]', error);
+        log.error('[BULK_DIFF_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal scan bulk SSID: ' + error.message,
@@ -1095,9 +1096,9 @@ router.post('/sync-bulk', ensureAdmin, async (req, res) => {
                 user.updated_at = new Date().toISOString();
 
                 results.success.push({ id: user.id, name: user.name, oldBulk, newBulk: targetBulk });
-                console.log(`[SYNC_BULK] ${user.name} (#${user.id}): [${oldBulk.join(',')}] -> [${targetBulk.join(',')}]`);
+                log.info(`[SYNC_BULK] ${user.name} (#${user.id}): [${oldBulk.join(',')}] -> [${targetBulk.join(',')}]`);
             } catch (err) {
-                console.error(`[SYNC_BULK] Gagal untuk #${userId}:`, err.message);
+                log.error(`[SYNC_BULK] Gagal untuk #${userId}:`, err.message);
                 results.failed.push({ userId, name: user.name, reason: err.message });
             }
         }
@@ -1122,7 +1123,7 @@ router.post('/sync-bulk', ensureAdmin, async (req, res) => {
                 userAgent: req.headers['user-agent'],
             });
         } catch (logErr) {
-            console.error('[SYNC_BULK] Activity log error:', logErr);
+            log.error('[SYNC_BULK] Activity log error:', logErr);
         }
 
         const message = results.success.length > 0
@@ -1135,7 +1136,7 @@ router.post('/sync-bulk', ensureAdmin, async (req, res) => {
             results,
         });
     } catch (error) {
-        console.error('[SYNC_BULK_ERROR]', error);
+        log.error('[SYNC_BULK_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Gagal sinkronisasi bulk SSID',

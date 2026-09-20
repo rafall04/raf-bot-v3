@@ -21,6 +21,8 @@
  *              dan meng-upsert jejak aktivitas chat.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('MESSAGE_LOG_REPOSITORY');
+
 
 function defaultDeps() {
     return {
@@ -42,7 +44,7 @@ function createMessageLogRepository(overrides = {}) {
         try {
             const { applySqlitePragmas } = require("../lib/sqlite-pragmas");
             applySqlitePragmas(db).catch((pragmaErr) => {
-                console.warn(`[MSG_LOG_PRAGMA_WARN] ${pragmaErr.message}`);
+                log.warn(`[MSG_LOG_PRAGMA_WARN] ${pragmaErr.message}`);
             });
         } catch (_error) {
             // Pragma helper opsional — jangan break repo bila tidak tersedia.
@@ -163,7 +165,7 @@ function createMessageLogRepository(overrides = {}) {
             ]);
             return true;
         } catch (err) {
-            console.warn(`[MSG_LOG] gagal menyimpan pesan masuk: ${err.message}`);
+            log.warn(`[MSG_LOG] gagal menyimpan pesan masuk: ${err.message}`);
             return false;
         }
     }
@@ -222,7 +224,7 @@ function createMessageLogRepository(overrides = {}) {
             );
             return true;
         } catch (err) {
-            console.warn(`[CHAT_ACTIVITY] gagal menyimpan jejak admin: ${err.message}`);
+            log.warn(`[CHAT_ACTIVITY] gagal menyimpan jejak admin: ${err.message}`);
             return false;
         }
     }
@@ -239,7 +241,7 @@ function createMessageLogRepository(overrides = {}) {
             );
             return true;
         } catch (err) {
-            console.warn(`[CHAT_ACTIVITY] gagal menyimpan jejak komplain: ${err.message}`);
+            log.warn(`[CHAT_ACTIVITY] gagal menyimpan jejak komplain: ${err.message}`);
             return false;
         }
     }
@@ -267,10 +269,10 @@ function createMessageLogRepository(overrides = {}) {
             const days = Number.isFinite(retentionDays) && retentionDays > 0 ? retentionDays : 180;
             const cutoffIso = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
             const res = await run("DELETE FROM inbound_messages WHERE received_at < ?", [cutoffIso]);
-            if (res.changes > 0) console.log(`[MESSAGE_LOG] Prune ${res.changes} pesan masuk > ${days} hari.`);
+            if (res.changes > 0) log.info(`[MESSAGE_LOG] Prune ${res.changes} pesan masuk > ${days} hari.`);
             return res.changes;
         } catch (err) {
-            console.warn(`[MESSAGE_LOG] prune gagal: ${err.message}`);
+            log.warn(`[MESSAGE_LOG] prune gagal: ${err.message}`);
             return 0;
         }
     }

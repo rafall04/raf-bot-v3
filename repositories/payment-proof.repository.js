@@ -10,6 +10,8 @@
  * SideEffects: Menulis JSON store + menyimpan file bukti di temp/payment_proofs/ (softDelete juga MENGHAPUS file bukti).
  */
 "use strict";
+const log = require('../lib/logger').logger.child('PAYMENT_PROOF_REPOSITORY');
+
 
 const fs = require("fs");
 const path = require("path");
@@ -37,7 +39,7 @@ function createPaymentProofRepository(options = {}) {
             const parsed = JSON.parse(raw || "[]");
             return Array.isArray(parsed) ? parsed : [];
         } catch (err) {
-            console.error("[PAYMENT_PROOF_STORE] Gagal membaca store:", err.message);
+            log.error("[PAYMENT_PROOF_STORE] Gagal membaca store:", err.message);
             return [];
         }
     }
@@ -110,7 +112,7 @@ function createPaymentProofRepository(options = {}) {
                 } catch (err) {
                     // File hilang duluan = tak apa; error lain cukup di-log (best-effort, jangan gagalkan hapus).
                     if (err && err.code !== "ENOENT") {
-                        console.warn("[PAYMENT_PROOF_STORE] Gagal menghapus file bukti:", err.message);
+                        log.warn("[PAYMENT_PROOF_STORE] Gagal menghapus file bukti:", err.message);
                     }
                 }
             }

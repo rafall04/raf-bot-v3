@@ -17,6 +17,7 @@
  *
  * @returns {{periodMonth: number, periodYear: number}|{error: string}}
  */
+const log = require('../lib/logger').logger.child('PARTIAL_PAYMENT');
 function resolvePeriodeDiminta(body = {}) {
     const sekarang = new Date();
     const bulanKini = sekarang.getMonth() + 1;
@@ -106,7 +107,7 @@ router.get('/history/:userId', ensureAuthenticatedStaff, async (req, res) => {
             summary: timeline.summary
         });
     } catch (error) {
-        console.error('[PAYMENT_HISTORY_ERROR]', error);
+        log.error('[PAYMENT_HISTORY_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Terjadi kesalahan server' });
     }
 });
@@ -149,7 +150,7 @@ router.get('/outstanding/:userId', ensureAuthenticatedStaff, async (req, res) =>
             }
         });
     } catch (error) {
-        console.error('[OUTSTANDING_ERROR]', error);
+        log.error('[OUTSTANDING_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Terjadi kesalahan server' });
     }
 });
@@ -301,7 +302,7 @@ router.post('/request', ensureAuthenticatedStaff, rateLimit('partial-payment', 3
                 description: `${roleText} ${isAdmin ? 'memproses' : 'mengajukan'} pembayaran ${isPartial ? 'sebagian' : 'penuh'} Rp ${amountPaid.toLocaleString('id-ID')} untuk ${user.name}`,
                 ipAddress: req.ip,
                 userAgent: req.headers['user-agent']
-            }).catch(console.error);
+            }).catch((e) => log.error(e));
 
             if (isAdmin) {
                 try {
@@ -334,7 +335,7 @@ router.post('/request', ensureAuthenticatedStaff, rateLimit('partial-payment', 3
                             });
                         }
                     });
-                    console.log(`[ADMIN_PARTIAL_PAYMENT] Payment recorded for ${user.name}: Rp ${amountPaid.toLocaleString('id-ID')}`);
+                    log.info(`[ADMIN_PARTIAL_PAYMENT] Payment recorded for ${user.name}: Rp ${amountPaid.toLocaleString('id-ID')}`);
 
                     // Struk CICILAN ke pelanggan. Notifikasi pelanggan selama ini hanya dipasang di
                     // `onFinalPaid`, yang menurut kontraknya cuma dipanggil saat periode LUNAS PENUH
@@ -378,11 +379,11 @@ router.post('/request', ensureAuthenticatedStaff, rateLimit('partial-payment', 3
                             const nomor = String(raw || '').trim();
                             if (!nomor) continue;
                             sendCritical(nomor, { text: teksStruk }, { label: 'struk_cicilan' })
-                                .catch((e) => console.error('[ADMIN_PARTIAL_PAYMENT] gagal kirim struk cicilan:', e && e.message));
+                                .catch((e) => log.error('[ADMIN_PARTIAL_PAYMENT] gagal kirim struk cicilan:', e && e.message));
                         }
                     }
                 } catch (processError) {
-                    console.error('[ADMIN_PARTIAL_PAYMENT_ERROR]', processError);
+                    log.error('[ADMIN_PARTIAL_PAYMENT_ERROR]', processError);
                 }
             } else {
                 notifyAdminsPartialPayment(req.user, user, amountPaid, packagePrice, amountRemaining, newRequest.id);
@@ -404,7 +405,7 @@ router.post('/request', ensureAuthenticatedStaff, rateLimit('partial-payment', 3
             });
         });
     } catch (error) {
-        console.error('[PARTIAL_PAYMENT_LOCK_ERROR]', error);
+        log.error('[PARTIAL_PAYMENT_LOCK_ERROR]', error);
         return res.status(500).json({ 
             status: 500, 
             message: error.message?.includes('Could not acquire lock') 
@@ -431,7 +432,7 @@ router.get('/report', ensureAdmin, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[PARTIAL_PAYMENT_REPORT_ERROR]', error);
+        log.error('[PARTIAL_PAYMENT_REPORT_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Terjadi kesalahan server' });
     }
 });
@@ -466,12 +467,12 @@ async function notifyAdminsPartialPayment(teknisi, user, amountPaid, packagePric
                         message: { text: message }
                     });
                 } catch (e) {
-                    console.error('[PARTIAL_PAYMENT_NOTIF_ERROR]', e.message);
+                    log.error('[PARTIAL_PAYMENT_NOTIF_ERROR]', e.message);
                 }
             }
         }
     } catch (error) {
-        console.error('[PARTIAL_PAYMENT_NOTIF_ERROR]', error);
+        log.error('[PARTIAL_PAYMENT_NOTIF_ERROR]', error);
     }
 }
 

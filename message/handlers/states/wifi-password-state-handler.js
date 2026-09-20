@@ -7,6 +7,7 @@
  * SideEffects: Mengubah password SSID, menulis log perubahan WiFi, dan membersihkan state.
  */
 
+const log = require('../../../lib/logger').logger.child('WIFI_PASSWORD_STATE_HANDLER');
 const { setPassword, updateWifiSettings } = require('../../../lib/wifi');
 const { logWifiChange } = require('../../../lib/wifi-logger');
 const { deleteUserState, format } = require('../conversation-handler');
@@ -218,7 +219,7 @@ async function handleAskNewPassword(userState, chats, reply, sender, global) {
             { ssidInfo: formatWifiSsidInfo([userState.ssid_id || '1']), newPassword }
         ));
     } catch (error) {
-        console.error('[ASK_NEW_PASSWORD] Error:', error);
+        log.error('[ASK_NEW_PASSWORD] Error:', error);
         deleteUserState(sender);
         // !! SEBAB YANG BENAR, BUKAN SATU PESAN UNTUK SEMUA (#b268). Menyuruh pelanggan memeriksa
         // modem saat SISTEM KAMI yang bermasalah membuat mereka mengurus perangkat yang tidak
@@ -319,7 +320,7 @@ async function handleAskNewPasswordBulk(userState, chats, reply, sender, global)
             { ssidInfo, newPassword }
         ));
     } catch (error) {
-        console.error('[ASK_NEW_PASSWORD_BULK] Error:', error);
+        log.error('[ASK_NEW_PASSWORD_BULK] Error:', error);
         deleteUserState(sender);
         // !! SEBAB YANG BENAR, BUKAN SATU PESAN UNTUK SEMUA (#b268). Menyuruh pelanggan memeriksa
         // modem saat SISTEM KAMI yang bermasalah membuat mereka mengurus perangkat yang tidak
@@ -389,7 +390,7 @@ async function handleConfirmGantiSandi(userState, userReply, reply, sender, _glo
             { ssidInfo: formatWifiSsidInfo([ssid_id]), newPassword: sandi_wifi_baru }
         ));
     } catch (error) {
-        console.error('[GANTI_SANDI_ERROR]', error);
+        log.error('[GANTI_SANDI_ERROR]', error);
         deleteUserState(sender);
         return reply(renderResponseTemplate(
             'wifi_password_confirm_technical_error',
@@ -450,7 +451,7 @@ async function handleConfirmGantiSandiBulk(userState, userReply, reply, sender, 
             { ssidInfo: formatWifiSsidInfo(bulkSsids), newPassword: sandi_wifi_baru }
         ));
     } catch (error) {
-        console.error('[GANTI_SANDI_BULK_ERROR]', error);
+        log.error('[GANTI_SANDI_BULK_ERROR]', error);
         deleteUserState(sender);
         return reply(renderResponseTemplate(
             'wifi_password_confirm_technical_error',

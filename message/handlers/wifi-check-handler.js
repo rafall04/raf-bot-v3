@@ -7,6 +7,7 @@
  * SideEffects: Query GenieACS untuk info SSID/uptime dan mengirim reply WhatsApp.
  */
 
+const log = require('../../lib/logger').logger.child('WIFI_CHECK_HANDLER');
 const { getSSIDInfo } = require('../../lib/wifi');
 const { getProfileBySubscription: _getProfileBySubscription } = require('../../lib/myfunc');
 const { getONUInfo: _getONUInfo } = require('../../lib/wifi');
@@ -30,40 +31,40 @@ async function handleCekWifi({ sender, args, matchedKeywordLength, isOwner, isTe
     const keywordLength = matchedKeywordLength || 2; // Default to 2 for "cek wifi"
 
     // Debug logging
-    console.log('[CEK_WIFI_DEBUG] Sender:', sender);
-    console.log('[CEK_WIFI_DEBUG] PlainSenderNumber:', plainSenderNumber);
-    console.log('[CEK_WIFI_DEBUG] Users count:', users.length);
-    console.log('[CEK_WIFI_DEBUG] isOwner:', isOwner, 'isTeknisi:', !!isTeknisi);
-    console.log('[CEK_WIFI_DEBUG] Args:', args);
-    console.log('[CEK_WIFI_DEBUG] matchedKeywordLength:', matchedKeywordLength);
-    console.log('[CEK_WIFI_DEBUG] keywordLength:', keywordLength);
+    log.info('[CEK_WIFI_DEBUG] Sender:', sender);
+    log.info('[CEK_WIFI_DEBUG] PlainSenderNumber:', plainSenderNumber);
+    log.info('[CEK_WIFI_DEBUG] Users count:', users.length);
+    log.info('[CEK_WIFI_DEBUG] isOwner:', isOwner, 'isTeknisi:', !!isTeknisi);
+    log.info('[CEK_WIFI_DEBUG] Args:', args);
+    log.info('[CEK_WIFI_DEBUG] matchedKeywordLength:', matchedKeywordLength);
+    log.info('[CEK_WIFI_DEBUG] keywordLength:', keywordLength);
 
     // Priority 1: Admin/Teknisi providing an ID
     if ((isOwner || isTeknisi) && args.length > keywordLength && !isNaN(parseInt(args[keywordLength], 10))) {
         searchMode = 'by_id';
         providedId = args[keywordLength];
         user = users.find(v => v.id == providedId);
-        console.log('[CEK_WIFI_DEBUG] Search by ID:', providedId, 'Found:', !!user);
+        log.info('[CEK_WIFI_DEBUG] Search by ID:', providedId, 'Found:', !!user);
     }
     // Priority 2: Admin/Teknisi providing a name to search
     else if ((isOwner || isTeknisi) && args.length > keywordLength && isNaN(parseInt(args[keywordLength], 10))) {
         searchMode = 'by_name';
         searchQuery = args.slice(keywordLength).join(' ').toLowerCase().trim();
         user = users.find(v => v.name && v.name.toLowerCase().includes(searchQuery));
-        console.log('[CEK_WIFI_DEBUG] Search by name:', searchQuery, 'Found:', !!user);
+        log.info('[CEK_WIFI_DEBUG] Search by name:', searchQuery, 'Found:', !!user);
     } else {
         user = resolvedCustomer.user;
 
-        console.log('[CEK_WIFI_DEBUG] Search by phone/LID:', plainSenderNumber, 'Found:', !!user);
+        log.info('[CEK_WIFI_DEBUG] Search by phone/LID:', plainSenderNumber, 'Found:', !!user);
 
         // Additional debug if not found
         if (!user && plainSenderNumber) {
-            console.log('[CEK_WIFI_DEBUG] No user found for phone/LID:', plainSenderNumber);
-            console.log('[CEK_WIFI_DEBUG] Sender format:', sender);
+            log.info('[CEK_WIFI_DEBUG] No user found for phone/LID:', plainSenderNumber);
+            log.info('[CEK_WIFI_DEBUG] Sender format:', sender);
 
             // Check if it's @lid format - no manual verification needed
             if (sender.endsWith('@lid')) {
-                console.log('[CEK_WIFI_DEBUG] This is @lid format - user not registered');
+                log.info('[CEK_WIFI_DEBUG] This is @lid format - user not registered');
                 return reply(renderResponseTemplate(
                     'wifi_check_lid_not_registered',
                     `❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.`
@@ -162,7 +163,7 @@ async function handleCekWifi({ sender, args, matchedKeywordLength, isOwner, isTe
         await reply(messageReply);
 
     } catch (e) {
-        console.error(`[CEK_WIFI_ERROR] Gagal mengambil info WiFi untuk ${user.name} (Device ID: ${user.device_id}):`, e);
+        log.error(`[CEK_WIFI_ERROR] Gagal mengambil info WiFi untuk ${user.name} (Device ID: ${user.device_id}):`, e);
 
         let userFriendlyError = `*MAAF, TERJADI KESALAHAN!* 😟\n\nTidak dapat mengambil informasi modem untuk pelanggan "${user.name || 'ini'}" saat ini.\nKemungkinan penyebab:\n- Modem sedang offline atau tidak terjangkau.\n- Ada gangguan pada sistem pemantauan.`;
 

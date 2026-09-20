@@ -10,6 +10,8 @@
  * SideEffects: Mengirim pesan WhatsApp dengan jeda antar pelanggan, menulis entri history broadcast ke SQLite.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('ADMIN_BROADCAST_SERVICE');
+
 
 const { createError, ErrorTypes } = require("../lib/error-handler");
 const formatRupiah = require("rupiah-format");
@@ -309,7 +311,7 @@ function createAdminBroadcastService(overrides = {}) {
         try {
             await repository.insertHistory(entry);
         } catch (error) {
-            console.warn("[BROADCAST_HISTORY_WARN]", error.message);
+            log.warn("[BROADCAST_HISTORY_WARN]", error.message);
         }
     }
 
@@ -366,7 +368,7 @@ function createAdminBroadcastService(overrides = {}) {
         }
 
         if (allowSensitive === true) {
-            console.warn("[BROADCAST_SENSITIVE_OVERRIDE]", {
+            log.warn("[BROADCAST_SENSITIVE_OVERRIDE]", {
                 templateKey: templateKey || null,
                 leaks: unique.map((leak) => leak.phrase)
             });
@@ -501,7 +503,7 @@ function createAdminBroadcastService(overrides = {}) {
             });
 
             broadcastPromise.catch((error) => {
-                console.error("[BROADCAST_ERROR]", error);
+                log.error("[BROADCAST_ERROR]", error);
             });
 
             return {

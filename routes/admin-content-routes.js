@@ -8,6 +8,8 @@
  * SideEffects: Menulis templates, announcements, news, WiFi templates, dan memicu broadcast WhatsApp async.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('ADMIN_CONTENT_ROUTES');
+
 
 const { asyncHandler, createError, ErrorTypes } = require("../lib/error-handler");
 const { createWifiTemplateConfigService } = require("../services/wifi-template-config.service");
@@ -148,7 +150,7 @@ function registerAdminContentRoutes(router, deps) {
                 }
             });
         } catch (error) {
-            console.error("[API_TEMPLATES_GET_ERROR]", error);
+            log.error("[API_TEMPLATES_GET_ERROR]", error);
             res.status(500).json({ status: 500, message: "Failed to process templates from cache." });
         }
     });
@@ -212,10 +214,10 @@ function registerAdminContentRoutes(router, deps) {
             });
         } catch (error) {
             if (error.code === "TEMPLATE_MASS_DELETION") {
-                console.warn("[API_TEMPLATES_POST_BLOCKED]", error.message);
+                log.warn("[API_TEMPLATES_POST_BLOCKED]", error.message);
                 return res.status(409).json({ status: 409, message: error.message });
             }
-            console.error("[API_TEMPLATES_POST_ERROR]", error);
+            log.error("[API_TEMPLATES_POST_ERROR]", error);
             res.status(500).json({ status: 500, message: "Failed to save one or more message template files." });
         }
     });
@@ -238,7 +240,7 @@ function registerAdminContentRoutes(router, deps) {
                 }
             });
         } catch (error) {
-            console.error("[API_TEMPLATES_DIAGNOSTICS_ERROR]", error);
+            log.error("[API_TEMPLATES_DIAGNOSTICS_ERROR]", error);
             res.status(500).json({ status: 500, message: "Failed to load template diagnostics." });
         }
     });
@@ -260,7 +262,7 @@ function registerAdminContentRoutes(router, deps) {
             saveJSON("announcements.json", nextAnnouncements);
             res.status(201).json({ status: 201, message: "Pengumuman berhasil dibuat.", data: newAnnouncement });
         } catch (error) {
-            console.error("[API_ANNOUNCEMENTS_POST_ERROR]", error);
+            log.error("[API_ANNOUNCEMENTS_POST_ERROR]", error);
             res.status(500).json({ status: 500, message: "Gagal membuat pengumuman." });
         }
     });
@@ -282,7 +284,7 @@ function registerAdminContentRoutes(router, deps) {
             saveJSON("announcements.json", nextAnnouncements);
             res.status(200).json({ status: 200, message: "Pengumuman berhasil diperbarui.", data: nextAnnouncements[index] });
         } catch (error) {
-            console.error("[API_ANNOUNCEMENTS_UPDATE_ERROR]", error);
+            log.error("[API_ANNOUNCEMENTS_UPDATE_ERROR]", error);
             res.status(500).json({ status: 500, message: "Gagal memperbarui pengumuman." });
         }
     });
@@ -300,7 +302,7 @@ function registerAdminContentRoutes(router, deps) {
             saveJSON("announcements.json", nextAnnouncements);
             res.status(200).json({ status: 200, message: "Pengumuman berhasil dihapus." });
         } catch (error) {
-            console.error("[API_ANNOUNCEMENTS_DELETE_ERROR]", error);
+            log.error("[API_ANNOUNCEMENTS_DELETE_ERROR]", error);
             res.status(500).json({ status: 500, message: "Gagal menghapus pengumuman." });
         }
     });
@@ -326,7 +328,7 @@ function registerAdminContentRoutes(router, deps) {
             saveJSON("news.json", nextNews);
             res.status(201).json({ status: 201, message: "Berita berhasil dibuat.", data: newItem });
         } catch (error) {
-            console.error("[API_NEWS_POST_ERROR]", error);
+            log.error("[API_NEWS_POST_ERROR]", error);
             res.status(500).json({ status: 500, message: "Gagal membuat berita." });
         }
     });
@@ -351,7 +353,7 @@ function registerAdminContentRoutes(router, deps) {
             saveJSON("news.json", nextNews);
             res.status(200).json({ status: 200, message: "Berita berhasil diperbarui.", data: nextNews[index] });
         } catch (error) {
-            console.error("[API_NEWS_UPDATE_ERROR]", error);
+            log.error("[API_NEWS_UPDATE_ERROR]", error);
             res.status(500).json({ status: 500, message: "Gagal memperbarui berita." });
         }
     });
@@ -369,7 +371,7 @@ function registerAdminContentRoutes(router, deps) {
             saveJSON("news.json", nextNews);
             res.status(200).json({ status: 200, message: "Berita berhasil dihapus." });
         } catch (error) {
-            console.error("[API_NEWS_DELETE_ERROR]", error);
+            log.error("[API_NEWS_DELETE_ERROR]", error);
             res.status(500).json({ status: 500, message: "Gagal menghapus berita." });
         }
     });

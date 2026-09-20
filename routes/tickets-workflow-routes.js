@@ -7,6 +7,8 @@
  * SideEffects: Menulis `global.reports` via ticket-workflow, mengirim notifikasi WhatsApp, log activity.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('TICKETS_WORKFLOW_ROUTES');
+
 
 const {
     express,
@@ -73,7 +75,7 @@ router.post('/ticket/process', ensureAuthenticatedStaff, rateLimit('ticket-proce
             let ticket = ensureTicketShape(global.reports[reportIndex]);
             
             // Log current ticket status for debugging
-            if (DEBUG) console.log(`[TICKET_PROCESS] Ticket ${ticketId} current status: "${ticket.status}"`);
+            if (DEBUG) log.info(`[TICKET_PROCESS] Ticket ${ticketId} current status: "${ticket.status}"`);
             
             // Check if ticket is already being processed (support multiple status formats)
             if (ticket.status === 'process' || 
@@ -102,14 +104,14 @@ router.post('/ticket/process', ensureAuthenticatedStaff, rateLimit('ticket-proce
             );
             
             if (!teknisi) {
-                console.error(`[TICKET_PROCESS] Teknisi not found in accounts. User:`, req.user);
+                log.error(`[TICKET_PROCESS] Teknisi not found in accounts. User:`, req.user);
                 return res.status(403).json({
                     status: 403,
                     message: 'Akun teknisi tidak ditemukan'
                 });
             }
             
-            if (DEBUG) console.log(`[TICKET_PROCESS] Teknisi found: ${teknisi.name || teknisi.username} (ID: ${teknisi.id})`);
+            if (DEBUG) log.info(`[TICKET_PROCESS] Teknisi found: ${teknisi.name || teknisi.username} (ID: ${teknisi.id})`);
             
             const oldStatus = ticket.status;
             const { ticket: updatedTicket, otp } = processTicketWorkflow({
@@ -123,7 +125,7 @@ router.post('/ticket/process', ensureAuthenticatedStaff, rateLimit('ticket-proce
                 }
             });
             ticket = updatedTicket;
-            if (DEBUG) console.log(`[TICKET_PROCESS] Ticket ${ticketId} updated with status=process, OTP=${otp}`);
+            if (DEBUG) log.info(`[TICKET_PROCESS] Ticket ${ticketId} updated with status=process, OTP=${otp}`);
             
             // Log activity
             try {
@@ -142,25 +144,25 @@ router.post('/ticket/process', ensureAuthenticatedStaff, rateLimit('ticket-proce
                     userAgent: req.headers['user-agent']
                 });
             } catch (logErr) {
-                console.error('[ACTIVITY_LOG_ERROR] Failed to log ticket process:', logErr);
+                log.error('[ACTIVITY_LOG_ERROR] Failed to log ticket process:', logErr);
             }
             
             // Get customer (user) details - support both field names for backward compatibility
             const userId = ticket.pelangganUserId || ticket.user_id;
-            if (DEBUG) console.log(`[TICKET_PROCESS] Looking for user with ID: ${userId}`);
+            if (DEBUG) log.info(`[TICKET_PROCESS] Looking for user with ID: ${userId}`);
             
             const user = global.users.find(u => u.id === userId);
             
             if (!user) {
-                console.error(`[TICKET_PROCESS] User not found. Tried pelangganUserId: ${ticket.pelangganUserId}, user_id: ${ticket.user_id}`);
-                console.error(`[TICKET_PROCESS] Available users:`, global.users.length, 'users in database');
+                log.error(`[TICKET_PROCESS] User not found. Tried pelangganUserId: ${ticket.pelangganUserId}, user_id: ${ticket.user_id}`);
+                log.error(`[TICKET_PROCESS] Available users:`, global.users.length, 'users in database');
                 return res.status(404).json({
                     status: 404,
                     message: 'Data pelanggan tidak ditemukan. Pastikan pelanggan terdaftar di sistem.'
                 });
             }
             
-            if (DEBUG) console.log(`[TICKET_PROCESS] User found: ${user.name} (ID: ${user.id})`);
+            if (DEBUG) log.info(`[TICKET_PROCESS] User found: ${user.name} (ID: ${user.id})`);
 
             const notifyResult = await notifyTicketProcessed(ticket, {
                 name: teknisi.name || teknisi.username,
@@ -181,7 +183,7 @@ router.post('/ticket/process', ensureAuthenticatedStaff, rateLimit('ticket-proce
             });
         });
     } catch (error) {
-        console.error('[API_TICKET_PROCESS_ERROR]', error);
+        log.error('[API_TICKET_PROCESS_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: error.message === `Could not acquire lock for ticket-process-${req.body.ticketId}`
@@ -262,7 +264,7 @@ router.post('/ticket/otw', ensureAuthenticatedStaff, rateLimit('ticket-otw', 10,
             },
             location: location || null
         }));
-        if (DEBUG) console.log(`[TICKET_OTW] Ticket ${ticketId} status updated to OTW`);
+        if (DEBUG) log.info(`[TICKET_OTW] Ticket ${ticketId} status updated to OTW`);
 
         let notifyResult = { sent: false };
         let notifyErrorMessage = null;
@@ -274,7 +276,7 @@ router.post('/ticket/otw', ensureAuthenticatedStaff, rateLimit('ticket-otw', 10,
             });
         } catch (notifyError) {
             notifyErrorMessage = notifyError.message;
-            console.error('[TICKET_OTW_NOTIFY_ERROR]', notifyError);
+            log.error('[TICKET_OTW_NOTIFY_ERROR]', notifyError);
         }
 
         return res.json({
@@ -289,7 +291,7 @@ router.post('/ticket/otw', ensureAuthenticatedStaff, rateLimit('ticket-otw', 10,
             }
         });
     } catch (error) {
-        console.error('[API_TICKET_OTW_ERROR]', error);
+        log.error('[API_TICKET_OTW_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat update status OTW',
@@ -367,7 +369,7 @@ router.post('/ticket/arrived', ensureAuthenticatedStaff, rateLimit('ticket-arriv
                 channel: 'web'
             }
         }));
-        if (DEBUG) console.log(`[TICKET_ARRIVED] Ticket ${ticketId} status updated to arrived, OTP: ${ticket.otp}`);
+        if (DEBUG) log.info(`[TICKET_ARRIVED] Ticket ${ticketId} status updated to arrived, OTP: ${ticket.otp}`);
 
         const notifyResult = await notifyTicketArrived(ticket, {
             name: teknisi.name || teknisi.username,
@@ -388,7 +390,7 @@ router.post('/ticket/arrived', ensureAuthenticatedStaff, rateLimit('ticket-arriv
             }
         });
     } catch (error) {
-        console.error('[API_TICKET_ARRIVED_ERROR]', error);
+        log.error('[API_TICKET_ARRIVED_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat update status arrived',
@@ -520,7 +522,7 @@ router.post('/ticket/verify-otp', ensureAuthenticatedStaff, rateLimit('ticket-ve
             },
             otp
         }));
-        if (DEBUG) console.log(`[TICKET_VERIFY_OTP] Ticket ${ticketId} OTP verified, status updated to working`);
+        if (DEBUG) log.info(`[TICKET_VERIFY_OTP] Ticket ${ticketId} OTP verified, status updated to working`);
 
         const notifyResult = await notifyTicketWorking(ticket, {
             name: teknisi.name || teknisi.username,
@@ -541,7 +543,7 @@ router.post('/ticket/verify-otp', ensureAuthenticatedStaff, rateLimit('ticket-ve
             }
         });
     } catch (error) {
-        console.error('[API_TICKET_VERIFY_OTP_ERROR]', error);
+        log.error('[API_TICKET_VERIFY_OTP_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat verifikasi OTP',
@@ -637,7 +639,7 @@ router.post('/ticket/complete', ensureAuthenticatedStaff, rateLimit('ticket-comp
             resolutionNotes
         });
         ticket = completedTicket;
-        if (DEBUG) console.log(`[TICKET_COMPLETE] Ticket ${ticketId} completed. Duration: ${durationMinutes} min, Photos: ${ticket.teknisiPhotos.length}`);
+        if (DEBUG) log.info(`[TICKET_COMPLETE] Ticket ${ticketId} completed. Duration: ${durationMinutes} min, Photos: ${ticket.teknisiPhotos.length}`);
         
         // Log activity
         try {
@@ -662,7 +664,7 @@ router.post('/ticket/complete', ensureAuthenticatedStaff, rateLimit('ticket-comp
                 userAgent: req.headers['user-agent']
             });
         } catch (logErr) {
-            console.error('[ACTIVITY_LOG_ERROR] Failed to log ticket complete:', logErr);
+            log.error('[ACTIVITY_LOG_ERROR] Failed to log ticket complete:', logErr);
         }
 
         const notifyResult = await notifyTicketCompleted(ticket, {
@@ -687,7 +689,7 @@ router.post('/ticket/complete', ensureAuthenticatedStaff, rateLimit('ticket-comp
             }
         });
     } catch (error) {
-        console.error('[API_TICKET_COMPLETE_ERROR]', error);
+        log.error('[API_TICKET_COMPLETE_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat menyelesaikan tiket',
@@ -752,7 +754,7 @@ router.post('/ticket/resolve', ensureAuthenticatedStaff, async (req, res) => {
             message: 'Tiket berhasil diselesaikan'
         });
     } catch (error) {
-        console.error('[API_TICKET_RESOLVE_ERROR]', error);
+        log.error('[API_TICKET_RESOLVE_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat menyelesaikan tiket'
@@ -870,12 +872,12 @@ router.post('/ticket/create', ensureAuthenticatedStaff, rateLimit('ticket-create
                     excludeJids
                 });
             } catch (notifyError) {
-                console.error('[CREATE_TICKET_NOTIFY_ERROR]', notifyError);
+                log.error('[CREATE_TICKET_NOTIFY_ERROR]', notifyError);
             }
         })();
         return;
     } catch (error) {
-        console.error('[API_TICKET_CREATE_ERROR]', error);
+        log.error('[API_TICKET_CREATE_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat membuat tiket',
@@ -953,7 +955,7 @@ router.post('/ticket/share-location', ensureAuthenticatedStaff, rateLimit('ticke
             notifyResult = await notifyCustomerLocation(ticket, locationData);
         } catch (notifyError) {
             notifyErrorMessage = notifyError.message;
-            console.error('[TICKET_SHARE_LOCATION_NOTIFY_ERROR]', notifyError);
+            log.error('[TICKET_SHARE_LOCATION_NOTIFY_ERROR]', notifyError);
         }
 
         return res.json({
@@ -970,7 +972,7 @@ router.post('/ticket/share-location', ensureAuthenticatedStaff, rateLimit('ticke
             }
         });
     } catch (error) {
-        console.error('[API_TICKET_SHARE_LOCATION_ERROR]', error);
+        log.error('[API_TICKET_SHARE_LOCATION_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat membagikan lokasi',

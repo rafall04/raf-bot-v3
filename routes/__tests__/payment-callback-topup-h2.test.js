@@ -14,7 +14,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const source = fs.readFileSync(path.join(__dirname, "..", "public.js"), "utf8");
+const source = fs.readFileSync(path.join(__dirname, "..", "public", "payment-callback.js"), "utf8");
 
 // Isolasi blok cabang topup di handler POST /callback/payment.
 const topupIdx = source.indexOf("pay.tag == 'topup'");

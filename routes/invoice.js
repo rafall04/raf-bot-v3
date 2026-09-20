@@ -16,6 +16,7 @@
  * SideEffects: MENULIS config.json saat menyimpan pengaturan (lalu me-refresh
  *          global.config), menulis berkas logo, dan mengirim pesan WhatsApp.
  */
+const log = require('../lib/logger').logger.child('INVOICE');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -95,8 +96,8 @@ router.get('/get-latest-invoice', async (req, res) => {
         }
         
         // Find latest invoice for user
-        console.log(`[GET_LATEST_INVOICE] Looking for userId: ${userId}, type: ${typeof userId}`);
-        console.log(`[GET_LATEST_INVOICE] Total invoices: ${invoices.length}`);
+        log.info(`[GET_LATEST_INVOICE] Looking for userId: ${userId}, type: ${typeof userId}`);
+        log.info(`[GET_LATEST_INVOICE] Total invoices: ${invoices.length}`);
         
         const userInvoices = invoices.filter(inv => {
             const customerId = inv.customer.id;
@@ -104,7 +105,7 @@ router.get('/get-latest-invoice', async (req, res) => {
             return match;
         });
         
-        console.log(`[GET_LATEST_INVOICE] Found ${userInvoices.length} invoices for userId ${userId}`);
+        log.info(`[GET_LATEST_INVOICE] Found ${userInvoices.length} invoices for userId ${userId}`);
         
         if (userInvoices.length === 0) {
             return res.status(404).json({ message: 'No invoices found for this user' });
@@ -114,14 +115,14 @@ router.get('/get-latest-invoice', async (req, res) => {
         userInvoices.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         const latestInvoice = userInvoices[0];
         
-        console.log(`[GET_LATEST_INVOICE] Returning latest invoice: ${latestInvoice.invoiceNumber}`);
+        log.info(`[GET_LATEST_INVOICE] Returning latest invoice: ${latestInvoice.invoiceNumber}`);
         
         return res.json({ 
             invoiceId: latestInvoice.invoiceNumber,
             invoice: latestInvoice 
         });
     } catch (error) {
-        console.error('[GET_LATEST_INVOICE_ERROR]', error);
+        log.error('[GET_LATEST_INVOICE_ERROR]', error);
         return res.status(500).json({ message: error.message });
     }
 });
@@ -178,7 +179,7 @@ router.get('/view-invoice', async (req, res) => {
         res.setHeader('Content-Type', 'text/html');
         return res.end(html);
     } catch (error) {
-        console.error('[VIEW_INVOICE_ERROR]', error);
+        log.error('[VIEW_INVOICE_ERROR]', error);
         return res.status(500).json({ message: error.message });
     }
 });
@@ -234,7 +235,7 @@ router.get('/download-invoice-pdf', async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="Invoice_${invoiceId}.pdf"`);
         return res.end(pdfBuffer);
     } catch (error) {
-        console.error('[DOWNLOAD_INVOICE_PDF_ERROR]', error);
+        log.error('[DOWNLOAD_INVOICE_PDF_ERROR]', error);
         return res.status(500).json({ message: error.message });
     }
 });
@@ -328,7 +329,7 @@ router.post('/send-invoice-manual', ensureAdmin, async (req, res) => {
             return res.status(400).json({ message: 'Nomor telepon tidak tersedia untuk pengiriman.' });
         }
     } catch (error) {
-        console.error('[SEND_INVOICE_MANUAL_ERROR]', error);
+        log.error('[SEND_INVOICE_MANUAL_ERROR]', error);
         return res.status(500).json({ message: error.message });
     }
 });
@@ -391,7 +392,7 @@ router.route('/invoice-settings')
             };
             return res.json(invoiceSettings);
         } catch (error) {
-            console.error('[INVOICE_SETTINGS_GET_ERROR]', error);
+            log.error('[INVOICE_SETTINGS_GET_ERROR]', error);
             return res.status(500).json({ message: 'Error loading settings' });
         }
     })
@@ -489,7 +490,7 @@ router.route('/invoice-settings')
 
             return res.json({ message: 'Settings saved successfully' });
         } catch (error) {
-            console.error('[INVOICE_SETTINGS_POST_ERROR]', error);
+            log.error('[INVOICE_SETTINGS_POST_ERROR]', error);
             return res.status(500).json({ message: 'Error saving settings' });
         }
     });
@@ -591,13 +592,13 @@ router.post('/preview-pdf-invoice', ensureAdmin, async (req, res) => {
         }
         const customization = buatCustomizationInvoice(config, timpaan);
 
-        console.log('[PDF_PREVIEW] Using customization:', customization);
+        log.info('[PDF_PREVIEW] Using customization:', customization);
 
         const htmlContent = generateInvoiceHTML(sampleData, customization);
         return res.send(htmlContent);
         
     } catch (error) {
-        console.error('[PDF_PREVIEW_ERROR]', error);
+        log.error('[PDF_PREVIEW_ERROR]', error);
         return res.status(500).json({ message: 'Error generating PDF preview' });
     }
 });

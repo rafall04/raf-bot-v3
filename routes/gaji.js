@@ -11,6 +11,7 @@
  *   ke teknisi saat payroll dibayar (never-throw — kegagalan kirim tak membatalkan pembayaran).
  */
 
+const log = require('../lib/logger').logger.child('GAJI');
 const express = require('express');
 const router = express.Router();
 const { logActivity } = require('../lib/activity-logger');
@@ -88,7 +89,7 @@ async function kirimStrukGaji(payroll) {
         const nomor = resolveTechnicianPhones(payroll.teknisi_id, global.accounts);
         if (nomor.length === 0) {
             alasan = 'nomor WA teknisi belum diisi';
-            console.warn(`[GAJI_NOTIF] Teknisi #${payroll.teknisi_id} tak punya nomor WA — struk gaji tidak terkirim.`);
+            log.warn(`[GAJI_NOTIF] Teknisi #${payroll.teknisi_id} tak punya nomor WA — struk gaji tidak terkirim.`);
         } else {
             const teks = buildPayrollReceiptText(payroll);
             const gagal = [];
@@ -104,7 +105,7 @@ async function kirimStrukGaji(payroll) {
         }
     } catch (strukErr) {
         alasan = (strukErr && strukErr.message) || 'gagal kirim';
-        console.error('[GAJI_NOTIF] Gagal kirim struk gaji:', strukErr && strukErr.message);
+        log.error('[GAJI_NOTIF] Gagal kirim struk gaji:', strukErr && strukErr.message);
     }
 
     try {
@@ -113,7 +114,7 @@ async function kirimStrukGaji(payroll) {
             error: terkirim ? '' : alasan
         });
     } catch (simpanErr) {
-        console.error('[GAJI_NOTIF] Gagal menyimpan status struk:', simpanErr && simpanErr.message);
+        log.error('[GAJI_NOTIF] Gagal menyimpan status struk:', simpanErr && simpanErr.message);
     }
     return { terkirim, alasan };
 }
@@ -126,7 +127,7 @@ function mapRowForResponse(row) {
     };
 }
 
-ensureFinanceTables().catch(console.error);
+ensureFinanceTables().catch((e) => log.error(e));
 
 router.get('/teknisi', ensureAdmin, async (req, res) => {
     try {
@@ -141,7 +142,7 @@ router.get('/teknisi', ensureAdmin, async (req, res) => {
 
         res.json({ status: 200, data: teknisiList });
     } catch (error) {
-        console.error('[GAJI_GET_TEKNISI_ERROR]', error);
+        log.error('[GAJI_GET_TEKNISI_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal mengambil data teknisi' });
     }
 });
@@ -157,7 +158,7 @@ router.get('/', ensureAdmin, async (req, res) => {
         });
         res.json({ status: 200, data: rows.map(mapRowForResponse) });
     } catch (error) {
-        console.error('[GAJI_GET_ERROR]', error);
+        log.error('[GAJI_GET_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal mengambil data gaji' });
     }
 });
@@ -169,7 +170,7 @@ router.get('/summary', ensureAdmin, async (req, res) => {
         const summary = await getPayrollSummary({ month, year });
         res.json({ status: 200, data: summary });
     } catch (error) {
-        console.error('[GAJI_SUMMARY_ERROR]', error);
+        log.error('[GAJI_SUMMARY_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal mengambil summary gaji' });
     }
 });
@@ -229,7 +230,7 @@ router.get('/kasbon-summary/:teknisiId', ensureAdmin, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[GAJI_KASBON_SUMMARY_ERROR]', error);
+        log.error('[GAJI_KASBON_SUMMARY_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal mengambil summary kasbon teknisi' });
     }
 });
@@ -268,7 +269,7 @@ router.post('/', ensureAdmin, rateLimit('create-gaji', 20, 60000), async (req, r
             description: `Membuat draft payroll teknisi ${result.draft.teknisi_name}`,
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
 
         res.status(201).json({
             status: 201,
@@ -280,7 +281,7 @@ router.post('/', ensureAdmin, rateLimit('create-gaji', 20, 60000), async (req, r
             })
         });
     } catch (error) {
-        console.error('[GAJI_CREATE_ERROR]', error);
+        log.error('[GAJI_CREATE_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal membuat payroll teknisi' });
     }
 });
@@ -338,11 +339,11 @@ router.post('/komisi-tertunda/tutup', ensureAdmin, rateLimit('tutup-komisi', 10,
             newValue: { periods: hasil.ditutup, total: hasil.total, keterangan, entry_ids: hasil.entryIds },
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
 
         res.json({ status: 200, data: hasil, message: `Komisi Rp${hasil.total.toLocaleString('id-ID')} ditutup tanpa pembayaran` });
     } catch (error) {
-        console.error('[GAJI_TUTUP_KOMISI_ERROR]', error);
+        log.error('[GAJI_TUTUP_KOMISI_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal menutup komisi' });
     }
 });
@@ -368,7 +369,7 @@ router.get('/gaji-tetap', ensureAdmin, async (req, res) => {
             });
         res.json({ status: 200, data: { teknisi, setelan: salaryPlan.setelan(), belum_dibayar: belumDibayar } });
     } catch (error) {
-        console.error('[GAJI_TETAP_GET_ERROR]', error);
+        log.error('[GAJI_TETAP_GET_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal memuat gaji tetap' });
     }
 });
@@ -391,7 +392,7 @@ router.put('/gaji-tetap', ensureAdmin, async (req, res) => {
             newValue: hasil.items,
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
         // Penyelarasan draft WAJIB disebutkan: nominal yang benar-benar akan dibayarkan baru
         // saja berubah, dan perubahan diam pada uang persis yang mau dihindari.
         const selaras = (hasil.draftDiselaraskan || [])
@@ -402,7 +403,7 @@ router.put('/gaji-tetap', ensureAdmin, async (req, res) => {
 
         res.json({ status: 200, data: hasil, message: pesan });
     } catch (error) {
-        console.error('[GAJI_TETAP_PUT_ERROR]', error);
+        log.error('[GAJI_TETAP_PUT_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal menyimpan gaji tetap' });
     }
 });
@@ -415,11 +416,11 @@ router.put('/gaji-tetap/otomatis', ensureAdmin, async (req, res) => {
         try {
             initTechnicianSalaryDraftTask();
         } catch (cronError) {
-            console.error('[GAJI_TETAP_CRON_RESCHEDULE_ERROR]', cronError.message);
+            log.error('[GAJI_TETAP_CRON_RESCHEDULE_ERROR]', cronError.message);
         }
         res.json({ status: 200, data: sesudah, message: sesudah.autoDraft ? `Draft otomatis AKTIF — dibuat tiap tanggal ${sesudah.draftDay || 28}` : 'Draft otomatis dimatikan' });
     } catch (error) {
-        console.error('[GAJI_TETAP_OTOMATIS_ERROR]', error);
+        log.error('[GAJI_TETAP_OTOMATIS_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal mengubah sakelar' });
     }
 });
@@ -433,7 +434,7 @@ router.post('/gaji-tetap/buat-draft', ensureAdmin, rateLimit('gaji-tetap-draft',
             message: `${hasil.dibuat} draft dibuat, ${hasil.sudahAda} sudah ada, ${hasil.dilewati} dilewati`
         });
     } catch (error) {
-        console.error('[GAJI_TETAP_BUAT_DRAFT_ERROR]', error);
+        log.error('[GAJI_TETAP_BUAT_DRAFT_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal membuat draft' });
     }
 });
@@ -468,7 +469,7 @@ router.put('/:id/batal-finalisasi', ensureAdmin, async (req, res) => {
             newValue: hasil,
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
 
         res.json({
             status: 200,
@@ -476,7 +477,7 @@ router.put('/:id/batal-finalisasi', ensureAdmin, async (req, res) => {
             message: `Finalisasi dibatalkan — kembali ke draft. ${hasil.komisiDilepas} baris komisi dilepas dan akan dihitung ulang saat difinalisasi lagi.`
         });
     } catch (error) {
-        console.error('[GAJI_BATAL_FINALISASI_ERROR]', error);
+        log.error('[GAJI_BATAL_FINALISASI_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal membatalkan finalisasi' });
     }
 });
@@ -509,14 +510,14 @@ router.post('/:id/kirim-ulang-struk', ensureAdmin, rateLimit('kirim-struk', 20, 
             description: hasil.terkirim ? 'Struk gaji berhasil dikirim ulang' : `Kirim ulang struk GAGAL: ${hasil.alasan}`,
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
 
         if (!hasil.terkirim) {
             return res.status(502).json({ status: 502, message: `Struk masih gagal terkirim: ${hasil.alasan}` });
         }
         res.json({ status: 200, message: `Struk gaji ${payroll.teknisi_name} berhasil dikirim ulang` });
     } catch (error) {
-        console.error('[GAJI_KIRIM_ULANG_ERROR]', error);
+        log.error('[GAJI_KIRIM_ULANG_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal mengirim ulang struk' });
     }
 });
@@ -527,7 +528,7 @@ router.get('/komisi-tertunda/riwayat', ensureAdmin, async (req, res) => {
         const rows = await getCloseoutHistory({ teknisiId: req.query.teknisi_id || null, limit: 50 });
         res.json({ status: 200, data: rows });
     } catch (error) {
-        console.error('[GAJI_RIWAYAT_TUTUP_ERROR]', error);
+        log.error('[GAJI_RIWAYAT_TUTUP_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal memuat riwayat penutupan' });
     }
 });
@@ -562,7 +563,7 @@ router.put('/:id', ensureAdmin, async (req, res) => {
             description: `Mengubah draft payroll teknisi #${id}`,
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
 
         res.json({
             status: 200,
@@ -570,7 +571,7 @@ router.put('/:id', ensureAdmin, async (req, res) => {
             data: mapRowForResponse(result.draft)
         });
     } catch (error) {
-        console.error('[GAJI_UPDATE_ERROR]', error);
+        log.error('[GAJI_UPDATE_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal mengupdate payroll teknisi' });
     }
 });
@@ -601,7 +602,7 @@ router.put('/:id/finalize', ensureAdmin, async (req, res) => {
             description: `Memfinalisasi payroll teknisi #${id}`,
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
 
         const payroll = await getPayrollRecord(id);
         res.json({
@@ -610,7 +611,7 @@ router.put('/:id/finalize', ensureAdmin, async (req, res) => {
             data: mapRowForResponse(payroll)
         });
     } catch (error) {
-        console.error('[GAJI_FINALIZE_ERROR]', error);
+        log.error('[GAJI_FINALIZE_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal memfinalisasi payroll teknisi' });
     }
 });
@@ -638,7 +639,7 @@ router.put('/:id/pay', ensureAdmin, async (req, res) => {
             newValue: { status: 'paid', kasbon_allocations: result.allocations },
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
 
         const payroll = await getPayrollRecord(id);
 
@@ -675,7 +676,7 @@ router.put('/:id/pay', ensureAdmin, async (req, res) => {
                 }
             });
         } catch (grupErr) {
-            console.error('[GAJI_NOTIF] Gagal kabari grup kas:', grupErr && grupErr.message);
+            log.error('[GAJI_NOTIF] Gagal kabari grup kas:', grupErr && grupErr.message);
         }
 
         res.json({
@@ -684,7 +685,7 @@ router.put('/:id/pay', ensureAdmin, async (req, res) => {
             data: mapRowForResponse(payroll)
         });
     } catch (error) {
-        console.error('[GAJI_PAY_ERROR]', error);
+        log.error('[GAJI_PAY_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal membayar payroll teknisi' });
     }
 });
@@ -713,11 +714,11 @@ router.delete('/:id', ensureAdmin, async (req, res) => {
             description: `Menghapus draft payroll teknisi #${id}`,
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
-        }).catch(console.error);
+        }).catch((e) => log.error(e));
 
         res.json({ status: 200, message: 'Draft payroll berhasil dihapus' });
     } catch (error) {
-        console.error('[GAJI_DELETE_ERROR]', error);
+        log.error('[GAJI_DELETE_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal menghapus draft payroll' });
     }
 });

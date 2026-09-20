@@ -90,7 +90,8 @@ function daftarAktif() {
 describe("#b300 — tak ada halaman jatuh dari menu", () => {
     test("menu memuat jumlah halaman yang diharapkan", () => {
         // Angka tetap: kalau berubah, seseorang menambah/menghapus item dan harus sadar.
-        expect(MENU.semua.length).toBe(72);
+        // 75 = sebelumnya 74 (#b373) + /voucher-orphans di grup Voucher Hotspot.
+        expect(MENU.semua.length).toBe(75);
     });
 
     test("tak ada rute kembar di seluruh menu", () => {

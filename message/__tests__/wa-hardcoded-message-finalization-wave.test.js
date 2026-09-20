@@ -500,7 +500,7 @@ describe("WA hardcoded message finalization wave", () => {
             "Pertanyaan Anda:"
         ]);
 
-        expectNoHardcodedSnippets("routes/public.js", [
+        expectNoHardcodedSnippets("routes/public/requests.js", [
             "Permintaan Speed on Demand Baru",
             "Pelanggan telah mengajukan permintaan penambahan kecepatan",
             "Mohon segera ditinjau di halaman admin"

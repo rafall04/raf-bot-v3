@@ -2,7 +2,7 @@
  * Header Doc
  * Purpose: Menangani parsing workbook Excel pelanggan, validasi preview, dan commit import create/update dengan memanfaatkan owner service users yang sudah ada agar tidak membuat write-path baru.
  * Caller: `services/api-users.service.js` melalui method `importUsersFromExcel`.
- * Deps: `../../lib/error-handler`, `./users-excel-schema`, package `xlsx` (lazy-loaded), `deps.repository`, `deps.getPackages`, `deps.validatePhoneNumbers`, `deps.getDb`, `deps.logger`, dan method service owner `upsertUserFromAdminPanel`/`updateUserById`.
+ * Deps: `../../lib/error-handler`, `./users-excel-schema`, package `exceljs` (lazy-loaded), `deps.repository`, `deps.getPackages`, `deps.validatePhoneNumbers`, `deps.getDb`, `deps.logger`, dan method service owner `upsertUserFromAdminPanel`/`updateUserById`.
  * MainFuncs: `importUsersFromExcel`.
  * SideEffects: Membaca workbook dari memory, memvalidasi row import, lalu saat mode `commit` menulis create/update pelanggan via owner service.
  */
@@ -17,13 +17,44 @@ const {
     isSampleRow
 } = require("./users-excel-schema");
 
-let cachedXlsx = null;
+let cachedExcelJs = null;
 
-function getXlsx() {
-    if (!cachedXlsx) {
-        cachedXlsx = require("xlsx");
+function getExcelJs() {
+    if (!cachedExcelJs) {
+        cachedExcelJs = require("exceljs");
     }
-    return cachedXlsx;
+    return cachedExcelJs;
+}
+
+function cellDisplayText(cell) {
+    const text = cell?.text;
+    return text === null || typeof text === "undefined" ? "" : String(text);
+}
+
+function sheetHeaderValues(sheet) {
+    const headerRow = sheet.getRow(1);
+    const cellCount = headerRow.cellCount || 0;
+    const values = [];
+    for (let col = 1; col <= cellCount; col += 1) {
+        values.push(cellDisplayText(headerRow.getCell(col)));
+    }
+    return values;
+}
+
+function sheetDataRows(sheet, headers) {
+    const rows = [];
+    for (let rowNumber = 2; rowNumber <= sheet.rowCount; rowNumber += 1) {
+        const row = sheet.getRow(rowNumber);
+        const rawRow = {};
+        headers.forEach((header, index) => {
+            if (!header) {
+                return;
+            }
+            rawRow[header] = cellDisplayText(row.getCell(index + 1));
+        });
+        rows.push(rawRow);
+    }
+    return rows;
 }
 
 function normalizeMode(value) {
@@ -171,31 +202,29 @@ async function validatePreparedRow(deps, preparedRow) {
 }
 
 async function prepareImportRows(deps, buffer) {
-    const XLSX = getXlsx();
-    const workbook = XLSX.read(buffer, {
-        type: "buffer",
-        cellDates: true
-    });
+    const ExcelJS = getExcelJs();
+    const workbook = new ExcelJS.Workbook();
+    try {
+        await workbook.xlsx.load(buffer);
+    } catch (_error) {
+        throw createError(ErrorTypes.VALIDATION_ERROR, "File Excel tidak dapat dibaca. Pastikan file .xlsx valid.", 400);
+    }
 
-    if (!Array.isArray(workbook.SheetNames) || workbook.SheetNames.length === 0) {
+    const sheetNames = workbook.worksheets.map((worksheet) => worksheet.name);
+    if (sheetNames.length === 0) {
         throw createError(ErrorTypes.VALIDATION_ERROR, "Workbook Excel tidak memiliki sheet yang dapat dibaca.", 400);
     }
 
-    const targetSheetName = workbook.SheetNames.includes(USER_EXCEL_SHEET_NAME)
+    const targetSheetName = sheetNames.includes(USER_EXCEL_SHEET_NAME)
         ? USER_EXCEL_SHEET_NAME
-        : workbook.SheetNames[0];
-    const sheet = workbook.Sheets[targetSheetName];
+        : sheetNames[0];
+    const sheet = workbook.getWorksheet(targetSheetName);
 
     if (!sheet) {
         throw createError(ErrorTypes.VALIDATION_ERROR, "Sheet data pelanggan tidak ditemukan di workbook Excel.", 400);
     }
 
-    const headerMatrix = XLSX.utils.sheet_to_json(sheet, {
-        header: 1,
-        defval: "",
-        blankrows: false
-    });
-    const headerValidation = validateImportHeaders(headerMatrix[0] || []);
+    const headerValidation = validateImportHeaders(sheetHeaderValues(sheet));
 
     if (headerValidation.missingRequiredHeaders.length > 0) {
         throw createError(
@@ -206,11 +235,7 @@ async function prepareImportRows(deps, buffer) {
         );
     }
 
-    const rawRows = XLSX.utils.sheet_to_json(sheet, {
-        defval: "",
-        raw: false,
-        blankrows: false
-    });
+    const rawRows = sheetDataRows(sheet, sheetHeaderValues(sheet));
 
     const preparedRows = [];
 

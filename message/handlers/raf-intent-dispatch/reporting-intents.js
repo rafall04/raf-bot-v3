@@ -7,6 +7,8 @@
  * SideEffects: Tidak ada.
  */
 "use strict";
+const log = require('../../../lib/logger').logger.child('REPORTING_INTENTS');
+
 
 async function handleLaporPanduanIntent(context) {
     const {
@@ -25,8 +27,8 @@ async function handleLaporPanduanIntent(context) {
     const user = await findUserWithLidSupport(global.users, msg, plainSenderNumber, raf);
 
     if (sender.includes('@lid') && !user) {
-        console.log('[LAPOR_PANDUAN] @lid format detected, user not found');
-        console.log('[LAPOR_PANDUAN] Sender:', sender);
+        log.info('[LAPOR_PANDUAN] @lid format detected, user not found');
+        log.info('[LAPOR_PANDUAN] Sender:', sender);
     }
 
     if (!user) {

@@ -7,6 +7,7 @@
  * SideEffects: Membaca/menulis `global.speed_requests`, mengubah `global.tempStates`, dan mengirim pesan WhatsApp.
  */
 
+const log = require('../../lib/logger').logger.child('SPEED_BOOST_HANDLER');
 const convertRupiah = require('rupiah-format');
 const { saveSpeedRequests } = require('../../lib/database');
 const { sendMessage } = require('../../lib/whatsapp-delivery-service');
@@ -341,7 +342,7 @@ async function handleSpeedBoostRequest(msg, user, sender) {
         await deliverText(msg.key.remoteJid, packageList);
         
     } catch (error) {
-        console.error('[SPEED_BOOST_REQUEST_ERROR]', error);
+        log.error('[SPEED_BOOST_REQUEST_ERROR]', error);
         await deliverText(msg.key.remoteJid, renderResponseTemplate('speed_boost_request_process_error'));
     }
 }
@@ -589,7 +590,7 @@ async function handleConfirmation(msg, user, sender, chats) {
             try {
                 await deliverText(ownerJid, adminMsg);
             } catch (e) {
-                console.error('Failed to notify admin:', e);
+                log.error('Failed to notify admin:', e);
             }
         }
     }
@@ -663,7 +664,7 @@ async function clearSpeedBoostStatus(msg, user, sender, targetUserId) {
             return true;
         }
     } catch (error) {
-        console.error('[CLEAR_SPEED_BOOST_ERROR]', error);
+        log.error('[CLEAR_SPEED_BOOST_ERROR]', error);
         return false;
     }
 }

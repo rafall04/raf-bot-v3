@@ -10,6 +10,8 @@
  * SideEffects: Tidak ada (read-only SQLite).
  */
 "use strict";
+const log = require('../lib/logger').logger.child('OLT_STATE');
+
 
 const express = require("express");
 const router = express.Router();
@@ -56,7 +58,7 @@ router.get("/modem-state", ensureEnabled, ensureStaff, async (req, res) => {
         }
         return res.json({ status: 200, message: `${items.length} modem.`, data: { items, summary } });
     } catch (err) {
-        console.error("[OLT_STATE_ROUTE_ERROR] modem-state:", err.message);
+        log.error("[OLT_STATE_ROUTE_ERROR] modem-state:", err.message);
         return res.status(500).json({ status: 500, message: "Gagal memuat state modem." });
     }
 });
@@ -68,7 +70,7 @@ router.get("/modem-state/:mac", ensureEnabled, ensureStaff, async (req, res) => 
         if (!s) return res.status(404).json({ status: 404, message: "Modem tidak ditemukan." });
         return res.json({ status: 200, data: s });
     } catch (err) {
-        console.error("[OLT_STATE_ROUTE_ERROR] modem-state/:mac:", err.message);
+        log.error("[OLT_STATE_ROUTE_ERROR] modem-state/:mac:", err.message);
         return res.status(500).json({ status: 500, message: "Gagal memuat state modem." });
     }
 });
@@ -90,7 +92,7 @@ router.get("/modem-incidents", ensureEnabled, ensureStaff, async (req, res) => {
         });
         return res.json({ status: 200, message: `${items.length} insiden.`, data: { items } });
     } catch (err) {
-        console.error("[OLT_STATE_ROUTE_ERROR] modem-incidents:", err.message);
+        log.error("[OLT_STATE_ROUTE_ERROR] modem-incidents:", err.message);
         return res.status(500).json({ status: 500, message: "Gagal memuat insiden." });
     }
 });
@@ -106,7 +108,7 @@ router.get("/modem-diagnosis", ensureEnabled, ensureStaff, async (req, res) => {
         const diagnosis = await buildModemDiagnosis({ repo: repo(), mac, pppoe_username: pppoe, config: global.config });
         return res.json({ status: 200, data: diagnosis });
     } catch (err) {
-        console.error("[OLT_STATE_ROUTE_ERROR] modem-diagnosis:", err.message);
+        log.error("[OLT_STATE_ROUTE_ERROR] modem-diagnosis:", err.message);
         return res.status(500).json({ status: 500, message: "Gagal menyusun diagnosa modem." });
     }
 });

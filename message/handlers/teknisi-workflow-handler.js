@@ -6,6 +6,7 @@
  * SideEffects: Mutasi tiket di `global.reports`, state percakapan teknisi, queue foto, dan pengiriman notifikasi WhatsApp pelanggan.
  */
 
+const log = require('../../lib/logger').logger.child('TEKNISI_WORKFLOW_HANDLER');
 const { normalizePhone: _normalizePhone, deduplicatePhones: _deduplicatePhones, isSameRecipient: _isSameRecipient } = require('../../lib/notification-tracker');
 const { getUserState, setUserState, deleteUserState, format } = require('./conversation-handler');
 const { clearUploadQueue: _clearUploadQueue } = require('./teknisi-photo-handler-v3');
@@ -136,8 +137,8 @@ async function handleProsesTicket(sender, ticketId, reply, teknisiAccount = null
         const teknisi = teknisiAccount || resolveTeknisiFromSender(sender);
 
         if (!teknisi) {
-            console.error(`[TEKNISI_NOT_FOUND] Sender: ${sender}, teknisiAccount provided: ${!!teknisiAccount}`);
-            console.error(`[TEKNISI_NOT_FOUND] Available teknisi:`, global.accounts.filter(a => a.role === 'teknisi').map(a => ({ phone: a.phone_number, lid: a.lid })));
+            log.error(`[TEKNISI_NOT_FOUND] Sender: ${sender}, teknisiAccount provided: ${!!teknisiAccount}`);
+            log.error(`[TEKNISI_NOT_FOUND] Available teknisi:`, global.accounts.filter(a => a.role === 'teknisi').map(a => ({ phone: a.phone_number, lid: a.lid })));
             return {
                 success: false,
                 message: renderResponseTemplate('teknisi_workflow_not_registered', 'Nomor ini belum terdaftar sebagai petugas.')
@@ -195,7 +196,7 @@ Langkah berikutnya: ketik *otw ${ticketId}*.`, {
         };
         
     } catch (error) {
-        console.error('[PROSES_TICKET_ERROR]', error);
+        log.error('[PROSES_TICKET_ERROR]', error);
         return {
             success: false,
             message: renderResponseTemplate('teknisi_workflow_process_error', 'Gagal memproses tiket. Silakan coba lagi.')
@@ -307,7 +308,7 @@ Saat tiba, ketik: *sampai ${ticketId.toUpperCase()}*.`, {
         };
         
     } catch (error) {
-        console.error('[OTW_ERROR]', error);
+        log.error('[OTW_ERROR]', error);
         return {
             success: false,
             message: renderResponseTemplate('teknisi_workflow_otw_error', 'Gagal update status perjalanan. Silakan coba lagi.')
@@ -403,7 +404,7 @@ Minta kode verifikasi pelanggan, lalu ketik:
         };
         
     } catch (error) {
-        console.error('[SAMPAI_ERROR]', error);
+        log.error('[SAMPAI_ERROR]', error);
         return {
             success: false,
             message: renderResponseTemplate('teknisi_workflow_arrived_error', 'Gagal update status kedatangan. Silakan coba lagi.')
@@ -559,7 +560,7 @@ Kirim foto pertama sekarang.`, { ticketId })
         };
         
     } catch (error) {
-        console.error('[VERIFIKASI_ERROR]', error);
+        log.error('[VERIFIKASI_ERROR]', error);
         return {
             success: false,
             message: renderResponseTemplate('teknisi_workflow_verify_error', 'Gagal verifikasi kode. Silakan coba lagi.')
@@ -679,7 +680,7 @@ Pelanggan telah diinformasikan.`, {
         };
         
     } catch (error) {
-        console.error('[SELESAI_ERROR]', error);
+        log.error('[SELESAI_ERROR]', error);
         return {
             success: false,
             message: renderResponseTemplate('teknisi_workflow_completion_error', 'Gagal menutup tiket. Silakan coba lagi.')
@@ -860,7 +861,7 @@ Ketik *done* atau *lanjut* untuk melanjutkan.`, {
         }
         
     } catch (error) {
-        console.error('[TEKNISI_PHOTO_ERROR]', error);
+        log.error('[TEKNISI_PHOTO_ERROR]', error);
         return {
             success: false,
             message: renderResponseTemplate('teknisi_workflow_photo_save_error', 'Gagal menyimpan dokumentasi. Coba lagi.')
@@ -1008,7 +1009,7 @@ Anda bisa ambil tiket baru dengan *list tiket*.`, {
         };
         
     } catch (error) {
-        console.error('[COMPLETE_TICKET_ERROR]', error);
+        log.error('[COMPLETE_TICKET_ERROR]', error);
         return {
             success: false,
             message: renderResponseTemplate('teknisi_workflow_complete_ticket_error', 'Gagal menutup tiket. Coba lagi.')

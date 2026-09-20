@@ -7,6 +7,8 @@
  * SideEffects: Mengirim pesan teks atau contact payload melalui gateway runtime WA aktif.
  */
 "use strict";
+const log = require('../../lib/logger').logger.child('REPLY_RUNTIME');
+
 
 const { isReady, sendPayload } = require('../../lib/whatsapp-gateway');
 
@@ -14,7 +16,7 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function sendReply({ recipient, text, quoted, skipDuplicateCheck = false, delayMs = 500 }) {
     if (!isReady()) {
-        console.warn('[SEND_MESSAGE_SKIP] WhatsApp not connected, skipping send to', recipient);
+        log.warn('[SEND_MESSAGE_SKIP] WhatsApp not connected, skipping send to', recipient);
         return;
     }
 
@@ -25,7 +27,7 @@ async function sendReply({ recipient, text, quoted, skipDuplicateCheck = false, 
             ...(skipDuplicateCheck ? { skipDuplicateCheck: true } : {})
         });
     } catch (error) {
-        console.error('[SEND_MESSAGE_ERROR]', {
+        log.error('[SEND_MESSAGE_ERROR]', {
             from: recipient,
             error: error.message
         });
@@ -34,7 +36,7 @@ async function sendReply({ recipient, text, quoted, skipDuplicateCheck = false, 
 
 async function sendContactCard({ recipient, number, name, quoted }) {
     if (!isReady()) {
-        console.warn('[SEND_MESSAGE_SKIP] WhatsApp not connected, skipping send to', recipient);
+        log.warn('[SEND_MESSAGE_SKIP] WhatsApp not connected, skipping send to', recipient);
         return;
     }
 
@@ -54,7 +56,7 @@ async function sendContactCard({ recipient, number, name, quoted }) {
             }
         }, { quoted });
     } catch (error) {
-        console.error('[SEND_MESSAGE_ERROR]', {
+        log.error('[SEND_MESSAGE_ERROR]', {
             from: recipient,
             type: 'contact',
             error: error.message

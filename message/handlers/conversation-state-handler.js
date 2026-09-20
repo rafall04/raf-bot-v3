@@ -7,6 +7,7 @@
  * SideEffects: Memperbarui state managed, memanggil workflow domain, dan mengirim reply.
  */
 
+const log = require('../../lib/logger').logger.child('CONVERSATION_STATE_HANDLER');
 const axios = require('axios');
 const convertRupiah = require('rupiah-format');
 const { getUserState, deleteUserState } = require('./conversation-handler');
@@ -177,7 +178,7 @@ async function handleConversationState(params) {
         }
 
         default:
-            console.log(`[CONVERSATION_STATE] Unknown step: ${userState.step}`);
+            log.info(`[CONVERSATION_STATE] Unknown step: ${userState.step}`);
             deleteUserState(sender);
             return reply(renderResponseTemplate(
                 'conversation_unknown_step_error',

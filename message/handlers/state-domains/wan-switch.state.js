@@ -15,6 +15,8 @@
  *              percakapan; kirim WA. NEVER-THROW.
  */
 "use strict";
+const log = require('../../../lib/logger').logger.child('WAN_SWITCH_STATE');
+
 
 const STEP_SELECT = "WANSW_SELECT";
 const STEP_CONFIRM = "WANSW_CONFIRM";
@@ -114,7 +116,7 @@ async function startWanSwitch(context) {
         await reply(text);
         return { handled: true };
     } catch (err) {
-        console.warn(`[WANSW] startWanSwitch gagal: ${err.message}`);
+        log.warn(`[WANSW] startWanSwitch gagal: ${err.message}`);
         try { await reply("Maaf, gagal membaca status jalur. Coba lagi ya."); } catch (_e) { /* abaikan */ }
         return { handled: true };
     }
@@ -196,7 +198,7 @@ async function handleWanSwitchConversationState(context) {
         }
         return { handled: false };
     } catch (err) {
-        console.warn(`[WANSW] state gagal: ${err.message}`);
+        log.warn(`[WANSW] state gagal: ${err.message}`);
         try {
             if (context.deleteUserState) context.deleteUserState(context.stateSender);
             await context.reply("Maaf, terjadi kendala. Proses switch dibatalkan.");

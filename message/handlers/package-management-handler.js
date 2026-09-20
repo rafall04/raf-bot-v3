@@ -7,6 +7,7 @@
  * SideEffects: Menyimpan state pilihan paket dan mengirim reply WhatsApp.
  */
 
+const log = require('../../lib/logger').logger.child('PACKAGE_MANAGEMENT_HANDLER');
 const convertRupiah = require('rupiah-format');
 
 const { getUserState: _getUserState, setUserState, deleteUserState: _deleteUserState } = require('./conversation-handler');
@@ -114,7 +115,7 @@ async function handleUbahPaket({ sender, stateSender, plainSenderNumber: _plainS
         return reply(replyText);
 
     } catch (error) {
-        console.error('[UBAH_PAKET] Error:', error);
+        log.error('[UBAH_PAKET] Error:', error);
         await reply(renderResponseTemplate(
             'package_generic_error',
             'Terjadi kesalahan saat memproses permintaan ubah paket. Silakan coba lagi.'

@@ -70,9 +70,51 @@ describe("payment-flow.service", () => {
             "topup",
             10000,
             "QRIS",
-            "Topup 10000 to 6281@s.whatsapp.net"
+            "Topup 10000 to 6281@s.whatsapp.net",
+            {}
         );
         expect(sendMessage).toHaveBeenCalled();
+    });
+
+    test("buynow menyimpan prof voucher terpilih di record (anti harga-kembar → durasi salah)", async () => {
+        const createPaymentRequest = jest.fn().mockResolvedValue(undefined);
+        const sendMessage = jest.fn().mockResolvedValue(undefined);
+        const service = createPaymentFlowService({
+            paymentRepository: {
+                createPaymentRequest,
+                getUserTopupRequests: jest.fn(),
+                getPendingTransferTopupRequests: jest.fn(),
+                saveTopupProofUpdate: jest.fn()
+            },
+            renderTemplate: jest.fn().mockReturnValue("QRIS info"),
+            sendMessage,
+            pay: jest.fn().mockResolvedValue({
+                id: "TRX-9", subTotal: 5000, fee: 35, total: 5035, qrString: "QR-V"
+            })
+        });
+
+        await service.handleTopupSaldoPayment({
+            sender: "6282@s.whatsapp.net",
+            pushname: "Buyer",
+            command: "buynow",
+            q: "5000",
+            from: "6282@s.whatsapp.net",
+            msg: {},
+            checkprofvc: jest.fn().mockReturnValue("Paket-1Hari"),
+            checkhargavoucher: jest.fn().mockReturnValue(true),
+            checkhargavc: jest.fn().mockReturnValue(5000)
+        });
+
+        expect(createPaymentRequest).toHaveBeenCalledWith(
+            expect.any(String),
+            "TRX-9",
+            "6282@s.whatsapp.net",
+            "buynow",
+            5000,
+            "QRIS",
+            expect.any(String),
+            { prof: "Paket-1Hari" }
+        );
     });
 
     test("handleTopupPaymentProof uses repository pending lookup and proof update", async () => {

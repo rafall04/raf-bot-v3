@@ -16,6 +16,8 @@
  *              `expense_entries` secara langsung.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('ADMIN_KAS_USAHA_ROUTES');
+
 const { writeFileAtomicSync } = require('../lib/atomic-file'); // config.json ATOMIK (#b343)
 
 const { asyncHandler } = require("../lib/error-handler");
@@ -140,7 +142,7 @@ function registerAdminKasUsahaRoutes(router, deps = {}) {
                 require("../lib/cron/jobs/money-digest").initMoneyDigestTask();
                 jadwalAktif = aktif;
             } catch (e) {
-                console.error("[KAS_AKTIF] Gagal menjadwalkan ulang job kas:", e && e.message);
+                log.error("[KAS_AKTIF] Gagal menjadwalkan ulang job kas:", e && e.message);
             }
 
             // Jujur soal syarat: "aktif" tanpa grup/pemilik tak menghasilkan apa pun.
@@ -155,7 +157,7 @@ function registerAdminKasUsahaRoutes(router, deps = {}) {
             if (aktif && !kurang.length) {
                 require("../lib/services/kas-group-notifier")
                     .kabarkanKeGrupKas("be_bantuan", { fallback: "" })
-                    .catch((e) => console.error("[KAS_AKTIF] Panduan gagal dikirim:", e && e.message));
+                    .catch((e) => log.error("[KAS_AKTIF] Panduan gagal dikirim:", e && e.message));
             }
 
             res.json({

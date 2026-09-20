@@ -6,6 +6,7 @@
  * MainFuncs: ensureAdmin, broadcastToAdmins, create/cancel/approve/bulk payment request routes.
  * SideEffects: Menulis request/payment state, ledger pembayaran, activity log, dan mengirim notifikasi WhatsApp owner/admin.
  */
+const log = require('../lib/logger').logger.child('REQUESTS');
 const express = require('express');
 const { loadJSON, saveJSON } = require('../lib/database');
 const { handlePaidStatusChange, sendTechnicianNotification } = require('../lib/approval-logic');
@@ -109,13 +110,13 @@ function getPaymentRequestRecipients(excludePhoneNumbers = []) {
 
 async function broadcastToAdmins(message, excludePhoneNumbers = []) {
     if (!hasAuthenticatedSession()) {
-        console.log('[BROADCAST_TO_ADMINS] WhatsApp connection not available');
+        log.info('[BROADCAST_TO_ADMINS] WhatsApp connection not available');
         return;
     }
 
     const recipientsToSend = getPaymentRequestRecipients(excludePhoneNumbers);
     const delivery = await sendMessageToMany(recipientsToSend, { text: message });
-    console.log('[BROADCAST_TO_ADMINS_RESULT]', {
+    log.info('[BROADCAST_TO_ADMINS_RESULT]', {
         requested: recipientsToSend.length,
         delivered: delivery.successCount,
         errorCode: delivery.errorCode || null
@@ -203,7 +204,7 @@ router.get('/', async (req, res) => {
             };
         });
         
-        console.log(`[REQUESTS] ${req.user.username} (${req.user.role}): ${enrichedRequests.length}/${counts.total} requests${sinceMonths ? ` (window ${sinceMonths}bln)` : ''}`);
+        log.info(`[REQUESTS] ${req.user.username} (${req.user.role}): ${enrichedRequests.length}/${counts.total} requests${sinceMonths ? ` (window ${sinceMonths}bln)` : ''}`);
 
         return res.status(200).json({
             status: 200,
@@ -211,7 +212,7 @@ router.get('/', async (req, res) => {
             meta: { counts, returned: enrichedRequests.length, sinceMonths }
         });
     } catch (error) {
-        console.error('[REQUESTS] Error:', error.message);
+        log.error('[REQUESTS] Error:', error.message);
         return res.status(500).json({ status: 500, message: "Terjadi kesalahan server" });
     }
 });
@@ -270,7 +271,7 @@ router.post('/', rateLimit('create-request', 30, 60000), async (req, res) => {
                     existingPendingRequest.updated_at = new Date().toISOString();
                     existingPendingRequest.updated_by = 'system';
                     saveJSON('database/requests.json', allRequests);
-                    console.log(`[REQUEST_AUTO_CANCEL] Request ID ${existingPendingRequest.id} auto-cancelled karena expired (>7 hari).`);
+                    log.info(`[REQUEST_AUTO_CANCEL] Request ID ${existingPendingRequest.id} auto-cancelled karena expired (>7 hari).`);
                 } else {
                     // Cek apakah status user saat ini sudah sama dengan yang diajukan
                     if (user.paid === newStatus) {
@@ -280,7 +281,7 @@ router.post('/', rateLimit('create-request', 30, 60000), async (req, res) => {
                         existingPendingRequest.updated_by = 'system';
                         existingPendingRequest.cancel_reason = 'Status pelanggan sudah sesuai dengan pengajuan';
                         saveJSON('database/requests.json', allRequests);
-                        console.log(`[REQUEST_AUTO_CANCEL] Request ID ${existingPendingRequest.id} auto-cancelled karena status sudah sesuai.`);
+                        log.info(`[REQUEST_AUTO_CANCEL] Request ID ${existingPendingRequest.id} auto-cancelled karena status sudah sesuai.`);
                     } else {
                         const conflictingOwnerId = existingPendingRequest.requested_by_agen_id || existingPendingRequest.requested_by_teknisi_id;
                         // Sebutkan JENIS yang menghalangi. Sejak penjaga jadi tipe-agnostik (#b254),
@@ -321,7 +322,7 @@ router.post('/', rateLimit('create-request', 30, 60000), async (req, res) => {
             };
             allRequests.push(newRequest);
             saveJSON('database/requests.json', allRequests);
-            console.log(`[REQUEST_CREATE_LOG] ${isAgenRequestor ? 'Agen' : 'Teknisi'} ID ${req.user.id} (${req.user.username}) membuat pengajuan baru untuk User ID ${userId} (${user.name}). Payment method: ${newRequest.payment_method || 'N/A'}`);
+            log.info(`[REQUEST_CREATE_LOG] ${isAgenRequestor ? 'Agen' : 'Teknisi'} ID ${req.user.id} (${req.user.username}) membuat pengajuan baru untuk User ID ${userId} (${user.name}). Payment method: ${newRequest.payment_method || 'N/A'}`);
             
             // Broadcast ke semua admin dan owner
             const teknisiName = req.user.name || req.user.username;
@@ -383,7 +384,7 @@ router.post('/', rateLimit('create-request', 30, 60000), async (req, res) => {
                     }
                 } catch (digestErr) {
                     // Never-throw: kalau digest gagal, jatuh ke broadcast biasa agar notifikasi tak hilang.
-                    console.error('[NOTIF_DIGEST] enqueue gagal, fallback broadcast:', digestErr.message);
+                    log.error('[NOTIF_DIGEST] enqueue gagal, fallback broadcast:', digestErr.message);
                     await broadcastToAdmins(messageToAdmins);
                 }
             } else {
@@ -392,7 +393,7 @@ router.post('/', rateLimit('create-request', 30, 60000), async (req, res) => {
             return res.status(201).json({ status: 201, message: "Pengajuan perubahan status berhasil dibuat dan sedang menunggu persetujuan.", data: newRequest });
         });
     } catch (error) {
-        console.error('[CREATE_REQUEST_LOCK_ERROR]', error);
+        log.error('[CREATE_REQUEST_LOCK_ERROR]', error);
         return res.status(500).json({ 
             status: 500,
             message: error.message === `Could not acquire lock for create-request-${userId}`
@@ -437,7 +438,7 @@ router.post('/cancel', rateLimit('cancel-request', 30, 60000), async (req, res) 
     requestToUpdate.updated_by = technicianId;
     allRequests[requestIndex] = requestToUpdate;
     saveJSON('database/requests.json', allRequests);
-    console.log(`[REQUEST_CANCEL_LOG] Teknisi ID ${technicianId} membatalkan pengajuan ID ${requestId}.`);
+    log.info(`[REQUEST_CANCEL_LOG] Teknisi ID ${technicianId} membatalkan pengajuan ID ${requestId}.`);
     
     // Send notification to owner
     if (hasAuthenticatedSession() && global.config.ownerNumber && Array.isArray(global.config.ownerNumber) && global.config.ownerNumber.length > 0) {
@@ -453,7 +454,7 @@ router.post('/cancel', rateLimit('cancel-request', 30, 60000), async (req, res) 
         });
         const ownerDelivery = await sendMessageToMany(global.config.ownerNumber, { text: messageToOwner });
         if (!ownerDelivery.sent) {
-            console.error('[REQUEST_CANCEL_NOTIF_OWNER_ERROR]', ownerDelivery.errorCode || 'SEND_FAILED');
+            log.error('[REQUEST_CANCEL_NOTIF_OWNER_ERROR]', ownerDelivery.errorCode || 'SEND_FAILED');
         }
     }
     return res.status(200).json({ status: 200, message: `Pengajuan dengan ID ${requestId} berhasil dibatalkan.` });
@@ -476,7 +477,7 @@ router.post('/approve-paid-change', rateLimit('approve-request', 20, 60000), asy
             message: `Input validation error: ${error.message}` 
         });
     }
-    console.log(`[API_APPROVE_PAID] Action: approve-paid-change for requestId: ${requestId}, approved: ${approved}`);
+    log.info(`[API_APPROVE_PAID] Action: approve-paid-change for requestId: ${requestId}, approved: ${approved}`);
     
     // Use lock to prevent race condition on single request
     try {
@@ -518,18 +519,18 @@ router.post('/approve-paid-change', rateLimit('approve-request', 20, 60000), asy
                 return new Promise((resolve) => {
                     global.db.all(`PRAGMA table_info(users)`, (err, columns) => {
                         if (err) {
-                            console.error('[APPROVE_CHECK_COLUMN_ERROR]', err.message);
+                            log.error('[APPROVE_CHECK_COLUMN_ERROR]', err.message);
                             return resolve(false);
                         }
                         const hasSendInvoice = columns.some(col => col.name === 'send_invoice');
                         if (!hasSendInvoice) {
-                            console.log('[APPROVE_SCHEMA_UPDATE] Adding missing send_invoice column...');
+                            log.info('[APPROVE_SCHEMA_UPDATE] Adding missing send_invoice column...');
                             global.db.run(`ALTER TABLE users ADD COLUMN send_invoice INTEGER DEFAULT 0`, (alterErr) => {
                                 if (alterErr) {
-                                    console.error('[APPROVE_ADD_COLUMN_ERROR]', alterErr.message);
+                                    log.error('[APPROVE_ADD_COLUMN_ERROR]', alterErr.message);
                                     return resolve(false);
                                 }
-                                console.log('[APPROVE_SCHEMA_UPDATE] send_invoice column added successfully.');
+                                log.info('[APPROVE_SCHEMA_UPDATE] send_invoice column added successfully.');
                                 resolve(true);
                             });
                         } else {
@@ -573,7 +574,7 @@ router.post('/approve-paid-change', rateLimit('approve-request', 20, 60000), asy
                         }
 
                         nextRequestState.payment_method = paymentMethod;
-                        console.log(`[APPROVE_PAID] Payment method for ${userToUpdate.name}: ${paymentMethod}`);
+                        log.info(`[APPROVE_PAID] Payment method for ${userToUpdate.name}: ${paymentMethod}`);
 
                         const { periodMonth, periodYear } = getPeriodParts({
                             periodMonth: parseInt(nextRequestState.period_month, 10),
@@ -625,7 +626,7 @@ router.post('/approve-paid-change', rateLimit('approve-request', 20, 60000), asy
                         if (financeResult.action !== 'paid') {
                             return res.status(409).json({ status: 409, message: 'Pengajuan tidak dapat di-approve karena posisi pembayaran sudah berubah.' });
                         }
-                        console.log(`[APPROVE_PAID_HISTORY] Payment recorded for ${userToUpdate.name}: Rp ${amountPaid.toLocaleString('id-ID')}`);
+                        log.info(`[APPROVE_PAID_HISTORY] Payment recorded for ${userToUpdate.name}: Rp ${amountPaid.toLocaleString('id-ID')}`);
                     } else {
                         const { periodMonth, periodYear } = getPeriodParts({
                             periodMonth: parseInt(nextRequestState.period_month, 10),
@@ -651,7 +652,7 @@ router.post('/approve-paid-change', rateLimit('approve-request', 20, 60000), asy
                         await new Promise((resolve, reject) => {
                             global.db.run('UPDATE users SET send_invoice = ? WHERE id = ?', [sendInvoiceValue, userToUpdate.id], function(err) {
                                 if (err) {
-                                    console.error(`[APPROVE_PAID_DB_ERROR] Gagal update send_invoice untuk user ID ${userToUpdate.id}:`, err.message);
+                                    log.error(`[APPROVE_PAID_DB_ERROR] Gagal update send_invoice untuk user ID ${userToUpdate.id}:`, err.message);
                                     return reject(new Error(`Gagal memperbarui send_invoice di database untuk user ID ${userToUpdate.id}.`));
                                 }
                                 resolve();
@@ -674,10 +675,10 @@ router.post('/approve-paid-change', rateLimit('approve-request', 20, 60000), asy
                         ipAddress: req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'],
                         userAgent: req.headers['user-agent']
                     }).catch((logErr) => {
-                        console.error('[ACTIVITY_LOG_ERROR] Failed to log payment approval:', logErr);
+                        log.error('[ACTIVITY_LOG_ERROR] Failed to log payment approval:', logErr);
                     });
                 } catch (e) {
-                    console.error(`[ASYNC_APPROVE_PAID_ERROR] A post-approval operation failed for user ${userToUpdate.name}:`, e.message);
+                    log.error(`[ASYNC_APPROVE_PAID_ERROR] A post-approval operation failed for user ${userToUpdate.name}:`, e.message);
                     return res.status(500).json({ status: 500, message: `Proses persetujuan gagal: ${e.message}` });
                 }
                 allRequests[requestIndex] = nextRequestState;
@@ -691,7 +692,7 @@ router.post('/approve-paid-change', rateLimit('approve-request', 20, 60000), asy
             }
         });
     } catch (error) {
-        console.error('[APPROVE_PAID_LOCK_ERROR]', error);
+        log.error('[APPROVE_PAID_LOCK_ERROR]', error);
         return res.status(500).json({ 
             message: error.message === `Could not acquire lock for request-${requestId}`
                 ? 'Request sedang diproses. Silakan coba lagi.'
@@ -775,7 +776,7 @@ router.post('/bulk-approve', ensureAdmin, rateLimit('bulk-approve', 30, 60000), 
             return res.json(result);
         });
     } catch (error) {
-        console.error('[BULK_APPROVE_ERROR]', error);
+        log.error('[BULK_APPROVE_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: error.message === `Could not acquire lock for bulk-approve-requests`
@@ -828,7 +829,7 @@ router.get('/bulk-approve/log', ensureAdmin, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[OTORISASI_LOG_ERROR]', error);
+        log.error('[OTORISASI_LOG_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Gagal memuat log otorisasi' });
     }
 });

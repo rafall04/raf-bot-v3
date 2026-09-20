@@ -29,6 +29,8 @@
  *              Bila gate reboot lolos: menyetel conversation state `REBOOTFU_OFFER` (JID kanonik).
  */
 'use strict';
+const log = require('../../lib/logger').logger.child('CONNECTION_CHECK_HANDLER');
+
 
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
 const { getActivePPPoEUsers } = require('../../lib/mikrotik');
@@ -576,7 +578,7 @@ async function buildRebootOffer({ user, resolved, lineStatus, areaOutage, offlin
                     remoteAddr: remoteAddr || null
                 });
                 if (job) {
-                    console.log(`[REBOOTFU] Pelanggan restart sendiri → pantau ${job.id} (due ${job.dueAt})`);
+                    log.info(`[REBOOTFU] Pelanggan restart sendiri → pantau ${job.id} (due ${job.dueAt})`);
                     return renderResponseTemplate(
                         'rebootfu_watch_self_restart',
                         `\n\n👀 Baik Kak, saya pantau dari sini ya. Sekitar 6 menit lagi saya cek ulang ` +
@@ -590,7 +592,7 @@ async function buildRebootOffer({ user, resolved, lineStatus, areaOutage, offlin
 
         if (!gate.allowed) {
             if (gate.reason !== 'FITUR_MATI') {
-                console.log(`[REBOOTFU] Tawaran reboot dilewati (${gate.reason}, mode=${gate.mode})`);
+                log.info(`[REBOOTFU] Tawaran reboot dilewati (${gate.reason}, mode=${gate.mode})`);
             }
             return '';
         }
@@ -600,14 +602,14 @@ async function buildRebootOffer({ user, resolved, lineStatus, areaOutage, offlin
         // diperbaiki. Menutup "cuma cek malah disuruh reboot" + memutus rantai "ok/siap → reboot
         // modem sehat". Jalur TERPUTUS (offline) tetap ditawari — putusnya itu sendiri buktinya.
         if (lineStatus === 'online' && !hasConnectivityComplaintSignal(customerText || '')) {
-            console.log('[REBOOTFU] Tawaran reboot dilewati (jalur sehat, pelanggan tak mengeluh).');
+            log.info('[REBOOTFU] Tawaran reboot dilewati (jalur sehat, pelanggan tak mengeluh).');
             return '';
         }
 
         // State WAJIB di-key JID kanonik, bukan @lid (lihat lib/jid-utils).
         const stateKey = resolved && resolved.canonicalJid;
         if (!stateKey) {
-            console.warn('[REBOOTFU] Tawaran reboot dibatalkan: JID kanonik tak terselesaikan.');
+            log.warn('[REBOOTFU] Tawaran reboot dibatalkan: JID kanonik tak terselesaikan.');
             return '';
         }
 
@@ -627,7 +629,7 @@ async function buildRebootOffer({ user, resolved, lineStatus, areaOutage, offlin
             { nama: user.name || 'Kak' }
         );
     } catch (err) {
-        console.error(`[REBOOTFU] Gagal menyiapkan tawaran reboot: ${err.message}`);
+        log.error(`[REBOOTFU] Gagal menyiapkan tawaran reboot: ${err.message}`);
         return '';
     }
 }
@@ -648,7 +650,7 @@ async function resolveLineStatus({ user, userList, routerId }) {
     } catch (err) {
         // Buta, bukan "semua mati". Dicatat dengan alasan sebenarnya supaya kebutaan router
         // terlihat di log — diam total di sini dulu membuat gangguan MikroTik tak terdeteksi.
-        console.warn(`[CEK_KONEKSI] Status jalur TIDAK DAPAT dipastikan: ${err && err.message ? err.message : err}`);
+        log.warn(`[CEK_KONEKSI] Status jalur TIDAK DAPAT dipastikan: ${err && err.message ? err.message : err}`);
         return { lineStatus: 'unknown', areaOutage: false, offlineCount: 0 };
     }
 

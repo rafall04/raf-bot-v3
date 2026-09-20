@@ -7,6 +7,8 @@
  * SideEffects: Mengirim reply hasil reporting dan mendelegasikan side effect ke handler reporting existing.
  */
 "use strict";
+const log = require('../../../lib/logger').logger.child('REPORTING_STATE');
+
 
 const fs = require("fs");
 const path = require("path");
@@ -159,7 +161,7 @@ async function handleReportingConversationState(context) {
                     await reply(result.message);
                 }
             } catch (error) {
-                console.error("[PHOTO_UPLOAD] Error handling image:", error);
+                log.error("[PHOTO_UPLOAD] Error handling image:", error);
                 await reply(format("error_photo_process_failed"));
             }
             return { handled: true };
@@ -202,7 +204,7 @@ async function handleReportingConversationState(context) {
                     await reply(result.message);
                 }
             } catch (error) {
-                console.error("[PHOTO_UPLOAD_ERROR]", error);
+                log.error("[PHOTO_UPLOAD_ERROR]", error);
                 await reply(format("error_photo_receive_failed"));
             }
             return { handled: true };
@@ -292,7 +294,7 @@ async function handleReportingConversationState(context) {
                     remainingLine: remaining > 0 ? `- Bisa upload ${remaining} foto lagi` : "- Maksimal 3 foto tercapai"
                 }));
             } catch (error) {
-                console.error("[CUSTOMER_PHOTO_UPLOAD_ERROR]", error);
+                log.error("[CUSTOMER_PHOTO_UPLOAD_ERROR]", error);
                 await reply(format("error_photo_upload_failed"));
             }
             return { handled: true };
@@ -339,10 +341,10 @@ async function handleReportingConversationState(context) {
                 });
 
                 if (result.queued) {
-                    console.log(`[PHOTO_QUEUE] Photo ${result.count} queued for ${sender}`);
+                    log.info(`[PHOTO_QUEUE] Photo ${result.count} queued for ${sender}`);
                 }
             } catch (error) {
-                console.error("[UPLOAD_PHOTO_ERROR]", error);
+                log.error("[UPLOAD_PHOTO_ERROR]", error);
             }
             return { handled: true };
         }

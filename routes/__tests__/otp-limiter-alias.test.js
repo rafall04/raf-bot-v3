@@ -109,7 +109,7 @@ describe("validasi input disamakan antar-alias", () => {
     test("dua rute lama tak lagi telanjang tanpa validator", () => {
         const fs = require("fs");
         const path = require("path");
-        const src = fs.readFileSync(path.join(__dirname, "..", "public.js"), "utf8");
+        const src = fs.readFileSync(path.join(__dirname, "..", "public", "auth.js"), "utf8");
         // Beda perlakuan antar-alias adalah cara gerbang mati diam-diam: `/api/otp` dan
         // `/api/otpverify` dulu TANPA validasi sama sekali sementara alias `/api/auth/otp/*`
         // memakainya, padahal handlernya sama — penyerang tinggal memilih pintu yang longgar.

@@ -401,12 +401,12 @@ function isParentActive($pages, $current) {
         </div>
     </li>
 
-    <li class="nav-item <?php echo isParentActive(['/paket-voucher', '/voucher-send', '/voucher-print', '/voucher-sales'], $current_page) ? 'active' : ''; ?>">
-        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseVoucher" aria-expanded="<?php echo isParentActive(['/paket-voucher', '/voucher-send', '/voucher-print', '/voucher-sales'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseVoucher">
+    <li class="nav-item <?php echo isParentActive(['/paket-voucher', '/voucher-send', '/voucher-print', '/voucher-sales', '/voucher-orphans'], $current_page) ? 'active' : ''; ?>">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseVoucher" aria-expanded="<?php echo isParentActive(['/paket-voucher', '/voucher-send', '/voucher-print', '/voucher-sales', '/voucher-orphans'], $current_page) ? 'true' : 'false'; ?>" aria-controls="collapseVoucher">
             <i class="fas fa-fw fa-ticket-alt"></i>
             <span>Voucher Hotspot</span>
         </a>
-        <div id="collapseVoucher" class="collapse <?php echo isParentActive(['/paket-voucher', '/voucher-send', '/voucher-print', '/voucher-sales'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingVoucher" data-parent="#accordionSidebar">
+        <div id="collapseVoucher" class="collapse <?php echo isParentActive(['/paket-voucher', '/voucher-send', '/voucher-print', '/voucher-sales', '/voucher-orphans'], $current_page) ? 'show' : ''; ?>" aria-labelledby="headingVoucher" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/paket-voucher', $current_page) ? 'active' : ''; ?>" href="/paket-voucher">
                     <i class="fas fa-fw fa-list mr-2"></i>
@@ -423,6 +423,10 @@ function isParentActive($pages, $current) {
                 <a class="collapse-item d-flex align-items-center <?php echo isActive('/voucher-sales', $current_page) ? 'active' : ''; ?>" href="/voucher-sales">
                     <i class="fas fa-fw fa-chart-line mr-2"></i>
                     <span>Penjualan Voucher</span>
+                </a>
+                <a class="collapse-item d-flex align-items-center <?php echo isActive('/voucher-orphans', $current_page) ? 'active' : ''; ?>" href="/voucher-orphans">
+                    <i class="fas fa-fw fa-life-ring mr-2"></i>
+                    <span>Voucher Orphan</span>
                 </a>
             </div>
         </div>

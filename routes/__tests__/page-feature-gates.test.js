@@ -8,9 +8,11 @@
  *          terjadi pada /voucher-sales: komentar kode dan config.example.json
  *          sama-sama bilang "default true", tapi halamannya 404 di KEDUA bot produksi
  *          karena `voucherSalesDashboard` memang tak pernah ada di config mereka.
- *          Gerbang yang DIMAKSUD default-aktif wajib memakai pola `=== false`.
+ *          Gerbang yang DIMAKSUD default-aktif kini WAJIB lewat registry
+ *          `lib/feature-flags.js` (`isFeatureEnabled` + `defaultEnabled:true`) —
+ *          penerus pola `=== false` yang diadministrasi di /feature-flags.
  * Caller: Jest (`npm test`).
- * Deps: routes/pages.js (dibaca sebagai teks — guard statis, tanpa Express/DB).
+ * Deps: routes/pages.js & lib/feature-flags.js (dibaca sebagai teks — guard statis).
  * MainFuncs: -
  * SideEffects: Hanya membaca berkas.
  */
@@ -20,15 +22,17 @@ const fs = require('fs');
 const path = require('path');
 
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'pages.js'), 'utf8');
+const FLAGS = fs.readFileSync(path.join(__dirname, '..', '..', 'lib', 'feature-flags.js'), 'utf8');
 const EXAMPLE = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'config.example.json'), 'utf8'));
 
 describe('gerbang fitur halaman', () => {
     test('/voucher-sales default AKTIF — tak lagi mati hanya karena kuncinya absen', () => {
         // Pola LAMA yang menyebabkan 404 senyap di produksi.
         expect(SRC).not.toContain('global.config.voucherSalesDashboard && global.config.voucherSalesDashboard.enabled');
-        // Pola BARU: hanya mati bila eksplisit dimatikan.
-        expect(SRC).toContain("const cfg = (global.config && global.config.voucherSalesDashboard) || {};");
-        expect(SRC).toMatch(/voucherSalesDashboard\) \|\| \{\};\s*\n\s*if \(cfg\.enabled === false\)/);
+        // Pola BARU: gerbang lewat registry feature-flags, BUKAN idiom truthy/`!==false`
+        // tersebar — registry memuat `defaultEnabled:true` jadi kunci yang absen tetap AKTIF.
+        expect(SRC).toContain("isFeatureEnabled('voucherSalesDashboard')");
+        expect(FLAGS).toMatch(/key:\s*"voucherSalesDashboard"[\s\S]*?defaultEnabled:\s*true/);
     });
 
     test('config.example.json tetap mendokumentasikan voucherSalesDashboard sebagai aktif', () => {

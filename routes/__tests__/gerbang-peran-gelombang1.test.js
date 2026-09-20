@@ -15,6 +15,11 @@
  * PENTING: `savePackages()` di routes/packages.js menulis `database/packages.json` SUNGGUHAN.
  * Jalur tulis di-mock di bawah — tanpa itu, tes jalur-bahagia admin menimpa katalog produksi
  * dengan data uji (sudah pernah terjadi saat tes ini ditulis).
+ *
+ * !! Jalur tulisnya ATOMIK (`saveJSON` → `writeFileSync` ke `packages.json.tmp-<pid>` lalu
+ * `renameSync` ke nama final). Mencegat `writeFileSync` pada nama final saja TIDAK cukup:
+ * tmp-nya lolos mock lalu rename tetap menimpa katalog. Karena itu dicegat dua-duanya —
+ * writeFileSync ke nama final DAN `.tmp-*`, plus renameSync menuju nama final.
  */
 "use strict";
 
@@ -25,19 +30,32 @@ const { panggilHttp } = require("./helpers/panggil-http");
 // Bendung SEMUA penulisan ke database/packages.json selama suite ini berjalan.
 let penulisanTercegat = [];
 const writeFileSyncAsli = fs.writeFileSync;
+const renameSyncAsli = fs.renameSync;
+
+// "database/packages.json" ATAU berkas sementara atomiknya ("database/packages.json.tmp-123").
+function adalahKatalog(target) {
+    return /database\/packages\.json(\.tmp-\d+)?$/.test(String(target).replace(/\\/g, "/"));
+}
 
 beforeAll(() => {
     fs.writeFileSync = (target, isi, ...sisa) => {
-        if (String(target).replace(/\\/g, "/").endsWith("database/packages.json")) {
+        if (adalahKatalog(target)) {
             penulisanTercegat.push(isi);
             return undefined;
         }
         return writeFileSyncAsli(target, isi, ...sisa);
     };
+    // Tmp-nya tak pernah tertulis (writeFileSync dicegat), jadi rename aslinya akan ENOENT —
+    // cukup dicatat sebagai sukses semu; katalog di disk tetap tak tersentuh.
+    fs.renameSync = (dari, ke) => {
+        if (adalahKatalog(ke)) return undefined;
+        return renameSyncAsli(dari, ke);
+    };
 });
 
 afterAll(() => {
     fs.writeFileSync = writeFileSyncAsli;
+    fs.renameSync = renameSyncAsli;
 });
 
 beforeEach(() => {

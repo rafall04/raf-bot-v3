@@ -1,0 +1,25 @@
+/* Voucher Orphans — worklist rekonsiliasi (/voucher-orphans). Token semantik (check-theme-tokens):
+ * teks di atas isian aksen pakai --on-accent / --on-fill-warning, bukan literal warna. */
+#orphanBody .vo-code{font-family:monospace;font-weight:700;letter-spacing:.5px;background:rgba(128,128,128,.14);padding:2px 7px;border-radius:6px}
+#orphanBody .vo-muted{color:var(--muted);font-size:12px}
+#orphanBody .vo-note{color:var(--ink-soft);font-size:11px}
+#orphanBody .vo-kind{font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;white-space:nowrap}
+#orphanBody .vo-kind-fail{color:var(--accent-danger-ink);background:var(--tint-danger)}
+#orphanBody .vo-kind-warn{color:var(--accent-warning-ink);background:var(--tint-warning)}
+#orphanBody .vo-done{color:var(--fill-success);font-weight:600;font-size:12px}
+#orphanBody .vo-btn{border-radius:7px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;background:none;margin:1px}
+#orphanBody .vo-btn:disabled{opacity:.6;cursor:progress}
+#orphanBody .vo-btn-fulfill{border:1px solid var(--primary);color:var(--primary)}
+#orphanBody .vo-btn-fulfill:hover:not(:disabled){background:var(--primary);color:var(--on-accent)}
+#orphanBody .vo-btn-send{border:1px solid var(--fill-success);color:var(--fill-success)}
+#orphanBody .vo-btn-send:hover:not(:disabled){background:var(--fill-success);color:var(--on-accent)}
+#orphanBody .vo-btn-manual{border:1px solid var(--muted);color:var(--muted)}
+#orphanBody .vo-btn-manual:hover:not(:disabled){background:var(--muted);color:var(--on-accent)}
+#orphanBody .vo-btn-refund{border:1px solid var(--fill-danger);color:var(--fill-danger)}
+#orphanBody .vo-btn-refund:hover:not(:disabled){background:var(--fill-danger);color:var(--on-accent)}
+.vo-tabs{display:flex;gap:4px}
+.vo-tab{border:1px solid var(--line);background:var(--surface-2);color:var(--ink-soft);border-radius:7px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer}
+.vo-tab.active{background:var(--primary);border-color:var(--primary);color:var(--on-accent)}
+.vo-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--surface);padding:10px 20px;border-radius:8px;font-size:13px;opacity:0;transition:all .25s;pointer-events:none;z-index:9999;max-width:90%}
+.vo-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.vo-toast.err{background:var(--fill-danger);color:var(--on-accent)}

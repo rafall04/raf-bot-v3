@@ -7,6 +7,8 @@
  * SideEffects: Membaca SQLite, menulis record user via dependency DB runtime, memperbarui repository cache users, dan membersihkan file upload sementara.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('ADMIN_DATABASE_OPS_SERVICE');
+
 
 const fs = require("fs");
 const sqlite3 = require("sqlite3").verbose();
@@ -165,7 +167,7 @@ function createAdminDatabaseOpsService(overrides = {}) {
                         deps.fs.unlinkSync(uploadedFilePath);
                     }
                 } catch (cleanupError) {
-                    console.warn("[MIGRATE_USERS] Failed to cleanup temp file:", cleanupError.message);
+                    log.warn("[MIGRATE_USERS] Failed to cleanup temp file:", cleanupError.message);
                 }
             }
 
@@ -221,7 +223,7 @@ function createAdminDatabaseOpsService(overrides = {}) {
                     try {
                         await dbRun(db, "ROLLBACK");
                     } catch (rollbackError) {
-                        console.error("[MIGRATE_USERS] Error rolling back:", rollbackError.message);
+                        log.error("[MIGRATE_USERS] Error rolling back:", rollbackError.message);
                     }
                     throw createError(ErrorTypes.DATABASE_ERROR, `Gagal melakukan migrasi: ${error.message}`, 500);
                 }
@@ -232,7 +234,7 @@ function createAdminDatabaseOpsService(overrides = {}) {
             deps.userRepository.setAll(transformed.transformedUsers);
 
             if (transformed.errorCount > 0) {
-                console.warn(`[MIGRATE_USERS] ${transformed.errorCount} users failed to transform`);
+                log.warn(`[MIGRATE_USERS] ${transformed.errorCount} users failed to transform`);
             }
 
             const message = errorCount > 0

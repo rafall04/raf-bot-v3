@@ -7,6 +7,8 @@
  * SideEffects: Membaca database log aktivitas/login.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('ADMIN_LOGS_ROUTES');
+
 
 const { asyncHandler } = require("../lib/error-handler");
 
@@ -50,7 +52,7 @@ function registerAdminLogsRoutes(router, deps) {
                 }
             });
         } catch (error) {
-            console.error("[API_LOGIN_LOGS_ERROR]", error);
+            log.error("[API_LOGIN_LOGS_ERROR]", error);
             res.status(500).json({ status: 500, message: "Error retrieving login logs: " + error.message });
         }
     }));
@@ -88,7 +90,7 @@ function registerAdminLogsRoutes(router, deps) {
                 }
             });
         } catch (error) {
-            console.error("[API_ACTIVITY_LOGS_ERROR]", error);
+            log.error("[API_ACTIVITY_LOGS_ERROR]", error);
             res.status(500).json({ status: 500, message: "Error retrieving activity logs: " + error.message });
         }
     }));

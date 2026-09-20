@@ -15,6 +15,17 @@ function readSource(relativePath) {
     return fs.readFileSync(path.join(__dirname, "..", "..", relativePath), "utf8");
 }
 
+// Buang komentar sebelum mencocokkan literal: penjelasan di dalam `//`/`/* */` (mis.
+// "hot-reload global.config") BUKAN akses global runtime — dulu tes ini merah permanen
+// hanya karena satu komentar. Idiom yang sama dipakai kunci-dan-fallback-template.test.js.
+function stripComments(source) {
+    return source
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n")
+        .map((baris) => baris.replace(/(^|[^:])\/\/.*$/, "$1"))
+        .join("\n");
+}
+
 describe("runtime migration guardrails", () => {
     const routeTargets = [
         "routes/api-users-routes.js",
@@ -27,7 +38,7 @@ describe("runtime migration guardrails", () => {
     ];
 
     test.each(routeTargets)("%s no longer uses direct global runtime literals", (relativePath) => {
-        const source = readSource(relativePath);
+        const source = stripComments(readSource(relativePath));
         expect(source).not.toContain("global.users");
         expect(source).not.toContain("global.packages");
         expect(source).not.toContain("global.db");

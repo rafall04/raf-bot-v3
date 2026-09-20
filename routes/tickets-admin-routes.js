@@ -7,6 +7,8 @@
  * SideEffects: Menulis `global.reports`, log activity, mengirim notifikasi WhatsApp ke customer/admin/teknisi.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('TICKETS_ADMIN_ROUTES');
+
 
 const {
     express,
@@ -99,7 +101,7 @@ router.post('/admin/ticket/create', ensureAdmin, async (req, res) => {
                 userAgent: req.headers['user-agent']
             });
         } catch (logErr) {
-            console.error('[ACTIVITY_LOG_ERROR] Failed to log ticket create:', logErr);
+            log.error('[ACTIVITY_LOG_ERROR] Failed to log ticket create:', logErr);
         }
         
         // Prepare response message based on working hours
@@ -152,12 +154,12 @@ router.post('/admin/ticket/create', ensureAdmin, async (req, res) => {
                     notifyAdmins: false
                 });
             } catch (notifyError) {
-                console.error('[ADMIN_CREATE_TICKET_NOTIFY_ERROR]', notifyError);
+                log.error('[ADMIN_CREATE_TICKET_NOTIFY_ERROR]', notifyError);
             }
         })();
         return;
     } catch (error) {
-        console.error('[API_ADMIN_TICKET_CREATE_ERROR]', error);
+        log.error('[API_ADMIN_TICKET_CREATE_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat membuat tiket',
@@ -232,7 +234,7 @@ router.post('/admin/ticket/cancel', ensureAdmin, async (req, res) => {
                 userAgent: req.headers['user-agent']
             });
         } catch (logErr) {
-            console.error('[ACTIVITY_LOG_ERROR] Failed to log ticket cancel:', logErr);
+            log.error('[ACTIVITY_LOG_ERROR] Failed to log ticket cancel:', logErr);
         }
 
         await notifyTicketCancelled(report, {
@@ -255,7 +257,7 @@ router.post('/admin/ticket/cancel', ensureAdmin, async (req, res) => {
             message: 'Tiket berhasil dibatalkan'
         });
     } catch (error) {
-        console.error('[API_ADMIN_TICKET_CANCEL_ERROR]', error);
+        log.error('[API_ADMIN_TICKET_CANCEL_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat membatalkan tiket'

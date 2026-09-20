@@ -1,4 +1,6 @@
 "use strict";
+const log = require('../../lib/logger').logger.child('AGENT_VOUCHER_HANDLER');
+
 
 /**
  * Header Doc
@@ -840,7 +842,7 @@ async function handleSaleConfirm(msg, sender, reply, chats, _raf = null, global 
                 });
             }
         } catch (error) {
-            console.error('[SEND_MESSAGE_ERROR]', {
+            log.error('[SEND_MESSAGE_ERROR]', {
                 customerId: userState.customerId,
                 error: error.message
             });

@@ -1,3 +1,4 @@
+const log = require('../lib/logger').logger.child('WIFI');
 const fs = require('fs');
 const path = require('path');
 const convertRupiah = require('rupiah-format');
@@ -115,7 +116,7 @@ exports.menupaket = (nama, namabot, pushname, sender) => {
         const data = fs.readFileSync(packagesPath, 'utf8');
         packages = JSON.parse(data);
     } catch (error) {
-        console.error("Error reading or parsing packages.json:", error);
+        log.error("Error reading or parsing packages.json:", error);
         // Return a simple error message or a formatted one from a template if available
         return "Maaf, terjadi kesalahan saat memuat daftar paket. Silakan coba lagi nanti.";
     }

@@ -14,6 +14,8 @@
  *              ingest (best-effort) — kegagalan log tak boleh mengganggu deteksi/broadcast LOS.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('OLT_EVENT_REPOSITORY');
+
 
 const VALID_TYPES = new Set(["los", "dying-gasp", "discovery"]);
 
@@ -38,7 +40,7 @@ function createOltEventRepository(overrides = {}) {
         try {
             const { applySqlitePragmas } = require("../lib/sqlite-pragmas");
             applySqlitePragmas(db).catch((pragmaErr) => {
-                console.warn(`[OLT_EVENT_LOG_PRAGMA_WARN] ${pragmaErr.message}`);
+                log.warn(`[OLT_EVENT_LOG_PRAGMA_WARN] ${pragmaErr.message}`);
             });
         } catch (_error) {
             // Pragma helper opsional.
@@ -178,7 +180,7 @@ function createOltEventRepository(overrides = {}) {
             ]);
             return { saved: true, id: res.lastID };
         } catch (err) {
-            console.warn(`[OLT_EVENT_LOG] gagal simpan event: ${err.message}`);
+            log.warn(`[OLT_EVENT_LOG] gagal simpan event: ${err.message}`);
             return { saved: false, reason: err.message };
         }
     }
@@ -256,10 +258,10 @@ function createOltEventRepository(overrides = {}) {
             const days = Number.isFinite(retentionDays) && retentionDays > 0 ? retentionDays : 90;
             const cutoff = now() - days * 24 * 60 * 60 * 1000;
             const res = await run("DELETE FROM olt_events WHERE ts_ms < ?", [cutoff]);
-            if (res.changes > 0) console.log(`[OLT_EVENT_LOG] Prune ${res.changes} event > ${days} hari.`);
+            if (res.changes > 0) log.info(`[OLT_EVENT_LOG] Prune ${res.changes} event > ${days} hari.`);
             return res.changes;
         } catch (err) {
-            console.warn(`[OLT_EVENT_LOG] prune gagal: ${err.message}`);
+            log.warn(`[OLT_EVENT_LOG] prune gagal: ${err.message}`);
             return 0;
         }
     }

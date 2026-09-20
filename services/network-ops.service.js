@@ -7,6 +7,8 @@
  * SideEffects: Membaca data observability perangkat, membaca konfigurasi parameter GenieACS, dan menulis log perubahan WiFi melalui repository owner bila mutasi berhasil.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('NETWORK_OPS_SERVICE');
+
 
 const { createRuntimeCacheRepository } = require("../repositories/runtime-cache.repository");
 const { createWifiRepository } = require("../repositories/wifi.repository");
@@ -341,7 +343,7 @@ function createNetworkOpsService(overrides = {}) {
                     currentWifiInfo = currentWifiInfoResult.data;
                 }
             } catch (infoError) {
-                console.warn(`[WIFI_LOGGING] Could not get current WiFi info for logging: ${infoError.message}`);
+                log.warn(`[WIFI_LOGGING] Could not get current WiFi info for logging: ${infoError.message}`);
             }
 
             try {
@@ -376,14 +378,14 @@ function createNetworkOpsService(overrides = {}) {
                     });
 
                     if (!loggingPlan.shouldLog && loggingPlan.skipReason !== "test") {
-                        console.log("[WIFI_LOGGING]", {
+                        log.info("[WIFI_LOGGING]", {
                             ...loggingPlan.metadata,
                             logged: false,
                             skipReason: loggingPlan.skipReason
                         });
                     }
                 } catch (logError) {
-                    console.error("[WIFI_LOGGING] Failed to write WiFi change log:", {
+                    log.error("[WIFI_LOGGING] Failed to write WiFi change log:", {
                         deviceId,
                         error: logError.message
                     });

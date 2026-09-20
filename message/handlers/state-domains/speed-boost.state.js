@@ -21,6 +21,8 @@
  *              dan mengirim WA ke pelanggan + admin. NEVER-THROW.
  */
 "use strict";
+const log = require('../../../lib/logger').logger.child('SPEED_BOOST_STATE');
+
 
 const convertRupiah = require("rupiah-format");
 
@@ -111,7 +113,7 @@ async function notifyStaff(context, text) {
         try {
             await sendCritical(jid, text, { label: "sod_new_request", waitForReadyMs: 8000 });
         } catch (err) {
-            console.error("[SODB_ADMIN_NOTIF_ERROR]", err && err.message ? err.message : err);
+            log.error("[SODB_ADMIN_NOTIF_ERROR]", err && err.message ? err.message : err);
         }
     }
 }
@@ -292,7 +294,7 @@ function createSpeedRequest(context, { user, currentPkg, targetPkg, duration, pa
         const { saveSpeedRequests } = require("../../../lib/database");
         saveSpeedRequests();
     } catch (err) {
-        console.error("[SODB_SAVE_ERROR]", err && err.message ? err.message : err);
+        log.error("[SODB_SAVE_ERROR]", err && err.message ? err.message : err);
         return null;
     }
     return request;
@@ -343,7 +345,7 @@ async function startSpeedBoost(context) {
         await reply(buildPackageListText(context, available, user.subscription || "-"));
         return { handled: true };
     } catch (err) {
-        console.warn("[SODB] startSpeedBoost gagal:", err && err.message ? err.message : err);
+        log.warn("[SODB] startSpeedBoost gagal:", err && err.message ? err.message : err);
         try {
             await reply(renderTpl(context, "sodb_start_error",
                 "Maaf Kak, ada kendala saat menyiapkan Speed on Demand. Coba lagi sebentar lagi ya 🙏"));
@@ -532,7 +534,7 @@ async function handleSpeedBoostConversationState(context) {
         }
         return { handled: false };
     } catch (err) {
-        console.warn("[SODB] state gagal:", err && err.message ? err.message : err);
+        log.warn("[SODB] state gagal:", err && err.message ? err.message : err);
         try {
             if (context.deleteUserState) context.deleteUserState(context.stateSender);
             await context.reply(renderTpl(context, "sodb_state_error",

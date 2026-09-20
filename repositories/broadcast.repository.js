@@ -7,6 +7,8 @@
  * SideEffects: Membuka koneksi SQLite ke `database/broadcast.sqlite` dan menyiapkan tabel saat dipanggil.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('BROADCAST_REPOSITORY');
+
 
 function defaultDeps() {
     return {
@@ -55,7 +57,7 @@ function createBroadcastRepository(overrides = {}) {
         try {
             const { applySqlitePragmas } = require("../lib/sqlite-pragmas");
             applySqlitePragmas(db).catch((pragmaErr) => {
-                console.warn(`[BROADCAST_REPO_PRAGMA_WARN] ${pragmaErr.message}`);
+                log.warn(`[BROADCAST_REPO_PRAGMA_WARN] ${pragmaErr.message}`);
             });
         } catch (_error) {
             // Pragma helper opsional — jangan break repo bila helper tidak tersedia.

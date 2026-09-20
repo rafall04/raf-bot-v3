@@ -34,6 +34,10 @@ const qrcode = require('qrcode');
 const P = require('pino');
 // HTTPS enforcement removed - Cloudflare Tunnel handles HTTPS
 
+// Semua pemanggilan console.* app lama dijembatan ke lib/logger (file rotasi + level) sejak boot.
+require('./lib/console-to-logger').installConsoleBridge();
+const { printRaw } = require('./lib/console-to-logger');
+
 
 global.conn = null;
 global.whatsappConnectionState = 'close';
@@ -583,7 +587,7 @@ async function startApp() {
                 });
                 qrcode.toString(update.qr, { type: 'terminal', small: true }, (err, qrString) => {
                     if (err) throw err;
-                    console.log(qrString);
+                    printRaw(qrString);
                 });
                 qrcode.toDataURL(update.qr, (err, url) => {
                     // QR = kredensial link WhatsApp → HANYA ke room 'admin' (join per role di

@@ -1,4 +1,6 @@
 "use strict";
+const log = require('../../lib/logger').logger.child('CUSTOMER_HANDLER');
+
 
 /**
  * Header Doc
@@ -76,7 +78,7 @@ function handleCheckBill({ user, pushname }) {
             message: message
         };
     } catch (error) {
-        console.error('[CHECK_BILL_ERROR]', error);
+        log.error('[CHECK_BILL_ERROR]', error);
         return {
             success: false,
             message: '❌ Gagal mengecek tagihan. Silakan coba lagi atau hubungi admin.'
@@ -139,7 +141,7 @@ function handleCheckPackage({ user, pushname }) {
             message: message
         };
     } catch (error) {
-        console.error('[CHECK_PACKAGE_ERROR]', error);
+        log.error('[CHECK_PACKAGE_ERROR]', error);
         return {
             success: false,
             message: '❌ Gagal mengecek informasi paket. Silakan coba lagi atau hubungi admin.'
@@ -213,7 +215,7 @@ async function handleComplaint({ sender, stateSender, user, pushname, complaint 
             message: message
         };
     } catch (error) {
-        console.error('[COMPLAINT_ERROR]', error);
+        log.error('[COMPLAINT_ERROR]', error);
         return {
             success: false,
             message: '❌ Gagal menyampaikan keluhan/saran. Silakan coba lagi atau hubungi admin.'
@@ -264,7 +266,7 @@ function handleServiceInfo() {
             message: message
         };
     } catch (error) {
-        console.error('[SERVICE_INFO_ERROR]', error);
+        log.error('[SERVICE_INFO_ERROR]', error);
         return {
             success: false,
             message: '❌ Gagal mengambil informasi layanan. Silakan coba lagi.'

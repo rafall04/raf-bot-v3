@@ -20,6 +20,8 @@
  *   pelanggan. Menghapus/menulis conversation state. Balas admin lewat `reply`.
  */
 "use strict";
+const log = require('../../../lib/logger').logger.child('PAYMENT_PROOF_ADMIN_STATE');
+
 
 const { renderResponseTemplate } = require("../../../lib/response-template-helper");
 const {
@@ -238,7 +240,7 @@ async function handlePaymentProofAdminState(ctx) {
         if (step === STEP_CONFIRM_ALL) return await handleConfirmAll(ctx);
         return { handled: false };
     } catch (err) {
-        console.warn(`[PAYPROOF_STATE] gagal: ${err && err.message ? err.message : err}`);
+        log.warn(`[PAYPROOF_STATE] gagal: ${err && err.message ? err.message : err}`);
         try {
             clearState(ctx);
             await ctx.reply(renderResponseTemplate(

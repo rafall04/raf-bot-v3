@@ -7,6 +7,8 @@
  * SideEffects: Membaca/menulis file database, menjalankan script migrasi, dan me-reload state runtime.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('ADMIN_DATABASE_ROUTES');
+
 
 const multer = require("multer");
 const { asyncHandler, createError, ErrorTypes } = require("../lib/error-handler");
@@ -95,7 +97,7 @@ function registerAdminDatabaseRoutes(router, deps) {
 
             res.status(200).json({ status: 200, message: "Database info retrieved", data: info });
         } catch (error) {
-            console.error("[DB_INFO] Error:", error);
+            log.error("[DB_INFO] Error:", error);
             res.status(500).json({ status: 500, message: "Error getting database info", data: null });
         }
     }));
@@ -122,7 +124,7 @@ function registerAdminDatabaseRoutes(router, deps) {
             }).sort((a, b) => b.timestamp - a.timestamp);
             res.status(200).json({ status: 200, message: "Backup list retrieved", data: backups });
         } catch (error) {
-            console.error("[DB_BACKUPS] Error:", error);
+            log.error("[DB_BACKUPS] Error:", error);
             res.status(500).json({ status: 500, message: "Error getting backup list", data: [] });
         }
     });
@@ -160,7 +162,7 @@ function registerAdminDatabaseRoutes(router, deps) {
             });
             res.status(200).json({ status: 200, message: "Schema check complete", data: result });
         } catch (error) {
-            console.error("[DB_CHECK_SCHEMA] Error:", error);
+            log.error("[DB_CHECK_SCHEMA] Error:", error);
             res.status(500).json({ status: 500, message: "Error checking schema: " + error.message, data: null });
         }
     }));
@@ -178,8 +180,8 @@ function registerAdminDatabaseRoutes(router, deps) {
             const { columnResult, versionResults, versionError } = await runDatabaseMigrations();
 
             if (columnResult.error) {
-                console.error("[DB_MIGRATE] Column migration error:", columnResult.error);
-                console.error("[DB_MIGRATE] Stderr:", columnResult.stderr);
+                log.error("[DB_MIGRATE] Column migration error:", columnResult.error);
+                log.error("[DB_MIGRATE] Stderr:", columnResult.stderr);
                 return res.status(500).json({ status: 500, message: "Migration failed: " + columnResult.error, data: null });
             }
 
@@ -199,7 +201,7 @@ function registerAdminDatabaseRoutes(router, deps) {
             const upToDate = (output.includes("All required fields already exist!") || output.includes("Database schema is already up to date!")) && addedColumns.length === 0;
 
             if (versionError) {
-                console.error("[DB_MIGRATE] Version migration error:", versionError);
+                log.error("[DB_MIGRATE] Version migration error:", versionError);
             }
 
             const { reloadUsersFromDatabase } = require("../lib/database-reload");
@@ -218,7 +220,7 @@ function registerAdminDatabaseRoutes(router, deps) {
                 });
             }
         } catch (error) {
-            console.error("[DB_MIGRATE] Error:", error);
+            log.error("[DB_MIGRATE] Error:", error);
             res.status(500).json({ status: 500, message: "Error starting migration: " + error.message, data: null });
         }
     }));
@@ -306,7 +308,7 @@ function registerAdminDatabaseRoutes(router, deps) {
                 });
             });
         } catch (error) {
-            console.error("[DB_UPLOAD] Error:", error);
+            log.error("[DB_UPLOAD] Error:", error);
             res.status(500).json({ status: 500, message: "Error processing upload: " + error.message, data: null });
         }
     }));
@@ -328,7 +330,7 @@ function registerAdminDatabaseRoutes(router, deps) {
                 }
             });
         } catch (error) {
-            console.error("[DB_RELOAD_API] Error:", error);
+            log.error("[DB_RELOAD_API] Error:", error);
             res.status(500).json({ status: 500, message: "Error reloading database: " + error.message, data: null });
         }
     }));
@@ -355,7 +357,7 @@ function registerAdminDatabaseRoutes(router, deps) {
                 data: { restoredFrom: filename, currentBackup: path.basename(currentBackupPath) }
             });
         } catch (error) {
-            console.error("[DB_RESTORE] Error:", error);
+            log.error("[DB_RESTORE] Error:", error);
             res.status(500).json({ status: 500, message: "Error restoring database: " + error.message, data: null });
         }
     });

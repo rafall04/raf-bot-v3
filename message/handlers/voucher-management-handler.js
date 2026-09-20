@@ -9,6 +9,7 @@
 
 // #b345: tulis voucher.json/statik.json lewat saveJSON (atomik + path via database/), samakan
 // disiplin dengan lib/voucher.js & lib/statik.js (multi-writer berkas yang sama).
+const log = require('../../lib/logger').logger.child('VOUCHER_MANAGEMENT_HANDLER');
 const { saveJSON } = require('../../lib/json-store');
 const { renderResponseTemplate } = require('./template-helpers');
 
@@ -39,7 +40,7 @@ async function handleAddProfVoucher({ q, isOwner, reply, mess, checkprofvoucher,
         if (typeof error === 'string') {
             await reply(error);
         } else {
-            console.error('[ADD_PROF_VOUCHER] Error:', error);
+            log.error('[ADD_PROF_VOUCHER] Error:', error);
             await reply(renderResponseTemplate(
                 'voucher_generic_error',
                 'Terjadi kesalahan saat menambahkan profil voucher.'
@@ -81,7 +82,7 @@ async function handleDelProfVoucher({ q, isOwner, reply, mess, checkprofvoucher,
         if (typeof error === 'string') {
             await reply(error);
         } else {
-            console.error('[DEL_PROF_VOUCHER] Error:', error);
+            log.error('[DEL_PROF_VOUCHER] Error:', error);
             await reply(renderResponseTemplate(
                 'voucher_generic_error',
                 'Terjadi kesalahan saat menghapus profil voucher.'
@@ -117,7 +118,7 @@ async function handleAddProfStatik({ q, isOwner, reply, mess, checkStatik, addSt
         if (typeof error === 'string') {
             await reply(error);
         } else {
-            console.error('[ADD_PROF_STATIK] Error:', error);
+            log.error('[ADD_PROF_STATIK] Error:', error);
             await reply(renderResponseTemplate(
                 'statik_generic_error',
                 'Terjadi kesalahan saat menambahkan profil statik.'
@@ -158,7 +159,7 @@ async function handleDelProfStatik({ q, isOwner, reply, mess, checkStatik, stati
         if (typeof error === 'string') {
             await reply(error);
         } else {
-            console.error('[DEL_PROF_STATIK] Error:', error);
+            log.error('[DEL_PROF_STATIK] Error:', error);
             await reply(renderResponseTemplate(
                 'statik_generic_error',
                 'Terjadi kesalahan saat menghapus profil statik.'

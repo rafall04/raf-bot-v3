@@ -17,13 +17,14 @@
  *   saldo/voucher fulfillment — penyelesaian ada di callback `POST /callback/payment` (tetap di
  *   `routes/public.js`, port utama), berbagi `global.payment` dalam proses yang sama.
  */
+const log = require('../lib/logger').logger.child('PUBLIC_ANONYMOUS');
 const express = require('express');
 const path = require('path');
 const qr = require('qr-image');
 
 const pay = require('../lib/ipaymu');
 const { addPayment } = require('../lib/payment');
-const { checkhargavc } = require('../lib/voucher');
+const { checkhargavc, isprofvc } = require('../lib/voucher');
 
 const router = express.Router();
 
@@ -53,21 +54,26 @@ function toPublicVoucher(item, featured) {
 
 /**
  * Field transaksi yang AMAN dilihat pembeli anonim (dia memegang reff-nya sendiri).
- * ALLOWLIST — JANGAN pernah pantulkan `sender` (nomor HP pelanggan), `ket` (untuk voucher = KODE
- * voucher yang bernilai uang), atau `trxId`/`gateway`/`id` internal. `global.payment` menampung
- * SEMUA jenis transaksi (tagihan bulanan, topup, buynowpanel) — record mentah membocorkan semua itu.
- *
- * PENGECUALIAN `ket`: dibolehkan HANYA pada respons `statustrx` untuk record `buynowweb` yang
- * SUDAH LUNAS — reff bertindak sebagai token pembawa yang cuma dipegang pembeli, dan halaman
- * `/voucher` memang dirancang menampilkan kode voucher dari field itu (saluran pengiriman kedua
- * selain WhatsApp). Tanpa itu pembeli lunas melihat "voucher sedang diproses" selamanya.
- * `detailtrx` (pra-bayar) tetap TANPA `ket`.
+ * ALLOWLIST — JANGAN pernah pantulkan `sender` (nomor HP pelanggan), `gateway`/`id` internal,
+ * atau `ket` SEBELUM lunas. `global.payment` menampung SEMUA jenis transaksi (tagihan bulanan,
+ * topup, buynowpanel) — record mentah membocorkan semua itu.
  */
 const PUBLIC_TRX_FIELDS = ['reffId', 'status', 'amount', 'method', 'qrStr', 'priceTotal', 'fee', 'subtotal', 'createdAt'];
-function toPublicTrx(rec) {
+
+/**
+ * Varian untuk transaksi buynowweb yang SUDAH LUNAS (dipakai /app/statustrx, yang menolak
+ * record belum-bayar): sertakan `ket` (= KODE VOUCHER milik pembeli — tanpa ini kode tak
+ * pernah tampil di layar sukses) dan `trxId` (nomor transaksi iPaymu untuk struk). Aman
+ * karena (a) scoping `findPublicWebTrx` membatasi ke tag buynowweb saja — record tagihan/
+ * topup/panel tetap tak terjangkau, dan (b) pembeli adalah pemegang reff acak 48-bit yang
+ * memang berhak atas kodenya.
+ */
+const PUBLIC_PAID_TRX_FIELDS = [...PUBLIC_TRX_FIELDS, 'ket', 'trxId'];
+
+function toPublicTrx(rec, fields = PUBLIC_TRX_FIELDS) {
     if (!rec) return null;
     const out = {};
-    PUBLIC_TRX_FIELDS.forEach((f) => { if (rec[f] !== undefined) out[f] = rec[f]; });
+    fields.forEach((f) => { if (rec[f] !== undefined) out[f] = rec[f]; });
     return out;
 }
 
@@ -94,6 +100,9 @@ router.get('/app/:type/:id?', async (req, res) => {
             case "buy": {
                 const { phone, email } = req.query;
                 if (!phone || !email) return res.status(400).json({ status: 400, message: "Nomor telepon dan email diperlukan!" });
+                // Prof harus terdaftar di katalog — tanpa guard ini checkhargavc mengembalikan
+                // undefined → parseInt → NaN → charge iPaymu NaN + record sampah.
+                if (!isprofvc(id)) return res.status(400).json({ status: 400, message: "Paket voucher tidak ditemukan." });
                 const reff = Math.floor(Math.random() * 1677721631342).toString(16);
                 let hargavc = checkhargavc(id);
                 hargavc = parseInt(hargavc);
@@ -113,10 +122,8 @@ router.get('/app/:type/:id?', async (req, res) => {
                 let trx = findPublicWebTrx(id);
                 if (!trx) return res.status(404).json({ status: 404, message: "" });
                 if (!trx.status) return res.status(400).json({ status: 400, message: "menunggu pembayaran!" });
-                // `ket` (kode voucher / prefix GAGAL) disertakan HANYA di sini — record sudah
-                // ter-scope buynowweb + sudah lunas, dan pembeli memegang reff-nya sendiri.
-                // Halaman /voucher membaca `data.ket` untuk menampilkan kodenya.
-                return res.status(200).json({ status: 200, message: 'Success', data: { ...toPublicTrx(trx), ket: trx.ket } });
+                // Sudah lunas → sertakan `ket` (kode voucher) + `trxId` — lihat PUBLIC_PAID_TRX_FIELDS.
+                return res.status(200).json({ status: 200, message: 'Success', data: toPublicTrx(trx, PUBLIC_PAID_TRX_FIELDS) });
             }
             case 'qr': {
                 // Render QRIS string (tersimpan saat charge) menjadi gambar PNG agar tampil di
@@ -149,7 +156,7 @@ router.get('/app/:type/:id?', async (req, res) => {
         }
     } catch(err) {
         if (typeof err === "string") return res.json({ status: 400, message: err });
-        console.log(err);
+        log.info(err);
         return res.json({ status: 500, message: "Internal server error" });
     }
 });

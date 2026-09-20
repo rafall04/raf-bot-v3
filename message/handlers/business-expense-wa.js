@@ -9,7 +9,7 @@
  *          sengaja terpisah dari pembukuan usaha.
  * Caller: Gerbang `kas` di `message/raf.js` (blok grup + jalur fromMe), sama seperti dompet.
  * Deps: `../../lib/business-expense-service`, `../../lib/expense-manager`,
- *       `./template-helpers.renderResponseTemplate`.
+ *       `../../lib/jakarta-date`, `./template-helpers.renderResponseTemplate`.
  * MainFuncs: `TRIGGER_RE`, `resolveBusinessExpenseOwner`, `handleBusinessExpenseCommand`.
  * SideEffects: Membuat/membatalkan baris `expense_entries` + entri buku besar; membalas via `reply()`.
  */
@@ -27,6 +27,7 @@ const {
     buildKasReport
 } = require("../../lib/business-expense-service");
 const { formatRupiah } = require("../../lib/personal-finance-service");
+const { getJakartaParts } = require("../../lib/jakarta-date");
 
 const TRIGGER_RE = new RegExp(`^\\s*(?:${TRIGGER_KAS.join("|")})\\b`, "i");
 
@@ -316,7 +317,9 @@ async function handleBusinessExpenseCommand(context = {}) {
             { name: actor || "WhatsApp" }
         );
 
-        const hariIni = new Date().toISOString().slice(0, 10);
+        // "Hari ini" = tanggal kalender WIB — `toISOString()` menghasilkan tanggal UTC
+        // yang sehari lebih awal saat pagi WIB.
+        const hariIni = getJakartaParts().date;
         const hari = await em.listExpenses({ dateFrom: hariIni, dateTo: hariIni, status: "active" });
         const totalHari = hari.reduce((s, e) => s + Number(e.amount || 0), 0);
 

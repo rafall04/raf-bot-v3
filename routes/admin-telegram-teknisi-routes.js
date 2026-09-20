@@ -11,6 +11,8 @@
  * SideEffects: Baca/tulis `config.json` (sub-key telegramTeknisi), reload runtime, restart bot.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('ADMIN_TELEGRAM_TEKNISI_ROUTES');
+
 const { writeFileAtomicSync } = require('../lib/atomic-file'); // config.json ATOMIK (#b343)
 
 const fs = require("fs");
@@ -94,7 +96,7 @@ function registerAdminTelegramTeknisiRoutes(router, deps = {}) {
                 userAgent: req.headers?.["user-agent"],
             });
         } catch (e) {
-            console.error("[TELEGRAM_TEKNISI_ADMIN] activity log error:", e.message);
+            log.error("[TELEGRAM_TEKNISI_ADMIN] activity log error:", e.message);
         }
     }
 
@@ -177,7 +179,7 @@ function registerAdminTelegramTeknisiRoutes(router, deps = {}) {
             try {
                 restartBot();
             } catch (e) {
-                console.error("[TELEGRAM_TEKNISI_ADMIN] restart error:", e.message);
+                log.error("[TELEGRAM_TEKNISI_ADMIN] restart error:", e.message);
             }
 
             await safeLog(req, "UPDATE", `Update config bot teknisi (enabled: ${normalized.enabled})`);

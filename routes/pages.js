@@ -11,6 +11,7 @@
  *           melonggarkan handler generik. Halaman bergerbang-sendiri (dompet pribadi owner) terdaftar
  *           di `HALAMAN_BERGERBANG_SENDIRI` dan dijawab 404 agar keberadaannya tidak bocor.
  */
+const log = require('../lib/logger').logger.child('PAGES');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -21,13 +22,9 @@ const router = express.Router();
 // Middleware to check user role
 function checkRole(allowedRoles) {
     return (req, res, next) => {
-        // Debug logging
-        console.log(`[CHECK_ROLE] Path: ${req.path}, User: ${req.user ? req.user.username : 'null'}, Role: ${req.user ? req.user.role : 'null'}, Allowed: ${allowedRoles.join(', ')}`);
-        
         // Penolakan akses dulu dibalas res.send() teks polos — tanpa tema, tanpa judul,
         // tanpa jalan kembali. Sekarang memakai halaman error ber-tema (sadar mode gelap).
         if (!req.user) {
-            console.log(`[CHECK_ROLE] No req.user found. Token: ${req.cookies?.token ? 'exists' : 'missing'}`);
             // If no user but has token, might be expired or invalid
             if (req.cookies?.token || req.headers?.authorization) {
                 return sendErrorPage(res, {
@@ -48,7 +45,6 @@ function checkRole(allowedRoles) {
         }
 
         if (!allowedRoles.includes(req.user.role)) {
-            console.log(`[CHECK_ROLE] Role mismatch. User role: ${req.user.role}, Required: ${allowedRoles.join(', ')}`);
             if (req.user.role === 'teknisi') {
                 return sendErrorPage(res, {
                     status: 403,
@@ -153,7 +149,6 @@ router.get('/telegram-teknisi', checkRole(['admin', 'owner', 'superadmin']), (re
 });
 
 router.get('/login-logs', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
-    console.log(`[ROUTE_HANDLER] /login-logs: Route handler called. User: ${req.user ? req.user.username : 'null'}, Role: ${req.user ? req.user.role : 'null'}`);
     res.render('sb-admin/login-logs.php');
 });
 
@@ -499,6 +494,15 @@ router.get('/voucher-sales', checkRole(['admin', 'owner', 'superadmin']), (req, 
     res.render('sb-admin/voucher-sales.php');
 });
 
+// Worklist voucher orphan (bayar sukses tapi voucher gagal terbit / terbit tanpa tagihan) —
+// rekonsiliasi admin. Gate lewat registry FEATURE_FLAGS (voucherOrphanWorklist, default-aktif).
+router.get('/voucher-orphans', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
+    if (!require('../lib/feature-flags').isFeatureEnabled('voucherOrphanWorklist')) {
+        return res.status(404).render('sb-admin/404.php');
+    }
+    res.render('sb-admin/voucher-orphans.php');
+});
+
 // Stok Voucher Agent (dashboard reseller) page - ADMIN ONLY
 router.get('/agent-voucher-management', checkRole(['admin', 'owner', 'superadmin']), (req, res) => {
     res.render('sb-admin/agent-voucher-management.php');
@@ -566,7 +570,7 @@ router.get('/logout', async (req, res) => {
             });
         } catch (err) {
             // Log error but don't fail logout
-            console.error(`[AUTH_LOG] ❌ Failed to log logout: ${req.user?.username || 'unknown'} - ${err.message}`);
+            log.error(`[AUTH_LOG] ❌ Failed to log logout: ${req.user?.username || 'unknown'} - ${err.message}`);
         }
     }
     

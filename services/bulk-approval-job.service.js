@@ -1,4 +1,6 @@
 "use strict";
+const log = require('../lib/logger').logger.child('BULK_APPROVAL_JOB_SERVICE');
+
 
 /**
  * Header Doc
@@ -103,7 +105,7 @@ async function enqueueBulkApproval({ requestIds, actor, deps = {} }) {
     const id = buatIdJob();
     const job = await repo.createJob({ id, actorUsername: actor && actor.username, items });
     const dilewati = items.filter((i) => i.status !== "pending").length;
-    console.log(`[OTORISASI_JOB] ${id} diantre: ${items.length} item (${dilewati} langsung dilewati) oleh ${actor && actor.username}`);
+    log.info(`[OTORISASI_JOB] ${id} diantre: ${items.length} item (${dilewati} langsung dilewati) oleh ${actor && actor.username}`);
     return { ok: true, job, total: items.length, antre: items.length - dilewati };
 }
 
@@ -156,7 +158,7 @@ async function tickOnce({ approvalService = null, jeda = null } = {}) {
                 }
             } catch (error) {
                 // Satu pelanggan gagal TIDAK menghentikan sisanya — itu inti dari log ini.
-                console.error("[OTORISASI_JOB_ITEM_ERROR]", item.request_id, error && error.message);
+                log.error("[OTORISASI_JOB_ITEM_ERROR]", item.request_id, error && error.message);
                 gagal.push({ nama: item.user_name || item.userName || `#${item.request_id}`, alasan: (error && error.message) || "kesalahan tak terduga" });
                 await repo.finishItem({ jobId: job.id, itemId: item.id, status: "failed", message: (error && error.message) || "kesalahan tak terduga" });
             }
@@ -167,10 +169,10 @@ async function tickOnce({ approvalService = null, jeda = null } = {}) {
         await kirimRingkasanTeknisi(svc, disetujui);
         await beritahuAdminGagal(job, gagal);
         await repo.finishJob(job.id, "done");
-        console.log(`[OTORISASI_JOB] ${job.id} selesai (ok=${disetujui.length}, gagal=${gagal.length})`);
+        log.info(`[OTORISASI_JOB] ${job.id} selesai (ok=${disetujui.length}, gagal=${gagal.length})`);
         return { ok: true, jobId: job.id, disetujui: disetujui.length, gagal: gagal.length };
     } catch (error) {
-        console.error("[OTORISASI_JOB_ERROR]", error && error.message);
+        log.error("[OTORISASI_JOB_ERROR]", error && error.message);
         return { ok: false, alasan: error && error.message };
     } finally {
         berjalan = false;
@@ -199,7 +201,7 @@ async function kirimRingkasanTeknisi(svc, disetujui) {
         try {
             await kirim(teknisiId, items);
         } catch (error) {
-            console.error("[OTORISASI_JOB_SUMMARY_ERROR]", teknisiId, error && error.message);
+            log.error("[OTORISASI_JOB_SUMMARY_ERROR]", teknisiId, error && error.message);
         }
     }
 }
@@ -220,7 +222,7 @@ async function beritahuAdminGagal(job, gagal) {
         // FAIL-OPEN ke DM admin (getAdminJids) — persis perilaku lama saat notifRouting OFF.
         await dispatch("otorisasi_gagal", { text, adminFallback: getAdminJids() });
     } catch (e) {
-        console.error("[OTORISASI_JOB] beritahuAdminGagal gagal:", e && e.message);
+        log.error("[OTORISASI_JOB] beritahuAdminGagal gagal:", e && e.message);
     }
 }
 
@@ -230,7 +232,7 @@ function startBulkApprovalWorker() {
         timer = null;
     }
     if (!aktif()) {
-        console.log("[OTORISASI_JOB] Pekerjaan latar MATI (config.bulkApprovalJob.enabled)");
+        log.info("[OTORISASI_JOB] Pekerjaan latar MATI (config.bulkApprovalJob.enabled)");
         return null;
     }
 
@@ -238,17 +240,17 @@ function startBulkApprovalWorker() {
     // SEBELUM worker mulai lagi.
     repo.markInterruptedItems()
         .then((n) => {
-            if (n > 0) console.warn(`[OTORISASI_JOB] ${n} item TERPUTUS oleh restart — ditandai perlu diperiksa manual.`);
+            if (n > 0) log.warn(`[OTORISASI_JOB] ${n} item TERPUTUS oleh restart — ditandai perlu diperiksa manual.`);
         })
-        .catch((e) => console.error("[OTORISASI_JOB] Gagal menandai item terputus:", e.message));
+        .catch((e) => log.error("[OTORISASI_JOB] Gagal menandai item terputus:", e.message));
     repo.pruneOldJobs().catch(() => {});
 
     const cfg = setelan();
     timer = setInterval(() => {
-        tickOnce().catch((e) => console.error("[OTORISASI_JOB_TICK_ERROR]", e && e.message));
+        tickOnce().catch((e) => log.error("[OTORISASI_JOB_TICK_ERROR]", e && e.message));
     }, cfg.tickMs);
     if (typeof timer.unref === "function") timer.unref();
-    console.log(`[OTORISASI_JOB] Worker aktif — tick tiap ${cfg.tickMs}ms`);
+    log.info(`[OTORISASI_JOB] Worker aktif — tick tiap ${cfg.tickMs}ms`);
     return timer;
 }
 

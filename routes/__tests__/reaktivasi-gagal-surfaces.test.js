@@ -16,7 +16,7 @@ const baca = (rel) => fs.readFileSync(path.join(__dirname, "..", "..", rel), "ut
 
 describe("reaktivasi gagal disuarakan seragam lintas permukaan (#b333)", () => {
     test("iPaymu (public.js) memicu alarm lewat reactivationNeedsAttention, bukan attempted&&!ok", () => {
-        const src = baca("routes/public.js");
+        const src = baca("routes/public/payment-callback.js");
         expect(src).toMatch(/reactivationNeedsAttention\(react\)/);
         // Pola lama yang meloloskan profile_read_failed tak boleh lagi jadi gerbang alarm.
         expect(src).not.toMatch(/if \(react\.attempted && !react\.ok\)/);

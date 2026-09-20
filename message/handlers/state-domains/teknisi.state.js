@@ -7,6 +7,8 @@
  * SideEffects: Menyimpan foto dokumentasi teknisi, memperbarui state teknisi/perjalanan, dan mengirim reply.
  */
 "use strict";
+const log = require('../../../lib/logger').logger.child('TEKNISI_STATE');
+
 
 const fs = require("fs");
 const path = require("path");
@@ -58,7 +60,7 @@ async function handleTeknisiConversationState(context) {
             : msg?.message?.liveLocationMessage;
 
         if (!locationData || !locationData.degreesLatitude || !locationData.degreesLongitude) {
-            console.error("[LOCATION_ERROR] Invalid location data:", locationData);
+            log.error("[LOCATION_ERROR] Invalid location data:", locationData);
             await reply(format("error_location_invalid"));
             return { handled: true };
         }
@@ -111,7 +113,7 @@ async function handleTeknisiConversationState(context) {
                 await reply(result.message);
             }
         } catch (error) {
-            console.error("[TEKNISI_PHOTO_ERROR]", error);
+            log.error("[TEKNISI_PHOTO_ERROR]", error);
             await reply(renderResponseTemplate("teknisi_photo_receive_failed"));
         }
         return { handled: true };

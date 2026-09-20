@@ -7,6 +7,7 @@
  * SideEffects: Menyimpan file bukti bayar, memperbarui `global.speed_requests`, dan mengirim pesan WhatsApp.
  */
 
+const log = require('../../lib/logger').logger.child('SPEED_PAYMENT_HANDLER');
 const fs = require('fs');
 const path = require('path');
 const { downloadMedia } = require('../../lib/whatsapp.adapter');
@@ -150,17 +151,17 @@ async function handleSpeedPaymentProof(msg, user) {
                             });
                         }
                     } catch (e) {
-                        console.error(`[SPEED_PAYMENT_WA_NOTIF_ERROR] Failed to notify admin ${ownerJid}:`, e.message);
+                        log.error(`[SPEED_PAYMENT_WA_NOTIF_ERROR] Failed to notify admin ${ownerJid}:`, e.message);
                     }
                 }
             }
             
-            console.log(`[SPEED_PAYMENT_WA] Payment proof uploaded via WhatsApp for request ${pendingRequest.id} by user ${user.name}`);
+            log.info(`[SPEED_PAYMENT_WA] Payment proof uploaded via WhatsApp for request ${pendingRequest.id} by user ${user.name}`);
             return true;
         }
         
     } catch (error) {
-        console.error('[SPEED_PAYMENT_WA_ERROR]', error);
+        log.error('[SPEED_PAYMENT_WA_ERROR]', error);
         await deliverPayload(msg.key.remoteJid, {
             text: renderResponseTemplate('speed_payment_process_error')
         });

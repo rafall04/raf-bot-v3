@@ -7,6 +7,8 @@
  * SideEffects: Membaca/menulis `config.json` (sub-key `oltLosBroadcast`) dan memuat ulang config runtime.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('ADMIN_LOS_BROADCAST_ROUTES');
+
 const { writeFileAtomicSync } = require('../lib/atomic-file'); // config.json ATOMIK (#b343)
 
 const fs = require("fs");
@@ -264,7 +266,7 @@ function registerAdminLosBroadcastRoutes(router, deps = {}) {
                 userAgent: req.headers?.["user-agent"],
             });
         } catch (logErr) {
-            console.error("[LOS_BROADCAST_CONFIG] activity log error:", logErr.message);
+            log.error("[LOS_BROADCAST_CONFIG] activity log error:", logErr.message);
         }
 
         res.status(200).json({

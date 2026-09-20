@@ -1,3 +1,4 @@
+const log = require('../lib/logger').logger.child('ACCOUNTS');
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
@@ -41,7 +42,7 @@ router.get('/accounts', adminOnly, (req, res) => {
             data: accountsWithoutPassword
         });
     } catch (error) {
-        console.error('[GET /api/accounts] Error:', error);
+        log.error('[GET /api/accounts] Error:', error);
         res.status(500).json({ 
             success: false, 
             message: 'Gagal mengambil data akun: ' + error.message 
@@ -97,7 +98,7 @@ router.post('/accounts', adminOnly, async (req, res) => {
             };
             global.accounts.push(newAccount);
             saveAccounts();
-            console.log(`[POST /api/accounts] New account created: ${username} (${role})`);
+            log.info(`[POST /api/accounts] New account created: ${username} (${role})`);
             return res.status(201).json({
                 success: true,
                 status: 201,
@@ -107,7 +108,7 @@ router.post('/accounts', adminOnly, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('[POST /api/accounts] Error:', error);
+        log.error('[POST /api/accounts] Error:', error);
         res.status(500).json({ 
             success: false, 
             message: 'Gagal menambahkan akun: ' + error.message 
@@ -180,7 +181,7 @@ router.post('/accounts/:id', adminOnly, async (req, res) => {
         // Update password if provided
         if (password && password.trim() !== '') {
             account.password = await bcrypt.hash(password, 10);
-            console.log(`[POST /api/accounts/${accountId}] Password updated for ${account.username}`);
+            log.info(`[POST /api/accounts/${accountId}] Password updated for ${account.username}`);
         }
 
         // Save to file
@@ -207,7 +208,7 @@ router.post('/accounts/:id', adminOnly, async (req, res) => {
         });
         
     } catch (error) {
-        console.error(`[POST /api/accounts/${req.params.id}] Error:`, error);
+        log.error(`[POST /api/accounts/${req.params.id}] Error:`, error);
         res.status(500).json({ 
             success: false, 
             message: 'Gagal memperbarui akun: ' + error.message 
@@ -262,7 +263,7 @@ router.delete('/accounts/:id', adminOnly, (req, res) => {
         authCache.invalidateAccount(accountId, account.username);
         authCache.invalidateUser(accountId);
 
-        console.log(`[DELETE /api/accounts/${accountId}] Account deleted: ${account.username}`);
+        log.info(`[DELETE /api/accounts/${accountId}] Account deleted: ${account.username}`);
         
         res.json({ 
             success: true, 
@@ -270,7 +271,7 @@ router.delete('/accounts/:id', adminOnly, (req, res) => {
         });
         
     } catch (error) {
-        console.error(`[DELETE /api/accounts/${req.params.id}] Error:`, error);
+        log.error(`[DELETE /api/accounts/${req.params.id}] Error:`, error);
         res.status(500).json({ 
             success: false, 
             message: 'Gagal menghapus akun: ' + error.message 

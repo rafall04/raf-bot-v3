@@ -5,11 +5,11 @@
  * Purpose: Guardrail #b334 — endpoint anonim /app/detailtrx|statustrx|qr TIDAK boleh membocorkan
  *   record transaksi mentah lintas-tag. `global.payment` menampung tagihan bulanan/topup/buynowpanel
  *   yang berisi `sender` (nomor HP) & `ket` (kode voucher = uang). Jalur anonim hanya boleh membaca
- *   transaksi buynowweb-nya sendiri, dan hanya field aman (proyeksi allowlist). Juga menjaga #b334
- *   penyimpanan `prof` di record buynowweb (voucher durasi benar walau harga kembar).
- *   Revisi: `ket` BOLEH ikut pada `statustrx` buynowweb yang LUNAS saja — reff = token pembawa
- *   pembeli dan halaman /voucher membaca `data.ket` untuk menampilkan kodenya (regresi #b334
- *   yang menyembunyikan `ket` membuat voucher tak pernah tampil di halaman).
+ *   transaksi buynowweb-nya sendiri, dan hanya field aman (proyeksi allowlist). `statustrx`
+ *   pada record LUNAS sengaja menyertakan `ket`+`trxId` — kode voucher memang harus tampil
+ *   ke pemegang reff (halaman beli membacanya untuk layar sukses). Juga menjaga #b334
+ *   penyimpanan `prof` di record buynowweb (voucher durasi benar walau harga kembar)
+ *   + guard /app/buy menolak prof tak terdaftar (400, bukan charge iPaymu NaN).
  * Caller: Jest.
  * Deps: routes/public-anonymous (handler dipanggil langsung), fs/path (source-scan).
  * SideEffects: set/hapus global.payment.
@@ -23,7 +23,7 @@ function handlerApp() {
     return layer.route.stack[0].handle;
 }
 
-async function callTrx(type, id, payments) {
+async function callTrx(type, id, payments, query = {}) {
     global.payment = payments;
     let statusCode = 200; let payload; let ended; const headers = {};
     const res = {
@@ -33,11 +33,11 @@ async function callTrx(type, id, payments) {
         setHeader: (k, v) => { headers[k] = v; return res; },
         end: (b) => { ended = b; return res; },
     };
-    await handlerApp()({ params: { type, id }, query: {} }, res);
+    await handlerApp()({ params: { type, id }, query }, res);
     return { statusCode, payload, ended, headers };
 }
 
-afterEach(() => { delete global.payment; });
+afterEach(() => { delete global.payment; delete global.voucher; });
 
 const TAGIHAN = {
     reffId: "reff-tagihan", trxId: "TRX-9", tag: "tagihan", status: true,
@@ -81,27 +81,30 @@ describe("/app/statustrx — scoping tag + proyeksi (#b334)", () => {
         expect(r.statusCode).toBe(404);
     });
 
-    test("buynowweb lunas → `ket` (kode voucher) IKUT — saluran tampil halaman; field lain tetap aman", async () => {
-        // Reff = token pembawa: hanya pembeli yang memegangnya. Tanpa `ket`, finish() di
-        // voucher-buy.html membaca string kosong → layar "voucher sedang diproses" selamanya.
+    test("buynowweb lunas → ket (kode voucher) & trxId IKUT — ini yang ditampilkan layar sukses", async () => {
+        // Halaman beli membaca rec.ket untuk menampilkan kode — membuangnya = kode tak pernah
+        // tampil walau lunas. Aman: record sudah discope ke tag buynowweb (pemilik reff sendiri).
         const r = await callTrx("statustrx", "reff-web-paid", [WEB_PAID]);
         expect(r.statusCode).toBe(200);
         expect(r.payload.data.ket).toBe("VC-WEB-KODE");
-        // sender & trxId tetap disembunyikan walau record-nya milik jalur ini.
-        expect(r.payload.data).not.toHaveProperty("sender");
-        expect(r.payload.data).not.toHaveProperty("trxId");
+        expect(r.payload.data.trxId).toBe("TRX-7");
+        // sender (nomor HP) TETAP tak boleh bocor.
         expect(JSON.stringify(r.payload.data)).not.toContain("62812345");
-    });
-
-    test("buynowweb lunas via detailtrx (pra-tampil QR) → `ket` TETAP disembunyikan", async () => {
-        const r = await callTrx("detailtrx", "reff-web-paid", [WEB_PAID]);
-        expect(r.payload.data).not.toHaveProperty("ket");
-        expect(JSON.stringify(r.payload.data)).not.toContain("VC-WEB-KODE");
+        expect(r.payload.data).not.toHaveProperty("sender");
     });
 
     test("buynowweb belum bayar → 400 menunggu (tak bocor)", async () => {
         const r = await callTrx("statustrx", "reff-web", [WEB_PENDING]);
         expect(r.statusCode).toBe(400);
+    });
+});
+
+describe("/app/buy — prof tak dikenal ditolak 400 (bukan charge iPaymu NaN)", () => {
+    test("prof ngasal → 400, pay()/addPayment tak dipanggil", async () => {
+        global.voucher = [{ prof: "Paket-1Hari", namavc: "1 Hari", durasivc: "1 Hari", hargavc: "5000" }];
+        const r = await callTrx("buy", "prof-ngasal", [], { phone: "628123456789", email: "a@b.c" });
+        expect(r.statusCode).toBe(400);
+        expect(r.payload.message).toMatch(/tidak ditemukan/i);
     });
 });
 
@@ -120,7 +123,7 @@ describe("/app/qr — hanya QRIS transaksi buynowweb (#b334)", () => {
 
 describe("prof disimpan di record buynowweb (#b334 — voucher durasi benar walau harga kembar)", () => {
     const src = fs.readFileSync(path.join(__dirname, "..", "public-anonymous.js"), "utf8");
-    const callback = fs.readFileSync(path.join(__dirname, "..", "public.js"), "utf8");
+    const callback = fs.readFileSync(path.join(__dirname, "..", "public", "payment-callback.js"), "utf8");
 
     test("public-anonymous menyimpan prof di addPayment buynowweb", () => {
         expect(src).toMatch(/addPayment\([^)]*buynowweb[\s\S]*?prof:\s*id/);

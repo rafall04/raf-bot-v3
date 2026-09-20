@@ -7,6 +7,8 @@
  * SideEffects: Menulis `config.json` untuk pengaturan jam kerja, membaca statistik/log WiFi/network, dan memicu mutasi WiFi perangkat via service.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('ADMIN_WIFI_OPS_ROUTES');
+
 const { writeFileAtomicSync } = require('../lib/atomic-file'); // config.json ATOMIK (#b343)
 
 const { asyncHandler, createError, ErrorTypes } = require("../lib/error-handler");
@@ -51,7 +53,7 @@ function registerAdminWifiOpsRoutes(router, deps) {
             const result = await getWifiChangeLogs(filters);
             res.status(200).json({ status: 200, message: "WiFi change logs retrieved successfully", data: result });
         } catch (error) {
-            console.error("[API_WIFI_LOGS_ERROR] Error retrieving WiFi logs:", error);
+            log.error("[API_WIFI_LOGS_ERROR] Error retrieving WiFi logs:", error);
             res.status(500).json({ status: 500, message: "Gagal mengambil log perubahan WiFi", error: error.message });
         }
     }));
@@ -61,7 +63,7 @@ function registerAdminWifiOpsRoutes(router, deps) {
             const stats = await getWifiChangeStats();
             res.status(200).json({ status: 200, message: "WiFi change statistics retrieved successfully", data: stats });
         } catch (error) {
-            console.error("[API_WIFI_STATS_ERROR] Error retrieving WiFi stats:", error);
+            log.error("[API_WIFI_STATS_ERROR] Error retrieving WiFi stats:", error);
             res.status(500).json({ status: 500, message: "Gagal mengambil statistik perubahan WiFi", error: error.message });
         }
     }));
@@ -95,7 +97,7 @@ function registerAdminWifiOpsRoutes(router, deps) {
                 }
             });
         } catch (error) {
-            console.error("[API] Error getting working hours:", error);
+            log.error("[API] Error getting working hours:", error);
             res.status(500).json({ success: false, message: "Gagal mengambil pengaturan jam kerja" });
         }
     });
@@ -140,7 +142,7 @@ function registerAdminWifiOpsRoutes(router, deps) {
             writeFileAtomicSync(configPath, JSON.stringify(runtime.config, null, 4), fs);
             res.json({ success: true, message: "Pengaturan jam kerja berhasil disimpan" });
         } catch (error) {
-            console.error("[API] Error saving working hours:", error);
+            log.error("[API] Error saving working hours:", error);
             res.status(500).json({ success: false, message: "Gagal menyimpan pengaturan jam kerja" });
         }
     }));

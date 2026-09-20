@@ -42,6 +42,12 @@ function resolveAgentContext({
 
         let phoneNumberToSearch = senderInfo.phoneNumber || sender.split('@')[0];
         phoneNumberToSearch = phoneNumberToSearch.replace(/@.*$/, '');
+        // sender @lid tanpa phoneNumber ter-resolve: prefix numeriknya identifier internal,
+        // BUKAN nomor HP — menurunkannya jadi pencarian telepon bisa false-match agen.
+        // Kembalikan JID utuh; getAgentByWhatsapp punya jalur @lid khusus.
+        if (!senderInfo.phoneNumber && typeof sender === 'string' && sender.endsWith('@lid')) {
+            phoneNumberToSearch = sender;
+        }
 
         agentCred = agentTransactionManager.getAgentByWhatsapp(phoneNumberToSearch);
 
@@ -78,7 +84,7 @@ function buildDispatchContext(context) {
     return {
         ...context,
         runtimeSocket,
-        handleFinalConfirmation: context.handleCompletionConfirmation,
+        handleFinalConfirmation: context.handleFinalConfirmation,
         renderResponseTemplate: renderIntentResponseTemplate
     };
 }

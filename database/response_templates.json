@@ -1061,6 +1061,41 @@
     "category": "dispatcher",
     "template": "Format: konfirmasi [ID_TIKET] [KODE]"
   },
+  "raf_dispatch_confirm_ticket_not_found": {
+    "name": "Dispatcher: Konfirmasi Tiket Tidak Ditemukan",
+    "category": "dispatcher",
+    "template": "❌ Tiket *${ticketId}* tidak ditemukan.",
+    "placeholders": [
+      "ticketId"
+    ]
+  },
+  "raf_dispatch_confirm_not_awaiting": {
+    "name": "Dispatcher: Tiket Tidak Menunggu Konfirmasi",
+    "category": "dispatcher",
+    "template": "Tiket *${ticketId}* tidak menunggu konfirmasi kode (status: ${status}). Penutupan tiket memakai alur *selesai [ID_TIKET]*.",
+    "placeholders": [
+      "ticketId",
+      "status"
+    ]
+  },
+  "raf_dispatch_customer_confirm_staff_hint": {
+    "name": "Dispatcher: Konfirmasi Customer Khusus Pelanggan",
+    "category": "dispatcher",
+    "template": "Perintah ini khusus pelanggan. Staf memakai: konfirmasi [ID_TIKET] [KODE]"
+  },
+  "raf_dispatch_customer_confirm_format": {
+    "name": "Dispatcher: Format Konfirmasi Customer",
+    "category": "dispatcher",
+    "template": "Format: selesai customer [ID_TIKET] [KODE]\n\nKode konfirmasi dikirim ke Anda saat teknisi menandai pekerjaan selesai."
+  },
+  "raf_dispatch_customer_confirm_not_found": {
+    "name": "Dispatcher: Konfirmasi Customer Tiket Tidak Ditemukan",
+    "category": "dispatcher",
+    "template": "❌ Tiket *${ticketId}* tidak ditemukan untuk nomor Anda.",
+    "placeholders": [
+      "ticketId"
+    ]
+  },
   "agent_general_empty": {
     "name": "Agent Umum: Belum Ada Agent",
     "category": "agent_general",

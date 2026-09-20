@@ -7,6 +7,7 @@
  * SideEffects: Mengubah nama SSID, menulis log perubahan WiFi, dan membersihkan state.
  */
 
+const log = require('../../../lib/logger').logger.child('WIFI_NAME_STATE_HANDLER');
 const { setSSIDName, updateWifiSettings } = require('../../../lib/wifi');
 const { logWifiChange } = require('../../../lib/wifi-logger');
 const { deleteUserState, format } = require('../conversation-handler');
@@ -235,7 +236,7 @@ async function handleAskNewName(userState, chats, reply, sender, global) {
             { ssidInfo, newName }
         ));
     } catch (error) {
-        console.error('[ASK_NEW_NAME] Error:', error);
+        log.error('[ASK_NEW_NAME] Error:', error);
         deleteUserState(sender);
         // !! SEBAB YANG BENAR, BUKAN SATU PESAN UNTUK SEMUA (#b268). Menyuruh pelanggan memeriksa
         // modem saat SISTEM KAMI yang bermasalah membuat mereka mengurus perangkat yang tidak
@@ -323,7 +324,7 @@ async function handleConfirmGantiNamaBulk(userState, userReply, reply, sender, _
             { nama_wifi_baru, ssidInfo }
         ));
     } catch (error) {
-        console.error('[GANTI_NAMA_BULK_ERROR]', error);
+        log.error('[GANTI_NAMA_BULK_ERROR]', error);
         deleteUserState(sender);
         return reply(renderResponseTemplate(
             'convo_ganti_nama_gagal',

@@ -494,7 +494,18 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-12 (invoice tak terkirim [1/2]: lib/invoice-on-paid.sendPaidInvoiceOrReceipt hook bersama (decouple dari gate notif status_message_paid_notification + anti silent-drop + normalize send_invoice); handlePaidStatusChange di-rewire pakai hook, invoice keluar dari gate notif)](docs/boundary-log.md#b387)
 - [Fix 2026-09-12 (invoice tak terkirim [2/2]: payment-proof.service.notifyCustomerConfirmed wire hook sendPaidInvoiceOrReceipt (gate config.invoiceOnSettle default OFF + send_invoice) → jalur WA foto-bukti kirim invoice PDF; fallback struk teks durable; sisa callback iPaymu/Tripay/Mayar pola sama menyusul)](docs/boundary-log.md#b388)
 - [Fix 2026-09-12 (invoice tak terkirim [3/3]: lib/invoice-on-paid.trySendSettleInvoice bungkus jalur settle (gate invoiceOnSettle+send_invoice+isCleanPaid); wire 3 callback online iPaymu (public.js)+Tripay/Mayar (bill-payment.js) → invoice PDF, kelebihan-bayar tetap teks; dead-letter invoice_errors.json via getDatabasePath (isolasi test) + gitignore)](docs/boundary-log.md#b389)
-- [Fix 2026-09-19 (PSB dual-band tak aktif + kode voucher web tak tampil)](docs/boundary-log.md#b390)
+- [Fix 2026-09-19 (dead path: handler transfer/ubah-paket ganda + route monitoring orphan dihapus)](docs/boundary-log.md#b390)
+- [Feat 2026-09-19 (Logging: jembatan console.*→lib/logger saat boot)](docs/boundary-log.md#b391)
+- [Refactor 2026-09-19 (routes/public.js dipecah → routes/public/{shared,auth,customer,payment-callback,reports,requests} + composer)](docs/boundary-log.md#b392)
+- [Refactor 2026-09-19 (lib/genieacs.js dipecah → lib/genieacs/{session,device-read,reboot-verify,wifi-params,pppoe-params} + facade)](docs/boundary-log.md#b393)
+- [Refactor 2026-09-19 (lib/payment-finance-service.js dipecah → lib/payment-finance/{ledger,waivers,read-model} + facade)](docs/boundary-log.md#b394)
+- [Refactor 2026-09-19 (routes/olt.js dipecah → routes/olt/{shared,snapshot,matching,health} + composer)](docs/boundary-log.md#b395)
+- [Refactor 2026-09-19 (state-domains/psb.state.js dipecah → psb/{shared,intake,slot-filling,confirm}.state.js + facade)](docs/boundary-log.md#b396)
+- [Fix 2026-09-19 (voucher online: statustrx kembalikan ket+trxId saat lunas, prof WA buynow, guard buy, wifi-name di listener publik)](docs/boundary-log.md#b397)
+- [Feat 2026-09-19 (worklist voucher orphan: GET/resolve /api/voucher/orphans + halaman /voucher-orphans; voucher-orphan.js punya list/resolve atomik)](docs/boundary-log.md#b398)
+- [Refactor 2026-09-19 (lib/mikrotik.js dipecah → lib/mikrotik/{core,pppoe,netwatch,hotspot,site-http} + facade)](docs/boundary-log.md#b399)
+- [Refactor 2026-09-19 (console.* → logger per-domain ~2.120 callsite; fix rekursi jembatan console→logger; logToFile off saat test)](docs/boundary-log.md#b400)
+- [Fix 2026-09-19 (PSB dual-band tak aktif + kode voucher web tak tampil — diserap & diluaskan b397; anchor lokal b390 dinomor-ulang)](docs/boundary-log.md#b401)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

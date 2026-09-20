@@ -7,6 +7,7 @@
  * SideEffects: Menulis speed request, upload bukti, sinkronisasi profile, dan mengirim notifikasi WhatsApp.
  */
 
+const log = require('../lib/logger').logger.child('SPEED_REQUESTS');
 const express = require('express');
 const router = express.Router();
 const fs = require('fs');
@@ -83,7 +84,7 @@ router.get('/speed-requests', ensureAdmin, async (req, res) => {
             data: sortedRequests
         });
     } catch (error) {
-        console.error('[API_SPEED_REQUESTS_ERROR]', error);
+        log.error('[API_SPEED_REQUESTS_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat mengambil data speed requests'
@@ -150,7 +151,7 @@ router.post('/speed-requests/payment-proof', ensureAuthenticated, upload.single(
                 
             const delivery = await sendMessageToMany(global.config.ownerNumber || [], { text: notifMessage });
             if (!delivery.sent) {
-                console.error('[SPEED_PAYMENT_NOTIF_ERROR]', delivery.errorCode || 'SEND_FAILED');
+                log.error('[SPEED_PAYMENT_NOTIF_ERROR]', delivery.errorCode || 'SEND_FAILED');
             }
         }
         
@@ -162,7 +163,7 @@ router.post('/speed-requests/payment-proof', ensureAuthenticated, upload.single(
             }
         });
     } catch (error) {
-        console.error('[SPEED_PAYMENT_UPLOAD_ERROR]', error);
+        log.error('[SPEED_PAYMENT_UPLOAD_ERROR]', error);
         return res.status(500).json({ message: "Gagal mengupload bukti pembayaran." });
     }
 });
@@ -206,7 +207,7 @@ router.post('/speed-requests/verify-payment', ensureAdmin, async (req, res) => {
             }
             
             const newProfile = requestedPackage.profile;
-            console.log(`[SPEED_PAYMENT_VERIFIED] Auto-approving request ${requestId} untuk user ${user.name}. Mengubah profil ke ${newProfile}`);
+            log.info(`[SPEED_PAYMENT_VERIFIED] Auto-approving request ${requestId} untuk user ${user.name}. Mengubah profil ke ${newProfile}`);
             
             // Calculate expiration
             let durationInHours = 0;
@@ -287,7 +288,7 @@ router.post('/speed-requests/verify-payment', ensureAdmin, async (req, res) => {
                     );
                 } catch (e) {
                     // Notification error tidak critical untuk reject
-                    console.warn(`[SPEED_PAYMENT_REJECT_NOTIF] Failed to send notification:`, e.message);
+                    log.warn(`[SPEED_PAYMENT_REJECT_NOTIF] Failed to send notification:`, e.message);
                 }
             }
         }
@@ -301,7 +302,7 @@ router.post('/speed-requests/verify-payment', ensureAdmin, async (req, res) => {
             data: request
         });
     } catch (error) {
-        console.error('[SPEED_PAYMENT_VERIFY_ERROR]', error);
+        log.error('[SPEED_PAYMENT_VERIFY_ERROR]', error);
         return res.status(500).json({ message: error.message || "Gagal memverifikasi pembayaran." });
     }
 });
@@ -329,7 +330,7 @@ router.post('/speed-requests/action', ensureAdmin, async (req, res) => {
             const requestedPackage = global.packages.find(p => p.name === request.requestedPackageName);
             if (!requestedPackage || !requestedPackage.profile) throw new Error("Paket yang diminta atau profilnya tidak ditemukan.");
             const newProfile = requestedPackage.profile;
-            console.log(`[SPEED_APPROVE] Menyetujui request ${requestId} untuk user ${user.name}. Mengubah profil ke ${newProfile}`);
+            log.info(`[SPEED_APPROVE] Menyetujui request ${requestId} untuk user ${user.name}. Mengubah profil ke ${newProfile}`);
             
             let durationInHours = 0;
             if (request.durationKey === '1_day') durationInHours = 24;
@@ -371,7 +372,7 @@ router.post('/speed-requests/action', ensureAdmin, async (req, res) => {
                     };
                 }
             } catch (e) {
-                console.warn("[SPEED_ACTION_NOTIF] Could not read cron.json or render template, using default message.", e);
+                log.warn("[SPEED_ACTION_NOTIF] Could not read cron.json or render template, using default message.", e);
             }
             
             // Use ProfileUpdateService untuk apply profile update
@@ -446,13 +447,13 @@ router.post('/speed-requests/action', ensureAdmin, async (req, res) => {
                     );
                 } catch (e) {
                     // Notification error tidak critical untuk reject
-                    console.warn(`[SPEED_REJECT_NOTIF] Failed to send notification:`, e.message);
+                    log.warn(`[SPEED_REJECT_NOTIF] Failed to send notification:`, e.message);
                 }
             }
         }
         return res.status(200).json({ message: `Permintaan berhasil di-${action === 'approve' ? 'setujui' : 'tolak'}.` });
     } catch (error) {
-        console.error(`[API_SPEED_ACTION_ERROR] Gagal memproses permintaan ${requestId}:`, error);
+        log.error(`[API_SPEED_ACTION_ERROR] Gagal memproses permintaan ${requestId}:`, error);
         return res.status(500).json({ message: error.message || "Terjadi kesalahan internal server." });
     }
 });
@@ -469,7 +470,7 @@ router.post('/speed-requests/cleanup', ensureAdmin, (req, res) => {
             cleanedCount: cleanedCount
         });
     } catch (error) {
-        console.error('[SPEED_REQUESTS_CLEANUP_API_ERROR]', error);
+        log.error('[SPEED_REQUESTS_CLEANUP_API_ERROR]', error);
         res.status(500).json({ 
             success: false,
             message: 'Gagal melakukan cleanup: ' + error.message 
@@ -529,7 +530,7 @@ router.get('/speed-boost-config', ensureAdmin, (req, res) => {
             res.json(defaultConfig);
         }
     } catch (error) {
-        console.error('[SPEED_BOOST_CONFIG_ERROR]', error);
+        log.error('[SPEED_BOOST_CONFIG_ERROR]', error);
         res.status(500).json({ message: 'Gagal memuat konfigurasi' });
     }
 });
@@ -554,7 +555,7 @@ router.post('/speed-boost-config', ensureAdmin, (req, res) => {
         
         res.json({ message: 'Konfigurasi berhasil disimpan', success: true });
     } catch (error) {
-        console.error('[SPEED_BOOST_CONFIG_SAVE_ERROR]', error);
+        log.error('[SPEED_BOOST_CONFIG_SAVE_ERROR]', error);
         res.status(500).json({ message: 'Gagal menyimpan konfigurasi' });
     }
 });

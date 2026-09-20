@@ -12,6 +12,8 @@
  * SideEffects: Baca/tulis `database/teknisi_prefs.json` (atau `*_test.json` saat NODE_ENV=test).
  */
 "use strict";
+const log = require('../lib/logger').logger.child('TEKNISI_PREFS_REPOSITORY');
+
 
 const fs = require("fs");
 const path = require("path");
@@ -41,14 +43,14 @@ function readMap(filePath) {
         const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
         return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
     } catch (err) {
-        console.warn(`[TEKNISI_PREFS] Gagal baca ${path.basename(filePath)}: ${err.message}`);
+        log.warn(`[TEKNISI_PREFS] Gagal baca ${path.basename(filePath)}: ${err.message}`);
         try {
             if (fs.existsSync(filePath)) {
                 const cap = new Date().toISOString().replace(/[:.]/g, "-");
                 fs.renameSync(filePath, `${filePath}.rusak-${cap}`);
-                console.error(`[TEKNISI_PREFS] Berkas rusak DIKARANTINA (.rusak-${cap}).`);
+                log.error(`[TEKNISI_PREFS] Berkas rusak DIKARANTINA (.rusak-${cap}).`);
             }
-        } catch (e2) { console.error(`[TEKNISI_PREFS] Gagal karantina: ${e2.message}`); }
+        } catch (e2) { log.error(`[TEKNISI_PREFS] Gagal karantina: ${e2.message}`); }
         return {};
     }
 }
@@ -68,7 +70,7 @@ function persist(map, filePath = resolveFilePath()) {
         _cache = { at: Date.now(), path: filePath, map };
         return true;
     } catch (err) {
-        console.error(`[TEKNISI_PREFS] Gagal tulis ${path.basename(filePath)}: ${err.message}`);
+        log.error(`[TEKNISI_PREFS] Gagal tulis ${path.basename(filePath)}: ${err.message}`);
         return false;
     }
 }

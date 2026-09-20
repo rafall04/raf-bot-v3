@@ -20,7 +20,8 @@ describe("admin-broadcast.service", () => {
             isReady: () => true,
             wait: () => Promise.resolve(),
             getConfig: () => ({ messageDelayMs: 0, jitterMs: 0 }),
-            normalizePhoneNumber: jest.fn((value) => value)
+            normalizePhoneNumber: jest.fn((value) => value),
+            historyRepository: { insertHistory: jest.fn(() => Promise.resolve("bcast_test")) }
         });
 
         const result = await service.queueBroadcast({

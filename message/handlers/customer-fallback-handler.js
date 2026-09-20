@@ -15,6 +15,8 @@
  *              karena balasan langsung) dan menulis penanda cooldown in-memory. Tidak pernah throw.
  */
 "use strict";
+const log = require('../../lib/logger').logger.child('CUSTOMER_FALLBACK_HANDLER');
+
 
 const { renderResponseTemplate } = require("./template-helpers");
 const { hasConnectivityComplaintSignal, _internal: looseInternal } = require("../../lib/loose-intent-matcher");
@@ -162,7 +164,7 @@ async function evaluateCustomerFallback({
         return { action: "replied" };
     } catch (err) {
         // Fallback tidak boleh menjatuhkan jalur pesan — telan, log, lanjut diam.
-        console.warn(`[CUSTOMER_FALLBACK_WARN] ${err && err.message ? err.message : err}`);
+        log.warn(`[CUSTOMER_FALLBACK_WARN] ${err && err.message ? err.message : err}`);
         return { action: "skip", reason: "error" };
     }
 }

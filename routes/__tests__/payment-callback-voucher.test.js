@@ -17,7 +17,9 @@
 const fs = require("fs");
 const path = require("path");
 
-const source = fs.readFileSync(path.join(__dirname, "..", "public.js"), "utf8");
+const source = fs.readFileSync(path.join(__dirname, "..", "public", "payment-callback.js"), "utf8");
+// Endpoint voucher pelanggan hidup di sub-router customer.js (split #b392).
+const customerSource = fs.readFileSync(path.join(__dirname, "..", "public", "customer.js"), "utf8");
 // Halaman/endpoint publik voucher (page /voucher + /app/* + QR) kini owner-nya
 // routes/public-anonymous.js (dipisah agar bisa di-mount di listener publik port terpisah).
 const anonSource = fs.readFileSync(path.join(__dirname, "..", "public-anonymous.js"), "utf8");
@@ -150,20 +152,20 @@ describe("callback voucher — cabang panel pelanggan (buynowpanel)", () => {
 
 describe("endpoint voucher panel pelanggan (/api/customer/vouchers/*)", () => {
     test("terdaftar di customerApiRouter (bukan router publik anonim)", () => {
-        expect(source).toMatch(/customerApiRouter\.get\('\/vouchers\/packages'/);
-        expect(source).toMatch(/customerApiRouter\.post\('\/vouchers\/purchase'/);
-        expect(source).toMatch(/customerApiRouter\.get\('\/vouchers\/purchase\/:reff'/);
-        expect(source).toMatch(/customerApiRouter\.get\('\/vouchers\/history'/);
+        expect(customerSource).toMatch(/customerApiRouter\.get\('\/vouchers\/packages'/);
+        expect(customerSource).toMatch(/customerApiRouter\.post\('\/vouchers\/purchase'/);
+        expect(customerSource).toMatch(/customerApiRouter\.get\('\/vouchers\/purchase\/:reff'/);
+        expect(customerSource).toMatch(/customerApiRouter\.get\('\/vouchers\/history'/);
     });
 
     test("pembelian dibatasi rate limiter per customer", () => {
-        expect(source).toMatch(/customerApiRouter\.post\('\/vouchers\/purchase', voucherPurchaseRateLimiter/);
-        expect(source).toMatch(/voucher_purchase_customer_/);
+        expect(customerSource).toMatch(/customerApiRouter\.post\('\/vouchers\/purchase', voucherPurchaseRateLimiter/);
+        expect(customerSource).toMatch(/voucher_purchase_customer_/);
     });
 
     test("nomor HP TIDAK pernah diambil dari body pada jalur pembelian", () => {
-        const purchaseIdx = source.indexOf("customerApiRouter.post('/vouchers/purchase'");
-        const block = source.slice(purchaseIdx, purchaseIdx + 600);
+        const purchaseIdx = customerSource.indexOf("customerApiRouter.post('/vouchers/purchase'");
+        const block = customerSource.slice(purchaseIdx, purchaseIdx + 600);
         expect(block).toMatch(/customer:\s*req\.customer/);
         expect(block).not.toMatch(/req\.body\??\.(phone|phone_number|nomor)/);
     });

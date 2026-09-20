@@ -6,6 +6,7 @@
  * MainFuncs: `handleHistoryWifi`.
  * SideEffects: Membaca log perubahan WiFi dan mengirim reply WhatsApp.
  */
+const logger = require('../../lib/logger').logger.child('WIFI_HISTORY_HANDLER');
 const { getWifiChangeLogs } = require('../../lib/wifi-logger');
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
 const { renderResponseTemplate } = require('./template-helpers');
@@ -65,7 +66,7 @@ async function handleHistoryWifi(sender, reply, global, msg, raf) {
         const user = resolved.user;
 
         if (sender.endsWith('@lid') && !user) {
-            console.log('[HISTORY_WIFI] @lid format detected, user not found');
+            logger.info('[HISTORY_WIFI] @lid format detected, user not found');
             return reply(renderResponseTemplate(
                 'wifi_history_lid_not_registered',
                 '❌ Maaf, nomor Anda tidak terdaftar dalam database.\n\nSilakan hubungi admin untuk bantuan.'
@@ -138,7 +139,7 @@ async function handleHistoryWifi(sender, reply, global, msg, raf) {
 
         reply(message);
     } catch (error) {
-        console.error('[HISTORY_WIFI] Error:', error);
+        logger.error('[HISTORY_WIFI] Error:', error);
         reply(renderResponseTemplate(
             'wifi_history_error',
             '❌ Maaf, terjadi kesalahan saat mengambil history WiFi.'

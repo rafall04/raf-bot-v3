@@ -7,6 +7,8 @@
  * SideEffects: Menulis `config.json`, `database/cron.json`, dan `genieacs_parameters.json`.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('ADMIN_CONFIG_ROUTES');
+
 
 const fs = require('fs');
 const { writeFileAtomicSync } = require('../lib/atomic-file'); // tulis config.json ATOMIK (anti torn-write → boot-fatal)
@@ -157,7 +159,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     speedOnDemandEnabled = speedBoostConfig.enabled !== false;
                 }
             } catch (err) {
-                console.warn('[API_CONFIG_GET] Failed to load speed boost config:', err.message);
+                log.warn('[API_CONFIG_GET] Failed to load speed boost config:', err.message);
             }
 
             const configPayload = {
@@ -207,7 +209,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 data: configPayload
             });
         } catch (error) {
-            console.error('[API_CONFIG_GET_ERROR]', error);
+            log.error('[API_CONFIG_GET_ERROR]', error);
             res.status(500).json({
                 status: 500,
                 message: 'Gagal mengambil konfigurasi.',
@@ -227,7 +229,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 data: loadCronConfigFromFile()
             });
         } catch (error) {
-            console.error('[API_CRON_GET_ERROR]', error);
+            log.error('[API_CRON_GET_ERROR]', error);
             res.status(500).json({
                 status: 500,
                 message: 'Gagal mengambil konfigurasi cron.',
@@ -289,7 +291,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
 
             res.status(200).json({ message: 'Konfigurasi cron berhasil diperbarui dan jadwal telah dimuat ulang.' });
         } catch (error) {
-            console.error('[API_CRON_SAVE_ERROR]', error);
+            log.error('[API_CRON_SAVE_ERROR]', error);
             res.status(500).json({ message: 'Gagal menyimpan konfigurasi cron.', error: error.message });
         }
     });
@@ -337,9 +339,9 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                             global.speedBoostConfig = speedBoostConfig;
                         }
 
-                        console.log('[CONFIG_SAVE] Speed On Demand updated:', speedBoostConfig.enabled);
+                        log.info('[CONFIG_SAVE] Speed On Demand updated:', speedBoostConfig.enabled);
                     } catch (err) {
-                        console.error('[CONFIG_SAVE] Failed to update speed boost config:', err);
+                        log.error('[CONFIG_SAVE] Failed to update speed boost config:', err);
                     }
                     continue;
                 }
@@ -520,7 +522,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 }
 
                 if (CRON_ALLOWED_FIELDS.has(key)) {
-                    console.warn(`[API_CONFIG_SAVE] Ignoring cron-owned config key from /api/config: ${key}`);
+                    log.warn(`[API_CONFIG_SAVE] Ignoring cron-owned config key from /api/config: ${key}`);
                     continue;
                 }
 
@@ -562,7 +564,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
             writeFileAtomicSync(mainConfigPath, JSON.stringify(finalMainConfig, null, 4));
             requireRuntimeConfig().setConfig(finalMainConfig);
 
-            console.log('[CONFIG_SAVE] Config saved. accessLimit:', finalMainConfig.accessLimit || 'not set');
+            log.info('[CONFIG_SAVE] Config saved. accessLimit:', finalMainConfig.accessLimit || 'not set');
 
             try {
                 const changedKeys = Object.keys(newMainConfig);
@@ -581,14 +583,14 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     userAgent: req.headers['user-agent']
                 });
             } catch (logErr) {
-                console.error('[ACTIVITY_LOG_ERROR] Failed to log config change:', logErr);
+                log.error('[ACTIVITY_LOG_ERROR] Failed to log config change:', logErr);
             }
 
             initializeAllCronTasks();
 
             res.status(200).json({ message: 'Konfigurasi berhasil disimpan dan diterapkan.' });
         } catch (error) {
-            console.error('[API_CONFIG_SAVE_ERROR]', error);
+            log.error('[API_CONFIG_SAVE_ERROR]', error);
             res.status(500).json({ message: 'Gagal memproses konfigurasi.', error: error.message });
         }
     }));
@@ -619,10 +621,10 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
         // Tulis ATOMIK + hot-reload global.config + re-init cron (gate yang menggerakkan cron langsung berlaku).
         writeFileAtomicSync(mainConfigPath, JSON.stringify(nextConfig, null, 4));
         requireRuntimeConfig().setConfig(nextConfig);
-        try { initializeAllCronTasks(); } catch (e) { console.error('[FEATURE_FLAG] re-init cron gagal:', e && e.message); }
+        try { initializeAllCronTasks(); } catch (e) { log.error('[FEATURE_FLAG] re-init cron gagal:', e && e.message); }
         // Gate yang menggerakkan WORKER latar (bukan cron) hanya distart saat boot — resync saat toggle,
         // kalau tidak menyalakannya lewat panel = job antre selamanya (worker mati). Idempoten & dua-arah.
-        try { resyncWorkerForFlag(key); } catch (e) { console.error('[FEATURE_FLAG] resync worker gagal:', e && e.message); }
+        try { resyncWorkerForFlag(key); } catch (e) { log.error('[FEATURE_FLAG] resync worker gagal:', e && e.message); }
         try {
             await logActivity({
                 userId: req.user.id, username: req.user.username, role: req.user.role,
@@ -631,7 +633,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 ipAddress: req.ip, userAgent: req.headers['user-agent']
             });
         } catch (_e) { /* log best-effort */ }
-        console.log(`[FEATURE_FLAG] ${key} = ${enabled} oleh ${req.user.username}`);
+        log.info(`[FEATURE_FLAG] ${key} = ${enabled} oleh ${req.user.username}`);
         return res.status(200).json({ status: 200, message: `Fitur "${flagByKey(key).label}" ${enabled ? 'DINYALAKAN' : 'DIMATIKAN'}.`, data: readFlags(nextConfig) });
     }));
 
@@ -738,7 +740,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 }
             });
         } catch (error) {
-            console.error('[TELEGRAM_BACKUP_CONFIG_GET] Error:', error);
+            log.error('[TELEGRAM_BACKUP_CONFIG_GET] Error:', error);
             res.status(500).json({
                 status: 500,
                 message: 'Gagal mengambil konfigurasi Telegram backup',
@@ -781,7 +783,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     userAgent: req.headers['user-agent']
                 });
             } catch (logErr) {
-                console.error('[ACTIVITY_LOG_ERROR] Failed to log telegram config change:', logErr);
+                log.error('[ACTIVITY_LOG_ERROR] Failed to log telegram config change:', logErr);
             }
 
             res.json({
@@ -789,7 +791,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 message: 'Konfigurasi Telegram backup berhasil disimpan'
             });
         } catch (error) {
-            console.error('[TELEGRAM_BACKUP_CONFIG_SAVE] Error:', error);
+            log.error('[TELEGRAM_BACKUP_CONFIG_SAVE] Error:', error);
             res.status(500).json({
                 status: 500,
                 message: 'Gagal menyimpan konfigurasi Telegram backup',
@@ -819,7 +821,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 message: result.message
             });
         } catch (error) {
-            console.error('[TELEGRAM_BACKUP_TEST] Error:', error);
+            log.error('[TELEGRAM_BACKUP_TEST] Error:', error);
             res.status(400).json({
                 status: 400,
                 message: error.message
@@ -842,12 +844,12 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 });
             }
 
-            console.log(`[TELEGRAM_BACKUP] Manual backup triggered by ${req.user.username}`);
+            log.info(`[TELEGRAM_BACKUP] Manual backup triggered by ${req.user.username}`);
 
             performDatabaseBackup().then(result => {
-                console.log('[TELEGRAM_BACKUP] Manual backup completed:', result);
+                log.info('[TELEGRAM_BACKUP] Manual backup completed:', result);
             }).catch(err => {
-                console.error('[TELEGRAM_BACKUP] Manual backup error:', err);
+                log.error('[TELEGRAM_BACKUP] Manual backup error:', err);
             });
 
             try {
@@ -864,7 +866,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     userAgent: req.headers['user-agent']
                 });
             } catch (logErr) {
-                console.error('[ACTIVITY_LOG_ERROR] Failed to log manual backup:', logErr);
+                log.error('[ACTIVITY_LOG_ERROR] Failed to log manual backup:', logErr);
             }
 
             res.json({
@@ -872,7 +874,7 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 message: 'Backup sedang diproses. File akan dikirim ke Telegram dalam beberapa saat.'
             });
         } catch (error) {
-            console.error('[TELEGRAM_BACKUP_RUN] Error:', error);
+            log.error('[TELEGRAM_BACKUP_RUN] Error:', error);
             res.status(500).json({
                 status: 500,
                 message: 'Gagal menjalankan backup: ' + error.message

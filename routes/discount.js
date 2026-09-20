@@ -7,6 +7,7 @@
  * SideEffects: Membaca/menulis data diskon pelanggan, log activity, dan emit event notifikasi WhatsApp.
  */
 
+const log = require('../lib/logger').logger.child('DISCOUNT');
 const express = require('express');
 const router = express.Router();
 const { logActivity } = require('../lib/activity-logger');
@@ -53,7 +54,7 @@ router.get('/:userId', ensureAdmin, async (req, res) => {
             (err, user) => {
                 db.close();
                 if (err) {
-                    console.error('[DISCOUNT_GET_ERROR]', err);
+                    log.error('[DISCOUNT_GET_ERROR]', err);
                     return res.status(500).json({ status: 500, message: 'Gagal mengambil data diskon' });
                 }
                 
@@ -194,7 +195,7 @@ router.post('/:userId', ensureAdmin, rateLimit('set-discount', 30, 60000), async
             ], function(err) {
                 if (err) {
                     db.close();
-                    console.error('[DISCOUNT_SET_ERROR]', err);
+                    log.error('[DISCOUNT_SET_ERROR]', err);
                     return res.status(500).json({ status: 500, message: 'Gagal menyimpan diskon' });
                 }
                 
@@ -225,7 +226,7 @@ router.post('/:userId', ensureAdmin, rateLimit('set-discount', 30, 60000), async
                     newValue: { discount_amount, discount_percentage, discount_reason, discount_months },
                     ipAddress: req.ip,
                     userAgent: req.headers['user-agent']
-                }).catch(console.error);
+                }).catch((e) => log.error(e));
                 
                 db.close();
                 
@@ -252,7 +253,7 @@ router.post('/:userId', ensureAdmin, rateLimit('set-discount', 30, 60000), async
         });
     } catch (error) {
         db.close();
-        console.error('[DISCOUNT_SET_ERROR]', error);
+        log.error('[DISCOUNT_SET_ERROR]', error);
         res.status(500).json({ status: 500, message: 'Terjadi kesalahan server' });
     }
 });
@@ -260,12 +261,12 @@ router.post('/:userId', ensureAdmin, rateLimit('set-discount', 30, 60000), async
 // Helper: Send WhatsApp notification when discount is set
 async function sendDiscountNotification(user, discountInfo) {
     if (!isReady()) {
-        console.log('[DISCOUNT_NOTIF] WhatsApp not connected, skipping notification');
+        log.info('[DISCOUNT_NOTIF] WhatsApp not connected, skipping notification');
         return;
     }
     
     if (!user.phone_number) {
-        console.log('[DISCOUNT_NOTIF] User has no phone number, skipping notification');
+        log.info('[DISCOUNT_NOTIF] User has no phone number, skipping notification');
         return;
     }
     
@@ -337,7 +338,7 @@ async function sendDiscountNotification(user, discountInfo) {
         const message = !unifiedMessage.startsWith('Error: Template') ? unifiedMessage : fallbackMessage;
         
         if (!message) {
-            console.log('[DISCOUNT_NOTIF] Template disabled or not found, skipping notification');
+            log.info('[DISCOUNT_NOTIF] Template disabled or not found, skipping notification');
             return;
         }
         
@@ -346,10 +347,10 @@ async function sendDiscountNotification(user, discountInfo) {
             recipient: phoneJid,
             message: { text: message }
         });
-        console.log(`[DISCOUNT_NOTIF_SUCCESS] Notification sent to ${user.name} (${phoneJid})`);
+        log.info(`[DISCOUNT_NOTIF_SUCCESS] Notification sent to ${user.name} (${phoneJid})`);
         
     } catch (error) {
-        console.error(`[DISCOUNT_NOTIF_ERROR] Failed to send notification to ${user.name}:`, error.message);
+        log.error(`[DISCOUNT_NOTIF_ERROR] Failed to send notification to ${user.name}:`, error.message);
     }
 }
 
@@ -407,7 +408,7 @@ router.delete('/:userId', ensureAdmin, async (req, res) => {
                     description: `Admin menghapus diskon untuk ${user.name}`,
                     ipAddress: req.ip,
                     userAgent: req.headers['user-agent']
-                }).catch(console.error);
+                }).catch((e) => log.error(e));
                 
                 db.close();
                 res.json({ status: 200, message: 'Diskon berhasil dihapus' });
@@ -439,7 +440,7 @@ router.get('/effective-price/:userId', async (req, res) => {
             (err, user) => {
                 db.close();
                 if (err) {
-                    console.error('[DISCOUNT_EFFECTIVE_PRICE_ERROR]', err);
+                    log.error('[DISCOUNT_EFFECTIVE_PRICE_ERROR]', err);
                     return res.status(500).json({ status: 500, message: 'Gagal mengambil data' });
                 }
                 
@@ -527,7 +528,7 @@ router.get('/list/all', ensureAdmin, async (req, res) => {
         db.all(sql, [], (err, rows) => {
             db.close();
             if (err) {
-                console.error('[DISCOUNT_LIST_ERROR]', err);
+                log.error('[DISCOUNT_LIST_ERROR]', err);
                 return res.status(500).json({ status: 500, message: 'Gagal mengambil daftar diskon' });
             }
             

@@ -7,6 +7,7 @@
  * SideEffects: Memperbarui state tiket/lokasi dan mengirim notifikasi pelanggan via delivery/runtime WA.
  */
 
+const log = require('../../lib/logger').logger.child('SIMPLE_LOCATION_HANDLER');
 const { setUserState, getUserState, deleteUserState } = require('./conversation-handler');
 const { sendCustomerNotification } = require('./teknisi-workflow-handler');
 const { ensureTicketShape, normalizeStatus } = require('../../lib/ticket-workflow');
@@ -46,7 +47,7 @@ async function handleTeknisiShareLocation(sender, location, _reply, stateSender 
             
             if (activeTicket) {
                 // Auto-update untuk tiket aktif
-                console.log(`[LOCATION] Auto-update for active ticket ${activeTicket.ticketId} status ${activeTicket.status}`);
+                log.info(`[LOCATION] Auto-update for active ticket ${activeTicket.ticketId} status ${activeTicket.status}`);
                 return updateTeknisiLocation(sender, activeTicket.ticketId, location, activeTicket);
             }
             
@@ -75,7 +76,7 @@ async function handleTeknisiShareLocation(sender, location, _reply, stateSender 
         return result;
         
     } catch (error) {
-        console.error('[TEKNISI_SHARE_LOCATION_ERROR]', error);
+        log.error('[TEKNISI_SHARE_LOCATION_ERROR]', error);
         return {
             success: false,
             message: '❌ Gagal update lokasi.'
@@ -106,7 +107,7 @@ async function handleActiveTicketLocationUpdate({ sender, type, msg, reply }) {
         : msg?.message?.liveLocationMessage;
 
     if (!locationData || !locationData.degreesLatitude || !locationData.degreesLongitude) {
-        console.error('[LOCATION_ERROR] Invalid location data for active ticket:', locationData);
+        log.error('[LOCATION_ERROR] Invalid location data for active ticket:', locationData);
         return { handled: true };
     }
 
@@ -133,7 +134,7 @@ async function updateTeknisiLocation(teknisiId, ticketId, location, reportData) 
     try {
         // Validate location data
         if (!location || !location.degreesLatitude || !location.degreesLongitude) {
-            console.error('[LOCATION_UPDATE_ERROR] Invalid location data:', location);
+            log.error('[LOCATION_UPDATE_ERROR] Invalid location data:', location);
             return {
                 success: false,
                 message: '❌ Data lokasi tidak valid. Pastikan Anda share location dengan benar.'
@@ -145,7 +146,7 @@ async function updateTeknisiLocation(teknisiId, ticketId, location, reportData) 
         const lng = parseFloat(location.degreesLongitude);
         
         if (isNaN(lat) || isNaN(lng)) {
-            console.error('[LOCATION_UPDATE_ERROR] Invalid coordinates:', { lat, lng });
+            log.error('[LOCATION_UPDATE_ERROR] Invalid coordinates:', { lat, lng });
             return {
                 success: false,
                 message: '❌ Koordinat lokasi tidak valid.'
@@ -223,7 +224,7 @@ Setelah sampai di lokasi, ketik:
         };
         
     } catch (error) {
-        console.error('[UPDATE_LOCATION_ERROR]', error);
+        log.error('[UPDATE_LOCATION_ERROR]', error);
         throw error;
     }
 }
@@ -301,7 +302,7 @@ ${locationData.googleMapsUrl}
         };
         
     } catch (error) {
-        console.error('[CEK_LOKASI_ERROR]', error);
+        log.error('[CEK_LOKASI_ERROR]', error);
         return {
             success: false,
             message: '❌ Terjadi kesalahan saat mengambil lokasi.'
@@ -326,7 +327,7 @@ function saveLocationToFile(ticketId, locationData) {
         const filePath = path.join(locationsDir, `${ticketId}.json`);
         fs.writeFileSync(filePath, JSON.stringify(locationData, null, 2));
     } catch (error) {
-        console.error('Error saving location to file:', error);
+        log.error('Error saving location to file:', error);
     }
 }
 
@@ -340,7 +341,7 @@ function loadLocationFromFile(ticketId) {
             return JSON.parse(fs.readFileSync(filePath, 'utf8'));
         }
     } catch (error) {
-        console.error('Error loading location from file:', error);
+        log.error('Error loading location from file:', error);
     }
     return null;
 }
@@ -426,7 +427,7 @@ Untuk membuat laporan baru, ketik:
         };
         
     } catch (error) {
-        console.error('[TIKET_SAYA_ERROR]', error);
+        log.error('[TIKET_SAYA_ERROR]', error);
         return {
             success: false,
             message: '❌ Gagal mengambil data tiket.'

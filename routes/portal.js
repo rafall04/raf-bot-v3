@@ -12,6 +12,8 @@
  * SideEffects: Proxy HTTP ke bot area (loopback). TIDAK menyentuh saldo/WA/DB langsung.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('PORTAL');
+
 
 const express = require("express");
 const path = require("path");
@@ -265,7 +267,7 @@ router.post("/api/register", registerLimiter, asyncHandler(async (req, res) => {
         });
         return res.status(r.status).json(r.data); // passthrough pesan/kode bot (Indonesia)
     } catch (e) {
-        console.error(`[PORTAL_REGISTER] area=${area.id} gagal proxy:`, e.message);
+        log.error(`[PORTAL_REGISTER] area=${area.id} gagal proxy:`, e.message);
         return sendError(res, "Pendaftaran gagal diproses. Coba lagi sebentar lagi.", 502);
     }
 }));
@@ -295,7 +297,7 @@ router.get("/api/area/:area/:type/:id?", asyncHandler(async (req, res) => {
         res.set("Cache-Control", "no-store");
         return res.status(r.status).json(r.data);
     } catch (e) {
-        console.error(`[PORTAL_PROXY] area=${area.id} type=${type} gagal:`, e.message);
+        log.error(`[PORTAL_PROXY] area=${area.id} type=${type} gagal:`, e.message);
         return sendError(res, "Layanan area sedang bermasalah. Coba lagi sebentar.", 502);
     }
 }));

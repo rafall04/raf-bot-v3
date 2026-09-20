@@ -7,6 +7,7 @@
  * SideEffects: Mengirim task perubahan power ke GenieACS dan reply WhatsApp.
  */
 
+const log = require('../../lib/logger').logger.child('WIFI_POWER_HANDLER');
 const { resolveCustomerBySender } = require('../../lib/jid-utils');
 const { setTransmitPower } = require('../../lib/wifi');
 const { assertWifiChangeApplied } = require('../../lib/wifi-apply-guard');
@@ -28,11 +29,11 @@ async function handleGantiPowerWifi({ sender, args, matchedKeywordLength, q, isO
         const potentialId = args[keywordLength];
         const providedId = (isOwner || isTeknisi) && potentialId && !isNaN(parseInt(potentialId, 10)) ? potentialId : null;
 
-        console.log('[WIFI_POWER_DEBUG] Args:', args);
-        console.log('[WIFI_POWER_DEBUG] matchedKeywordLength:', matchedKeywordLength);
-        console.log('[WIFI_POWER_DEBUG] keywordLength:', keywordLength);
-        console.log('[WIFI_POWER_DEBUG] potentialId:', potentialId);
-        console.log('[WIFI_POWER_DEBUG] providedId:', providedId);
+        log.info('[WIFI_POWER_DEBUG] Args:', args);
+        log.info('[WIFI_POWER_DEBUG] matchedKeywordLength:', matchedKeywordLength);
+        log.info('[WIFI_POWER_DEBUG] keywordLength:', keywordLength);
+        log.info('[WIFI_POWER_DEBUG] potentialId:', potentialId);
+        log.info('[WIFI_POWER_DEBUG] providedId:', providedId);
 
         // Admin/Teknisi dapat menyebutkan ID pelanggan
         if (providedId) {
@@ -102,7 +103,7 @@ async function handleGantiPowerWifi({ sender, args, matchedKeywordLength, q, isO
             // tak pernah dilaporkan sebagai berhasil ke pelanggan.
             assertWifiChangeApplied(response);
 
-            console.log('[WIFI_POWER] Success:', response.data);
+            log.info('[WIFI_POWER] Success:', response.data);
             await reply(renderResponseTemplate(
                 'wifi_power_success',
                 `Power Wifi Berhasil Dirubah Ke :\n\n==================================\n${q}%\n==================================\n\n${global.config.namabot}`,
@@ -110,7 +111,7 @@ async function handleGantiPowerWifi({ sender, args, matchedKeywordLength, q, isO
             ));
 
         } catch (error) {
-            console.error('[WIFI_POWER] Error:', error);
+            log.error('[WIFI_POWER] Error:', error);
             await reply(renderResponseTemplate(
                 'wifi_power_technical_error',
                 `Gagal Mengubah Power Wifi\n\nSilahkan Cek Format Power Wifi Atau Hubungi Admin\n\nTerimakasih\n\n${global.config.namabot}`,
@@ -122,7 +123,7 @@ async function handleGantiPowerWifi({ sender, args, matchedKeywordLength, q, isO
         if (typeof error === 'string') {
             await reply(error);
         } else {
-            console.error('[WIFI_POWER_HANDLER] Unexpected error:', error);
+            log.error('[WIFI_POWER_HANDLER] Unexpected error:', error);
             await reply(renderResponseTemplate(
                 'wifi_power_generic_error',
                 'Terjadi kesalahan. Silakan coba lagi atau hubungi admin.'

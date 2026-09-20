@@ -11,6 +11,8 @@
  * SideEffects: Lewat handler → service (ledger + MikroTik + notif) + requests.json; tulis/hapus state; balas admin.
  */
 "use strict";
+const log = require('../../../lib/logger').logger.child('PAYMENT_REQUEST_ADMIN_STATE');
+
 
 const {
     STEP_SELECT,
@@ -93,7 +95,7 @@ async function handlePaymentRequestAdminState(ctx) {
         if (step === STEP_CONFIRM_ALL) return await handleConfirmAll(ctx);
         return { handled: false };
     } catch (err) {
-        console.warn(`[PAYREQ_STATE] gagal: ${err && err.message ? err.message : err}`);
+        log.warn(`[PAYREQ_STATE] gagal: ${err && err.message ? err.message : err}`);
         try { clearState(ctx); await ctx.reply("⚠️ Gagal memproses otorisasi. Coba lagi atau buka panel admin.", { skipDuplicateCheck: true }); } catch (_e) { /* best-effort */ }
         return { handled: true };
     }

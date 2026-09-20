@@ -153,6 +153,7 @@ async function handleKonfirmasiSelesaiIntent(context) {
         isTeknisi,
         isOwner,
         mess,
+        global,
         handleFinalConfirmation
     } = context;
     const args = q.split(' ');
@@ -180,6 +181,25 @@ async function handleKonfirmasiSelesaiIntent(context) {
         const ticketId = firstArg;
         const code = args[1];
 
+        // Tiket yang tak menunggu konfirmasi kode tak punya completionCode —
+        // arahkan staf ke alur penutupan live (selesai <ID_TIKET>) daripada
+        // meneruskan ke finalize yang hanya bisa menjawab "kode salah".
+        const ticket = ((global && global.reports) || []).find(r => r.ticketId === ticketId);
+        if (!ticket) {
+            return reply(renderResponseTemplate(
+                'raf_dispatch_confirm_ticket_not_found',
+                `❌ Tiket *${ticketId}* tidak ditemukan.`,
+                { ticketId }
+            ));
+        }
+        if (!ticket.awaitingCustomerConfirmation) {
+            return reply(renderResponseTemplate(
+                'raf_dispatch_confirm_not_awaiting',
+                `Tiket *${ticketId}* tidak menunggu konfirmasi kode (status: ${ticket.status || 'unknown'}). Penutupan tiket memakai alur *selesai [ID_TIKET]*.`,
+                { ticketId, status: ticket.status }
+            ));
+        }
+
         const result = await handleFinalConfirmation({
             ticketId,
             completionCode: code,
@@ -197,28 +217,57 @@ async function handleCustomerConfirmDoneIntent(context) {
     const {
         isOwner,
         isTeknisi,
-        handleRemoteResponse,
+        handleFinalConfirmation,
         sender,
-        lowerMessage,
-        reply
+        qAfterKeyword,
+        global,
+        reply,
+        renderResponseTemplate
     } = context;
 
-    if (!isOwner && !isTeknisi) {
-        const remoteResponse = await handleRemoteResponse({
-            customerId: sender,
-            response: lowerMessage,
-            reply
-        });
-
-        if (remoteResponse) {
-            return reply(remoteResponse.message);
-        }
+    if (isOwner || isTeknisi) {
+        return reply(renderResponseTemplate(
+            'raf_dispatch_customer_confirm_staff_hint',
+            `Perintah ini khusus pelanggan. Staf memakai: konfirmasi [ID_TIKET] [KODE]`
+        ));
     }
 
-    // Tidak ada konfirmasi remote yang cocok untuk pelanggan ini (atau pemanggil
-    // owner/teknisi yang semestinya memakai KONFIRMASI_SELESAI). Tidak ada aksi
-    // lanjutan. Blok sebelumnya memakai `ticketId`/`code` yang tak pernah tersedia
-    // di context (selalu ReferenceError) — dihapus karena tak fungsional.
+    // Format: selesai customer [ID_TIKET] [KODE] — kode dikirim ke pelanggan saat
+    // teknisi menandai pekerjaan selesai (ticket.awaitingCustomerConfirmation).
+    const confirmArgs = String(qAfterKeyword || '').split(/\s+/).filter(Boolean);
+    const ticketId = confirmArgs[0];
+    const code = confirmArgs[1];
+
+    if (!ticketId || !code) {
+        return reply(renderResponseTemplate(
+            'raf_dispatch_customer_confirm_format',
+            `Format: selesai customer [ID_TIKET] [KODE]\n\nKode konfirmasi dikirim ke Anda saat teknisi menandai pekerjaan selesai.`
+        ));
+    }
+
+    // Gate kepemilikan: finalizeCustomerConfirmation hanya memvalidasi kode, bukan
+    // pemilik tiket — tanpa cek ini kode orang lain bisa dikonfirmasi dari sini.
+    const ticket = ((global && global.reports) || []).find(
+        r => r.ticketId === ticketId && r.pelangganId === sender
+    );
+    if (!ticket) {
+        return reply(renderResponseTemplate(
+            'raf_dispatch_customer_confirm_not_found',
+            `❌ Tiket *${ticketId}* tidak ditemukan untuk nomor Anda.`,
+            { ticketId }
+        ));
+    }
+
+    const result = await handleFinalConfirmation({
+        ticketId,
+        completionCode: code,
+        isFromCustomer: true,
+        sender
+    });
+
+    if (result && result.message) {
+        return reply(result.message);
+    }
 }
 
 async function handleCekLokasiTeknisiIntent(context) {

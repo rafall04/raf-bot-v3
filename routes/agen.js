@@ -12,6 +12,8 @@
  * SideEffects: Menulis kolom `users.assigned_agen_id` (DB + cache runtime), activity log penugasan.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('AGEN');
+
 
 const express = require('express');
 const router = express.Router();
@@ -80,7 +82,7 @@ router.get('/customers', ensureAgen, (req, res) => {
             .map(mapCustomer);
         return res.json({ status: 200, data: customers });
     } catch (error) {
-        console.error('[AGEN_CUSTOMERS_ERROR]', error);
+        log.error('[AGEN_CUSTOMERS_ERROR]', error);
         return res.status(500).json({ status: 500, message: 'Gagal memuat pelanggan agen' });
     }
 });
@@ -122,7 +124,7 @@ router.get('/summary', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[AGEN_SUMMARY_ERROR]', error);
+        log.error('[AGEN_SUMMARY_ERROR]', error);
         return res.status(500).json({ status: 500, message: 'Gagal memuat ringkasan fee agen' });
     }
 });
@@ -146,7 +148,7 @@ router.get('/report', ensureAdmin, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[AGEN_REPORT_ERROR]', error);
+        log.error('[AGEN_REPORT_ERROR]', error);
         return res.status(500).json({ status: 500, message: 'Gagal memuat laporan komisi agen' });
     }
 });
@@ -164,7 +166,7 @@ router.get('/list', ensureAdmin, (req, res) => {
             }));
         return res.json({ status: 200, data: agents });
     } catch (error) {
-        console.error('[AGEN_LIST_ERROR]', error);
+        log.error('[AGEN_LIST_ERROR]', error);
         return res.status(500).json({ status: 500, message: 'Gagal memuat daftar agen' });
     }
 });
@@ -192,7 +194,7 @@ router.get('/assignments', ensureAdmin, (req, res) => {
             });
         return res.json({ status: 200, data: customers });
     } catch (error) {
-        console.error('[AGEN_ASSIGNMENTS_ERROR]', error);
+        log.error('[AGEN_ASSIGNMENTS_ERROR]', error);
         return res.status(500).json({ status: 500, message: 'Gagal memuat data penugasan agen' });
     }
 });
@@ -254,7 +256,7 @@ router.post('/assign', ensureAdmin, rateLimit('agen-assign', 30, 60000), async (
             description: `${unassign ? 'Melepas' : 'Menugaskan'} ${updated} pelanggan ${unassign ? 'dari agen' : `ke agen #${agenId}`}`,
             ipAddress: req.ip,
             userAgent: req.headers['user-agent']
-        }).catch((logErr) => console.error('[AGEN_ASSIGN_LOG_ERROR]', logErr.message));
+        }).catch((logErr) => log.error('[AGEN_ASSIGN_LOG_ERROR]', logErr.message));
 
         return res.json({
             status: 200,
@@ -262,7 +264,7 @@ router.post('/assign', ensureAdmin, rateLimit('agen-assign', 30, 60000), async (
             data: { updated, skipped }
         });
     } catch (error) {
-        console.error('[AGEN_ASSIGN_ERROR]', error);
+        log.error('[AGEN_ASSIGN_ERROR]', error);
         return res.status(500).json({ status: 500, message: 'Gagal memproses penugasan agen' });
     }
 });

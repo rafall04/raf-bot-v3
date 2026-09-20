@@ -3215,9 +3215,110 @@
 
 <a id="b390"></a>
 
+### Fix 2026-09-19 (dead path: handler transfer/ubah-paket ganda + route monitoring orphan dihapus)
+
+- **Dihapus:** `balance-management-handler.handleTransfer` + intent-map key `transfer` di `raf-intent-dispatch/saldo-intents` (keyword "transfer" tetap → TRANSFER_SALDO → `saldo/transfer-operations` ber-kunci tulis). Jalur lama memanggil `confirmATM`/`addKoinUser` tanpa await — debit gagal senyap sementara kredit jalan (double-spend laten).
+- **Dihapus:** `billing-management-handler.handleUbahPaket` (salinan ter-shadow — owner live `package-management-handler.handleUbahPaket` juga yang set state `ASK_PACKAGE_CHOICE`).
+- **Dihapus:** `routes/monitoring-dashboard.js` + `views/monitoring-dashboard.html` + test khususnya — route tak pernah di-mount (live: `routes/monitoring-api.js` di `/api/monitoring`); endpoint `restart-service` tak reachable dari luar.
+- **Tersisa (live):** `handleTopup`/`handleDelSaldo` untuk intent `<topup`/`<delsaldo` di `balance-management-handler`.
+- **Tes:** suite penuh; lint file tersentuh.
+
+<a id="b391"></a>
+
+### Feat 2026-09-19 (Logging: jembatan console.*→lib/logger saat boot)
+
+- **Owner:** `lib/console-to-logger.js` (BARU) — dipasang `index.js` via `installConsoleBridge()` sebelum runtime; seluruh `console.log/info/debug/warn/error` lama diteruskan ke `lib/logger` (file rotasi `logs/app-*.log` + `error-*.log`, level `LOG_LEVEL`) via `util.format` (multi-arg/Error stack utuh). Guard `insideBridge` cegah rekursi (logger sendiri mencetak via console saat `logToConsole`).
+- **Bypass:** `printRaw` untuk output mentah terminal — dipakai ASCII-art QR pairing WA di `index.js` (prefix timestamp akan merusak QR).
+- **Status path lama:** tak ada callsite yang dihapus — ribuan `console.*` tetap, kini ikut tertulis ke file; `tools/`/`scripts/` CLI tak terpengaruh (jembatan hanya dipasang di index.js).
+- **Tes:** scoped index-scanning suites (socket-auth, uploads-terlindungi, otp-limiter-alias, runtime-wiring, broken-requires) hijau; verifikasi manual log file round-trip.
+
+<a id="b392"></a>
+
+### Refactor 2026-09-19 (routes/public.js dipecah → routes/public/{shared,auth,customer,payment-callback,reports,requests} + composer)
+
+- **Owner baru:** `routes/public.js` kini composer 28 baris yang me-mount sub-router per konteks dalam urutan sama seperti aslinya — `auth.js` (login/OTP), `customer.js` (self-service `/api/customer/*` + voucher + wifi + speed-request/buys), `payment-callback.js` (`POST /callback/payment` iPaymu), `reports.js` (`/api/lapor` + upload foto laporan), `requests.js` (`/api/request-speed` + speed-boost packages); `shared.js` memuat helper lintas sub-router (renderResponseTemplate, getCustomerAuthPayload, setSensitiveResponseHeaders, ensureCustomerAuthenticated); `content.js` (dari #b386) tak berubah.
+- **Status path lama:** murni pemindahan — tak ada handler/logika diubah, tak ada stub; satu-satunya penyesuaian teknis: `getProjectRoot` di reports.js dioper `path.join(__dirname, '..')` karena file turun satu level (root upload `uploads/` identik).
+- **Gate:** n/a. **Tes:** guard-scan diarahkan ke file pemiliknya (payment-callback-*, settle-markpaid, reaktivasi-gagal, callback-invoice-wiring, notif-routing-migration → payment-callback.js; otp-limiter-alias → auth.js; upload-guard → reports.js + regex `../../lib` diperdalam; wa-hardcoded → requests.js; paid-receipt-single-source + public-anonymous-trx-scope → payment-callback.js); composer masih lulus public-content-router & public-customer-api.contract; suite penuh 625/625 hijau.
+
+<a id="b393"></a>
+
+### Refactor 2026-09-19 (lib/genieacs.js dipecah → lib/genieacs/{session,device-read,reboot-verify,wifi-params,pppoe-params} + facade)
+
+- **Owner baru:** `lib/genieacs.js` jadi facade murni (46 export, urutan & API identik); implementasi: `session.js` (http agents, circuit breaker, deviceLocks, retry, redact sensitif, `genieacsRequest`/`submitTask`), `device-read.js` (query/projection, extractor, refresh, probe, diagnostics, feature status), `reboot-verify.js` (`setParameterValues`(+internal)+`verifyAppliedValues`, `rebootDevice`, `toLegacyMutationResult`), `wifi-params.js` (parse/build/set WiFi + bulk), `pppoe-params.js` (build/set PPPoE + `updatePsbDeviceConfig`).
+- **Layering asiklik:** session ← device-read ← reboot-verify ← {wifi-params, pppoe-params}; state singleton (circuit/locks/agents) tetap satu karena semua submodul berbagi `./session`.
+- **Status path lama:** tak ada — semua caller tetap `require('lib/genieacs')`; satu penyesuaian teknis: `require('./database')` di `getParameterPaths` jadi `../database` (file turun satu level).
+- **Gate:** n/a. **Tes:** guard-scan diarahkan ke pemilik baru (cron-correctness-r4 #15 & probe-device-reachable #b261 → device-read.js); suite penuh 625/625 hijau; lint 0 error.
+
+<a id="b394"></a>
+
+### Refactor 2026-09-19 (lib/payment-finance-service.js dipecah → lib/payment-finance/{ledger,waivers,read-model} + facade)
+
+- **Owner baru:** `lib/payment-finance-service.js` jadi facade murni (18 export, urutan & API identik); implementasi: `ledger.js` (infra runtime/DB/reader bersama, schema self-heal, harga efektif, konsumsi diskon, record history/reversal, posisi bayar, `applyPaymentStatusChange`), `waivers.js` (`recordPaymentWaiverEntry`, `applyFreeMonth` — tabel `payment_waivers`), `read-model.js` (`getPaymentTimelineForPeriod`, `getPaymentReportForPeriod`, `getPaymentDiagnostics`).
+- **Layering asiklik:** ledger ← {waivers, read-model}; `initializationPromise` + koneksi reader bersama tetap singleton (semua submodul berbagi `./ledger`).
+- **Status path lama:** tak ada — semua caller tetap `require('lib/payment-finance-service')`; require internal `./x` → `../x` (turun satu level).
+- **Gate:** n/a. **Tes:** users-sqlite-connection-policy dialihkan ke `payment-finance/ledger.js` (assertion `getSharedReader` tak berubah); suite domain payment 15 file hijau; suite penuh menyusul sebelum push.
+
+<a id="b395"></a>
+
+### Refactor 2026-09-19 (routes/olt.js dipecah → routes/olt/{shared,snapshot,matching,health} + composer)
+
+- **Owner baru:** `routes/olt.js` jadi composer murni (mount health→matching→snapshot; `nextOltDeviceId` tetap diekspos di router untuk uji). `shared.js` memegang state singleton (oltDataCacheMap stale-while-revalidate + freshness, pppoeCache, lastCallerIdCache) + helper lintas-rute (loadConfig/saveConfig, getCached*, getMacForUser, resolveOnuDisplayStatus). `snapshot.js`: /status /onus /customer/:userId /refresh-single /scrape-now. `matching.js`: /matched /infra-status. `health.js`: /config /test /test-web /scraper-status /events /devices CRUD+test /drivers /event-log.
+- **Status path lama:** tak ada — 20 route (method+path) diverifikasi identik saat runtime; require internal `../lib/x` → `../../lib/x`, `__dirname,'..'` → `'..','..'`.
+- **Gate:** n/a. **Tes:** gerbang-kepemilikan dialihkan ke `olt/snapshot.js`; 115+ tes domain OLT hijau; suite penuh menyusul.
+
+<a id="b396"></a>
+
+### Refactor 2026-09-19 (state-domains/psb.state.js dipecah → psb/{shared,intake,slot-filling,confirm}.state.js + facade)
+
+- **Owner baru:** `psb.state.js` jadi facade murni (19 export, urutan & nama identik — `conversation-state-router` & `raf.js` tak berubah). `psb/shared.js` = konstanta step + helper teks (checklist/dusun/alamat/PPPoE/SN) + draft-store plumbing + safeReply + media — state helper SATU instance. `intake.state.js` = trigger/panduan/`startPsbSession`/`handleResumeAnswer`. `confirm.state.js` = deteksi modem (provenance/search/pick/takeover), `detectAndAskConfirm`, `provision*`, `startLinkedSession`, anti-dobel `SEDANG_PROVISION`. `slot-filling.state.js` = dispatcher `handlePsbConversationState` + `handlePsbStateTimeout`/`handlePsbStateCancel` + registrasi ke `conversation-handler`.
+- **Layering:** shared ← confirm ← intake ← slot-filling (asiklik; diverifikasi call-graph per-fungsi).
+- **Status path lama:** tak ada — facade re-export identik; require dalam subdir `../x`→`../../x`, `../../../lib`→`../../../../lib`.
+- **Gate:** n/a. **Tes:** 13 suite state-domains hijau (287 tes, termasuk happy-path wizard + kembar-provision + draft-resume); suite penuh menyusul.
+
+<a id="b397"></a>
+
+### Fix 2026-09-19 (voucher online: kode tak tampil di layar + prof WA + guard buy + wifi-name publik)
+
+- **Bug:** `/app/statustrx` memproyeksikan record via `PUBLIC_TRX_FIELDS` tanpa `ket` — kode voucher tak pernah sampai ke layar sukses `voucher-buy.html`/`portal-voucher.html` walau lunas (kode hanya via WA). `statustrx` kini pakai `PUBLIC_PAID_TRX_FIELDS` (+= `ket`, `trxId`) untuk record `buynowweb` paid; scoping tag `findPublicWebTrx` tetap membatasi ke pemegang reff. `detailtrx` tetap tanpa `ket`/`trxId`.
+- **WA `buynow`:** `payment-flow` kini menyimpan `prof` paket terpilih di record (opts ke-8 `createPaymentRequest`); callback `payment-callback.js` memakai `pay.prof || checkprofvc(amount)` — menutup bug "salah durasi saat dua paket berharga sama" yang sudah ditambal untuk buynowweb/buynowpanel (#b334) tapi belum untuk jalur WA.
+- **`/app/buy`:** guard `isprofvc(id)` → 400 untuk prof tak terdaftar (sebelumnya `checkhargavc` → undefined → `parseInt` → charge iPaymu `NaN` + record sampah).
+- **public-site-app:** mount `routes/public/content` → `/api/wifi-name` kini hidup di listener publik (sebelumnya 404 → halaman `/voucher` kehilangan tombol lapor-admin, login-otomatis, flag waConnected).
+- **Gate:** n/a. **Tes:** `public-anonymous-trx-scope` diperbarui (ket+trxId ikut hanya di statustrx lunas; sender tetap tak bocor; buy prof-ngasal → 400) + `payment-flow.service` (buynow simpan prof). 62 tes scoped hijau; suite penuh menyusul.
+
+<a id="b398"></a>
+
+### Feat 2026-09-19 (worklist voucher orphan: panel admin + API resolve)
+
+- **Owner baru:** `routes/api-voucher-routes.js` — `GET /api/voucher/orphans` (list+stats; status open|resolved|all) & `POST /api/voucher/orphans/:id/resolve` (aksi `fulfill`|`send`|`manual`|`refund`, staff-guarded). `lib/voucher-orphan.js` kini punya `listVoucherOrphans`/`getVoucherOrphan`/`resolveVoucherOrphan` dan tulis ATOMIK via `json-store.saveJSON` (dulu writeFileSync mentah).
+- **Semantik resolve:** `fulfill` hanya untuk entri paid-unissued (tanpa voucherCode; butuh `reference_id`+`profile`+`sender`) → `reissueVoucher` dengan **profil tercatat** (param baru `prof` menang atas lookup-harga — anti salah-durasi paket kembar). `send` untuk entri created-unpaid (`voucherCode` ada) → `resendVoucherCode` kode existing — JANGAN generate ulang (bocor voucher ke-2). `manual`/`refund` = tanda selesai + catatan (aksi keuangan di luar sistem). Resolve ganda ditolak (409) + kunci `_orphanInFlight` per-id.
+- **Halaman:** `/voucher-orphans` (views/sb-admin/voucher-orphans.php + static/js|css/voucher-orphans.*), item sidebar grup Voucher Hotspot; flag `voucherOrphanWorklist` default-aktif (registry + config.example.json).
+- **Status path lama:** n/a — fitur baru; `voucher-sales` tetap punya tombol Terbitkan-ulang per-transaksi (jalur beda: reff-based).
+- **Gate:** `voucherOrphanWorklist.enabled`. **Tes:** `lib/__tests__/voucher-orphan.test.js` (record/list/resolve/anti-ganda) + `routes/__tests__/api-voucher-orphans.test.js` (fulfill pakai profil tercatat, send tak generate, guard & in-flight); navbar count 74→75. Suite penuh menyusul.
+
+<a id="b399"></a>
+
+### Refactor 2026-09-19 (lib/mikrotik.js dipecah → lib/mikrotik/{core,pppoe,netwatch,hotspot,site-http} + facade)
+
+- **Owner baru:** `lib/mikrotik/core.js` — config (.env + mikrotik_devices.json + cache 5 mnt), retry + circuit breaker + per-key lock, result helpers, dua transport (spawn bridge PHP `views/*.php` & `getJsonOverHttp` ke siteUrl), keepAlive agents, `getMikrotikDiagnostics`. `pppoe.js` = secret/profil/sesi/user/stats + steering lists. `netwatch.js` = list/full/add/set/remove netwatch (envSecrets). `hotspot.js` = profil/stats/user-aktif/batch-add/script-log Mikhmon. `site-http.js` = voucher/binding/queue/statusap via `site_url_bot` HTTP (non-idempotent, lock per-key).
+- **Layering:** semua submodule → `core` (asiklik). State (configCache, circuitState, keyLocks, agents) tinggal di core = singleton identik.
+- **Status path lama:** tak ada — `lib/mikrotik.js` jadi facade murni (33 export identik + `_resetMikrotikKeyLocksForTests` kini ikut diekspos). Path repo di core kini lewat konstanta `REPO_ROOT` (__dirname/../..) karena file turun satu level.
+- **Gate:** n/a. **Tes:** 8 suite mikrotik+consumer hijau (76 tes — mikrotik.test.js, cctv-netwatch-sync, voucher-manager-purchase, isolir-service, customer-path-resolver, create-user-mikrotik-sync, voucher orphans & generate-send); suite penuh menyusul.
+
+<a id="b400"></a>
+
+### Refactor 2026-09-19 (migrasi console.* → logger terstruktur + fix rekursi jembatan)
+
+- **Migrasi massal:** `tools/migrate-console-to-logger.js` (codemod Babel, splice-by-posisi) mengubah ~2.120 callsite `console.(log|info|warn|error|debug)(...)` → `log.<level>(...)` di ~308 file (lib/services/routes/message/repositories + lib/mikrotik/*). Tiap file dapat `const log = require('<rel>lib/logger').logger.child('<BASENAME>')` disisipkan setelah directive (anti-TDZ); binding `log` diverifikasi vs semua binding file + scope per-callsite (anti-shadow param). `tools/` `scripts/` `static/` sengaja dikecualikan (console.* memang output CLI/browser).
+- **Fix bug jembatan (PR #3):** `logger.*` yang dipanggil LANGSUNG kena wrapper bridge → double-prefix console + dobel tulis file. `lib/logger.js`: flag `emittingToConsole` + `emitConsole()` untuk semua tulis internal; `lib/console-to-logger.js` passthrough saat flag aktif. Method Logger kini variadic `(...args)` → `util.format` (semantik console 1:1: %s/%j, util.inspect, stack Error).
+- **`logToFile` off saat `NODE_ENV=test`** (Jest auto-set) — tulis log real saat test menggeser spy `fs.writeFileSync` (Node internal appendFileSync → writeFileSync) di `voucher-generate-send`.
+- **Tak dimigrasi (dipin test):** 5 callsite tetap `console.*` — `[TEMPLATE_SLOT_BASI]` (template-service + response-template-helper), `[DOMAIN_EVENTS_ERROR]`, CELAH-DATA olt-log-scraper, DIBUANG-whitelist api-users.repository (guard test memverifikasi bentuk `console.*` literal / argumen spy mentah). Jembatan tetap merutekan mereka ke logger saat runtime. `.catch(console.error)` → `.catch(e => log.error(e))` (9 file routes); `console[level]` di jid-utils → `log[method].bind(log)`.
+- **Status path lama:** n/a — tidak ada API berubah; `isEmittingToConsole` diekspor baru. **Gate:** n/a. **Tes:** 3 mock `lib/logger` di test (topup-expiry, saldo-canonical, bot-hardening) dilengkapi `.child`; suite penuh 627/627 (6302 tes) hijau.
+
+<a id="b401"></a>
+
 ### Fix 2026-09-19 (PSB dual-band tak aktif + kode voucher web tak tampil)
 
-- **Owner:** `lib/genieacs.updatePsbDeviceConfig` kini push `Enable=true` per index WiFi (template path baru `wifiEnable`, TR-098+TR-181) + refresh container WLAN UTUH (bukan hanya instance ter-push); `psb.state.js` baca-ulang band pasca-push DIPERLUAS — dulu hanya `!bandDetected` (found:false), kini juga saat verdict single-band (cache ACS basi: WLAN.5 belum keenumerasi), koreksi `bulk` hanya bila ada index baru.
-- **Voucher web:** `routes/public-anonymous.js` `statustrx` kini mengembalikan `ket` untuk record `buynowweb` LUNAS — kode voucher tampil lagi di `/voucher` (halaman membaca `rec.ket` sejak awal; penyembunyian `ket` di #b334 adalah regresi tak disengaja). `detailtrx` & semua lintas-tag TETAP tanpa `ket`/`sender`/`trxId` (scope #b334 dijaga).
-- **Status path lama:** tak ada yang dimatikan; `statustrx` tanpa `ket` hanyalah regresi, bukan kontrak.
+- **Owner (pasca-split #b393/#b396):** `lib/genieacs/pppoe-params.updatePsbDeviceConfig` kini push `Enable=true` per index WiFi (template path baru `wifiEnable` di `lib/genieacs/device-read.getDefaultPaths`, TR-098+TR-181) + refresh container WLAN UTUH (bukan hanya instance ter-push); `state-domains/psb/confirm.state.js` `provisionInner` baca-ulang band pasca-push DIPERLUAS — dulu hanya `!bandDetected` (found:false), kini juga saat verdict single-band (cache ACS basi: WLAN.5 belum keenumerasi), koreksi `bulk` hanya bila ada index baru.
+- **Voucher web:** `routes/public-anonymous.js` `statustrx` kini mengembalikan `ket` untuk record `buynowweb` LUNAS — kode voucher tampil lagi di `/voucher` (halaman membaca `rec.ket` sejak awal; penyembunyian `ket` di #b334 adalah regresi tak disengaja). `detailtrx` & semua lintas-tag TETAP tanpa `ket`/`sender`/`trxId` (scope #b334 dijaga). **Diserap & diluaskan #b397** (allowlist `PUBLIC_PAID_TRX_FIELDS` = +`ket`+`trxId`, guard `isprofvc` di `/app/buy`, `prof` di WA buynow, mount `routes/public/content`).
+- **Status path lama:** tak ada yang dimatikan; `statustrx` tanpa `ket` hanyalah regresi, bukan kontrak. Entri ini awalnya ditulis sebagai #b390 di branch lokal — dinomor-ulang ke b401 saat merge karena stack upstream sudah memakai b390 untuk entri dead-path.
 - **Gate:** tidak ada (perilaku inti). **Tes:** psb.state +2 (verdict basi→koreksi bulk+push '5'; single-band asli→tanpa tulis sia-sia), public-anonymous-trx-scope direvisi (+detailtrx tetap tanpa `ket`); psb-push-dan-breaker/wifi-bulk-reconcile/create-user-mikrotik-sync hijau; lint 0.

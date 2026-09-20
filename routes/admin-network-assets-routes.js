@@ -14,6 +14,8 @@
  *              (via network-route-service), + state runtime.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('ADMIN_NETWORK_ASSETS_ROUTES');
+
 
 const { asyncHandler } = require("../lib/error-handler");
 const { ensureAdmin } = require("./api-route-helpers");
@@ -53,7 +55,7 @@ function registerAdminNetworkAssetsRoutes(router, deps) {
                 data: runtime.repositories.networkAssets.getAll()
             });
         } catch (error) {
-            console.error("[API_NETWORK_ASSETS_ERROR]", error);
+            log.error("[API_NETWORK_ASSETS_ERROR]", error);
             res.status(500).json({ status: 500, message: `Failed to load network assets: ${error.message}` });
         }
     });
@@ -144,7 +146,7 @@ function registerAdminNetworkAssetsRoutes(router, deps) {
                 }
             });
         } catch (error) {
-            console.error("[API_ODP_TIDY_ERROR]", error);
+            log.error("[API_ODP_TIDY_ERROR]", error);
             res.status(500).json({ status: 500, message: `Gagal menyusun usulan ODP: ${error.message}` });
         }
     });
@@ -264,7 +266,7 @@ function registerAdminNetworkAssetsRoutes(router, deps) {
                 }
             });
         } catch (error) {
-            console.error("[API_MAP_ROUTE_ERROR]", error);
+            log.error("[API_MAP_ROUTE_ERROR]", error);
             res.status(500).json({ status: 500, message: error.message || "Gagal mendapatkan route" });
         }
     }));
@@ -280,7 +282,7 @@ function registerAdminNetworkAssetsRoutes(router, deps) {
             publishLatest();
             res.status(201).json({ status: 201, message: "Aset jaringan berhasil ditambahkan.", data: asset });
         } catch (error) {
-            console.error("[API_NETWORK_ASSETS_POST_ERROR]", error);
+            log.error("[API_NETWORK_ASSETS_POST_ERROR]", error);
             res.status(400).json({ status: 400, message: error.message || "Gagal menambahkan aset jaringan." });
         }
     }));
@@ -350,7 +352,7 @@ function registerAdminNetworkAssetsRoutes(router, deps) {
             publishLatest();
             res.status(200).json({ status: 200, message: "Aset jaringan berhasil diperbarui.", data: updated });
         } catch (error) {
-            console.error("[API_NETWORK_ASSETS_PUT_ERROR]", error);
+            log.error("[API_NETWORK_ASSETS_PUT_ERROR]", error);
             res.status(400).json({ status: 400, message: error.message || "Gagal memperbarui aset jaringan." });
         }
     }));
@@ -388,7 +390,7 @@ function registerAdminNetworkAssetsRoutes(router, deps) {
             publishLatest();
             res.status(200).json({ status: 200, message: "Aset jaringan berhasil dihapus." });
         } catch (error) {
-            console.error("[API_NETWORK_ASSETS_DELETE_ERROR]", error);
+            log.error("[API_NETWORK_ASSETS_DELETE_ERROR]", error);
             res.status(400).json({ status: 400, message: error.message || "Gagal menghapus aset jaringan." });
         }
     }));

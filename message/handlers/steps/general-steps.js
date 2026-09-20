@@ -1,4 +1,6 @@
 "use strict";
+const log = require('../../../lib/logger').logger.child('GENERAL_STEPS');
+
 
 /**
  * Header Doc
@@ -140,17 +142,17 @@ async function handleGeneralSteps({ userState, sender, chats, pushname, setUserS
                             if (!delivery.sent) {
                                 throw new Error(delivery.warning || delivery.errorCode || 'SEND_FAILED');
                             }
-                            console.log(`[PROCESS_TICKET] ✅ Notified customer: ${report.pelangganId}`);
+                            log.info(`[PROCESS_TICKET] ✅ Notified customer: ${report.pelangganId}`);
                         } catch (err) {
-                            console.error('[SEND_MESSAGE_ERROR]', {
+                            log.error('[SEND_MESSAGE_ERROR]', {
                                 pelangganId: report.pelangganId,
                                 error: err.message
                             });
-                            console.error('[NOTIFY_CUSTOMER_ERROR] ❌', err);
+                            log.error('[NOTIFY_CUSTOMER_ERROR] ❌', err);
                         }
                     } else {
-                        console.warn('[SEND_MESSAGE_SKIP] WhatsApp not connected, skipping send to', report.pelangganId);
-                        console.warn('[PROCESS_TICKET] Cannot notify customer - WhatsApp not connected');
+                        log.warn('[SEND_MESSAGE_SKIP] WhatsApp not connected, skipping send to', report.pelangganId);
+                        log.warn('[PROCESS_TICKET] Cannot notify customer - WhatsApp not connected');
                     }
                     
                     deleteUserState(sender);
@@ -204,12 +206,12 @@ async function handleGeneralSteps({ userState, sender, chats, pushname, setUserS
                 const queueStatus = getQueueStatus(sender);
                 const sessionInfo = getSessionInfo(sender);
                 
-                console.log(`[DONE_HANDLER] Queue status:`, queueStatus);
-                console.log(`[DONE_HANDLER] Session info:`, sessionInfo);
+                log.info(`[DONE_HANDLER] Queue status:`, queueStatus);
+                log.info(`[DONE_HANDLER] Session info:`, sessionInfo);
                 
                 if (queueStatus && queueStatus.photoCount > 0) {
                     // Photos still in queue, process them first
-                    console.log(`[DONE_HANDLER] Processing ${queueStatus.photoCount} pending photos before done`);
+                    log.info(`[DONE_HANDLER] Processing ${queueStatus.photoCount} pending photos before done`);
                     await forceProcessQueue(sender, false); // false = don't clear session yet
                     
                     // Wait a bit longer for queue processing
@@ -218,7 +220,7 @@ async function handleGeneralSteps({ userState, sender, chats, pushname, setUserS
                     // Reload state after queue processing
                     userState = getUserState(sender);
                     if (!userState) {
-                        console.error('[DONE_HANDLER] State lost after queue processing');
+                        log.error('[DONE_HANDLER] State lost after queue processing');
                         return {
                             success: false,
                             message: renderResponseTemplate("general_ticket_state_lost")
@@ -240,7 +242,7 @@ async function handleGeneralSteps({ userState, sender, chats, pushname, setUserS
                 const ticketId = userState.ticketIdToResolve || userState.ticketId;
                 
                 if (!ticketId) {
-                    console.error('[DONE_HANDLER] No ticketId found in state:', userState);
+                    log.error('[DONE_HANDLER] No ticketId found in state:', userState);
                     return {
                         success: false,
                         message: renderResponseTemplate("general_ticket_id_missing")
@@ -274,13 +276,13 @@ async function handleGeneralSteps({ userState, sender, chats, pushname, setUserS
                         JSON.stringify(metadata, null, 2)
                     );
                 } catch (err) {
-                    console.error('[METADATA_SAVE_ERROR]', err);
+                    log.error('[METADATA_SAVE_ERROR]', err);
                 }
                 
                 // Clear photo upload session since we're done with photos
                 const { clearUploadQueue } = require('../photo-upload-queue');
                 clearUploadQueue(sender);
-                console.log(`[DONE_HANDLER] Photo session cleared for ${sender}`);
+                log.info(`[DONE_HANDLER] Photo session cleared for ${sender}`);
                 
                 // Continue to resolution notes
                 userState.step = 'TICKET_RESOLVE_ASK_NOTES';
@@ -408,18 +410,18 @@ async function handleGeneralSteps({ userState, sender, chats, pushname, setUserS
                                             if (!delivery.sent) {
                                                 throw new Error(delivery.warning || delivery.errorCode || 'SEND_FAILED');
                                             }
-                                            console.log(`[TICKET_RESOLVED] ✅ Sent photo ${photo.fileName} to customer`);
+                                            log.info(`[TICKET_RESOLVED] ✅ Sent photo ${photo.fileName} to customer`);
                                         } else {
-                                            console.error(`[SEND_PHOTO_ERROR] Photo file not found: ${photo.path}`);
+                                            log.error(`[SEND_PHOTO_ERROR] Photo file not found: ${photo.path}`);
                                         }
                                     } catch (err) {
-                                        console.error('[SEND_MESSAGE_ERROR]', {
+                                        log.error('[SEND_MESSAGE_ERROR]', {
                                             pelangganId: ticketData.pelangganId,
                                             type: 'image',
                                             photoFileName: photo.fileName,
                                             error: err.message
                                         });
-                                        console.error('[SEND_PHOTO_ERROR] ❌', err);
+                                        log.error('[SEND_PHOTO_ERROR] ❌', err);
                                         // Continue to next photo
                                     }
                                 }
@@ -435,22 +437,22 @@ async function handleGeneralSteps({ userState, sender, chats, pushname, setUserS
                                 if (!delivery.sent) {
                                     throw new Error(delivery.warning || delivery.errorCode || 'SEND_FAILED');
                                 }
-                                console.log(`[TICKET_RESOLVED] ✅ Notified customer: ${ticketData.pelangganId}`);
+                                log.info(`[TICKET_RESOLVED] ✅ Notified customer: ${ticketData.pelangganId}`);
                             } catch (err) {
-                                console.error('[SEND_MESSAGE_ERROR]', {
+                                log.error('[SEND_MESSAGE_ERROR]', {
                                     pelangganId: ticketData.pelangganId,
                                     error: err.message
                                 });
-                                console.error('[NOTIFY_CUSTOMER_ERROR] ❌', err);
+                                log.error('[NOTIFY_CUSTOMER_ERROR] ❌', err);
                             }
                         } else {
-                            console.warn('[SEND_MESSAGE_SKIP] WhatsApp not connected, skipping send to', ticketData.pelangganId);
+                            log.warn('[SEND_MESSAGE_SKIP] WhatsApp not connected, skipping send to', ticketData.pelangganId);
                         }
                     } else {
                         if (!ticketData.pelangganId) {
-                            console.error('[NOTIFY_CUSTOMER_ERROR] No pelangganId found for ticket:', ticketIdToResolve);
+                            log.error('[NOTIFY_CUSTOMER_ERROR] No pelangganId found for ticket:', ticketIdToResolve);
                         } else {
-                            console.warn('[TICKET_RESOLVED] Cannot notify customer - WhatsApp runtime not ready');
+                            log.warn('[TICKET_RESOLVED] Cannot notify customer - WhatsApp runtime not ready');
                         }
                     }
                     

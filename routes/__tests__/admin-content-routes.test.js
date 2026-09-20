@@ -83,7 +83,10 @@ function createDeps() {
     saveJSON: jest.fn(),
     loadWifiTemplates: jest.fn(),
     hasAuthenticatedSession: jest.fn(() => true),
-    sendMessageToMany: jest.fn(() => Promise.resolve({ ok: true })),
+    // Broadcast service pakai sendQueueWithRetry + repository sqlite — keduanya WAJIB dimock:
+    // deps asli menjalankan retry waitForWa di luar suite (open handle) dan membuka sqlite sungguhan.
+    sendQueue: jest.fn(() => Promise.resolve({ sent: 0, failed: [], skipped: [], rounds: 1 })),
+    historyRepository: { insertHistory: jest.fn(() => Promise.resolve('bcast_test')) },
     normalizePhoneNumber: jest.fn((value) => String(value || '').trim()),
     templateService: {
       loadAllCategories: jest.fn(),

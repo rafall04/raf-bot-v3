@@ -1,4 +1,6 @@
 "use strict";
+const log = require('../../lib/logger').logger.child('CONVERSATION_HANDLER');
+
 
 /**
  * Header Doc
@@ -70,10 +72,10 @@ async function runTimeoutHandlerThenDelete(userId) {
         try {
             await stateTimeoutHandlers[state.step](userId, state);
         } catch (error) {
-            console.error('[STATE_TIMEOUT_HANDLER_ERROR]', { userId, step: state.step, error: error?.message });
+            log.error('[STATE_TIMEOUT_HANDLER_ERROR]', { userId, step: state.step, error: error?.message });
         }
     }
-    console.log(`[AUTO-CLEANUP] Removing inactive state for user: ${userId}`);
+    log.info(`[AUTO-CLEANUP] Removing inactive state for user: ${userId}`);
     deleteUserState(userId);
 }
 
@@ -106,7 +108,7 @@ async function runCancelHandler(userId, deps = {}) {
         const hasil = await handler(userId, state, deps);
         return { handled: !!(hasil && hasil.handled) };
     } catch (error) {
-        console.error('[STATE_CANCEL_HANDLER_ERROR]', { userId, step: state.step, error: error?.message });
+        log.error('[STATE_CANCEL_HANDLER_ERROR]', { userId, step: state.step, error: error?.message });
         return { handled: false };
     }
 }
@@ -185,7 +187,7 @@ function getUserState(userId) {
         resetStateTimer(userId);
         const state = stateStore[userId];
         if (state && state._scope && state._scope !== 'managed') {
-            console.warn('[legacyStateProxyRead]', {
+            log.warn('[legacyStateProxyRead]', {
                 userId,
                 scope: state._scope
             });
@@ -211,7 +213,12 @@ function setUserState(userId, state, options = {}) {
 
     // Set auto cleanup timer — handler step (kalau ada) dipanggil dulu
     // supaya draft tiket bisa dipromosikan jadi tiket asli.
+    // unref: timer ini housekeeping in-memory — tak layak menahan event loop
+    // (di test/CLI menahan proses; di produksi loop tetap hidup via listener HTTP).
     stateTimers[userId] = setTimeout(() => runTimeoutHandlerThenDelete(userId), STATE_TIMEOUT);
+    if (typeof stateTimers[userId].unref === 'function') {
+        stateTimers[userId].unref();
+    }
 }
 
 function updateUserState(userId, updater, options = {}) {
@@ -271,7 +278,7 @@ function createScopedStateProxy(scope) {
         },
         set(_target, prop, value) {
             if (typeof prop !== 'string') return false;
-            console.warn('[legacyStateProxyWrite]', {
+            log.warn('[legacyStateProxyWrite]', {
                 userId: prop,
                 scope
             });
@@ -312,6 +319,9 @@ function resetStateTimer(userId) {
     if (stateTimers[userId]) {
         clearTimeout(stateTimers[userId]);
         stateTimers[userId] = setTimeout(() => runTimeoutHandlerThenDelete(userId), STATE_TIMEOUT);
+        if (typeof stateTimers[userId].unref === 'function') {
+            stateTimers[userId].unref();
+        }
     }
 }
 

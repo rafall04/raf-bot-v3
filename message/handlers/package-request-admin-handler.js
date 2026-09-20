@@ -29,6 +29,8 @@
  *   (kecuali aksi batal: pelanggan tak disentuh). Balasan ke admin lewat `reply`; menulis conversation state.
  */
 "use strict";
+const log = require('../../lib/logger').logger.child('PACKAGE_REQUEST_ADMIN_HANDLER');
+
 
 const { renderResponseTemplate } = require("../../lib/response-template-helper");
 
@@ -417,7 +419,7 @@ async function handlePackageRequestAdminDecision(ctx) {
 
         return { handled: false };
     } catch (err) {
-        console.error("[PACKAGE_REQUEST_ADMIN_ERROR]", err && err.message ? err.message : err);
+        log.error("[PACKAGE_REQUEST_ADMIN_ERROR]", err && err.message ? err.message : err);
         try {
             await ctx.reply(renderResponseTemplate(
                 "package_request_admin_error",

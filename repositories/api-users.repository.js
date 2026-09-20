@@ -8,6 +8,7 @@
  */
 "use strict";
 
+
 function defaultDeps() {
     return {
         runtime: global.__appRuntime || null,

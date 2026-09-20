@@ -318,7 +318,7 @@ function createApiVoucherService(overrides = {}) {
         // (mis. MikroTik down saat callback). Generate voucher BARU via getvoucher, simpan kode +
         // tandai lunas, lalu kirim ke WA pembeli. NON-IDEMPOTENT: route wajib memvalidasi record
         // belum punya kode + mengunci per-reff agar klik ganda tak membuat voucher dobel.
-        async reissueVoucher({ reff, amount, sender, namaPaket }) {
+        async reissueVoucher({ reff, amount, sender, namaPaket, prof: profOverride }) {
             if (!reff || !sender) {
                 return { status: 400, body: { status: 400, message: "Ref & nomor pembeli diperlukan" } };
             }
@@ -326,7 +326,9 @@ function createApiVoucherService(overrides = {}) {
                 return { status: 500, body: { status: 500, message: "Generator voucher tidak tersedia (dependency belum diinjeksi)." } };
             }
             const amt = parseInt(amount, 10) || 0;
-            const prof = deps.checkprofvc(String(amt));
+            // `prof` eksplisit (dari record pembayaran / entri orphan) MENANG atas lookup-by-harga:
+            // checkprofvc(harga) tertukar bila dua paket berharga sama → durasi voucher salah.
+            const prof = profOverride || deps.checkprofvc(String(amt));
             if (!prof) {
                 return { status: 422, body: { status: 422, message: "Profil voucher untuk nominal Rp" + amt.toLocaleString("id-ID") + " tidak ada di katalog." } };
             }

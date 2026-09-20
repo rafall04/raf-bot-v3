@@ -7,6 +7,8 @@
  * SideEffects: Menulis file foto ke `uploads/tickets/...` atau `uploads/reports/...`, update `global.reports`, hapus file pada error.
  */
 "use strict";
+const log = require('../lib/logger').logger.child('TICKETS_PHOTO_ROUTES');
+
 
 const {
     express,
@@ -118,7 +120,7 @@ router.post('/ticket/upload-photo', ensureAuthenticatedStaff, rateLimit('ticket-
             },
             photo: photoInfo
         }));
-        if (DEBUG) console.log(`[TICKET_UPLOAD_PHOTO] Photo uploaded for ticket ${ticketId}. Total: ${ticket.teknisiPhotos.length}`);
+        if (DEBUG) log.info(`[TICKET_UPLOAD_PHOTO] Photo uploaded for ticket ${ticketId}. Total: ${ticket.teknisiPhotos.length}`);
         
         // Check if minimum photos requirement is met
         const minPhotos = 2;
@@ -139,7 +141,7 @@ router.post('/ticket/upload-photo', ensureAuthenticatedStaff, rateLimit('ticket-
             }
         });
     } catch (error) {
-        console.error('[API_TICKET_UPLOAD_PHOTO_ERROR]', error);
+        log.error('[API_TICKET_UPLOAD_PHOTO_ERROR]', error);
         return res.status(500).json({
             status: 500,
             message: 'Terjadi kesalahan saat upload foto',
@@ -161,7 +163,7 @@ router.post('/ticket/create/upload-photo', ensureAuthenticatedStaff, rateLimit('
                 try {
                     fs.unlinkSync(req.file.path);
                 } catch (err) {
-                    console.error('[TICKET_CREATE_UPLOAD_PHOTO] Failed to delete file:', err);
+                    log.error('[TICKET_CREATE_UPLOAD_PHOTO] Failed to delete file:', err);
                 }
             }
             return res.status(400).json({
@@ -192,7 +194,7 @@ router.post('/ticket/create/upload-photo', ensureAuthenticatedStaff, rateLimit('
                     try {
                         fs.unlinkSync(req.file.path);
                     } catch (err) {
-                        console.error('[TICKET_CREATE_UPLOAD_PHOTO] Failed to delete file:', err);
+                        log.error('[TICKET_CREATE_UPLOAD_PHOTO] Failed to delete file:', err);
                     }
                 }
                 return {
@@ -273,7 +275,7 @@ router.post('/ticket/create/upload-photo', ensureAuthenticatedStaff, rateLimit('
                 req.file.path = correctPath;
                 req.file.destination = correctDir;
             } catch (err) {
-                console.error('[TICKET_CREATE_UPLOAD_PHOTO] Failed to move file from temp:', err);
+                log.error('[TICKET_CREATE_UPLOAD_PHOTO] Failed to move file from temp:', err);
                 // Continue with temp path, will be cleaned up later
             }
         }
@@ -298,7 +300,7 @@ router.post('/ticket/create/upload-photo', ensureAuthenticatedStaff, rateLimit('
                     const { loadReports } = require('../lib/database');
                     loadReports();
                 } catch (err) {
-                    console.warn('[TICKET_CREATE_UPLOAD_PHOTO] Failed to reload reports:', err.message);
+                    log.warn('[TICKET_CREATE_UPLOAD_PHOTO] Failed to reload reports:', err.message);
                 }
                 
                 // Coba cari lagi setelah reload
@@ -320,7 +322,7 @@ router.post('/ticket/create/upload-photo', ensureAuthenticatedStaff, rateLimit('
                         });
                     }
                     
-                    if (DEBUG) console.log(`[TICKET_CREATE_UPLOAD_PHOTO] Photo uploaded for ticket ${ticketId} during creation (after retry ${retry + 1}). Total: ${uploadResult.report.teknisiPhotos.length}`);
+                    if (DEBUG) log.info(`[TICKET_CREATE_UPLOAD_PHOTO] Photo uploaded for ticket ${ticketId} during creation (after retry ${retry + 1}). Total: ${uploadResult.report.teknisiPhotos.length}`);
                     
                     return res.json({
                         status: 200,
@@ -339,9 +341,9 @@ router.post('/ticket/create/upload-photo', ensureAuthenticatedStaff, rateLimit('
             // Jika masih tidak ditemukan setelah retry
             if (!found) {
                 // Debug: Log untuk troubleshooting
-                console.warn(`[TICKET_CREATE_UPLOAD_PHOTO] Ticket not found after retries. Looking for: "${ticketId}" (normalized: "${normalizedTicketId}")`);
-                console.warn(`[TICKET_CREATE_UPLOAD_PHOTO] Total reports: ${global.reports.length}`);
-                console.warn(`[TICKET_CREATE_UPLOAD_PHOTO] Last 5 tickets:`, global.reports.slice(-5).map(r => ({
+                log.warn(`[TICKET_CREATE_UPLOAD_PHOTO] Ticket not found after retries. Looking for: "${ticketId}" (normalized: "${normalizedTicketId}")`);
+                log.warn(`[TICKET_CREATE_UPLOAD_PHOTO] Total reports: ${global.reports.length}`);
+                log.warn(`[TICKET_CREATE_UPLOAD_PHOTO] Last 5 tickets:`, global.reports.slice(-5).map(r => ({
                     ticketId: r.ticketId,
                     id: r.id,
                     status: r.status,
@@ -353,7 +355,7 @@ router.post('/ticket/create/upload-photo', ensureAuthenticatedStaff, rateLimit('
                     try {
                         fs.unlinkSync(req.file.path);
                     } catch (err) {
-                        console.error('[TICKET_CREATE_UPLOAD_PHOTO] Failed to delete file:', err);
+                        log.error('[TICKET_CREATE_UPLOAD_PHOTO] Failed to delete file:', err);
                     }
                 }
                 return res.status(404).json({
@@ -373,7 +375,7 @@ router.post('/ticket/create/upload-photo', ensureAuthenticatedStaff, rateLimit('
             });
         }
         
-        if (DEBUG) console.log(`[TICKET_CREATE_UPLOAD_PHOTO] Photo uploaded for ticket ${ticketId} during creation. Total: ${uploadResult.report.teknisiPhotos.length}`);
+        if (DEBUG) log.info(`[TICKET_CREATE_UPLOAD_PHOTO] Photo uploaded for ticket ${ticketId} during creation. Total: ${uploadResult.report.teknisiPhotos.length}`);
         
         return res.json({
             status: 200,
@@ -387,13 +389,13 @@ router.post('/ticket/create/upload-photo', ensureAuthenticatedStaff, rateLimit('
             }
         });
     } catch (error) {
-        console.error('[TICKET_CREATE_UPLOAD_PHOTO_ERROR]', error);
+        log.error('[TICKET_CREATE_UPLOAD_PHOTO_ERROR]', error);
         // Clean up uploaded file if exists
         if (req.file && req.file.path) {
             try {
                 fs.unlinkSync(req.file.path);
             } catch (err) {
-                console.error('[TICKET_CREATE_UPLOAD_PHOTO] Failed to delete file:', err);
+                log.error('[TICKET_CREATE_UPLOAD_PHOTO] Failed to delete file:', err);
             }
         }
         return res.status(500).json({
