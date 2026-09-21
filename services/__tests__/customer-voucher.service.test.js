@@ -24,10 +24,10 @@ const PROFILES = [
 const CUSTOMER = { id: 42, name: "Budi", phone_number: "081234567890" };
 const OTHER_CUSTOMER = { id: 99, name: "Siti", phone_number: "081299998888" };
 
-function build({ enabled = true, payImpl, payments = [] } = {}) {
+function build({ enabled = true, payImpl, payments = [], multiBuy } = {}) {
     const added = [];
     const service = createCustomerVoucherService({
-        getConfig: () => ({ customerVoucher: { enabled }, voucherFeatured: "Paket-1Hari" }),
+        getConfig: () => ({ customerVoucher: { enabled }, voucherFeatured: "Paket-1Hari", voucherMultiPurchase: multiBuy }),
         pay: payImpl || (async () => ({
             id: "TRX-1",
             qrString: "00020101021226",
@@ -325,5 +325,129 @@ describe("customer-voucher service — status & riwayat", () => {
         const { service } = build({ payments });
         expect(service.listHistory({ customer: CUSTOMER, limit: 9999 }).data).toHaveLength(100);
         expect(service.listHistory({ customer: CUSTOMER }).data).toHaveLength(20);
+    });
+});
+
+describe("customer-voucher service — multi-voucher (qty)", () => {
+    test("status fitur memancarkan multiBuy dari config voucherMultiPurchase", () => {
+        expect(build().service.getFeatureStatus({ customer: CUSTOMER }).multiBuy)
+            .toEqual({ enabled: false, maxQty: 10 });
+        expect(build({ multiBuy: { enabled: true, maxQty: 5 } }).service
+            .getFeatureStatus({ customer: CUSTOMER }).multiBuy)
+            .toEqual({ enabled: true, maxQty: 5 });
+    });
+
+    test("qty diabaikan (default 1) saat tidak dikirim — perilaku lama utuh", async () => {
+        const { service, added } = build();
+        const result = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-3Jam" });
+        expect(result.ok).toBe(true);
+        expect(result.data.qty).toBe(1);
+        expect(result.data.amount).toBe(1000);
+        expect(added[0].qty).toBe(1);
+    });
+
+    test("qty non-integer / 0 / negatif → 400, gateway TIDAK dipanggil", async () => {
+        let called = false;
+        const { service } = build({
+            multiBuy: { enabled: true, maxQty: 10 },
+            payImpl: async () => { called = true; return {}; }
+        });
+        for (const qty of ["abc", 2.5, 0, -3, "1.5x"]) {
+            const result = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-3Jam", qty });
+            expect(result.ok).toBe(false);
+            expect(result.status).toBe(400);
+        }
+        expect(called).toBe(false);
+    });
+
+    test("qty > 1 saat multiBuy OFF → 403, gateway TIDAK dipanggil", async () => {
+        let called = false;
+        const { service } = build({ payImpl: async () => { called = true; return {}; } });
+        const result = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-3Jam", qty: 3 });
+        expect(result.status).toBe(403);
+        expect(called).toBe(false);
+    });
+
+    test("qty > maxQty → 400; qty = maxQty → lolos", async () => {
+        let seenAmount = null;
+        const { service } = build({
+            multiBuy: { enabled: true, maxQty: 3 },
+            payImpl: async (props) => {
+                seenAmount = props.amount;
+                return { id: "T", qrString: "QR", total: props.amount, fee: 0, subTotal: props.amount, exp: 1 };
+            }
+        });
+        const over = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-3Jam", qty: 4 });
+        expect(over.status).toBe(400);
+        const atMax = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-3Jam", qty: 3 });
+        expect(atMax.ok).toBe(true);
+        expect(seenAmount).toBe(3000);
+    });
+
+    test("qty=3 saat ON: satu charge iPaymu senilai 3× harga satuan, qty tersimpan", async () => {
+        let seen = null;
+        const { service, added } = build({
+            multiBuy: { enabled: true, maxQty: 10 },
+            payImpl: async (props) => {
+                seen = props;
+                return { id: "T3", qrString: "QR3", total: 3021, fee: 21, subTotal: props.amount, exp: 3600 };
+            }
+        });
+        const result = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-3Jam", qty: 3 });
+        expect(result.ok).toBe(true);
+        expect(seen.amount).toBe(3000);
+        expect(added).toHaveLength(1);
+        expect(added[0].qty).toBe(3);
+        expect(added[0].prof).toBe("Paket-3Jam");
+        expect(result.data.qty).toBe(3);
+        expect(result.data.unitPrice).toBe(1000);
+    });
+
+    test("qty terkirim sebagai string angka tetap diterima", async () => {
+        const { service } = build({
+            multiBuy: { enabled: true, maxQty: 10 },
+            payImpl: async () => ({ id: "T", qrString: "QR", total: 1, fee: 0, subTotal: 1, exp: 1 })
+        });
+        const result = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-3Jam", qty: "2" });
+        expect(result.ok).toBe(true);
+        expect(result.data.qty).toBe(2);
+    });
+
+    test("status view: batch 'A, B, C' terurai jadi voucherCodes[], qty ikut", async () => {
+        const payments = [{
+            reffId: "m1", tag: "buynowpanel", customerId: "42", prof: "Paket-3Jam",
+            amount: 3000, qty: 3, status: true, ket: "ABC, DEF, GHI", createdAt: 1
+        }];
+        const { service } = build({ payments });
+        const view = service.getPurchaseStatus({ customer: CUSTOMER, reff: "m1" }).data;
+        expect(view.state).toBe("completed");
+        expect(view.qty).toBe(3);
+        expect(view.voucherCodes).toEqual(["ABC", "DEF", "GHI"]);
+        expect(view.voucherCode).toBe("ABC, DEF, GHI");
+        expect(view.partial).toBe(false);
+    });
+
+    test("partial: terbit sebagian (kode < qty) → partial=true, state tetap completed", () => {
+        const payments = [{
+            reffId: "m2", tag: "buynowpanel", customerId: "42", prof: "Paket-3Jam",
+            amount: 3000, qty: 3, status: true, ket: "ABC, DEF", createdAt: 1
+        }];
+        const { service } = build({ payments });
+        const view = service.getPurchaseStatus({ customer: CUSTOMER, reff: "m2" }).data;
+        expect(view.state).toBe("completed");
+        expect(view.voucherCodes).toEqual(["ABC", "DEF"]);
+        expect(view.partial).toBe(true);
+    });
+
+    test("record lama tanpa qty: qty=1, satu kode, partial=false", () => {
+        const payments = [{
+            reffId: "m3", tag: "buynowpanel", customerId: "42", prof: "Paket-3Jam",
+            amount: 1000, status: true, ket: "Voucher: LAMA123", createdAt: 1
+        }];
+        const { service } = build({ payments });
+        const view = service.getPurchaseStatus({ customer: CUSTOMER, reff: "m3" }).data;
+        expect(view.qty).toBe(1);
+        expect(view.voucherCodes).toEqual(["LAMA123"]);
+        expect(view.partial).toBe(false);
     });
 });

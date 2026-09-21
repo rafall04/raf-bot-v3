@@ -4,7 +4,8 @@
  *   pembuatan transaksi QRIS iPaymu (tag `buynowpanel`), cek status milik-sendiri, dan riwayat
  *   per pelanggan. Berbeda dari surface anonim `/app/*` (`routes/public-anonymous.js`): di sini
  *   nomor HP diambil dari sesi pelanggan, TIDAK PERNAH dari body, dan setiap pembacaan status
- *   di-scope ke `customerId` pemilik transaksi.
+ *   di-scope ke `customerId` pemilik transaksi. Mendukung qty>1 (satu transaksi iPaymu per
+ *   batch) di bawah gate `config.voucherMultiPurchase` — gate yang sama dengan jalur publik/WA.
  * Caller: `routes/public.js` (sub-router `customerApiRouter`, guard `ensureCustomerAuthenticated`).
  * Deps: `lib/ipaymu` (pay), `lib/payment` (addPayment), `lib/voucher` (checkhargavc), state
  *   `global.voucher` / `global.payment`, config `customerVoucher.enabled`.
@@ -15,6 +16,13 @@
  *   `buynowpanel` (routes/public.js), sama seperti jalur web/WA.
  */
 'use strict';
+
+// Murni orchestrator tanpa deps berat — aman di-require langsung (service lain DI-inject).
+const {
+    parseVoucherCodesFromKet,
+    normalizeVoucherQty,
+    voucherMultiBuyConfig
+} = require('../lib/voucher-fulfillment');
 
 // Voucher hanya diterbitkan setelah callback iPaymu terverifikasi; transaksi yang belum dibayar
 // tetap "pending" selamanya di record. Batas ini dipakai riwayat agar panel tidak menarik ribuan
@@ -113,7 +121,10 @@ function createCustomerVoucherService({
         return {
             enabled: isEnabled(),
             qrisFeeRate: QRIS_FEE_RATE,
-            notifyPhone: digits || null
+            notifyPhone: digits || null,
+            // Gate yang sama dengan jalur publik/WA — panel hanya menampilkan stepper jumlah
+            // bila operator mengaktifkannya di /config tab Voucher.
+            multiBuy: voucherMultiBuyConfig(config())
         };
     }
 
@@ -149,7 +160,17 @@ function createCustomerVoucherService({
      * `customer` WAJIB dari `req.customer` — nomor HP tidak boleh datang dari body, kalau tidak
      * pelanggan bisa membebankan pembelian atas nama nomor lain.
      */
-    async function createPurchase({ customer, prof }) {
+    /**
+     * Qty dari body: kosong ⇒ 1; selain itu HARUS integer >= 1 (strict — UI panel mengirim
+     * angka bersih, input aneh berarti tampering, jadi ditolak bukan dinormalisasi).
+     */
+    function parsePurchaseQty(raw) {
+        if (raw === undefined || raw === null || String(raw).trim() === '') return { ok: true, value: 1 };
+        const n = Number(raw);
+        return Number.isInteger(n) && n >= 1 ? { ok: true, value: n } : { ok: false };
+    }
+
+    async function createPurchase({ customer, prof, qty }) {
         if (!isEnabled()) {
             return { ok: false, status: 503, message: 'Pembelian voucher belum tersedia saat ini.' };
         }
@@ -159,10 +180,25 @@ function createCustomerVoucherService({
             return { ok: false, status: 404, message: 'Paket voucher tidak ditemukan.' };
         }
 
-        const amount = parseInt(checkhargavc(profile.prof), 10) || 0;
-        if (amount <= 0) {
+        const qtyParsed = parsePurchaseQty(qty);
+        if (!qtyParsed.ok) {
+            return { ok: false, status: 400, message: 'Jumlah voucher tidak valid.' };
+        }
+        const qtyInt = qtyParsed.value;
+        const multiBuy = voucherMultiBuyConfig(config());
+        if (qtyInt > 1 && !multiBuy.enabled) {
+            return { ok: false, status: 403, message: 'Pembelian lebih dari 1 voucher belum tersedia.' };
+        }
+        if (qtyInt > multiBuy.maxQty) {
+            return { ok: false, status: 400, message: `Jumlah voucher maksimal ${multiBuy.maxQty} per transaksi.` };
+        }
+
+        const unitPrice = parseInt(checkhargavc(profile.prof), 10) || 0;
+        if (unitPrice <= 0) {
             return { ok: false, status: 422, message: 'Harga paket tidak valid. Hubungi admin.' };
         }
+        // SATU transaksi iPaymu untuk seluruh batch — amount yang dibayar adalah harga×qty.
+        const amount = unitPrice * qtyInt;
 
         const phoneDigits = primaryPhoneDigits(customer);
         // Dibedakan: "belum punya nomor" bisa diperbaiki sendiri oleh pelanggan lewat halaman
@@ -192,7 +228,7 @@ function createCustomerVoucherService({
             charge = await pay({
                 amount,
                 reffId: reff,
-                comment: `pembelian voucher ${profile.prof} sebesar Rp. ${amount} melalui panel pelanggan`,
+                comment: `pembelian voucher ${profile.prof}${qtyInt > 1 ? ` x${qtyInt}` : ''} sebesar Rp. ${amount} melalui panel pelanggan`,
                 name: customer?.name || phoneDigits,
                 phone: parseInt(phoneDigits, 10),
                 email
@@ -213,6 +249,7 @@ function createCustomerVoucherService({
             fee: charge.fee,
             subtotal: charge.subTotal,
             prof: profile.prof,
+            qty: qtyInt,
             customerId: String(customer.id),
             expiredAt: charge.exp || null
         });
@@ -224,6 +261,8 @@ function createCustomerVoucherService({
                 reff,
                 prof: profile.prof,
                 packageName: profile.namavc || profile.durasivc || profile.prof,
+                qty: qtyInt,
+                unitPrice,
                 amount,
                 total: charge.total ?? amount,
                 fee: charge.fee ?? 0,
@@ -250,7 +289,11 @@ function createCustomerVoucherService({
     }
 
     function toStatusView(record) {
-        const code = extractVoucherCode(record.ket);
+        // `voucherCodes` = SEMUA kode batch (diparse dari `ket` gabungan "A, B"); `voucherCode`
+        // dipertahankan sebagai gabungan string untuk kompatibilitas panel versi lama.
+        const voucherCodes = parseVoucherCodesFromKet(record.ket);
+        const code = voucherCodes.length ? voucherCodes.join(', ') : null;
+        const qty = normalizeVoucherQty(record.qty);
         const failed = isFailedKet(record.ket);
         let state = 'pending';
         if (record.status && code) state = 'completed';
@@ -269,12 +312,17 @@ function createCustomerVoucherService({
             state,
             paid: record.status === true,
             prof: record.prof || null,
+            qty,
             amount,
             subtotal,
             fee,
             total: record.priceTotal ?? (subtotal + fee),
             qrString: state === 'pending' ? record.qrStr || null : null,
             voucherCode: code,
+            voucherCodes,
+            // Terbit sebagian: lunas, ada kode, tapi kurang dari qty — panel menampilkan
+            // peringatan agar pelanggan tahu sisanya diproses admin (orphan tercatat).
+            partial: record.status === true && voucherCodes.length > 0 && voucherCodes.length < qty,
             createdAt: record.createdAt ?? null,
             expiredAt: record.expiredAt ?? null
         };

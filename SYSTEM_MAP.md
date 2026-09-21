@@ -508,6 +508,7 @@ terakhir. Baris indeks BUKAN ringkasan fitur — kalau pembaca butuh konteks, ia
 - [Fix 2026-09-19 (PSB dual-band tak aktif + kode voucher web tak tampil — diserap & diluaskan b397; anchor lokal b390 dinomor-ulang)](docs/boundary-log.md#b401)
 - [Feat 2026-09-21 (Multi-beli voucher: qty per transaksi di /voucher web, portal area & WA buynow)](docs/boundary-log.md#b402)
 - [Feat 2026-09-21 (Gate voucherMultiPurchase kini bisa di-toggle dari halaman admin)](docs/boundary-log.md#b403)
+- [Feat 2026-09-21 (Multi-voucher di panel pelanggan — qty di createPurchase + proyeksi codes[])](docs/boundary-log.md#b404)
 ## Catatan cakupan
 - Subfolder `lib/services`, `lib/middleware`, `public`, `views`, `tools`, dan `static` belum dipetakan rinci di peta ini.
 - Lokasi final secret `.env`/token tidak ditrace dari isi file.

@@ -3340,3 +3340,11 @@
 - **Owner:** `views/sb-admin/config.php` pane-voucher + `static/js/config.js` + `routes/admin-config-routes.js` — field `voucherMultiPurchaseEnabled` (select Aktif/Nonaktif) & `voucherMultiPurchaseMaxQty` (angka 1-50, kosong = bawaan 10) di tab Voucher; POST /api/config memetakan keduanya ke objek nested `voucherMultiPurchase` (merge seperti voucherGuide/psbIntake), GET /api/config memproyeksikan {enabled, maxQty}. Hot-reload via `runtime.setConfig` — gate berlaku seketika tanpa restart.
 - **Status path lama:** edit config.json manual tetap bekerja (nilai sama yang dibaca `voucherMultiBuyConfig`); bukan penggantian jalur, hanya permukaan admin baru. Gate SENGAJA tak masuk registry feature-flags — registry tidak memuat gate yang sudah punya halaman sendiri (dua sumber kebenaran).
 - **Gate:** `voucherMultiPurchase` {enabled:false, maxQty:10} — tetap default OFF (deploy gelap). **Tes:** config-kelompok.test.js mengunci kedua field di pane-voucher + jalur simpan; routes/__tests__ 91 suite hijau; lint 0 error.
+
+<a id="b404"></a>
+
+### Feat 2026-09-21 (Multi-voucher di panel pelanggan — qty di createPurchase + proyeksi codes[])
+
+- **Owner:** `services/customer-voucher.service.js` + `routes/public/customer.js` — `createPurchase` kini menerima `qty` (integer >=1, default 1), digate `voucherMultiPurchase` (403 bila >1 saat OFF, 400 bila >maxQty), amount = harga×qty, `qty`+`prof` tersimpan di record; `toStatusView` memproyeksikan `voucherCodes[]` (parseVoucherCodesFromKet), `qty`, `partial`; `getFeatureStatus` memancarkan `multiBuy{enabled,maxQty}`. Frontend panel (`raff-panel-2`): stepper jumlah di step review, daftar multi-kode + salin-semua + warning parsial di result/riwayat.
+- **Status path lama:** qty kosong/1 berperilaku identik; `voucherCode` (string gabungan) tetap dikirim untuk panel versi lama. Fulfillment `buynowpanel` di payment-callback sudah batch-ready sejak b402 — tak berubah.
+- **Gate:** `voucherMultiPurchase` {enabled:false, maxQty:10} — sama dengan jalur publik, default OFF. **Tes:** customer-voucher.service.test.js 35/35 (qty validasi, gate, amount×qty, codes[], partial); payment-callback-voucher 22/22; panel type-check+lint+build hijau.

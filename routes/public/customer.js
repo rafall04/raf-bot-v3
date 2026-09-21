@@ -421,7 +421,8 @@ customerApiRouter.get('/vouchers/packages', asyncHandler(async (req, res) => {
 customerApiRouter.post('/vouchers/purchase', voucherPurchaseRateLimiter, asyncHandler(async (req, res) => {
     const result = await customerVoucherService.createPurchase({
         customer: req.customer,
-        prof: req.body?.prof
+        prof: req.body?.prof,
+        qty: req.body?.qty
     });
     if (!result.ok) {
         return sendError(res, result.message, result.status);
