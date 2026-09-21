@@ -14,6 +14,7 @@ const qr = require("qr-image");
 const convertRupiah = require("rupiah-format");
 const { createPaymentRepository } = require("../repositories/payment.repository");
 const { renderCategoryTemplate } = require("../lib/template-service");
+const { voucherMultiBuyConfig } = require("../lib/voucher-fulfillment");
 
 function renderResponseTemplate(key, data = {}, fallback = "") {
     const result = renderCategoryTemplate("responseTemplates", key, data);
@@ -72,7 +73,7 @@ function createPaymentFlowService(overrides = {}) {
             throw command === "buynow"
                 ? renderResponseTemplate(
                     "buynow_usage", {},
-                    "🎟️ *Beli Voucher Instan (bayar QRIS)*\n\nFormat: *buynow [harga]*\nContoh: *buynow 1000*\n\n💡 Lihat daftar harga: ketik *voucher*"
+                    "🎟️ *Beli Voucher Instan (bayar QRIS)*\n\nFormat: *buynow [harga]* — 1 voucher\nBeli banyak sekaligus: *buynow [harga] [jumlah]*\nContoh: _*buynow 1000*_ atau _*buynow 1000 3*_\n\n💡 Lihat daftar harga: ketik *voucher*\n\nVoucher otomatis terkirim begitu pembayaran lunas — tidak perlu topup saldo dulu."
                 )
                 : renderResponseTemplate(
                     "topup_usage", {},
@@ -87,12 +88,41 @@ function createPaymentFlowService(overrides = {}) {
 
         const reff = Math.floor(Math.random() * 1677721631342).toString(16);
         let profvc = checkprofvc(q);
+        let qty = 1;
 
         if (command === "buynow") {
-            if (!checkhargavoucher(q)) {
+            // Format: `buynow <harga> [jumlah]` (#b402). Argumen jumlah (opsional) = qty voucher
+            // dalam 1 transaksi QRIS — di-gate config.voucherMultiPurchase (default OFF).
+            const parts = String(q).trim().split(/\s+/);
+            if (parts.length > 2) {
+                throw renderResponseTemplate(
+                    "buynow_usage", {},
+                    "🎟️ *Beli Voucher Instan (bayar QRIS)*\n\nFormat: *buynow [harga]* — 1 voucher\nBeli banyak sekaligus: *buynow [harga] [jumlah]*\nContoh: _*buynow 1000*_ atau _*buynow 1000 3*_\n\n💡 Lihat daftar harga: ketik *voucher*\n\nVoucher otomatis terkirim begitu pembayaran lunas — tidak perlu topup saldo dulu."
+                );
+            }
+            const hargaArg = parts[0];
+            const qtyArg = parts.length > 1 ? parts[1] : null;
+            if (!checkhargavoucher(hargaArg)) {
                 throw "Harga Voucher Tersebut Tidak Terdaftar. Silahkan Periksa Lagi.\n\nTerima Kasih";
             }
-            number = checkhargavc(profvc);
+            profvc = checkprofvc(hargaArg);
+            if (qtyArg != null) {
+                const multi = voucherMultiBuyConfig(global.config);
+                if (!/^\d+$/.test(qtyArg) || parseInt(qtyArg, 10) < 1 || parseInt(qtyArg, 10) > multi.maxQty) {
+                    throw renderResponseTemplate(
+                        "buynow_qty_invalid", { maks: multi.maxQty },
+                        `❌ Jumlah voucher tidak valid.\n\nFormat: *buynow [harga] [jumlah]* — jumlah 1 sampai ${multi.maxQty} voucher per transaksi.\nContoh: _*buynow 1000 3*_`
+                    );
+                }
+                qty = parseInt(qtyArg, 10);
+                if (qty > 1 && !multi.enabled) {
+                    throw renderResponseTemplate(
+                        "buynow_multi_disabled", {},
+                        "🎟️ Pembelian lebih dari 1 voucher dalam sekali transaksi belum tersedia.\n\nKetik *buynow [harga]* untuk beli 1 voucher — bisa diulang untuk voucher berikutnya."
+                    );
+                }
+            }
+            number = (parseInt(checkhargavc(profvc), 10) || 0) * qty;
         }
 
         const paymentGateway = pay || deps.pay || createNotImplemented("paymentFlow.pay");
@@ -118,7 +148,7 @@ function createPaymentFlowService(overrides = {}) {
                 reffId: reff,
                 comment: command === "topup"
                     ? `Topup dana saldo sebesar Rp. ${number}`
-                    : `pembelian voucher ${profvc} sebesar Rp. ${number}`,
+                    : `pembelian voucher ${profvc}${qty > 1 ? ` x${qty}` : ''} sebesar Rp. ${number}`,
                 name: pushname,
                 phone: sender.split("@")[0],
                 email: sender
@@ -144,7 +174,8 @@ function createPaymentFlowService(overrides = {}) {
         // `buynow` (voucher instan): simpan `prof` yang dipilih pembeli di record. Callback
         // fulfillment (payment-callback.js) memakainya — checkprofvc(harga) tertukar bila dua
         // paket berharga sama. Pola sama dengan buynowweb/buynowpanel yang sudah simpan prof.
-        const paymentOpts = command === "buynow" ? { prof: profvc } : {};
+        // `qty` ikut disimpan (#b402) — callback menerbitkan voucher sebanyak itu (record lama = 1).
+        const paymentOpts = command === "buynow" ? { prof: profvc, qty } : {};
         await createPaymentRequest(reff, res.id, sender, command, number, "QRIS", `Topup ${number} to ${sender}`, paymentOpts);
 
         const qrr = qr.imageSync(res.qrString, { type: "png", ec_level: "H" });

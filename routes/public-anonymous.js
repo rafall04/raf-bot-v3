@@ -13,6 +13,9 @@
  *   lewat `PUBLIC_VOUCHER_FIELDS` supaya `hargaReseller`/`margin` tidak bocor ke pengunjung
  *   anonim. Tambah kolom harga baru di voucher.json => tambahkan ke allowlist bila memang
  *   perlu tampil, bukan sebaliknya.
+ * Multi-beli (#b402): `buy` menerima `?qty=` (1..config.voucherMultiPurchase.maxQty, gate
+ *   `enabled`; default 1). Katalog memancarkan `meta.multiBuy` agar halaman bisa menyembunyikan
+ *   kontrol jumlah saat fitur OFF / backend lama tak mengiklankannya.
  * SideEffects: Membuat record pembayaran (addPayment) & memanggil iPaymu saat `buy`. TIDAK menyentuh
  *   saldo/voucher fulfillment — penyelesaian ada di callback `POST /callback/payment` (tetap di
  *   `routes/public.js`, port utama), berbagi `global.payment` dalam proses yang sama.
@@ -25,6 +28,7 @@ const qr = require('qr-image');
 const pay = require('../lib/ipaymu');
 const { addPayment } = require('../lib/payment');
 const { checkhargavc, isprofvc } = require('../lib/voucher');
+const { voucherMultiBuyConfig, parseVoucherCodesFromKet } = require('../lib/voucher-fulfillment');
 
 const router = express.Router();
 
@@ -58,7 +62,7 @@ function toPublicVoucher(item, featured) {
  * atau `ket` SEBELUM lunas. `global.payment` menampung SEMUA jenis transaksi (tagihan bulanan,
  * topup, buynowpanel) — record mentah membocorkan semua itu.
  */
-const PUBLIC_TRX_FIELDS = ['reffId', 'status', 'amount', 'method', 'qrStr', 'priceTotal', 'fee', 'subtotal', 'createdAt'];
+const PUBLIC_TRX_FIELDS = ['reffId', 'status', 'amount', 'method', 'qrStr', 'priceTotal', 'fee', 'subtotal', 'qty', 'createdAt'];
 
 /**
  * Varian untuk transaksi buynowweb yang SUDAH LUNAS (dipakai /app/statustrx, yang menolak
@@ -98,20 +102,42 @@ router.get('/app/:type/:id?', async (req, res) => {
     try {
         switch(type) {
             case "buy": {
-                const { phone, email } = req.query;
+                const { phone, email, qty: qtyRaw } = req.query;
                 if (!phone || !email) return res.status(400).json({ status: 400, message: "Nomor telepon dan email diperlukan!" });
                 // Prof harus terdaftar di katalog — tanpa guard ini checkhargavc mengembalikan
                 // undefined → parseInt → NaN → charge iPaymu NaN + record sampah.
                 if (!isprofvc(id)) return res.status(400).json({ status: 400, message: "Paket voucher tidak ditemukan." });
+                // qty = jumlah voucher dalam 1 transaksi (multi-beli #b402). Default 1; qty>1
+                // wajib gate voucherMultiPurchase.enabled + dibatasi maxQty. Validasi SEBELUM
+                // charge iPaymu — qty mentah yang lolos = tagihan salah nominal.
+                const multi = voucherMultiBuyConfig(global.config);
+                let qty = 1;
+                if (qtyRaw !== undefined && String(qtyRaw).trim() !== '') {
+                    const qtyStr = String(qtyRaw).trim();
+                    if (!/^\d+$/.test(qtyStr)) {
+                        return res.status(400).json({ status: 400, message: "Jumlah voucher tidak valid." });
+                    }
+                    qty = parseInt(qtyStr, 10);
+                    if (qty < 1 || qty > multi.maxQty) {
+                        return res.status(400).json({ status: 400, message: `Jumlah voucher maksimal ${multi.maxQty} per transaksi.` });
+                    }
+                    if (qty > 1 && !multi.enabled) {
+                        return res.status(400).json({ status: 400, message: "Pembelian lebih dari 1 voucher belum tersedia." });
+                    }
+                }
                 const reff = Math.floor(Math.random() * 1677721631342).toString(16);
-                let hargavc = checkhargavc(id);
-                hargavc = parseInt(hargavc);
-                let result = await pay({ amount: hargavc, reffId: reff, comment: `pembelian voucher ${id} sebesar Rp. ${hargavc} melalui web`, name: email?.split('@')?.[0] || "Anonymous", phone: parseInt(phone), email });
+                const hargaSatuan = parseInt(checkhargavc(id), 10);
+                if (!Number.isFinite(hargaSatuan) || hargaSatuan <= 0) {
+                    return res.status(400).json({ status: 400, message: "Harga paket voucher tidak valid." });
+                }
+                const amount = hargaSatuan * qty;
+                let result = await pay({ amount, reffId: reff, comment: `pembelian voucher ${id}${qty > 1 ? ` x${qty}` : ''} sebesar Rp. ${amount} melalui web`, name: email?.split('@')?.[0] || "Anonymous", phone: parseInt(phone), email });
                 // `prof` (profil voucher yang DIPILIH pembeli) DISIMPAN di record. Callback fulfillment
                 // (routes/public.js) dulu memulihkan profil via checkprofvc(harga) — yang TERTUKAR bila
                 // dua profil berharga sama (mis. promo 3-hari & 1-hari sama-sama Rp5.000) → voucher durasi
                 // SALAH. Jalur buynowpanel sudah menyimpan prof; buynowweb ikut sekarang.
-                addPayment(reff, result.id, phone, `buynowweb`, hargavc, 'QRIS', ``, { qrStr: result.qrString, priceTotal: result.total, fee: result.fee, subtotal: result.subTotal, prof: id });
+                // `qty` ikut disimpan — callback menerbitkan sebanyak itu (record lama tanpa qty = 1).
+                addPayment(reff, result.id, phone, `buynowweb`, amount, 'QRIS', ``, { qrStr: result.qrString, priceTotal: result.total, fee: result.fee, subtotal: result.subTotal, prof: id, qty });
                 return res.status(200).json({ status: 200, message: 'Success', data: reff });
             }
             case 'detailtrx': {
@@ -123,7 +149,14 @@ router.get('/app/:type/:id?', async (req, res) => {
                 if (!trx) return res.status(404).json({ status: 404, message: "" });
                 if (!trx.status) return res.status(400).json({ status: 400, message: "menunggu pembayaran!" });
                 // Sudah lunas → sertakan `ket` (kode voucher) + `trxId` — lihat PUBLIC_PAID_TRX_FIELDS.
-                return res.status(200).json({ status: 200, message: 'Success', data: toPublicTrx(trx, PUBLIC_PAID_TRX_FIELDS) });
+                // `codes` = daftar kode ter-parse dari ket (multi-beli #b402: ket menyimpan
+                // "A, B, C"); `qty` = jumlah yang diminta → halaman bisa menandai TERBIT SEBAGIAN.
+                const paid = toPublicTrx(trx, PUBLIC_PAID_TRX_FIELDS);
+                if (paid) {
+                    paid.codes = parseVoucherCodesFromKet(trx.ket);
+                    if (paid.qty === undefined) paid.qty = 1;
+                }
+                return res.status(200).json({ status: 200, message: 'Success', data: paid });
             }
             case 'qr': {
                 // Render QRIS string (tersimpan saat charge) menjadi gambar PNG agar tampil di
@@ -146,8 +179,11 @@ router.get('/app/:type/:id?', async (req, res) => {
                     // Tandai paket "Terlaris" (config.voucherFeatured = prof) untuk badge halaman beli.
                     const feat = String((global.config && global.config.voucherFeatured) || '').trim();
                     const list = Array.isArray(global.voucher) ? global.voucher : [];
+                    // `meta.multiBuy` memberi tahu halaman beli apakah kontrol jumlah boleh tampil
+                    // (portal mem-proxy respons ini mentah — backend area lama tanpa meta = OFF).
                     return res.json({
-                        data: list.map(v => toPublicVoucher(v, feat !== '' && String(v && v.prof) === feat))
+                        data: list.map(v => toPublicVoucher(v, feat !== '' && String(v && v.prof) === feat)),
+                        meta: { multiBuy: voucherMultiBuyConfig(global.config) }
                     });
                 }
                 const data = type == 'packages' ? global.packages : [];

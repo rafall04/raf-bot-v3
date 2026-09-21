@@ -9,6 +9,7 @@
 "use strict";
 
 const { getInternalServiceToken, INTERNAL_SERVICE_HEADER } = require("../lib/internal-service-token");
+const { generateVoucherBatch, formatVoucherCodeList, parseVoucherCodesFromKet, normalizeVoucherQty } = require("../lib/voucher-fulfillment");
 
 function defaultDeps() {
     return {
@@ -294,10 +295,13 @@ function createApiVoucherService(overrides = {}) {
                 return { status: 400, body: { status: 400, message: "Nomor & kode voucher diperlukan" } };
             }
             const harga = "Rp" + (parseInt(amount, 10) || 0).toLocaleString("id-ID");
+            // code bisa "A, B" (multi-beli #b402 — resend mengirim semua kode tersimpan).
+            const resendCodes = String(code).split(",").map((s) => s.trim()).filter(Boolean);
             let message = deps.renderTemplate("voucher_purchase_success", {
                 nama_paket: namaPaket || "Voucher",
                 harga,
-                kode_voucher: code
+                jumlah: String(resendCodes.length || 1),
+                kode_voucher: formatVoucherCodeList(resendCodes.length ? resendCodes : [code])
             });
             if (!message || typeof message !== "string" || message.startsWith("Error: Template")) {
                 message = `Kode voucher ${namaPaket || ""} Anda: ${code}`;
@@ -315,10 +319,13 @@ function createApiVoucherService(overrides = {}) {
         },
 
         // Terbitkan ULANG voucher untuk transaksi yang SUDAH DIBAYAR tapi voucher-nya GAGAL terbit
-        // (mis. MikroTik down saat callback). Generate voucher BARU via getvoucher, simpan kode +
-        // tandai lunas, lalu kirim ke WA pembeli. NON-IDEMPOTENT: route wajib memvalidasi record
-        // belum punya kode + mengunci per-reff agar klik ganda tak membuat voucher dobel.
-        async reissueVoucher({ reff, amount, sender, namaPaket, prof: profOverride }) {
+        // (mis. MikroTik down saat callback). Generate voucher BARU via getvoucher, GABUNGKAN dengan
+        // kode yang sudah ada di `ket` (jangan timpa — terbit-sebagian punya kode valid), tandai
+        // lunas, lalu kirim ke WA pembeli. NON-IDEMPOTENT: route wajib memvalidasi + mengunci
+        // per-reff agar klik ganda tak membuat voucher dobel. `qty` = jumlah voucher yang PERLU
+        // diterbitkan pada aksi ini (route /voucher/reissue mengirim qty record penuh untuk record
+        // GAGAL total; fulfill orphan mengirim 1 per entri orphan).
+        async reissueVoucher({ reff, amount, sender, namaPaket, prof: profOverride, qty }) {
             if (!reff || !sender) {
                 return { status: 400, body: { status: 400, message: "Ref & nomor pembeli diperlukan" } };
             }
@@ -332,42 +339,49 @@ function createApiVoucherService(overrides = {}) {
             if (!prof) {
                 return { status: 422, body: { status: 422, message: "Profil voucher untuk nominal Rp" + amt.toLocaleString("id-ID") + " tidak ada di katalog." } };
             }
-            let voucherResult;
-            try {
-                voucherResult = await deps.getvoucher(prof, sender, { caller: "api.voucher.reissue" });
-            } catch (err) {
-                return { status: 502, body: { status: 502, message: "Gagal generate voucher: " + (err && err.message ? err.message : "error MikroTik") } };
+            const wantQty = normalizeVoucherQty(qty);
+            const batch = await generateVoucherBatch({ getvoucher: deps.getvoucher, prof, qty: wantQty, sender, caller: "api.voucher.reissue" });
+            if (!batch.codes.length) {
+                return { status: 502, body: { status: 502, message: "Gagal generate voucher: " + (batch.failures[0] || "MikroTik menolak permintaan") } };
             }
-            if (!voucherResult || !voucherResult.ok) {
-                return { status: 502, body: { status: 502, message: "Gagal generate voucher: " + ((voucherResult && voucherResult.message) || "MikroTik menolak permintaan") } };
-            }
-            const code = (voucherResult.data && voucherResult.data.username) || voucherResult.message;
-            // Voucher berhasil dibuat → simpan kode + tandai lunas (record tak lagi "gagal terbit").
-            if (typeof deps.updateKetPayment === "function") deps.updateKetPayment(reff, String(code));
+            // GABUNG kode baru dengan yang sudah tersimpan — ket record bisa sudah berisi kode
+            // valid (terbit sebagian). Format ket mengikuti tag record: buynow "Voucher: A, B".
+            const rec = (Array.isArray(global.payment) ? global.payment : []).find((p) => p && String(p.reffId) === String(reff));
+            const prevCodes = parseVoucherCodesFromKet(rec && rec.ket);
+            const mergedCodes = prevCodes.concat(batch.codes);
+            const ketValue = rec && rec.tag === "buynow" ? `Voucher: ${mergedCodes.join(", ")}` : mergedCodes.join(", ");
+            if (typeof deps.updateKetPayment === "function") deps.updateKetPayment(reff, ketValue);
             if (typeof deps.updateStatusPayment === "function") deps.updateStatusPayment(reff, true);
             // Kirim ke WA pembeli (best-effort; kode sudah tersimpan & tampil di dashboard walau WA putus).
+            // Pesan memuat SEMUA kode milik transaksi — pelanggan menerima daftar lengkap.
             let message = deps.renderTemplate("voucher_purchase_success", {
                 nama_paket: namaPaket || prof,
                 harga: "Rp" + amt.toLocaleString("id-ID"),
-                kode_voucher: code
+                jumlah: String(mergedCodes.length),
+                kode_voucher: formatVoucherCodeList(mergedCodes)
             });
             if (!message || typeof message !== "string" || message.startsWith("Error: Template")) {
-                message = `Kode voucher ${namaPaket || prof} Anda: ${code}`;
+                message = `Kode voucher ${namaPaket || prof} Anda: ${mergedCodes.join(", ")}`;
             }
             let sent = false;
             try {
                 const delivery = await deps.sendMessageToMany([sender], { text: message });
                 sent = !!(delivery && delivery.sent);
             } catch (_err) { sent = false; }
+            const partialNote = batch.failures.length
+                ? ` (${batch.failures.length} voucher masih gagal terbit: ${batch.failures[0]})`
+                : "";
             return {
                 status: 200,
                 body: {
                     status: 200,
-                    code: String(code),
+                    code: String(batch.codes[0]),
+                    codes: mergedCodes,
+                    issued: batch.codes.length,
                     sent,
                     message: sent
-                        ? "Voucher diterbitkan ulang & kode dikirim ke WhatsApp pembeli."
-                        : "Voucher diterbitkan ulang (kode tersimpan). WhatsApp belum terhubung — salin kode & kirim manual."
+                        ? "Voucher diterbitkan ulang & kode dikirim ke WhatsApp pembeli." + partialNote
+                        : "Voucher diterbitkan ulang (kode tersimpan). WhatsApp belum terhubung — salin kode & kirim manual." + partialNote
                 }
             };
         },

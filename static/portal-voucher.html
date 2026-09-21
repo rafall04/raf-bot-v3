@@ -97,6 +97,24 @@ input[type=tel]:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--acce
 .ticket:before{left:-11px}.ticket:after{right:-11px}
 .ticket .t-k{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#9aa0ab}
 .ticket .t-v{font-family:'Courier New',ui-monospace,monospace;font-size:27px;font-weight:700;letter-spacing:.06em;color:#fff;margin-top:6px;word-break:break-all}
+/* Daftar kode multi + peringatan terbit-sebagian (beli >1 voucher). */
+.code-list{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+.code-list .t-v{margin-top:0;font-size:23px}
+.t-warn{margin-top:14px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);color:#fbbf24;
+  border-radius:11px;padding:10px 13px;font-size:12.5px;font-weight:600;line-height:1.5}
+/* Stepper jumlah voucher — tampil bila server mengiklankan multiBuy. */
+.qty-row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 20px;padding:13px 15px;
+  background:var(--bg);border:1px solid var(--line);border-radius:13px}
+.qty-info{min-width:0}
+.qty-label{font-weight:600;color:var(--ink);font-size:13.5px;display:block}
+.qty-sub{font-size:12px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+.qty-ctl{display:inline-flex;align-items:center;gap:5px;flex:none}
+.qty-btn{width:36px;height:36px;border:1.5px solid var(--line-2);border-radius:10px;background:#fff;
+  color:var(--ink);font-size:18px;font-weight:700;cursor:pointer;font-family:inherit;line-height:1;
+  display:flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s}
+.qty-btn:hover{border-color:var(--accent);color:var(--accent-ink)}
+.qty-btn:disabled{opacity:.35;cursor:not-allowed}
+.qty-val{min-width:36px;text-align:center;font-size:16px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
 .ticket .t-cut{border-top:1.5px dashed rgba(255,255,255,.22);margin:16px -24px 0}
 .ticket .t-meta{display:flex;justify-content:space-between;gap:12px;padding-top:14px;font-size:12.5px;color:#aab0ba}
 .sent{display:flex;align-items:center;justify-content:center;gap:9px;background:var(--accent-wash);color:var(--accent-ink);border-radius:12px;padding:12px 14px;font-size:13.5px;font-weight:600}
@@ -136,6 +154,14 @@ footer{border-top:1px solid var(--line)}
     <button class="back" id="backCatalog">← Kembali ke daftar paket</button>
     <div class="panel" style="margin-top:14px">
       <div class="summary"><span class="s-name" id="f-name">-</span><span class="s-price" id="f-price">-</span></div>
+      <div class="qty-row hidden" id="qtyRow">
+        <div class="qty-info"><span class="qty-label">Jumlah voucher</span><div class="qty-sub" id="qtySub">-</div></div>
+        <div class="qty-ctl">
+          <button class="qty-btn" id="qtyMinus" type="button" aria-label="Kurangi jumlah">&minus;</button>
+          <span class="qty-val" id="qtyVal">1</span>
+          <button class="qty-btn" id="qtyPlus" type="button" aria-label="Tambah jumlah">+</button>
+        </div>
+      </div>
       <label for="phone">Nomor WhatsApp</label>
       <input type="tel" id="phone" inputmode="numeric" placeholder="0812xxxxxxxx" autocomplete="tel">
       <div class="field-hint">Kode voucher dikirim ke nomor ini. Pastikan benar &amp; aktif di WhatsApp.</div>
@@ -167,8 +193,9 @@ footer{border-top:1px solid var(--line)}
         <h2>Pembayaran berhasil</h2>
         <p>Voucher WiFi Anda sudah aktif dan siap dipakai.</p>
         <div class="ticket">
-          <div class="t-k">Kode Voucher</div>
-          <div class="t-v" id="voucherCode">-</div>
+          <div class="t-k" id="t-kLabel">Kode Voucher</div>
+          <div class="code-list" id="codeList"></div>
+          <div class="t-warn hidden" id="partialWarn"></div>
           <div class="t-cut"></div>
           <div class="t-meta"><span id="t-paket">Voucher WiFi</span><span>Simpan sebagai bukti</span></div>
         </div>
@@ -197,6 +224,9 @@ footer{border-top:1px solid var(--line)}
 (function(){
   // area = kunci routing ke bot. Semua fetch voucher lewat /api/area/<area>/... (namespaced).
   var area=null, selected=null, reff=null, pollTimer=null, POLL_MS=4000, deadline=0;
+  // Multi-beli: qty voucher per transaksi. multiCfg diiklankan server via meta respons katalog
+  // (config.voucherMultiPurchase) — tak ada meta → kontrol disembunyikan (backend lama = OFF).
+  var qty=1, multiCfg=null;
   var $=function(id){ return document.getElementById(id); };
   function show(view){
     ['catalog','form','pay','result'].forEach(function(v){ $('view-'+v).classList.add('hidden'); });
@@ -232,6 +262,7 @@ footer{border-top:1px solid var(--line)}
     $('catalog').innerHTML='<div class="loading">Memuat paket…</div>';
     fetch(apiBase()+'/voucher').then(function(r){return r.json();}).then(function(res){
       var list=(res&&res.data)||res||[];
+      multiCfg=(res&&res.meta&&res.meta.multiBuy)||null;
       if(!Array.isArray(list)||!list.length){ $('catalog').innerHTML='<div class="err">Belum ada paket voucher untuk area ini. Silakan hubungi admin.</div>'; return; }
       var html=list.map(function(v){
         var price=parseInt(v.hargavc,10)||0; if(price<=0) return '';
@@ -250,11 +281,29 @@ footer{border-top:1px solid var(--line)}
   $('catalog').addEventListener('click',function(e){
     var el=e.target.closest('.pkg'); if(!el) return;
     selected={ prof:el.getAttribute('data-prof'), name:el.getAttribute('data-name'), price:parseInt(el.getAttribute('data-price'),10) };
-    $('f-name').textContent=selected.name; $('f-price').textContent=rupiah(selected.price);
+    qty=1; refreshQty(); // reset jumlah tiap pilih paket baru
+    $('f-name').textContent=selected.name;
     $('formErr').classList.add('hidden'); $('phone').value='';
     show('form'); $('phone').focus();
   });
   $('backCatalog').addEventListener('click',function(){ show('catalog'); });
+
+  // Stepper jumlah voucher — hanya saat server mengiklankan multiBuy (config.voucherMultiPurchase).
+  function multiOn(){ return !!(multiCfg&&multiCfg.enabled===true&&(parseInt(multiCfg.maxQty,10)||0)>1); }
+  function refreshQty(){
+    var on=multiOn()&&!!selected;
+    $('qtyRow').classList.toggle('hidden',!on);
+    if(!on){ qty=1; }
+    if(!selected) return;
+    var max=(multiCfg&&parseInt(multiCfg.maxQty,10))||1;
+    if(qty>max) qty=max; if(qty<1) qty=1;
+    $('qtyVal').textContent=qty;
+    $('qtySub').textContent=qty+' × '+rupiah(selected.price)+' per voucher';
+    $('qtyMinus').disabled=qty<=1; $('qtyPlus').disabled=qty>=max;
+    $('f-price').textContent=rupiah(selected.price*qty);
+  }
+  $('qtyMinus').addEventListener('click',function(){ qty--; refreshQty(); });
+  $('qtyPlus').addEventListener('click',function(){ qty++; refreshQty(); });
 
   $('buyBtn').addEventListener('click',function(){
     if(!area||!selected) return;
@@ -263,7 +312,7 @@ footer{border-top:1px solid var(--line)}
     $('formErr').classList.add('hidden');
     $('buyBtn').disabled=true; $('buyBtn').textContent='Memproses…';
     var email=d+'@voucher.rafnet.local';
-    fetch(apiBase()+'/buy/'+encodeURIComponent(selected.prof)+'?phone='+encodeURIComponent(d)+'&email='+encodeURIComponent(email))
+    fetch(apiBase()+'/buy/'+encodeURIComponent(selected.prof)+'?phone='+encodeURIComponent(d)+'&email='+encodeURIComponent(email)+'&qty='+qty)
       .then(function(r){return r.json();})
       .then(function(res){
         if(!res||res.status!==200||!res.data) throw new Error((res&&res.message)||'Gagal membuat transaksi.');
@@ -274,10 +323,10 @@ footer{border-top:1px solid var(--line)}
   });
 
   function startPayment(){
-    $('p-name').textContent=selected.name; $('p-price').textContent=rupiah(selected.price);
-    $('t-paket').textContent=selected.name;
+    $('p-name').textContent=selected.name; $('p-price').textContent=rupiah(selected.price*qty);
+    $('t-paket').textContent=(qty>1)?(selected.name+' × '+qty):selected.name;
     $('qrimg').src=apiBase()+'/qr/'+encodeURIComponent(reff)+'?t='+Date.now();
-    $('p-total').textContent=rupiah(selected.price);
+    $('p-total').textContent=rupiah(selected.price*qty);
     fetch(apiBase()+'/detailtrx/'+encodeURIComponent(reff)).then(function(r){return r.json();}).then(function(res){
       var rec=res&&res.data; if(rec&&rec.priceTotal) $('p-total').textContent=rupiah(rec.priceTotal);
     }).catch(function(){});
@@ -300,8 +349,23 @@ footer{border-top:1px solid var(--line)}
   function finish(rec){
     clearTimeout(pollTimer);
     var ket=String(rec.ket||'');
-    if(!ket||/^GAGAL/i.test(ket)){ $('result-ok').classList.add('hidden'); $('result-manual').classList.remove('hidden'); }
-    else{ $('voucherCode').textContent=ket; $('result-manual').classList.add('hidden'); $('result-ok').classList.remove('hidden'); }
+    // Kode: array `codes` dari server (record baru) — fallback parse ket utk kompatibilitas.
+    var codes=(Array.isArray(rec.codes)&&rec.codes.length)?rec.codes
+      :(ket?ket.split(/\s*[·,;\n]\s*|\s+/).map(function(s){return s.trim();}).filter(function(s){return /^[A-Za-z0-9_-]{3,}$/.test(s)&&!/^GAGAL$/i.test(s);}):[]);
+    var reqQty=Math.max(1,parseInt(rec.qty,10)||1);
+    if(!codes.length){ $('result-ok').classList.add('hidden'); $('result-manual').classList.remove('hidden'); }
+    else{
+      $('result-manual').classList.add('hidden'); $('result-ok').classList.remove('hidden');
+      $('t-kLabel').textContent=codes.length>1?('Kode Voucher ('+codes.length+' pcs)'):'Kode Voucher';
+      var list=$('codeList'); list.innerHTML='';
+      codes.forEach(function(c){ var v=document.createElement('div'); v.className='t-v'; v.textContent=c; list.appendChild(v); });
+      // Terbit sebagian: bayar OK tapi tidak semua voucher terbit → tampilkan + arahkan lapor admin.
+      if(codes.length<reqQty){
+        $('partialWarn').textContent=(reqQty-codes.length)+' dari '+reqQty+' voucher belum terbit — admin sudah diberi tahu. Kode di atas tetap bisa dipakai; sisanya akan diproses manual.';
+        $('partialWarn').classList.remove('hidden');
+      } else $('partialWarn').classList.add('hidden');
+      if(reqQty>1) $('t-paket').textContent=((selected&&selected.name)||'Voucher WiFi')+' × '+reqQty;
+    }
     show('result');
   }
 

@@ -93,7 +93,7 @@
   },
   "voucher_purchase_success": {
     "name": "Notifikasi Pembelian Voucher Berhasil",
-    "template": "=============================\nPaket                    : *${nama_paket}*\nHarga                    : *${harga}*\nKode Voucher     : *${kode_voucher}*\n=============================\nStatus Transaksi : *Berhasil*\n=============================\n_Terima Kasih Atas Pembelian Anda_"
+    "template": "=============================\nPaket            : *${nama_paket}*\nJumlah           : *${jumlah} voucher*\nHarga Total      : *${harga}*\n=============================\n*KODE VOUCHER:*\n${kode_voucher}\n=============================\nStatus Transaksi : *Berhasil*\n=============================\n_Terima Kasih Atas Pembelian Anda_"
   },
   "topup_saldo_masuk": {
     "name": "Notifikasi Topup Saldo Masuk",
@@ -193,11 +193,11 @@
   },
   "voucher_gagal_admin": {
     "name": "Alert Admin: Voucher GAGAL Dibuat (sudah bayar)",
-    "template": "⚠️ *VOUCHER GAGAL DIBUAT*\n\nPelanggan SUDAH BAYAR tapi voucher gagal di-generate. Mohon kirim voucher manual.\n\n• Pelanggan: ${pelanggan}\n• Paket: ${paket}\n• Nominal: ${harga}\n• Ref: ${ref}\n• Error: ${error}\n\n⚠️ Cek MikroTik dulu — mungkin voucher SUDAH terbuat tapi response hilang (jangan buat dobel)."
+    "template": "⚠️ *VOUCHER GAGAL DIBUAT*\n\nPelanggan SUDAH BAYAR tapi voucher gagal di-generate. Mohon kirim voucher manual.\n\n• Pelanggan: ${pelanggan}\n• Paket: ${paket}\n• Jumlah gagal: ${jumlah}\n• Nominal: ${harga}\n• Ref: ${ref}\n• Error: ${error}\n\n⚠️ Cek MikroTik dulu — mungkin voucher SUDAH terbuat tapi response hilang (jangan buat dobel)."
   },
   "voucher_terjual_admin": {
     "name": "Notif Admin: Voucher Online Terjual",
-    "template": "🎫 *VOUCHER TERJUAL* (online)\n\n• Paket: ${paket}\n• Nominal: ${harga}\n• Pembeli: ${pembeli}\n• Kode: ${kode}\n• Ref: ${ref}"
+    "template": "🎫 *VOUCHER TERJUAL* (online)\n\n• Paket: ${paket}\n• Jumlah: ${jumlah}\n• Nominal: ${harga}\n• Pembeli: ${pembeli}\n• Kode: ${kode}\n• Ref: ${ref}"
   },
   "voucher_pending_manual": {
     "name": "Pelanggan: Voucher Diproses Manual (pembayaran berhasil)",
@@ -205,11 +205,11 @@
   },
   "voucher_beli_panel": {
     "name": "Kode Voucher — Pembelian dari Panel Pelanggan",
-    "template": "✅ *PEMBELIAN VOUCHER BERHASIL*\n\nTerima kasih! Berikut voucher WiFi Anda:\n\n🎫 *KODE VOUCHER*\n━━━━━━━━━━━━━━\n• Paket : *${nama_paket}*\n• Harga : *${harga}*\n• Kode  : *${kode_voucher}*\n━━━━━━━━━━━━━━\n\nKode ini juga tersimpan di menu *Voucher* pada panel pelanggan Anda. Hubungkan ke WiFi kami lalu masukkan kode di atas pada halaman login. _Simpan pesan ini sebagai bukti._ 🙏"
+    "template": "✅ *PEMBELIAN VOUCHER BERHASIL*\n\nTerima kasih! Berikut voucher WiFi Anda:\n\n🎫 *KODE VOUCHER*\n━━━━━━━━━━━━━━\n• Paket  : *${nama_paket}*\n• Jumlah : *${jumlah} voucher*\n• Total  : *${harga}*\n\n${kode_voucher}\n━━━━━━━━━━━━━━\n\nKode ini juga tersimpan di menu *Voucher* pada panel pelanggan Anda. Hubungkan ke WiFi kami lalu masukkan kode di atas pada halaman login. _Simpan pesan ini sebagai bukti._ 🙏"
   },
   "voucher_beli_web": {
     "name": "Kode Voucher — Pembelian Online (halaman web)",
-    "template": "✅ *PEMBELIAN VOUCHER BERHASIL*\n\nTerima kasih! Berikut voucher WiFi Anda:\n\n🎫 *KODE VOUCHER*\n━━━━━━━━━━━━━━\n• Paket : *${nama_paket}*\n• Harga : *${harga}*\n• Kode  : *${kode_voucher}*\n━━━━━━━━━━━━━━\n\nHubungkan ke WiFi kami lalu masukkan kode di atas pada halaman login. _Simpan pesan ini sebagai bukti._ 🙏"
+    "template": "✅ *PEMBELIAN VOUCHER BERHASIL*\n\nTerima kasih! Berikut voucher WiFi Anda:\n\n🎫 *KODE VOUCHER*\n━━━━━━━━━━━━━━\n• Paket  : *${nama_paket}*\n• Jumlah : *${jumlah} voucher*\n• Total  : *${harga}*\n\n${kode_voucher}\n━━━━━━━━━━━━━━\n\nHubungkan ke WiFi kami lalu masukkan kode di atas pada halaman login. _Simpan pesan ini sebagai bukti._ 🙏"
   },
   "invoice_caption": {
     "name": "Caption Invoice PDF",

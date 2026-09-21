@@ -236,7 +236,17 @@
   },
   "buynow_usage": {
     "name": "Format Beli Voucher Instan (buynow)",
-    "template": "🎟️ *Beli Voucher Instan (bayar QRIS)*\n\nFormat: *buynow [harga]*\nContoh: _*buynow 1000*_\n\n💡 Lihat daftar harga: ketik *voucher*\n\nVoucher otomatis terkirim begitu pembayaran lunas — tidak perlu topup saldo dulu.",
+    "template": "🎟️ *Beli Voucher Instan (bayar QRIS)*\n\nFormat: *buynow [harga]* — 1 voucher\nBeli banyak sekaligus: *buynow [harga] [jumlah]*\nContoh: _*buynow 1000*_ atau _*buynow 1000 3*_\n\n💡 Lihat daftar harga: ketik *voucher*\n\nVoucher otomatis terkirim begitu pembayaran lunas — tidak perlu topup saldo dulu.",
+    "category": "payment"
+  },
+  "buynow_qty_invalid": {
+    "name": "Jumlah Voucher buynow Tidak Valid",
+    "template": "❌ Jumlah voucher tidak valid.\n\nFormat: *buynow [harga] [jumlah]* — jumlah 1 sampai ${maks} voucher per transaksi.\nContoh: _*buynow 1000 3*_",
+    "category": "payment"
+  },
+  "buynow_multi_disabled": {
+    "name": "Multi-Beli Voucher Belum Aktif",
+    "template": "🎟️ Pembelian lebih dari 1 voucher dalam sekali transaksi belum tersedia.\n\nKetik *buynow [harga]* untuk beli 1 voucher — bisa diulang untuk voucher berikutnya.",
     "category": "payment"
   },
   "topup_usage": {

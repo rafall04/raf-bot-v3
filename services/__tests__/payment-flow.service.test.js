@@ -113,8 +113,123 @@ describe("payment-flow.service", () => {
             5000,
             "QRIS",
             expect.any(String),
-            { prof: "Paket-1Hari" }
+            { prof: "Paket-1Hari", qty: 1 }
         );
+    });
+
+    test("buynow <harga> <jumlah> — qty>1 ditagihkan harga×qty saat multi-beli ON (#b402)", async () => {
+        const createPaymentRequest = jest.fn().mockResolvedValue(undefined);
+        const pay = jest.fn().mockResolvedValue({ id: "TRX-M", subTotal: 15000, fee: 105, total: 15105, qrString: "QR-M" });
+        const service = createPaymentFlowService({
+            paymentRepository: {
+                createPaymentRequest,
+                getUserTopupRequests: jest.fn(),
+                getPendingTransferTopupRequests: jest.fn(),
+                saveTopupProofUpdate: jest.fn()
+            },
+            renderTemplate: jest.fn().mockReturnValue("QRIS info"),
+            sendMessage: jest.fn().mockResolvedValue(undefined),
+            pay
+        });
+
+        const prevCfg = global.config;
+        global.config = { ...(prevCfg || {}), voucherMultiPurchase: { enabled: true, maxQty: 10 } };
+        try {
+            await service.handleTopupSaldoPayment({
+                sender: "6283@s.whatsapp.net",
+                pushname: "Buyer",
+                command: "buynow",
+                q: "5000 3",
+                from: "6283@s.whatsapp.net",
+                msg: {},
+                checkprofvc: jest.fn((h) => (String(h) === "5000" ? "Paket-1Hari" : undefined)),
+                checkhargavoucher: jest.fn((h) => String(h) === "5000"),
+                checkhargavc: jest.fn().mockReturnValue(5000)
+            });
+        } finally {
+            global.config = prevCfg;
+        }
+
+        // Gateway ditagih TOTAL (5000 × 3 = 15000), record menyimpan prof + qty.
+        expect(pay).toHaveBeenCalledWith(expect.objectContaining({ amount: 15000 }));
+        expect(createPaymentRequest).toHaveBeenCalledWith(
+            expect.any(String),
+            "TRX-M",
+            "6283@s.whatsapp.net",
+            "buynow",
+            15000,
+            "QRIS",
+            expect.any(String),
+            { prof: "Paket-1Hari", qty: 3 }
+        );
+    });
+
+    test("buynow <harga> <jumlah> — qty>1 DITOLAK saat multi-beli OFF; gateway tak dipanggil (#b402)", async () => {
+        const pay = jest.fn();
+        const service = createPaymentFlowService({
+            paymentRepository: {
+                createPaymentRequest: jest.fn(),
+                getUserTopupRequests: jest.fn(),
+                getPendingTransferTopupRequests: jest.fn(),
+                saveTopupProofUpdate: jest.fn()
+            },
+            sendMessage: jest.fn().mockResolvedValue(undefined),
+            pay
+        });
+
+        const prevCfg = global.config;
+        global.config = { ...(prevCfg || {}), voucherMultiPurchase: { enabled: false, maxQty: 10 } };
+        try {
+            await expect(service.handleTopupSaldoPayment({
+                sender: "6283@s.whatsapp.net",
+                pushname: "Buyer",
+                command: "buynow",
+                q: "5000 3",
+                from: "6283@s.whatsapp.net",
+                msg: {},
+                checkprofvc: jest.fn().mockReturnValue("Paket-1Hari"),
+                checkhargavoucher: jest.fn().mockReturnValue(true),
+                checkhargavc: jest.fn().mockReturnValue(5000)
+            })).rejects.toBeTruthy();
+        } finally {
+            global.config = prevCfg;
+        }
+        expect(pay).not.toHaveBeenCalled();
+    });
+
+    test("buynow <harga> <jumlah> — qty non-integer/oversize DITOLAK; gateway tak dipanggil (#b402)", async () => {
+        const pay = jest.fn();
+        const service = createPaymentFlowService({
+            paymentRepository: {
+                createPaymentRequest: jest.fn(),
+                getUserTopupRequests: jest.fn(),
+                getPendingTransferTopupRequests: jest.fn(),
+                saveTopupProofUpdate: jest.fn()
+            },
+            sendMessage: jest.fn().mockResolvedValue(undefined),
+            pay
+        });
+
+        const prevCfg = global.config;
+        global.config = { ...(prevCfg || {}), voucherMultiPurchase: { enabled: true, maxQty: 5 } };
+        try {
+            for (const q of ["5000 abc", "5000 0", "5000 -2", "5000 2.5", "5000 99", "5000 2 3"]) {
+                await expect(service.handleTopupSaldoPayment({
+                    sender: "6283@s.whatsapp.net",
+                    pushname: "Buyer",
+                    command: "buynow",
+                    q,
+                    from: "6283@s.whatsapp.net",
+                    msg: {},
+                    checkprofvc: jest.fn().mockReturnValue("Paket-1Hari"),
+                    checkhargavoucher: jest.fn().mockReturnValue(true),
+                    checkhargavc: jest.fn().mockReturnValue(5000)
+                })).rejects.toBeTruthy();
+            }
+        } finally {
+            global.config = prevCfg;
+        }
+        expect(pay).not.toHaveBeenCalled();
     });
 
     test("handleTopupPaymentProof uses repository pending lookup and proof update", async () => {

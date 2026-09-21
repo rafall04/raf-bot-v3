@@ -98,6 +98,52 @@ describe("callback voucher hardening (go-public)", () => {
     });
 });
 
+describe("callback voucher — multi-beli (#b402)", () => {
+    test("ketiga cabang pakai generateVoucherBatch (bukan getvoucher tunggal mentah)", () => {
+        [buynowBlock, webBlock, panelBlock].forEach((blok) => {
+            expect(blok).toMatch(/generateVoucherBatch\(\{ getvoucher, prof, qty/);
+            expect(blok).not.toMatch(/await getvoucher\(prof, pay\.sender/);
+        });
+    });
+
+    test("qty dinormalisasi dari pay.qty — record lama tanpa qty → 1 (bukan NaN/0)", () => {
+        [buynowBlock, webBlock, panelBlock].forEach((blok) => {
+            expect(blok).toMatch(/normalizeVoucherQty\(pay\.qty\)/);
+        });
+    });
+
+    test("terbit SEBAGIAN: kode sukses tetap disimpan + kegagalan jadi orphan per-item", () => {
+        [buynowBlock, webBlock, panelBlock].forEach((blok) => {
+            // Pola: `if (failures.length) { failures.forEach(recordVoucherOrphan...) }` di blok SUKSES
+            // (bukan catch) — voucher yang sudah terbit tidak dibuang.
+            const successBlock = blok.slice(0, blok.indexOf(".catch("));
+            expect(successBlock).toMatch(/if \(failures\.length\)[\s\S]*recordVoucherOrphan/);
+            expect(successBlock).toMatch(/updateKetPayment\(reference_id/);
+        });
+    });
+
+    test("ket multi-kode dipisah koma; pesan pelanggan kirim daftar bernomor + slot jumlah", () => {
+        expect(buynowBlock).toMatch(/codes\.join\(', '\)/);
+        [buynowBlock, webBlock, panelBlock].forEach((blok) => {
+            expect(blok).toMatch(/formatVoucherCodeList\(codes\)/);
+            expect(blok).toMatch(/jumlah:/);
+        });
+    });
+
+    test("template multi-kode punya slot ${jumlah} + ${kode_voucher} (bukan hanya fallback)", () => {
+        const templates = JSON.parse(
+            fs.readFileSync(path.join(__dirname, "..", "..", "database", "message_templates.json"), "utf8")
+        );
+        ["voucher_purchase_success", "voucher_beli_web", "voucher_beli_panel"].forEach((key) => {
+            expect(templates[key]).toBeDefined();
+            expect(templates[key].template).toContain("${jumlah}");
+            expect(templates[key].template).toContain("${kode_voucher}");
+        });
+        // Alert admin wajib tahu BERAPA voucher yang gagal dari total yang diminta.
+        expect(templates.voucher_gagal_admin.template).toContain("${jumlah}");
+    });
+});
+
 describe("callback voucher — cabang panel pelanggan (buynowpanel)", () => {
     test("profil diambil dari pay.prof tersimpan, bukan diturunkan dari harga", () => {
         // checkprofvc(harga) tertukar bila dua paket berharga sama — panel menyimpan prof eksplisit

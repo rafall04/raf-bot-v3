@@ -240,6 +240,11 @@
   "voucherSaleNotif": {
     "enabled": false
   },
+  "voucherMultiPurchase": {
+    "_comment": "Beli >1 voucher dalam 1 transaksi QRIS (halaman /voucher + portal + command WA 'buynow <harga> [jumlah]'). enabled=false => UI qty disembunyikan & request qty>1 ditolak (buynow <harga> tetap jalan). maxQty = batas voucher per transaksi.",
+    "enabled": false,
+    "maxQty": 10
+  },
   "customerVoucher": {
     "enabled": false
   },

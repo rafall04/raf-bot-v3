@@ -4,7 +4,8 @@
  *          (buynow/buynowweb/buynowpanel), topup saldo, dan tagihan bulanan.
  * Caller: `routes/public.js` (composer) → Express app; gateway iPaymu memanggil path ini.
  * Deps: express, rupiah-format, `lib/ipaymu` (checkTransaction), `lib/services/bill-payment-settlement`,
- *       `lib/mikrotik` (getvoucher), `lib/saldo`, `lib/payment`, `lib/voucher`, `lib/utils`,
+ *       `lib/mikrotik` (getvoucher), `lib/voucher-fulfillment` (batch qty + format kode),
+ *       `lib/saldo`, `lib/payment`, `lib/voucher`, `lib/utils`,
  *       `lib/templating`, `lib/services/bill-payment-aftercare`, `lib/whatsapp-delivery-service`,
  *       `lib/whatsapp-critical-delivery`, `lib/admin-recipients`, `lib/services/reactivation-outcome`,
  *       `lib/voucher-orphan`, lazy: `lib/invoice-on-paid`, `lib/notif-router`.
@@ -23,6 +24,7 @@ const verifyIpaymuTransaction = require("../../lib/ipaymu").checkTransaction;
 const { createBillPaymentSettlement } = require('../../lib/services/bill-payment-settlement');
 const billSettlement = createBillPaymentSettlement();
 const { getvoucher } = require("../../lib/mikrotik");
+const { generateVoucherBatch, formatVoucherCodeList, normalizeVoucherQty } = require("../../lib/voucher-fulfillment");
 const { addKoinUser, checkATMuser } = require('../../lib/saldo');
 const { updateStatusPayment, checkStatusPayment, updateKetPayment } = require('../../lib/payment');
 const { checkprofvc, checkdurasivc, checkhargavc } = require('../../lib/voucher');
@@ -139,23 +141,37 @@ router.post('/callback/payment', async (req, res) => {
                 // Profil DARI record bila ada (disimpan saat charge di payment-flow buynow) —
                 // checkprofvc(harga) hanya fallback record lama: ia TERTUKAR bila dua paket
                 // berharga sama (mengembalikan profil terdaftar terakhir) → voucher durasi salah.
+                // (Fallback aman: record lama selalu qty=1, amount = harga satuan.)
                 const prof = pay.prof || checkprofvc(`${pay.amount}`);
                 const durasivc = checkdurasivc(prof);
                 const hargavc = checkhargavc(prof);
-                await getvoucher(prof, pay.sender, { caller: 'public.payment-callback.buynow' }).then(async voucherResult => {
-                    if (!voucherResult.ok) {
-                        throw new Error(voucherResult.message);
+                // Multi-beli (#b402): qty voucher disimpan saat charge. Record lama tanpa qty → 1.
+                const qty = normalizeVoucherQty(pay.qty);
+                const hargaSatuan = parseInt(hargavc, 10) || pay.amount;
+                await generateVoucherBatch({ getvoucher, prof, qty, sender: pay.sender, caller: 'public.payment-callback.buynow' }).then(async ({ codes, failures }) => {
+                    if (!codes.length) {
+                        const batchErr = new Error(failures[0] || 'voucher gagal dibuat');
+                        batchErr.failures = failures;
+                        throw batchErr;
                     }
-                    const result = voucherResult.data?.username || voucherResult.message;
-                    updateKetPayment(reference_id, `Voucher: ${result}`);
+                    // TERBIT SEBAGIAN: kode yang sukses tetap dikirim; sisanya jadi orphan
+                    // (fulfill manual admin) + alert — jangan buang voucher yang sudah terbit.
+                    if (failures.length) {
+                        failures.forEach((f) => recordVoucherOrphan({ type: 'buynow_callback', reference_id, sender: pay.sender, amount: hargaSatuan, profile: prof, qty, error: f }));
+                        await alertAdmins(renderTemplate('voucher_gagal_admin', {
+                            pelanggan: pay.sender, paket: durasivc || prof, harga: convertRupiah.convert(pay.amount), jumlah: `${failures.length} dari ${qty}`, ref: reference_id, error: failures[0]
+                        }), 'voucher-gagal');
+                    }
+                    updateKetPayment(reference_id, `Voucher: ${codes.join(', ')}`);
                     updateStatusPayment(reference_id, true);
                     // Kode voucher = kritis → sendCritical (retry + dead-letter) supaya kode
                     // sampai ke pelanggan yang sudah bayar, bukan best-effort sendMessage.
                     if (pay.sender != "buynow") {
                         const message = renderTemplate('voucher_purchase_success', {
                             nama_paket: durasivc,
-                            harga: convertRupiah.convert(hargavc),
-                            kode_voucher: result
+                            harga: convertRupiah.convert(pay.amount),
+                            jumlah: failures.length ? `${codes.length} dari ${qty}` : String(codes.length),
+                            kode_voucher: formatVoucherCodeList(codes)
                         });
                         await sendCritical(pay.sender, { text: message }, { label: 'voucher-code' });
                     }
@@ -165,11 +181,12 @@ router.post('/callback/payment', async (req, res) => {
                         const errorMessage = typeof err === "string" ? err : err.message;
                         // Voucher GAGAL dibuat padahal SUDAH BAYAR. getvoucher non-idempotent &
                         // tak di-retry → JANGAN throw !1 (retry → risiko voucher GANDA). Sebagai gantinya:
-                        // catat orphan + alert admin (fulfill manual) + pesan ringan ke pelanggan,
+                        // catat orphan PER-ITEM + alert admin (fulfill manual) + pesan ringan ke pelanggan,
                         // lalu tandai paid (stop retry) supaya kegagalan TERLIHAT & bisa ditindaklanjuti.
-                        recordVoucherOrphan({ type: 'buynow_callback', reference_id, sender: pay.sender, amount: pay.amount, profile: prof, error: errorMessage });
+                        const fails = Array.isArray(err.failures) && err.failures.length ? err.failures : [errorMessage];
+                        fails.forEach((f) => recordVoucherOrphan({ type: 'buynow_callback', reference_id, sender: pay.sender, amount: hargaSatuan, profile: prof, qty, error: f }));
                         await alertAdmins(renderTemplate('voucher_gagal_admin', {
-                            pelanggan: pay.sender, paket: durasivc || prof, harga: convertRupiah.convert(pay.amount), ref: reference_id, error: errorMessage
+                            pelanggan: pay.sender, paket: durasivc || prof, harga: convertRupiah.convert(pay.amount), jumlah: `${fails.length} dari ${qty}`, ref: reference_id, error: errorMessage
                         }), 'voucher-gagal');
                         updateKetPayment(reference_id, `GAGAL voucher: ${errorMessage}`);
                         if (pay.sender != "buynow") {
@@ -186,12 +203,23 @@ router.post('/callback/payment', async (req, res) => {
                 // (mengembalikan profil terdaftar terakhir) → voucher durasi salah.
                 const prof = pay.prof || checkprofvc(String(pay.amount));
                 const durasivc = checkdurasivc(prof);
-                await getvoucher(prof, pay.sender, { caller: 'public.payment-callback.buynowweb' }).then(async voucherResult => {
-                    if (!voucherResult.ok) {
-                        throw new Error(voucherResult.message);
+                // Multi-beli (#b402): qty voucher disimpan saat charge di /app/buy (record lama → 1).
+                const qty = normalizeVoucherQty(pay.qty);
+                const hargaSatuan = parseInt(checkhargavc(prof), 10) || pay.amount;
+                await generateVoucherBatch({ getvoucher, prof, qty, sender: pay.sender, caller: 'public.payment-callback.buynowweb' }).then(async ({ codes, failures }) => {
+                    if (!codes.length) {
+                        const batchErr = new Error(failures[0] || 'voucher gagal dibuat');
+                        batchErr.failures = failures;
+                        throw batchErr;
                     }
-                    const result = voucherResult.data?.username || voucherResult.message;
-                    updateKetPayment(reference_id, `${result}`);
+                    // TERBIT SEBAGIAN: kode sukses tetap disimpan/dikirim; sisanya orphan + alert admin.
+                    if (failures.length) {
+                        failures.forEach((f) => recordVoucherOrphan({ type: 'buynowweb_callback', reference_id, sender: pay.sender, amount: hargaSatuan, profile: prof, qty, error: f }));
+                        await alertAdmins(renderTemplate('voucher_gagal_admin', {
+                            pelanggan: pay.sender, paket: prof, harga: convertRupiah.convert(pay.amount), jumlah: `${failures.length} dari ${qty}`, ref: reference_id, error: failures[0]
+                        }), 'voucher-gagal');
+                    }
+                    updateKetPayment(reference_id, `${codes.join(', ')}`);
                     updateStatusPayment(reference_id, true);
                     // Kirim kode voucher ke WA pembeli (kode = kritis krn sudah bayar → sendCritical
                     // retry + dead-letter). pay.sender = nomor mentah dari form web → normalisasi ke JID.
@@ -204,7 +232,8 @@ router.post('/callback/payment', async (req, res) => {
                             const message = renderTemplate('voucher_beli_web', {
                                 nama_paket: durasivc || prof,
                                 harga: convertRupiah.convert(pay.amount),
-                                kode_voucher: result
+                                jumlah: failures.length ? `${codes.length} dari ${qty}` : String(codes.length),
+                                kode_voucher: formatVoucherCodeList(codes)
                             });
                             await sendCritical(jid, { text: message }, { label: 'voucher-web-code' });
                         }
@@ -219,7 +248,8 @@ router.post('/callback/payment', async (req, res) => {
                                 paket: durasivc || prof,
                                 harga: convertRupiah.convert(pay.amount),
                                 pembeli: pay.sender,
-                                kode: result,
+                                jumlah: String(codes.length),
+                                kode: codes.join(', '),
                                 ref: reference_id
                             }), 'voucher-terjual');
                         }
@@ -230,11 +260,12 @@ router.post('/callback/payment', async (req, res) => {
                 }).catch(async err => {
                     if (typeof err === "string" || err instanceof Error) {
                         const errorMessage = typeof err === "string" ? err : err.message;
-                        // Voucher web gagal padahal sudah bayar → orphan + alert admin (fulfill manual),
-                        // mark paid (stop retry; getvoucher non-idempotent). Pelanggan lihat status di halaman web.
-                        recordVoucherOrphan({ type: 'buynowweb_callback', reference_id, sender: pay.sender, amount: pay.amount, profile: prof, error: errorMessage });
+                        // Voucher web gagal padahal sudah bayar → orphan PER-ITEM + alert admin (fulfill
+                        // manual), mark paid (stop retry; getvoucher non-idempotent). Pelanggan lihat status di halaman web.
+                        const fails = Array.isArray(err.failures) && err.failures.length ? err.failures : [errorMessage];
+                        fails.forEach((f) => recordVoucherOrphan({ type: 'buynowweb_callback', reference_id, sender: pay.sender, amount: hargaSatuan, profile: prof, qty, error: f }));
                         await alertAdmins(renderTemplate('voucher_gagal_admin', {
-                            pelanggan: pay.sender, paket: prof, harga: convertRupiah.convert(pay.amount), ref: reference_id, error: errorMessage
+                            pelanggan: pay.sender, paket: prof, harga: convertRupiah.convert(pay.amount), jumlah: `${fails.length} dari ${qty}`, ref: reference_id, error: errorMessage
                         }), 'voucher-gagal');
                         updateKetPayment(reference_id, `GAGAL voucher: ${errorMessage}`);
                         updateStatusPayment(reference_id, true);
@@ -248,12 +279,24 @@ router.post('/callback/payment', async (req, res) => {
                 // harga hanya untuk record lama/anomali.
                 const prof = pay.prof || checkprofvc(String(pay.amount));
                 const durasivc = checkdurasivc(prof);
-                await getvoucher(prof, pay.sender, { caller: 'public.payment-callback.buynowpanel' }).then(async voucherResult => {
-                    if (!voucherResult.ok) {
-                        throw new Error(voucherResult.message);
+                // Multi-beli (#b402): jalur panel belum mengirim qty → selalu 1; batch generic
+                // dipertahankan supaya panel tinggal mengisi qty saat fitur diaktifkan di sana.
+                const qty = normalizeVoucherQty(pay.qty);
+                const hargaSatuan = parseInt(checkhargavc(prof), 10) || pay.amount;
+                await generateVoucherBatch({ getvoucher, prof, qty, sender: pay.sender, caller: 'public.payment-callback.buynowpanel' }).then(async ({ codes, failures }) => {
+                    if (!codes.length) {
+                        const batchErr = new Error(failures[0] || 'voucher gagal dibuat');
+                        batchErr.failures = failures;
+                        throw batchErr;
                     }
-                    const result = voucherResult.data?.username || voucherResult.message;
-                    updateKetPayment(reference_id, `${result}`);
+                    // TERBIT SEBAGIAN: kode sukses disimpan/dikirim; sisanya orphan + alert admin.
+                    if (failures.length) {
+                        failures.forEach((f) => recordVoucherOrphan({ type: 'buynowpanel_callback', reference_id, sender: pay.sender, amount: hargaSatuan, profile: prof, qty, error: f }));
+                        await alertAdmins(renderTemplate('voucher_gagal_admin', {
+                            pelanggan: pay.sender, paket: durasivc || prof, harga: convertRupiah.convert(pay.amount), jumlah: `${failures.length} dari ${qty}`, ref: reference_id, error: failures[0]
+                        }), 'voucher-gagal');
+                    }
+                    updateKetPayment(reference_id, `${codes.join(', ')}`);
                     updateStatusPayment(reference_id, true);
                     // Kode tampil di panel lewat polling GET /vouchers/purchase/:reff. WA tetap
                     // dikirim sebagai salinan permanen (pelanggan bisa kehilangan tab panel), dan
@@ -266,7 +309,8 @@ router.post('/callback/payment', async (req, res) => {
                             const message = renderTemplate('voucher_beli_panel', {
                                 nama_paket: durasivc || prof,
                                 harga: convertRupiah.convert(pay.amount),
-                                kode_voucher: result
+                                jumlah: failures.length ? `${codes.length} dari ${qty}` : String(codes.length),
+                                kode_voucher: formatVoucherCodeList(codes)
                             });
                             await sendCritical(jid, { text: message }, { label: 'voucher-panel-code' });
                         }
@@ -280,7 +324,8 @@ router.post('/callback/payment', async (req, res) => {
                                 paket: durasivc || prof,
                                 harga: convertRupiah.convert(pay.amount),
                                 pembeli: pay.sender,
-                                kode: result,
+                                jumlah: String(codes.length),
+                                kode: codes.join(', '),
                                 ref: reference_id
                             }), 'voucher-terjual');
                         }
@@ -291,13 +336,14 @@ router.post('/callback/payment', async (req, res) => {
                 }).catch(async err => {
                     if (typeof err === "string" || err instanceof Error) {
                         const errorMessage = typeof err === "string" ? err : err.message;
-                        // Sudah bayar tapi voucher gagal terbit → orphan + alert admin (fulfill
+                        // Sudah bayar tapi voucher gagal terbit → orphan PER-ITEM + alert admin (fulfill
                         // manual), lalu TETAP mark paid supaya iPaymu berhenti retry (getvoucher
                         // non-idempotent → retry = risiko voucher ganda). Panel menampilkan
                         // state `failed` dari prefix GAGAL di `ket`.
-                        recordVoucherOrphan({ type: 'buynowpanel_callback', reference_id, sender: pay.sender, amount: pay.amount, profile: prof, error: errorMessage });
+                        const fails = Array.isArray(err.failures) && err.failures.length ? err.failures : [errorMessage];
+                        fails.forEach((f) => recordVoucherOrphan({ type: 'buynowpanel_callback', reference_id, sender: pay.sender, amount: hargaSatuan, profile: prof, qty, error: f }));
                         await alertAdmins(renderTemplate('voucher_gagal_admin', {
-                            pelanggan: pay.sender, paket: durasivc || prof, harga: convertRupiah.convert(pay.amount), ref: reference_id, error: errorMessage
+                            pelanggan: pay.sender, paket: durasivc || prof, harga: convertRupiah.convert(pay.amount), jumlah: `${fails.length} dari ${qty}`, ref: reference_id, error: errorMessage
                         }), 'voucher-gagal');
                         updateKetPayment(reference_id, `GAGAL voucher: ${errorMessage}`);
                         updateStatusPayment(reference_id, true);

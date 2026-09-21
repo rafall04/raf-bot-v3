@@ -221,9 +221,11 @@ function createApiVoucherRouter({
             const payments = Array.isArray(global.payment) ? global.payment : [];
             const vouchers = Array.isArray(global.voucher) ? global.voucher : [];
             const nameByPrice = {};
+            const nameByProf = {};
             vouchers.forEach((v) => {
                 const h = String(parseInt(v.hargavc, 10) || 0);
                 if (h !== '0' && !nameByPrice[h]) nameByPrice[h] = v.namavc || v.prof || h;
+                if (v && v.prof) nameByProf[String(v.prof)] = v.namavc || v.prof;
             });
             const SALE_TAGS = ['buynowweb', 'buynow'];
             const sales = payments.filter((p) => p && p.status && SALE_TAGS.includes(p.tag) && (parseInt(p.amount, 10) || 0) > 0);
@@ -237,17 +239,20 @@ function createApiVoucherRouter({
             const recent = [];
             sales.forEach((p) => {
                 const amt = parseInt(p.amount, 10) || 0;
-                total.count += 1; total.revenue += amt;
+                // Multi-beli (#b402): amount = total (harga×qty) → nama paket di-resolve dari
+                // `prof` tersimpan (fallback harga utk record lama), count = jumlah voucher terbit.
+                const qty = Math.max(1, parseInt(p.qty, 10) || 1);
+                total.count += qty; total.revenue += amt;
                 const ts = typeof p.createdAt === 'number' ? p.createdAt : Date.parse(p.createdAt);
                 if (ts && !isNaN(ts)) {
-                    if (new Date(ts).toDateString() === todayStr) { today.count += 1; today.revenue += amt; }
-                    if (ts >= weekAgo) { week.count += 1; week.revenue += amt; }
+                    if (new Date(ts).toDateString() === todayStr) { today.count += qty; today.revenue += amt; }
+                    if (ts >= weekAgo) { week.count += qty; week.revenue += amt; }
                 }
-                const pkg = nameByPrice[String(amt)] || ('Rp' + amt.toLocaleString('id-ID'));
-                byPkg[pkg] = (byPkg[pkg] || 0) + 1;
+                const pkg = (p.prof && nameByProf[String(p.prof)]) || nameByPrice[String(amt)] || ('Rp' + amt.toLocaleString('id-ID'));
+                byPkg[pkg] = (byPkg[pkg] || 0) + qty;
                 const _code = extractVoucherCode(p.ket);
                 const _failed = !_code && typeof p.ket === 'string' && /^GAGAL/i.test(p.ket.trim());
-                recent.push({ paket: pkg, amount: amt, ts: (ts && !isNaN(ts)) ? ts : null, tag: p.tag, code: _code, ref: p.reffId || null, failed: !!_failed });
+                recent.push({ paket: pkg, amount: amt, qty, ts: (ts && !isNaN(ts)) ? ts : null, tag: p.tag, code: _code, ref: p.reffId || null, failed: !!_failed });
             });
             const topPackages = Object.keys(byPkg).map((k) => ({ name: k, count: byPkg[k] })).sort((a, b) => b.count - a.count).slice(0, 5);
             recent.sort((a, b) => (b.ts || 0) - (a.ts || 0));
@@ -281,7 +286,9 @@ function createApiVoucherRouter({
             if (!rec.sender) return res.status(400).json({ status: 400, message: 'Nomor pembeli tidak tercatat.' });
             const vouchers = Array.isArray(global.voucher) ? global.voucher : [];
             const amt = parseInt(rec.amount, 10) || 0;
-            const match = vouchers.find((v) => (parseInt(v.hargavc, 10) || 0) === amt);
+            // Prof tersimpan menang atas match harga — amount multi-beli = TOTAL, tak cocok harga satuan.
+            const match = vouchers.find((v) => v && rec.prof && v.prof === rec.prof)
+                || vouchers.find((v) => (parseInt(v.hargavc, 10) || 0) === amt);
             const namaPaket = (match && (match.namavc || match.durasivc || match.prof)) || ('Rp' + amt.toLocaleString('id-ID'));
             const result = await apiVoucherService.resendVoucherCode({ phone: rec.sender, code, namaPaket, amount: amt });
             return res.status(result.status).json(result.body);
@@ -320,11 +327,16 @@ function createApiVoucherRouter({
             if (!rec.sender) return res.status(400).json({ status: 400, message: 'Nomor pembeli tidak tercatat.' });
             const vouchers = Array.isArray(global.voucher) ? global.voucher : [];
             const amt = parseInt(rec.amount, 10) || 0;
-            const match = vouchers.find((v) => (parseInt(v.hargavc, 10) || 0) === amt);
+            // Prof tersimpan menang atas match harga — amount multi-beli = TOTAL, tak cocok harga satuan.
+            const match = vouchers.find((v) => v && rec.prof && v.prof === rec.prof)
+                || vouchers.find((v) => (parseInt(v.hargavc, 10) || 0) === amt);
             const namaPaket = (match && (match.namavc || match.durasivc || match.prof)) || ('Rp' + amt.toLocaleString('id-ID'));
             // Profil dari record pembayaran (disimpan saat charge) menang atas lookup-by-harga —
-            // anti salah-durasi saat dua paket berharga sama.
-            const result = await apiVoucherService.reissueVoucher({ reff, amount: amt, sender: rec.sender, namaPaket, prof: rec.prof });
+            // anti salah-durasi saat dua paket berharga sama. `qty` = jumlah voucher yang harus
+            // terbit — route ini hanya jalan saat ket BELUM punya kode (GAGAL total), jadi qty
+            // penuh diteruskan (record lama tanpa qty → 1). Terbit-sebagian ditangani via orphan
+            // fulfill per-item (1 voucher per entri orphan) yang menggabungkan kode, bukan menimpa.
+            const result = await apiVoucherService.reissueVoucher({ reff, amount: amt, sender: rec.sender, namaPaket, prof: rec.prof, qty: rec.qty });
             return res.status(result.status).json(result.body);
         } catch (e) {
             log.error('[VOUCHER_REISSUE]', e && e.message);
