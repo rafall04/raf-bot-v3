@@ -118,6 +118,13 @@ input[type=tel]:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--acce
 .ticket .t-cut{border-top:1.5px dashed rgba(255,255,255,.22);margin:16px -24px 0}
 .ticket .t-meta{display:flex;justify-content:space-between;gap:12px;padding-top:14px;font-size:12.5px;color:#aab0ba}
 .sent{display:flex;align-items:center;justify-content:center;gap:9px;background:var(--accent-wash);color:var(--accent-ink);border-radius:12px;padding:12px 14px;font-size:13.5px;font-weight:600}
+/* Panduan "Cara pakai voucher" di layar sukses — setara kartu .howto di voucher-buy.html. */
+.howto{margin-top:16px;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:13px;padding:15px 16px}
+.howto-h{font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:11px;display:flex;align-items:center;gap:8px}
+.howto-h svg{color:var(--accent);flex:none}
+.howto-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.howto-steps li{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--body);line-height:1.5}
+.hs-n{width:19px;height:19px;border-radius:50%;background:var(--accent-wash);color:var(--accent-ink);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px}
 .err{background:#fdecec;border:1px solid #f6cbc7;color:#b3261e;border-radius:12px;padding:13px 16px;font-size:14px;margin-top:16px}
 .loading{color:var(--muted);padding:44px 0;text-align:center;font-size:14.5px}
 .hidden{display:none}
@@ -202,6 +209,14 @@ footer{border-top:1px solid var(--line)}
         <div class="sent" id="sentNote">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-5.9A8.5 8.5 0 1 1 21 11.5Z"/></svg>
           Kode juga dikirim ke WhatsApp Anda
+        </div>
+        <div class="howto">
+          <div class="howto-h"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 15.8a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg> Cara pakai voucher</div>
+          <ol class="howto-steps">
+            <li><span class="hs-n">1</span> Sambungkan HP/laptop ke WiFi hotspot.</li>
+            <li><span class="hs-n">2</span> Buka browser — halaman login otomatis muncul.</li>
+            <li><span class="hs-n">3</span> Masukkan kode voucher di atas, lalu tekan Connect.</li>
+          </ol>
         </div>
         <button class="btn" id="buyMore">Beli Voucher Lagi</button>
       </div>
