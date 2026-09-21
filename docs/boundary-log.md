@@ -3332,3 +3332,11 @@
 - **Callback:** ketiga cabang (buynow/buynowweb/buynowpanel) terbitkan `qty` voucher via batch; ket menyimpan kode dipisah koma ("Voucher: A, B" utk buynow). Terbit SEBAGIAN: kode sukses tetap disimpan+dikirim via sendCritical, tiap item gagal → 1 entri orphan (fulfill manual worklist). GAGAL total → tetap mark paid (stop retry) + orphan per-item + alert admin. Record lama tanpa qty → 1.
 - **Admin recovery:** `api-voucher.service.reissueVoucher` kini menerima `qty` dan MENGGABUNG kode baru ke `ket` (tidak menimpa kode parsial); resend mengirim semua kode ter-parse. Sales dashboard menghitung voucher per-unit (`qty`), nama paket via `prof` tersimpan.
 - **Status path lama:** tak ada dimatikan — `buynow <harga>` & `/app/buy` tanpa qty identik dengan sebelumnya. **Gate:** `voucherMultiPurchase` {enabled:false, maxQty:10} (default OFF = deploy gelap). **Tes:** `lib/__tests__/voucher-fulfillment.test.js` + `routes/__tests__/public-anonymous-buy-qty.test.js` (baru); payment-callback-voucher & payment-flow.service tests diperluas (batch/qty/gate); panel `buynowpanel` ikut batch (selalu qty=1 — fitur panel belum diaktifkan).
+
+<a id="b403"></a>
+
+### Feat 2026-09-21 (Gate voucherMultiPurchase kini bisa di-toggle dari halaman admin)
+
+- **Owner:** `views/sb-admin/config.php` pane-voucher + `static/js/config.js` + `routes/admin-config-routes.js` — field `voucherMultiPurchaseEnabled` (select Aktif/Nonaktif) & `voucherMultiPurchaseMaxQty` (angka 1-50, kosong = bawaan 10) di tab Voucher; POST /api/config memetakan keduanya ke objek nested `voucherMultiPurchase` (merge seperti voucherGuide/psbIntake), GET /api/config memproyeksikan {enabled, maxQty}. Hot-reload via `runtime.setConfig` — gate berlaku seketika tanpa restart.
+- **Status path lama:** edit config.json manual tetap bekerja (nilai sama yang dibaca `voucherMultiBuyConfig`); bukan penggantian jalur, hanya permukaan admin baru. Gate SENGAJA tak masuk registry feature-flags — registry tidak memuat gate yang sudah punya halaman sendiri (dua sumber kebenaran).
+- **Gate:** `voucherMultiPurchase` {enabled:false, maxQty:10} — tetap default OFF (deploy gelap). **Tes:** config-kelompok.test.js mengunci kedua field di pane-voucher + jalur simpan; routes/__tests__ 91 suite hijau; lint 0 error.

@@ -104,6 +104,10 @@
                 setValue('defaultPPPoEPassword', json.data.defaultPPPoEPassword, '');
                 setValue('voucherGuideSteps', json.data.voucherGuide?.steps || '', '');
                 setValue('voucherLoginUrl', json.data.voucherGuide?.loginUrl || '', '');
+                // Multi-beli voucher: maxQty KOSONG saat belum disetel supaya placeholder
+                // (bawaan 10) yang tampil — bukan angka yang mengunci diam-diam.
+                setValue('voucherMultiPurchaseEnabled', json.data.voucherMultiPurchase?.enabled === true ? "true" : "false");
+                setValue('voucherMultiPurchaseMaxQty', json.data.voucherMultiPurchase?.maxQty ?? '', '');
                 setValue('welcomeMessageEnabled', json.data.welcomeMessage?.enabled !== false ? "true" : "false");
                 setValue('customerPortalUrl', json.data.welcomeMessage?.customerPortalUrl || json.data.company?.website || json.data.site_url_bot || 'https://rafnet.my.id/customer');
 

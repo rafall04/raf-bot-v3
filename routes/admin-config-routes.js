@@ -201,6 +201,12 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     notifyNewTicket: !(mainConfig.repairNotif && mainConfig.repairNotif.notifyNewTicket === false),
                     notifyCompleted: !(mainConfig.repairNotif && mainConfig.repairNotif.notifyCompleted === false)
                 },
+                // Multi-beli voucher (halaman /voucher + WA buynow). maxQty dibiarkan undefined
+                // bila belum disetel → UI menampilkan placeholder bawaan, bukan angka pengunci.
+                voucherMultiPurchase: {
+                    enabled: !!(mainConfig.voucherMultiPurchase && mainConfig.voucherMultiPurchase.enabled),
+                    maxQty: (mainConfig.voucherMultiPurchase && mainConfig.voucherMultiPurchase.maxQty) || undefined
+                },
                 teknisiTutorialUrl: mainConfig.teknisiTutorialUrl || ''
             };
 
@@ -506,6 +512,28 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     continue;
                 }
 
+                // Pembelian multi-voucher → objek nested `voucherMultiPurchase`. Kotak maxQty
+                // KOSONG = "pakai bawaan" → key dihapus (bukan disimpan 0, yang berarti lain).
+                if (key === 'voucherMultiPurchaseEnabled' || key === 'voucherMultiPurchaseMaxQty') {
+                    if (!newMainConfig.voucherMultiPurchase) {
+                        newMainConfig.voucherMultiPurchase = {};
+                    }
+                    if (key === 'voucherMultiPurchaseEnabled') {
+                        newMainConfig.voucherMultiPurchase.enabled = receivedConfig[key] === 'true';
+                    } else {
+                        const mentah = String(receivedConfig[key] ?? '').trim();
+                        const angka = Number.parseInt(mentah, 10);
+                        if (mentah === '' || !Number.isFinite(angka) || angka < 1) {
+                            // Tulis undefined (BUKAN delete): spread merge menimpa nilai lama,
+                            // lalu JSON.stringify membuang key-nya → bawaan 10 berlaku lagi.
+                            newMainConfig.voucherMultiPurchase.maxQty = undefined;
+                        } else {
+                            newMainConfig.voucherMultiPurchase.maxQty = Math.min(50, angka);
+                        }
+                    }
+                    continue;
+                }
+
                 // Identitas & Kontak Usaha → dipetakan ke objek nested `company` (dipakai halaman
                 // publik FAQ/Refund/Syarat/Kontak). company_name juga menyinkron `nama` (brand global).
                 if (key === 'company_name' || key === 'company_phone' || key === 'company_email'
@@ -558,6 +586,12 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 finalMainConfig.voucherGuide = {
                     ...(currentMainConfig.voucherGuide || {}),
                     ...newMainConfig.voucherGuide
+                };
+            }
+            if (newMainConfig.voucherMultiPurchase) {
+                finalMainConfig.voucherMultiPurchase = {
+                    ...(currentMainConfig.voucherMultiPurchase || {}),
+                    ...newMainConfig.voucherMultiPurchase
                 };
             }
 

@@ -341,6 +341,27 @@
         <div class="config-pane" id="pane-voucher">
 <div class="card table-card mb-4">
               <div class="card-header">
+                <h6>Pembelian Multi-Voucher (Web &amp; WA)</h6>
+              </div>
+              <div class="card-body cfg-grid">
+                <p class="text-muted">Pembeli bisa membeli <b>lebih dari 1 voucher</b> dalam satu transaksi — berlaku di halaman publik <code>/voucher</code> (termasuk portal multi-area) dan command WA <code>buynow &lt;harga&gt; [jumlah]</code>.</p>
+                <div class="mb-3">
+                  <label for="voucherMultiPurchaseEnabled">Aktifkan Multi-Voucher</label>
+                  <select class="form-control" id="voucherMultiPurchaseEnabled" name="voucherMultiPurchaseEnabled">
+                      <option value="false">Nonaktif</option>
+                      <option value="true">Aktif</option>
+                  </select>
+                  <small class="form-text text-muted">Nonaktif = tiap transaksi tetap 1 voucher (perilaku lama); pemilihan jumlah disembunyikan dari halaman beli.</small>
+                </div>
+                <div class="mb-3">
+                  <label for="voucherMultiPurchaseMaxQty">Maksimal Voucher per Transaksi</label>
+                  <input type="number" class="form-control" id="voucherMultiPurchaseMaxQty" name="voucherMultiPurchaseMaxQty" min="1" max="50" placeholder="10" />
+                  <small class="form-text text-muted">Batas jumlah voucher yang bisa dibeli sekaligus (1-50). Kosong = bawaan 10.</small>
+                </div>
+              </div>
+            </div>
+<div class="card table-card mb-4">
+              <div class="card-header">
                 <h6>Panduan Pakai Voucher (Halaman Beli Publik)</h6>
               </div>
               <div class="card-body">
@@ -358,7 +379,7 @@
               </div>
             </div>
         
-          <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-voucher"><i class="fas fa-save"></i> Simpan Panduan Voucher</button>
+          <button type="button" class="btn btn-primary config-save-btn" data-pane="pane-voucher"><i class="fas fa-save"></i> Simpan Pengaturan Voucher</button>
         </div><!-- /#pane-psb -->
 
           <div class="config-pane" id="pane-billing">
