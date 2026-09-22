@@ -281,14 +281,19 @@ input[type=tel]:focus,input[type=text]:focus{border-color:var(--accent);backgrou
   background:var(--surface);border:1px solid var(--line);border-radius:13px;box-shadow:var(--sheen)}
 .qty-info{min-width:0}
 .qty-label{font-weight:600;color:var(--ink);font-size:13.5px;display:block}
-.qty-sub{font-size:12px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
-.qty-ctl{display:inline-flex;align-items:center;gap:5px;flex:none}
-.qty-btn{width:44px;height:44px;border:1.5px solid var(--line-2);border-radius:11px;background:var(--surface-2);
+.qty-sub{font-size:12px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Stepper segmented: - dan + satu pill dengan divider, bukan kotak terpisah. */
+.qty-ctl{display:inline-flex;align-items:stretch;flex:none;border:1.5px solid var(--line-2);
+  border-radius:13px;overflow:hidden;background:var(--surface-2)}
+.qty-btn{width:44px;height:44px;border:0;background:transparent;
   color:var(--ink);font-size:19px;font-weight:700;cursor:pointer;font-family:inherit;line-height:1;
-  display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s,color .15s}
-.qty-btn:hover{border-color:var(--accent);color:var(--accent-ink);background:var(--focus-bg)}
+  display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.qty-btn:hover{background:var(--focus-bg);color:var(--accent-ink)}
 .qty-btn:disabled{opacity:.35;cursor:not-allowed}
-.qty-val{min-width:40px;text-align:center;font-size:17px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+.qty-val{min-width:38px;padding:0 6px;text-align:center;font-size:16px;font-weight:800;color:var(--ink);
+  font-variant-numeric:tabular-nums;border-left:1px solid var(--line-2);border-right:1px solid var(--line-2);
+  align-self:stretch;display:flex;align-items:center;justify-content:center}
 .ticket .t-cut{border-top:1.5px dashed rgba(255,255,255,.2);margin:18px -24px 0}
 .ticket .t-meta{display:flex;justify-content:space-between;gap:12px;padding-top:15px;font-size:12.5px;color:#8b98ab}
 .sent{display:flex;align-items:center;justify-content:center;gap:9px;background:var(--grad-soft);box-shadow:var(--sheen);
@@ -747,7 +752,8 @@ footer{border-top:1px solid var(--line);margin-top:10px}
     var max=(multiCfg&&parseInt(multiCfg.maxQty,10))||1;
     if(qty>max) qty=max; if(qty<1) qty=1;
     $('qtyVal').textContent=qty;
-    $('qtySub').textContent=qty+' × '+rupiah(selected.price)+' per voucher';
+    // Sub-label ringkas agar tidak wrap: qty=1 -> harga satuan, qty>1 -> perkalian.
+    $('qtySub').textContent=qty>1?(qty+' × '+rupiah(selected.price)):(rupiah(selected.price)+' /voucher');
     $('qtyMinus').disabled=qty<=1; $('qtyPlus').disabled=qty>=max;
     $('f-price').textContent=rupiah(selected.price*qty);
     // Username kustom hanya untuk 1 voucher — saat qty>1 switch+field dikunci + catatan.
