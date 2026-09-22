@@ -148,7 +148,10 @@ router.post('/callback/payment', async (req, res) => {
                 // Multi-beli (#b402): qty voucher disimpan saat charge. Record lama tanpa qty → 1.
                 const qty = normalizeVoucherQty(pay.qty);
                 const hargaSatuan = parseInt(hargavc, 10) || pay.amount;
-                await generateVoucherBatch({ getvoucher, prof, qty, sender: pay.sender, caller: 'public.payment-callback.buynow' }).then(async ({ codes, failures }) => {
+                // Username/password kustom (#b405) ikut dari record bila ada — dibuat via
+                // adduserhotspot.php POST (bukan acak). Record lama tanpa field → acak.
+                const custom = pay.customUser ? { username: pay.customUser, password: pay.customPass } : undefined;
+                await generateVoucherBatch({ getvoucher, prof, qty, sender: pay.sender, caller: 'public.payment-callback.buynow', custom }).then(async ({ codes, failures }) => {
                     if (!codes.length) {
                         const batchErr = new Error(failures[0] || 'voucher gagal dibuat');
                         batchErr.failures = failures;
@@ -167,11 +170,15 @@ router.post('/callback/payment', async (req, res) => {
                     // Kode voucher = kritis → sendCritical (retry + dead-letter) supaya kode
                     // sampai ke pelanggan yang sudah bayar, bukan best-effort sendMessage.
                     if (pay.sender != "buynow") {
+                        // Custom creds (#b405): kode = username pelanggan; password ikut ditampilkan
+                        // (qty pasti 1 untuk custom). Random → daftar kode biasa.
                         const message = renderTemplate('voucher_purchase_success', {
                             nama_paket: durasivc,
                             harga: convertRupiah.convert(pay.amount),
                             jumlah: failures.length ? `${codes.length} dari ${qty}` : String(codes.length),
-                            kode_voucher: formatVoucherCodeList(codes)
+                            kode_voucher: custom
+                                ? codes.map((c, i) => `${i + 1}. ${c} — password: ${custom.password || c}`).join('\n')
+                                : formatVoucherCodeList(codes)
                         });
                         await sendCritical(pay.sender, { text: message }, { label: 'voucher-code' });
                     }
@@ -206,7 +213,8 @@ router.post('/callback/payment', async (req, res) => {
                 // Multi-beli (#b402): qty voucher disimpan saat charge di /app/buy (record lama → 1).
                 const qty = normalizeVoucherQty(pay.qty);
                 const hargaSatuan = parseInt(checkhargavc(prof), 10) || pay.amount;
-                await generateVoucherBatch({ getvoucher, prof, qty, sender: pay.sender, caller: 'public.payment-callback.buynowweb' }).then(async ({ codes, failures }) => {
+                const custom = pay.customUser ? { username: pay.customUser, password: pay.customPass } : undefined;
+                await generateVoucherBatch({ getvoucher, prof, qty, sender: pay.sender, caller: 'public.payment-callback.buynowweb', custom }).then(async ({ codes, failures }) => {
                     if (!codes.length) {
                         const batchErr = new Error(failures[0] || 'voucher gagal dibuat');
                         batchErr.failures = failures;
@@ -233,7 +241,9 @@ router.post('/callback/payment', async (req, res) => {
                                 nama_paket: durasivc || prof,
                                 harga: convertRupiah.convert(pay.amount),
                                 jumlah: failures.length ? `${codes.length} dari ${qty}` : String(codes.length),
-                                kode_voucher: formatVoucherCodeList(codes)
+                                kode_voucher: custom
+                                    ? codes.map((c, i) => `${i + 1}. ${c} — password: ${custom.password || c}`).join('\n')
+                                    : formatVoucherCodeList(codes)
                             });
                             await sendCritical(jid, { text: message }, { label: 'voucher-web-code' });
                         }
@@ -283,7 +293,8 @@ router.post('/callback/payment', async (req, res) => {
                 // dipertahankan supaya panel tinggal mengisi qty saat fitur diaktifkan di sana.
                 const qty = normalizeVoucherQty(pay.qty);
                 const hargaSatuan = parseInt(checkhargavc(prof), 10) || pay.amount;
-                await generateVoucherBatch({ getvoucher, prof, qty, sender: pay.sender, caller: 'public.payment-callback.buynowpanel' }).then(async ({ codes, failures }) => {
+                const custom = pay.customUser ? { username: pay.customUser, password: pay.customPass } : undefined;
+                await generateVoucherBatch({ getvoucher, prof, qty, sender: pay.sender, caller: 'public.payment-callback.buynowpanel', custom }).then(async ({ codes, failures }) => {
                     if (!codes.length) {
                         const batchErr = new Error(failures[0] || 'voucher gagal dibuat');
                         batchErr.failures = failures;
@@ -310,7 +321,9 @@ router.post('/callback/payment', async (req, res) => {
                                 nama_paket: durasivc || prof,
                                 harga: convertRupiah.convert(pay.amount),
                                 jumlah: failures.length ? `${codes.length} dari ${qty}` : String(codes.length),
-                                kode_voucher: formatVoucherCodeList(codes)
+                                kode_voucher: custom
+                                    ? codes.map((c, i) => `${i + 1}. ${c} — password: ${custom.password || c}`).join('\n')
+                                    : formatVoucherCodeList(codes)
                             });
                             await sendCritical(jid, { text: message }, { label: 'voucher-panel-code' });
                         }

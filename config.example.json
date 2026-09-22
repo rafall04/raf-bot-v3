@@ -245,6 +245,10 @@
     "enabled": false,
     "maxQty": 10
   },
+  "voucherCustomCreds": {
+    "_comment": "Pembeli memilih username/password voucher sendiri (1 voucher per transaksi). Berlaku di /voucher + portal (field opsional), WA 'buynow <harga> <username> [password]', dan panel pelanggan. Anti-duplikat 3 lapis: reservasi record pending + pre-check cekhotspotuser.php + trap DUPLICATE user/add. enabled=false => field disembunyikan & request kustom ditolak.",
+    "enabled": false
+  },
   "customerVoucher": {
     "enabled": false
   },

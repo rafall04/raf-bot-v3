@@ -14,7 +14,15 @@ const qr = require("qr-image");
 const convertRupiah = require("rupiah-format");
 const { createPaymentRepository } = require("../repositories/payment.repository");
 const { renderCategoryTemplate } = require("../lib/template-service");
-const { voucherMultiBuyConfig } = require("../lib/voucher-fulfillment");
+const {
+    voucherMultiBuyConfig,
+    voucherCustomCredsConfig,
+    normalizeVoucherUsername,
+    normalizeVoucherPassword,
+    assertVoucherUsernameAvailable,
+} = require("../lib/voucher-fulfillment");
+const { cekHotspotUser } = require("../lib/mikrotik");
+const { withMikrotikKeyLock } = require("../lib/mikrotik/core");
 
 function renderResponseTemplate(key, data = {}, fallback = "") {
     const result = renderCategoryTemplate("responseTemplates", key, data);
@@ -89,26 +97,36 @@ function createPaymentFlowService(overrides = {}) {
         const reff = Math.floor(Math.random() * 1677721631342).toString(16);
         let profvc = checkprofvc(q);
         let qty = 1;
+        let customUser = null, customPass = null;
 
         if (command === "buynow") {
-            // Format: `buynow <harga> [jumlah]` (#b402). Argumen jumlah (opsional) = qty voucher
-            // dalam 1 transaksi QRIS — di-gate config.voucherMultiPurchase (default OFF).
+            // Format: `buynow <harga> [jumlah | username [password]]` (#b402 + custom creds).
+            // Argumen ke-2 NUMERIK = jumlah voucher (gate voucherMultiPurchase); NON-numerik
+            // = username kustom (argumen ke-3 opsional = password; gate voucherCustomCreds).
             const parts = String(q).trim().split(/\s+/);
-            if (parts.length > 2) {
+            if (parts.length > 3) {
                 throw renderResponseTemplate(
                     "buynow_usage", {},
-                    "🎟️ *Beli Voucher Instan (bayar QRIS)*\n\nFormat: *buynow [harga]* — 1 voucher\nBeli banyak sekaligus: *buynow [harga] [jumlah]*\nContoh: _*buynow 1000*_ atau _*buynow 1000 3*_\n\n💡 Lihat daftar harga: ketik *voucher*\n\nVoucher otomatis terkirim begitu pembayaran lunas — tidak perlu topup saldo dulu."
+                    "🎟️ *Beli Voucher Instan (bayar QRIS)*\n\nFormat: *buynow [harga]* — 1 voucher\nBeli banyak sekaligus: *buynow [harga] [jumlah]*\nUsername sendiri: *buynow [harga] [username] [password]*\nContoh: _*buynow 1000*_ , _*buynow 1000 3*_ , _*buynow 1000 adi rahasia123*_\n\n💡 Lihat daftar harga: ketik *voucher*\n\nVoucher otomatis terkirim begitu pembayaran lunas — tidak perlu topup saldo dulu."
                 );
             }
             const hargaArg = parts[0];
-            const qtyArg = parts.length > 1 ? parts[1] : null;
+            const extraArg = parts.length > 1 ? parts[1] : null;
+            const extraArg2 = parts.length > 2 ? parts[2] : null;
             if (!checkhargavoucher(hargaArg)) {
                 throw "Harga Voucher Tersebut Tidak Terdaftar. Silahkan Periksa Lagi.\n\nTerima Kasih";
             }
             profvc = checkprofvc(hargaArg);
-            if (qtyArg != null) {
+            if (extraArg != null && /^\d+$/.test(extraArg)) {
+                if (extraArg2 != null) {
+                    throw renderResponseTemplate(
+                        "buynow_usage", {},
+                        "🎟️ *Beli Voucher Instan (bayar QRIS)*\n\nFormat: *buynow [harga]* — 1 voucher\nBeli banyak sekaligus: *buynow [harga] [jumlah]*\nUsername sendiri: *buynow [harga] [username] [password]*\nContoh: _*buynow 1000*_ , _*buynow 1000 3*_ , _*buynow 1000 adi rahasia123*_\n\n💡 Lihat daftar harga: ketik *voucher*\n\nVoucher otomatis terkirim begitu pembayaran lunas — tidak perlu topup saldo dulu."
+                    );
+                }
                 const multi = voucherMultiBuyConfig(global.config);
-                if (!/^\d+$/.test(qtyArg) || parseInt(qtyArg, 10) < 1 || parseInt(qtyArg, 10) > multi.maxQty) {
+                const qtyArg = extraArg;
+                if (parseInt(qtyArg, 10) < 1 || parseInt(qtyArg, 10) > multi.maxQty) {
                     throw renderResponseTemplate(
                         "buynow_qty_invalid", { maks: multi.maxQty },
                         `❌ Jumlah voucher tidak valid.\n\nFormat: *buynow [harga] [jumlah]* — jumlah 1 sampai ${multi.maxQty} voucher per transaksi.\nContoh: _*buynow 1000 3*_`
@@ -121,6 +139,48 @@ function createPaymentFlowService(overrides = {}) {
                         "🎟️ Pembelian lebih dari 1 voucher dalam sekali transaksi belum tersedia.\n\nKetik *buynow [harga]* untuk beli 1 voucher — bisa diulang untuk voucher berikutnya."
                     );
                 }
+            } else if (extraArg != null) {
+                // Jalur username kustom — qty tetap 1 (keputusan produk: kustom hanya 1 voucher).
+                if (!voucherCustomCredsConfig(global.config).enabled) {
+                    throw renderResponseTemplate(
+                        "buynow_custom_disabled", {},
+                        "🎟️ Voucher dengan username sendiri belum tersedia.\n\nKetik *buynow [harga]* untuk voucher dengan kode acak."
+                    );
+                }
+                const uname = normalizeVoucherUsername(extraArg);
+                if (!uname) {
+                    throw renderResponseTemplate(
+                        "voucher_username_invalid", {},
+                        "❌ Username tidak valid.\n\nHanya huruf kecil/angka plus tanda - dan _ (3-16 karakter).\nContoh: _*buynow 1000 adi_* atau _*buynow 1000 adi rahasia123*_"
+                    );
+                }
+                const pass = normalizeVoucherPassword(extraArg2);
+                if (extraArg2 != null && !pass) {
+                    throw renderResponseTemplate(
+                        "voucher_password_invalid", {},
+                        "❌ Password tidak valid — 3-64 karakter tanpa spasi.\n\nContoh: _*buynow 1000 adi rahasia123*_"
+                    );
+                }
+                // Cek duplikat + reservasi dibungkus lock per-username: dua pelanggan yang
+                // checkout bersamaan tak bisa sama-sama lolos pre-check. Charge iPaymu ikut
+                // di dalam lock supaya record reservasi pasti dibuat sebelum lock lepas.
+                const lockKey = `voucher-custom:${uname}`;
+                const availability = await withMikrotikKeyLock(lockKey, () =>
+                    assertVoucherUsernameAvailable({
+                        payments: global.payment,
+                        cekHotspotUser,
+                        username: uname,
+                    })
+                );
+                if (!availability.ok) {
+                    throw renderResponseTemplate(
+                        availability.reason === "check_failed" ? "voucher_username_check_failed" : "voucher_username_taken",
+                        { username: availability.username || uname },
+                        availability.message || "Username sudah dipakai. Pilih username lain."
+                    );
+                }
+                customUser = availability.username;
+                customPass = pass || availability.username;
             }
             number = (parseInt(checkhargavc(profvc), 10) || 0) * qty;
         }
@@ -141,45 +201,75 @@ function createPaymentFlowService(overrides = {}) {
             deps.logger?.warn?.("[BUYNOW] Gagal kirim ack proses", { error: ackErr?.message });
         }
 
-        let res;
-        try {
-            res = await paymentGateway({
-                amount: number,
-                reffId: reff,
-                comment: command === "topup"
-                    ? `Topup dana saldo sebesar Rp. ${number}`
-                    : `pembelian voucher ${profvc}${qty > 1 ? ` x${qty}` : ''} sebesar Rp. ${number}`,
-                name: pushname,
-                phone: sender.split("@")[0],
-                email: sender
+        // Charge gateway + catat record pembayaran. Untuk username kustom fungsi ini
+        // dipanggil DI DALAM lock per-username (lihat bawah) supaya reservasi — yaitu
+        // record payment itu sendiri — pasti tertulis sebelum lock dilepas; dua pelanggan
+        // yang checkout bersamaan tak bisa sama-sama lolos pre-check.
+        const chargeAndRecord = async () => {
+            let res;
+            try {
+                res = await paymentGateway({
+                    amount: number,
+                    reffId: reff,
+                    comment: command === "topup"
+                        ? `Topup dana saldo sebesar Rp. ${number}`
+                        : `pembelian voucher ${profvc}${qty > 1 ? ` x${qty}` : ''} sebesar Rp. ${number}`,
+                    name: pushname,
+                    phone: sender.split("@")[0],
+                    email: sender
+                });
+            } catch (gwErr) {
+                const technical = (typeof gwErr === "string") ? gwErr : (gwErr?.message || String(gwErr));
+                deps.logger?.warn?.("[BUYNOW] Gateway pembayaran gagal", { command, number, error: technical });
+                // Pesan ramah ke pelanggan — bukan error teknis "timeout 12000ms". Retry koneksi
+                // sudah dilakukan di lib/ipaymu; bila tetap gagal, minta pelanggan ulangi sebentar lagi.
+                // Throw STRING (konvensi codebase: pesan string langsung di-reply ke user).
+                throw renderResponseTemplate(
+                    "payment_gateway_busy", {},
+                    "🙏 Maaf, sistem pembayaran sedang sibuk sesaat. Coba ketik ulang perintahmu beberapa saat lagi ya."
+                );
+            }
+
+            const text = deps.renderTemplate("qris_payment_info", {
+                sub_total: res.subTotal.toLocaleString("id-ID"),
+                biaya_admin: res.fee.toLocaleString("id-ID"),
+                total_bayar: res.total.toLocaleString("id-ID")
             });
-        } catch (gwErr) {
-            const technical = (typeof gwErr === "string") ? gwErr : (gwErr?.message || String(gwErr));
-            deps.logger?.warn?.("[BUYNOW] Gateway pembayaran gagal", { command, number, error: technical });
-            // Pesan ramah ke pelanggan — bukan error teknis "timeout 12000ms". Retry koneksi
-            // sudah dilakukan di lib/ipaymu; bila tetap gagal, minta pelanggan ulangi sebentar lagi.
-            // Throw STRING (konvensi codebase: pesan string langsung di-reply ke user).
-            throw renderResponseTemplate(
-                "payment_gateway_busy", {},
-                "🙏 Maaf, sistem pembayaran sedang sibuk sesaat. Coba ketik ulang perintahmu beberapa saat lagi ya."
-            );
+
+            // `buynow` (voucher instan): simpan `prof` yang dipilih pembeli di record. Callback
+            // fulfillment (payment-callback.js) memakainya — checkprofvc(harga) tertukar bila dua
+            // paket berharga sama. Pola sama dengan buynowweb/buynowpanel yang sudah simpan prof.
+            // `qty` ikut disimpan (#b402) — callback menerbitkan voucher sebanyak itu (record lama = 1).
+            // `customUser`/`customPass` ikut tersimpan → record sekaligus reservasi username.
+            const paymentOpts = command === "buynow" ? { prof: profvc, qty, ...(customUser ? { customUser, customPass } : {}) } : {};
+            await createPaymentRequest(reff, res.id, sender, command, number, "QRIS", `Topup ${number} to ${sender}`, paymentOpts);
+
+            const qrr = qr.imageSync(res.qrString, { type: "png", ec_level: "H" });
+            await deps.sendMessage(from, { image: qrr, caption: text }, { quoted: msg, skipDuplicateCheck: true });
+        };
+
+        if (customUser) {
+            // Lock mencakup RE-CEK ketersediaan + charge + tulis record: celah antara
+            // pre-check awal (saat parse argumen) dan pembuatan record tak bisa disusupi
+            // checkout lain dengan username yang sama.
+            await withMikrotikKeyLock(`voucher-custom:${customUser}`, async () => {
+                const chk = await assertVoucherUsernameAvailable({
+                    payments: global.payment,
+                    cekHotspotUser,
+                    username: customUser,
+                });
+                if (!chk.ok) {
+                    throw renderResponseTemplate(
+                        chk.reason === "check_failed" ? "voucher_username_check_failed" : "voucher_username_taken",
+                        { username: chk.username || customUser },
+                        chk.message || "Username sudah dipakai. Pilih username lain."
+                    );
+                }
+                await chargeAndRecord();
+            });
+        } else {
+            await chargeAndRecord();
         }
-
-        const text = deps.renderTemplate("qris_payment_info", {
-            sub_total: res.subTotal.toLocaleString("id-ID"),
-            biaya_admin: res.fee.toLocaleString("id-ID"),
-            total_bayar: res.total.toLocaleString("id-ID")
-        });
-
-        // `buynow` (voucher instan): simpan `prof` yang dipilih pembeli di record. Callback
-        // fulfillment (payment-callback.js) memakainya — checkprofvc(harga) tertukar bila dua
-        // paket berharga sama. Pola sama dengan buynowweb/buynowpanel yang sudah simpan prof.
-        // `qty` ikut disimpan (#b402) — callback menerbitkan voucher sebanyak itu (record lama = 1).
-        const paymentOpts = command === "buynow" ? { prof: profvc, qty } : {};
-        await createPaymentRequest(reff, res.id, sender, command, number, "QRIS", `Topup ${number} to ${sender}`, paymentOpts);
-
-        const qrr = qr.imageSync(res.qrString, { type: "png", ec_level: "H" });
-        await deps.sendMessage(from, { image: qrr, caption: text }, { quoted: msg, skipDuplicateCheck: true });
     }
 
     async function processVoucherPurchase(sender, pushname, price, replyFunc, helpers, globalScope) {

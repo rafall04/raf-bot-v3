@@ -207,6 +207,10 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     enabled: !!(mainConfig.voucherMultiPurchase && mainConfig.voucherMultiPurchase.enabled),
                     maxQty: (mainConfig.voucherMultiPurchase && mainConfig.voucherMultiPurchase.maxQty) || undefined
                 },
+                // Username/password pilihan pembeli (#b405) — toggle saja, tak ada angka.
+                voucherCustomCreds: {
+                    enabled: !!(mainConfig.voucherCustomCreds && mainConfig.voucherCustomCreds.enabled)
+                },
                 teknisiTutorialUrl: mainConfig.teknisiTutorialUrl || ''
             };
 
@@ -534,6 +538,15 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                     continue;
                 }
 
+                // Kredensial voucher pilihan pembeli → nested `voucherCustomCreds` (#b405).
+                if (key === 'voucherCustomCredsEnabled') {
+                    if (!newMainConfig.voucherCustomCreds) {
+                        newMainConfig.voucherCustomCreds = {};
+                    }
+                    newMainConfig.voucherCustomCreds.enabled = receivedConfig[key] === 'true';
+                    continue;
+                }
+
                 // Identitas & Kontak Usaha → dipetakan ke objek nested `company` (dipakai halaman
                 // publik FAQ/Refund/Syarat/Kontak). company_name juga menyinkron `nama` (brand global).
                 if (key === 'company_name' || key === 'company_phone' || key === 'company_email'
@@ -592,6 +605,12 @@ function registerAdminConfigRoutes({ router, ensureAuthenticatedStaff, logActivi
                 finalMainConfig.voucherMultiPurchase = {
                     ...(currentMainConfig.voucherMultiPurchase || {}),
                     ...newMainConfig.voucherMultiPurchase
+                };
+            }
+            if (newMainConfig.voucherCustomCreds) {
+                finalMainConfig.voucherCustomCreds = {
+                    ...(currentMainConfig.voucherCustomCreds || {}),
+                    ...newMainConfig.voucherCustomCreds
                 };
             }
 

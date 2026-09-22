@@ -27,7 +27,7 @@ const { sendError } = require("../lib/response-helper");
 const router = express.Router();
 
 // Jenis proxy yang DIIZINKAN (mirror kontrak bot `/app/:type`). Guard: jangan proxy path sembarang.
-const PROXY_TYPES = ["packages", "voucher", "buy", "detailtrx", "statustrx", "qr"];
+const PROXY_TYPES = ["packages", "voucher", "buy", "detailtrx", "statustrx", "qr", "check-user"];
 
 // Rate limit registrasi portal: 5 submit / 15 menit / IP-PEMBELI (throttle utama; bot backend
 // internal-only & limiter-nya di-skip utk loopback). standardHeaders utk debugging.
@@ -294,6 +294,29 @@ router.get("/api/area/:area/:type/:id?", asyncHandler(async (req, res) => {
             return res.end(r.buffer);
         }
         const r = await proxyJson(area, "get", botPath, { query: req.query, timeout: type === "buy" ? 30000 : 10000 });
+        res.set("Cache-Control", "no-store");
+        return res.status(r.status).json(r.data);
+    } catch (e) {
+        log.error(`[PORTAL_PROXY] area=${area.id} type=${type} gagal:`, e.message);
+        return sendError(res, "Layanan area sedang bermasalah. Coba lagi sebentar.", 502);
+    }
+}));
+
+// POST hanya untuk `buy` (#b405): password kustom dikirim via body — tidak boleh nempel di
+// URL/access-log. Type lain tetap GET-only. Body diteruskan apa adanya (bot yang memvalidasi).
+router.post("/api/area/:area/:type/:id?", asyncHandler(async (req, res) => {
+    const area = resolveArea(req.params.area);
+    if (!area) return sendError(res, "Area tidak dikenal.", 404);
+    if (!isAreaEnabled(area)) return sendError(res, "Area ini belum tersedia.", 503);
+
+    const type = req.params.type;
+    if (type !== "buy") return sendError(res, "Endpoint tidak valid.", 400);
+
+    const id = req.params.id;
+    const botPath = `/app/${type}${id != null ? "/" + encodeURIComponent(id) : ""}`;
+
+    try {
+        const r = await proxyJson(area, "post", botPath, { query: req.query, body: req.body, timeout: 30000 });
         res.set("Cache-Control", "no-store");
         return res.status(r.status).json(r.data);
     } catch (e) {

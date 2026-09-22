@@ -36,6 +36,8 @@ const CustomerTrafficUsageService = require('../../lib/customer-traffic-usage-se
 const { pay: ipaymuPay } = require('../../lib/ipaymu');
 const { addPayment } = require('../../lib/payment');
 const { checkhargavc } = require('../../lib/voucher');
+const { cekHotspotUser } = require('../../lib/mikrotik');
+const { withMikrotikKeyLock } = require('../../lib/mikrotik/core');
 const { createCustomerVoucherService } = require('../../services/customer-voucher.service');
 const { renderResponseTemplate, ensureCustomerAuthenticated, setSensitiveResponseHeaders } = require('./shared');
 
@@ -50,6 +52,9 @@ const customerVoucherService = createCustomerVoucherService({
     checkhargavc,
     getVoucherProfiles: () => global.voucher,
     getPayments: () => global.payment,
+    // Custom creds (#b405): adapter + lock nyata di-inject; service lazy-require bila kosong.
+    cekHotspotUser,
+    withUsernameLock: withMikrotikKeyLock,
     logger: console
 });
 // --- Rate Limiters ---
@@ -422,12 +427,25 @@ customerApiRouter.post('/vouchers/purchase', voucherPurchaseRateLimiter, asyncHa
     const result = await customerVoucherService.createPurchase({
         customer: req.customer,
         prof: req.body?.prof,
-        qty: req.body?.qty
+        qty: req.body?.qty,
+        // Kredensial kustom (#b405) — opsional; gate + cek duplikat ada di service.
+        customUser: req.body?.customUser,
+        customPass: req.body?.customPass
     });
     if (!result.ok) {
         return sendError(res, result.message, result.status);
     }
     return sendSuccess(res, result.data, 'Transaksi berhasil dibuat. Selesaikan pembayaran QRIS.', 201);
+}));
+
+// Probe ketersediaan username kustom untuk UX form (#b405). Rate-limit beli ikut dipakai
+// supaya tak jadi oracle enumerasi; validasi final tetap di POST /purchase dalam lock.
+customerApiRouter.get('/vouchers/check-user', voucherPurchaseRateLimiter, asyncHandler(async (req, res) => {
+    const result = await customerVoucherService.checkUsername({ name: req.query?.name });
+    if (!result.ok) {
+        return sendError(res, result.message, result.status);
+    }
+    return sendSuccess(res, result.data, 'Username tersedia');
 }));
 
 customerApiRouter.get('/vouchers/purchase/:reff', asyncHandler(async (req, res) => {

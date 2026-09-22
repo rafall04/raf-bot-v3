@@ -182,6 +182,15 @@ input[type=tel]::placeholder{color:var(--faint)}
 input[type=tel]:focus{border-color:var(--accent);background:var(--focus-bg);box-shadow:0 0 0 4px rgba(45,212,191,.14)}
 .field-hint{color:var(--muted);font-size:12.5px;margin-top:9px;display:flex;gap:7px;align-items:flex-start}
 .field-hint svg{flex:none;margin-top:2px;color:var(--accent)}
+.field-hint.ok{color:#34d399}
+.field-hint.bad{color:var(--danger)}
+.field-hint.warn{color:#fbbf24}
+.creds{border:1px dashed var(--line-2);border-radius:14px;padding:14px 15px;margin:0 0 18px;background:var(--focus-bg)}
+.creds.off{opacity:.55;pointer-events:none}
+.creds-t{font-weight:700;font-size:13px;color:var(--ink);margin-bottom:10px}
+.creds .opt{color:var(--muted);font-weight:500}
+.creds label{font-size:12.5px;margin-bottom:6px}
+.cred-pass{margin-top:10px;font-family:var(--mono);font-size:14px;color:#a7f3d0;overflow-wrap:anywhere}
 .btn{width:100%;background:var(--grad);color:#04231f;border:0;border-radius:13px;padding:16px;font-weight:700;
   font-size:15px;font-family:inherit;cursor:pointer;margin-top:22px;box-shadow:var(--glow-cta);
   transition:transform .14s ease,filter .18s ease,box-shadow .18s ease;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
@@ -387,6 +396,21 @@ footer{border-top:1px solid var(--line);margin-top:10px}
           <button class="qty-btn" id="qtyPlus" type="button" aria-label="Tambah jumlah">+</button>
         </div>
       </div>
+      <div id="credsRow" class="creds hidden">
+        <div class="creds-t">Username &amp; password sendiri <span class="opt">(opsional)</span></div>
+        <label for="cuser">Username voucher</label>
+        <div class="input-wrap">
+          <span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6"/></svg></span>
+          <input type="text" id="cuser" placeholder="cth: adi_net" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="16">
+        </div>
+        <div class="field-hint" id="cuserHint">Huruf kecil/angka plus - dan _ (3-16 karakter). Kosongkan untuk kode acak.</div>
+        <label for="cpass" style="margin-top:12px">Password voucher</label>
+        <div class="input-wrap">
+          <span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>
+          <input type="text" id="cpass" placeholder="Kosong = sama dengan username" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="64">
+        </div>
+        <div class="field-hint warn hidden" id="credsQtyNote">Username sendiri hanya untuk pembelian 1 voucher — turunkan jumlah ke 1 untuk memakainya.</div>
+      </div>
       <label for="phone">Nomor WhatsApp</label>
       <div class="input-wrap">
         <span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-5.9A8.5 8.5 0 1 1 21 11.5Z"/></svg></span>
@@ -406,6 +430,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
       <div class="breakdown" style="margin:6px auto 14px">
         <div class="bd-row"><span id="rPhoneLabel">Kirim kode ke</span><span id="r-phone">-</span></div>
         <div class="bd-row hidden" id="r-qtyRow"><span>Jumlah voucher</span><span id="r-qty">-</span></div>
+        <div class="bd-row hidden" id="r-credsRow"><span>Username</span><span id="r-cuser">-</span></div>
         <div class="bd-row"><span>Harga voucher</span><span id="r-harga">-</span></div>
         <div class="bd-row hidden" id="r-subRow"><span>Subtotal</span><span id="r-sub">-</span></div>
         <div class="bd-row"><span>Biaya admin QRIS</span><span id="r-fee">-</span></div>
@@ -457,6 +482,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
           <span class="notch l"></span><span class="notch r"></span>
           <div class="t-k" id="t-kLabel">Kode Voucher</div>
           <div class="code-list" id="codeList"></div>
+          <div class="cred-pass hidden" id="credPass"></div>
           <div class="t-warn hidden" id="partialWarn"></div>
           <div class="t-cut"></div>
           <div class="t-meta"><span id="t-paket">Voucher WiFi</span><span>Simpan sebagai bukti</span></div>
@@ -517,6 +543,9 @@ footer{border-top:1px solid var(--line);margin-top:10px}
   // Multi-beli: qty voucher per transaksi. multiCfg diiklankan server via /app/voucher meta
   // (config.voucherMultiPurchase) — tak ada meta → sembunyikan kontrol (backend lama = OFF).
   var qty=1, multiCfg=null, lastCodes=[];
+  // Username/password pilihan pembeli (custom creds). credsCfg diiklankan server via meta
+  // katalog (config.voucherCustomCreds). cuserState: idle|checking|ok|taken|invalid|error.
+  var credsCfg=null, cuserState='idle', cuserTimer=null;
   var QRIS_FEE_RATE=0.007; // biaya admin iPaymu QRIS (0,7%) — ditagihkan ke PEMBELI (feeDirection BUYER). Angka pasti tetap dari iPaymu di halaman QR.
   var $=function(id){ return document.getElementById(id); };
   function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
@@ -650,6 +679,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
   fetch('/app/voucher').then(function(r){return r.json();}).then(function(res){
     var raw=(res&&res.data)||res||[];
     multiCfg=(res&&res.meta&&res.meta.multiBuy)||null;
+    credsCfg=(res&&res.meta&&res.meta.customCreds)||null;
     var items=(Array.isArray(raw)?raw:[]).map(function(v){
       var price=parseInt(v.hargavc,10)||0, du=parseDur(v.durasivc);
       return { v:v, price:price, hours:du.hours, type:du.type, perHour:(du.hours&&du.hours>0)?Math.round(price/du.hours):null };
@@ -680,7 +710,7 @@ footer{border-top:1px solid var(--line);margin-top:10px}
   $('catalog').addEventListener('click',function(e){
     var el=e.target.closest('.pkg'); if(!el) return;
     selected={ prof:el.getAttribute('data-prof'), name:el.getAttribute('data-name'), price:parseInt(el.getAttribute('data-price'),10) };
-    qty=1; refreshQty(); // reset jumlah tiap pilih paket baru
+    qty=1; resetCreds(); refreshQty(); // reset jumlah + creds tiap pilih paket baru
     $('f-name').textContent=selected.name;
     $('formErr').classList.add('hidden'); $('phone').value=lastPhone(); // ingat nomor terakhir
     show('form'); $('phone').focus();
@@ -689,6 +719,8 @@ footer{border-top:1px solid var(--line);margin-top:10px}
 
   // Stepper jumlah voucher — hanya saat server mengiklankan multiBuy (config.voucherMultiPurchase).
   function multiOn(){ return !!(multiCfg&&multiCfg.enabled===true&&(parseInt(multiCfg.maxQty,10)||0)>1); }
+  // Custom creds — hanya saat server mengiklankan customCreds (config.voucherCustomCreds).
+  function credsOn(){ return !!(credsCfg&&credsCfg.enabled===true); }
   function refreshQty(){
     var on=multiOn()&&!!selected;
     $('qtyRow').classList.toggle('hidden',!on);
@@ -700,9 +732,44 @@ footer{border-top:1px solid var(--line);margin-top:10px}
     $('qtySub').textContent=qty+' × '+rupiah(selected.price)+' per voucher';
     $('qtyMinus').disabled=qty<=1; $('qtyPlus').disabled=qty>=max;
     $('f-price').textContent=rupiah(selected.price*qty);
+    // Username kustom hanya untuk 1 voucher — saat qty>1 field dikunci + diberi catatan.
+    var cOn=credsOn();
+    $('credsRow').classList.toggle('hidden',!cOn);
+    if(cOn){
+      var locked=qty>1;
+      $('credsRow').classList.toggle('off',locked);
+      $('cuser').disabled=locked; $('cpass').disabled=locked;
+      $('credsQtyNote').classList.toggle('hidden',!locked);
+    }
   }
   $('qtyMinus').addEventListener('click',function(){ qty--; refreshQty(); });
   $('qtyPlus').addEventListener('click',function(){ qty++; refreshQty(); });
+
+  // Probe ketersediaan username (debounced) — validasi FINAL tetap di server saat buy.
+  // Jawaban probe hanya sementara: nama bisa direbut checkout lain di celah probe→bayar.
+  function setCuserHint(txt,cls){ var h=$('cuserHint'); h.textContent=txt; h.className='field-hint'+(cls?' '+cls:''); }
+  function resetCreds(){
+    $('cuser').value=''; $('cpass').value=''; cuserState='idle'; clearTimeout(cuserTimer);
+    setCuserHint('Huruf kecil/angka plus - dan _ (3-16 karakter). Kosongkan untuk kode acak.','');
+  }
+  function cuserValue(){ return $('cuser').value.trim().toLowerCase(); }
+  $('cuser').addEventListener('input',function(){
+    var v=this.value.trim().toLowerCase();
+    clearTimeout(cuserTimer); cuserState='idle';
+    if(!v){ setCuserHint('Huruf kecil/angka plus - dan _ (3-16 karakter). Kosongkan untuk kode acak.',''); return; }
+    if(!/^[a-z0-9_-]{3,16}$/.test(v)){ cuserState='invalid'; setCuserHint('Hanya huruf kecil/angka plus - dan _ (3-16 karakter).','bad'); return; }
+    cuserState='checking'; setCuserHint('Memeriksa ketersediaan…','');
+    cuserTimer=setTimeout(function(){
+      fetch('/app/check-user?name='+encodeURIComponent(v)).then(function(r){return r.json();}).then(function(res){
+        if(cuserValue()!==v) return; // input berubah selama fetch — abaikan jawaban basi
+        if(res&&res.status===200&&res.data&&res.data.available===true){
+          cuserState='ok'; setCuserHint('✓ Username "'+v+'" tersedia.','ok');
+        } else {
+          cuserState='taken'; setCuserHint((res&&res.message)||'Username sudah dipakai.','bad');
+        }
+      }).catch(function(){ cuserState='error'; setCuserHint('Gagal memeriksa ketersediaan — sistem akan cek ulang saat pembayaran.','warn'); });
+    },400);
+  });
 
   // Validasi & rapikan input nomor: hanya digit (buang spasi/+/huruf saat mengetik).
   $('phone').addEventListener('input',function(){ var d=this.value.replace(/[^\d]/g,''); if(this.value!==d) this.value=d; });
@@ -712,9 +779,18 @@ footer{border-top:1px solid var(--line);margin-top:10px}
   $('buyBtn').addEventListener('click',function(){
     var d=digitsOf($('phone').value);
     if(d.length<9||d.length>15){ $('formErr').textContent='Masukkan nomor WhatsApp yang valid.'; $('formErr').classList.remove('hidden'); return; }
+    // Validasi creds kustom bila diisi (qty pasti 1 — field terkunci saat qty>1).
+    var cu=credsOn()?cuserValue():'';
+    if(cu){
+      if(cuserState==='checking'){ $('formErr').textContent='Tunggu sebentar — sedang memeriksa ketersediaan username.'; $('formErr').classList.remove('hidden'); return; }
+      if(cuserState==='invalid'||cuserState==='taken'){ $('formErr').textContent='Perbaiki username voucher dulu — lihat catatan di bawah kolomnya.'; $('formErr').classList.remove('hidden'); return; }
+      var cp=$('cpass').value.trim();
+      if(cp&&!/^\S{3,64}$/.test(cp)){ $('formErr').textContent='Password voucher 3-64 karakter tanpa spasi.'; $('formErr').classList.remove('hidden'); return; }
+    }
     $('formErr').classList.add('hidden'); lsSet('vc-phone',d); // simpan utk pembelian berikutnya
     $('r-name').textContent=selected.name; $('r-price').textContent=rupiah(selected.price*qty);
     $('r-phone').textContent=d;
+    $('r-credsRow').classList.toggle('hidden',!cu); if(cu) $('r-cuser').textContent=cu;
     // Tampilkan rincian harga + biaya admin QRIS (ceil, aman: tak pernah kurang dari fee asli iPaymu).
     var _sub=selected.price*qty, _fee=Math.ceil(_sub*QRIS_FEE_RATE);
     $('r-qtyRow').classList.toggle('hidden',qty<2);
@@ -736,7 +812,12 @@ footer{border-top:1px solid var(--line);margin-top:10px}
     $('reviewErr').classList.add('hidden');
     $('confirmBuy').disabled=true; $('confirmBuy').textContent='Memproses…';
     var email=d+'@voucher.rafnet.local';
-    fetch('/app/buy/'+selected.prof+'?phone='+encodeURIComponent(d)+'&email='+encodeURIComponent(email)+'&qty='+qty)
+    // POST JSON — password kustom TIDAK boleh nempel di URL/access-log (backend menerima
+    // GET juga untuk kompatibilitas, tapi jalur baru selalu POST).
+    var body={ phone:d, email:email, qty:qty };
+    var cu=credsOn()?cuserValue():'';
+    if(cu&&qty===1){ body.cuser=cu; var cp=$('cpass').value.trim(); if(cp) body.cpass=cp; }
+    fetch('/app/buy/'+selected.prof,{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
       .then(function(r){return r.json();})
       .then(function(res){
         if(!res||res.status!==200||!res.data) throw new Error((res&&res.message)||'Gagal membuat transaksi.');
@@ -812,6 +893,10 @@ footer{border-top:1px solid var(--line);margin-top:10px}
       $('result-manual').classList.add('hidden'); $('result-ok').classList.remove('hidden');
       $('t-kLabel').textContent=codes.length>1?('Kode Voucher ('+codes.length+' pcs)'):'Kode Voucher';
       renderCodes(codes);
+      // Kredensial kustom: kode di atas = username; password tampil terpisah.
+      var _cp=String(rec.customPass||'');
+      if(_cp){ $('credPass').textContent='Password: '+_cp; $('credPass').classList.remove('hidden'); }
+      else $('credPass').classList.add('hidden');
       // Terbit sebagian: bayar OK tapi tidak semua voucher terbit → tampilkan + arahkan lapor admin.
       if(codes.length<reqQty){
         $('partialWarn').textContent=(reqQty-codes.length)+' dari '+reqQty+' voucher belum terbit — admin sudah diberi tahu. Kode di atas tetap bisa dipakai; sisanya akan diproses manual. Bawa No. Transaksi saat menghubungi admin.';
@@ -826,9 +911,11 @@ footer{border-top:1px solid var(--line);margin-top:10px}
       var _sub=parseInt(rec.subtotal,10)||parseInt(rec.amount,10)||0, _fee=parseInt(rec.fee,10)||0, _tot=parseInt(rec.priceTotal,10)||(_sub+_fee);
       $('rc-sub').textContent=rupiah(_sub); $('rc-fee').textContent=rupiah(_fee); $('rc-total').textContent=rupiah(_tot);
       // Lanjutkan Login hanya untuk 1 kode (username=password=kode, MikroTik hotspot HTTP-PAP/GET).
+      // Custom creds: username/password dari record (bukan asumsi kode=password).
       if(voucherLoginBase&&codes.length===1){
         var _lb=voucherLoginBase.replace(/\/+$/,'').replace(/\/login$/i,'');
-        $('loginBtn').href=_lb+'/login?username='+encodeURIComponent(codes[0])+'&password='+encodeURIComponent(codes[0]);
+        var _lu=String(rec.customUser||codes[0]), _lp=String(rec.customPass||codes[0]);
+        $('loginBtn').href=_lb+'/login?username='+encodeURIComponent(_lu)+'&password='+encodeURIComponent(_lp);
         $('loginBtn').classList.remove('hidden');
       } else $('loginBtn').classList.add('hidden');
       // Laporkan ke Admin — WA ke nomor CS dengan detail transaksi (bukti + bantuan).

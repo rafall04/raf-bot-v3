@@ -108,6 +108,7 @@
                 // (bawaan 10) yang tampil — bukan angka yang mengunci diam-diam.
                 setValue('voucherMultiPurchaseEnabled', json.data.voucherMultiPurchase?.enabled === true ? "true" : "false");
                 setValue('voucherMultiPurchaseMaxQty', json.data.voucherMultiPurchase?.maxQty ?? '', '');
+                setValue('voucherCustomCredsEnabled', json.data.voucherCustomCreds?.enabled === true ? "true" : "false");
                 setValue('welcomeMessageEnabled', json.data.welcomeMessage?.enabled !== false ? "true" : "false");
                 setValue('customerPortalUrl', json.data.welcomeMessage?.customerPortalUrl || json.data.company?.website || json.data.site_url_bot || 'https://rafnet.my.id/customer');
 

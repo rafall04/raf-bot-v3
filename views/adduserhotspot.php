@@ -7,6 +7,10 @@ try {
     mikrotik_require_connection($operation, $startedAt);
     $profil = mikrotik_read_input('profil', null);
     $komen = mikrotik_read_input('komen', null);
+    // Opsional: username/password pilihan pelanggan (voucher kustom). Tidak diisi →
+    // kembali ke username acak seperti biasa. Password opsional — default = username.
+    $customUser = mikrotik_read_input('username', null, false, null);
+    $customPass = mikrotik_read_input('password', null, false, null);
 } catch (InvalidArgumentException $e) {
     mikrotik_fail($operation, $e->getMessage(), 'INVALID_ARGUMENT', $startedAt, 400);
 }
@@ -38,8 +42,21 @@ try {
         mikrotik_fail($operation, 'Gagal: Profil Hotspot "' . $profil . '" tidak ditemukan di Mikrotik.', 'NOT_FOUND', $startedAt, 404);
     }
 
-    $hotspot_username = generateRandomString(6);
-    $hotspot_password = $hotspot_username;
+    if ($customUser !== null && trim((string) $customUser) !== '') {
+        $customUser = strtolower(trim((string) $customUser));
+        if (!preg_match('/^[a-z0-9][a-z0-9_-]{2,15}$/', $customUser)) {
+            mikrotik_fail($operation, 'Gagal: Username voucher tidak valid (huruf/angka, boleh - dan _, 3-16 karakter).', 'INVALID_ARGUMENT', $startedAt, 400);
+        }
+        $hotspot_username = $customUser;
+        $customPass = is_string($customPass) ? trim($customPass) : '';
+        if ($customPass !== '' && !preg_match('/^\S{3,64}$/', $customPass)) {
+            mikrotik_fail($operation, 'Gagal: Password voucher tidak valid (3-64 karakter, tanpa spasi).', 'INVALID_ARGUMENT', $startedAt, 400);
+        }
+        $hotspot_password = $customPass !== '' ? $customPass : $customUser;
+    } else {
+        $hotspot_username = generateRandomString(6);
+        $hotspot_password = $hotspot_username;
+    }
 
     $full_comment = COMMENT_PREFIX . $komen . ' | ' . $profil . ' | ' . date('d-m-Y H:i:s');
 
@@ -72,7 +89,7 @@ try {
 
     mikrotik_success($operation, 'Voucher Hotspot berhasil dibuat.', [
         'username' => $hotspot_username,
-        'password' => $hotspot_username,
+        'password' => $hotspot_password,
         'profile' => $profil
     ], $startedAt, 201);
 

@@ -8,7 +8,13 @@
  */
 "use strict";
 
+jest.mock("../../lib/mikrotik", () => ({
+    ...jest.requireActual("../../lib/mikrotik"),
+    cekHotspotUser: jest.fn()
+}));
+
 const { createPaymentFlowService } = require("../payment-flow.service");
+const { cekHotspotUser } = require("../../lib/mikrotik");
 const templateService = require("../../lib/template-service");
 
 const originalResponseTemplates = templateService.cache.responseTemplates;
@@ -230,6 +236,118 @@ describe("payment-flow.service", () => {
             global.config = prevCfg;
         }
         expect(pay).not.toHaveBeenCalled();
+    });
+
+    describe("buynow <harga> <username> [password] — custom creds (#b405)", () => {
+        const buildService = () => {
+            const createPaymentRequest = jest.fn().mockResolvedValue(undefined);
+            const pay = jest.fn().mockResolvedValue({ id: "TRX-C", subTotal: 5000, fee: 35, total: 5035, qrString: "QR-C" });
+            const service = createPaymentFlowService({
+                paymentRepository: {
+                    createPaymentRequest,
+                    getUserTopupRequests: jest.fn(),
+                    getPendingTransferTopupRequests: jest.fn(),
+                    saveTopupProofUpdate: jest.fn()
+                },
+                renderTemplate: jest.fn().mockReturnValue("QRIS info"),
+                sendMessage: jest.fn().mockResolvedValue(undefined),
+                pay
+            });
+            return { service, createPaymentRequest, pay };
+        };
+        const callBuynow = (service, q) => service.handleTopupSaldoPayment({
+            sender: "6284@s.whatsapp.net",
+            pushname: "Buyer",
+            command: "buynow",
+            q,
+            from: "6284@s.whatsapp.net",
+            msg: {},
+            checkprofvc: jest.fn().mockReturnValue("Paket-1Hari"),
+            checkhargavoucher: jest.fn().mockReturnValue(true),
+            checkhargavc: jest.fn().mockReturnValue(5000)
+        });
+
+        let prevCfg;
+        beforeEach(() => {
+            prevCfg = global.config;
+            global.config = { ...(prevCfg || {}), voucherCustomCreds: { enabled: true } };
+            global.payment = [];
+            cekHotspotUser.mockReset().mockResolvedValue({ ok: true, data: { exists: false } });
+        });
+        afterEach(() => {
+            global.config = prevCfg;
+            delete global.payment;
+        });
+
+        test("gate OFF → ditolak, gateway TIDAK dipanggil", async () => {
+            global.config = { ...(prevCfg || {}), voucherCustomCreds: { enabled: false } };
+            const { service, pay } = buildService();
+            await expect(callBuynow(service, "5000 adi")).rejects.toBeTruthy();
+            expect(pay).not.toHaveBeenCalled();
+        });
+
+        test("username tersedia → record simpan customUser + customPass=username (default)", async () => {
+            const { service, createPaymentRequest, pay } = buildService();
+            await callBuynow(service, "5000 ADI");
+            expect(pay).toHaveBeenCalledWith(expect.objectContaining({ amount: 5000 }));
+            expect(cekHotspotUser).toHaveBeenCalledWith("adi", expect.anything());
+            expect(createPaymentRequest).toHaveBeenCalledWith(
+                expect.any(String), "TRX-C", "6284@s.whatsapp.net", "buynow", 5000, "QRIS",
+                expect.any(String),
+                { prof: "Paket-1Hari", qty: 1, customUser: "adi", customPass: "adi" }
+            );
+        });
+
+        test("username+password → record simpan keduanya", async () => {
+            const { service, createPaymentRequest } = buildService();
+            await callBuynow(service, "5000 adi rahasia123");
+            expect(createPaymentRequest).toHaveBeenCalledWith(
+                expect.any(String), "TRX-C", "6284@s.whatsapp.net", "buynow", 5000, "QRIS",
+                expect.any(String),
+                { prof: "Paket-1Hari", qty: 1, customUser: "adi", customPass: "rahasia123" }
+            );
+        });
+
+        test("username format invalid → ditolak, MikroTik & gateway tak dipanggil", async () => {
+            const { service, pay } = buildService();
+            await expect(callBuynow(service, "5000 a!!b")).rejects.toBeTruthy();
+            expect(cekHotspotUser).not.toHaveBeenCalled();
+            expect(pay).not.toHaveBeenCalled();
+        });
+
+        test("password <3 char → ditolak", async () => {
+            const { service, pay } = buildService();
+            await expect(callBuynow(service, "5000 adi xy")).rejects.toBeTruthy();
+            expect(pay).not.toHaveBeenCalled();
+        });
+
+        test("username ADA di MikroTik → ditolak 'taken', gateway TIDAK dipanggil", async () => {
+            cekHotspotUser.mockResolvedValue({ ok: true, data: { exists: true } });
+            const { service, pay } = buildService();
+            await expect(callBuynow(service, "5000 adi")).rejects.toBeTruthy();
+            expect(pay).not.toHaveBeenCalled();
+        });
+
+        test("username ter-reservasi record pending → ditolak, MikroTik tak dipukul", async () => {
+            global.payment = [{ reffId: "r-p", status: false, customUser: "adi", createdAt: Date.now() }];
+            const { service, pay } = buildService();
+            await expect(callBuynow(service, "5000 adi")).rejects.toBeTruthy();
+            expect(cekHotspotUser).not.toHaveBeenCalled();
+            expect(pay).not.toHaveBeenCalled();
+        });
+
+        test("pre-check MikroTik gagal → ditolak (fail-closed)", async () => {
+            cekHotspotUser.mockResolvedValue({ ok: false });
+            const { service, pay } = buildService();
+            await expect(callBuynow(service, "5000 adi")).rejects.toBeTruthy();
+            expect(pay).not.toHaveBeenCalled();
+        });
+
+        test("argumen >3 (buynow 5000 3 extra) → usage error, gateway tak dipanggil", async () => {
+            const { service, pay } = buildService();
+            await expect(callBuynow(service, "5000 3 extra")).rejects.toBeTruthy();
+            expect(pay).not.toHaveBeenCalled();
+        });
     });
 
     test("handleTopupPaymentProof uses repository pending lookup and proof update", async () => {

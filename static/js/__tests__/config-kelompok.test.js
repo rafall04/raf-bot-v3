@@ -61,7 +61,7 @@ const HARUS_DI = {
     "pane-mikrotik": ["parentbinding", "sync_to_mikrotik", "defaultPPPoEPassword"],
     "pane-olt": ["rx_tolerance", "redamanAlertEnabled", "redamanAlertRoles"],
     "pane-teknisi": ["repairNotifEnabled", "repairNotifGroupId", "teknisiTutorialUrl"],
-    "pane-voucher": ["voucherGuideSteps", "voucherLoginUrl", "voucherMultiPurchaseEnabled", "voucherMultiPurchaseMaxQty"],
+    "pane-voucher": ["voucherGuideSteps", "voucherLoginUrl", "voucherMultiPurchaseEnabled", "voucherMultiPurchaseMaxQty", "voucherCustomCredsEnabled"],
     "pane-company": ["telfon", "adminPhone", "company_name", "company_phone"],
 };
 

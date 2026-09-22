@@ -28,9 +28,23 @@ const qr = require('qr-image');
 const pay = require('../lib/ipaymu');
 const { addPayment } = require('../lib/payment');
 const { checkhargavc, isprofvc } = require('../lib/voucher');
-const { voucherMultiBuyConfig, parseVoucherCodesFromKet } = require('../lib/voucher-fulfillment');
+const {
+    voucherMultiBuyConfig,
+    voucherCustomCredsConfig,
+    normalizeVoucherPassword,
+    assertVoucherUsernameAvailable,
+    parseVoucherCodesFromKet,
+} = require('../lib/voucher-fulfillment');
+const { cekHotspotUser } = require('../lib/mikrotik');
+const { withMikrotikKeyLock } = require('../lib/mikrotik/core');
 
 const router = express.Router();
+
+// Throttle ringan untuk /app/check-user (probe ketersediaan username) — batasi
+// per-IP supaya tak jadi oracle enumerasi gratis. In-memory cukup: single process.
+const CHECK_USER_WINDOW_MS = 5 * 60 * 1000;
+const CHECK_USER_MAX = 30;
+const checkUserThrottle = new Map();
 
 /**
  * Field voucher yang BOLEH dilihat publik anonim.
@@ -72,7 +86,7 @@ const PUBLIC_TRX_FIELDS = ['reffId', 'status', 'amount', 'method', 'qrStr', 'pri
  * topup/panel tetap tak terjangkau, dan (b) pembeli adalah pemegang reff acak 48-bit yang
  * memang berhak atas kodenya.
  */
-const PUBLIC_PAID_TRX_FIELDS = [...PUBLIC_TRX_FIELDS, 'ket', 'trxId'];
+const PUBLIC_PAID_TRX_FIELDS = [...PUBLIC_TRX_FIELDS, 'ket', 'trxId', 'customUser', 'customPass'];
 
 function toPublicTrx(rec, fields = PUBLIC_TRX_FIELDS) {
     if (!rec) return null;
@@ -97,12 +111,15 @@ router.get('/voucher', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'static', 'voucher-buy.html'));
 });
 
-router.get('/app/:type/:id?', async (req, res) => {
+async function handleAppRequest(req, res) {
     const { type, id } = req.params;
+    // POST body digabung ke query — jalur custom-creds mengirim password via body
+    // supaya tidak nempel di URL/access-log (GET tetap didukung untuk kompatibilitas).
+    const input = req.method === 'POST' ? { ...req.query, ...(req.body || {}) } : req.query;
     try {
         switch(type) {
             case "buy": {
-                const { phone, email, qty: qtyRaw } = req.query;
+                const { phone, email, qty: qtyRaw, cuser, cpass } = input;
                 if (!phone || !email) return res.status(400).json({ status: 400, message: "Nomor telepon dan email diperlukan!" });
                 // Prof harus terdaftar di katalog — tanpa guard ini checkhargavc mengembalikan
                 // undefined → parseInt → NaN → charge iPaymu NaN + record sampah.
@@ -125,20 +142,79 @@ router.get('/app/:type/:id?', async (req, res) => {
                         return res.status(400).json({ status: 400, message: "Pembelian lebih dari 1 voucher belum tersedia." });
                     }
                 }
-                const reff = Math.floor(Math.random() * 1677721631342).toString(16);
-                const hargaSatuan = parseInt(checkhargavc(id), 10);
-                if (!Number.isFinite(hargaSatuan) || hargaSatuan <= 0) {
-                    return res.status(400).json({ status: 400, message: "Harga paket voucher tidak valid." });
+                // Username/password kustom (gate voucherCustomCreds; hanya qty=1). Cek
+                // ketersediaan dilakukan di dalam lock per-username supaya dua checkout
+                // bersamaan tak lolos berbarengan; trap DUPLICATE MikroTik jadi garis
+                // terakhir saat fulfillment nanti.
+                const wantsCustom = cuser !== undefined && String(cuser).trim() !== '';
+                if (wantsCustom && !voucherCustomCredsConfig(global.config).enabled) {
+                    return res.status(400).json({ status: 400, message: "Voucher dengan username sendiri belum tersedia." });
                 }
-                const amount = hargaSatuan * qty;
-                let result = await pay({ amount, reffId: reff, comment: `pembelian voucher ${id}${qty > 1 ? ` x${qty}` : ''} sebesar Rp. ${amount} melalui web`, name: email?.split('@')?.[0] || "Anonymous", phone: parseInt(phone), email });
-                // `prof` (profil voucher yang DIPILIH pembeli) DISIMPAN di record. Callback fulfillment
-                // (routes/public.js) dulu memulihkan profil via checkprofvc(harga) — yang TERTUKAR bila
-                // dua profil berharga sama (mis. promo 3-hari & 1-hari sama-sama Rp5.000) → voucher durasi
-                // SALAH. Jalur buynowpanel sudah menyimpan prof; buynowweb ikut sekarang.
-                // `qty` ikut disimpan — callback menerbitkan sebanyak itu (record lama tanpa qty = 1).
-                addPayment(reff, result.id, phone, `buynowweb`, amount, 'QRIS', ``, { qrStr: result.qrString, priceTotal: result.total, fee: result.fee, subtotal: result.subTotal, prof: id, qty });
-                return res.status(200).json({ status: 200, message: 'Success', data: reff });
+                if (wantsCustom && qty > 1) {
+                    return res.status(400).json({ status: 400, message: "Username kustom hanya untuk pembelian 1 voucher." });
+                }
+                const createCharge = async () => {
+                    let custom = null;
+                    if (wantsCustom) {
+                        const chk = await assertVoucherUsernameAvailable({ payments: global.payment, cekHotspotUser, username: cuser });
+                        // 400 format salah, 409 nama bentrok (reserved/taken), 503 pre-check
+                        // MikroTik gagal — fail-closed tapi bisa dibedakan pelanggan.
+                        if (!chk.ok) {
+                            const code = chk.reason === 'invalid' ? 400 : (chk.reason === 'check_failed' ? 503 : 409);
+                            return res.status(code).json({ status: code, message: chk.message });
+                        }
+                        custom = { username: chk.username };
+                        const pass = normalizeVoucherPassword(cpass);
+                        if (String(cpass || '').trim() !== '' && !pass) {
+                            return res.status(400).json({ status: 400, message: "Password hanya boleh 3-64 karakter tanpa spasi." });
+                        }
+                        custom.password = pass || chk.username;
+                    }
+                    const reff = Math.floor(Math.random() * 1677721631342).toString(16);
+                    const hargaSatuan = parseInt(checkhargavc(id), 10);
+                    if (!Number.isFinite(hargaSatuan) || hargaSatuan <= 0) {
+                        return res.status(400).json({ status: 400, message: "Harga paket voucher tidak valid." });
+                    }
+                    const amount = hargaSatuan * qty;
+                    let result = await pay({ amount, reffId: reff, comment: `pembelian voucher ${id}${qty > 1 ? ` x${qty}` : ''} sebesar Rp. ${amount} melalui web`, name: email?.split('@')?.[0] || "Anonymous", phone: parseInt(phone), email });
+                    // `prof` (profil voucher yang DIPILIH pembeli) DISIMPAN di record. Callback fulfillment
+                    // (routes/public.js) dulu memulihkan profil via checkprofvc(harga) — yang TERTUKAR bila
+                    // dua profil berharga sama (mis. promo 3-hari & 1-hari sama-sama Rp5.000) → voucher durasi
+                    // SALAH. Jalur buynowpanel sudah menyimpan prof; buynowweb ikut sekarang.
+                    // `qty` ikut disimpan — callback menerbitkan sebanyak itu (record lama tanpa qty = 1).
+                    // `customUser`/`customPass` (kredensial pilihan) ikut tersimpan → record ini SEKALIGUS
+                    // reservasi username selama masa pending (lihat isVoucherUsernameReserved).
+                    addPayment(reff, result.id, phone, `buynowweb`, amount, 'QRIS', ``, { qrStr: result.qrString, priceTotal: result.total, fee: result.fee, subtotal: result.subTotal, prof: id, qty, ...(custom ? { customUser: custom.username, customPass: custom.password } : {}) });
+                    return res.status(200).json({ status: 200, message: 'Success', data: reff });
+                };
+                if (wantsCustom) {
+                    const key = `voucher-custom:${String(cuser).trim().toLowerCase()}`;
+                    return await withMikrotikKeyLock(key, createCharge);
+                }
+                return await createCharge();
+            }
+            case 'check-user': {
+                // Probe ketersediaan username kustom untuk UX form (belum membuat transaksi).
+                // Gate yang sama dengan buy; throttle ringan per-IP supaya tak jadi oracle
+                // enumerasi gratis. Jawaban tetap hanya sementara — validasi final di /app/buy.
+                if (!voucherCustomCredsConfig(global.config).enabled) {
+                    return res.status(404).json({ status: 404, message: "" });
+                }
+                const ip = req.ip || 'unknown';
+                const now = Date.now();
+                const rec = checkUserThrottle.get(ip) || { n: 0, t: now };
+                if (now - rec.t > CHECK_USER_WINDOW_MS) { rec.n = 0; rec.t = now; }
+                if (++rec.n > CHECK_USER_MAX) {
+                    checkUserThrottle.set(ip, rec);
+                    return res.status(429).json({ status: 429, message: "Terlalu sering. Coba lagi sebentar." });
+                }
+                checkUserThrottle.set(ip, rec);
+                const chk = await assertVoucherUsernameAvailable({ payments: global.payment, cekHotspotUser, username: input.name });
+                if (!chk.ok) {
+                    const code = chk.reason === 'invalid' ? 400 : (chk.reason === 'check_failed' ? 503 : 409);
+                    return res.status(code).json({ status: code, message: chk.message, data: { available: false, reason: chk.reason } });
+                }
+                return res.status(200).json({ status: 200, message: 'Success', data: { available: true, username: chk.username } });
             }
             case 'detailtrx': {
                 // Hanya transaksi buynowweb + field aman (bukan record mentah lintas-tag).
@@ -183,7 +259,7 @@ router.get('/app/:type/:id?', async (req, res) => {
                     // (portal mem-proxy respons ini mentah — backend area lama tanpa meta = OFF).
                     return res.json({
                         data: list.map(v => toPublicVoucher(v, feat !== '' && String(v && v.prof) === feat)),
-                        meta: { multiBuy: voucherMultiBuyConfig(global.config) }
+                        meta: { multiBuy: voucherMultiBuyConfig(global.config), customCreds: voucherCustomCredsConfig(global.config) }
                     });
                 }
                 const data = type == 'packages' ? global.packages : [];
@@ -195,6 +271,9 @@ router.get('/app/:type/:id?', async (req, res) => {
         log.info(err);
         return res.json({ status: 500, message: "Internal server error" });
     }
-});
+}
+
+router.get('/app/:type/:id?', handleAppRequest);
+router.post('/app/:type/:id?', handleAppRequest);
 
 module.exports = router;

@@ -236,7 +236,7 @@
   },
   "buynow_usage": {
     "name": "Format Beli Voucher Instan (buynow)",
-    "template": "🎟️ *Beli Voucher Instan (bayar QRIS)*\n\nFormat: *buynow [harga]* — 1 voucher\nBeli banyak sekaligus: *buynow [harga] [jumlah]*\nContoh: _*buynow 1000*_ atau _*buynow 1000 3*_\n\n💡 Lihat daftar harga: ketik *voucher*\n\nVoucher otomatis terkirim begitu pembayaran lunas — tidak perlu topup saldo dulu.",
+    "template": "🎟️ *Beli Voucher Instan (bayar QRIS)*\n\nFormat: *buynow [harga]* — 1 voucher\nBeli banyak sekaligus: *buynow [harga] [jumlah]*\nUsername sendiri: *buynow [harga] [username] [password]*\nContoh: _*buynow 1000*_ , _*buynow 1000 3*_ , _*buynow 1000 adi rahasia123*_\n\n💡 Lihat daftar harga: ketik *voucher*\n\nVoucher otomatis terkirim begitu pembayaran lunas — tidak perlu topup saldo dulu.",
     "category": "payment"
   },
   "buynow_qty_invalid": {
@@ -247,6 +247,31 @@
   "buynow_multi_disabled": {
     "name": "Multi-Beli Voucher Belum Aktif",
     "template": "🎟️ Pembelian lebih dari 1 voucher dalam sekali transaksi belum tersedia.\n\nKetik *buynow [harga]* untuk beli 1 voucher — bisa diulang untuk voucher berikutnya.",
+    "category": "payment"
+  },
+  "buynow_custom_disabled": {
+    "name": "Voucher Username Sendiri Belum Aktif",
+    "template": "🎟️ Voucher dengan username sendiri belum tersedia.\n\nKetik *buynow [harga]* untuk voucher dengan kode acak.",
+    "category": "payment"
+  },
+  "voucher_username_invalid": {
+    "name": "Username Voucher Tidak Valid",
+    "template": "❌ Username tidak valid.\n\nHanya huruf kecil/angka plus tanda - dan _ (3-16 karakter).\nContoh: _*buynow 1000 adi_* atau _*buynow 1000 adi rahasia123*_",
+    "category": "payment"
+  },
+  "voucher_password_invalid": {
+    "name": "Password Voucher Tidak Valid",
+    "template": "❌ Password tidak valid — 3-64 karakter tanpa spasi.\n\nContoh: _*buynow 1000 adi rahasia123*_",
+    "category": "payment"
+  },
+  "voucher_username_taken": {
+    "name": "Username Voucher Sudah Dipakai",
+    "template": "❌ Username *${username}* sudah dipakai.\n\nPilih username lain, lalu ulangi perintahnya ya.",
+    "category": "payment"
+  },
+  "voucher_username_check_failed": {
+    "name": "Cek Username Voucher Gagal",
+    "template": "🙏 Sistem sedang tidak bisa memeriksa ketersediaan username. Coba lagi beberapa saat ya.",
     "category": "payment"
   },
   "topup_usage": {

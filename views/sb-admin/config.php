@@ -362,6 +362,22 @@
             </div>
 <div class="card table-card mb-4">
               <div class="card-header">
+                <h6>Voucher Username Sendiri (Custom Credentials)</h6>
+              </div>
+              <div class="card-body cfg-grid">
+                <p class="text-muted">Pembeli bisa memilih <b>username &amp; password voucher sendiri</b> — berlaku di halaman publik <code>/voucher</code> (termasuk portal), command WA <code>buynow &lt;harga&gt; &lt;username&gt; [password]</code>, dan panel pelanggan. Hanya untuk pembelian <b>1 voucher</b> per transaksi; sistem menolak username yang sudah dipakai.</p>
+                <div class="mb-3">
+                  <label for="voucherCustomCredsEnabled">Aktifkan Username Sendiri</label>
+                  <select class="form-control" id="voucherCustomCredsEnabled" name="voucherCustomCredsEnabled">
+                      <option value="false">Nonaktif</option>
+                      <option value="true">Aktif</option>
+                  </select>
+                  <small class="form-text text-muted">Nonaktif = voucher selalu dibuat dengan kode acak (perilaku lama); field username disembunyikan dari semua jalur beli.</small>
+                </div>
+              </div>
+            </div>
+<div class="card table-card mb-4">
+              <div class="card-header">
                 <h6>Panduan Pakai Voucher (Halaman Beli Publik)</h6>
               </div>
               <div class="card-body">

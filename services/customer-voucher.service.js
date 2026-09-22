@@ -21,7 +21,11 @@
 const {
     parseVoucherCodesFromKet,
     normalizeVoucherQty,
-    voucherMultiBuyConfig
+    voucherMultiBuyConfig,
+    voucherCustomCredsConfig,
+    normalizeVoucherUsername,
+    normalizeVoucherPassword,
+    assertVoucherUsernameAvailable
 } = require('../lib/voucher-fulfillment');
 
 // Voucher hanya diterbitkan setelah callback iPaymu terverifikasi; transaksi yang belum dibayar
@@ -82,8 +86,22 @@ function createCustomerVoucherService({
     checkhargavc,
     getVoucherProfiles,
     getPayments,
+    // Custom creds (#b405): di-inject route; lazy-require supaya modul ini tetap ringan
+    // di-require test/orchestrator lain tanpa menarik seluruh adapter MikroTik.
+    cekHotspotUser,
+    withUsernameLock,
     logger = console
 } = {}) {
+    function resolveCekHotspotUser() {
+        return typeof cekHotspotUser === 'function'
+            ? cekHotspotUser
+            : require('../lib/mikrotik').cekHotspotUser;
+    }
+    function resolveUsernameLock() {
+        return typeof withUsernameLock === 'function'
+            ? withUsernameLock
+            : require('../lib/mikrotik/core').withMikrotikKeyLock;
+    }
     function config() {
         return (typeof getConfig === 'function' ? getConfig() : global.config) || {};
     }
@@ -124,7 +142,10 @@ function createCustomerVoucherService({
             notifyPhone: digits || null,
             // Gate yang sama dengan jalur publik/WA — panel hanya menampilkan stepper jumlah
             // bila operator mengaktifkannya di /config tab Voucher.
-            multiBuy: voucherMultiBuyConfig(config())
+            multiBuy: voucherMultiBuyConfig(config()),
+            // Username/password pilihan pelanggan (qty=1 saja) — panel menampilkan field
+            // kustom hanya bila operator mengaktifkannya.
+            customCreds: voucherCustomCredsConfig(config())
         };
     }
 
@@ -170,7 +191,27 @@ function createCustomerVoucherService({
         return Number.isInteger(n) && n >= 1 ? { ok: true, value: n } : { ok: false };
     }
 
-    async function createPurchase({ customer, prof, qty }) {
+    /**
+     * Probe ketersediaan username kustom (UX form; jawaban sementara — validasi final ada
+     * di createPurchase di dalam lock). Hanya untuk pelanggan terautentikasi.
+     */
+    async function checkUsername({ name }) {
+        if (!voucherCustomCredsConfig(config()).enabled) {
+            return { ok: false, status: 404, message: '' };
+        }
+        const chk = await assertVoucherUsernameAvailable({
+            payments: payments(),
+            cekHotspotUser: resolveCekHotspotUser(),
+            username: name
+        });
+        if (!chk.ok) {
+            const status = chk.reason === 'invalid' ? 400 : (chk.reason === 'check_failed' ? 503 : 409);
+            return { ok: false, status, message: chk.message, data: { available: false, reason: chk.reason } };
+        }
+        return { ok: true, status: 200, data: { available: true, username: chk.username } };
+    }
+
+    async function createPurchase({ customer, prof, qty, customUser, customPass }) {
         if (!isEnabled()) {
             return { ok: false, status: 503, message: 'Pembelian voucher belum tersedia saat ini.' };
         }
@@ -191,6 +232,28 @@ function createCustomerVoucherService({
         }
         if (qtyInt > multiBuy.maxQty) {
             return { ok: false, status: 400, message: `Jumlah voucher maksimal ${multiBuy.maxQty} per transaksi.` };
+        }
+
+        // Username/password kustom (#b405): gate voucherCustomCreds, hanya qty=1 — N voucher
+        // tak bisa berbagi satu username. Password kosong → sama dengan username.
+        const wantsCustom = customUser !== undefined && customUser !== null && String(customUser).trim() !== '';
+        let custom = null;
+        if (wantsCustom) {
+            if (!voucherCustomCredsConfig(config()).enabled) {
+                return { ok: false, status: 403, message: 'Voucher dengan username sendiri belum tersedia.' };
+            }
+            if (qtyInt !== 1) {
+                return { ok: false, status: 400, message: 'Username kustom hanya untuk pembelian 1 voucher.' };
+            }
+            const uname = normalizeVoucherUsername(customUser);
+            if (!uname) {
+                return { ok: false, status: 400, message: 'Username hanya boleh huruf kecil/angka plus - dan _ (3-16 karakter).' };
+            }
+            const pass = normalizeVoucherPassword(customPass);
+            if (String(customPass || '').trim() !== '' && !pass) {
+                return { ok: false, status: 400, message: 'Password hanya boleh 3-64 karakter tanpa spasi.' };
+            }
+            custom = { username: uname, password: pass || uname };
         }
 
         const unitPrice = parseInt(checkhargavc(profile.prof), 10) || 0;
@@ -223,53 +286,77 @@ function createCustomerVoucherService({
         const email = `${phoneDigits}@voucher.rafnet.local`;
         const reff = Math.floor(Math.random() * 1677721631342).toString(16);
 
-        let charge;
-        try {
-            charge = await pay({
-                amount,
-                reffId: reff,
-                comment: `pembelian voucher ${profile.prof}${qtyInt > 1 ? ` x${qtyInt}` : ''} sebesar Rp. ${amount} melalui panel pelanggan`,
-                name: customer?.name || phoneDigits,
-                phone: parseInt(phoneDigits, 10),
-                email
-            });
-        } catch (error) {
-            const message = typeof error === 'string' ? error : error?.message || 'Gagal membuat transaksi.';
-            logger.error('[CUSTOMER_VOUCHER_CHARGE_ERROR]', message);
-            return { ok: false, status: 502, message: 'Gagal membuat transaksi pembayaran. Coba lagi sebentar lagi.' };
-        }
-
-        // `prof` dan `customerId` disimpan EKSPLISIT di record. Cabang callback lama menurunkan
-        // profil dari harga (`checkprofvc(amount)`) — itu tertukar bila dua paket berharga sama.
-        // `customerId` juga yang dipakai untuk scoping riwayat & status, bukan nomor HP (nomor
-        // bisa berubah, id tidak).
-        addPayment(reff, charge.id, phoneDigits, 'buynowpanel', amount, 'QRIS', '', {
-            qrStr: charge.qrString,
-            priceTotal: charge.total,
-            fee: charge.fee,
-            subtotal: charge.subTotal,
-            prof: profile.prof,
-            qty: qtyInt,
-            customerId: String(customer.id),
-            expiredAt: charge.exp || null
-        });
-
-        return {
-            ok: true,
-            status: 201,
-            data: {
-                reff,
-                prof: profile.prof,
-                packageName: profile.namavc || profile.durasivc || profile.prof,
-                qty: qtyInt,
-                unitPrice,
-                amount,
-                total: charge.total ?? amount,
-                fee: charge.fee ?? 0,
-                qrString: charge.qrString,
-                expiredAt: charge.exp || null
+        // Charge + tulis record. Untuk custom creds dipanggil DI DALAM lock per-username
+        // (lihat bawah): record payment sekaligus RESERVASI nama — harus tertulis sebelum
+        // lock lepas supaya checkout bersamaan tak sama-sama lolos pre-check.
+        const chargeAndRecord = async () => {
+            let charge;
+            try {
+                charge = await pay({
+                    amount,
+                    reffId: reff,
+                    comment: `pembelian voucher ${profile.prof}${qtyInt > 1 ? ` x${qtyInt}` : ''} sebesar Rp. ${amount} melalui panel pelanggan`,
+                    name: customer?.name || phoneDigits,
+                    phone: parseInt(phoneDigits, 10),
+                    email
+                });
+            } catch (error) {
+                const message = typeof error === 'string' ? error : error?.message || 'Gagal membuat transaksi.';
+                logger.error('[CUSTOMER_VOUCHER_CHARGE_ERROR]', message);
+                return { ok: false, status: 502, message: 'Gagal membuat transaksi pembayaran. Coba lagi sebentar lagi.' };
             }
+
+            // `prof` dan `customerId` disimpan EKSPLISIT di record. Cabang callback lama menurunkan
+            // profil dari harga (`checkprofvc(amount)`) — itu tertukar bila dua paket berharga sama.
+            // `customerId` juga yang dipakai untuk scoping riwayat & status, bukan nomor HP (nomor
+            // bisa berubah, id tidak). `customUser`/`customPass` ikut tersimpan → reservasi username.
+            addPayment(reff, charge.id, phoneDigits, 'buynowpanel', amount, 'QRIS', '', {
+                qrStr: charge.qrString,
+                priceTotal: charge.total,
+                fee: charge.fee,
+                subtotal: charge.subTotal,
+                prof: profile.prof,
+                qty: qtyInt,
+                customerId: String(customer.id),
+                expiredAt: charge.exp || null,
+                ...(custom ? { customUser: custom.username, customPass: custom.password } : {})
+            });
+
+            return {
+                ok: true,
+                status: 201,
+                data: {
+                    reff,
+                    prof: profile.prof,
+                    packageName: profile.namavc || profile.durasivc || profile.prof,
+                    qty: qtyInt,
+                    unitPrice,
+                    amount,
+                    total: charge.total ?? amount,
+                    fee: charge.fee ?? 0,
+                    qrString: charge.qrString,
+                    expiredAt: charge.exp || null
+                }
+            };
         };
+
+        if (custom) {
+            // Lock mencakup cek ketersediaan + charge + tulis record — celah antara pre-check
+            // dan reservasi tak bisa disusupi checkout lain dengan username sama.
+            return await resolveUsernameLock()(`voucher-custom:${custom.username}`, async () => {
+                const chk = await assertVoucherUsernameAvailable({
+                    payments: payments(),
+                    cekHotspotUser: resolveCekHotspotUser(),
+                    username: custom.username
+                });
+                if (!chk.ok) {
+                    const status = chk.reason === 'check_failed' ? 503 : 409;
+                    return { ok: false, status, message: chk.message };
+                }
+                return chargeAndRecord();
+            });
+        }
+        return chargeAndRecord();
     }
 
     /** Cari record milik pelanggan ini saja. Fail-closed: id tidak cocok ⇒ dianggap tidak ada. */
@@ -323,6 +410,10 @@ function createCustomerVoucherService({
             // Terbit sebagian: lunas, ada kode, tapi kurang dari qty — panel menampilkan
             // peringatan agar pelanggan tahu sisanya diproses admin (orphan tercatat).
             partial: record.status === true && voucherCodes.length > 0 && voucherCodes.length < qty,
+            // Kredensial kustom (#b405): username tampil selalu; password hanya setelah lunas
+            // (pemilik record saja — scoping customerId di findOwnedPayment).
+            customUser: record.customUser || null,
+            customPass: record.status === true ? (record.customPass || null) : null,
             createdAt: record.createdAt ?? null,
             expiredAt: record.expiredAt ?? null
         };
@@ -362,6 +453,7 @@ function createCustomerVoucherService({
         estimateFee,
         listPackages,
         createPurchase,
+        checkUsername,
         getPurchaseStatus,
         listHistory,
         // diekspor untuk test

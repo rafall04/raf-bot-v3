@@ -24,10 +24,15 @@ const PROFILES = [
 const CUSTOMER = { id: 42, name: "Budi", phone_number: "081234567890" };
 const OTHER_CUSTOMER = { id: 99, name: "Siti", phone_number: "081299998888" };
 
-function build({ enabled = true, payImpl, payments = [], multiBuy } = {}) {
+function build({ enabled = true, payImpl, payments = [], multiBuy, customCreds, cekHotspotUser } = {}) {
     const added = [];
     const service = createCustomerVoucherService({
-        getConfig: () => ({ customerVoucher: { enabled }, voucherFeatured: "Paket-1Hari", voucherMultiPurchase: multiBuy }),
+        getConfig: () => ({
+            customerVoucher: { enabled },
+            voucherFeatured: "Paket-1Hari",
+            voucherMultiPurchase: multiBuy,
+            voucherCustomCreds: customCreds
+        }),
         pay: payImpl || (async () => ({
             id: "TRX-1",
             qrString: "00020101021226",
@@ -43,6 +48,9 @@ function build({ enabled = true, payImpl, payments = [], multiBuy } = {}) {
         checkhargavc: (prof) => (PROFILES.find((p) => p.prof === prof) || {}).hargavc,
         getVoucherProfiles: () => PROFILES,
         getPayments: () => payments,
+        // Custom creds (#b405): stub MikroTik + lock identitas (uji tanpa serialisasi).
+        cekHotspotUser: cekHotspotUser || (async () => ({ ok: true, data: { exists: false } })),
+        withUsernameLock: (key, fn) => fn(),
         logger: { error: () => {}, warn: () => {}, log: () => {} }
     });
     return { service, added, payments };
@@ -449,5 +457,138 @@ describe("customer-voucher service — multi-voucher (qty)", () => {
         expect(view.qty).toBe(1);
         expect(view.voucherCodes).toEqual(["LAMA123"]);
         expect(view.partial).toBe(false);
+    });
+});
+
+describe("customer-voucher service — custom creds (#b405)", () => {
+    test("status fitur memancarkan customCreds dari config", () => {
+        expect(build().service.getFeatureStatus({ customer: CUSTOMER }).customCreds)
+            .toEqual({ enabled: false });
+        expect(build({ customCreds: { enabled: true } }).service
+            .getFeatureStatus({ customer: CUSTOMER }).customCreds)
+            .toEqual({ enabled: true });
+    });
+
+    test("customUser saat gate OFF → 403, gateway TIDAK dipanggil", async () => {
+        let called = false;
+        const { service } = build({ payImpl: async () => { called = true; return {}; } });
+        const r = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-3Jam", customUser: "adi" });
+        expect(r.status).toBe(403);
+        expect(called).toBe(false);
+    });
+
+    test("customUser + qty>1 → 400 (kustom hanya 1 voucher)", async () => {
+        let called = false;
+        const { service } = build({
+            customCreds: { enabled: true },
+            multiBuy: { enabled: true, maxQty: 10 },
+            payImpl: async () => { called = true; return {}; }
+        });
+        const r = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-3Jam", qty: 2, customUser: "adi" });
+        expect(r.status).toBe(400);
+        expect(called).toBe(false);
+    });
+
+    test("username format invalid → 400, MikroTik tak dipukul", async () => {
+        let cekCalled = false;
+        const { service } = build({
+            customCreds: { enabled: true },
+            cekHotspotUser: async () => { cekCalled = true; return { ok: true, data: { exists: false } }; }
+        });
+        const r = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-3Jam", customUser: "!!bad" });
+        expect(r.status).toBe(400);
+        expect(cekCalled).toBe(false);
+    });
+
+    test("password invalid (spasi/pendek) → 400", async () => {
+        const { service } = build({ customCreds: { enabled: true } });
+        for (const customPass of ["a b", "xy"]) {
+            const r = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-3Jam", customUser: "adi", customPass });
+            expect(r.status).toBe(400);
+        }
+    });
+
+    test("username ADA di MikroTik → 409, gateway TIDAK dipanggil", async () => {
+        let called = false;
+        const { service } = build({
+            customCreds: { enabled: true },
+            cekHotspotUser: async () => ({ ok: true, data: { exists: true } }),
+            payImpl: async () => { called = true; return {}; }
+        });
+        const r = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-3Jam", customUser: "adi" });
+        expect(r.status).toBe(409);
+        expect(called).toBe(false);
+    });
+
+    test("username ter-reservasi pending milik pelanggan lain → 409, MikroTik tak dipukul", async () => {
+        let cekCalled = false;
+        const payments = [{ reffId: "r-x", tag: "buynowpanel", status: false, customUser: "adi", createdAt: Date.now() }];
+        const { service } = build({
+            customCreds: { enabled: true },
+            payments,
+            cekHotspotUser: async () => { cekCalled = true; return { ok: true, data: { exists: false } }; }
+        });
+        const r = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-3Jam", customUser: "ADI" });
+        expect(r.status).toBe(409);
+        expect(cekCalled).toBe(false);
+    });
+
+    test("pre-check MikroTik gagal → 503 fail-closed, gateway TIDAK dipanggil", async () => {
+        let called = false;
+        const { service } = build({
+            customCreds: { enabled: true },
+            cekHotspotUser: async () => ({ ok: false }),
+            payImpl: async () => { called = true; return {}; }
+        });
+        const r = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-3Jam", customUser: "adi" });
+        expect(r.status).toBe(503);
+        expect(called).toBe(false);
+    });
+
+    test("sukses: record simpan customUser/customPass; password kosong → = username", async () => {
+        const { service, added } = build({ customCreds: { enabled: true } });
+        const r = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-3Jam", customUser: "Adi_Keren" });
+        expect(r.ok).toBe(true);
+        expect(added[0].customUser).toBe("adi_keren");
+        expect(added[0].customPass).toBe("adi_keren");
+
+        const r2 = await service.createPurchase({ customer: CUSTOMER, prof: "Paket-1Hari", customUser: "budi", customPass: "rahasia123" });
+        expect(r2.ok).toBe(true);
+    });
+
+    test("checkUsername: gate OFF → 404; tersedia → 200; ada → 409; gagal → 503", async () => {
+        const off = build().service;
+        expect((await off.checkUsername({ name: "adi" })).status).toBe(404);
+
+        const on = build({ customCreds: { enabled: true } }).service;
+        const avail = await on.checkUsername({ name: "Adi" });
+        expect(avail.status).toBe(200);
+        expect(avail.data).toEqual({ available: true, username: "adi" });
+
+        const taken = build({
+            customCreds: { enabled: true },
+            cekHotspotUser: async () => ({ ok: true, data: { exists: true } })
+        }).service;
+        expect((await taken.checkUsername({ name: "adi" })).status).toBe(409);
+
+        const down = build({
+            customCreds: { enabled: true },
+            cekHotspotUser: async () => ({ ok: false })
+        }).service;
+        expect((await down.checkUsername({ name: "adi" })).status).toBe(503);
+    });
+
+    test("status view memproyeksikan customUser/customPass untuk pemilik", async () => {
+        const payments = [{
+            reffId: "c1", tag: "buynowpanel", customerId: "42", prof: "Paket-3Jam",
+            amount: 1000, qty: 1, status: true, ket: "adi",
+            customUser: "adi", customPass: "rahasia123", createdAt: 1
+        }];
+        const { service } = build({ payments });
+        const view = service.getPurchaseStatus({ customer: CUSTOMER, reff: "c1" }).data;
+        expect(view.customUser).toBe("adi");
+        expect(view.customPass).toBe("rahasia123");
+        // Pemilik lain → 404, kredensial tak bocor
+        expect(service.getPurchaseStatus({ customer: OTHER_CUSTOMER, reff: "c1" }).ok).toBe(false);
     });
 });
